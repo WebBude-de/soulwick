@@ -184,32 +184,33 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 - [x] Eine Wahl: heilen (+4 HP) **oder** ein stapelbares Upgrade um einen Stack stärken. *(14.10.2026: Dialog „Rast am Lagerfeuer“, je Spieler eine Wahl)*
 - [x] Exit-Portal am Lagerfeuer (Empfehlung D-103, Bestätigung offen); keine Raum-45-Wahl. *(14.10.2026: hinter `DungeonManager.CAMPFIRE_EXIT_PORTAL`, TESTWERT; aus = Portal wieder im Bossraum wie D-073; Bestätigung durch das Projektmitglied weiter offen)*
 
-### A7 – Kampf-Varianten I und Wagnis-Altar (KONZEPT_RAEUME §4, §5)
+### A7 – Kampf-Varianten I und Wagnis-Altar (KONZEPT_RAEUME §4, §5) ✓ *(14.10.2026, D-114; vom Integrator angeschlossen: Ziehung in `DungeonManager._prepare_slot`, `get_variant_id`/`has_wager_altar`/`track_enemy` und Abschluss-Sperre in `RoomController`, Gegnerziel Seelenflamme in `Enemy._update_target`, Smoke-Test spult Varianten vor)*
 
-- [ ] Gemeinsame Schnittstelle für Varianten (Start, Abschluss, Bonus erfüllt) – der `DungeonManager` behandelt sie wie Kampfräume.
-- [ ] Ziehung: ab Raum 6 **20 %** Varianten, nie zwei hintereinander (D-101).
-- [ ] **Seelenflamme beschützen**, **Beschwörungsrisse**, **Totengräber** (Krypta), **Kopfgeld**.
-- [ ] **Wagnis-Altar** auf 12 % der normalen Kampfräume ab Raum 6 (D-104): Prüfung oder Fluch, Annehmen mit E.
-- [ ] Bonus-Truhe bei Erfolg (Belohnung `OFFEN`, Vorschlag KONZEPT_RAEUME §9.4).
+- [x] Gemeinsame Schnittstelle für Varianten (Start, Abschluss, Bonus erfüllt) – der `DungeonManager` behandelt sie wie Kampfräume. *(14.10.2026: `dungeon/variants/` – `CombatVariant` als Kindknoten des Kampfraums: `start()` bei `encounter_started`, `finish()` bei `completed`, `set_bonus()` entscheidet „Bonus erfüllt“; Misserfolg kostet nie den Run. Einstieg für Manager/Raum: `RoomVariants`. Anschluss an `DungeonManager._prepare_slot`, `RoomController.check_completion`, `get_variant_id()`/`has_wager_altar()` und `enemy_base._update_target` (Ziel Seelenflamme) durch den Integrator offen)*
+- [x] Ziehung: ab Raum 6 **20 %** Varianten, nie zwei hintereinander (D-101). *(14.10.2026: `VariantTable` + `variant_table.tres`, drei Zufallswerte des Dungeon-RNG je Kampfraum (Plätze 1–3), Totengräber nur Krypta, Variantenraum = Raumart Normal; GUT test_variant_rules 18/18)*
+- [x] **Seelenflamme beschützen**, **Beschwörungsrisse**, **Totengräber** (Krypta), **Kopfgeld**. *(14.10.2026: Flamme mit eigener Leiste, 40 s Angriffswellen, 70 % der Gegner greifen sie an (Haken `EnemyDecoy`); Risse als Gegner mit Leiste, rufen alle 4 s, solange < 6 leben; Knochenhaufen 5 s, dann Aufstehen mit 50 % HP, Gold erst beim endgültigen Tod; Gekrönter flieht zum Fluchtloch, 12 s; alle Grafiken aus SPRITES_V5 §3 eingebunden; GUT test_variant_rooms 19/19, Smoke-Test 47 mit angehängten Varianten PASS)*
+- [x] **Wagnis-Altar** auf 12 % der normalen Kampfräume ab Raum 6 (D-104): Prüfung oder Fluch, Annehmen mit E. *(14.10.2026: `WagerAltar` neben dem Eingang, Annehmen nur bei offener Tür; kein Treffer / unter 30 s / nur Zweitwaffe, Flüche Lichtkreis −40 %, Gegner +15 %, keine Heilung im Raum; Erfolg 1–2 Seelenkristalle (D-109, TESTWERT); GUT test_wager_altar 10/10)*
+- [x] Bonus-Truhe bei Erfolg (D-109: Upgrade-Auswahl über den vorhandenen Dialog). *(14.10.2026: `TreasureChest` aus A3, eine Truhe für die Gruppe, Schalter `VariantRules.CHESTS_PER_PLAYER` für MP5)*
 
-### A4 – Abgrund und Brücken (KONZEPT_RAEUME §3.1, D-086)
+### A4 – Abgrund und Brücken (KONZEPT_RAEUME §3.1, D-086) ✓ *(14.10.2026, D-115; vom Integrator angeschlossen: Raumnummer an `RoomCatalog.pick`, Abgrund-Hinweis, Bröckelboden je ⅓ in der Prüfungsziehung, Todesursache „Abgrund“; offen: Ton `pit_fall.wav`)*
 
 **Dateien:** `project.godot` (Physik-Ebene), `components/physics_layers.gd`, `dungeon/rooms/room_tiles.gd`, `tools/build_tilesets.gd`, `player/player.gd`, `enemies/enemy_base.gd`, `economy/gold_pickup.gd`, `tools/generate_room_templates.py`, `enemies/enemy_hints.gd`. Grafiken liegen bereit (`abyss_tiles`, `bridge_tiles`, `abyss_mist_4f`, `player_fall_4f`).
 
-- [ ] **Physik-Ebene 7 `pit`** (`PhysicsLayers.PIT = 64`): Gegner haben `pit` in der Maske, Spieler und Geschosse nicht.
-- [ ] `RoomTiles.pit_rects` und `bridge_rects`; Navigation (A2) schließt Abgründe aus.
-- [ ] **Spieler:** im Dash in der Luft; über Abgrund und nicht im Dash → nach 0,1 s fallen; 0,5 s Animation, Eingaben gesperrt (`set_input_locked`), dann **2 HP = ein ganzes Herz** direkt, Rücksetzen an die letzte sichere Stelle (am Spieler gespeichert), 1 s unverwundbar.
-- [ ] **Gegner:** fallen nur bei starkem Rückstoß (> 250 px/s, TESTWERT); Champions, Golems, Bosse nie.
-- [ ] Gold, Kisten, Herzen landen nie im Abgrund.
-- [ ] Formen: Brückenhalle, Inseln, Steg, Ring um ein Loch; Zutat „kleine Abgrundlöcher“.
-- [ ] Ersthinweis: „Mit Space über Abgründe springen – Herunterfallen kostet ein Herz.“
-- [ ] Tests: Fallen nur ohne Dash, Rücksetzen, 2 HP am Schild vorbei, Gegner nur bei Rückstoß, Champions nie, Gold nie im Abgrund.
+- [x] **Physik-Ebene 7 `pit`** (`PhysicsLayers.PIT = 64`): Gegner haben `pit` in der Maske, Spieler und Geschosse nicht. *(14.10.2026: Physik-Ebene 1 der vier Dungeon-Tilesets auf Ebene 7, Abgrund-Teile je Biom (`abyss_tiles_<biom>.png`); `PitProbe` fragt jeden Punkt der Welt ab; GUT test_chasm_tiles 7/7)*
+- [x] `RoomTiles.pit_rects` und `bridge_rects`; Navigation (A2) schließt Abgründe aus. *(14.10.2026: dazu `add_pit_tiles`/`remove_pit_tiles` zur Laufzeit; Kanten, Ecken, 1-Tile-Lücken und Einzellöcher aus einem zur Laufzeit erzeugten Atlas (`AbyssAutotile`), Brücken mit gespiegelten Enden, Abgrund unter der Brücke, langsamer Nebel (`abyss_mist_4f`))*
+- [x] **Spieler:** im Dash in der Luft; über Abgrund und nicht im Dash → nach 0,1 s fallen; 0,5 s Animation, Eingaben gesperrt (`set_input_locked`), dann **2 HP = ein ganzes Herz** direkt, Rücksetzen an die letzte sichere Stelle (am Spieler gespeichert), 1 s unverwundbar. *(14.10.2026: `PlayerFall` am Spieler, `player_fall_4f`, 8 px Kantentoleranz, sichere Stelle mit 20 px Abstand zum Rand (TESTWERTE); Räume können Landung und Schaden ändern (Prüfung); GUT test_fall_player 8/8)*
+- [x] **Gegner:** fallen nur bei starkem Rückstoß (> 250 px/s, TESTWERT); Champions, Golems, Bosse nie. *(14.10.2026: nur wenn der Abgrund auf dem Rückstoßweg liegt; Sturz = Kill (EventBus, Raumzählung), Gold am Rand, keine Teilungs-Schleime; GUT test_fall_enemy 5/5)*
+- [x] Gold, Kisten, Herzen landen nie im Abgrund. *(14.10.2026: Pickups rutschen auf den nächsten festen Boden und stoppen am Rand; Kisten, Fässer, Fallen nie auf Abgrund oder Brücke (Generator und Streuer); smoke_test prüft liegende Pickups)*
+- [x] Formen: Brückenhalle, Inseln, Steg, Ring um ein Loch; Zutat „kleine Abgrundlöcher“. *(14.10.2026: 12 Vorlagen (je S/M/L), ab Raum 6 (`RoomTemplate.min_room`); jeder Boden zu Fuß erreichbar (Gegner), mindestens eine Dash-Abkürzung über 1 Tile, Türbereiche frei; Zutat 1–2 Löcher ab Raum 6 in allen Biomen außer Katakombe und Abgrundraum; GUT test_chasm_templates 5/5)*
+- [x] Ersthinweis: „Mit Space über Abgründe springen – Herunterfallen kostet ein Herz.“ *(14.10.2026: Erklärkarte des Genres `ROOM_CHASM_INTRO` (UX2) ergänzt; für Löcher in normalen Räumen `HINT_CHASM_TITLE`/`HINT_CHASM_TEXT` über `ChasmRules.get_hint_entry`, Anschluss in `DungeonUI` durch den Integrator)*
+- [x] Tests: Fallen nur ohne Dash, Rücksetzen, 2 HP am Schild vorbei, Gegner nur bei Rückstoß, Champions nie, Gold nie im Abgrund. *(14.10.2026: test_chasm_rules 9/9, test_chasm_tiles 7/7, test_chasm_templates 5/5, test_fall_player 8/8, test_fall_enemy 5/5, test_chasm_crumble 4/4; GUT gesamt 732/732, smoke_test 47 PASS, combat_sim und boss_sim PASS)*
+- [x] **Einstieg:** Raum 1 nie Katakombe (Hinweis UX2). *(14.10.2026: `RoomTemplate.min_room` (Katakombe 2, Abgrund 6), `RoomCatalog.pick(..., room_index)`; wirkt, sobald `DungeonManager` die Raumnummer übergibt (Haken))*
 
 ### A8 – Neue Spezialräume (KONZEPT_RAEUME §2, §6.1, §6.2)
 
 - [x] **Gewichtete Spezialraum-Ziehung** (D-102): Shop 35, Waffen 20, Brunnen 15, Extra-Upgrade 15, Prüfung 15; Gewichte als `.tres`. *(14.10.2026: `SpecialTable` + `special_table.tres`, kein Typ zweimal hintereinander, ein Zufallswert je Ziehung; GUT test_special_table 11/11. Anschluss an `DungeonManager._prepare_slot` und Enum `TRIAL` durch den Integrator offen)*
 - [x] **Prüfungsräume:** Spießrutenlauf zuerst, dann Bröckelboden (braucht A4), dann Lichtlauf. Direkter Weg zum Ausgang immer frei, Truhe am Ende sichtbar, makellos = +1 Kristall. *(14.10.2026: eigene Vorlage `trial_room.tscn` mit Innenmauern, Spießrutenlauf (Stacheln, Flammenstöße, Pendelklingen) und Lichtlauf; Truhe = Upgrade-Wahl, makellos = +1 Seelenkristall je Spieler (D-109), Fehler ½ Herz, nie tödlich; GUT test_trial_room 13/13, test_trial_run 12/12)*
-  - [ ] Bröckelboden: Schnittstelle `CrumbleCourse` steht, Bau nach A4 (Abgrund-API, Fallen).
+  - [x] Bröckelboden: Schnittstelle `CrumbleCourse` steht, Bau nach A4 (Abgrund-API, Fallen). *(14.10.2026, mit A4: eine offene 1-Tile-Lücke je Bahn, Bröckelplatten (`crumbling_floor_6f`) brechen 0,6 s nach dem Betreten und wachsen nach 5 s nach, feste Platten zum Wählen; Sturz = Fehler, Landung auf der letzten festen Kachel, Schaden gedeckelt (nie tödlich); GUT test_chasm_crumble 4/4. In der Ziehung, sobald `crumble_weight` in `special_table.tres` > 0 (Haken, Vorschlag 1,0 = je ⅓))*
 - [x] **Pakt-Altar** in ⅓ der Extra-Upgrade-Räume; Flüche in der Tab-Übersicht. *(14.10.2026: Wahl Extra-Upgrade oder Pakt (+2 Stufen) gegen einen Fluch je Spieler (`PlayerCurses`); Max-Herz und Brunnen wirken, Gegnertempo und Lichtkreis als Haken für den Integrator; GUT test_pact 15/15)*
 
 ### A9 – Licht-Varianten (KONZEPT_RAEUME §4.3, §4.4, §4.7)

@@ -9,11 +9,11 @@ Soulwick ist ein 2D-Top-down-Dungeon-Roguelite mit direkter, mausgesteuerter Act
 
 - **Name:** Soulwick (Docht + Seele: der Lichtkreis als letztes Licht im Dunkel, Seelenkristalle als Währung), D-094.
 - **Tagline** (Untertitel im Hauptmenü): „Das letzte Licht im endlosen Dunkel“ (D-094). Englische Fassung: „The last light in the endless dark“ (aus dem Website-Handoff des Projektmitglieds, `copy.en.json`, 14.10.2026; im Spiel über UX3/D-111 übernehmen).
-- **Herkunft:** Uni-Teamprojekt; Marken- und Domainprüfung vor dem Steam-Start (MP10). Website: playsoulwick.com (D-111).
+- **Herkunft:** Idee eines Kollegen des Projektmitglieds; kein Hochschulprojekt (Klarstellung Projektmitglied 14.10.2026). Nach außen erscheint nur „Made with ♥ by WebBude“ im Footer der Website. Marken- und Domainprüfung vor dem Steam-Start (MP10). Website: playsoulwick.com (D-111).
 
 ## 2. Für wen
 
-- **Zielgruppe:** nicht ausformuliert (OFFEN). Festgehalten ist: internationales Publikum (Englisch als Standardsprache, D-111), Pixel-Art-Gewalt ohne Blut (Altersfreigabe geschätzt USK/PEGI 12, mit dem Fragebogen zu prüfen, ROADMAP_CROSSPLAY CP0 Frage 6), Freunde-Koop und Gilden als sozialer Kern.
+- **Zielgruppe** (Projektmitglied 14.10.2026): Spieler, die kurze, knackige Runs mögen, allein oder mit Freunden, auf PC und Handy; internationales Publikum (Englisch als Standardsprache, D-111). Pixel-Kampf ohne Blut, deshalb voraussichtlich **ab 6** (USK/PEGI über den IARC-Fragebogen zu bestätigen, ROADMAP_CROSSPLAY CP0 Frage 6). Freunde-Koop und Gilden sind der soziale Kern.
 - **Spielgefühl** (Designziele, PRD §2): direkte Steuerung, die sich präzise anfühlt; bedeutsame Run-Entscheidungen; nachvollziehbare Regeln; dunkel und warm: lila-schwarzer Grund, alles Wichtige leuchtt in Gold ([HANDOUT.md](HANDOUT.md)). Ton nach außen: ehrlich, nichts Geplantes als fertig ausgeben.
 
 ## 3. Die fünf Säulen
@@ -55,7 +55,7 @@ Datenschutz: gespeichert werden nur Plattform-Identitäten (Nutzer-ID des Provid
 
 ## 7. Geschäftsmodell (OFFEN)
 
-Nicht entschieden (D-108, CP0 Frage 1). Optionen: (a) mobil kostenlos und PC bezahlt (wie Among Us), (b) überall kostenlos mit Kosmetik später, (c) überall bezahlt. Entscheidet das Projektmitglied mit dem Team (Rechte am Uni-Projekt, MP10). Ebenfalls OFFEN (PRD §7.6): Zeitpunkt, wer das Steamworks-Konto führt, Lizenzen für den Verkauf, Preis. Bis dahin gilt: keine Preise, keine Termine, keine Käufe; Tabellen für Käufe erst mit CP6.
+Nicht entschieden (D-108, CP0 Frage 1). Optionen: (a) mobil kostenlos und PC bezahlt (wie Among Us), (b) überall kostenlos mit Kosmetik später, (c) überall bezahlt. Entscheidet das Projektmitglied mit dem Team (Rechte am Spiel im Team klären, MP10). Ebenfalls OFFEN (PRD §7.6): Zeitpunkt, wer das Steamworks-Konto führt, Lizenzen für den Verkauf, Preis. Bis dahin gilt: keine Preise, keine Termine, keine Käufe; Tabellen für Käufe erst mit CP6.
 
 ## 8. Status (14.10.2026)
 
@@ -76,7 +76,7 @@ Nicht entschieden (D-108, CP0 Frage 1). Optionen: (a) mobil kostenlos und PC bez
 
 ## 9. Zwei Repositories und ihre Doku
 
-Warum zwei Repos: kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, das Uni-Repo bleibt schlank (D-093). Schnittstelle ist die HTTPS-API; Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`, der GDScript-Client im Spiel folgt ihnen.
+Warum zwei Repos: kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, das Spiel-Repo bleibt schlank (D-093). Schnittstelle ist die HTTPS-API; Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`, der GDScript-Client im Spiel folgt ihnen.
 
 | `soulwick/` (Spiel) | Wofür |
 | --- | --- |

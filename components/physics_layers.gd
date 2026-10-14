@@ -9,3 +9,5 @@ const ENEMIES := 4
 const PLAYER_HURTBOX := 8
 const ENEMY_HURTBOX := 16
 const INTERACTION := 32
+## Abyss tiles (A4, D-086): enemies collide with it like with a wall, players and projectiles not.
+const PIT := 64

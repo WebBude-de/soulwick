@@ -2,6 +2,7 @@ class_name Player
 extends CharacterBody2D
 ## Player body: WASD movement, 360° mouse aim, dash, hit I-frames and E interaction (PRD 4.3).
 ## HP/shield/weapons live in child components. Node origin = body centre; feet are below it.
+## Abysses (A4): the dash is in the air; falling and the last safe spot live in the PlayerFall child.
 
 signal died
 signal blinded(duration: float)
@@ -56,6 +57,8 @@ var _focused_interactable: Interactable = null
 var _stun_left := 0.0
 var _input_locks: Dictionary[StringName, bool] = {}
 var _stun_stars: Node2D = null
+## Falling into an abyss and the last safe spot of this player (A4, D-086, D-088).
+var fall: PlayerFall = null
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var shield: ShieldComponent = $ShieldComponent
@@ -90,10 +93,15 @@ func _ready() -> void:
 	_prompt_label.visible = false
 	UiKit.apply_prompt_style(_prompt_label)
 	_on_weapon_changed()
+	fall = PlayerFall.new()
+	fall.name = "Fall"
+	add_child(fall)
+	fall.setup(self)
 
 
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
+	fall.update(delta)
 
 	_aim = get_aim_direction()
 	weapon_controller.aim_direction = _aim
@@ -165,6 +173,33 @@ func set_input_locked(reason: StringName, locked: bool) -> void:
 
 func is_input_locked() -> bool:
 	return not _input_locks.is_empty()
+
+
+## Falling into an abyss right now (input locked, invisible body, A4).
+func is_falling() -> bool:
+	return fall != null and fall.is_falling()
+
+
+## Feet position the next fall returns to (per player, D-088).
+func get_last_safe_position() -> Vector2:
+	return fall.get_safe_feet_position() if fall != null else get_feet_position()
+
+
+## Hit I-frames without a hit (landing after a fall): blinking, no damage for duration seconds.
+func grant_invulnerability(duration: float) -> void:
+	if duration <= 0.0 or health.is_dead():
+		return
+	_hit_invulnerability_left = maxf(_hit_invulnerability_left, duration)
+	hurtbox.set_invulnerable(INVULNERABLE_HIT, true)
+
+
+## Shows or hides body, held weapon and shadow (the fall animation draws its own sprite).
+func set_body_visible(body_visible: bool) -> void:
+	_sprite.visible = body_visible
+	_weapon_pivot.visible = body_visible and not health.is_dead()
+	var shadow := get_node_or_null("DropShadow") as CanvasItem
+	if shadow != null:
+		shadow.visible = body_visible
 
 
 ## No movement, attacks, dash or interaction while stunned (D-066).

@@ -38,12 +38,12 @@ Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von 
 
 | # | Frage | Optionen | Empfehlung (Vorschlag) | Wer entscheidet | Status |
 | --- | --- | --- | --- | --- | --- |
-| 1 | **Geschäftsmodell** | (a) mobil kostenlos, PC bezahlt (wie Among Us) · (b) überall kostenlos, Kosmetik später · (c) überall bezahlt | Keine ohne Zahlen. (a) ist am einfachsten (keine Käufe im Spiel), wirft aber die Fairness-Frage Käufer/Gratis-Spieler auf; (b) braucht Kosmetik-Content und Kaufabwicklung (CP6) | Projektmitglied mit dem Team (Rechte am Uni-Projekt, MP10) | **OFFEN** |
+| 1 | **Geschäftsmodell** | (a) mobil kostenlos, PC bezahlt (wie Among Us) · (b) überall kostenlos, Kosmetik später · (c) überall bezahlt | Keine ohne Zahlen. (a) ist am einfachsten (keine Käufe im Spiel), wirft aber die Fairness-Frage Käufer/Gratis-Spieler auf; (b) braucht Kosmetik-Content und Kaufabwicklung (CP6) | Projektmitglied mit dem Team (Rechte am Spiel, MP10) | **OFFEN** |
 | 2 | **Konto-Modell** | (a) eigenes Soulwick-Konto, Plattform-Identitäten verknüpft · (b) nur Plattform-Konten, keine Verknüpfung (kein Cross-Progression) · (c) E-Mail/Passwort-Konto | (a): ohne E-Mail, ohne Passwort; Identitäten reichen, Verknüpfung per Code | Projektmitglied | **OFFEN** |
 | 3 | **Lobby/Relay** | (a) eigener Lobby-/Relay-Server `soulwick-relay` mit Raumcodes · (b) Steam-Relay für PC plus eigener Relay nur für Mobil · (c) nur Steam (kein Crossplay) | (a): ein Weg für alle, Steam bleibt Zusatz für Einladungen; ändert D-083 | Projektmitglied (Betrieb, Kosten) mit dem Team | **OFFEN** |
 | 4 | **Plattform-Reihenfolge** | (a) Steam zuerst, Mobil später · (b) alle gleichzeitig | (a): MP10 ist ohnehin zuerst; Mobil erst nach dem CP2-Prototyp | Projektmitglied | **OFFEN** |
 | 5 | **Touch-Steuerung** für ein maus-gezieltes Spiel | (a) virtueller Stick + Auto-Aim/Zielhilfe + Angriffsknopf · (b) zwei Sticks (Bewegen, Zielen) · (c) kein Mobil, nur Controller/PC | Prototyp in CP2 entscheidet; (a) als Startpunkt, Zielhilfe nur auf Mobil als TESTWERT | Projektmitglied nach dem Prototyp | **OFFEN** |
-| 6 | **Altersfreigabe** | IARC-Fragebogen (Google Play, App Store → USK/PEGI), Steam-Fragebogen | Pixel-Gewalt ohne Blut: vermutlich USK 12 / PEGI 12 (Schätzung, mit dem Fragebogen prüfen) | Team | **OFFEN** |
+| 6 | **Altersfreigabe** | IARC-Fragebogen (Google Play, App Store → USK/PEGI), Steam-Fragebogen | Pixel-Kampf ohne Blut: voraussichtlich ab 6 (USK 6 / PEGI 7, Schätzung, mit dem Fragebogen prüfen) | Team | **OFFEN** |
 | 7 | **Ranglisten** (D-082) je Plattform oder gemeinsam | (a) gemeinsam mit Plattform-Kennzeichen am Eintrag · (b) je Plattform getrennt | (a), passt zum Crossplay-Gedanken; Zielhilfe auf Mobil muss dann sichtbar sein | Team | **OFFEN** |
 | 8 | **Sign in with Apple** | nur Pflicht, wenn die iOS-App einen anderen Social-Login (z. B. Google) anbietet (App-Store-Regel 4.8) | Nur Game Center und Play Games als Plattform-Login, keinen Social-Login → kein Sign in with Apple nötig; mit dem Fragebogen in CP4 prüfen | Team (CP4) | **OFFEN** |
 
@@ -109,7 +109,7 @@ Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von 
 
 **Ziel:** Soulwick in allen drei Stores als Testversion, später als Release. Steam ist in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP10 beschrieben; hier kommen Google Play und App Store dazu und die gemeinsamen Pflichten.
 
-**Wer:** Konten, Gebühren und Rechte: Projektmitglied mit dem Team (MP10: Rechte am Uni-Projekt, Lizenzen für den Verkauf). **Dateien:** `export_presets.cfg`, `art/store/` (neu, Briefing in einer späteren `SPRITES_V*.md`: Play-Icon 512×512, Feature-Grafik 1024×500, App-Store-Icon 1024×1024, Screenshots je Gerätegröße), Plattform `apps/web` (echte Store-Badges statt der Pixel-Chips, nur `web-dev`), eRecht24-Projekt (Datenschutzerklärung).
+**Wer:** Konten, Gebühren und Rechte: Projektmitglied mit dem Team (MP10: Rechte am Spiel, Lizenzen für den Verkauf). **Dateien:** `export_presets.cfg`, `art/store/` (neu, Briefing in einer späteren `SPRITES_V*.md`: Play-Icon 512×512, Feature-Grafik 1024×500, App-Store-Icon 1024×1024, Screenshots je Gerätegröße), Plattform `apps/web` (echte Store-Badges statt der Pixel-Chips, nur `web-dev`), eRecht24-Projekt (Datenschutzerklärung).
 
 - [ ] **Steamworks:** siehe MP10 (Konto, Steam Direct, AppID, SteamPipe, Playtest, Store-Seite).
 - [ ] **Google Play Console:** Entwicklerkonto (einmalige Gebühr), App-Signatur, Testspuren intern → geschlossen → offen → Produktion; Formular „Datensicherheit“, IARC-Fragebogen, Ziel-API-Level, Anforderungen für neue persönliche Konten (Testerzahl und -dauer vor dem Release prüfen).
@@ -165,7 +165,7 @@ Zusätzlich zu den fünf Fragen aus [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) („K
 - **Leistung auf Handys:** Sicht-Shader, Nachbearbeitung und ×2,8 Gegner bei vier Spielern (D-084) auf schwachen Geräten.
 - **Eigener Relay = Betrieb:** Kosten, Datenvolumen, Latenz (EU-Server für Spieler in Übersee), Angriffsfläche; ändert D-083.
 - **Store-Prüfungen:** Konto löschen in-App, Datenschutz-Labels, Altersfreigabe, Testpflichten für neue Google-Play-Konten; Ablehnungen verschieben Releases.
-- **Rechte und Lizenzen** (MP10) gelten für alle Stores; Uni-Teamprojekt klären, bevor Geld fließt.
+- **Rechte und Lizenzen** (MP10) gelten für alle Stores; Rechte im Team klären, bevor Geld fließt.
 - **Zwei Spielstand-Wahrheiten** (Steam Cloud und Soulwick-Cloud) führen zu Konflikten; nur eine wählen (CP5).
 - **Offenes Geschäftsmodell** blockiert Store-Einträge (Preis) und CP6; Entscheidung früh treffen, auch wenn „später“.
 - **Betrug:** Der Host rechnet (D-082 nimmt fälschbare Ranglisten in Kauf); Crossplay vergrößert den Kreis. Plausibilitätsprüfung und Markieren bleiben der Weg.

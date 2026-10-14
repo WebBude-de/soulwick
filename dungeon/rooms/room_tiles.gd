@@ -18,6 +18,12 @@ extends TileMapLayer
 ## just take tiles out of the floor: cut-out corners of a shape look like the rock around the room,
 ## a pillar is a crown on its tile plus the front on the tile below. wall_rects therefore hold crown
 ## and front; every wall above floor is at least two tiles tall (WallAutotile.is_valid_mass).
+## Abysses (A4, D-086): pit_rects cut holes into the floor, bridge_rects lay walkable bridges over
+## them; add_pit_tiles() adds holes at runtime (ingredient holes, crumbling floor). A pit stays floor
+## in the floor mask (walls get their edge towards it), is drawn with the biome's abyss pieces
+## (AbyssAutotile), carries no navigation and is solid on the pit physics layer only: enemies are
+## blocked, the player falls (PlayerFall), projectiles fly over it. A bridge cell shows the bridge
+## art on this layer and the abyss below it on a child layer ("AbyssUnder").
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -52,10 +58,31 @@ const BLEND_NAME := "BiomeBlend"
 const BLEND_BACKDROP_NAME := "BiomeBlendBackdrop"
 ## Widest abyss gap (tiles) a dash crosses: dash reach 90 px vs. 64 px tiles (D-086).
 const MAX_DASH_GAP := 1
+## Atlas sources of the abyss (tools/build_tilesets.gd): delivered pieces, bridges, combined pieces.
+const SOURCE_ABYSS := 2
+const SOURCE_BRIDGE := 3
+const SOURCE_ABYSS_PIECES := AbyssAutotile.SOURCE_ID
+## Bridge art (bridge_tiles.png): plank runs and the west / north end; east and south are flipped.
+const BRIDGE_H := Vector2i(0, 0)
+const BRIDGE_V := Vector2i(1, 0)
+const BRIDGE_END_W := Vector2i(2, 0)
+const BRIDGE_END_N := Vector2i(3, 0)
+const ABYSS_UNDER_NAME := "AbyssUnder"
+## Rising mist over the deep parts of an abyss (abyss_mist_4f, SPRITES_V3): one per this many
+## enclosed pit tiles, at most MIST_MAX per room. Optics only. TESTWERTE
+const MIST_TEXTURE: Texture2D = preload("res://art/environment/props/abyss_mist_4f.png")
+const MIST_EVERY := 5
+const MIST_MAX := 8
+const MIST_FPS := 3.0
+const MIST_ALPHA := 0.55
+
+## Emitted after pits were added or removed at runtime (crumbling floor, holes): the changed tiles.
+signal pits_changed(tiles: Array[Vector2i])
 
 @export var room_size := Vector2i(15, 9):
 	set(value):
 		room_size = value
+		_pits_dirty = true
 		_queue_paint()
 @export var entrance_x := 7:
 	set(value):
@@ -69,16 +96,30 @@ const MAX_DASH_GAP := 1
 @export var pillar_tiles: Array[Vector2i] = []:
 	set(value):
 		pillar_tiles = value
+		_pits_dirty = true
 		_queue_paint()
 ## Inner walls in floor tiles (position = top-left tile, size in tiles), crown and front included.
 ## Overlaps are fine.
 @export var wall_rects: Array[Rect2i] = []:
 	set(value):
 		wall_rects = value
+		_pits_dirty = true
 		_queue_paint()
 @export var floor_seed := 1:
 	set(value):
 		floor_seed = value
+		_queue_paint()
+## Abyss areas in floor tiles (position = top-left tile, size in tiles); overlaps are fine. Walls win.
+@export var pit_rects: Array[Rect2i] = []:
+	set(value):
+		pit_rects = value
+		_pits_dirty = true
+		_queue_paint()
+## Bridges over the abyss in floor tiles; only their tiles inside a pit count (walkable).
+@export var bridge_rects: Array[Rect2i] = []:
+	set(value):
+		bridge_rects = value
+		_pits_dirty = true
 		_queue_paint()
 
 var _paint_queued := false
@@ -95,6 +136,17 @@ var _blend_rows := Vector2.ZERO
 ## Floor tiles under solid props (crates, barrels, rubble): no navigation polygon, so enemies path
 ## around them instead of pushing against them. Collision stays with the prop.
 var _navigation_blocked: Dictionary[Vector2i, bool] = {}
+## Pits added at runtime (true) on top of pit_rects.
+var _runtime_pits: Dictionary[Vector2i, bool] = {}
+## Cached pit and bridge tiles (rebuilt when the rects or the runtime pits change).
+var _pit_set: Dictionary[Vector2i, bool] = {}
+var _bridge_set: Dictionary[Vector2i, bool] = {}
+var _pits_dirty := true
+## Floor piece painted on each floor tile (also under pits), so a pit that closes again shows the
+## same floor and runtime pits never shift the floor pattern.
+var _floor_cells: Dictionary[Vector2i, Vector2i] = {}
+var _abyss_under: TileMapLayer = null
+var _mist: Node2D = null
 
 
 func _ready() -> void:
@@ -204,10 +256,125 @@ func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
 
 
 ## Abyss tiles: not walkable, crossable by a dash when at most MAX_DASH_GAP wide (D-086).
-## Empty until A4 adds pit_rects / bridge_rects.
+## pit_rects and runtime pits inside the floor, without bridges and walls; sorted (y, then x).
 func get_pit_tiles() -> Array[Vector2i]:
+	_update_pit_sets()
 	var pits: Array[Vector2i] = []
+	pits.assign(_pit_set.keys())
+	pits.sort_custom(_tile_order)
 	return pits
+
+
+## Bridge tiles: inside a pit rect, walkable (navigation), no pit collision.
+func get_bridge_tiles() -> Array[Vector2i]:
+	_update_pit_sets()
+	var bridges: Array[Vector2i] = []
+	bridges.assign(_bridge_set.keys())
+	bridges.sort_custom(_tile_order)
+	return bridges
+
+
+func is_pit(tile: Vector2i) -> bool:
+	_update_pit_sets()
+	return _pit_set.has(tile)
+
+
+func is_bridge(tile: Vector2i) -> bool:
+	_update_pit_sets()
+	return _bridge_set.has(tile)
+
+
+func has_pits() -> bool:
+	_update_pit_sets()
+	return not _pit_set.is_empty()
+
+
+## Is the room-local point (pixels of the room, like RoomTiles.tile_center) over a pit tile?
+## Logical answer from the layout; the physics answer for any world point is PitProbe.
+func is_pit_at_local(local: Vector2) -> bool:
+	return is_pit(local_to_tile(local))
+
+
+## Turns floor tiles into pits at runtime (holes, crumbling floor) and repaints them and their
+## neighbours right away, so collision and navigation follow. Walls, bridges and tiles outside the
+## floor are skipped.
+func add_pit_tiles(tiles: Array[Vector2i]) -> void:
+	var changed: Array[Vector2i] = []
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	var mass := get_wall_mass()
+	for tile in tiles:
+		if floor_rect.has_point(tile) and not mass.has(tile) and not is_pit(tile) and not is_bridge(tile):
+			_runtime_pits[tile] = true
+			_pits_dirty = true
+			changed.append(tile)
+	_apply_pit_change(changed)
+
+
+## Closes runtime pits again (crumbling floor that grows back). pit_rects stay.
+func remove_pit_tiles(tiles: Array[Vector2i]) -> void:
+	var changed: Array[Vector2i] = []
+	for tile in tiles:
+		if _runtime_pits.has(tile):
+			_runtime_pits.erase(tile)
+			_pits_dirty = true
+			changed.append(tile)
+	_apply_pit_change(changed)
+
+
+func get_runtime_pit_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	tiles.assign(_runtime_pits.keys())
+	tiles.sort_custom(_tile_order)
+	return tiles
+
+
+func _apply_pit_change(changed: Array[Vector2i]) -> void:
+	if changed.is_empty():
+		return
+	if not get_used_cells().is_empty():
+		var area: Dictionary[Vector2i, bool] = {}
+		for tile in changed:
+			for dy in [-1, 0, 1]:
+				for dx in [-1, 0, 1]:
+					area[tile + Vector2i(dx, dy)] = true
+		var floor_mask := get_floor_mask()
+		for tile: Vector2i in area:
+			if floor_mask.has(tile):
+				_paint_floor_cell(tile)
+		_paint_mist()
+	pits_changed.emit(changed)
+
+
+func _update_pit_sets() -> void:
+	if not _pits_dirty:
+		return
+	_pits_dirty = false
+	_pit_set.clear()
+	_bridge_set.clear()
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	var mass := get_wall_mass()
+	for rect in pit_rects:
+		var clipped := rect.intersection(floor_rect)
+		for y in range(clipped.position.y, clipped.end.y):
+			for x in range(clipped.position.x, clipped.end.x):
+				var tile := Vector2i(x, y)
+				if not mass.has(tile):
+					_pit_set[tile] = true
+	for rect in bridge_rects:
+		var clipped := rect.intersection(floor_rect)
+		for y in range(clipped.position.y, clipped.end.y):
+			for x in range(clipped.position.x, clipped.end.x):
+				var tile := Vector2i(x, y)
+				if _pit_set.has(tile):
+					_pit_set.erase(tile)
+					_bridge_set[tile] = true
+	for tile in _runtime_pits:
+		if not mass.has(tile) and not _bridge_set.has(tile):
+			_pit_set[tile] = true
+
+
+static func _tile_order(a: Vector2i, b: Vector2i) -> bool:
+	return a.y < b.y or (a.y == b.y and a.x < b.x)
 
 
 ## Floor of the room plus both door corridors, without blocked and pit tiles.
@@ -377,9 +544,12 @@ func _notification(what: int) -> void:
 func use_tileset(new_tileset: TileSet) -> void:
 	# The wall pieces of the new biome must exist before the cells point at them.
 	WallAutotile.ensure_source(new_tileset)
+	AbyssAutotile.ensure_source(new_tileset)
 	tile_set = new_tileset
 	if _backdrop != null:
 		_backdrop.tile_set = new_tileset
+	if _abyss_under != null:
+		_abyss_under.tile_set = new_tileset
 
 
 func get_backdrop() -> TileMapLayer:
@@ -391,11 +561,16 @@ func paint() -> void:
 	clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = floor_seed
+	_floor_cells.clear()
+	if _abyss_under != null:
+		_abyss_under.clear()
 	if WallAutotile.ensure_source(tile_set):
+		AbyssAutotile.ensure_source(tile_set)
 		_paint_from_mask(rng)
 	else:
 		_paint_legacy(rng)
 	_paint_backdrop()
+	_paint_mist()
 
 
 ## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
@@ -423,7 +598,9 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 		for x in range(rect.position.x, rect.end.x):
 			var tile := Vector2i(x, y)
 			if floor_mask.has(tile):
-				_put_tile(tile, _random_floor(rng))
+				# Drawn for every floor tile, pit or not, so the floor pattern never depends on pits.
+				_floor_cells[tile] = _random_floor(rng)
+				_paint_floor_cell(tile)
 				continue
 			var piece := WallAutotile.cell_for_floor(tile, floor_mask)
 			if piece == WallAutotile.ROCK:
@@ -472,6 +649,10 @@ func _paint_legacy(rng: RandomNumberGenerator) -> void:
 	_put_tile(Vector2i(entrance_x + 1, h + 1), WALL_W)
 	for tile: Vector2i in get_wall_mass():
 		_put_tile(tile, PILLAR)
+	for tile in get_pit_tiles():
+		set_cell(tile, SOURCE_ABYSS, AbyssAutotile.ART_VOID[0])
+	for tile in get_bridge_tiles():
+		set_cell(tile, SOURCE_BRIDGE, BRIDGE_H)
 
 
 ## Tiles painted by paint() on this layer: floor plus the wall ring.
@@ -502,6 +683,124 @@ func _paint_backdrop() -> void:
 				_backdrop.set_cell(tile, SOURCE_ID, WALL_TOP)
 	if _blend_backdrop != null:
 		_copy_cells_to_blend()
+
+
+## Floor tile of the mask: abyss piece, bridge (with the abyss below it) or the remembered floor.
+func _paint_floor_cell(tile: Vector2i) -> void:
+	if is_pit(tile):
+		_set_abyss_cell(self, tile)
+		_set_under_cell(tile, false)
+	elif is_bridge(tile):
+		var piece := _bridge_piece(tile)
+		set_cell(tile, SOURCE_BRIDGE, piece[0], piece[1])
+		_set_under_cell(tile, true)
+	else:
+		_put_tile(tile, _floor_cells.get(tile, FLOOR_TILES[0]))
+		_set_under_cell(tile, false)
+
+
+## Abyss piece of a pit tile on layer (bridges count as abyss for the rim).
+func _set_abyss_cell(layer: TileMapLayer, tile: Vector2i) -> void:
+	var piece := AbyssAutotile.cell_for(tile, _is_abyss)
+	if piece == AbyssAutotile.VOID or layer.tile_set == null or not layer.tile_set.has_source(SOURCE_ABYSS_PIECES):
+		var variants := AbyssAutotile.ART_VOID
+		layer.set_cell(tile, SOURCE_ABYSS, variants[absi(hash(tile)) % variants.size()])
+	else:
+		layer.set_cell(tile, SOURCE_ABYSS_PIECES, piece)
+
+
+func _is_abyss(tile: Vector2i) -> bool:
+	return is_pit(tile) or is_bridge(tile)
+
+
+## The abyss under a bridge, on a draw-only child layer behind this one.
+func _set_under_cell(tile: Vector2i, bridge: bool) -> void:
+	if not bridge:
+		if _abyss_under != null:
+			_abyss_under.erase_cell(tile)
+		return
+	if _abyss_under == null:
+		_abyss_under = TileMapLayer.new()
+		_abyss_under.name = ABYSS_UNDER_NAME
+		_abyss_under.show_behind_parent = true
+		_abyss_under.collision_enabled = false
+		_abyss_under.navigation_enabled = false
+		_abyss_under.occlusion_enabled = false
+		_abyss_under.use_parent_material = true
+		add_child(_abyss_under, false, Node.INTERNAL_MODE_FRONT)
+	_abyss_under.tile_set = tile_set
+	_set_abyss_cell(_abyss_under, tile)
+
+
+func get_abyss_under() -> TileMapLayer:
+	return _abyss_under
+
+
+## Bridge art of a bridge tile: [atlas coords, alternative with flip flags]. Runs along the rect
+## the tile belongs to (wider than tall = west-east); the ends next to solid ground get the end
+## pieces (east and south ends flipped).
+func _bridge_piece(tile: Vector2i) -> Array:
+	if _is_horizontal_bridge(tile):
+		var west_end := not _is_abyss(tile + Vector2i.LEFT)
+		var east_end := not _is_abyss(tile + Vector2i.RIGHT)
+		if west_end and not east_end:
+			return [BRIDGE_END_W, 0]
+		if east_end and not west_end:
+			return [BRIDGE_END_W, TileSetAtlasSource.TRANSFORM_FLIP_H]
+		return [BRIDGE_H, 0]
+	var north_end := not _is_abyss(tile + Vector2i.UP)
+	var south_end := not _is_abyss(tile + Vector2i.DOWN)
+	if north_end and not south_end:
+		return [BRIDGE_END_N, 0]
+	if south_end and not north_end:
+		return [BRIDGE_END_N, TileSetAtlasSource.TRANSFORM_FLIP_V]
+	return [BRIDGE_V, 0]
+
+
+func _is_horizontal_bridge(tile: Vector2i) -> bool:
+	for rect in bridge_rects:
+		if rect.has_point(tile) and rect.size != Vector2i.ONE:
+			return rect.size.x > rect.size.y
+	# A single bridge tile runs between the two sides with solid ground.
+	return not _is_abyss(tile + Vector2i.LEFT) and not _is_abyss(tile + Vector2i.RIGHT)
+
+
+## Slow mist over enclosed pit tiles (optics only; positions from floor_seed, no dungeon RNG).
+func _paint_mist() -> void:
+	if _mist != null:
+		for child in _mist.get_children():
+			child.queue_free()
+	if Engine.is_editor_hint() or not has_pits():
+		return
+	var deep: Array[Vector2i] = []
+	for tile in get_pit_tiles():
+		if _is_abyss(tile + Vector2i.UP) and _is_abyss(tile + Vector2i.DOWN) and _is_abyss(tile + Vector2i.LEFT) and _is_abyss(tile + Vector2i.RIGHT):
+			deep.append(tile)
+	var count := mini(MIST_MAX, deep.size() / MIST_EVERY)
+	if count <= 0:
+		return
+	if _mist == null:
+		_mist = Node2D.new()
+		_mist.name = "AbyssMist"
+		add_child(_mist, false, Node.INTERNAL_MODE_BACK)
+	var additive := CanvasItemMaterial.new()
+	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+	var rng := RandomNumberGenerator.new()
+	rng.seed = floor_seed * 31 + 7
+	# Layer space: this layer is drawn at SpriteStrip.PIXEL_SCALE, one tile = one art tile.
+	var art_tile := float(tile_set.tile_size.x) if tile_set != null else TILE_WORLD / SpriteStrip.PIXEL_SCALE
+	for i in count:
+		var tile: Vector2i = deep[rng.randi_range(0, deep.size() - 1)]
+		var mist := AnimatedProp.new()
+		mist.frame_size = Vector2i(32, 32)
+		mist.fps = MIST_FPS
+		mist.pivot = Vector2(16, 16)
+		mist.strip = MIST_TEXTURE
+		mist.material = additive
+		mist.modulate.a = MIST_ALPHA
+		mist.position = (Vector2(tile) + Vector2(0.5, 0.5)) * art_tile
+		_mist.add_child(mist)
+		mist.frame = rng.randi_range(0, 3)
 
 
 func _put_tile(tile: Vector2i, atlas: Vector2i) -> void:

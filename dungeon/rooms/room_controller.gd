@@ -220,6 +220,10 @@ func check_completion() -> void:
 		return
 	if _alive_enemies > 0:
 		return
+	# A combat variant may keep the room shut (soul flame raid time, A7); it calls
+	# check_completion() again when it lets go.
+	if RoomVariants.holds_completion(self):
+		return
 	_complete()
 
 
@@ -241,6 +245,21 @@ func get_wave_sizes() -> Array[int]:
 ## Call before the encounter starts.
 func set_encounter_group(group: EncounterGroup) -> void:
 	spawner.encounter_group = group
+
+
+## Combat variant of this room (A7): &"soul_flame", &"rifts", &"gravedigger", &"bounty" or &"".
+func get_variant_id() -> StringName:
+	return RoomVariants.get_variant_id(self)
+
+
+## A wager altar stands behind the entrance (A7, D-104).
+func has_wager_altar() -> bool:
+	return RoomVariants.has_wager_altar(self)
+
+
+## Hook for combat variants (A7): an enemy that joins the fight later (rifts, raid waves).
+func track_enemy(enemy: Enemy) -> void:
+	_track_enemy(enemy, 0)
 
 
 func get_arena_waves() -> ArenaWaves:
@@ -437,18 +456,29 @@ func _setup_waves() -> void:
 
 
 ## Solid props of the template and the ingredient scatter (built in its _ready, before ours) take
-## the navigation off their tile until they break.
+## the navigation off their tile until they break or go.
 func _block_prop_navigation() -> void:
 	var prop_nodes: Array[Node] = get_node("Props").get_children()
 	for child in get_children():
 		if child.has_method(&"get_built_nodes"):
 			prop_nodes.append_array(child.call(&"get_built_nodes"))
 	for prop in prop_nodes:
-		if not (prop is Breakable or prop is Rubble) or not is_instance_valid(prop):
+		if not is_instance_valid(prop) or not is_solid_prop(prop):
 			continue
 		var tile := tiles.local_to_map(tiles.to_local((prop as Node2D).global_position))
 		tiles.set_navigation_blocked(tile, true)
 		prop.tree_exiting.connect(_on_prop_removed.bind(tile), CONNECT_ONE_SHOT)
+
+
+## A prop that blocks walking: a body itself (crate, barrel, rubble) or one carried as a direct child
+## (light pedestal, A3).
+static func is_solid_prop(prop: Node) -> bool:
+	if prop is StaticBody2D:
+		return true
+	for child in prop.get_children():
+		if child is StaticBody2D:
+			return true
+	return false
 
 
 func _on_prop_removed(tile: Vector2i) -> void:

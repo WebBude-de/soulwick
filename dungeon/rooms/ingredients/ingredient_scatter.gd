@@ -2,7 +2,7 @@ class_name IngredientScatter
 extends Node2D
 ## Scatters 2-3 ingredients of the biome's IngredientSet into a normal combat room when the room is
 ## built (KONZEPT_RAEUME §3.3): cover, trap groups, inner wall pieces, chokepoints/niches, light
-## islands with dark zones and explosive barrels. The generator puts this node into every combat
+## islands with dark zones, explosive barrels and small abyss holes (A4, from room 6). The generator puts this node into every combat
 ## template and lists the ingredients the shape allows (arena: little cover, catacomb: no extra walls).
 ##
 ## Decisions and effects are separate: plan_room() is a pure function of the room layout, the set and
@@ -11,7 +11,9 @@ extends Node2D
 ## - only on free, reachable floor; never on spawn markers, reserved tiles or the door lanes;
 ## - blocking pieces keep one tile to every spawn marker and stay away from the entrance;
 ## - after every blocking piece each floor tile that was reachable from the entrance stays reachable
-##   (walking, plus a dash over 1-tile abyss gaps once A4 adds pits), so no way, door or marker is cut off.
+##   (walking, plus a dash over 1-tile abyss gaps), so no way, door or marker is cut off;
+## - nothing lands on a bridge or in an abyss; holes keep every reachable tile reachable on foot
+##   (enemies cannot dash) and count as blocking for the rules above.
 ##
 ## Randomness: one number of the dungeon RNG (context.rng) seeds the room's own generator, so the
 ## number of draws on the dungeon RNG does not depend on the ingredients (reproducible runs, Koop).
@@ -30,7 +32,7 @@ const WALL_SPACING := 2
 const LIGHT_SPACING := 4
 const DARK_ZONE_DOOR_DISTANCE := 3
 const PLACEMENT_ATTEMPTS := 40
-const ALL_KINDS: Array[int] = [0, 1, 2, 3, 4, 5]
+const ALL_KINDS: Array[int] = [0, 1, 2, 3, 4, 5, 6]
 
 ## Items a placement puts into the room.
 const ITEM_COVER := &"cover"
@@ -39,7 +41,17 @@ const ITEM_WALL := &"wall"
 const ITEM_LIGHT := &"light"
 const ITEM_DARK_ZONE := &"dark_zone"
 const ITEM_EXPLOSIVE := &"explosive"
-const BLOCKING_ITEMS: Array[StringName] = [&"cover", &"wall", &"light", &"explosive"]
+const ITEM_PIT := &"pit"
+const BLOCKING_ITEMS: Array[StringName] = [&"cover", &"wall", &"light", &"explosive", &"pit"]
+## Hole shapes of the PITS ingredient (tile offsets): single, wide, tall, square.
+const PIT_SHAPES: Array = [
+	[Vector2i(0, 0)],
+	[Vector2i(0, 0), Vector2i(1, 0)],
+	[Vector2i(0, 0), Vector2i(0, 1)],
+	[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)],
+]
+## Holes keep this Chebyshev distance to each other (one solid tile between them).
+const PIT_SPACING := 2
 
 ## Inner wall shapes of the WALLS ingredient (tile offsets, crown and front, SPRITES_V6): pillar,
 ## block, short wall, upright wall, corner. Every column is at least two tiles tall.
@@ -76,7 +88,7 @@ class Placement:
 	var ingredient := 0
 	var item: StringName = &""
 	var tile := Vector2i.ZERO
-	## Inner wall tiles (WALLS, CHOKEPOINTS); tile is the first of them.
+	## Inner wall tiles (WALLS, CHOKEPOINTS) or hole tiles (PITS); tile is the first of them.
 	var wall_tiles: Array[Vector2i] = []
 	## Cover scene index or trap rotation flag.
 	var variant := 0
@@ -114,6 +126,9 @@ class Plan:
 	func get_wall_tiles() -> Array[Vector2i]:
 		return get_tiles_of(ITEM_WALL)
 
+	func get_pit_tiles() -> Array[Vector2i]:
+		return get_tiles_of(ITEM_PIT)
+
 
 ## Everything plan_room() needs to know about a room, built once from its RoomTiles.
 class Layout:
@@ -129,6 +144,8 @@ class Layout:
 	## Floor tiles reachable from the entrance before scattering, in a fixed order (y, then x).
 	var floor_tiles: Array[Vector2i] = []
 	var reachable: Dictionary[Vector2i, bool] = {}
+	## Tiles reachable on foot, without a dash (enemies): chasm rooms reach every floor tile on foot.
+	var walk_reachable: Dictionary[Vector2i, bool] = {}
 	## No piece at all: door lanes, spawn markers, reserved tiles.
 	var forbidden: Dictionary[Vector2i, bool] = {}
 	## No blocking piece: forbidden plus the ring around every spawn marker and the entrance.
@@ -147,6 +164,12 @@ class Layout:
 		for tile in tiles.get_blocked_tiles():
 			layout.static_blocked[tile] = true
 		layout.reachable = tiles.get_reachable_tiles()
+		var none: Dictionary[Vector2i, bool] = {}
+		layout.walk_reachable = RoomTiles.flood_fill(layout.walkable, none, layout.entrance_inside, 0)
+		# Bridges stay free (no crate, trap or hole on the only way over an abyss).
+		for tile in tiles.get_bridge_tiles():
+			layout.forbidden[tile] = true
+			layout.keep_clear[tile] = true
 		for y in tiles.room_size.y:
 			for x in tiles.room_size.x:
 				var tile := Vector2i(x, y)
@@ -238,6 +261,8 @@ static func plan_room(layout: Layout, ingredient_set: IngredientSet, allowed_kin
 		var weight := ingredient_set.get_weight(kind as IngredientSet.Kind)
 		if kind == IngredientSet.Kind.EXPLOSIVES and room_index < ingredient_set.explosives_from_room:
 			weight = 0.0
+		if kind == IngredientSet.Kind.PITS and room_index < ingredient_set.pits_from_room:
+			weight = 0.0
 		if weight > 0.0 and not pool.has(kind):
 			pool.append(kind)
 			weights.append(weight)
@@ -256,7 +281,8 @@ static func plan_room(layout: Layout, ingredient_set: IngredientSet, allowed_kin
 
 
 ## True if every floor tile reachable before scattering (and not covered now) is still reachable
-## from the entrance with blocked as additional obstacles; the exit always has to be.
+## from the entrance with blocked as additional obstacles; the exit always has to be. What was
+## reachable on foot stays reachable on foot (enemies do not dash over abyss gaps, A4).
 static func keeps_paths(layout: Layout, blocked: Dictionary[Vector2i, bool]) -> bool:
 	var walkable := layout.walkable.duplicate()
 	for tile in blocked:
@@ -266,6 +292,13 @@ static func keeps_paths(layout: Layout, blocked: Dictionary[Vector2i, bool]) -> 
 		return false
 	for tile in layout.reachable:
 		if not blocked.has(tile) and not reached.has(tile):
+			return false
+	if layout.pits.is_empty():
+		return true
+	var none: Dictionary[Vector2i, bool] = {}
+	var on_foot := RoomTiles.flood_fill(walkable, none, layout.entrance_inside, 0)
+	for tile in layout.walk_reachable:
+		if not blocked.has(tile) and not on_foot.has(tile):
 			return false
 	return true
 
@@ -332,6 +365,8 @@ static func _place(kind: int, layout: Layout, ingredient_set: IngredientSet, sta
 			return _place_light(ingredient_set, state, rng)
 		IngredientSet.Kind.EXPLOSIVES:
 			return _place_explosives(ingredient_set, state, rng)
+		IngredientSet.Kind.PITS:
+			return _place_pits(ingredient_set, state, rng)
 	var none: Array[Placement] = []
 	return none
 
@@ -482,6 +517,34 @@ static func _place_explosives(ingredient_set: IngredientSet, state: ScatterState
 	return result
 
 
+## 1-2 small abyss holes (A4) on open floor, apart from each other and from walls, away from the
+## door lanes and markers; the room stays walkable without a dash.
+static func _place_pits(ingredient_set: IngredientSet, state: ScatterState, rng: RandomNumberGenerator) -> Array[Placement]:
+	var result: Array[Placement] = []
+	var pieces := rng.randi_range(ingredient_set.pit_pieces.x, ingredient_set.pit_pieces.y)
+	var holes: Array[Vector2i] = []
+	for piece in pieces:
+		for attempt in PLACEMENT_ATTEMPTS:
+			var anchor := _random_tile(state, rng)
+			var shape: Array = PIT_SHAPES[rng.randi_range(0, PIT_SHAPES.size() - 1)]
+			var tiles: Array[Vector2i] = []
+			var valid := true
+			for offset: Vector2i in shape:
+				var tile := anchor + offset
+				if not state.can_block(tile) or state.obstacle_distance(tile) < WALL_SPACING or _near(tile, holes, PIT_SPACING + 1):
+					valid = false
+					break
+				tiles.append(tile)
+			# Holes block like walls (not even a dash crosses them in the path check).
+			if valid and state.try_block(tiles):
+				holes.append_array(tiles)
+				var placement := _make(IngredientSet.Kind.PITS, ITEM_PIT, tiles[0])
+				placement.wall_tiles = tiles.duplicate()
+				result.append(placement)
+				break
+	return result
+
+
 static func _make(kind: int, item: StringName, tile: Vector2i, variant := 0) -> Placement:
 	var placement := Placement.new()
 	placement.ingredient = kind
@@ -544,11 +607,14 @@ func _build(room_plan: Plan, tiles: RoomTiles, ingredient_set: IngredientSet) ->
 	if room_plan == null or ingredient_set == null:
 		return
 	var walls: Array[Rect2i] = []
+	var holes: Array[Vector2i] = []
 	for placement in room_plan.placements:
 		match placement.item:
 			ITEM_WALL:
 				for tile in placement.wall_tiles:
 					walls.append(Rect2i(tile, Vector2i.ONE))
+			ITEM_PIT:
+				holes.append_array(placement.wall_tiles)
 			ITEM_COVER:
 				var cover := _add_prop(ingredient_set.cover_scenes[placement.variant], placement.tile, tiles, true)
 				if cover is Rubble:
@@ -571,6 +637,7 @@ func _build(room_plan: Plan, tiles: RoomTiles, ingredient_set: IngredientSet) ->
 				zone.position = tiles.position + RoomTiles.tile_center(placement.tile)
 				_add_built(zone)
 	tiles.add_wall_rects(walls)
+	tiles.add_pit_tiles(holes)
 
 
 ## Crates, barrels and traps: on the tile centre (traps) or with their base line on the tile.

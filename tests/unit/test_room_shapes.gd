@@ -102,6 +102,10 @@ func test_shapes_differ_from_the_rectangle() -> void:
 				assert_true(tiles.get_blocked_tiles().is_empty(), "%s: open" % entry.id)
 			RoomTemplate.Shape.PILLAR_HALL:
 				assert_gte(tiles.pillar_tiles.size(), 4, "%s: pillars" % entry.id)
+			RoomTemplate.Shape.BRIDGE_HALL, RoomTemplate.Shape.ISLANDS, RoomTemplate.Shape.WALKWAY, RoomTemplate.Shape.RING_HOLE:
+				# Chasm shapes (A4): an abyss with bridges instead of inner walls.
+				assert_false(tiles.pit_rects.is_empty(), "%s: abyss" % entry.id)
+				assert_false(tiles.bridge_rects.is_empty(), "%s: bridges" % entry.id)
 			_:
 				assert_false(tiles.wall_rects.is_empty(), "%s: inner walls" % entry.id)
 

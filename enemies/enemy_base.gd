@@ -7,10 +7,16 @@ extends CharacterBody2D
 ## the telegraph ends. Normal enemies have no general I-frames (D-020).
 ## Bosses and champions have two phases (BossRules): below half health they roar (briefly
 ## invulnerable), get faster and chain specials, spiral volleys, landing rings and eruptions.
+## Abysses (A4, D-086): the pit physics layer blocks enemies like a wall. A strong knockback
+## towards a pit lifts that block until the knockback settles; an enemy that then stands over a
+## pit falls and dies (a kill, its gold drops at the rim). Champions, golems and bosses never fall
+## (ChasmRules.can_enemy_fall).
 
 signal died(enemy: Enemy)
 ## A minion created by this enemy; the room tracks it like any other enemy.
 signal summoned(minion: Enemy)
+## Pushed into an abyss (A4); died is emitted right after.
+signal fell_into_pit(enemy: Enemy)
 ## Bosses and champions: phase two started (the roar begins).
 signal phase_changed(enemy: Enemy, phase: int)
 ## Every ability as it happens (volley, spiral, charge, leap, landing_ring, teleport, summon,
@@ -102,7 +108,8 @@ var _room_index := 1
 var _boss_tier := 0
 ## Fallback minion for high boss tiers / champions without own summons.
 var extra_summon_data: EnemyData = null
-var _target: Player = null
+## Nearest living player, or a decoy the enemy was sent after (soul flame, A7).
+var _target: Node2D = null
 var _attack_count := 0
 var _visual_scale := 1.0
 var _sprite_scale := 1.0
@@ -126,6 +133,12 @@ var _target_rethink_left := 0.0
 var _unstick_count := 0
 ## Pathfinding around walls (A2); see EnemyNavigation.
 var _navigation: EnemyNavigation = null
+## Knocked back towards an abyss: the pit layer does not block until the knockback settles (A4).
+var _pit_unbound := false
+## Where the enemy stood when the push began (global): its gold drops there, at the rim.
+var _pit_edge_position := Vector2.ZERO
+var _pit_pusher: Node = null
+var _fell_into_pit := false
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -377,9 +390,16 @@ func _physics_process(delta: float) -> void:
 	if _state == State.DEAD:
 		return
 	if _state != State.LEAP:
+		if _pit_unbound:
+			# Off its feet: only the push moves it, it cannot walk itself into or out of the abyss.
+			velocity = Vector2.ZERO
 		velocity += _knockback_velocity
 		_knockback_velocity = _knockback_velocity.move_toward(Vector2.ZERO, knockback_friction * delta)
 		move_and_slide()
+		if _pit_unbound:
+			_settle_after_push()
+			if _state == State.DEAD:
+				return
 	if _state == State.CHARGE and _hit_wall_in_slide():
 		# Ran into a wall: dazed for a moment, a window to punish the charge. Ends any chain.
 		_attack_hitbox.end_attack()
@@ -395,16 +415,16 @@ func _physics_process(delta: float) -> void:
 ## the current target dies or leaves.
 func _update_target() -> void:
 	_target_rethink_left -= get_physics_process_delta_time()
-	var current: Player = _target if is_instance_valid(_target) else null
+	var current: Node2D = _target if is_instance_valid(_target) else null
 	if current != null and _target_rethink_left > 0.0 and EnemyTargeting.is_alive(current):
 		return
 	_target_rethink_left = TARGET_INTERVAL
-	_target = EnemyTargeting.choose(get_tree().get_nodes_in_group(&"player"), global_position, current) as Player
+	_target = EnemyDecoy.choose_target(self, get_tree().get_nodes_in_group(&"player"), current)
 
 
 ## The enemy's current target (null = no living player). For tools and tests.
 func get_target() -> Player:
-	return _target if is_instance_valid(_target) else null
+	return _target as Player if is_instance_valid(_target) else null
 
 
 ## Pathfinding state, for tools and tests.
@@ -757,7 +777,11 @@ func _land() -> void:
 	if _state == State.DEAD:
 		return
 	collision_mask = _base_mask
+	_pit_unbound = false
 	_sprite.position.y = 0.0
+	# A leap never ends in an abyss: the nearest walkable point instead (A4).
+	if PitProbe.is_pit_at(get_world_2d(), global_position) and _navigation != null:
+		global_position = _navigation.snap_to_navigation(global_position)
 	var blast := Blast.spawn(get_parent(), global_position, data.blast_radius, data.damage * _damage_multiplier)
 	blast.source = self
 	blast.sound = &"slam"
@@ -1086,6 +1110,8 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	_knockback_velocity = damage.knockback * (1.0 - get_knockback_resistance())
+	if not result.killed:
+		_check_pit_push(damage.source)
 	var top := global_position + Vector2(0.0, -data.body_radius * _visual_scale - 22.0)
 	DamageNumber.spawn_for_result(get_parent(), top, result)
 	SpriteStrip.spawn_effect(get_parent(), global_position, HIT_SPARK_TEXTURE, Vector2i(16, 16), 15.0, Vector2(8, 8), Vector2.ONE * SpriteStrip.PIXEL_SCALE)
@@ -1112,7 +1138,9 @@ func _on_died() -> void:
 	_sprite.position.y = 0.0
 	_sprite.modulate.a = 1.0
 	_drop_gold()
-	_spawn_on_death()
+	# A split slime that falls takes its children with it.
+	if not _fell_into_pit:
+		_spawn_on_death()
 	died.emit(self)
 	Sfx.play_at(self, &"enemy_death", global_position)
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 18 if not data.is_boss else 60, 200.0, 0.6, 5.0)
@@ -1122,6 +1150,9 @@ func _on_died() -> void:
 		var blast := Blast.spawn(get_parent(), global_position, 72.0, maxf(1.0, data.damage * _damage_multiplier), 0.7)
 		blast.source = self
 	_sprite.speed_scale = 1.0
+	if _fell_into_pit:
+		_play_fall()
+		return
 	if _sprite.sprite_frames != null and _sprite.sprite_frames.has_animation(&"death"):
 		_sprite.play(&"death")
 		await _wait_for_death_animation()
@@ -1174,6 +1205,10 @@ func _spawn_on_death() -> void:
 		var child := scene.instantiate() as Enemy
 		child.data = data.death_spawn
 		child.position = position + Vector2.from_angle(TAU * i / data.death_spawn_count) * 20.0
+		# Never inside an abyss (A4): the nearest walkable point instead.
+		var parent := get_parent() as Node2D
+		if parent != null and _navigation != null and PitProbe.is_pit_at(get_world_2d(), parent.to_global(child.position)):
+			child.position = parent.to_local(_navigation.snap_to_navigation(parent.to_global(child.position)))
 		child.apply_scaling(_room_index, false)
 		child.arena = arena
 		get_parent().add_child.call_deferred(child)
@@ -1187,5 +1222,92 @@ func _drop_gold() -> void:
 	var pickup := GOLD_PICKUP_SCENE.instantiate() as GoldPickup
 	pickup.amount = gold_drop
 	pickup.position = position
+	var parent := get_parent() as Node2D
+	if _fell_into_pit and parent != null:
+		# At the rim it was pushed from, never over the abyss (A4).
+		pickup.position = parent.to_local(_pit_edge_position)
 	# Deferred: death happens inside a hit callback.
 	get_parent().add_child.call_deferred(pickup)
+
+
+# --- Abyss (A4, D-086) ---
+
+## Normal enemies and elites can be pushed into an abyss; champions, golems and bosses never.
+func can_fall_into_pit() -> bool:
+	return not _in_intro and ChasmRules.can_enemy_fall(data, is_champion())
+
+
+func has_fallen_into_pit() -> bool:
+	return _fell_into_pit
+
+
+func is_pit_unbound() -> bool:
+	return _pit_unbound
+
+
+## Called with every hit: a strong enough knockback whose slide reaches an abyss lifts the pit
+## block (and the enemy's own walking) until it settles. Nothing changes without a pit nearby.
+func _check_pit_push(pusher: Node) -> void:
+	if _pit_unbound or _state == State.DEAD or _state == State.LEAP or not can_fall_into_pit():
+		return
+	var speed := _knockback_velocity.length()
+	if not ChasmRules.knockback_can_push(speed) or not is_inside_tree():
+		return
+	var world := get_world_2d()
+	var center := _body_shape.global_position
+	var direction := _knockback_velocity / speed
+	var reach := ChasmRules.knockback_travel(speed, knockback_friction) + RoomTiles.TILE_WORLD * 0.5
+	var distance := RoomTiles.TILE_WORLD * 0.25
+	var towards_pit := false
+	while distance <= reach:
+		if PitProbe.is_pit_at(world, center + direction * distance):
+			towards_pit = true
+			break
+		distance += RoomTiles.TILE_WORLD * 0.25
+	if not towards_pit:
+		return
+	_pit_unbound = true
+	_pit_edge_position = global_position
+	_pit_pusher = pusher
+	collision_mask &= ~PhysicsLayers.PIT
+
+
+## The push is over: over the abyss -> fall, else the pit blocks again.
+func _settle_after_push() -> void:
+	if _knockback_velocity.length() > ChasmRules.ENEMY_SETTLE_SPEED:
+		return
+	_pit_unbound = false
+	if PitProbe.is_pit_at(get_world_2d(), _body_shape.global_position):
+		fall_into_pit()
+	else:
+		collision_mask |= PhysicsLayers.PIT & _base_mask
+
+
+## Falls and dies: a kill like any other (EventBus, room count, on-kill effects), credited to the
+## source of the push; no death spawns, the gold at the rim.
+func fall_into_pit() -> void:
+	if _state == State.DEAD or _fell_into_pit:
+		return
+	_fell_into_pit = true
+	_pit_unbound = false
+	if _pit_edge_position == Vector2.ZERO:
+		_pit_edge_position = global_position
+	fell_into_pit.emit(self)
+	var damage := DamageData.new()
+	damage.amount = ceilf(health.get_health()) + 1.0
+	damage.source = _pit_pusher if is_instance_valid(_pit_pusher) else null
+	damage.tags.assign([ChasmRules.DAMAGE_TAG])
+	damage.hit_id = DamageData.next_hit_id()
+	var result := DamageProcessor.process_hit(damage, health, null, false)
+	EventBus.enemy_damaged.emit(self, result, damage)
+
+
+## Shrinks, turns and fades into the dark instead of the death animation.
+func _play_fall() -> void:
+	Sfx.play_at(self, ChasmRules.fall_sound(), global_position, -6.0)
+	var tween := create_tween().set_parallel()
+	tween.tween_property(_sprite, "scale", _sprite.scale * 0.2, ChasmRules.FALL_TIME).set_ease(Tween.EASE_IN)
+	tween.tween_property(_sprite, "rotation", 1.2, ChasmRules.FALL_TIME)
+	tween.tween_property(_sprite, "position:y", 18.0, ChasmRules.FALL_TIME)
+	tween.tween_property(_sprite, "modulate", Color(0.2, 0.2, 0.3, 0.0), ChasmRules.FALL_TIME)
+	tween.chain().tween_callback(queue_free)

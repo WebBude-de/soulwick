@@ -28,6 +28,9 @@ func _run() -> void:
 	var dungeon: Node = controller.get_world()
 	var player: Node = controller.get_player()
 	var room: Node = dungeon.get_room(1)
+	# Bare floor: room 1 is a random template (A3); inner walls and cover must not decide whether
+	# enemies reach the player or a shot lands.
+	await _clear_floor(room)
 
 	# 1) Enemies attack an idle player.
 	player.health.reset(1000.0)
@@ -63,6 +66,8 @@ func _run() -> void:
 	# 3) Next rooms: bow first, then the staff, with specials.
 	await _frames(30)
 	var room2: Node = dungeon.get_room(2)
+	# The weapon arena below stands in the middle of room 2: no inner walls or cover there either.
+	await _clear_floor(room2)
 	player.global_position = room2.to_global(room2.get_node("Tiles").get_floor_rect().get_center())
 	await _frames(10)
 	_check(room2.is_encounter_started(), "room 2 encounter started")
@@ -178,6 +183,21 @@ func _on_enemy_damaged(_enemy, _result, damage) -> void:
 
 func _alive(room: Node) -> Array:
 	return room.enemy_container.get_children().filter(func(n): return n.has_method("is_dead") and not n.is_dead())
+
+
+func _clear_floor(room: Node) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	tiles.wall_rects.clear()
+	tiles.pillar_tiles.clear()
+	tiles.paint()
+	var props: Array[Node] = room.get_node("Props").get_children()
+	for child in room.get_children():
+		if child.has_method(&"get_built_nodes"):
+			props.append_array(child.call(&"get_built_nodes"))
+	for prop in props:
+		if is_instance_valid(prop) and room.is_solid_prop(prop):
+			prop.queue_free()
+	await _frames(5)
 
 
 func _frames(count: int) -> void:

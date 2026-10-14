@@ -10,8 +10,8 @@ edited in the editor afterwards; re-running this script overwrites them. Files w
 not change are not touched.
 
 Combat templates (KONZEPT_RAEUME §3, D-086, D-100) are built from a room kind (normal, arena,
-chasm), a shape (rectangle, L, cross, ring, two chambers, pillar hall, catacomb) and a size class
-(S/M/L). Inner walls go to RoomTiles.wall_rects, pillars to pillar_tiles. Every wall looks like the
+chasm), a shape (rectangle, L, cross, ring, two chambers, pillar hall, catacomb; for chasm rooms
+bridge hall, islands, walkway, ring around a hole) and a size class (S/M/L). Inner walls go to RoomTiles.wall_rects, pillars to pillar_tiles. Every wall looks like the
 outer wall (WallAutotile, SPRITES_V6): crown on top, one row of brick front under it; the front is
 part of the solid mass, so wall_rects hold crown and front and a pillar blocks its tile and the
 tile below. Every column of wall above floor is at least two tiles tall. Every combat template gets an IngredientScatter node ("Ingredients") that scatters the
@@ -24,7 +24,11 @@ tile, the exit and all spawn markers reachable from the entrance (walking, plus 
 of at most one pit tile), no marker on blocked tiles, props or right next to the entrance, no
 template torch right beside the exit door (the doors bring their own, D1), and for the catacomb at
 most two dead ends, at most two branchings between entrance and exit and the chest in the deepest
-dead end.
+dead end. Chasm templates (A4) come from tile maps (CHASM_MAPS) and are checked further: every
+floor and bridge tile reachable on foot (enemies cannot dash; a dash over a one-tile gap is only a
+shortcut), at least one such shortcut, no pit in the door lanes, markers and props on solid floor
+only (never on a bridge). Catacomb templates appear from room 2, chasm templates from room 6
+(RoomTemplate.min_room).
 
 The campfire template (D-103, ROADMAP_AUSBAU A6) sits between two biomes after every boss room.
 It has no enemies; the fire stands on ContentAnchor, the exit portal on PortalAnchor. Its floor
@@ -53,12 +57,19 @@ DECO = {
 # RoomSequence.RoomKind / RoomSequence.RoomSize / RoomTemplate.Shape (same order as the GDScript enums).
 KINDS = {"normal": 0, "arena": 1, "chasm": 2}
 SIZES = {"S": 0, "M": 1, "L": 2}
-SHAPES = {"rectangle": 0, "l_shape": 1, "cross": 2, "ring": 3, "two_chambers": 4, "pillar_hall": 5, "catacomb": 6}
+SHAPES = {"rectangle": 0, "l_shape": 1, "cross": 2, "ring": 3, "two_chambers": 4, "pillar_hall": 5, "catacomb": 6,
+          "bridge_hall": 7, "islands": 8, "walkway": 9, "ring_hole": 10}
 # RoomTemplate.DoorSide.
 SIDE_NORTH, SIDE_SOUTH = 0, 2
 # IngredientSet.Kind.
-COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES = range(6)
-ALL_INGREDIENTS = [COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES]
+COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES, PITS = range(7)
+ALL_INGREDIENTS = [COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES, PITS]
+# First room of a template (RoomTemplate.min_room): no catacomb in room 1 (UX2 finding), chasm rooms
+# from RoomSequence.CHASM_FROM_ROOM.
+MIN_ROOM = {"catacomb": 2}
+CHASM_FROM_ROOM = 6
+# Rows in front of each door that stay free of pits (door lanes, 3 wide): nobody falls on entry.
+PIT_FREE_DOOR_ROWS = 2
 # Spawn markers per combat template (D-086): S >= 5, M >= 8, L >= 12, never more than 14.
 MIN_SPAWNS = {"S": 5, "M": 8, "L": 12}
 MAX_SPAWNS = 14
@@ -428,8 +439,221 @@ def shape_catacomb(kind, size_class):
     return dict(size=(w, h), entrance=c["entrance"], exit_x=c["exit_x"], walls=walls, pillars=[])
 
 
+# Chasm templates (A4, KONZEPT_RAEUME §3.1): "." floor, "~" abyss, "=" bridge over the abyss,
+# "#" inner wall. Broad abysses need bridges; one-tile gaps are dash shortcuts (D-086).
+CHASM_MAPS = {
+    # Bridge hall: an abyss band across the room, bridges at the sides, a tongue in the middle
+    # leaves a one-tile gap to dash over.
+    ("bridge_hall", "S"): dict(entrance=7, exit_x=7, rows=[
+        "...............",
+        "...............",
+        "...............",
+        "~~=~~~...~~~=~~",
+        "~~=~~~...~~~=~~",
+        "~~=~~~~~~~~~=~~",
+        "...............",
+        "...............",
+        "...............",
+    ]),
+    ("bridge_hall", "M"): dict(entrance=9, exit_x=9, rows=[
+        "...................",
+        "...................",
+        "...................",
+        "...................",
+        "~~~=~~~~...~~~~=~~~",
+        "~~~=~~~~...~..~=~~~",
+        "~~~=~~~~~~~~..~=~~~",
+        "...................",
+        "...................",
+        "...................",
+        "...................",
+    ]),
+    ("bridge_hall", "L"): dict(entrance=12, exit_x=12, rows=[
+        ".........................",
+        ".........................",
+        ".........................",
+        "~~~~=~~~~~~...~~~~~~=~~~~",
+        "~~~~=~~~~~~...~~~~~~=~~~~",
+        "~~~~=~~~~~~~~~~~~~~~=~~~~",
+        ".........................",
+        ".........................",
+        ".........................",
+        "~~~~~~~~~~~~=~~~~~~...~~~",
+        "~~~...~~~~~~=~~~~~~...~~~",
+        "~~~...~~~~~~=~~~~~~~~~~~~",
+        ".........................",
+        ".........................",
+        ".........................",
+    ]),
+    # Islands: platforms in the abyss, joined by bridges; the thin rims are dash shortcuts.
+    ("islands", "S"): dict(entrance=7, exit_x=7, rows=[
+        "...............",
+        "...............",
+        "~~~=~~~~~~~=~~~",
+        "~.....~~~.....~",
+        "~.....===.....~",
+        "~.....~~~.....~",
+        "~~~~=~~~~~~~~~~",
+        "...............",
+        "...............",
+    ]),
+    ("islands", "M"): dict(entrance=9, exit_x=9, rows=[
+        "...................",
+        "...................",
+        "~~=~~~~~~~~~~~~~=~~",
+        "~.....~~...~~.....~",
+        "~.....==...~~.....~",
+        "~.....~~...==.....~",
+        "~.....~~...~~.....~",
+        "~~~~~~~~~=~~~~~~~~~",
+        "...................",
+        "...................",
+        "...................",
+    ]),
+    ("islands", "L"): dict(entrance=12, exit_x=12, rows=[
+        ".........................",
+        ".........................",
+        "~~~=~~~~~~~~~~~~~~~~~=~~~",
+        "~......~~.......~~......~",
+        "~......==.......~~......~",
+        "~......~~.......==......~",
+        "~......~~.......~~......~",
+        "~~~~~~~~~~~~=~~~~~~~~~~~~",
+        "~......~~.......~~......~",
+        "~......==.......~~......~",
+        "~......~~.......==......~",
+        "~......~~.......~~......~",
+        "~~~~~~~~~~~~=~~~~~~~~~~~~",
+        ".........................",
+        ".........................",
+    ]),
+    # Walkway: a narrow winding pier over the abyss with a platform on a bridge.
+    ("walkway", "S"): dict(entrance=7, exit_x=7, rows=[
+        "...............",
+        "...............",
+        "~~..~~~~~~~~~~~",
+        "~~..~~~~~~....~",
+        "~~......~~....~",
+        "~~......==....~",
+        "~~~~~~..~~~~~~~",
+        "...............",
+        "...............",
+    ]),
+    ("walkway", "M"): dict(entrance=9, exit_x=9, rows=[
+        "...................",
+        "...................",
+        "~~~~~~~~~~~~..~~~~~",
+        "~~~...........~~~~~",
+        "~~~...........~~~~~",
+        "~~~..~~~~~~~~~~...~",
+        "~~~........====...~",
+        "~~~........~~~~...~",
+        "~~~~~~~~~..~~~~~~~~",
+        "...................",
+        "...................",
+    ]),
+    ("walkway", "L"): dict(entrance=12, exit_x=12, rows=[
+        ".........................",
+        ".........................",
+        "~~~~~~~~~......~~~~..~~~~",
+        "~~~~~~~~~......~~~~..~~~~",
+        "~~~~~~~~~~~~~~~~~~~..~~~~",
+        "~~~~.................~~~~",
+        "~~~~.................~~~~",
+        "~~~~..~~~~~~~~~~~~~~~~~~~",
+        "~~~~..~~~~~~~~~~~~~~~~~~~",
+        "~~~~..........~~.......~~",
+        "~~~~..........==.......~~",
+        "~~~~~~~~~~~~..~~.......~~",
+        "~~~~~~~~~~~~..~~~~~~~~~~~",
+        ".........................",
+        ".........................",
+    ]),
+    # Ring around a hole: the way leads around the abyss; a bridge leads to the middle, from where
+    # a dash crosses to the far side.
+    ("ring_hole", "S"): dict(entrance=7, exit_x=7, rows=[
+        "...............",
+        "...............",
+        "...............",
+        "....~~~~~~~....",
+        "....==...~~....",
+        "....~~~~~~~....",
+        "...............",
+        "...............",
+        "...............",
+    ]),
+    ("ring_hole", "M"): dict(entrance=9, exit_x=9, rows=[
+        "...................",
+        "...................",
+        "...................",
+        "....~~~~~~~~~~~....",
+        "....~~~.....~~~....",
+        "....~~~.....===....",
+        "....~~~.....~~~....",
+        "....~~~~~~~~~~~....",
+        "...................",
+        "...................",
+        "...................",
+    ]),
+    ("ring_hole", "L"): dict(entrance=12, exit_x=12, rows=[
+        ".........................",
+        ".........................",
+        ".........................",
+        "....~~~~~~~~~~~~~~~~~....",
+        "....~~~...........~~~....",
+        "....~~~...........===....",
+        "....~~~....~~~....~~~....",
+        "....===....~~~....~~~....",
+        "....~~~....~~~....~~~....",
+        "....~~~...........~~~....",
+        "....~~~...........~~~....",
+        "....~~~~~~~~~~~~~~~~~....",
+        ".........................",
+        ".........................",
+        ".........................",
+    ]),
+}
+
+
+def shape_chasm(shape):
+    """Chasm shapes from CHASM_MAPS: pits, bridges and inner walls of the map."""
+    def build(kind, size_class):
+        w, h = SIZE_TILES[size_class]
+        c = CHASM_MAPS[(shape, size_class)]
+        rows = c["rows"]
+        assert len(rows) == h and all(len(r) == w for r in rows), f"chasm {shape} {size_class}: map is not {w}x{h}"
+        pits, bridges, walls = set(), set(), set()
+        for y, row in enumerate(rows):
+            for x, cell in enumerate(row):
+                assert cell in ".~=#", f"chasm {shape} {size_class}: unknown cell {cell!r}"
+                if cell == "~":
+                    pits.add((x, y))
+                elif cell == "=":
+                    bridges.add((x, y))
+                elif cell == "#":
+                    walls.add((x, y))
+        return dict(size=(w, h), entrance=c["entrance"], exit_x=c["exit_x"], walls=walls, pillars=[],
+                    pits=pits, bridges=bridges)
+    return build
+
+
+CHASM_SHAPES = ("bridge_hall", "islands", "walkway", "ring_hole")
+
+
+def dash_shortcuts(walkable_floor, pits):
+    """Pairs of floor tiles with exactly one pit tile between them in a straight line."""
+    shortcuts = []
+    for x, y in walkable_floor:
+        for dx, dy in ((1, 0), (0, 1)):
+            gap, far = (x + dx, y + dy), (x + 2 * dx, y + 2 * dy)
+            if gap in pits and far in walkable_floor:
+                shortcuts.append(((x, y), far))
+    return shortcuts
+
+
 SHAPE_BUILDERS = {"rectangle": shape_rectangle, "l_shape": shape_l, "cross": shape_cross, "ring": shape_ring,
-                  "two_chambers": shape_two_chambers, "pillar_hall": shape_pillar_hall, "catacomb": shape_catacomb}
+                  "two_chambers": shape_two_chambers, "pillar_hall": shape_pillar_hall, "catacomb": shape_catacomb,
+                  **{shape: shape_chasm(shape) for shape in CHASM_SHAPES}}
 
 # Every combat template: (kind, shape, size). Arena shapes: rectangle M/L, cross, pillar hall (A3/A5).
 COMBAT_TEMPLATES = (
@@ -437,16 +661,20 @@ COMBAT_TEMPLATES = (
      for size in ("S", "M", "L")]
     + [("normal", "catacomb", size) for size in ("M", "L")]
     + [("arena", shape, size) for shape in ("rectangle", "cross", "pillar_hall") for size in ("M", "L")]
+    + [("chasm", shape, size) for shape in CHASM_SHAPES for size in ("S", "M", "L")]
 )
 
 
 def allowed_ingredients(kind, shape):
     """Ingredients the IngredientScatter may use: arenas stay open (little cover, no extra walls),
-    the catacomb has walls enough, the pillar hall its pillars."""
+    the catacomb has walls enough, the pillar hall its pillars, a chasm room its abyss (no extra
+    walls or holes there). Small holes (A4) everywhere else; the set keeps them out of rooms 1-5."""
     if shape == "catacomb":
         return [TRAPS, LIGHT, EXPLOSIVES]
-    if kind == "arena" or shape == "pillar_hall":
+    if kind == "chasm":
         return [COVER, TRAPS, LIGHT, EXPLOSIVES]
+    if kind == "arena" or shape == "pillar_hall":
+        return [COVER, TRAPS, LIGHT, EXPLOSIVES, PITS]
     return list(ALL_INGREDIENTS)
 
 
@@ -616,16 +844,28 @@ def combat_template(kind, shape, size_class):
     size, entrance, exit_x = layout["size"], layout["entrance"], layout["exit_x"]
     w, h = size
     walls, pillars = set(layout["walls"]), list(layout["pillars"])
+    pits, bridges = set(layout.get("pits", ())), set(layout.get("bridges", ()))
     blocked = walls | pillar_mass(pillars, size)
     check_wall_mass(name, size, blocked)
-    walkable = walkable_tiles(size, entrance, exit_x, blocked, [])
+    walkable = walkable_tiles(size, entrance, exit_x, blocked, pits)
     start, exit_tile = (entrance, h - 1), (exit_x, 0)
-    reached = flood_fill(walkable, set(), start, MAX_DASH_GAP)
-    floor = sorted((t for t in walkable if 0 <= t[0] < w and 0 <= t[1] < h), key=lambda t: (t[1], t[0]))
-    unreached = [t for t in floor if t not in reached]
+    reached = flood_fill(walkable, pits, start, MAX_DASH_GAP)
+    # Floor that can hold markers and props: no bridge (and never a pit).
+    all_floor = sorted((t for t in walkable if 0 <= t[0] < w and 0 <= t[1] < h), key=lambda t: (t[1], t[0]))
+    floor = [t for t in all_floor if t not in bridges]
+    unreached = [t for t in all_floor if t not in reached]
     assert not unreached, f"{name}: floor tiles cut off from the entrance: {unreached[:5]}"
     for tile in ((entrance, h - 1), (entrance, h - 2), (exit_x, 0), (exit_x, 1)):
         assert tile in walkable, f"{name}: door lane {tile} blocked"
+    if pits:
+        on_foot = flood_fill(walkable, set(), start, 0)
+        stranded = [t for t in all_floor if t not in on_foot]
+        assert not stranded, f"{name}: floor only reachable with a dash (enemies cannot follow): {stranded[:5]}"
+        assert (exit_x, -3) in on_foot, f"{name}: exit not reachable on foot"
+        assert dash_shortcuts(set(floor), pits), f"{name}: no one-tile gap to dash over"
+        lanes = {(entrance + dx, h - 1 - dy) for dx in (-1, 0, 1) for dy in range(PIT_FREE_DOOR_ROWS)}
+        lanes |= {(exit_x + dx, dy) for dx in (-1, 0, 1) for dy in range(PIT_FREE_DOOR_ROWS)}
+        assert not (lanes & (pits | bridges)), f"{name}: abyss in a door lane: {sorted(lanes & (pits | bridges))[:4]}"
 
     chest, ambush, reserved = None, [], []
     if shape == "catacomb":
@@ -653,7 +893,7 @@ def combat_template(kind, shape, size_class):
     bones_count = BONES_COUNT[size_class] + (2 if shape == "catacomb" else 0)
     lanes = {(entrance + dx, h - 1 - dy) for dx in (-1, 0, 1) for dy in range(3)}
     lanes |= {(exit_x + dx, dy) for dx in (-1, 0, 1) for dy in range(3)}
-    for tile, bone in pick_bones(floor, walkable, bones_count, seed, set(spawns) | set(reserved) | lanes):
+    for tile, bone in pick_bones(floor, walkable - bridges, bones_count, seed, set(spawns) | set(reserved) | lanes):
         props.append(("bone_pile" if shape == "catacomb" and bone == "bones_1" else bone, tile[0], tile[1]))
     flipped = set()
     if shape == "catacomb":
@@ -663,19 +903,25 @@ def combat_template(kind, shape, size_class):
                 flipped.add(tile)
     if chest is not None:
         props.append(("chest", chest[0], chest[1]))
-    check_layout(name, size, entrance, exit_x, spawns, props, blocked=blocked)
+    check_layout(name, size, entrance, exit_x, spawns, props, blocked=blocked, pits=pits)
+    for kind_, x, y in props:
+        assert (x, y) not in pits and (x, y) not in bridges, f"{name}: {kind_} over the abyss at {(x, y)}"
 
     content = nearest_floor(floor, (w / 2, h / 2))
     portal = nearest_floor(floor, (w * 0.75, 2.5))
     rel_path = f"combat/{stem}.tscn"
+    pit_rects = to_rects(pits | bridges) if pits else []
+    bridge_rects = to_rects(bridges) if bridges else []
     _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x, seed, pillars, to_rects(walls) if walls else [],
-                        spawns, set(ambush), content, portal, props, allowed_ingredients(kind, shape), reserved, flipped)
-    _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest)
+                        spawns, set(ambush), content, portal, props, allowed_ingredients(kind, shape), reserved, flipped,
+                        pit_rects, bridge_rects)
+    min_room = CHASM_FROM_ROOM if kind == "chasm" else MIN_ROOM.get(shape, 1)
+    _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room)
     return stem
 
 
 def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x, seed, pillars, wall_rects, spawns,
-                        ambush, content, portal, props, allowed, reserved, flipped=()):
+                        ambush, content, portal, props, allowed, reserved, flipped=(), pit_rects=(), bridge_rects=()):
     used = sorted({p[0] for p in props})
     ids = {k: f"{i + 2}_{k}" for i, k in enumerate(used)}
     scatter_id = f"{len(used) + 2}_scatter"
@@ -691,6 +937,10 @@ def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x
         text += f"pillar_tiles = {vec_list(pillars)}\n"
     if wall_rects:
         text += "wall_rects = Array[Rect2i]([" + ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in wall_rects) + "])\n"
+    if pit_rects:
+        text += "pit_rects = Array[Rect2i]([" + ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in pit_rects) + "])\n"
+    if bridge_rects:
+        text += "bridge_rects = Array[Rect2i]([" + ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in bridge_rects) + "])\n"
     for i, (x, y) in enumerate(spawns):
         # Spawn1..5 exist in room_base; further markers are new nodes. Ambush markers sit in dead ends.
         node_type = ' type="Marker2D"' if i >= BASE_SPAWNS else ""
@@ -710,7 +960,7 @@ def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x
     write(ROOMS / rel_path, text, combat=True)
 
 
-def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest):
+def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room=1):
     text = '[gd_resource type="Resource" script_class="RoomTemplate" format=3]\n\n'
     text += f'[ext_resource type="Script" path="{TEMPLATE_SCRIPT}" id="1_template"]\n'
     text += f'[ext_resource type="PackedScene" path="res://dungeon/rooms/{rel_path}" id="2_scene"]\n\n'
@@ -724,6 +974,8 @@ def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spaw
         text += f"ambush_tiles = {vec_list(ambush)}\n"
     if chest is not None:
         text += f"chest_tile = Vector2i({chest[0]}, {chest[1]})\n"
+    if min_room != 1:
+        text += f"min_room = {min_room}\n"
     write(TEMPLATES / f"{stem}.tres", text, combat=True)
 
 

@@ -3,6 +3,8 @@ extends Area2D
 ## Gold (or a heart) dropped by enemies and crates. Pops out, then homes in on the player.
 ## Homing steers straight at the player (no inertia) and collects by distance, so a fast coin can
 ## neither orbit the player nor tunnel through the small player collider.
+## Never in an abyss (A4): a pickup that appears over a pit moves to the nearest solid floor, and
+## the pop stops at the rim. Homing may fly over pits (it is on its way to a player).
 
 enum Kind { GOLD, HEART }
 
@@ -31,6 +33,9 @@ func _ready() -> void:
 	monitorable = false
 	body_entered.connect(_on_body_entered)
 	_pop_velocity = Vector2.from_angle(randf() * TAU) * randf_range(60.0, 120.0)
+	var probe := PitProbe.probe_for(self)
+	if probe.call(global_position):
+		global_position = PitProbe.nearest_safe_point(global_position, probe)
 	DropShadow.attach(self, 7.0, 10.0)
 	if kind == Kind.HEART:
 		_sprite.strip = HEART_TEXTURE
@@ -42,7 +47,11 @@ func _physics_process(delta: float) -> void:
 	var player := EnemyTargeting.nearest_living(get_tree().get_nodes_in_group(&"player"), global_position) as Player
 	if _age < MAGNET_DELAY or player == null or not player.is_alive():
 		_pop_velocity = _pop_velocity.move_toward(Vector2.ZERO, POP_FRICTION * delta)
-		global_position += _pop_velocity * delta
+		var next := global_position + _pop_velocity * delta
+		if _pop_velocity != Vector2.ZERO and PitProbe.is_pit_at(get_world_2d(), next):
+			_pop_velocity = Vector2.ZERO
+			return
+		global_position = next
 		return
 	_homing_speed = minf(_homing_speed + MAGNET_ACCELERATION * delta, MAX_SPEED)
 	var to_player := player.global_position - global_position

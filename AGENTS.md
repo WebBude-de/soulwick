@@ -5,7 +5,7 @@
 
 ## 1. Projekt in Kürze
 
-**Soulwick** (D-094): 2D-Top-down-Dungeon-Roguelite in Godot 4.7.2 (Uni-Teamprojekt). Endloser, dunkler Dungeon mit Biomen, Bossen, Dorf mit Meta-Progression; geplant: neue Raumarten, Koop-Multiplayer, Gilden, Ranglisten, Steam. Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen, am Ende spielbar testen.
+**Soulwick** (D-094): 2D-Top-down-Dungeon-Roguelite in Godot 4.7.2 (Teamprojekt, Idee eines Kollegen; nach außen „Made with ♥ by WebBude“, siehe PRODUKT.md). Endloser, dunkler Dungeon mit Biomen, Bossen, Dorf mit Meta-Progression; geplant: neue Raumarten, Koop-Multiplayer, Gilden, Ranglisten, Steam. Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen, am Ende spielbar testen.
 
 ## 2. Repositories (D-093)
 
@@ -15,7 +15,7 @@
 | `soulwick/docs/` | PRD, Entscheidungen, **alle** Roadmaps (auch Multiplayer/Server), Grafik-Briefings | [docs/DECISIONS.md](docs/DECISIONS.md) |
 | **`../soulwick-platform`** (eigenes Repo, pnpm-Monorepo) | `apps/api` (Anmeldung, Gilden, Runs, Ranglisten, Admin-Funktionen), `apps/web` (Website), `apps/admin` (Admin-Panel: sperren, Gilden, Runs, Protokoll), `packages/contracts` (API-Verträge, Quelle der Wahrheit), `infra/` (Docker, Dokploy) | dortige `AGENTS.md` und `README.md` |
 
-**Warum getrennt:** kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, Uni-Repo bleibt schlank (D-093). Produkt-Entscheidungen (D-Nummern) und die Spiel-Roadmaps stehen hier in `docs/`; die Plattform hat in `soulwick-platform/docs/` eigene Anforderungen, Roadmap und technische Entscheidungen (P-Nummern), die darauf verweisen. Ändert sich die API, zuerst die Verträge in `soulwick-platform/packages/contracts`, dann den GDScript-Client im Spiel.
+**Warum getrennt:** kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, das Spiel-Repo bleibt schlank (D-093). Produkt-Entscheidungen (D-Nummern) und die Spiel-Roadmaps stehen hier in `docs/`; die Plattform hat in `soulwick-platform/docs/` eigene Anforderungen, Roadmap und technische Entscheidungen (P-Nummern), die darauf verweisen. Ändert sich die API, zuerst die Verträge in `soulwick-platform/packages/contracts`, dann den GDScript-Client im Spiel.
 
 ## 3. Wo steht was zu tun ist
 

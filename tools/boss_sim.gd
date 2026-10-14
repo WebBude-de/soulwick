@@ -168,7 +168,7 @@ func _clear_floor(room: Node) -> void:
 		if child.has_method(&"get_built_nodes"):
 			props.append_array(child.call(&"get_built_nodes"))
 	for prop in props:
-		if is_instance_valid(prop) and prop is StaticBody2D:
+		if is_instance_valid(prop) and room.is_solid_prop(prop):
 			prop.queue_free()
 	await _frames(5)
 

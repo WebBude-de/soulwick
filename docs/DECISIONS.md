@@ -504,10 +504,10 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 | Repository | Inhalt | Technik (Vorschlag) |
 | --- | --- | --- |
-| **`soulwick`** (Uni-Teamrepo auf GitLab, dieses; Ordner vorher `gdd`) | Godot-Spiel, Spiel-Doku, Produkt-Entscheidungen (D-Nummern), Spiel-Roadmaps | Godot 4.7.2, GDScript, GUT |
+| **`soulwick`** (Team-Repo auf GitLab, dieses; Ordner vorher `gdd`) | Godot-Spiel, Spiel-Doku, Produkt-Entscheidungen (D-Nummern), Spiel-Roadmaps | Godot 4.7.2, GDScript, GUT |
 | **`soulwick-platform`** (Nachbarordner `../soulwick-platform`, eigenes Repo) | pnpm-Monorepo mit eigener Doku (`docs/PRD.md`, `docs/ROADMAP.md`, technische `docs/DECISIONS.md` mit P-Nummern): `apps/api` (Anmeldung, Gilden, Run-Berichte, Ranglisten, Admin-Funktionen), `apps/web` (öffentliche Website), `apps/admin` (Admin-Panel), `packages/contracts` (API-Verträge), `infra/` (Docker-Compose, Dokploy) | TypeScript, Hono, Drizzle, PostgreSQL, Next.js, zod |
 
-- **Warum getrennt:** kein gemeinsamer Code (GDScript kann die TypeScript-Verträge nicht nutzen), verschiedene Werkzeuge und Tests, verschiedene Veröffentlichungszyklen (der Server muss ohnehin ältere Spielversionen bedienen), das Uni-Repo bleibt schlank, Server-Zugänge und Admin-Panel bleiben beim Betreiber.
+- **Warum getrennt:** kein gemeinsamer Code (GDScript kann die TypeScript-Verträge nicht nutzen), verschiedene Werkzeuge und Tests, verschiedene Veröffentlichungszyklen (der Server muss ohnehin ältere Spielversionen bedienen), das Spiel-Repo bleibt schlank, Server-Zugänge und Admin-Panel bleiben beim Betreiber.
 - **Schnittstelle:** HTTPS-API mit Versionsangabe (`API_VERSION`, Spielversion im Run-Bericht). Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`; der GDScript-Client im Spiel wird danach von Hand angepasst. Der Server unterstützt mindestens die aktuelle und die vorige Spielversion.
 - **Admin-Rollen:** `admin` (alles) und `moderator` (sperren, entsperren, Runs markieren). Jede Admin-Aktion landet im Protokoll. Gesperrte Spieler bekommen bei jedem Server-Aufruf „gesperrt“ mit Grund und Ende; das Spiel bleibt offline spielbar.
 - **Ersetzt:** Ordner `server/` aus D-083 und ROADMAP_MULTIPLAYER MP7 → Repository `soulwick-platform`. Ergänzt TECHSTACK §6. Arbeitsweise mit Agenten: [AGENTS.md](../AGENTS.md).
@@ -684,6 +684,32 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Arena (A5):** 2 Wellen, ab Raum 15 drei; Wellengröße normaler Wurf ×0,75 (mindestens 2 und der kleinste Normalwert); nächste Welle bei höchstens 1 übrig (normale Räume: 0). 5 feste Tore auf mindestens 2 Wänden, jede Welle aus mindestens 2 Wänden und mindestens 96 px von jedem Spieler; Gegner 0,55 s verborgen + 0,35 s Heraustreten (passiv, unverwundbar). Hinterhalt 25 % der Arenen: leer bis die Eingangstür schließt, dann nach 0,3 s aus mindestens 3 Wänden. Überlauf: mehr Gegner als Punkte/Tore → zusätzliche Welle (erledigt den offenen Punkt aus D-095).
 - **Wegfindung (A2):** Navigation über die Navigationsebene der Dungeon-Tilesets (Boden und Brücken begehbar, Wände/Innenmauern/Abgrund nicht), eine Navigationskarte je Raum; Pfad nur, wenn Tiles die Sicht blockieren; Ziel = nächster lebender Spieler, neu gewählt alle 0,5 s, Wechsel ab 48 px Vorsprung. Sichtcheck 0,15 s, Pfad 0,35 s.
 - **Offen (Balance-Agent):** Arenen sind laut Bot merklich härter (Raum 16–29 mehr Tode, +55 % Zeit je Kampfraum); der Knochenkönig ist seit der Wegfindung tödlicher. Nachmessen und Werte anpassen.
+
+### D-114 – Kampf-Varianten I und Wagnis-Altar: Ausgestaltung (A7)
+
+- **Status:** VERBINDLICH (Regeln D-101, D-104, D-109) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Ziehung:** `dungeon/variants/variant_table.tres`; ab Raum 6 je normalem Kampfraum (Plätze 1–3) 20 % Variante, gleich gewichtet (Seelenflamme, Beschwörungsrisse, Totengräber nur Krypta, Kopfgeld), nie direkt nach einer Variante (tatsächlicher Anteil dadurch ca. 17,6 %). Von den übrigen Kampfräumen 12 % Wagnis-Altar. Ein Variantenraum ist Raumart Normal; passt die Variante nicht in die Form (Flamme braucht 3×3 freie Fläche), bleibt der Raum normal. Drei Zufallswerte je normalem Kampfraum, einer mehr beim Anhängen.
+- **Seelenflamme:** 16 Grundtreffer, skaliert mit dem Gegnerschaden; 40 s Angriffswellen alle 10 s oder bei ≤ 1 Gegner (Abstand ≥ 3 s, Größe 60 % eines normalen Wurfs, mindestens 2); 70 % der Gegner greifen die Flamme an, nur Gegnerschaden zählt; erloschen = keine Truhe, Lichtkreis ×0,8, der Kampf geht weiter. Der Raum schließt nicht vor Ende der Angriffszeit.
+- **Beschwörungsrisse:** 2–3 an Wänden, 40 HP (skaliert), rufen alle 4 s einen Gegner (0,7 s Vorwarnung), solange < 6 leben; erste Welle ×0,7.
+- **Totengräber:** Skelette mit Gewicht ×3; Knochenhaufen 5 s, dann Aufstehen mit 50 % HP, höchstens einmal je Skelett; Zerstören durch Treffer oder Drüberlaufen; Gold beim endgültigen Tod.
+- **Kopfgeld:** ein Gegner mit Krone sieht Spieler bis 320 px bei freier Sicht und flieht mit ×1,1 Tempo zu einem Loch ≥ 5 Tiles entfernt; nach 12 s ist er weg (ohne Gold), der Raum schließt normal.
+- **Erfolg:** Bonus-Truhe (Upgrade-Auswahl, D-109), eine für die Gruppe. Bei Rissen und Totengräber gilt vorerst „Raum geschafft = Bonus“ (Schalter `GRAVEDIGGER_BONUS_NEEDS_NO_RISE` für die strengere Regel).
+- **Wagnis-Altar:** neben dem Eingang, Annehmen mit E nur vor dem Betreten; Prüfungen kein Treffer / unter 30 s / nur Zweitwaffe (nur mit zweiter Waffe), Flüche Lichtkreis −40 % / Gegner +15 % Tempo / keine Heilung im Raum; Erfolg 2 Kristalle („kein Treffer“), sonst 1, je Spieler.
+- **Koop-Parameter (für MP5):** Flamme +50 % HP je weiterem Spieler, +1 Riss je weiterem Spieler, Truhen je Spieler aus.
+- **Offen (Projektmitglied):** Bonus beim Totengräber nur ohne Aufstehen? Wagnis-Kristalle 2/1 passend? Variantenanteil auf echte 20 % ausgleichen? Wagnis-Banner schon beim Öffnen der Tür?
+
+### D-115 – Abgrund und Brücken: Ausgestaltung (A4)
+
+- **Status:** VERBINDLICH (Regeln D-086, D-100, D-110, D-112) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Physik:** Ebene 7 `pit` (`PhysicsLayers.PIT = 64`): Gegner haben sie in der Maske, Spieler und Geschosse nicht. Abgründe haben keine Navigation; Brücken sind begehbar.
+- **Spieler:** Fallprüfung an den Füßen mit 8 px Toleranz an Kante und Brücke; im Dash in der Luft; ohne Dash über dem Abgrund nach 0,1 s Sturz, 0,5 s Animation mit gesperrter Eingabe, **2 HP (ein ganzes Herz)** am Schild vorbei (kann töten), Rücksetzen an die letzte sichere Stelle (≥ 20 px vom Abgrund, am Spieler gespeichert), 1 s unverwundbar. Todesursache „Abgrund“.
+- **Gegner:** fallen nur bei Rückstoß > 250 px/s, wenn der Abgrund auf dem Rückstoßweg liegt; zählt als Kill, Gold am Rand. Champions, Golems und Bosse fallen nie; Sprünge, Teilungen und Teleports landen nie im Abgrund.
+- **Abgrundräume:** Brückenhalle, Inseln, Steg, Ring um ein Loch je S/M/L, ab Raum 6; jeder Boden zu Fuß erreichbar (keine Dash-Inseln), mindestens eine Dash-Abkürzung über 1 Tile; Zutaten nur Deckung, Fallen, Licht, Fässer.
+- **Kleine Löcher:** 1–2 je Raum, Gewicht 0,7, ab Raum 6, nicht in Katakombe und Abgrundraum; erstes Loch erklärt einmal den Dash.
+- **Bröckelboden-Prüfung:** je Bahn eine offene Lücke, Platten brechen 0,6 s nach dem Betreten und wachsen nach 5 s nach, 40 % feste Platten je Spalte; Sturz = Fehler, landet auf der letzten festen Kachel, kostet 2 HP, gedeckelt auf mindestens 0,5 HP Rest. Ziehung je ⅓ Spießrutenlauf, Lichtlauf, Bröckelboden.
+- **Einstieg:** Katakombe frühestens ab Raum 2 (`RoomTemplate.min_room`).
+- **Hindernisse und Navigation (Integrator):** Jede feste Requisite (Kiste, Fass, Schutt, Lichtsockel) nimmt ihrer Kachel die Navigation, bis sie zerbricht.
+- **Offen (Projektmitglied):** Bröckelboden-Sturz ganzes Herz oder ½ Herz wie andere Prüfungsfehler? Löcher auch in Arenen (heute ja)?
 
 ## 8. Vorlagen für spätere Entscheidungen
 

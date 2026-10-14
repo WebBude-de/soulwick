@@ -16,7 +16,7 @@ func test_default_table_has_the_weights_of_d102() -> void:
 	var table := SpecialTable.load_default()
 	assert_eq(table.get_base_weights(), [35.0, 20.0, 15.0, 15.0, 15.0] as Array[float])
 	assert_almost_eq(table.pact_chance, 1.0 / 3.0, 0.001)
-	assert_eq(table.crumble_weight, 0.0, "crumbling floor waits for A4")
+	assert_eq(table.crumble_weight, 1.0, "crumbling floor is a third of the trials (A4)")
 
 
 func test_type_ids_follow_the_room_sequence_enum() -> void:
@@ -137,7 +137,7 @@ func test_trial_kinds_skip_the_crumbling_floor_until_a4() -> void:
 		counts[table.roll_trial_kind(rng, false)] += 1
 	assert_eq(counts[SpecialTable.TrialKind.CRUMBLE], 0)
 	assert_almost_eq(float(counts[SpecialTable.TrialKind.GAUNTLET]) / 4000.0, 0.5, 0.03)
-	assert_false(CrumbleCourse.is_available(), "prepared interface only")
+	assert_true(CrumbleCourse.is_available(), "built with the abyss of A4")
 	var with_pits := 0
 	for i in 4000:
 		if table.roll_trial_kind(rng, true) == SpecialTable.TrialKind.CRUMBLE:

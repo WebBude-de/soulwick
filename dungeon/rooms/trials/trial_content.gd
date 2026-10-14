@@ -2,7 +2,7 @@ class_name TrialContent
 extends SpecialContent
 ## Trial room (new special room type, D-102, KONZEPT_RAEUME §6.1): entrance -> direct, always safe
 ## way to the exit -> a parcours branching off with a chest at its end (TrialLayout, trial_room.tscn).
-## The kind of trial (gauntlet, light run; crumbling floor after A4) is rolled with the dungeon RNG,
+## The kind of trial (gauntlet, light run, crumbling floor) is rolled with the dungeon RNG,
 ## its course fills the parcours. Mistakes cost damage (half a heart), never the run; whoever
 ## reaches the chest without a mistake is flawless: +1 soul crystal (D-109). The chest opens as
 ## soon as the first player arrives and gives an upgrade choice (D-109).
@@ -32,6 +32,8 @@ const SAFE_TORCH_RADIUS := 170.0
 const INTRO_TEXT := "Der Weg zum Ausgang ist sicher. Lauf durch den Parcours zur Truhe – ohne Fehler gibt es zusätzlich einen Seelenkristall. Fehler kosten ½ Herz, nie den Run."
 const INTRO_GAUNTLET := "Stacheln, Flammen und Pendelklingen haben ihren eigenen Takt: warte die Lücke ab."
 const INTRO_LIGHT_RUN := "Die Fackeln erlöschen nacheinander. Bleib im Licht – im Dunkeln kostet es alle 2 s ½ Herz."
+## The crumbling floor has its own full text: a fall costs a heart there (A4 rule), not ½.
+const INTRO_CRUMBLE := "Der Weg zum Ausgang ist sicher. Der Boden des Parcours bricht kurz nach dem Betreten hinter dir weg – bleib in Bewegung und spring mit Dash über die Lücken. Ein Sturz kostet ein Herz, nie den Run; ohne Fehler gibt es zusätzlich einen Seelenkristall."
 const CAPTION_COLOR := Color(1.0, 0.85, 0.5)
 const MISTAKE_COLOR := Color(1.0, 0.35, 0.3)
 const FLAWLESS_COLOR := Color(0.86, 0.74, 1.0)
@@ -137,6 +139,8 @@ static func get_intro_text(trial_kind: int) -> String:
 			return "%s %s" % [INTRO_TEXT, INTRO_LIGHT_RUN]
 		SpecialTable.TrialKind.GAUNTLET:
 			return "%s %s" % [INTRO_TEXT, INTRO_GAUNTLET]
+		SpecialTable.TrialKind.CRUMBLE:
+			return INTRO_CRUMBLE
 	return INTRO_TEXT
 
 
@@ -173,6 +177,18 @@ func register_mistake(player: Player, damage: float) -> bool:
 	_cooldowns[id] = TrialRules.MISTAKE_COOLDOWN
 	var capped := TrialRules.capped_damage(damage, player.health.get_health(), player.shield.get_shield())
 	mistake_made.emit(player, capped)
+	return true
+
+
+## A running player fell into the abyss of the course (crumbling floor): always a mistake, also
+## while invulnerable; the fall itself deals the (capped) damage (PlayerFall, CrumbleCourse).
+func register_fall(player: Player) -> bool:
+	if player == null or get_run_state(player) != RunState.RUNNING:
+		return false
+	var id := player.get_instance_id()
+	_mistakes[id] = get_mistakes(player) + 1
+	_cooldowns[id] = TrialRules.MISTAKE_COOLDOWN
+	mistake_made.emit(player, 0.0)
 	return true
 
 

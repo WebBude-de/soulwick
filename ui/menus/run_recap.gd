@@ -13,6 +13,7 @@ const TRAP_CAUSES: Array[Array] = [
 	[&"fire", "Lavaspalt"],
 	[&"poison", "Giftlache"],
 	[&"trap", "Stachelfalle"],
+	[&"pit", "Abgrund"],
 ]
 
 var kills := 0

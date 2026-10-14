@@ -105,3 +105,15 @@ func test_duplicate_for_target_keeps_hit_id_and_tags() -> void:
 	assert_eq(copy.origin, DamageData.Origin.SECONDARY)
 	copy.tags.append(&"extra")
 	assert_eq(damage.tags.size(), 1, "Copy must not share the tag array")
+
+
+func test_copy_of_a_hit_whose_source_was_freed_has_no_source() -> void:
+	var shooter := Node.new()
+	var damage := DamageData.new()
+	damage.source = shooter
+	damage.knockback = Vector2(10, 0)
+	shooter.free()
+	var copy := damage.duplicate_for_target()
+	assert_not_null(copy, "the hit still lands")
+	assert_null(copy.source)
+	assert_eq(copy.knockback, Vector2(10, 0))

@@ -12,4 +12,4 @@ trial_weight = 15.0
 pact_chance = 0.333333
 gauntlet_weight = 1.0
 light_run_weight = 1.0
-crumble_weight = 0.0
+crumble_weight = 1.0

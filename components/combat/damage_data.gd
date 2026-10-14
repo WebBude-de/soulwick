@@ -32,7 +32,8 @@ static func next_hit_id() -> int:
 func duplicate_for_target() -> DamageData:
 	var copy := DamageData.new()
 	copy.amount = amount
-	copy.source = source
+	# A projectile can outlive its shooter: a freed source becomes no source.
+	copy.source = source if is_instance_valid(source) else null
 	copy.tags.assign(tags)
 	copy.origin = origin
 	copy.hit_id = hit_id

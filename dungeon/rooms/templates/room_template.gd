@@ -6,8 +6,9 @@ extends Resource
 ## The scene stays the source of the layout; this resource only describes it, so the catalog can
 ## choose without instantiating rooms. Kind and size are also set on the scene's RoomController.
 
-## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100).
-enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB }
+## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100). The last four
+## are the chasm shapes (A4): bridge hall, islands, walkway, ring around a hole.
+enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB, BRIDGE_HALL, ISLANDS, WALKWAY, RING_HOLE }
 ## Wall of the room a door sits in. Today entrances are south and exits north (stacked rooms);
 ## A10 adds exits east/west.
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
@@ -29,6 +30,13 @@ enum DoorSide { NORTH, EAST, SOUTH, WEST }
 @export var chest_tile := Vector2i(-1, -1)
 ## BiomeData.id values this template may appear in; empty = every biome.
 @export var allowed_biomes: Array[StringName] = []
+## First room number this template may appear in (catacomb from room 2, chasm from room 6; the
+## first room of a run stays a plain one). RoomCatalog.pick filters by it when given a room.
+@export var min_room := 1
+
+
+func allows_room(room_index: int) -> bool:
+	return room_index <= 0 or room_index >= min_room
 
 
 func allows_biome(biome_id: StringName) -> bool:
@@ -72,4 +80,12 @@ static func get_shape_name(value: int) -> String:
 			return "Säulenhalle"
 		Shape.CATACOMB:
 			return "Katakombe"
+		Shape.BRIDGE_HALL:
+			return "Brückenhalle"
+		Shape.ISLANDS:
+			return "Inseln"
+		Shape.WALKWAY:
+			return "Steg"
+		Shape.RING_HOLE:
+			return "Ring um ein Loch"
 	return "Rechteck"

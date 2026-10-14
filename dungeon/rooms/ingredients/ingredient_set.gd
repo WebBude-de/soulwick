@@ -6,9 +6,9 @@ extends Resource
 ## metadata entry "ingredient_set" (BiomeData has no field for it yet, see for_biome()).
 ## All numbers are TESTWERTE; balancing happens in the .tres files without code changes.
 
-## The six ingredients of A3. Arena waves (A5), small abyss holes (A4) and cracked walls (A10)
-## come with their packages.
-enum Kind { COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES }
+## The six ingredients of A3 and the small abyss holes of A4. Arena waves (A5) and cracked walls
+## (A10) come with their packages.
+enum Kind { COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES, PITS }
 ## Free-standing light of the light islands.
 enum LightStyle { CRYSTAL, TORCH_STAND }
 
@@ -28,6 +28,8 @@ const META_KEY := &"ingredient_set"
 @export var light_weight := 1.0
 ## 0 = never in this biome (explosive barrels: crypt and ember forge only).
 @export var explosives_weight := 0.0
+## Small abyss holes (A4): push enemies in, mind your own step. Every biome, from pits_from_room on.
+@export var pits_weight := 0.7
 
 @export_group("Cover")
 ## Crates and barrels (Breakable) and rubble (Rubble, solid), picked uniformly per piece.
@@ -65,6 +67,12 @@ const META_KEY := &"ingredient_set"
 ## No explosive barrels before this room (gentle start). TESTWERT
 @export var explosives_from_room := 3
 
+@export_group("Abyss holes")
+## Holes per room (1x1, 2x1, 1x2 or 2x2 tiles each). TESTWERT
+@export var pit_pieces := Vector2i(1, 2)
+## No holes before this room (KONZEPT_RAEUME §3.3: never in rooms 1-5). TESTWERT
+@export var pits_from_room := ChasmRules.HOLES_FROM_ROOM
+
 
 ## Weight of one ingredient in this biome (0 = never).
 func get_weight(kind: Kind) -> float:
@@ -81,6 +89,8 @@ func get_weight(kind: Kind) -> float:
 			return light_weight
 		Kind.EXPLOSIVES:
 			return explosives_weight if explosive_scene != null else 0.0
+		Kind.PITS:
+			return pits_weight
 	return 0.0
 
 
@@ -117,4 +127,6 @@ static func get_kind_name(kind: int) -> String:
 			return "Licht/Dunkel"
 		Kind.EXPLOSIVES:
 			return "Explosionsfässer"
+		Kind.PITS:
+			return "Abgrundlöcher"
 	return "?"

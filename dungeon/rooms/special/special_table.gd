@@ -35,8 +35,8 @@ enum TrialKind { GAUNTLET, LIGHT_RUN, CRUMBLE }
 @export_range(0.0, 1.0) var pact_chance := 1.0 / 3.0
 @export var gauntlet_weight := 1.0
 @export var light_run_weight := 1.0
-## Bröckelboden: prepared interface only, needs pits (A4). Ignored while no course can build it.
-@export var crumble_weight := 0.0
+## Bröckelboden (A4): ignored while no course can build it.
+@export var crumble_weight := 1.0
 
 
 static func load_default() -> SpecialTable:

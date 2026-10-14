@@ -196,9 +196,11 @@ func test_room_scatters_once_from_the_dungeon_rng() -> void:
 	for tile in scatter.plan.get_wall_tiles():
 		assert_eq(tiles.get_cell_source_id(tile), RoomTiles.SOURCE_WALL, "wall %s painted as a wall piece" % tile)
 		assert_false(tiles.is_walkable(tile))
+	for tile in scatter.plan.get_pit_tiles():
+		assert_true(tiles.is_pit(tile), "hole %s is an abyss tile (A4)" % tile)
 	var props := 0
 	for placement in scatter.plan.placements:
-		if placement.item != IngredientScatter.ITEM_WALL:
+		if placement.item != IngredientScatter.ITEM_WALL and placement.item != IngredientScatter.ITEM_PIT:
 			props += 1
 	assert_eq(scatter.get_built_nodes().size(), props)
 	for marker in IngredientScatter.get_marker_tiles(room):

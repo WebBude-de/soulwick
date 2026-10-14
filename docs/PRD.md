@@ -218,7 +218,7 @@ Was **nach** dem MVP kommen soll, steht in Abschnitt 7.
 - **Steam-Entwicklung:** Plugin GodotSteam, Test-AppID 480 (Lobbys und Einladungen ohne eigene App).
 - **Eigene App:** Steam Direct (einmalige Gebühr), danach Steam Playtest oder Beta-Branch für Freunde; Steam-Anmeldung am eigenen Server.
 - **Optional:** Achievements, Steam-Cloud für Spielstände.
-- **OFFEN:** Zeitpunkt, wer das Steamworks-Konto führt, Rechte am Spiel im Uni-Teamprojekt, Lizenzen für den Verkauf, Preis.
+- **OFFEN:** Zeitpunkt, wer das Steamworks-Konto führt, Rechte am Spiel im Team, Lizenzen für den Verkauf, Preis.
 
 ### 7.7 KI-Wunschbosse „Traumweber“ (Idee für später, OFFEN)
 

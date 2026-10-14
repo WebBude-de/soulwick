@@ -4,6 +4,8 @@ extends SceneTree
 ## it walks through the campfire (D-103) and checks that it does not count as a room. Combat rooms:
 ## room kind rules (D-100), shape and ingredients (A3): every marker and the exit stay reachable
 ## after the ingredient scatter; the shapes and ingredients seen are printed at the end.
+## Abysses (A4): rooms with pits keep exit and markers reachable on foot, no enemy and no gold over
+## an abyss, the player never falls while standing on the walk-in tile.
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
@@ -23,6 +25,9 @@ var _campfires_seen := 0
 ## Shapes and ingredients of the combat rooms played (A3).
 var _shapes_seen := {}
 var _ingredients_seen := {}
+## Abysses (A4): chasm rooms and rooms with holes played.
+var _chasm_rooms := 0
+var _hole_rooms := 0
 
 
 func _init() -> void:
@@ -135,6 +140,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		if type_name.begins_with("COMBAT"):
 			_check_room_kind(index, room)
 			_check_shape_and_ingredients(index, room)
+			_check_abyss(index, room, player, enemies)
 			var limits: Vector2i = load("res://dungeon/room_sequence.gd").get_enemy_count_range(index)
 			# Encounter groups (A3): a quiet room has 1-2 strong enemies, themes may scale the count.
 			# Same rule as EnemySpawner.roll_enemy_count.
@@ -152,12 +158,16 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 			_check(enemies.size() >= 2, "room %d champion comes with an escort (%d)" % [index, enemies.size()])
 		var kind_label: String = _describe_room(room)
 		print("room %d: %s%s, %d enemies" % [index, type_name, (" [%s]" % kind_label) if not kind_label.is_empty() else "", enemies.size()])
+		# Combat variants (A7): fast-forward the soul flame raid so the room may close.
+		var variant: Node = room.get_node_or_null("CombatVariant")
+		if variant != null:
+			variant.step(41.0)
 		for enemy in enemies:
 			_kill(enemy, player)
 		# Splitting slimes, summons and later waves add enemies: keep clearing until empty.
 		for sweep in 12:
 			await _frames(25)
-			var remaining: Array = room.enemy_container.get_children().filter(func(n): return n.get_script() != null and n.get_script().get_global_name() == &"Enemy" and not n.is_dead())
+			var remaining: Array = room.enemy_container.get_children().filter(func(n): return _is_enemy(n) and not n.is_dead())
 			if remaining.is_empty():
 				break
 			for enemy in remaining:
@@ -166,10 +176,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		await _frames(20)
 		_check(_find_modal(root) == null, "room %d: no dialog right after the last kill" % index)
 		await _frames(100)
+		_check_no_gold_in_abyss(index, room)
 		# Exactly one encounter: entering again must not respawn.
 		room.start_encounter()
 		await _frames(2)
-		var alive: Array = room.enemy_container.get_children().filter(func(n): return n.get_script() != null and n.get_script().get_global_name() == &"Enemy" and not n.is_dead())
+		var alive: Array = room.enemy_container.get_children().filter(func(n): return _is_enemy(n) and not n.is_dead())
 		_check(alive.is_empty(), "room %d: no respawn after clear" % index)
 
 	if not type_name.begins_with("COMBAT"):
@@ -287,6 +298,42 @@ func _print_kind_distribution() -> void:
 	print("room kinds drawn over 1000 simulated runs, rooms 6+: %s" % _format_counts(deep))
 	print("shapes played (kind · shape · size): %s" % _format_counts(_shapes_seen))
 	print("ingredients scattered: %s" % _format_counts(_ingredients_seen))
+	print("abyss: %d chasm rooms, %d rooms with holes" % [_chasm_rooms, _hole_rooms])
+
+
+## Rooms with pits (A4): exit and markers reachable on foot (enemies do not dash), no enemy spawned
+## over the abyss, the player stands safely on the walk-in tile and has not fallen.
+func _check_abyss(index: int, room: Node, player: Node, enemies: Array) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	if not tiles.has_pits():
+		return
+	var chasm: int = load("res://dungeon/room_sequence.gd").get_script_constant_map()["RoomKind"]["CHASM"]
+	if room.room_kind == chasm:
+		_chasm_rooms += 1
+	else:
+		_hole_rooms += 1
+	var on_foot: Dictionary = tiles.get_reachable_tiles(0)
+	_check(on_foot.has(tiles.get_exit_inside_tile()), "room %d: exit reachable on foot with abysses" % index)
+	var scatter: Node = room.get_node_or_null("Ingredients")
+	if scatter != null:
+		for marker in scatter.get_marker_tiles(room):
+			_check(on_foot.has(marker) and not tiles.is_pit(marker), "room %d: marker %s on solid floor" % [index, marker])
+	for enemy in enemies:
+		if is_instance_valid(enemy):
+			_check(not tiles.is_pit_at_local(room.to_local(enemy.global_position)), "room %d: %s not spawned over the abyss" % [index, enemy.name])
+	_check(not player.is_falling() and player.fall.has_safe_spot(), "room %d: player safe on the walk-in tile" % index)
+
+
+## No gold or heart lying over an abyss after the fight (A4). Pickups flying to the player may
+## cross it (the reward dialog pauses them mid-flight), only resting ones count.
+func _check_no_gold_in_abyss(index: int, room: Node) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	if not tiles.has_pits():
+		return
+	for node in room.find_children("*", "Area2D", true, false):
+		if node.get_script() != null and node.get_script().get_global_name() == &"GoldPickup" and float(node.get(&"_homing_speed")) <= 0.0:
+			var local: Vector2 = room.to_local(node.global_position)
+			_check(not tiles.is_pit_at_local(local), "room %d: pickup not in the abyss (tile %s, age %.2f s)" % [index, tiles.local_to_tile(local), node.get(&"_age")])
 
 
 ## Shape and ingredients of a combat room (A3): the scatter ran once from the dungeon RNG, 2-3
@@ -378,6 +425,16 @@ func _use_special(room: Node, player: Node) -> void:
 				await _frames(4)
 				await _resolve_modals()
 				return
+
+
+## Enemy or a subclass (summoning rifts, A7); the count check above stays on the exact class.
+func _is_enemy(node: Object) -> bool:
+	var script: Script = node.get_script()
+	while script != null:
+		if script.get_global_name() == &"Enemy":
+			return true
+		script = script.get_base_script()
+	return false
 
 
 func _kill(enemy: Node, player: Node) -> void:

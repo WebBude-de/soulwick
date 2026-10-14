@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="VariantTable" format=3]
+
+[ext_resource type="Script" path="res://dungeon/variants/variant_table.gd" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+from_room = 6
+variant_chance = 0.2
+wager_chance = 0.12
+variant_ids = Array[StringName]([&"soul_flame", &"rifts", &"gravedigger", &"bounty"])
+variant_weights = Array[float]([1.0, 1.0, 1.0, 1.0])
+variant_biomes = Array[int]([-1, -1, 0, -1])

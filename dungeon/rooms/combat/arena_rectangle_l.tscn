@@ -85,4 +85,4 @@ position = Vector2(1056, 56)
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
 script = ExtResource("5_scatter")
-allowed = Array[int]([0, 1, 4, 5])
+allowed = Array[int]([0, 1, 4, 5, 6])

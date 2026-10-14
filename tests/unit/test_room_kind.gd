@@ -126,13 +126,30 @@ func test_pick_respects_kind_and_sizes() -> void:
 	assert_eq(seen.size(), catalog._candidates(RoomSequence.RoomKind.NORMAL, RoomSequence.SOLO_ROOM_SIZES, &"").size(), "every normal S/M template appears")
 
 
-func test_pick_falls_back_to_normal_without_chasm_template() -> void:
+func test_pick_finds_chasm_templates() -> void:
 	var catalog := RoomCatalog.create()
 	var rng := _rng(8)
-	assert_false(catalog.has_kind(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES), "no chasm template yet (A4)")
+	assert_true(catalog.has_kind(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES), "chasm templates (A4)")
 	for i in 100:
-		var scene := catalog.pick(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES, rng)
-		assert_eq(catalog.get_kind_of(scene), RoomSequence.RoomKind.NORMAL)
+		var scene := catalog.pick(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES, rng, &"", 6 + i)
+		assert_eq(catalog.get_kind_of(scene), RoomSequence.RoomKind.CHASM)
+	# Before room 6 a chasm template is never picked, the room falls back to a normal one.
+	assert_false(catalog.has_kind(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES, &"", 5))
+	for i in 50:
+		var early := catalog.pick(RoomSequence.RoomKind.CHASM, RoomSequence.SOLO_ROOM_SIZES, rng, &"", 3)
+		assert_eq(catalog.get_kind_of(early), RoomSequence.RoomKind.NORMAL)
+
+
+func test_no_catacomb_in_the_first_room() -> void:
+	var catalog := RoomCatalog.create()
+	var rng := _rng(5)
+	var seen_catacomb := false
+	for i in 400:
+		var first := catalog.pick_template(RoomSequence.RoomKind.NORMAL, RoomSequence.SOLO_ROOM_SIZES, rng, &"", 1)
+		assert_ne(first.shape, RoomTemplate.Shape.CATACOMB, "room 1 is never a catacomb (UX2)")
+		var second := catalog.pick_template(RoomSequence.RoomKind.NORMAL, RoomSequence.SOLO_ROOM_SIZES, rng, &"", 2)
+		seen_catacomb = seen_catacomb or second.shape == RoomTemplate.Shape.CATACOMB
+	assert_true(seen_catacomb, "catacombs from room 2 on")
 
 
 func test_pick_falls_back_in_small_catalog() -> void:

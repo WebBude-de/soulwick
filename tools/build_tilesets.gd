@@ -13,10 +13,15 @@ extends SceneTree
 ## Atlas sources of every dungeon tileset (same ids in all biomes):
 ##   0 SOURCE_GROUND      the room tiles (floor, walls, pillar), 8 x 3
 ##   1 SOURCE_INNER_WALL  inner wall pieces (inner_wall_tiles[_<biome>].png), solid, 4 x 2
-##   2 SOURCE_ABYSS       abyss pieces (abyss_tiles.png), not walkable, no world collision, 4 x 4.
-##                        A4 adds the pit physics layer (enemies blocked, player falls).
-##   3 SOURCE_BRIDGE      bridges laid over the abyss on a layer above it (bridge_tiles.png),
-##                        walkable, 4 x 1
+##   2 SOURCE_ABYSS       the biome's abyss pieces (abyss_tiles_<biome>.png, crypt for the dungeon
+##                        tileset; layout: edges n/e/s/w, outer corners, inner corners, void 1-4),
+##                        not walkable, no world collision, but solid on physics layer 1 "pit"
+##                        (PhysicsLayers.PIT, A4): enemies collide with it, the player falls
+##                        (PlayerFall). RoomTiles combines the pieces at runtime (AbyssAutotile).
+##   3 SOURCE_BRIDGE      bridges laid over the abyss (bridge_tiles.png), walkable, no collision on
+##                        either layer, 4 x 1; the other ends are flipped per cell
+##
+## Physics layers of every dungeon tileset: 0 = world (walls, layer 1), 1 = pit (layer 7, A4).
 
 const TILE := 32
 const HALF := TILE / 2.0
@@ -26,6 +31,12 @@ const SOURCE_GROUND := 0
 const SOURCE_INNER_WALL := 1
 const SOURCE_ABYSS := 2
 const SOURCE_BRIDGE := 3
+## TileSet physics layer of the abyss (A4); its bodies sit on PhysicsLayers.PIT.
+const PHYSICS_PIT := 1
+const PIT_COLLISION_LAYER := 64
+## Abyss art per biome; the crypt version stands in for a biome without its own file.
+const ABYSS_PNG := "abyss_tiles_%s.png"
+const ABYSS_FALLBACK_BIOME := "crypt"
 ## Navigation layer bit used by every walkable dungeon tile (NavigationAgent2D default layers = 1).
 const NAVIGATION_LAYERS := 1
 const BIOMES: Array[String] = ["slime_grotto", "shadow_realm", "ember_forge"]
@@ -37,13 +48,14 @@ func _init() -> void:
 		if arg.begins_with("only="):
 			only = arg.trim_prefix("only=")
 	if only.is_empty() or only == "dungeon":
-		_build_dungeon("res://dungeon/environment/dungeon_tileset.tres", "dungeon_tileset.png", "inner_wall_tiles.png")
+		_build_dungeon("res://dungeon/environment/dungeon_tileset.tres", "dungeon_tileset.png", "inner_wall_tiles.png", ABYSS_FALLBACK_BIOME)
 		# Biome tilesets share the dungeon layout (docs/SPRITES_V2.md §1).
 		for biome in BIOMES:
 			_build_dungeon(
 				"res://dungeon/environment/%s_tileset.tres" % biome,
 				"%s_tileset.png" % biome,
-				"inner_wall_tiles_%s.png" % biome)
+				"inner_wall_tiles_%s.png" % biome,
+				biome)
 	if only.is_empty() or only == "village":
 		var village := _new_tileset(false)
 		_add_source(village, 0, TILES_DIR + "village_tileset.png", 8, 3, _village_collision, _no_navigation)
@@ -51,13 +63,19 @@ func _init() -> void:
 	quit()
 
 
-func _build_dungeon(out_path: String, ground_png: String, inner_wall_png: String) -> void:
+func _build_dungeon(out_path: String, ground_png: String, inner_wall_png: String, biome: String) -> void:
 	var tileset := _new_tileset(true)
+	tileset.add_physics_layer()
+	tileset.set_physics_layer_collision_layer(PHYSICS_PIT, PIT_COLLISION_LAYER)
+	tileset.set_physics_layer_collision_mask(PHYSICS_PIT, 0)
 	_add_source(tileset, SOURCE_GROUND, TILES_DIR + ground_png, 8, 3, _ground_collision, _ground_walkable)
 	if not ResourceLoader.exists(TILES_DIR + inner_wall_png):
 		inner_wall_png = "inner_wall_tiles.png"
 	_add_source(tileset, SOURCE_INNER_WALL, TILES_DIR + inner_wall_png, 4, 2, _solid, _no_navigation)
-	_add_source(tileset, SOURCE_ABYSS, TILES_DIR + "abyss_tiles.png", 4, 4, _no_collision, _no_navigation)
+	var abyss_png := ABYSS_PNG % biome
+	if not ResourceLoader.exists(TILES_DIR + abyss_png):
+		abyss_png = ABYSS_PNG % ABYSS_FALLBACK_BIOME
+	_add_source(tileset, SOURCE_ABYSS, TILES_DIR + abyss_png, 4, 4, _solid, _no_navigation, PHYSICS_PIT)
 	_add_source(tileset, SOURCE_BRIDGE, TILES_DIR + "bridge_tiles.png", 4, 1, _no_collision, _walkable)
 	_save(tileset, out_path)
 
@@ -114,9 +132,9 @@ func _new_tileset(with_navigation: bool) -> TileSet:
 	return tileset
 
 
-## collision(coords) -> Array of polygon points (empty = no collision);
-## walkable(coords) -> bool (navigation polygon over the whole tile).
-func _add_source(tileset: TileSet, source_id: int, texture_path: String, cols: int, rows: int, collision: Callable, walkable: Callable) -> void:
+## collision(coords) -> Array of polygon points (empty = no collision) on the TileSet physics layer
+## physics_layer; walkable(coords) -> bool (navigation polygon over the whole tile).
+func _add_source(tileset: TileSet, source_id: int, texture_path: String, cols: int, rows: int, collision: Callable, walkable: Callable, physics_layer := 0) -> void:
 	var source := TileSetAtlasSource.new()
 	source.texture = load(texture_path)
 	source.texture_region_size = Vector2i(TILE, TILE)
@@ -131,8 +149,8 @@ func _add_source(tileset: TileSet, source_id: int, texture_path: String, cols: i
 			var tile_data := source.get_tile_data(coords, 0)
 			var points: Array = collision.call(coords)
 			if not points.is_empty():
-				tile_data.add_collision_polygon(0)
-				tile_data.set_collision_polygon_points(0, 0, PackedVector2Array(points))
+				tile_data.add_collision_polygon(physics_layer)
+				tile_data.set_collision_polygon_points(physics_layer, 0, PackedVector2Array(points))
 			if has_navigation and walkable.call(coords):
 				tile_data.set_navigation_polygon(0, _full_tile_navigation())
 	print("  source %d: %s (%d x %d)" % [source_id, texture_path.get_file(), mini(cols, width), mini(rows, height)])

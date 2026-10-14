@@ -138,7 +138,7 @@ Spiel (Godot)                                  Server (VPS, Dokploy)
 ## MP7b – Website und Admin-Panel (D-093, parallel möglich)
 
 - [x] Grundgerüst: `apps/web` (Startseite, Ranglisten, Gildenseiten, Datenschutz/Impressum als Platzhalter) und `apps/admin` (Anmeldung, Spieler sperren/entsperren, Gilden verwalten, Runs prüfen, Protokoll, Admins) – 13.10.2026.
-- [ ] Texte für Datenschutz und Impressum (Verantwortliche Person, Hochschule klären).
+- [ ] Texte für Datenschutz und Impressum (verantwortliche Person, Betreiber WebBude).
 - [ ] Logo, Keyart und Screenshots einbauen ([SPRITES_V3.md](SPRITES_V3.md) §6).
 - [ ] Deployment auf Dokploy: Domains `<domain>`, `api.<domain>`, `admin.<domain>`; Admin-Panel zusätzlich schützen (z. B. Basic Auth oder IP-Liste in Dokploy).
 - [ ] Ersten Admin anlegen, Moderatoren einladen.
@@ -165,7 +165,7 @@ Spiel (Godot)                                  Server (VPS, Dokploy)
 
 ## MP10 – Eigene Steam-App und Release-Vorbereitung
 
-- [ ] Rechte am Spiel im Team und mit der Hochschule klären; Lizenzen aller Grafiken, Musik und Addons für den kommerziellen Verkauf prüfen.
+- [ ] Rechte am Spiel im Team klären; Lizenzen aller Grafiken, Musik und Addons für den kommerziellen Verkauf prüfen.
 - [ ] Steamworks-Konto (wer führt es, Steuer- und Bankdaten), Steam Direct bezahlen, eigene AppID.
 - [ ] Steam-Anmeldung am Server auf die eigene AppID umstellen (MP7).
 - [ ] Builds per SteamPipe hochladen, Beta-Branch mit Passwort, **Steam Playtest** für Freunde und Testspieler.

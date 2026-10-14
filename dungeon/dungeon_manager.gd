@@ -59,6 +59,10 @@ var _previous_special := -1
 var _special_table: SpecialTable = SpecialTable.load_default()
 ## Kind of the room prepared last (-1 after a non-combat room): no abyss twice in a row (D-086).
 var _previous_kind := -1
+## Combat variants and wager altars (A7, D-101, D-104).
+var _variant_table: VariantTable = VariantTable.load_default()
+## Variant of the room prepared last (&"" otherwise): never two in a row (D-101).
+var _previous_variant: StringName = &""
 var _combat_catalog: RoomCatalog = null
 var _run_ending := false
 
@@ -169,9 +173,14 @@ func _prepare_slot(slot: int) -> RoomController:
 		portal = CAMPFIRE_EXIT_PORTAL
 
 	var rolled_kind := -1
+	# A7: variant, wager altar or nothing - three numbers per normal combat room, none otherwise.
+	var variant_pick := _variant_table.roll(index, room_type, _previous_variant, context.rng)
 	if RoomSequence.is_normal_combat(room_type):
 		rolled_kind = RoomSequence.roll_room_kind(index, _previous_kind, context.rng)
-	var room := _template_for(room_type, rolled_kind, special).instantiate() as RoomController
+		if variant_pick.has_variant():
+			# Variant rooms are fought as normal rooms (no arena, no chasm).
+			rolled_kind = RoomSequence.RoomKind.NORMAL
+	var room := _template_for(room_type, rolled_kind, special, index).instantiate() as RoomController
 	var is_campfire := room_type == RoomSequence.RoomType.CAMPFIRE
 	room.name = ("Campfire%d" if is_campfire else "Room%d") % index
 	room.rolled_kind = rolled_kind
@@ -186,6 +195,8 @@ func _prepare_slot(slot: int) -> RoomController:
 	if RoomSequence.is_normal_combat(room_type):
 		var plan := EncounterVariation.roll(index, room_type, context.rng, room.room_kind)
 		room.set_encounter_group(EncounterVariation.build_group(plan, index, room.spawner.get_biome(index)))
+	# Combat variant or wager altar (A7); one more RNG draw when something was picked.
+	_previous_variant = RoomVariants.attach(room, variant_pick, context.rng)
 	assert(room_container.get_child_count() <= MAX_LIVE_ROOMS, "More than three live rooms.")
 
 	var previous: RoomController = _rooms.get(slot - 1)
@@ -219,7 +230,7 @@ func _unload_slot(slot: int) -> void:
 
 ## Combat rooms: a template of the rolled kind in a single-player size (S or M); kinds without a
 ## template fall back to a normal room (D-100, RoomCatalog.pick).
-func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1) -> PackedScene:
+func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1, room_index := 0) -> PackedScene:
 	match room_type:
 		RoomSequence.RoomType.SPECIAL:
 			# Some special types bring their own floor plan (trial room, A8).
@@ -231,7 +242,7 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 			return boss_template
 		RoomSequence.RoomType.CAMPFIRE:
 			return campfire_template if campfire_template != null else load(CAMPFIRE_TEMPLATE_PATH) as PackedScene
-	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng)
+	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng, &"", room_index)
 	assert(template != null, "No combat room templates configured.")
 	return template
 
@@ -339,7 +350,13 @@ func _announce_room(room: RoomController, biome: BiomeData) -> void:
 		ui.show_banner(kind_text, "Raum %d" % room.room_index, ROOM_KIND_BANNER_COLOR)
 	# Arena, catacomb, special rooms, trials: named banner, explained once per save (UX2). Normal
 	# combat rooms stay unnamed; banners queue behind each other.
-	ui.show_room_genre(room)
+	var genre := ui.show_room_genre(room)
+	# Small holes outside a chasm room: the dash hint once per save (A4).
+	var hint := ChasmRules.get_hint_entry(room.tiles.has_pits(), genre == RoomGenre.CHASM,
+			SaveManager.has_seen(RoomGenre.get_seen_id(RoomGenre.CHASM)), SaveManager.has_seen(ChasmRules.HINT_ID))
+	if not hint.is_empty():
+		SaveManager.mark_seen(hint["id"])
+		ui.show_hint(hint["title"], hint["text"], hint["badge"])
 
 
 ## Name of a combat room with gameplay of its own (D-110): "Arena", "Abgrund", "Katakombe"; empty for
