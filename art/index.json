@@ -3583,6 +3583,47 @@
       "priority": 11
     },
     {
+      "id": "ui/controls",
+      "title": "Regler & Zustände",
+      "dir": "art/ui",
+      "notes": [
+        "slider_grabber 8×8 auf einer 4 px hohen Schiene (panel_dark-Farben).",
+        "button_disabled: 9-Slice wie button.png (Rand 6 px), Text in #7a7396."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "slider_grabber",
+          "file": "art/ui/slider_grabber.png",
+          "w": 8,
+          "h": 8,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            4
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "button_disabled",
+          "file": "art/ui/button_disabled.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "ui3",
+      "priority": 12
+    },
+    {
       "id": "ui/coop_ui",
       "title": "Koop & Gilden",
       "dir": "art/ui",
@@ -4298,7 +4339,7 @@
       "notes": [
         "Rahmen 48×48 (Boss 64×56): Durchgang 32 px breit, mittig, Unterkante = Boden; Rahmen über die Wand legen (Pivot unten Mitte).",
         "Türblatt 32×32 in den Durchgang setzen: Rahmen-x+8, Rahmen-y+16 (Boss: x+16, y+24). Frame 1 = geschlossen, Frame 4 = offen (leer bzw. Rest).",
-        "Durchgang ist im Rahmen bereits dunkel, hinter dem Türblatt muss nichts gezeichnet werden."
+        "Durchgang ist im Rahmen TRANSPARENT (V5 §7): dahinter Boden bzw. Dunkelheit des Spiels zeichnen."
       ],
       "items": [
         {
@@ -4453,18 +4494,927 @@
           "file": "art/environment/doors/door_special_symbols.png",
           "w": 16,
           "h": 16,
-          "frames": 6,
+          "frames": 7,
           "fps": 0,
           "loop": false,
           "pivot": [
             8,
             16
           ],
-          "note": "6 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme; weiß/grau, einfärben"
+          "note": "7 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme, Schädel (Miniboss); weiß/grau, einfärben"
         }
       ],
       "module": "doors4",
       "priority": 14
+    },
+    {
+      "id": "environment/rooms/arena",
+      "title": "Arena mit Wellen (A5)",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_breach_6f auf eine Wandkachel (32×48 = wall_front + Oberkante) legen; Loch ab Frame 2 transparent, Frame 6 = Endzustand.",
+        "enemy_gate_4f: Gitter fährt hoch, Öffnung dunkel-transparent."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "wall_breach",
+          "file": "art/environment/rooms/wall_breach_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "enemy_gate",
+          "file": "art/environment/rooms/enemy_gate_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wave_banner_icon",
+          "file": "art/environment/rooms/wave_banner_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "HUD „Welle x/y“"
+        }
+      ],
+      "module": "rooms5",
+      "priority": 14
+    },
+    {
+      "id": "environment/rooms/rooms",
+      "title": "Kampfraum-Zutaten (A3)",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "Pivot unten Mitte.",
+        "chest_open_4f: Frame 1 geschlossen, Frame 4 offen mit Leuchten; Beute per Code.",
+        "explosive_barrel_fuse_4f: danach explosion_6f aus art/effects am Pivot.",
+        "light_crystal, rubble, torch_stand biomneutral (einfärben)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "chest_closed",
+          "file": "art/environment/rooms/chest_closed.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "chest_open",
+          "file": "art/environment/rooms/chest_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "explosive_barrel",
+          "file": "art/environment/rooms/explosive_barrel.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "explosive_barrel_fuse",
+          "file": "art/environment/rooms/explosive_barrel_fuse_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "rubble_1",
+          "file": "art/environment/rooms/rubble_1.png",
+          "w": 32,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            23
+          ],
+          "note": "niedrige Deckung"
+        },
+        {
+          "kind": "image",
+          "name": "rubble_2",
+          "file": "art/environment/rooms/rubble_2.png",
+          "w": 32,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            23
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "light_crystal",
+          "file": "art/environment/rooms/light_crystal_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Lichtinsel, Light2D türkis"
+        },
+        {
+          "kind": "anim",
+          "name": "torch_stand",
+          "file": "art/environment/rooms/torch_stand_4f.png",
+          "w": 16,
+          "h": 40,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            39
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bone_pile",
+          "file": "art/environment/rooms/bone_pile.png",
+          "w": 32,
+          "h": 20,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            19
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "coffin",
+          "file": "art/environment/rooms/coffin.png",
+          "w": 32,
+          "h": 40,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            38
+          ],
+          "note": "Deckel verschoben, Öffnung halbtransparent"
+        },
+        {
+          "kind": "image",
+          "name": "cobweb_corner",
+          "file": "art/environment/rooms/cobweb_corner.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Ecke oben links; für andere Ecken spiegeln"
+        }
+      ],
+      "module": "rooms5",
+      "priority": 14
+    },
+    {
+      "id": "environment/variants/variants",
+      "title": "Kampf-Varianten (A7/A9)",
+      "dir": "art/environment/variants",
+      "notes": [
+        "Pivot unten Mitte.",
+        "soul_flame: Light2D violett; dying → danach soul_flame_dying letzter Frame stehen lassen.",
+        "summoning_rift biomneutral türkis-weiß (einfärben); break_6f endet leer.",
+        "stone_guardian: idle/walk mit glühenden Augen = aktiv (im Dunkeln); frozen im Licht (Augen aus, Staub).",
+        "soul_lantern 16×24 am Anker weapon_hand tragen.",
+        "wager_icons: kein Treffer, Zeit, Zweitwaffe, Fluch Licht, Fluch Tempo, Fluch keine Heilung (wird eingefärbt)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "soul_flame",
+          "file": "art/environment/variants/soul_flame_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            40
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "soul_flame_dying",
+          "file": "art/environment/variants/soul_flame_dying_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            40
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "summoning_rift",
+          "file": "art/environment/variants/summoning_rift_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "summoning_rift_break",
+          "file": "art/environment/variants/summoning_rift_break_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "totem",
+          "file": "art/environment/variants/totem_4f.png",
+          "w": 24,
+          "h": 40,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            12,
+            38
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "stone_guardian_idle",
+          "file": "art/environment/variants/stone_guardian_idle_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 3,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "stone_guardian_walk",
+          "file": "art/environment/variants/stone_guardian_walk_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "stone_guardian_frozen",
+          "file": "art/environment/variants/stone_guardian_frozen.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "soul_lantern",
+          "file": "art/environment/variants/soul_lantern_4f.png",
+          "w": 16,
+          "h": 24,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            8,
+            22
+          ],
+          "note": "Light2D warm, groß"
+        },
+        {
+          "kind": "image",
+          "name": "lantern_socket",
+          "file": "art/environment/variants/lantern_socket.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "lantern_socket_lit",
+          "file": "art/environment/variants/lantern_socket_lit_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bounty_crown",
+          "file": "art/environment/variants/bounty_crown.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            12
+          ],
+          "note": "schwebt 6 px über dem Kopf, leicht wippen"
+        },
+        {
+          "kind": "anim",
+          "name": "escape_hole",
+          "file": "art/environment/variants/escape_hole_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            20
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "bone_heap_rise",
+          "file": "art/environment/variants/bone_heap_rise_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "danach skeleton idle"
+        },
+        {
+          "kind": "image",
+          "name": "torch_stand_unlit",
+          "file": "art/environment/variants/torch_stand_unlit.png",
+          "w": 16,
+          "h": 40,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            39
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "wager_altar",
+          "file": "art/environment/variants/wager_altar_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wager_icons",
+          "file": "art/environment/variants/wager_icons.png",
+          "w": 96,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "6 Symbole à 16×16"
+        }
+      ],
+      "module": "variants5",
+      "priority": 15
+    },
+    {
+      "id": "environment/trials/trials",
+      "title": "Prüfungsräume & Pakt (A8)",
+      "dir": "art/environment/trials",
+      "notes": [
+        "pendulum_blade_8f: Frame 1 und 5 Außenpositionen, Aufhängung oben Mitte (Pivot 16,2); Trefferzone = Klinge.",
+        "flame_jet_6f: Frame 2 Warnung (Funken), Frame 3-5 Flammenstoß, Frame 6 Rauch.",
+        "crumbling_floor_6f: Frame 6 transparent (Abgrund darunter).",
+        "curse_icons: −1 Max-Herz, Gegner schneller, Lichtkreis kleiner, Brunnen heilen halb."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "pendulum_blade",
+          "file": "art/environment/trials/pendulum_blade_8f.png",
+          "w": 32,
+          "h": 64,
+          "frames": 8,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            2
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "flame_jet",
+          "file": "art/environment/trials/flame_jet_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "crumbling_floor",
+          "file": "art/environment/trials/crumbling_floor_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Tile-Overlay"
+        },
+        {
+          "kind": "image",
+          "name": "trial_pressure_plate",
+          "file": "art/environment/trials/trial_pressure_plate.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Tile-Overlay, Rune türkis"
+        },
+        {
+          "kind": "anim",
+          "name": "pact_altar",
+          "file": "art/environment/trials/pact_altar_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 5,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "curse_icons",
+          "file": "art/environment/trials/curse_icons.png",
+          "w": 64,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "4 Symbole à 16×16"
+        }
+      ],
+      "module": "trials5",
+      "priority": 16
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_crypt",
+      "title": "Abgrund Krypta",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png (4×4): Kanten n/e/s/w, Außenecken, Innenecken, Leere."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_crypt",
+          "file": "art/environment/tiles/abyss_tiles_crypt.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "trials5",
+      "priority": 17
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_ember_forge",
+      "title": "Abgrund Glutkammer",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png (4×4): Kanten n/e/s/w, Außenecken, Innenecken, Leere."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_ember_forge",
+          "file": "art/environment/tiles/abyss_tiles_ember_forge.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "trials5",
+      "priority": 17
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_shadow_realm",
+      "title": "Abgrund Schattenreich",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png (4×4): Kanten n/e/s/w, Außenecken, Innenecken, Leere."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_shadow_realm",
+          "file": "art/environment/tiles/abyss_tiles_shadow_realm.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "trials5",
+      "priority": 17
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_slime_grotto",
+      "title": "Abgrund Schleimgrotte",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png (4×4): Kanten n/e/s/w, Außenecken, Innenecken, Leere."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_slime_grotto",
+          "file": "art/environment/tiles/abyss_tiles_slime_grotto.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "trials5",
+      "priority": 17
+    },
+    {
+      "id": "environment/tiles/bridge_rope_tiles",
+      "title": "Hängebrücke",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Waagerecht (west→ost). Für senkrechte Brücken um 90° drehen.",
+        "Ränder transparent, Seile oben/unten."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "bridge_rope_tiles",
+          "file": "art/environment/tiles/bridge_rope_tiles.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "bridge_rope_end_w",
+            "bridge_rope_mid_1",
+            "bridge_rope_mid_2",
+            "bridge_rope_end_e"
+          ]
+        }
+      ],
+      "module": "trials5",
+      "priority": 17
+    },
+    {
+      "id": "characters/npcs/wandering_merchant",
+      "title": "Wandernder Händler",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Kapuze, großer Rucksack, Wanderstab. Erscheint in Geheimnischen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/wandering_merchant_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        }
+      ],
+      "module": "trials5",
+      "priority": 18
+    },
+    {
+      "id": "environment/rooms/secrets",
+      "title": "Wegführung & Geheimnisse (A10)",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_cracked_<biom> ersetzt eine wall_front-Kachel; wall_break_6f (32×48) läuft darüber (Krypta-Farben, einfärben), Loch transparent.",
+        "door_branch_symbols: Elite-Nest, sicherer Weg, unbekannt."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_cracked_crypt",
+          "file": "art/environment/rooms/wall_cracked_crypt.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wall_cracked_slime_grotto",
+          "file": "art/environment/rooms/wall_cracked_slime_grotto.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wall_cracked_shadow_realm",
+          "file": "art/environment/rooms/wall_cracked_shadow_realm.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wall_cracked_ember_forge",
+          "file": "art/environment/rooms/wall_cracked_ember_forge.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "wall_break",
+          "file": "art/environment/rooms/wall_break_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_branch_symbols",
+          "file": "art/environment/rooms/door_branch_symbols.png",
+          "w": 48,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "3 Symbole à 16×16"
+        }
+      ],
+      "module": "trials5",
+      "priority": 18
     }
   ]
 }

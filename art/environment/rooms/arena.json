@@ -1,0 +1,56 @@
+{
+  "notes": [
+    "wall_breach_6f auf eine Wandkachel (32×48 = wall_front + Oberkante) legen; Loch ab Frame 2 transparent, Frame 6 = Endzustand.",
+    "enemy_gate_4f: Gitter fährt hoch, Öffnung dunkel-transparent."
+  ],
+  "items": [
+    {
+      "name": "wall_breach",
+      "file": "wall_breach_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "enemy_gate",
+      "file": "enemy_gate_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "wave_banner_icon",
+      "file": "wave_banner_icon.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "HUD „Welle x/y“"
+    }
+  ]
+}

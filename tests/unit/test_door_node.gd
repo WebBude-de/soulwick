@@ -90,13 +90,14 @@ func test_configure_builds_the_view() -> void:
 	assert_null(door.view.get_threat_light())
 
 
-func test_entrance_door_has_no_torches_and_no_sign() -> void:
+func test_entrance_door_is_only_a_leaf_in_the_south_wall() -> void:
+	# An arch on the low south wall would face away and reach into the room behind (playtest).
 	var door := _door()
 	door.configure(&"crypt", DoorStyle.KIND_NORMAL, &"shop", true)
 	assert_true(door.is_entrance)
 	assert_eq(door.view.get_torches().size(), 0)
 	assert_null(door.view.get_symbol_sprite())
-	assert_not_null(door.view.get_frame_sprite())
+	assert_null(door.view.get_frame_sprite())
 
 
 func test_configure_keeps_state_and_collision() -> void:

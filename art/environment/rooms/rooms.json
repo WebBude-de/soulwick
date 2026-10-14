@@ -1,0 +1,186 @@
+{
+  "notes": [
+    "Pivot unten Mitte.",
+    "chest_open_4f: Frame 1 geschlossen, Frame 4 offen mit Leuchten; Beute per Code.",
+    "explosive_barrel_fuse_4f: danach explosion_6f aus art/effects am Pivot.",
+    "light_crystal, rubble, torch_stand biomneutral (einfärben)."
+  ],
+  "items": [
+    {
+      "name": "chest_closed",
+      "file": "chest_closed.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "chest_open",
+      "file": "chest_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "explosive_barrel",
+      "file": "explosive_barrel.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "explosive_barrel_fuse",
+      "file": "explosive_barrel_fuse_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "rubble_1",
+      "file": "rubble_1.png",
+      "frame_size": [
+        32,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        23
+      ],
+      "note": "niedrige Deckung"
+    },
+    {
+      "name": "rubble_2",
+      "file": "rubble_2.png",
+      "frame_size": [
+        32,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        23
+      ],
+      "note": ""
+    },
+    {
+      "name": "light_crystal",
+      "file": "light_crystal_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Lichtinsel, Light2D türkis"
+    },
+    {
+      "name": "torch_stand",
+      "file": "torch_stand_4f.png",
+      "frame_size": [
+        16,
+        40
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        8,
+        39
+      ],
+      "note": ""
+    },
+    {
+      "name": "bone_pile",
+      "file": "bone_pile.png",
+      "frame_size": [
+        32,
+        20
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        19
+      ],
+      "note": ""
+    },
+    {
+      "name": "coffin",
+      "file": "coffin.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": "Deckel verschoben, Öffnung halbtransparent"
+    },
+    {
+      "name": "cobweb_corner",
+      "file": "cobweb_corner.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Ecke oben links; für andere Ecken spiegeln"
+    }
+  ]
+}

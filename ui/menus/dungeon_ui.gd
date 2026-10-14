@@ -383,14 +383,18 @@ func _unhandled_input(event: InputEvent) -> void:
 
 ## Lets the player pick exactly one upgrade. Returns null only if offer is empty.
 ## Click a card (or its "Wählen") or press 1–3 to pick it at once; Enter picks the focused card.
-func choose_upgrade(offer: Array[UpgradeData], title: String) -> UpgradeData:
+## stack_gain: stacks the pick will gain (pact altar: more than one); the cards show the result.
+func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1) -> UpgradeData:
 	if offer.is_empty():
 		return null
 	var modal := Modal.create(GameManager.PAUSE_UPGRADE_CHOICE, &"none")
 	modal.cancel_allowed = false
 	modal.content.add_theme_constant_override("separation", int(UiKit.px(4)))
 	modal.content.add_child(UiKit.title(title, UiKit.SIZE_TITLE_LARGE))
-	var subtitle := UiKit.text_label("Wähle ein Upgrade – es gilt für den ganzen Run.", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+	var subtitle_text := "Wähle ein Upgrade – es gilt für den ganzen Run."
+	if stack_gain > 1:
+		subtitle_text = "Wähle ein Upgrade – es steigt um %d Stufen." % stack_gain
+	var subtitle := UiKit.text_label(subtitle_text, UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	modal.content.add_child(subtitle)
 	var spacer := Control.new()
@@ -402,7 +406,7 @@ func choose_upgrade(offer: Array[UpgradeData], title: String) -> UpgradeData:
 	var cards: Array[UiCard] = []
 	for i in offer.size():
 		var upgrade := offer[i]
-		var card := _upgrade_card(upgrade, i, modal.finish.bind(upgrade))
+		var card := _upgrade_card(upgrade, i, modal.finish.bind(upgrade), stack_gain)
 		row.add_child(_lift_holder(card))
 		cards.append(card)
 		card.pressed.connect(modal.finish.bind(upgrade))
@@ -418,7 +422,7 @@ func choose_upgrade(offer: Array[UpgradeData], title: String) -> UpgradeData:
 	return await modal.open(self)
 
 
-func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable) -> UiCard:
+func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable, stack_gain := 1) -> UiCard:
 	var card := UiCard.new()
 	card.padding = Vector2(8, 6)
 	card.custom_minimum_size = UiKit.pxv(CARD_SIZE.x, CARD_SIZE.y)
@@ -443,9 +447,10 @@ func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable) -> UiCar
 	var stacks := context.upgrade_manager.get_stacks(upgrade.id) if context != null else 0
 	var stack_label: Label
 	if upgrade.is_limited():
-		stack_label = UiKit.text_label("%d / %d → %d / %d" % [stacks, upgrade.max_stacks, stacks + 1, upgrade.max_stacks], UiKit.SIZE_BODY, UiKit.COLOR_SUCCESS)
+		var after := mini(stacks + stack_gain, upgrade.max_stacks)
+		stack_label = UiKit.text_label("%d / %d → %d / %d" % [stacks, upgrade.max_stacks, after, upgrade.max_stacks], UiKit.SIZE_BODY, UiKit.COLOR_SUCCESS)
 	else:
-		stack_label = UiKit.text_label("Stufe %d → %d · unbegrenzt" % [stacks, stacks + 1], UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+		stack_label = UiKit.text_label("Stufe %d → %d · unbegrenzt" % [stacks, stacks + stack_gain], UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
 	stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(stack_label)
 	var hint := UiKit.hbox(int(UiKit.px(3)))
@@ -895,7 +900,38 @@ func _overview_values() -> Control:
 		DamageNumber.format_amount(ShieldComponent.SOFTCAP_THRESHOLD),
 		DamageNumber.format_amount(snappedf(player.dash_cooldown, 0.1))]
 	column.add_child(UiKit.wrapped_text(stats, OVERVIEW_SIZE.x * 0.5 - 18.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	var curses := _overview_curses()
+	if curses != null:
+		column.add_child(curses)
 	return column
+
+
+## Curses of the player's pacts (PlayerCurses, pact altar A8): icon, name and effect per row
+## under the effective values; null without curses.
+func _overview_curses() -> Control:
+	if context == null or context.player == null:
+		return null
+	var curses := PlayerCurses.get_curses_of(context.player)
+	if curses.is_empty():
+		return null
+	var box := UiKit.vbox(int(UiKit.px(2)))
+	box.name = "Curses"
+	box.add_child(UiKit.separator())
+	box.add_child(UiKit.text_label("Flüche bis zum Ende des Runs", UiKit.SIZE_HEADING, UiKit.COLOR_DANGER_SOFT, true))
+	var row := GridContainer.new()
+	row.columns = 2
+	row.add_theme_constant_override("h_separation", int(UiKit.px(8)))
+	row.add_theme_constant_override("v_separation", int(UiKit.px(2)))
+	box.add_child(row)
+	for curse in curses:
+		var entry := UiKit.hbox(int(UiKit.px(4)))
+		entry.add_child(UiKit.pixel_icon(CurseArt.get_icon(curse), 16.0))
+		var names := UiKit.vbox(0)
+		names.add_child(UiKit.text_label(PlayerCurses.get_curse_name(curse), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true))
+		names.add_child(UiKit.text_label(PlayerCurses.get_curse_effect(curse), UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT))
+		entry.add_child(names)
+		row.add_child(entry)
+	return box
 
 
 ## Effective values with the calculation shown: "14.5 Schaden (12 × 1.2) · 1.73/s (1.5 × 1.15)".

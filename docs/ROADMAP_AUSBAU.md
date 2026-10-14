@@ -120,6 +120,24 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 - [x] Automatische Übernahme der Dateien aus SPRITES_V4 §4, Platzhalter bis dahin. *(14.10.2026: `DoorArt`; gelieferte Grafiken sind eingebunden, gezeichnete Platzhalter nur als Rückfall)*
 - [x] Tests: Türwahl je Biom/Raumtyp, Rückfall ohne Datei. *(14.10.2026: `test_door_style` 17/17, `test_door_node` 12/12; GUT 460/460, validate 0 failed, smoke_test 20 Räume PASS)*
 
+### UX3 – Sprachen und Einstellungen (D-111, läuft in der Plattform-Sitzung)
+
+- [ ] Englisch Standard, Deutsch zweite Sprache, Systemsprache automatisch, umschaltbar in den Optionen; `localization/` mit `translations.csv` und Hilfsklasse `Loc`.
+- [ ] Hauptmenü und Optionen auf Übersetzungsschlüssel umgestellt, Einstellungen ausgebaut (`docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md`).
+- [ ] Schlüsselliste als Vorlage für die zweite Runde (HUD, Dorf, Dungeon-Dialoge – Letztere in UX2).
+
+### UX2 – Gut ins Spiel kommen, einheitliche Dungeon-Menüs (nach A8, D-110)
+
+> Neue und vereinheitlichte Texte direkt als Übersetzungsschlüssel (D-111, `Loc` aus UX3).
+
+**Ziel (Playtest 14.10.2026):** „Die UI-Menüs von Shop, Lagerfeuer usw. im Dungeon sind so stark unterschiedlich … gleiche das an. Gutes UI, übersichtlich, passend zum Spiel. Schau, dass man gut ins Spiel kommt.“
+
+- [ ] **Ein Menü-Baukasten** für alle Dungeon-Dialoge (Upgrade-Wahl, Händler, Waffenwahl, Lagerfeuer, Altar, Pakt, Prüfungstruhe, Tab-Übersicht, Portal, Run-Ende): gleicher Rahmen, Titel, Untertitel, Karten-Layout, Tastenhinweise, Fußzeile, Sounds.
+- [ ] **Klare Zustände statt Halbtransparenz:** nicht leistbar = Karte normal sichtbar, Preis rot + Hinweis „zu wenig Gold“ + Schloss/Fehlton beim Klick; ausverkauft/gesperrt eigenes Abzeichen.
+- [ ] **Raum-Genres anzeigen** (Banner mit Name und Symbol) für Arena, Katakombe, Abgrund, Varianten, Prüfung, Pakt, Wagnis, Lagerfeuer, Spezialräume; normale Kampfräume ohne Namen.
+- [ ] **Erklärkarte beim ersten Mal** je Genre (`room_intro_<genre>`), 1–2 Sätze, nicht pausierend.
+- [ ] **Einstieg prüfen:** erste 10 Minuten eines neuen Spielstands durchgehen (Dorf → Raum 1 → erste Wahl → erster Spezialraum → erster Boss) und Reibungen beheben (Reihenfolge der Hinweise, Überladung, fehlende Erklärungen).
+
 ### A1 – Raumart-Fundament ✓ *(14.10.2026)*
 
 Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `combat_catalog.tres`, Erreichbarkeitsprüfung mit Dash über 1-Tile-Lücken, Tests `test_room_kind.gd`, `test_room_templates.gd`.
@@ -188,9 +206,10 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 
 ### A8 – Neue Spezialräume (KONZEPT_RAEUME §2, §6.1, §6.2)
 
-- [ ] **Gewichtete Spezialraum-Ziehung** (D-102): Shop 35, Waffen 20, Brunnen 15, Extra-Upgrade 15, Prüfung 15; Gewichte als `.tres`.
-- [ ] **Prüfungsräume:** Spießrutenlauf zuerst, dann Bröckelboden (braucht A4), dann Lichtlauf. Direkter Weg zum Ausgang immer frei, Truhe am Ende sichtbar, makellos = +1 Kristall.
-- [ ] **Pakt-Altar** in ⅓ der Extra-Upgrade-Räume; Flüche in der Tab-Übersicht.
+- [x] **Gewichtete Spezialraum-Ziehung** (D-102): Shop 35, Waffen 20, Brunnen 15, Extra-Upgrade 15, Prüfung 15; Gewichte als `.tres`. *(14.10.2026: `SpecialTable` + `special_table.tres`, kein Typ zweimal hintereinander, ein Zufallswert je Ziehung; GUT test_special_table 11/11. Anschluss an `DungeonManager._prepare_slot` und Enum `TRIAL` durch den Integrator offen)*
+- [x] **Prüfungsräume:** Spießrutenlauf zuerst, dann Bröckelboden (braucht A4), dann Lichtlauf. Direkter Weg zum Ausgang immer frei, Truhe am Ende sichtbar, makellos = +1 Kristall. *(14.10.2026: eigene Vorlage `trial_room.tscn` mit Innenmauern, Spießrutenlauf (Stacheln, Flammenstöße, Pendelklingen) und Lichtlauf; Truhe = Upgrade-Wahl, makellos = +1 Seelenkristall je Spieler (D-109), Fehler ½ Herz, nie tödlich; GUT test_trial_room 13/13, test_trial_run 12/12)*
+  - [ ] Bröckelboden: Schnittstelle `CrumbleCourse` steht, Bau nach A4 (Abgrund-API, Fallen).
+- [x] **Pakt-Altar** in ⅓ der Extra-Upgrade-Räume; Flüche in der Tab-Übersicht. *(14.10.2026: Wahl Extra-Upgrade oder Pakt (+2 Stufen) gegen einen Fluch je Spieler (`PlayerCurses`); Max-Herz und Brunnen wirken, Gegnertempo und Lichtkreis als Haken für den Integrator; GUT test_pact 15/15)*
 
 ### A9 – Licht-Varianten (KONZEPT_RAEUME §4.3, §4.4, §4.7)
 

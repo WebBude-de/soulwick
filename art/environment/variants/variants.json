@@ -1,0 +1,284 @@
+{
+  "notes": [
+    "Pivot unten Mitte.",
+    "soul_flame: Light2D violett; dying → danach soul_flame_dying letzter Frame stehen lassen.",
+    "summoning_rift biomneutral türkis-weiß (einfärben); break_6f endet leer.",
+    "stone_guardian: idle/walk mit glühenden Augen = aktiv (im Dunkeln); frozen im Licht (Augen aus, Staub).",
+    "soul_lantern 16×24 am Anker weapon_hand tragen.",
+    "wager_icons: kein Treffer, Zeit, Zweitwaffe, Fluch Licht, Fluch Tempo, Fluch keine Heilung (wird eingefärbt)."
+  ],
+  "items": [
+    {
+      "name": "soul_flame",
+      "file": "soul_flame_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        40
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_flame_dying",
+      "file": "soul_flame_dying_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        40
+      ],
+      "note": ""
+    },
+    {
+      "name": "summoning_rift",
+      "file": "summoning_rift_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "summoning_rift_break",
+      "file": "summoning_rift_break_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "totem",
+      "file": "totem_4f.png",
+      "frame_size": [
+        24,
+        40
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        12,
+        38
+      ],
+      "note": ""
+    },
+    {
+      "name": "stone_guardian_idle",
+      "file": "stone_guardian_idle_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 3,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "stone_guardian_walk",
+      "file": "stone_guardian_walk_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "stone_guardian_frozen",
+      "file": "stone_guardian_frozen.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_lantern",
+      "file": "soul_lantern_4f.png",
+      "frame_size": [
+        16,
+        24
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        8,
+        22
+      ],
+      "note": "Light2D warm, groß"
+    },
+    {
+      "name": "lantern_socket",
+      "file": "lantern_socket.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "lantern_socket_lit",
+      "file": "lantern_socket_lit_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "bounty_crown",
+      "file": "bounty_crown.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        12
+      ],
+      "note": "schwebt 6 px über dem Kopf, leicht wippen"
+    },
+    {
+      "name": "escape_hole",
+      "file": "escape_hole_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        20
+      ],
+      "note": ""
+    },
+    {
+      "name": "bone_heap_rise",
+      "file": "bone_heap_rise_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "danach skeleton idle"
+    },
+    {
+      "name": "torch_stand_unlit",
+      "file": "torch_stand_unlit.png",
+      "frame_size": [
+        16,
+        40
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        39
+      ],
+      "note": ""
+    },
+    {
+      "name": "wager_altar",
+      "file": "wager_altar_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "wager_icons",
+      "file": "wager_icons.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "6 Symbole à 16×16"
+    }
+  ]
+}

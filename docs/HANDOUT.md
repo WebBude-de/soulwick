@@ -43,6 +43,7 @@ Biome (Tileset-Grundtöne)
 
 - Panels als 9-Slice mit 6 px Rand: `panel` (Standard), `panel_gold` (ausgewählt), `panel_dark` (HUD), `button`, `button_hover`. Fertiges Godot-Theme: `art/ui/theme.tres`. `nameplate` 9-Slice mit 3 px Rand.
 - Schrift: Pixelify Sans (`art/fonts/`, OFL), Größen 6–14 px, Text immer mit 1 px Schatten `#1c1a2b`. Eyebrows in Versalien mit 0,08 em Letterspacing.
+- Regler: `slider_grabber` 8×8 auf 4 px Schiene; deaktivierte Knöpfe `button_disabled` (9-Slice, Rand 6 px) mit Text `#7a7396`.
 - Herzen 16 px, 18 px Abstand; 1 Herz = 2 HP in Viertelschritten.
 - Gegner-HP-Leiste 20 × 4 px, 4 px über dem Sprite; Elite-Badge 12 px, 4 px darüber.
 - Menü-Overlay `rgba(21,19,31,0.78)`; jedes Menü pausiert, die Fußzeile nennt Tasten und „Spiel pausiert“.
@@ -56,7 +57,17 @@ Biome (Tileset-Grundtöne)
 
 ## Türen (D1)
 
-Jede Tür = Rahmen (48×48, Boss 64×56, Pivot unten Mitte, über die Wand gelegt) + Türblatt 32×32 im Durchgang (Rahmen-x+8, y+16; Boss x+16, y+24). `*_open_4f`: Frame 1 geschlossen, Frame 4 offen. Der Durchgang im Rahmen soll **transparent** sein (das Spiel zeigt dahinter den Gang; dunkel gemalte Durchgänge macht der Code beim Laden transparent). `door_special_symbols.png` (6×16×16, weiß/grau, einfärben): Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme.
+Jede Tür = Rahmen (48×48, Boss 64×56, Pivot unten Mitte, über die Wand gelegt) + Türblatt 32×32 im Durchgang (Rahmen-x+8, y+16; Boss x+16, y+24). `*_open_4f`: Frame 1 geschlossen, Frame 4 offen. **Der Durchgang im Rahmen ist transparent** (seit V5): dahinter Boden bzw. Dunkelheit des Spiels. `door_special_symbols.png` (7×16×16, weiß/grau, einfärben): Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme, Schädel (Miniboss).
+
+## Phase-2-Räume (V5)
+
+- Öffnungen, Löcher und Durchgänge sind transparent (Türrahmen, `wall_breach_6f`, `wall_break_6f`, `crumbling_floor_6f` Frame 6, `escape_hole_4f`, `enemy_gate_4f`-Öffnung halbtransparent).
+- Biomneutral (grau/türkis-weiß, per Modulate einfärben): `light_crystal`, `rubble_*`, `torch_stand`, `summoning_rift*`, `wall_breach`, `wall_break`, `wager_icons`, `curse_icons`, `door_branch_symbols`.
+- Je Biom (Suffix `_crypt`, `_slime_grotto`, `_shadow_realm`, `_ember_forge`): `abyss_tiles_<biom>` (Layout wie `abyss_tiles.png`), `wall_cracked_<biom>` (ersetzt eine `wall_front`-Kachel).
+- Ankündigungen vor Schaden: `spike_trap` Frame 2, `flame_jet` Frame 2 (Funken), `pendulum_blade` Außenpositionen Frame 1/5, `explosive_barrel_fuse` 4 Frames, `crumbling_floor` Frame 2–3 (Risse).
+- Steinwächter: `stone_guardian_idle/walk` = aktiv im Dunkeln (Augen glühen), `stone_guardian_frozen` im Lichtkreis.
+- Seelenflamme: `soul_flame_6f` Loop, `soul_flame_dying_6f` einmalig, letzter Frame stehen lassen. Seelenlaterne (16×24) am Anker `weapon_hand` tragen, `lantern_socket_lit_4f` am Ausgang.
+- Pivots und fps pro Gruppe: `rooms.json`, `arena.json`, `variants.json`, `trials.json`, `secrets.json` in den jeweiligen Ordnern.
 
 ## Koop-Einfärbung
 
@@ -70,6 +81,7 @@ art/
   weapons  projectiles  effects
   environment/tiles  environment/props  environment/buildings
   environment/village (Dorf-Deko B3)  environment/doors (Türen je Biom + Bosstor, D1)  environment/campfire (Lagerfeuer-Raum + Übergangs-Overlays, A6)
+  environment/rooms (Kampfraum-Zutaten A3, Arena A5, Geheimnisse A10)  environment/variants (Kampf-Varianten A7/A9)  environment/trials (Prüfungen + Pakt A8)
   ui  fonts
   ui/menu             (Hauptmenü-Hintergrund in Ebenen + menu.json mit Sprite- und Lichtpositionen)
   index.json          (alle Gruppen und Dateien, maschinenlesbar)

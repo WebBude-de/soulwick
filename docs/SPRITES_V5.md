@@ -94,6 +94,24 @@ Abgrund-, Brücken- und Nebel-Grafiken sind geliefert (SPRITES_V3). Optional fü
 | `art/effects/nova_ring_6f.png` | Frames 5–6 sind innen schwarz gefüllt (SPRITES_V3 §7) | im Code gefiltert, Neuexport offen |
 | `art/ui/slider_grabber.png`, `art/ui/button_disabled.png` | Pixel-Griff für Regler (8×8) und eigener Zustand für deaktivierte Knöpfe (SPRITES_V3 §7) | offen |
 
+## 8. Website (`soulwick-platform/apps/web/public/brand/`, WebP)
+
+Ersetzt **SPRITES_V3 §6** (dort noch PNG): Die Website liest nur **WebP**. Pixel-Art (Logo, Symbole, Spielerfigur) **verlustfrei** speichern, Szenen (Keyart, Biom-Bilder, Vorschaubild) dürfen verlustbehaftet sein (Qualität 85–90). Kein Pixel-Raster-Zwang außer wo angegeben. Dateinamen exakt übernehmen; die Website lädt nach Namen und zeigt bis dahin Platzhalter (README im Ordner). Palette aus [HANDOUT.md](HANDOUT.md).
+
+| Datei | Größe | Beschreibung |
+| --- | --- | --- |
+| `logo.webp` | 512×128, Pixel-Art, transparent, verlustfrei | Spiellogo: Schriftzug **SOULWICK**, das „i“ als brennender Docht/Kerze mit blauviolett-goldener Seelenflamme; Kopfzeile und Hero |
+| `logo_square.webp` | 256×256, Pixel-Art, verlustfrei | Quadratisches Logo für Favicon und Social Media |
+| `keyart.webp` | 1920×1080 (verlustbehaftet ok) | Titelbild: Held mit Laterne vor dunklem Dungeon-Eingang, Bosse im Schatten; dunkel-lila mit warmem Gold; Hero-Hintergrund der Startseite |
+| `og_image.webp` | 1200×630 | Vorschaubild beim Teilen (Logo + Keyart-Ausschnitt); Schrift groß genug für kleine Vorschauen |
+| `biome_crypt.webp`, `biome_slime_grotto.webp`, `biome_shadow_realm.webp`, `biome_ember_forge.webp` | 640×360 | Szenen je Biom für die Biom-Karten der Startseite (Screenshots aus `tools/screenshots.gd` gehen auch) |
+| `hero_player_lantern.webp` | 256×256, Pixel-Art auf 64×64 gezeichnet und **4× ohne Glättung** skaliert, transparent, verlustfrei | **Spieler mit Seelenlaterne** (blauviolett-goldenes Licht, Tunika `#3690da`), Blick nach rechts, ruhige Idle-Pose; Hero-Motiv, solange es kein Keyart gibt |
+| `platform_pc.webp` | 32×32, Pixel-Art, transparent | Dekoratives Symbol „PC“ (Monitor mit Tastatur) für den Plattform-Chip |
+| `platform_mobile.webp` | 32×32, Pixel-Art, transparent | Symbol „Mobil“ (Smartphone, auf dem Bildschirm ein kleiner Lichtkreis) |
+| `platform_crossplay.webp` | 32×32, Pixel-Art, transparent | Symbol „Crossplay“ (Monitor und Handy, durch Pfeile oder eine Kette verbunden) |
+
+**Keine Markenlogos** von Steam, Google oder Apple: Deren offizielle Badges kommen erst mit echten Store-Links ([ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4). Die Spiel-Sprites für die Animationen auf der Website (Spieler, Schleim, Seelenflamme) werden **nicht** neu gezeichnet; die Website konvertiert sie per Skript aus `art/` nach `apps/web/public/sprites/` (verlustfreies WebP).
+
 ## Wo der Code die Dateien abholt
 
 Die Phase-2-Pakete laden diese Dateien nach Namen aus den angegebenen Ordnern, mit Platzhaltern bis zur Lieferung. Nach dem Ablegen einmal `godot --headless --path . --import`.

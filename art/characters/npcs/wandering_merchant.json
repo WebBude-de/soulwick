@@ -1,0 +1,27 @@
+{
+  "name": "wandering_merchant",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Kapuze, großer Rucksack, Wanderstab. Erscheint in Geheimnischen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "wandering_merchant_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    }
+  ],
+  "extras": []
+}

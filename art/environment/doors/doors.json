@@ -2,7 +2,7 @@
   "notes": [
     "Rahmen 48×48 (Boss 64×56): Durchgang 32 px breit, mittig, Unterkante = Boden; Rahmen über die Wand legen (Pivot unten Mitte).",
     "Türblatt 32×32 in den Durchgang setzen: Rahmen-x+8, Rahmen-y+16 (Boss: x+16, y+24). Frame 1 = geschlossen, Frame 4 = offen (leer bzw. Rest).",
-    "Durchgang ist im Rahmen bereits dunkel, hinter dem Türblatt muss nichts gezeichnet werden."
+    "Durchgang ist im Rahmen TRANSPARENT (V5 §7): dahinter Boden bzw. Dunkelheit des Spiels zeichnen."
   ],
   "items": [
     {
@@ -172,14 +172,14 @@
         16,
         16
       ],
-      "frames": 6,
+      "frames": 7,
       "fps": 0,
       "loop": false,
       "pivot": [
         8,
         16
       ],
-      "note": "6 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme; weiß/grau, einfärben"
+      "note": "7 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme, Schädel (Miniboss); weiß/grau, einfärben"
     }
   ]
 }

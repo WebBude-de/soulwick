@@ -20,6 +20,15 @@ func _on_setup() -> void:
 	pass
 
 
+## All players of the run. Single player today; per-player offers and states iterate this list,
+## so the multiplayer change (MP1) only has to fill it (no player group lookups, D-088).
+func get_players() -> Array[Player]:
+	var players: Array[Player] = []
+	if context != null and context.player != null and is_instance_valid(context.player):
+		players.append(context.player)
+	return players
+
+
 func add_sprite(texture: Texture2D, pivot: Vector2, offset_position := Vector2.ZERO) -> Sprite2D:
 	var sprite := Sprite2D.new()
 	sprite.texture = texture

@@ -597,7 +597,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 - **Status:** VERBINDLICH · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
 - **Beschluss:** Nach jedem Boss (15, 30, 45 …) folgt ein **Lagerfeuer** als Zwischenraum, der nicht als Raum zählt (Raumnummer, Skalierung, Heilung alle fünf Räume unverändert). Übergangs-Tiles vom alten ins neue Biom, Musik klingt aus. Eine Wahl: heilen (+4 HP) oder ein stapelbares Upgrade um einen Stack stärken. Koop: jeder wählt für sich.
-- **Umgesetzt 14.10.2026 (A6), Bestätigung durch das Projektmitglied offen, abschaltbar über `DungeonManager.CAMPFIRE_EXIT_PORTAL`:** Das Portal nach dem Boss steht nicht mehr im Bossraum (ändert D-073), sondern am Lagerfeuer; der Bossraum zeigt das Banner „Ein Lagerfeuer wartet“. TESTWERTE: Heilen +4 HP, Dunkelheit 0,9. Empfehlung: Am Lagerfeuer steht immer ein **Exit-Portal** (100 % Gold, wie D-006). So gibt es nach jedem Boss einen sicheren Ausstieg und die Entscheidung „Gold sichern oder tiefer“ bekommt einen festen Rhythmus. Die Raum-45-Wahl aus KONZEPT_RAEUME §6.3 entfällt (KONZEPT_ENDLOS: kein Ende bei Raum 45); das zufällige Portal in Spezialräumen (30 %) bleibt.
+- **Umgesetzt 14.10.2026 (A6), vom Projektmitglied bestätigt, abschaltbar über `DungeonManager.CAMPFIRE_EXIT_PORTAL`:** Das Portal nach dem Boss steht nicht mehr im Bossraum (ändert D-073), sondern am Lagerfeuer; der Bossraum zeigt das Banner „Ein Lagerfeuer wartet“. TESTWERTE: Heilen +4 HP, Dunkelheit 0,9. Empfehlung: Am Lagerfeuer steht immer ein **Exit-Portal** (100 % Gold, wie D-006). So gibt es nach jedem Boss einen sicheren Ausstieg und die Entscheidung „Gold sichern oder tiefer“ bekommt einen festen Rhythmus. Die Raum-45-Wahl aus KONZEPT_RAEUME §6.3 entfällt (KONZEPT_ENDLOS: kein Ende bei Raum 45); das zufällige Portal in Spezialräumen (30 %) bleibt.
 - **Ergänzt:** D-005.
 
 ### D-104 – Wagnis-Altar
@@ -622,6 +622,50 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Status:** VERBINDLICH (Wunsch Projektmitglied: „abends dunkler, an Zeit anpassen“) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
 - **Beschluss:** Das Dorf folgt der **lokalen Uhrzeit**: tagsüber (7–17:30 Uhr) hell, Abenddämmerung bis 20 Uhr in warmem Violett, Nacht (20–5 Uhr) in tiefem Blau mit Dunkelheit 0,6, Morgendämmerung bis 7 Uhr. Umsetzung über das Vision-Overlay wie im Dungeon (D-067): Der Spieler hat einen Lichtkreis (320 px), jede Laterne eine Lichtquelle (170 px). Glühwürmchen ab 19 Uhr, Pollen tagsüber (B3). Reine Optik, keine Spielwirkung.
 - **Folgen:** `world/village/village_daylight.gd`, `scenes/world_controller.gd`, `world/village/village.gd`, Test `test_village_daylight.gd`.
+
+### D-108 – Zielbild Crossplay: Steam, Google Play, App Store
+
+- **Status:** VORGESCHLAGEN (Ziel vom Projektmitglied genannt am 14.10.2026; Details **OFFEN**) · **Datum:** 2026-10-14 / Projektmitglied, Ausarbeitung Claude
+- **Kontext:** D-083 und ROADMAP_MULTIPLAYER planen bisher nur PC über Steam (Steam-Lobbys, Steam-Relay) und eine Anmeldung über Steam-ID oder Geräte-ID. Das Projektmitglied will Soulwick zusätzlich auf Google Play und im App Store anbieten und **plattformübergreifend zusammen spielen** lassen (wie Among Us). Steam-Lobbys funktionieren nur zwischen Steam-Konten; Mobil-Spieler brauchen eine plattformneutrale Stelle.
+- **Beschluss:**
+  - **Zielbild:** Soulwick erscheint auf **Steam, Google Play und im App Store**; Spieler aller drei Plattformen können **gemeinsam** spielen und sich in gemeinsamen Gilden und Ranglisten finden (Details in CP0).
+  - **Konto-Modell als Grundlage:** Ein **Soulwick-Konto** (Spieler auf dem Server), an dem **mehrere Plattform-Identitäten** hängen (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort; Geräte werden per Verknüpfungscode verbunden; Konto löschen in-App (Store-Pflicht). Jetzt wird nur die Datenbank vorbereitet (`player_identities`, Plattform P-014 / ROADMAP P11); Verknüpfungs-Routen erst nach CP0/CP1.
+  - **Geschäftsmodell OFFEN:** mobil kostenlos + PC bezahlt (wie Among Us) oder überall kostenlos mit Kosmetik später; entscheidet das Projektmitglied mit dem Team (CP0, CP6).
+  - **Empfehlung des Spiel-Orchestrators (Vorschlag, Entscheidung in CP0):** eigene Lobbys mit Raumcode und ein eigener Relay-Container `soulwick-relay` auf dem eigenen Server statt reinem Steam-Relay; Steam-Einladungen (MP6) bleiben als Zusatz für PC-Gruppen.
+- **Gründe / verworfene Alternativen:** Nur Steam (kein Crossplay) widerspricht dem genannten Ziel. Reine Plattform-Konten ohne Verknüpfung machen Cross-Progression und gemeinsame Gilden unmöglich. Ein E-Mail-Konto bringt Passwort-Reset und mehr personenbezogene Daten ohne Nutzen. Zwei Identitätsspalten am Spieler (`steam_id`, `device_id`) skalieren nicht auf vier Provider; der Umbau ist vor dem ersten Deployment am billigsten.
+- **Folgen:**
+  - Erweitert die Datenkategorien aus D-083, D-093 und AGENTS.md Regel 6 der Plattform („nur Steam-ID bzw. Geräte-ID“) um **Google-Play-Games-** und **Game-Center-IDs** (jeweils nur die Nutzer-ID des Providers); Datenschutzerklärung entsprechend ergänzen (eRecht24, Plattform P-013).
+  - Lobby/Relay **perspektivisch auf dem eigenen Server**: Fällt CP0 Frage 3 für den eigenen Relay aus, wird D-083 („kein Echtzeit-Spielverkehr über den Server“) zu „Weiterleitung ja, Spiellogik nein“ geändert; das Host-Modell bleibt.
+  - Plattform: Tabelle `player_identities` ersetzt `players.steam_id`/`device_id` (P-014, ROADMAP P11); der Vertrag von `/auth/dev` und `/auth/steam` bleibt unverändert.
+  - Neue Roadmap [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) (CP0–CP6) als Phase nach dem Multiplayer; Verweise in AGENTS.md §3 und ROADMAP_MULTIPLAYER „Überblick“. Website (Plattform P9): Steam, Google Play, App Store als „geplant“ mit Crossplay-Hinweis.
+  - **Zu entscheiden vor MP2** (CP0): Geschäftsmodell, Konto-Modell, Lobby/Relay, Plattform-Reihenfolge, Touch-Steuerung, Altersfreigabe, Ranglisten je Plattform oder gemeinsam.
+- **Ergänzt:** D-083, D-093. **Ersetzt:** keine.
+
+### D-109 – Belohnungen der neuen Räume
+
+- **Status:** VERBINDLICH · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
+- **Beschluss:**
+  - **Bonus-Truhen** (Kampf-Varianten bei Erfolg, tiefste Katakomben-Sackgasse, Ende eines Prüfungsraums) geben eine **Upgrade-Auswahl** über den vorhandenen Dialog.
+  - **„Makellos“** (Prüfung ohne Treffer) und erfüllter **Wagnis-Altar** geben **Seelenkristalle** (TESTWERT 1 bzw. 1–2). Gold vorerst nicht, solange die Goldwerte im PRD OFFEN sind.
+  - Der seltene **wandernde Händler** in Geheimräumen nutzt die Preisformel des normalen Händlers, bietet aber seltenere Ware (z. B. seltene Upgrades).
+  - **Koop-Skalierung** der Varianten (Seelenflamme-HP, Anzahl Risse/Wächter, Truhen je Spieler) wird jetzt nur als Parameter vorbereitet und in MP5 (Koop-Gefühl) mit echten Tests festgelegt.
+- **Ergänzt:** D-101, D-102, D-104, D-105; beantwortet KONZEPT_RAEUME §9.4.
+
+### D-110 – Raum-Genres anzeigen und beim ersten Mal erklären, einheitliche Mauern
+
+- **Status:** VERBINDLICH (Playtest-Rückmeldung) · **Datum:** 2026-10-14 / Projektmitglied
+- **Beschluss:**
+  - **Normale Kampfräume** (alle Formen: Rechteck, L, Kreuz, Ring, Kammern, Säulenhalle) werden **nicht** benannt.
+  - **Räume mit eigenem Gameplay** zeigen beim Betreten ihren Namen als Banner: Arena, Katakombe, Abgrund, jede Kampf-Variante (z. B. „Seelenflamme“), Prüfungsraum, Pakt-Altar, Wagnis-Altar, Lagerfeuer und die Spezialräume.
+  - **Beim ersten Mal je Spielstand** erscheint zusätzlich eine kurze Erklärkarte (1–2 Sätze, was zu tun ist und was es bringt), einmal pro Raum-Genre (`SaveManager.has_seen("room_intro_<genre>")`), ohne globale Pause, im Stil der Steuerungs-Hinweise.
+  - **Mauern:** Jede Mauer sieht aus wie die Außenwand (Krone mit heller Kante zu jedem angrenzenden Boden, eine Reihe Ziegel-Vorderseite nach Süden), Grafik-Briefing `SPRITES_V6.md`.
+- **Ersetzt:** D-100 (Satz „Raumarten werden im Spiel nie angezeigt“) und D-095 (Anzeige) für die genannten Genres.
+
+### D-111 – Zwei Sprachen: Englisch Standard, Deutsch zweite Sprache
+
+- **Status:** VERBINDLICH · **Datum:** 2026-10-14 / Projektmitglied (übermittelt über die Plattform-Sitzung)
+- **Beschluss:** Spiel und Website gibt es auf **Englisch (Standard)** und **Deutsch**. Das Spiel erkennt die Sprache aus dem System und lässt sie in den Optionen umschalten. Spieltexte laufen über Übersetzungsschlüssel (`localization/translations.csv`, Hilfsklasse `Loc`, Registrierung zur Laufzeit über `TranslationServer`); Doku bleibt Deutsch. Website: playsoulwick.com.
+- **Folgen:** Paket UX3 (Sprachen und Einstellungen, Hauptmenü und Optionen), danach Migration der übrigen UI-Texte (Dungeon-Dialoge in UX2, HUD, Dorf). Neue UI-Texte ab jetzt als Schlüssel.
 
 ## 8. Vorlagen für spätere Entscheidungen
 

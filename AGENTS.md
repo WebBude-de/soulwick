@@ -22,8 +22,9 @@
 1. [docs/ROADMAP.md](docs/ROADMAP.md): Haupt-Roadmap (MVP + Endlos-Ausbau, fast fertig) und Prüfstand.
 2. [docs/ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md): **als Nächstes**, in Phasen (D-106): Phase 1 spielbar machen (Hauptmenü, Spielstände, UX, Dorf), Phase 2 **alle Räume** nach [docs/KONZEPT_RAEUME.md](docs/KONZEPT_RAEUME.md) als Einzelspieler-Content, jedes Paket mit Koop-Check.
 3. [docs/ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md): Phase 3, erst nach den Räumen: Koop, Steam, Server, Gilden, Ranglisten; das Plattform-Repo (MP7, MP7b) darf jederzeit parallel laufen. Danach Phase 4 KI-Bosse ([docs/ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md)).
-4. Grafiken, die noch fehlen: [docs/SPRITES_V3.md](docs/SPRITES_V3.md) (offen), V1/V2 sind geliefert.
-5. [docs/HANDOUT.md](docs/HANDOUT.md) (Übersicht des Projektmitglieds, falls vorhanden) und [docs/design/](docs/design/) (Mockups für UI und Stimmung: als Inspiration lesen, bevor UI gebaut wird).
+4. [docs/ROADMAP_CROSSPLAY.md](docs/ROADMAP_CROSSPLAY.md): Phase nach dem Multiplayer (Steam, Google Play, App Store, D-108 VORGESCHLAGEN); nur die Entscheidungen **CP0** fallen **vor MP2**.
+5. Grafiken, die noch fehlen: [docs/SPRITES_V3.md](docs/SPRITES_V3.md) (offen), V1/V2 sind geliefert.
+6. [docs/HANDOUT.md](docs/HANDOUT.md) (Übersicht des Projektmitglieds, falls vorhanden) und [docs/design/](docs/design/) (Mockups für UI und Stimmung: als Inspiration lesen, bevor UI gebaut wird).
 
 Jedes Roadmap-Paket ist für **einen Agenten** geschnitten und nennt seine Dateien.
 
@@ -55,7 +56,7 @@ Die Fach-Agenten sind als Definitionen in [.claude/agents/](.claude/agents/) hin
 4. **Tests fassen den echten Spielstand nie an:** In jedem Test/Tool `SaveManager.save_path` vorher auf eine Testdatei umbiegen (`before_all`). Echter Stand: `%APPDATA%/Godot/app_userdata/Soulwick/savegame.cfg` (ein alter Stand aus `…/Dungeon Roguelite/` wird beim ersten Start einmal kopiert).
 5. **Genau vier Autoloads** (GameManager, RunManager, SaveManager, EventBus, D-044). Hilfen als `static func`/`class_name`, nicht als neuer Autoload.
 6. **Multiplayer-Leitplanken** für neuen Spielcode ([ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md)): kein neues `get_first_node_in_group(&"player")`, Logik von Effekten trennen, Zufall nur über den Dungeon-RNG, keine neuen globalen Pausen, Zustand je Spieler am Spieler.
-7. **Code Englisch, Doku und Texte im Spiel Deutsch**, `snake_case` für Dateien/Variablen, `PascalCase` für Klassen. Kommentare wie der umgebende Code.
+7. **Code Englisch, Doku Deutsch, Texte im Spiel über Übersetzungsschlüssel (en + de, D-111)**, `snake_case` für Dateien/Variablen, `PascalCase` für Klassen. Kommentare wie der umgebende Code.
 8. **Erledigt heißt geprüft:** Roadmap-Punkte nur mit Nachweis abhaken (Tests grün, Datum).
 
 ## 7. Prüfen

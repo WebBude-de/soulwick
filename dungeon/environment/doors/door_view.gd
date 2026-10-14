@@ -73,7 +73,11 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 		_leaf.sprite_frames = frames
 	var frame_pos := -Vector2(style.leaf_offset) * PIXEL_SCALE
 	# The passage of the frame is transparent (DoorArt.open_passage); the leaf sits in it, and a
-	# player walking through is drawn behind the arch.
+	# player walking through is drawn behind the arch. Entrance doors sit in the low south wall: an
+	# arch there would face away from the camera and reach into the room behind, so they keep only
+	# the leaf in the wall opening.
+	if is_entrance:
+		return
 	_frame = _make_sprite("Frame", DoorArt.get_frame(style), frame_pos, 0)
 	if style.is_boss():
 		# The boss gate is biome-neutral and tinted per biome (SPRITES_V4 §4), placeholder too.

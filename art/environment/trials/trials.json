@@ -1,0 +1,106 @@
+{
+  "notes": [
+    "pendulum_blade_8f: Frame 1 und 5 Außenpositionen, Aufhängung oben Mitte (Pivot 16,2); Trefferzone = Klinge.",
+    "flame_jet_6f: Frame 2 Warnung (Funken), Frame 3-5 Flammenstoß, Frame 6 Rauch.",
+    "crumbling_floor_6f: Frame 6 transparent (Abgrund darunter).",
+    "curse_icons: −1 Max-Herz, Gegner schneller, Lichtkreis kleiner, Brunnen heilen halb."
+  ],
+  "items": [
+    {
+      "name": "pendulum_blade",
+      "file": "pendulum_blade_8f.png",
+      "frame_size": [
+        32,
+        64
+      ],
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        2
+      ],
+      "note": ""
+    },
+    {
+      "name": "flame_jet",
+      "file": "flame_jet_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "crumbling_floor",
+      "file": "crumbling_floor_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Tile-Overlay"
+    },
+    {
+      "name": "trial_pressure_plate",
+      "file": "trial_pressure_plate.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Tile-Overlay, Rune türkis"
+    },
+    {
+      "name": "pact_altar",
+      "file": "pact_altar_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 5,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "curse_icons",
+      "file": "curse_icons.png",
+      "frame_size": [
+        64,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "4 Symbole à 16×16"
+    }
+  ]
+}

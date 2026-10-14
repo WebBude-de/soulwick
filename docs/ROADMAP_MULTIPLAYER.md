@@ -34,6 +34,8 @@ Spiel (Godot)                                  Server (VPS, Dokploy)
 
 **Parallel möglich:** MP7 (`apps/api` im Repo `soulwick-platform`, D-093) und MP7b (Website und Admin-Panel, `apps/web`, `apps/admin`) können von eigenen Agenten **gleichzeitig** zu MP1–MP5 gebaut werden, weil sie keinen Spielcode berühren. Das Grundgerüst steht bereits (siehe unten).
 
+**Crossplay (D-108, VORGESCHLAGEN):** Das Zielbild Steam + Google Play + App Store steht in [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md); dessen Entscheidungen **CP0** (Geschäftsmodell, Konto-Modell, Lobby mit Raumcode/Relay statt reinem Steam-Relay) fallen **vor MP2**, weil sie MP2, MP6 und MP7 verändern können.
+
 **Warum ENet zuerst:** Die Spiellogik nutzt die allgemeine Godot-`multiplayer`-API. Die Verbindungsart ist austauschbar (ENet ↔ Steam). Mit ENet laufen zwei Spielinstanzen auf **einem** Rechner, mit Steam nicht (ein Konto pro Rechner).
 
 ## MP0 – Entscheidungen

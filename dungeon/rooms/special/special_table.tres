@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="SpecialTable" format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/special/special_table.gd" id="1_table"]
+
+[resource]
+script = ExtResource("1_table")
+shop_weight = 35.0
+weapon_weight = 20.0
+fountain_weight = 15.0
+upgrade_weight = 15.0
+trial_weight = 15.0
+pact_chance = 0.333333
+gauntlet_weight = 1.0
+light_run_weight = 1.0
+crumble_weight = 0.0

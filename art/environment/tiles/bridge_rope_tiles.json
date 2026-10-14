@@ -1,0 +1,38 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 1,
+  "notes": [
+    "Waagerecht (west→ost). Für senkrechte Brücken um 90° drehen.",
+    "Ränder transparent, Seile oben/unten."
+  ],
+  "tiles": {
+    "bridge_rope_end_w": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "bridge_rope_mid_1": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "bridge_rope_mid_2": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "bridge_rope_end_e": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    }
+  }
+}

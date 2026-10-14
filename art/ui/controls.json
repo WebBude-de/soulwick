@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "slider_grabber 8×8 auf einer 4 px hohen Schiene (panel_dark-Farben).",
+    "button_disabled: 9-Slice wie button.png (Rand 6 px), Text in #7a7396."
+  ],
+  "items": [
+    {
+      "name": "slider_grabber",
+      "file": "slider_grabber.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        4,
+        4
+      ],
+      "note": ""
+    },
+    {
+      "name": "button_disabled",
+      "file": "button_disabled.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}
