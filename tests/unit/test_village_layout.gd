@@ -154,7 +154,11 @@ func test_formerly_unused_art_is_in_the_village() -> void:
 		var sprite := prop.get_node_or_null("Sprite") as Sprite2D
 		if sprite != null and sprite.texture != null and not sprite.texture.resource_path.is_empty():
 			used[sprite.texture.resource_path.get_file()] = true
-	for file in ["fountain.png", "barrel.png", "crate.png", "well.png", "market_stall.png"]:
+		# Animated props (fountain, well) keep their strip on an AnimatedProp.
+		var animated := prop.get_node_or_null("Sprite") as AnimatedProp
+		if animated != null and animated.strip != null:
+			used[animated.strip.resource_path.get_file()] = true
+	for file in ["fountain_4f.png", "barrel.png", "crate.png", "well_4f.png", "market_stall.png"]:
 		assert_true(used.has(file), "%s placed" % file)
 	assert_gte(village.get_node("Buildings").find_children("Lamp*", "", false, false).size(), 4, "lamps")
 

@@ -1,0 +1,232 @@
+{
+  "notes": [
+    "Pivot unten Mitte = unterste Pixelreihe.",
+    "garden_fence ist nahtlos: Pfosten links/rechts je halb, Latten laufen bis zum Rand ohne Kontur."
+  ],
+  "items": [
+    {
+      "name": "flowers_1",
+      "file": "flowers_1.png",
+      "frame_size": [
+        20,
+        14
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        10,
+        14
+      ],
+      "note": "rosa"
+    },
+    {
+      "name": "flowers_2",
+      "file": "flowers_2.png",
+      "frame_size": [
+        20,
+        14
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        10,
+        14
+      ],
+      "note": "gelb"
+    },
+    {
+      "name": "flowers_3",
+      "file": "flowers_3.png",
+      "frame_size": [
+        20,
+        14
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        10,
+        14
+      ],
+      "note": "weiß-lila"
+    },
+    {
+      "name": "flower_bed",
+      "file": "flower_bed.png",
+      "frame_size": [
+        32,
+        14
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "name": "garden_fence",
+      "file": "garden_fence.png",
+      "frame_size": [
+        32,
+        22
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        22
+      ],
+      "note": ""
+    },
+    {
+      "name": "hay_bale",
+      "file": "hay_bale.png",
+      "frame_size": [
+        24,
+        18
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        18
+      ],
+      "note": ""
+    },
+    {
+      "name": "bench",
+      "file": "bench.png",
+      "frame_size": [
+        28,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        14,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "pond",
+      "file": "pond.png",
+      "frame_size": [
+        56,
+        30
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        28,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "pond",
+      "file": "pond_4f.png",
+      "frame_size": [
+        56,
+        30
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        28,
+        30
+      ],
+      "note": "Lichtreflexe wandern, Ring"
+    },
+    {
+      "name": "cart",
+      "file": "cart.png",
+      "frame_size": [
+        48,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        32
+      ],
+      "note": "Deichsel links"
+    },
+    {
+      "name": "signpost",
+      "file": "signpost.png",
+      "frame_size": [
+        24,
+        30
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        30
+      ],
+      "note": "links Haus, rechts Höhle"
+    },
+    {
+      "name": "grass_tuft",
+      "file": "grass_tuft.png",
+      "frame_size": [
+        14,
+        9
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        7,
+        9
+      ],
+      "note": ""
+    },
+    {
+      "name": "stones",
+      "file": "stones.png",
+      "frame_size": [
+        16,
+        10
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        10
+      ],
+      "note": ""
+    },
+    {
+      "name": "bush_small",
+      "file": "bush_small.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": ""
+    }
+  ]
+}

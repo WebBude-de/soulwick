@@ -12,12 +12,19 @@ extends StaticBody2D
 @export var solid_size := Vector2.ZERO
 @export var flip := false
 
+## TESTWERT: speed of animated props (<art_name>_4f.png, e.g. the pond ripples).
+const ANIMATION_FPS := 4.0
+const ANIMATION_FRAMES := 4
+
 var _sprite: Sprite2D = null
+var _animation_time := 0.0
 
 
 func _ready() -> void:
 	collision_mask = 0
-	var texture := VillageArt.get_texture(art_name)
+	var strip_path := VillageArt.DIR + "%s_%df.png" % [art_name, ANIMATION_FRAMES]
+	var animated := ResourceLoader.exists(strip_path)
+	var texture := load(strip_path) as Texture2D if animated else VillageArt.get_texture(art_name)
 	if texture == null:
 		queue_free()
 		return
@@ -27,6 +34,9 @@ func _ready() -> void:
 	_sprite.scale = Vector2.ONE * VillageArt.SCALE
 	_sprite.flip_h = flip
 	_sprite.offset = Vector2(0, -texture.get_height() * 0.5)
+	if animated:
+		_sprite.hframes = ANIMATION_FRAMES
+	set_process(animated)
 	add_child(_sprite)
 	if solid_size != Vector2.ZERO:
 		var shape := RectangleShape2D.new()
@@ -36,6 +46,11 @@ func _ready() -> void:
 		collision.shape = shape
 		collision.position = Vector2(0, -solid_size.y * 0.5)
 		add_child(collision)
+
+
+func _process(delta: float) -> void:
+	_animation_time += delta
+	_sprite.frame = int(_animation_time * ANIMATION_FPS) % ANIMATION_FRAMES
 
 
 ## Ground rectangle (village coordinates) the prop reserves around base, its solid base or a small

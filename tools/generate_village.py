@@ -82,8 +82,8 @@ LAMP = (BUILDING_DIR, "lamp_post_4f", (16, 48), (8, 47))
 BARREL = (PROP_DIR, "barrel", (32, 32), (16, 31))
 CRATE = (PROP_DIR, "crate", (32, 32), (16, 31))
 DECOR = [
-    ("Fountain", PROP_DIR, "fountain", (32, 40), (16, 38), (15, 10.6), 20, 1),
-    ("Well", BUILDING_DIR, "well", (32, 40), (16, 38), (9.2, 11.3), 22, 1),
+    ("Fountain", PROP_DIR, "fountain_4f", (32, 40), (16, 38), (15, 10.6), 20, 4),
+    ("Well", BUILDING_DIR, "well_4f", (32, 40), (16, 38), (9.2, 11.3), 22, 4),
     ("MarketStall", BUILDING_DIR, "market_stall", (64, 48), (32, 44), (21, 11.4), 40, 1),
     ("Lamp1", *LAMP, (13.4, 6.95), 8, 4),
     ("Lamp2", *LAMP, (16.6, 6.95), 8, 4),

@@ -690,7 +690,8 @@
       "notes": [
         "Pivot jeweils unten Mitte (Fußpunkt).",
         "exit_portal: Interaktion mit E, 30 % der Spezialräume.",
-        "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen."
+        "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen.",
+        "fountain, weapon_pedestal, upgrade_altar: statische Datei + _4f-Schleife (6 fps), gleiche Maße und Pivot."
       ],
       "items": [
         {
@@ -721,6 +722,21 @@
             38
           ],
           "note": "Brunnen: einmalig +3 HP"
+        },
+        {
+          "kind": "anim",
+          "name": "fountain",
+          "file": "art/environment/props/fountain_4f.png",
+          "w": 32,
+          "h": 40,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            38
+          ],
+          "note": "Wasserstrahl, Tropfen, Ringe"
         },
         {
           "kind": "image",
@@ -766,6 +782,21 @@
           ]
         },
         {
+          "kind": "anim",
+          "name": "weapon_pedestal",
+          "file": "art/environment/props/weapon_pedestal_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Leuchten pulsiert, Funken steigen"
+        },
+        {
           "kind": "image",
           "name": "upgrade_altar",
           "file": "art/environment/props/upgrade_altar.png",
@@ -778,6 +809,21 @@
             16,
             46
           ]
+        },
+        {
+          "kind": "anim",
+          "name": "upgrade_altar",
+          "file": "art/environment/props/upgrade_altar_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ],
+          "note": "Kerzen flackern, Kristall schwebt"
         },
         {
           "kind": "anim",
@@ -2696,6 +2742,21 @@
           ]
         },
         {
+          "kind": "anim",
+          "name": "well",
+          "file": "art/environment/buildings/well_4f.png",
+          "w": 32,
+          "h": 40,
+          "frames": 4,
+          "fps": 5,
+          "loop": true,
+          "pivot": [
+            16,
+            38
+          ],
+          "note": "Eimer pendelt, Wasser glitzert"
+        },
+        {
           "kind": "image",
           "name": "market_stall",
           "file": "art/environment/buildings/market_stall.png",
@@ -3675,6 +3736,735 @@
       ],
       "module": "ui3",
       "priority": 12
+    },
+    {
+      "id": "characters/npcs/cat",
+      "title": "Katze",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        8,
+        14
+      ],
+      "anchors": {},
+      "notes": [
+        "idle = sitzt, Schwanz schlägt. Unterkante in allen Frames y = 14."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/cat_idle_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/cat_walk_6f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        }
+      ],
+      "module": "npcs4",
+      "priority": 13
+    },
+    {
+      "id": "characters/npcs/chicken",
+      "title": "Huhn",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        8,
+        14
+      ],
+      "anchors": {},
+      "notes": [
+        "idle = pickt am Boden. Füße in allen Frames auf y = 14."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/chicken_idle_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/chicken_walk_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        }
+      ],
+      "module": "npcs4",
+      "priority": 13
+    },
+    {
+      "id": "characters/npcs/villager_1",
+      "title": "Bäuerin",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Kopftuch, Schürze, Korb mit Äpfeln/Brot."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/villager_1_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/villager_1_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        }
+      ],
+      "module": "npcs4",
+      "priority": 13
+    },
+    {
+      "id": "characters/npcs/villager_2",
+      "title": "Holzfäller",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Axt über der Schulter."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/villager_2_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/villager_2_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        }
+      ],
+      "module": "npcs4",
+      "priority": 13
+    },
+    {
+      "id": "characters/npcs/villager_3",
+      "title": "Alter Mann",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Gehstock, Mütze; langsam abspielen (walk 6 fps)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/villager_3_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/villager_3_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        }
+      ],
+      "module": "npcs4",
+      "priority": 13
+    },
+    {
+      "id": "environment/village/village_deco",
+      "title": "Dorf-Deko (B3)",
+      "dir": "art/environment/village",
+      "notes": [
+        "Pivot unten Mitte = unterste Pixelreihe.",
+        "garden_fence ist nahtlos: Pfosten links/rechts je halb, Latten laufen bis zum Rand ohne Kontur."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "flowers_1",
+          "file": "art/environment/village/flowers_1.png",
+          "w": 20,
+          "h": 14,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            10,
+            14
+          ],
+          "note": "rosa"
+        },
+        {
+          "kind": "image",
+          "name": "flowers_2",
+          "file": "art/environment/village/flowers_2.png",
+          "w": 20,
+          "h": 14,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            10,
+            14
+          ],
+          "note": "gelb"
+        },
+        {
+          "kind": "image",
+          "name": "flowers_3",
+          "file": "art/environment/village/flowers_3.png",
+          "w": 20,
+          "h": 14,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            10,
+            14
+          ],
+          "note": "weiß-lila"
+        },
+        {
+          "kind": "image",
+          "name": "flower_bed",
+          "file": "art/environment/village/flower_bed.png",
+          "w": 32,
+          "h": 14,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            14
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "garden_fence",
+          "file": "art/environment/village/garden_fence.png",
+          "w": 32,
+          "h": 22,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            22
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "hay_bale",
+          "file": "art/environment/village/hay_bale.png",
+          "w": 24,
+          "h": 18,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            18
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bench",
+          "file": "art/environment/village/bench.png",
+          "w": 28,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            14,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "pond",
+          "file": "art/environment/village/pond.png",
+          "w": 56,
+          "h": 30,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            28,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "pond",
+          "file": "art/environment/village/pond_4f.png",
+          "w": 56,
+          "h": 30,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            28,
+            30
+          ],
+          "note": "Lichtreflexe wandern, Ring"
+        },
+        {
+          "kind": "image",
+          "name": "cart",
+          "file": "art/environment/village/cart.png",
+          "w": 48,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            32
+          ],
+          "note": "Deichsel links"
+        },
+        {
+          "kind": "image",
+          "name": "signpost",
+          "file": "art/environment/village/signpost.png",
+          "w": 24,
+          "h": 30,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            30
+          ],
+          "note": "links Haus, rechts Höhle"
+        },
+        {
+          "kind": "image",
+          "name": "grass_tuft",
+          "file": "art/environment/village/grass_tuft.png",
+          "w": 14,
+          "h": 9,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            7,
+            9
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "stones",
+          "file": "art/environment/village/stones.png",
+          "w": 16,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            10
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bush_small",
+          "file": "art/environment/village/bush_small.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ]
+        }
+      ],
+      "module": "village4",
+      "priority": 13
+    },
+    {
+      "id": "ui/sign_home",
+      "title": "Dorf-UI (B3)",
+      "dir": "art/ui",
+      "notes": [],
+      "items": [
+        {
+          "kind": "image",
+          "name": "sign_home",
+          "file": "art/ui/sign_home.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            0
+          ],
+          "note": "Schild Zuhause"
+        }
+      ],
+      "module": "village4",
+      "priority": 13
+    },
+    {
+      "id": "environment/campfire/campfire",
+      "title": "Lagerfeuer-Raum (A6)",
+      "dir": "art/environment/campfire",
+      "notes": [
+        "campfire: Pivot unten Mitte, Light2D warm mit Flackern.",
+        "transition_overlay_*: 4 Kacheln als Bodenlayer über die Tiles des alten Bioms streuen, Dichte zum neuen Biom hin steigend."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "campfire",
+          "file": "art/environment/campfire/campfire_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "log_seat",
+          "file": "art/environment/campfire/log_seat.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bedroll",
+          "file": "art/environment/campfire/bedroll.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "pack",
+          "file": "art/environment/campfire/pack.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "transition_overlay_slime_grotto",
+          "file": "art/environment/campfire/transition_overlay_slime_grotto.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Krypta → Schleimgrotte"
+        },
+        {
+          "kind": "anim",
+          "name": "transition_overlay_shadow_realm",
+          "file": "art/environment/campfire/transition_overlay_shadow_realm.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schleimgrotte → Schattenreich"
+        },
+        {
+          "kind": "anim",
+          "name": "transition_overlay_ember_forge",
+          "file": "art/environment/campfire/transition_overlay_ember_forge.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schattenreich → Glutkammer"
+        },
+        {
+          "kind": "anim",
+          "name": "transition_overlay_crypt",
+          "file": "art/environment/campfire/transition_overlay_crypt.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Glutkammer → Krypta (ab Zyklus 5)"
+        }
+      ],
+      "module": "campfire4",
+      "priority": 14
+    },
+    {
+      "id": "environment/doors/doors",
+      "title": "Türen je Biom (D1)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "Rahmen 48×48 (Boss 64×56): Durchgang 32 px breit, mittig, Unterkante = Boden; Rahmen über die Wand legen (Pivot unten Mitte).",
+        "Türblatt 32×32 in den Durchgang setzen: Rahmen-x+8, Rahmen-y+16 (Boss: x+16, y+24). Frame 1 = geschlossen, Frame 4 = offen (leer bzw. Rest).",
+        "Durchgang ist im Rahmen bereits dunkel, hinter dem Türblatt muss nichts gezeichnet werden."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "door_frame_crypt",
+          "file": "art/environment/doors/door_frame_crypt.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            48
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_crypt_open",
+          "file": "art/environment/doors/door_crypt_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ],
+          "note": "Holztür schwingt nach innen/oben"
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_slime_grotto",
+          "file": "art/environment/doors/door_frame_slime_grotto.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            48
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_slime_grotto_open",
+          "file": "art/environment/doors/door_slime_grotto_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ],
+          "note": "Rankenvorhang teilt sich"
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_shadow_realm",
+          "file": "art/environment/doors/door_frame_shadow_realm.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            48
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_shadow_realm_open",
+          "file": "art/environment/doors/door_shadow_realm_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ],
+          "note": "Runensiegel erlischt von außen nach innen"
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_ember_forge",
+          "file": "art/environment/doors/door_frame_ember_forge.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            48
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_ember_forge_open",
+          "file": "art/environment/doors/door_ember_forge_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ],
+          "note": "Fallgatter fährt hoch"
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_boss",
+          "file": "art/environment/doors/door_frame_boss.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            56
+          ],
+          "note": "biomneutral, per Modulate tönen"
+        },
+        {
+          "kind": "anim",
+          "name": "door_boss_open",
+          "file": "art/environment/doors/door_boss_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            32
+          ],
+          "note": "Ketten zerspringen (Frame 2), Flügel schwingen auf"
+        },
+        {
+          "kind": "anim",
+          "name": "door_special_symbols",
+          "file": "art/environment/doors/door_special_symbols.png",
+          "w": 16,
+          "h": 16,
+          "frames": 6,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ],
+          "note": "6 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme; weiß/grau, einfärben"
+        }
+      ],
+      "module": "doors4",
+      "priority": 14
     }
   ]
 }

@@ -1,0 +1,185 @@
+{
+  "notes": [
+    "Rahmen 48×48 (Boss 64×56): Durchgang 32 px breit, mittig, Unterkante = Boden; Rahmen über die Wand legen (Pivot unten Mitte).",
+    "Türblatt 32×32 in den Durchgang setzen: Rahmen-x+8, Rahmen-y+16 (Boss: x+16, y+24). Frame 1 = geschlossen, Frame 4 = offen (leer bzw. Rest).",
+    "Durchgang ist im Rahmen bereits dunkel, hinter dem Türblatt muss nichts gezeichnet werden."
+  ],
+  "items": [
+    {
+      "name": "door_frame_crypt",
+      "file": "door_frame_crypt.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_crypt_open",
+      "file": "door_crypt_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": "Holztür schwingt nach innen/oben"
+    },
+    {
+      "name": "door_frame_slime_grotto",
+      "file": "door_frame_slime_grotto.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_slime_grotto_open",
+      "file": "door_slime_grotto_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": "Rankenvorhang teilt sich"
+    },
+    {
+      "name": "door_frame_shadow_realm",
+      "file": "door_frame_shadow_realm.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_shadow_realm_open",
+      "file": "door_shadow_realm_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": "Runensiegel erlischt von außen nach innen"
+    },
+    {
+      "name": "door_frame_ember_forge",
+      "file": "door_frame_ember_forge.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_ember_forge_open",
+      "file": "door_ember_forge_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": "Fallgatter fährt hoch"
+    },
+    {
+      "name": "door_frame_boss",
+      "file": "door_frame_boss.png",
+      "frame_size": [
+        64,
+        56
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        56
+      ],
+      "note": "biomneutral, per Modulate tönen"
+    },
+    {
+      "name": "door_boss_open",
+      "file": "door_boss_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        32
+      ],
+      "note": "Ketten zerspringen (Frame 2), Flügel schwingen auf"
+    },
+    {
+      "name": "door_special_symbols",
+      "file": "door_special_symbols.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 6,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": "6 Symbole à 16×16: Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme; weiß/grau, einfärben"
+    }
+  ]
+}

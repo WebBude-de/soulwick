@@ -1,0 +1,21 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "sign_home",
+      "file": "sign_home.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        0
+      ],
+      "note": "Schild Zuhause"
+    }
+  ]
+}

@@ -101,6 +101,22 @@
       "note": ""
     },
     {
+      "name": "well",
+      "file": "well_4f.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 4,
+      "fps": 5,
+      "loop": true,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": "Eimer pendelt, Wasser glitzert"
+    },
+    {
       "name": "market_stall",
       "file": "market_stall.png",
       "frame_size": [

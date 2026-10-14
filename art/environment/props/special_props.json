@@ -2,7 +2,8 @@
   "notes": [
     "Pivot jeweils unten Mitte (Fußpunkt).",
     "exit_portal: Interaktion mit E, 30 % der Spezialräume.",
-    "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen."
+    "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen.",
+    "fountain, weapon_pedestal, upgrade_altar: statische Datei + _4f-Schleife (6 fps), gleiche Maße und Pivot."
   ],
   "items": [
     {
@@ -36,6 +37,22 @@
         38
       ],
       "note": "Brunnen: einmalig +3 HP"
+    },
+    {
+      "name": "fountain",
+      "file": "fountain_4f.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": "Wasserstrahl, Tropfen, Ringe"
     },
     {
       "name": "shop_counter",
@@ -86,6 +103,22 @@
       "note": ""
     },
     {
+      "name": "weapon_pedestal",
+      "file": "weapon_pedestal_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Leuchten pulsiert, Funken steigen"
+    },
+    {
       "name": "upgrade_altar",
       "file": "upgrade_altar.png",
       "frame_size": [
@@ -100,6 +133,22 @@
         46
       ],
       "note": ""
+    },
+    {
+      "name": "upgrade_altar",
+      "file": "upgrade_altar_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": "Kerzen flackern, Kristall schwebt"
     },
     {
       "name": "gold_coin",

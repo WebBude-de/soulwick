@@ -1,0 +1,136 @@
+{
+  "notes": [
+    "campfire: Pivot unten Mitte, Light2D warm mit Flackern.",
+    "transition_overlay_*: 4 Kacheln als Bodenlayer über die Tiles des alten Bioms streuen, Dichte zum neuen Biom hin steigend."
+  ],
+  "items": [
+    {
+      "name": "campfire",
+      "file": "campfire_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "log_seat",
+      "file": "log_seat.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "bedroll",
+      "file": "bedroll.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "pack",
+      "file": "pack.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "transition_overlay_slime_grotto",
+      "file": "transition_overlay_slime_grotto.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Krypta → Schleimgrotte"
+    },
+    {
+      "name": "transition_overlay_shadow_realm",
+      "file": "transition_overlay_shadow_realm.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schleimgrotte → Schattenreich"
+    },
+    {
+      "name": "transition_overlay_ember_forge",
+      "file": "transition_overlay_ember_forge.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schattenreich → Glutkammer"
+    },
+    {
+      "name": "transition_overlay_crypt",
+      "file": "transition_overlay_crypt.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Glutkammer → Krypta (ab Zyklus 5)"
+    }
+  ]
+}

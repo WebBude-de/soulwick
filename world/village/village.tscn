@@ -15,25 +15,26 @@
 [ext_resource type="Texture2D" path="res://art/environment/buildings/chronicle_hall.png" id="13_res"]
 [ext_resource type="Texture2D" path="res://art/ui/sign_chronicle.png" id="14_res"]
 [ext_resource type="Texture2D" path="res://art/environment/buildings/home.png" id="15_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/trading_post.png" id="16_res"]
-[ext_resource type="Texture2D" path="res://art/ui/sign_trading.png" id="17_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/guild_hall.png" id="18_res"]
-[ext_resource type="Texture2D" path="res://art/ui/sign_guild.png" id="19_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/house_2.png" id="20_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/house_1.png" id="21_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/house_3.png" id="22_res"]
-[ext_resource type="SpriteFrames" path="res://art/characters/npcs/smith_frames.tres" id="23_res"]
-[ext_resource type="SpriteFrames" path="res://art/characters/npcs/chronicler_frames.tres" id="24_res"]
-[ext_resource type="SpriteFrames" path="res://art/characters/npcs/trader_frames.tres" id="25_res"]
-[ext_resource type="SpriteFrames" path="res://art/characters/npcs/guild_master_frames.tres" id="26_res"]
-[ext_resource type="Texture2D" path="res://art/environment/props/fountain.png" id="27_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/well.png" id="28_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/market_stall.png" id="29_res"]
-[ext_resource type="Texture2D" path="res://art/environment/buildings/lamp_post_4f.png" id="30_res"]
-[ext_resource type="Texture2D" path="res://art/environment/props/barrel.png" id="31_res"]
-[ext_resource type="Texture2D" path="res://art/environment/props/crate.png" id="32_res"]
-[ext_resource type="Script" path="res://world/village/village_prop.gd" id="33_res"]
-[ext_resource type="Script" path="res://world/village/villager.gd" id="34_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_home.png" id="16_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/trading_post.png" id="17_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_trading.png" id="18_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/guild_hall.png" id="19_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_guild.png" id="20_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_2.png" id="21_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_1.png" id="22_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_3.png" id="23_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/smith_frames.tres" id="24_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/chronicler_frames.tres" id="25_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/trader_frames.tres" id="26_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/guild_master_frames.tres" id="27_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/fountain_4f.png" id="28_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/well_4f.png" id="29_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/market_stall.png" id="30_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/lamp_post_4f.png" id="31_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/barrel.png" id="32_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/crate.png" id="33_res"]
+[ext_resource type="Script" path="res://world/village/village_prop.gd" id="34_res"]
+[ext_resource type="Script" path="res://world/village/villager.gd" id="35_res"]
 
 [sub_resource type="RectangleShape2D" id="Rect_entrance"]
 size = Vector2(104, 40)
@@ -292,6 +293,13 @@ shape = SubResource("Rect_Home")
 position = Vector2(44, -152)
 script = ExtResource("11_res")
 
+[node name="Sign" type="Sprite2D" parent="Buildings/Home"]
+position = Vector2(0, -94)
+scale = Vector2(2, 2)
+texture = ExtResource("16_res")
+centered = false
+offset = Vector2(-12, 0)
+
 [node name="Door" type="Area2D" parent="Buildings/Home"]
 position = Vector2(0, 22)
 script = ExtResource("4_interactable")
@@ -319,7 +327,7 @@ metadata/building_id = "trader"
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/TradingPost"]
 scale = Vector2(2, 2)
-texture = ExtResource("16_res")
+texture = ExtResource("17_res")
 offset = Vector2(18, -37)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/TradingPost"]
@@ -329,7 +337,7 @@ shape = SubResource("Rect_TradingPost")
 [node name="Sign" type="Sprite2D" parent="Buildings/TradingPost"]
 position = Vector2(0, -94)
 scale = Vector2(2, 2)
-texture = ExtResource("17_res")
+texture = ExtResource("18_res")
 centered = false
 offset = Vector2(-12, 0)
 
@@ -360,7 +368,7 @@ metadata/building_id = "guild"
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Guild"]
 scale = Vector2(2, 2)
-texture = ExtResource("18_res")
+texture = ExtResource("19_res")
 offset = Vector2(0, -45)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Guild"]
@@ -370,7 +378,7 @@ shape = SubResource("Rect_Guild")
 [node name="Sign" type="Sprite2D" parent="Buildings/Guild"]
 position = Vector2(0, -94)
 scale = Vector2(2, 2)
-texture = ExtResource("19_res")
+texture = ExtResource("20_res")
 centered = false
 offset = Vector2(-12, 0)
 
@@ -401,7 +409,7 @@ metadata/neighbour_house = true
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/HouseNW"]
 scale = Vector2(2, 2)
-texture = ExtResource("20_res")
+texture = ExtResource("21_res")
 offset = Vector2(0, -30)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseNW"]
@@ -419,7 +427,7 @@ metadata/neighbour_house = true
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/HouseN"]
 scale = Vector2(2, 2)
-texture = ExtResource("21_res")
+texture = ExtResource("22_res")
 offset = Vector2(0, -30)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseN"]
@@ -433,7 +441,7 @@ metadata/neighbour_house = true
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/HouseNE"]
 scale = Vector2(2, 2)
-texture = ExtResource("22_res")
+texture = ExtResource("23_res")
 offset = Vector2(0, -38)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseNE"]
@@ -451,7 +459,7 @@ metadata/neighbour_house = true
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/HouseSW"]
 scale = Vector2(2, 2)
-texture = ExtResource("21_res")
+texture = ExtResource("22_res")
 offset = Vector2(0, -30)
 flip_h = true
 
@@ -466,7 +474,7 @@ metadata/neighbour_house = true
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/HouseS"]
 scale = Vector2(2, 2)
-texture = ExtResource("20_res")
+texture = ExtResource("21_res")
 offset = Vector2(0, -30)
 flip_h = true
 
@@ -484,7 +492,7 @@ collision_mask = 0
 
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Smith"]
 scale = Vector2(2, 2)
-sprite_frames = ExtResource("23_res")
+sprite_frames = ExtResource("24_res")
 animation = &"idle"
 autoplay = "idle"
 offset = Vector2(0, -14)
@@ -500,7 +508,7 @@ collision_mask = 0
 
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Chronicler"]
 scale = Vector2(2, 2)
-sprite_frames = ExtResource("24_res")
+sprite_frames = ExtResource("25_res")
 animation = &"idle"
 autoplay = "idle"
 offset = Vector2(0, -14)
@@ -516,7 +524,7 @@ collision_mask = 0
 
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Trader"]
 scale = Vector2(2, 2)
-sprite_frames = ExtResource("25_res")
+sprite_frames = ExtResource("26_res")
 animation = &"idle"
 autoplay = "idle"
 offset = Vector2(0, -14)
@@ -532,7 +540,7 @@ collision_mask = 0
 
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/GuildMaster"]
 scale = Vector2(2, 2)
-sprite_frames = ExtResource("26_res")
+sprite_frames = ExtResource("27_res")
 animation = &"idle"
 autoplay = "idle"
 offset = Vector2(0, -14)
@@ -546,10 +554,13 @@ shape = SubResource("Circle_npc")
 position = Vector2(960, 678.4)
 collision_mask = 0
 
-[node name="Sprite" type="Sprite2D" parent="Buildings/Fountain"]
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Fountain"]
 scale = Vector2(2, 2)
-texture = ExtResource("27_res")
-offset = Vector2(0, -18)
+script = ExtResource("7_prop")
+strip = ExtResource("28_res")
+frame_size = Vector2i(32, 40)
+fps = 5.0
+pivot = Vector2(16, 38)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Fountain"]
 position = Vector2(0, -8)
@@ -559,10 +570,13 @@ shape = SubResource("Circle_Fountain")
 position = Vector2(588.8, 723.2)
 collision_mask = 0
 
-[node name="Sprite" type="Sprite2D" parent="Buildings/Well"]
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Well"]
 scale = Vector2(2, 2)
-texture = ExtResource("28_res")
-offset = Vector2(0, -18)
+script = ExtResource("7_prop")
+strip = ExtResource("29_res")
+frame_size = Vector2i(32, 40)
+fps = 5.0
+pivot = Vector2(16, 38)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Well"]
 position = Vector2(0, -8)
@@ -574,7 +588,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/MarketStall"]
 scale = Vector2(2, 2)
-texture = ExtResource("29_res")
+texture = ExtResource("30_res")
 offset = Vector2(0, -20)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/MarketStall"]
@@ -588,7 +602,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp1"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -604,7 +618,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp2"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -620,7 +634,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp3"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -636,7 +650,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp4"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -652,7 +666,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp5"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -668,7 +682,7 @@ collision_mask = 0
 [node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp6"]
 scale = Vector2(2, 2)
 script = ExtResource("7_prop")
-strip = ExtResource("30_res")
+strip = ExtResource("31_res")
 frame_size = Vector2i(16, 48)
 fps = 5.0
 pivot = Vector2(8, 47)
@@ -683,7 +697,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Barrel1"]
 scale = Vector2(2, 2)
-texture = ExtResource("31_res")
+texture = ExtResource("32_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel1"]
@@ -696,7 +710,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Barrel2"]
 scale = Vector2(2, 2)
-texture = ExtResource("31_res")
+texture = ExtResource("32_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel2"]
@@ -709,7 +723,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Barrel3"]
 scale = Vector2(2, 2)
-texture = ExtResource("31_res")
+texture = ExtResource("32_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel3"]
@@ -722,7 +736,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Barrel4"]
 scale = Vector2(2, 2)
-texture = ExtResource("31_res")
+texture = ExtResource("32_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel4"]
@@ -735,7 +749,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Crate1"]
 scale = Vector2(2, 2)
-texture = ExtResource("32_res")
+texture = ExtResource("33_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate1"]
@@ -748,7 +762,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Crate2"]
 scale = Vector2(2, 2)
-texture = ExtResource("32_res")
+texture = ExtResource("33_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate2"]
@@ -761,7 +775,7 @@ collision_mask = 0
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/Crate3"]
 scale = Vector2(2, 2)
-texture = ExtResource("32_res")
+texture = ExtResource("33_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate3"]
@@ -771,84 +785,84 @@ shape = SubResource("Circle_Crate3")
 [node name="FenceW1" type="StaticBody2D" parent="Buildings"]
 position = Vector2(224, 624)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(288, 624)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW3" type="StaticBody2D" parent="Buildings"]
 position = Vector2(416, 624)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW4" type="StaticBody2D" parent="Buildings"]
 position = Vector2(224, 780.8)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW5" type="StaticBody2D" parent="Buildings"]
 position = Vector2(288, 780.8)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW6" type="StaticBody2D" parent="Buildings"]
 position = Vector2(352, 780.8)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="FenceW7" type="StaticBody2D" parent="Buildings"]
 position = Vector2(416, 780.8)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "garden_fence"
 solid_size = Vector2(60, 12)
 
 [node name="Bench" type="StaticBody2D" parent="Buildings"]
 position = Vector2(704, 627.2)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "bench"
 solid_size = Vector2(56, 14)
 
 [node name="Signpost" type="StaticBody2D" parent="Buildings"]
 position = Vector2(857.6, 1123.2)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "signpost"
 solid_size = Vector2(12, 10)
 
 [node name="Cart" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1760, 950.4)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "cart"
 solid_size = Vector2(80, 24)
 
 [node name="HayBale1" type="StaticBody2D" parent="Buildings"]
 position = Vector2(275.2, 723.2)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "hay_bale"
 solid_size = Vector2(44, 18)
 
 [node name="HayBale2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(345.6, 742.4)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "hay_bale"
 solid_size = Vector2(44, 18)
 flip = true
@@ -856,7 +870,7 @@ flip = true
 [node name="Pond" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1625.6, 736)
 collision_mask = 0
-script = ExtResource("33_res")
+script = ExtResource("34_res")
 art_name = "pond"
 solid_size = Vector2(110, 44)
 
@@ -1161,37 +1175,37 @@ shape = SubResource("Circle_trunk")
 
 [node name="Villager1" type="Node2D" parent="Villagers"]
 position = Vector2(192, 524.8)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(192, 524.8, 601.6, 534.4, 832, 524.8, 1100.8, 534.4, 1715.2, 524.8)
 loop = false
 speed = 30
 art_name = "villager_1"
-fallback_frames = ExtResource("26_res")
+fallback_frames = ExtResource("27_res")
 tint = Color(1, 0.9, 0.8, 1)
 
 [node name="Villager2" type="Node2D" parent="Villagers"]
 position = Vector2(204.8, 1043.2)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(204.8, 1043.2, 576, 1036.8, 998.4, 1049.6, 1344, 1040, 1715.2, 1043.2)
 loop = false
 speed = 26
 art_name = "villager_2"
-fallback_frames = ExtResource("23_res")
+fallback_frames = ExtResource("24_res")
 tint = Color(0.82, 0.9, 1, 1)
 
 [node name="Villager3" type="Node2D" parent="Villagers"]
 position = Vector2(780.8, 608)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(780.8, 608, 806.4, 736, 1113.6, 742.4, 1139.2, 608)
 loop = true
 speed = 22
 art_name = "villager_3"
-fallback_frames = ExtResource("24_res")
+fallback_frames = ExtResource("25_res")
 tint = Color(1, 0.86, 0.95, 1)
 
 [node name="Chicken1" type="Node2D" parent="Villagers"]
 position = Vector2(230.4, 678.4)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(230.4, 678.4, 307.2, 656, 396.8, 697.6, 320, 755.2)
 loop = true
 speed = 18
@@ -1201,7 +1215,7 @@ optional = true
 
 [node name="Chicken2" type="Node2D" parent="Villagers"]
 position = Vector2(384, 748.8)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(384, 748.8, 256, 761.6, 217.6, 672)
 loop = true
 speed = 16
@@ -1211,7 +1225,7 @@ optional = true
 
 [node name="Cat" type="Node2D" parent="Villagers"]
 position = Vector2(576, 1116.8)
-script = ExtResource("34_res")
+script = ExtResource("35_res")
 route = PackedVector2Array(576, 1116.8, 793.6, 1126.4)
 loop = false
 speed = 22

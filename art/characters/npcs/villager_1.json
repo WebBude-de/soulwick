@@ -1,0 +1,34 @@
+{
+  "name": "villager_1",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Kopftuch, Schürze, Korb mit Äpfeln/Brot."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "villager_1_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "villager_1_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    }
+  ],
+  "extras": []
+}
