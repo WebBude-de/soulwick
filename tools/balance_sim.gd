@@ -18,6 +18,29 @@ extends SceneTree
 ##   quiet=1           only print run summaries
 ##   branch=first      first | safe | nest  (way of a branch room, D-105: the first door, the safe
 ##                     way or the elite nest / unknown variant when offered)
+##   dseed=1           with seed=N != 0 also fix the dungeon seed (run r gets N * 1000 + r + 1), so the
+##                     same rooms come again; dseed=0 keeps the dungeon random
+##   hazards=0         1 = avoid static hazards as danger zones: toxic puddles always, lava cracks
+##                     while warning or active (spike traps are always avoided)
+##   falls=0           1 = abysses are real for the bot: it runs the player's fall logic (falling, pit
+##                     damage) and keeps its feet off pit tiles while walking and dashing
+##   nav=0             1 = walk around walls (and with falls=1 over bridges around abysses) along the
+##                     room's navigation path when the target is out of sight
+##   smart=0           1 = go for summoning rifts first when no enemy is close
+##   god_until=0       N > 0 = invulnerable up to room N, normal from room N + 1 (boss tests)
+##   bosshits=0        1 = print damage taken in boss rooms by boss state/action (BOSSHITS line)
+##   debug=0           1 = every hit, 2 = position trace, 3 = zone trace, 5 = rift rooms
+##   audio=0           0 = no sound effects and no music (default). The bot runs far faster than
+##                     real time; Godot frees replaced audio bus data two frames later while its
+##                     mixer thread may still read it, so many positional sounds at a high frame
+##                     rate crashed about every second to tenth process (segfault in
+##                     AudioServer::_mix_step). 1 = keep the sound (crash diagnosis only)
+##   max_fps=0         cap the frame rate (0 = unlimited)
+## Recommended realistic bot: hazards=1 falls=1 nav=1 (off by default to stay comparable with
+## older measurements).
+## Death cause: the cause column / SUMMARY keep the short source (enemy id, trap, pit, explosion);
+## cause_detail adds trap kind (trap:spike|lava|poison|trial), *elite / *champ, and desc the room
+## (kind, variant, wager/ambush/branch, encounter group, special type, dark, template).
 ## Runtime experiments (shared files stay untouched, values are changed in memory only):
 ##   set.hp_growth=1.22      enemy HP factor per 5-room block (replaces EnemyScaling value)
 ##   set.dmg_growth=1.16     enemy damage factor per block
@@ -38,6 +61,9 @@ extends SceneTree
 ##   wpn.<id>.<field>=<v>    weapon field, e.g. wpn.sword.base_damage=11
 ##   enemy.<id>.<field>=<v>  enemy data field, e.g. enemy.skeleton.damage=1.5
 ##   econ.<field>=<v>        economy config field, e.g. econ.shield_amount=2
+##   vt.chance=0.9           room variant chance (variant_table.tres)
+##   vt.wager=0              wager altar chance
+##   vt.only=<variant id>    only this variant, in every biome
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const ROOM_TIMEOUT := 240.0
@@ -50,6 +76,8 @@ const DIRECTIONS := 16
 var opt := {
 	"runs": 3, "policy": "sword", "pick": "greedy", "max_rooms": 150, "skill": 0.8,
 	"reaction": 0.22, "seed": 0, "out": "", "quiet": 0, "debug": 0, "branch": "first",
+	"dseed": 1, "hazards": 0, "falls": 0, "nav": 0, "smart": 0, "god_until": 0, "bosshits": 0,
+	"audio": 0, "max_fps": 0,
 }
 var ovr := {}
 var res_overrides: Array = []
@@ -86,14 +114,30 @@ var _stall_time := 0.0
 var _last_enemy_hp := 0.0
 var _aggressive_left := 0.0
 var _traps: Array = []
+var _hazards: Array = []
 var _shield_prev := 0.0
 var _stuck_pause := 0
 var _rows: Array[String] = []
 var _summaries: Array = []
+var _last_hit_detail := ""
+var _pending_seed := 0
+var _nav_cache := {"t": -1.0, "wp": Vector2.INF, "path": PackedVector2Array()}
+var _vt_keep: Resource = null
+var _boss_hits := {}
 
 
 func _init() -> void:
 	process_frame.connect(_run, CONNECT_ONE_SHOT)
+	node_added.connect(_on_node_added)
+
+
+## Fixed dungeon seed (dseed=1): set on the DungeonManager before its _ready builds the dungeon.
+func _on_node_added(node: Node) -> void:
+	if _pending_seed == 0 or node.get_script() == null:
+		return
+	if node.get_script().get_global_name() == &"DungeonManager":
+		node.seed_value = _pending_seed
+		_pending_seed = 0
 
 
 func _run() -> void:
@@ -104,6 +148,7 @@ func _run() -> void:
 	else:
 		rng.randomize()
 	_apply_resource_overrides()
+	_apply_variant_overrides()
 	# Buttons are found by their German texts; English is the default language (D-111).
 	TranslationServer.set_locale("de")
 	var save_manager := root.get_node("SaveManager")
@@ -115,25 +160,55 @@ func _run() -> void:
 	save_manager.settings_path = "user://balance_sim_settings.cfg"
 	save_manager.load_settings()
 	save_manager.set_option(&"language", "de")
+	if int(opt.max_fps) > 0:
+		Engine.max_fps = int(opt.max_fps)
+	if int(opt.audio) == 0:
+		_silence_sfx()
 
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
+	if int(opt.audio) == 0:
+		_silence_music()
 	controller = current_scene.get_node("WorldController")
 	_load_enums()
-	_rows.append("run,policy,pick,room,type,enemies,time,hp_dmg,shield_dmg,hits,dashes,hp,max_hp,shield,upgrades,gold,dead,timeout,cause")
+	_rows.append("run,policy,pick,room,type,enemies,time,hp_dmg,shield_dmg,hits,dashes,hp,max_hp,shield,upgrades,gold,dead,timeout,cause,cause_detail,desc,trap_dmg,pit_dmg,expl_dmg,enemy_dmg")
 	for run in int(opt.runs):
 		var summary: Dictionary = await _play_run(run)
 		_summaries.append(summary)
-		print("RUN %d %s/%s: reached room %d, %s%s, upgrades %d, gold %d, wall time %.0fs" % [
+		print("RUN %d %s/%s: reached room %d, %s%s, upgrades %d, gold %d, wall time %.0fs%s" % [
 			run, opt.policy, opt.pick, summary.room, "died" if summary.dead else "survived",
-			(" (" + summary.cause + ")") if summary.dead else "", summary.upgrades, summary.gold, summary.wall])
+			(" (" + summary.cause + ")") if summary.dead else "", summary.upgrades, summary.gold, summary.wall,
+			(" | death: %s in %s" % [summary.detail, summary.where]) if summary.dead else ""])
 	_write_csv()
 	_print_overview()
+	if int(opt.bosshits) == 1:
+		print("BOSSHITS ", JSON.stringify(_boss_hits))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	quit(0)
 
 
 # --- Setup ---
+
+## No sound effects (audio=0): every known sound is cached as "missing", so Sfx creates no players.
+func _silence_sfx() -> void:
+	var sfx: Script = load("res://components/audio/sfx.gd")
+	var cache: Dictionary = sfx.get(&"_cache")
+	var dir := DirAccess.open(sfx.SFX_DIR)
+	if cache == null or dir == null:
+		push_warning("balance_sim: could not silence the sound effects")
+		return
+	for file in dir.get_files():
+		var name := file.trim_suffix(".import").trim_suffix(".remap")
+		if name.get_extension() == "wav":
+			cache[StringName(name.get_basename())] = null
+
+
+## No music (audio=0): the MusicPlayer of game.tscn goes; its group calls then reach nobody.
+func _silence_music() -> void:
+	var music := current_scene.get_node_or_null(^"MusicPlayer")
+	if music != null:
+		music.queue_free()
+
 
 func _parse_args() -> void:
 	for arg in OS.get_cmdline_user_args():
@@ -216,6 +291,8 @@ func _apply_resource_overrides() -> void:
 
 func _play_run(run: int) -> Dictionary:
 	var wall_start := Time.get_ticks_msec()
+	if int(opt.dseed) == 1 and int(opt.seed) != 0:
+		_pending_seed = int(opt.seed) * 1000 + run + 1
 	controller.enter_dungeon()
 	await _frames(20)
 	dungeon = controller.get_world()
@@ -231,7 +308,7 @@ func _play_run(run: int) -> Dictionary:
 		player.shield.shield_changed.connect(_on_shield_changed)
 	_seen.clear()
 
-	var summary := {"room": 1, "dead": false, "cause": "", "upgrades": 0, "gold": 0, "wall": 0.0}
+	var summary := {"room": 1, "dead": false, "cause": "", "upgrades": 0, "gold": 0, "wall": 0.0, "detail": "", "where": ""}
 	var index := 1
 	while true:
 		var room: Node = dungeon.get_room(index)
@@ -244,6 +321,8 @@ func _play_run(run: int) -> Dictionary:
 			await physics_frame
 			if dungeon.get_active_room_index() >= index:
 				break
+		if int(opt.get("god_until", 0)) > 0:
+			player.hurtbox.set_invulnerable(&"bal_god", index <= int(opt.god_until))
 		_begin_record(room)
 		if room.room_type == RT_SPECIAL:
 			await _use_special(room)
@@ -260,6 +339,8 @@ func _play_run(run: int) -> Dictionary:
 		if not player.is_alive():
 			summary.dead = true
 			summary.cause = _last_hit_source
+			summary.detail = _last_hit_detail
+			summary.where = _room_desc(room)
 			break
 		if index >= int(opt.max_rooms):
 			break
@@ -299,6 +380,7 @@ func _fight_room(room: Node) -> void:
 	_last_enemy_hp = -1.0
 	_aggressive_left = 0.0
 	_traps = _find_by_class(room, &"SpikeTrap")
+	_hazards = _find_by_class(room, &"ToxicPuddle") + _find_by_class(room, &"LavaCrack")
 	var started := _time
 	while room.state != ROOM_CLEARED:
 		await physics_frame
@@ -400,6 +482,10 @@ func _bot_step(room: Node) -> void:
 	_time += dt
 	if player.has_method(&"_tick_timers"):
 		player._tick_timers(dt)
+	if int(opt.falls) == 1:
+		player.fall.update(dt)
+		if player.fall.is_falling():
+			return
 	if not player.is_alive():
 		return
 	if player.is_stunned():
@@ -417,6 +503,7 @@ func _bot_step(room: Node) -> void:
 	var best_dir := Vector2.ZERO
 	var best_cost := INF
 	var step: float = player.move_speed * LOOKAHEAD
+	var waypoint := _nav_waypoint(room, pos, target) if int(opt.nav) == 1 else Vector2.INF
 	for i in DIRECTIONS + 1:
 		var dir := Vector2.ZERO if i == DIRECTIONS else Vector2.from_angle(TAU * i / DIRECTIONS)
 		if dir != Vector2.ZERO and player.test_move(player.global_transform, dir * step):
@@ -424,7 +511,8 @@ func _bot_step(room: Node) -> void:
 		var candidate := pos + dir * step
 		# Sample the path too, so the bot does not plan to step "over" a danger zone.
 		var danger := maxf(_zone_cost(candidate, zones), maxf(_zone_cost(pos + dir * step * 0.5, zones), _zone_cost(pos + dir * 6.0, zones)))
-		var cost := danger + _objective(candidate, target, enemies, arena)
+		var goal_cost := _objective(candidate, target, enemies, arena) if waypoint == Vector2.INF else candidate.distance_to(waypoint) * 2.0
+		var cost := danger + goal_cost + _pit_cost(candidate) + _pit_cost(pos + dir * 10.0)
 		if dir != Vector2.ZERO and dir.dot(_last_dir) > 0.9:
 			cost -= 4.0
 		if dir != Vector2.ZERO and target == null:
@@ -438,6 +526,12 @@ func _bot_step(room: Node) -> void:
 		for zone in zones:
 			parts.append("t=%.2f d=%.0f" % [zone.t, _depth(pos, zone)])
 		print("    trace %.2f pos=%s dir=%s cost=%.0f dashcd=%.2f %s" % [_time, pos.round(), best_dir.round(), best_cost, player.get_dash_cooldown_left(), " | ".join(parts)])
+	if int(opt.debug) == 5 and Engine.get_physics_frames() % 60 == 0 and String(room.get_variant_id()) == "rifts":
+		var rifts_hp: Array[String] = []
+		for enemy in enemies:
+			if String(enemy.data.id) == "summoning_rift":
+				rifts_hp.append("%.0f@%s" % [enemy.health.get_health(), enemy.global_position.round()])
+		print("    rift r%d t=%.0f pos=%s target=%s alive=%d rifts=%s" % [room.room_index, _time, pos.round(), (String(target.data.id) + "@" + str(target.global_position.round())) if target != null else "-", enemies.size(), rifts_hp])
 	if int(opt.debug) == 2 and Engine.get_physics_frames() % 30 == 0:
 		var blocked := 0
 		for i in DIRECTIONS:
@@ -456,7 +550,7 @@ func _bot_step(room: Node) -> void:
 				var reach: float = player.dash_speed * player.dash_duration
 				if player.test_move(player.global_transform, dir * reach * 0.5):
 					continue
-				var c := _zone_cost(pos + dir * reach, zones) + _objective(pos + dir * reach, target, enemies, arena) * 0.1
+				var c := _zone_cost(pos + dir * reach, zones) + _objective(pos + dir * reach, target, enemies, arena) * 0.1 + _pit_cost(pos + dir * reach)
 				if c < dash_best:
 					dash_best = c
 					dash_dir = dir
@@ -526,6 +620,20 @@ func _objective(candidate: Vector2, target: Node2D, enemies: Array, arena: Rect2
 func _pick_target(enemies: Array) -> Node2D:
 	var best: Node2D = null
 	var best_distance := INF
+	if int(opt.get("smart", 0)) == 1:
+		var close_enemy := false
+		var rift: Node2D = null
+		var rift_d := INF
+		for enemy in enemies:
+			var dd: float = player.global_position.distance_to(enemy.global_position)
+			if String(enemy.data.id) == "summoning_rift":
+				if dd < rift_d:
+					rift_d = dd
+					rift = enemy
+			elif dd < 90.0:
+				close_enemy = true
+		if rift != null and not close_enemy:
+			return rift
 	for enemy in enemies:
 		var d: float = player.global_position.distance_to(enemy.global_position)
 		if d < best_distance:
@@ -589,6 +697,14 @@ func _collect_zones(room: Node, enemies: Array) -> Array:
 		elif _is_class(child, &"Blast"):
 			if child._time < child.delay and _noticed("b%d" % child.get_instance_id()):
 				zones.append({"c": child.global_position, "r": child.radius + margin, "t": child.delay - child._time})
+	if int(opt.hazards) == 1:
+		for hazard in _hazards:
+			if not is_instance_valid(hazard):
+				continue
+			if _is_class(hazard, &"ToxicPuddle"):
+				zones.append({"c": hazard.global_position, "r": 44.0 * 0.85 + PLAYER_HURT_RADIUS, "t": 0.5})
+			elif int(hazard._phase) != 0:
+				zones.append({"c": hazard.global_position, "r": 34.0 + PLAYER_HURT_RADIUS, "t": hazard._time_left if int(hazard._phase) == 1 else 0.0})
 	for trap in _traps:
 		if is_instance_valid(trap) and int(trap._phase) != 0:
 			zones.append({"c": trap.global_position, "r": 26.0 * 1.3 + PLAYER_HURT_RADIUS, "t": trap._time_left if int(trap._phase) == 1 else 0.0})
@@ -806,6 +922,7 @@ func _begin_record(room: Node) -> void:
 	_rec = {
 		"room": room.room_index, "type": int(room.room_type), "start": _time, "hp_dmg": 0.0, "shield_dmg": 0.0,
 		"hits": 0, "dashes": 0, "enemies": 0, "timeout": 0, "fountain": 0, "bought": 0, "picked": [],
+		"trap_dmg": 0.0, "pit_dmg": 0.0, "explosion_dmg": 0.0, "enemy_dmg": 0.0, "desc": _room_desc(room),
 	}
 	room.set_meta(&"bal_record", true)
 
@@ -820,13 +937,15 @@ func _end_record(run: int, room: Node) -> void:
 		_rec.hp_dmg, _rec.shield_dmg, _rec.hits, _rec.dashes, player.health.get_health(), player.health.get_max_health(),
 		player.shield.get_shield(), _upgrade_count(), root.get_node("RunManager").get_run_gold(), 1 if dead else 0, _rec.timeout,
 		_last_hit_source if dead else ""]
+	row += ",%s,%s,%.1f,%.1f,%.1f,%.1f" % [_last_hit_detail if dead else "", _rec.desc, _rec.trap_dmg, _rec.pit_dmg, _rec.explosion_dmg, _rec.enemy_dmg]
 	_rows.append(row)
 	if int(opt.quiet) == 0:
 		print("  r%-3d %-15s t=%5.1fs dmg=%4.1f+%4.1fsh hits=%2d dash=%2d hp=%4.1f/%-4.1f sh=%5.1f upg=%2d%s%s" % [
 			_rec.room, type_name, _time - _rec.start, _rec.hp_dmg, _rec.shield_dmg, _rec.hits, _rec.dashes,
 			player.health.get_health(), player.health.get_max_health(), player.shield.get_shield(), _upgrade_count(),
 			(" picked " + ",".join(PackedStringArray(_rec.picked))) if not _rec.picked.is_empty() else "",
-			(" DIED (" + _last_hit_source + ")") if dead else ""])
+			(" DIED (" + _last_hit_detail + ")") if dead else ""])
+		print("       %s trap=%.1f pit=%.1f expl=%.1f enemy=%.1f%s" % [_rec.desc, _rec.trap_dmg, _rec.pit_dmg, _rec.explosion_dmg, _rec.enemy_dmg, " TIMEOUT" if _rec.timeout else ""])
 
 
 func _on_player_hit(result: Object, damage: Object) -> void:
@@ -847,7 +966,18 @@ func _on_player_hit(result: Object, damage: Object) -> void:
 	elif damage.tags.has(&"trap"):
 		_last_hit_source = "trap"
 	else:
-		_last_hit_source = "explosion" if damage.tags.has(&"explosion") else "unknown"
+		_last_hit_source = "explosion" if damage.tags.has(&"explosion") else ("pit" if damage.tags.has(&"pit") else "unknown")
+	_last_hit_detail = _hit_detail(damage)
+	if int(opt.bosshits) == 1 and _rec.has("type") and int(_rec.type) == 4 and source != null and is_instance_valid(source) and &"_state" in source:
+		var st := ["IDLE", "CHASE", "TELEGRAPH", "ATTACK", "CHARGE", "LEAP", "RECOVER", "DEAD", "ROAR"]
+		var ac := ["NORMAL", "VOLLEY", "SPECIAL", "SUMMON"]
+		var key := "r%d %s@%s/%s" % [int(_rec.room), String(source.data.id), st[clampi(int(source._state), 0, 8)], ac[clampi(int(source._action), 0, 3)]]
+		_boss_hits[key] = float(_boss_hits.get(key, 0.0)) + result.health_damage + result.shield_damage
+	var cat := _last_hit_detail.get_slice(":", 0)
+	if cat == "trap" or cat == "pit" or cat == "explosion":
+		_rec[cat + "_dmg"] = float(_rec.get(cat + "_dmg", 0.0)) + result.health_damage + result.shield_damage
+	else:
+		_rec.enemy_dmg = float(_rec.get("enemy_dmg", 0.0)) + result.health_damage + result.shield_damage
 
 
 ## Re-computes every shield gain with another softcap: undo the built-in cap, apply the new one.
@@ -892,14 +1022,21 @@ func _write_csv() -> void:
 func _print_overview() -> void:
 	var rooms: Array = []
 	var deaths := {}
+	var details := {}
+	var places := {}
 	for summary in _summaries:
 		rooms.append(summary.room)
 		if summary.dead:
 			deaths[summary.cause] = deaths.get(summary.cause, 0) + 1
+			details[summary.detail] = details.get(summary.detail, 0) + 1
+			var place := String(summary.where).get_slice("|", 0)
+			places[place] = places.get(place, 0) + 1
 	rooms.sort()
 	print("SUMMARY policy=%s pick=%s skill=%.2f runs=%d rooms reached=%s median=%s death causes=%s overrides=%s %s" % [
 		opt.policy, opt.pick, float(opt.skill), _summaries.size(), rooms, rooms[rooms.size() / 2] if not rooms.is_empty() else "-",
 		deaths, ovr, res_overrides.map(func(e): return "%s=%s" % [e[0], e[1]])])
+	if not details.is_empty():
+		print("DEATHS detail=%s room kind=%s" % [details, places])
 
 
 # --- Helpers ---
@@ -948,3 +1085,139 @@ func _buttons(node: Node) -> Array[Button]:
 func _frames(count: int) -> void:
 	for i in count:
 		await physics_frame
+
+
+# --- Abysses, room description, hit details, variant overrides, navigation ---
+
+func _pit_cost(point: Vector2) -> float:
+	if int(opt.falls) != 1:
+		return 0.0
+	var probe: Callable = player.fall.pit_probe
+	if not probe.is_valid():
+		return 0.0
+	var feet := point + Vector2(0, 16)
+	return 1500.0 if bool(probe.call(feet)) else 0.0
+
+
+func _room_desc(room: Node) -> String:
+	var parts: Array[String] = []
+	var kinds := ["normal", "arena", "chasm"]
+	if room.room_type <= 1:
+		parts.append(kinds[clampi(int(room.room_kind), 0, 2)])
+		if room.has_method(&"get_variant_id") and String(room.get_variant_id()) != "":
+			parts.append("var=" + String(room.get_variant_id()))
+		if room.has_method(&"has_wager_altar") and room.has_wager_altar():
+			parts.append("wager")
+		if room.has_method(&"is_ambush_room") and room.is_ambush_room():
+			parts.append("ambush")
+		if room.has_method(&"is_branch_room") and room.is_branch_room():
+			parts.append("branch")
+		if room.spawner != null and room.spawner.encounter_group != null:
+			parts.append("grp=" + String(room.spawner.encounter_group.id))
+	elif room.room_type == 2:
+		parts.append("special=" + ["shop", "weapon", "fountain", "upgrade", "trial"][clampi(int(room.special_type), 0, 4)])
+	else:
+		parts.append(["", "", "", "miniboss", "boss"][int(room.room_type)])
+	if room.is_extra_dark:
+		parts.append("dark")
+	parts.append(String(room.scene_file_path).get_file().get_basename())
+	return "|".join(parts)
+
+
+func _hit_detail(damage: Object) -> String:
+	var source: Object = damage.source
+	if damage.tags.has(&"trap"):
+		if damage.tags.has(&"trial"):
+			return "trap:trial"
+		if damage.tags.has(&"fire"):
+			return "trap:lava"
+		if damage.tags.has(&"poison"):
+			return "trap:poison"
+		return "trap:spike"
+	if damage.tags.has(&"pit"):
+		return "pit"
+	if source != null and is_instance_valid(source) and &"data" in source and source.data != null:
+		var id := String(source.data.id)
+		if &"is_miniboss" in source and source.is_miniboss and not source.data.is_boss:
+			id += "*champ"
+		elif &"elite" in source and int(source.elite) != 0:
+			id += "*elite"
+		return id
+	if damage.tags.has(&"explosion"):
+		return "explosion"
+	return "unknown:" + "+".join(PackedStringArray(damage.tags))
+
+
+## vt.chance / vt.wager / vt.only: changes the cached variant table in memory (file untouched).
+func _apply_variant_overrides() -> void:
+	var table: Resource = load("res://dungeon/variants/variant_table.tres")
+	var used := false
+	for arg in OS.get_cmdline_user_args():
+		var parts := arg.split("=", true, 1)
+		if parts.size() != 2 or not parts[0].begins_with("vt."):
+			continue
+		used = true
+		match parts[0]:
+			"vt.chance":
+				table.variant_chance = float(parts[1])
+			"vt.wager":
+				table.wager_chance = float(parts[1])
+			"vt.only":
+				var weights: Array[float] = []
+				for id in table.variant_ids:
+					weights.append(1.0 if String(id) == parts[1] else 0.0)
+				table.variant_weights = weights
+				var biomes: Array[int] = []
+				var masks: Array[int] = []
+				for id in table.variant_ids:
+					biomes.append(-1)
+					masks.append(0)
+				table.variant_biomes = biomes
+				table.variant_biome_masks = masks
+	if used:
+		# Keep the resource alive so the cache keeps the changed instance.
+		_vt_keep = table
+		print("variant table: chance %.2f weights %s" % [table.variant_chance, table.variant_weights])
+
+
+func _room_nav_map(room: Node) -> RID:
+	if room.has_meta(&"bal_nav"):
+		return room.get_meta(&"bal_nav")
+	var map := RID()
+	for layer in room.find_children("*", "TileMapLayer", true, false):
+		var candidate: RID = (layer as TileMapLayer).get_navigation_map()
+		if candidate.is_valid() and not NavigationServer2D.map_get_regions(candidate).is_empty():
+			map = candidate
+			break
+	room.set_meta(&"bal_nav", map)
+	return map
+
+
+## Next waypoint towards the target when walls hide it, else INF (the normal objective).
+func _nav_waypoint(room: Node, pos: Vector2, target: Node2D) -> Vector2:
+	if target == null or (_has_line_of_sight(pos, target.global_position) and not _pit_between(pos, target.global_position)):
+		return Vector2.INF
+	if _time - float(_nav_cache.t) < 0.25 and _nav_cache.wp != Vector2.INF and pos.distance_to(_nav_cache.wp) > 14.0:
+		return _nav_cache.wp
+	var map := _room_nav_map(room)
+	if not map.is_valid():
+		return Vector2.INF
+	var path := NavigationServer2D.map_get_path(map, pos, target.global_position, true)
+	path = load("res://enemies/enemy_navigation.gd").clear_corners(path, 18.0)
+	var wp := Vector2.INF
+	for point in path:
+		if point.distance_to(pos) > 24.0:
+			wp = point
+			break
+	_nav_cache = {"t": _time, "wp": wp, "path": path}
+	return wp
+
+
+func _pit_between(a: Vector2, b: Vector2) -> bool:
+	if int(opt.falls) != 1:
+		return false
+	var steps := int(a.distance_to(b) / 24.0)
+	for i in range(1, steps):
+		if _pit_cost(a.lerp(b, float(i) / steps)) > 0.0:
+			return true
+	return false

@@ -808,6 +808,12 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Licht (R6):** Umgebung je Biom 0,53–0,60 Dunkelheit statt 0,97 (40–50 % sichtbar), Spielerkreis gezeichnet ×1,45 (ca. 5 Kacheln), für die Spiellogik unverändert 300 px; absichtlich dunkle Räume 0,84. Lichtfarben nach Regel warm = sicher, kalt = Ziel, rot = Gefahr. Helligkeits-Regler vorbereitet (Haken in den Optionen offen).
 - **Töne (R9):** 27 neue synthetische Töne (Quellen, Intro, Countdown, Gong, Seelen, Einsturz, Geleit, Reliquie, Feuer, Slimes, Steinwächter, Laterne).
 
+### D-134 – Absturz im Audio-Mischthread: Bildraten-Grenze und Bot ohne Ton
+
+- **Status:** VERBINDLICH (Wert **TESTWERT**) · **Datum:** 2026-10-14 / Claude
+- **Befund:** Etwa jeder dritte Balance-Bot-Prozess (Bogen/Stab) stürzte ab: `0xC0000005` in `AudioServer::_mix_step` (Godot 4.7.2), weil ersetzte Bus-Daten positionaler Sounds zwei Frames später freigegeben werden, während der Mischthread sie noch liest. Tritt nur bei sehr hohen Bildraten auf (headless unbegrenzt, im Spiel nur ohne VSync).
+- **Beschluss:** Ohne VSync begrenzt das Spiel auf 240 FPS (`GameOptions.MAX_FPS_WITHOUT_VSYNC`). `tools/balance_sim.gd` läuft standardmäßig ohne Ton (`audio=1` zur Diagnose). Andere Headless-Tools sollen nachziehen. Godot-Issue melden (ohne Debug-Symbole keine genaue Zeile).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

@@ -182,10 +182,18 @@ static func set_vsync(on: bool) -> void:
 	apply_vsync()
 
 
+## Frame cap without vsync. Godot frees replaced audio bus data two frames later while its mixer
+## thread may still read it (crash in AudioServer::_mix_step); uncapped frame rates make two frames
+## shorter than a mixing step (D-134). TESTWERT
+const MAX_FPS_WITHOUT_VSYNC := 240
+
+
 static func apply_vsync() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if is_vsync_enabled() else DisplayServer.VSYNC_DISABLED)
+	var on := is_vsync_enabled()
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if on else DisplayServer.VSYNC_DISABLED)
+	Engine.max_fps = 0 if on else MAX_FPS_WITHOUT_VSYNC
 
 
 # --- Game feel ---

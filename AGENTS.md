@@ -93,6 +93,7 @@ Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. typecheck + test (Type
 - Typisierte Arrays in GDScript: keine Lambdas mit `filter` auf `Array[Enemy]`, die ungültige Instanzen enthalten können (Absturz).
 - Tippt man WASD im Editor statt im Spiel, landen Buchstaben im Code („Parser Error“). Erst ins Spielfenster klicken.
 - HitStop ändert `Engine.time_scale`; Freigabe läuft über Tokens, nicht über Timer.
+- Headless-Tools ohne Ton bzw. mit Bildraten-Grenze laufen lassen: Godots Audio-Mischthread kann bei sehr hohen FPS freigegebenen Speicher lesen und abstürzen (D-134; `balance_sim.gd` schaltet Ton standardmäßig ab).
 
 ## 10. Auftragsvorlage für einen Fach-Agenten
 

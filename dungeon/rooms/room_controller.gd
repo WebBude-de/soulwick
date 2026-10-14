@@ -594,8 +594,10 @@ func _block_prop_navigation() -> void:
 		if child.has_method(&"get_built_nodes"):
 			prop_nodes.append_array(child.call(&"get_built_nodes"))
 	for prop in prop_nodes:
-		if not is_instance_valid(prop) or prop.is_queued_for_deletion():
+		# A prop can be listed twice (template and built nodes) or the room re-run this: once only.
+		if not is_instance_valid(prop) or prop.is_queued_for_deletion() or prop.has_meta(&"nav_blocked"):
 			continue
+		prop.set_meta(&"nav_blocked", true)
 		var blocked: Array[Vector2i] = []
 		if prop is DecoProp:
 			blocked = (prop as DecoProp).get_blocked_tiles()
