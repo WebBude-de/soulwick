@@ -1,0 +1,37 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 1,
+  "notes": [
+    "slab = Plateauboden (heller), cobble/dirt/rubble wie Erde mit Kieseln."
+  ],
+  "tiles": {
+    "slab": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "cobble": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "dirt": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "rubble": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    }
+  }
+}

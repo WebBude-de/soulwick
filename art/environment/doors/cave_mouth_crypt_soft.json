@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "64×48 wie cave_mouth_<biom>."
+  ],
+  "items": [
+    {
+      "name": "cave_mouth_crypt_soft",
+      "file": "cave_mouth_crypt_soft.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

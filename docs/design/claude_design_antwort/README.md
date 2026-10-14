@@ -13,6 +13,8 @@ Antwort auf BRIEFING_RAEUME_V2 (14.10.2026). Gameplay aus KONZEPT_RAEUME_V2 übe
 | 07_ui.md + 07_ui_*.png | Intro-Muster, Aufgabenleiste, HUD-Rework |
 | 08_neue_raumkonzepte.md | 12 weitere Räume (Minispiele, Ruhe, Geheimnis) |
 | 09_audio.md | Sound-Beschreibungen für die Code-Synthese |
+| 10_makeover_organisch.md + 10_makeover_grundrisse.png | Makeover 2: organische Umrisse, Bodenzonen, Streu-Overlays, 8 neue Pläne (18–25) |
+| 11_makeover3_komplett.md + 11_uebergang_seitenansicht.png | Makeover 3: Fels-Terrain (47 Kacheln), Höhlenmund, Emporen/Leitern, Seitenansicht-Gänge, Pakete P1–P7, SPRITES_V9-Liste |
 | SPRITES_V8_vorschlag.md | geliefert / offen |
 | mockups/ | 17 Raum-Mockups im Spielstil (2×) |
 

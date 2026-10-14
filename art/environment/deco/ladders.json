@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "ladder 32×32 vertikal kachelbar über Vorderseiten (Empore/Höhenwechsel), ladder_top 32×16 auf der Krone. Begehbar als Verbindung zweier Ebenen (Code: Kollision aus, Richtung erzwungen)."
+  ],
+  "items": [
+    {
+      "name": "ladder",
+      "file": "ladder.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "ladder_top",
+      "file": "ladder_top.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    }
+  ]
+}

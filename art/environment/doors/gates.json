@@ -1,0 +1,41 @@
+{
+  "notes": [
+    "Regel: Zwischen zwei Räumen liegt höchstens 1 Kachel Gang. Ein geschlossener Zugang ist bündig in der Mauerlinie gefüllt (Steinblock oder Fallgitter, 32×48 = Krone + Vorderseite), dahinter ist es dunkel. Öffnen 0,4 s (4 Frames, 10 fps), letzter Frame = frei, dann Gang sichtbar.",
+    "gate_slab: Steinblock sinkt in den Boden (Krypta, Schattenreich). gate_bars: Fallgitter hebt sich in die Mauer (Grotte, Glutkammer, Arena). Je Biom per Modulate einfärben.",
+    "Nord-Zugang: Sprite auf der Vorderseiten-Kachel (y −16). Süd-Zugang: Sprite auf der unteren Kronenkachel (y −16), Spieler steht davor. Seitentüren: door_side_* behalten, aber Gang auf 1 Kachel kürzen."
+  ],
+  "items": [
+    {
+      "name": "gate_slab_open",
+      "file": "gate_slab_open_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "gate_bars_open",
+      "file": "gate_bars_open_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        48
+      ],
+      "note": ""
+    }
+  ]
+}

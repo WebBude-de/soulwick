@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "32×32, 4 Stufen, auf eine Klippenkachel setzen (ersetzt dort die Vorderseite); kachelbar für höhere Klippen."
+  ],
+  "items": [
+    {
+      "name": "stairs_cut",
+      "file": "stairs_cut.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "64×48 über zwei Vorderseiten-Kacheln + Krone (x−16, y−16 zur linken Vorderseite); Öffnung halbtransparent dunkel, Türblatt 32×32 bei (+16, +16)."
+  ],
+  "items": [
+    {
+      "name": "cave_mouth_shadow_realm",
+      "file": "cave_mouth_shadow_realm.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

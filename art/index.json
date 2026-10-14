@@ -3266,6 +3266,49 @@
             30
           ],
           "note": "Maske zu player_fall_4f, Frame für Frame deckungsgleich"
+        },
+        {
+          "kind": "anim",
+          "name": "player_jump",
+          "file": "art/characters/player/player_jump_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Seitenansicht (Gang-Segmente): Absprung, Flug, Scheitel; Fall = player_fall Frame 1"
+        },
+        {
+          "kind": "anim",
+          "name": "player_land",
+          "file": "art/characters/player/player_land_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_jump",
+          "file": "art/characters/player/player_tint_mask_jump_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
         }
       ],
       "module": "player3",
@@ -6506,6 +6549,980 @@
       ],
       "module": "rooms8",
       "priority": 22
+    },
+    {
+      "id": "environment/tiles/floor_extra_crypt",
+      "title": "Bodenzonen crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zonen statt Einheitsboden: slab (große Platte), cobble (Kopfstein), dirt (Erde, ohne Fugen), rubble (zerbrochen, Geröll). In Flecken von 4-12 Kacheln setzen, Ränder weich (einzelne Kacheln ausfransen)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "floor_extra_crypt",
+          "file": "art/environment/tiles/floor_extra_crypt.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "slab",
+            "cobble",
+            "dirt",
+            "rubble"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/floor_extra_ember_forge",
+      "title": "Bodenzonen ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zonen statt Einheitsboden: slab (große Platte), cobble (Kopfstein), dirt (Erde, ohne Fugen), rubble (zerbrochen, Geröll). In Flecken von 4-12 Kacheln setzen, Ränder weich (einzelne Kacheln ausfransen)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "floor_extra_ember_forge",
+          "file": "art/environment/tiles/floor_extra_ember_forge.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "slab",
+            "cobble",
+            "dirt",
+            "rubble"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/floor_extra_shadow_realm",
+      "title": "Bodenzonen shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zonen statt Einheitsboden: slab (große Platte), cobble (Kopfstein), dirt (Erde, ohne Fugen), rubble (zerbrochen, Geröll). In Flecken von 4-12 Kacheln setzen, Ränder weich (einzelne Kacheln ausfransen)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "floor_extra_shadow_realm",
+          "file": "art/environment/tiles/floor_extra_shadow_realm.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "slab",
+            "cobble",
+            "dirt",
+            "rubble"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/floor_extra_slime_grotto",
+      "title": "Bodenzonen slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zonen statt Einheitsboden: slab (große Platte), cobble (Kopfstein), dirt (Erde, ohne Fugen), rubble (zerbrochen, Geröll). In Flecken von 4-12 Kacheln setzen, Ränder weich (einzelne Kacheln ausfransen)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "floor_extra_slime_grotto",
+          "file": "art/environment/tiles/floor_extra_slime_grotto.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "slab",
+            "cobble",
+            "dirt",
+            "rubble"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/overlay_crypt",
+      "title": "Boden-Overlays crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Transparente Overlays über Bodenkacheln: crack, pebbles, tuft, bones, puddle, dust. Verteilung: 30-50 % an Wänden und in Ecken, 5-8 % in der Fläche; nie unter Objekten; zufällig spiegeln."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "overlay_crypt",
+          "file": "art/environment/tiles/overlay_crypt.png",
+          "w": 192,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 6,
+          "rows": 1,
+          "tiles": [
+            "crack",
+            "pebbles",
+            "tuft",
+            "bones",
+            "puddle",
+            "dust"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/overlay_ember_forge",
+      "title": "Boden-Overlays ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Transparente Overlays über Bodenkacheln: crack, pebbles, tuft, bones, puddle, dust. Verteilung: 30-50 % an Wänden und in Ecken, 5-8 % in der Fläche; nie unter Objekten; zufällig spiegeln."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "overlay_ember_forge",
+          "file": "art/environment/tiles/overlay_ember_forge.png",
+          "w": 192,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 6,
+          "rows": 1,
+          "tiles": [
+            "crack",
+            "pebbles",
+            "tuft",
+            "bones",
+            "puddle",
+            "dust"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/overlay_shadow_realm",
+      "title": "Boden-Overlays shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Transparente Overlays über Bodenkacheln: crack, pebbles, tuft, bones, puddle, dust. Verteilung: 30-50 % an Wänden und in Ecken, 5-8 % in der Fläche; nie unter Objekten; zufällig spiegeln."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "overlay_shadow_realm",
+          "file": "art/environment/tiles/overlay_shadow_realm.png",
+          "w": 192,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 6,
+          "rows": 1,
+          "tiles": [
+            "crack",
+            "pebbles",
+            "tuft",
+            "bones",
+            "puddle",
+            "dust"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/tiles/overlay_slime_grotto",
+      "title": "Boden-Overlays slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Transparente Overlays über Bodenkacheln: crack, pebbles, tuft, bones, puddle, dust. Verteilung: 30-50 % an Wänden und in Ecken, 5-8 % in der Fläche; nie unter Objekten; zufällig spiegeln."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "overlay_slime_grotto",
+          "file": "art/environment/tiles/overlay_slime_grotto.png",
+          "w": 192,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 6,
+          "rows": 1,
+          "tiles": [
+            "crack",
+            "pebbles",
+            "tuft",
+            "bones",
+            "puddle",
+            "dust"
+          ]
+        }
+      ],
+      "module": "floors9",
+      "priority": 23
+    },
+    {
+      "id": "environment/deco/ladders",
+      "title": "Leitern",
+      "dir": "art/environment/deco",
+      "notes": [
+        "ladder 32×32 vertikal kachelbar über Vorderseiten (Empore/Höhenwechsel), ladder_top 32×16 auf der Krone. Begehbar als Verbindung zweier Ebenen (Code: Kollision aus, Richtung erzwungen)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "ladder",
+          "file": "art/environment/deco/ladder.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "ladder_top",
+          "file": "art/environment/deco/ladder_top.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/doors/cave_mouth_crypt",
+      "title": "Höhlenmund crypt",
+      "dir": "art/environment/doors",
+      "notes": [
+        "64×48 über zwei Vorderseiten-Kacheln + Krone (x−16, y−16 zur linken Vorderseite); Öffnung halbtransparent dunkel, Türblatt 32×32 bei (+16, +16)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_crypt",
+          "file": "art/environment/doors/cave_mouth_crypt.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/doors/cave_mouth_ember_forge",
+      "title": "Höhlenmund ember_forge",
+      "dir": "art/environment/doors",
+      "notes": [
+        "64×48 über zwei Vorderseiten-Kacheln + Krone (x−16, y−16 zur linken Vorderseite); Öffnung halbtransparent dunkel, Türblatt 32×32 bei (+16, +16)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_ember_forge",
+          "file": "art/environment/doors/cave_mouth_ember_forge.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/doors/cave_mouth_shadow_realm",
+      "title": "Höhlenmund shadow_realm",
+      "dir": "art/environment/doors",
+      "notes": [
+        "64×48 über zwei Vorderseiten-Kacheln + Krone (x−16, y−16 zur linken Vorderseite); Öffnung halbtransparent dunkel, Türblatt 32×32 bei (+16, +16)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_shadow_realm",
+          "file": "art/environment/doors/cave_mouth_shadow_realm.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/doors/cave_mouth_slime_grotto",
+      "title": "Höhlenmund slime_grotto",
+      "dir": "art/environment/doors",
+      "notes": [
+        "64×48 über zwei Vorderseiten-Kacheln + Krone (x−16, y−16 zur linken Vorderseite); Öffnung halbtransparent dunkel, Türblatt 32×32 bei (+16, +16)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_slime_grotto",
+          "file": "art/environment/doors/cave_mouth_slime_grotto.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/tiles/rock_blob_crypt",
+      "title": "Fels-Terrain (rund) crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "47 Kacheln für Godot-Terrain „Match Corners and Sides“. Name r<Maske>: 8-Bit-Nachbarmaske N=1 NO=2 O=4 SO=8 S=16 SW=32 W=64 NW=128 (Bit = Nachbar ist Fels; Eckbits nur, wenn beide Seiten Fels). Konvexe Ecken Radius 10 px, konkave Radius 5 px (Parameter rOut/rIn in tools/spritegen/rock10.js), helle Kante 3 px innen, dunkle Kontur 1 px außen auf dem Boden.",
+        "Boden liegt als eigene Ebene darunter; Fels-Kacheln sind sonst transparent.",
+        "front_*: Vorderseite mit abgerundeten unteren Ecken (links/Mitte/rechts/einzeln) unter jede Felskachel, deren Süden Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_crypt",
+          "file": "art/environment/tiles/rock_blob_crypt.png",
+          "w": 256,
+          "h": 224,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 7,
+          "tiles": [
+            "r0",
+            "r1",
+            "r4",
+            "r5",
+            "r7",
+            "r16",
+            "r17",
+            "r20",
+            "r21",
+            "r23",
+            "r28",
+            "r29",
+            "r31",
+            "r64",
+            "r65",
+            "r68",
+            "r69",
+            "r71",
+            "r80",
+            "r81",
+            "r84",
+            "r85",
+            "r87",
+            "r92",
+            "r93",
+            "r95",
+            "r112",
+            "r113",
+            "r116",
+            "r117",
+            "r119",
+            "r124",
+            "r125",
+            "r127",
+            "r193",
+            "r197",
+            "r199",
+            "r209",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r255",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single",
+            "cave_mouth_a"
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/tiles/rock_blob_ember_forge",
+      "title": "Fels-Terrain (rund) ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "47 Kacheln für Godot-Terrain „Match Corners and Sides“. Name r<Maske>: 8-Bit-Nachbarmaske N=1 NO=2 O=4 SO=8 S=16 SW=32 W=64 NW=128 (Bit = Nachbar ist Fels; Eckbits nur, wenn beide Seiten Fels). Konvexe Ecken Radius 10 px, konkave Radius 5 px (Parameter rOut/rIn in tools/spritegen/rock10.js), helle Kante 3 px innen, dunkle Kontur 1 px außen auf dem Boden.",
+        "Boden liegt als eigene Ebene darunter; Fels-Kacheln sind sonst transparent.",
+        "front_*: Vorderseite mit abgerundeten unteren Ecken (links/Mitte/rechts/einzeln) unter jede Felskachel, deren Süden Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_ember_forge",
+          "file": "art/environment/tiles/rock_blob_ember_forge.png",
+          "w": 256,
+          "h": 224,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 7,
+          "tiles": [
+            "r0",
+            "r1",
+            "r4",
+            "r5",
+            "r7",
+            "r16",
+            "r17",
+            "r20",
+            "r21",
+            "r23",
+            "r28",
+            "r29",
+            "r31",
+            "r64",
+            "r65",
+            "r68",
+            "r69",
+            "r71",
+            "r80",
+            "r81",
+            "r84",
+            "r85",
+            "r87",
+            "r92",
+            "r93",
+            "r95",
+            "r112",
+            "r113",
+            "r116",
+            "r117",
+            "r119",
+            "r124",
+            "r125",
+            "r127",
+            "r193",
+            "r197",
+            "r199",
+            "r209",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r255",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single",
+            "cave_mouth_a"
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/tiles/rock_blob_shadow_realm",
+      "title": "Fels-Terrain (rund) shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "47 Kacheln für Godot-Terrain „Match Corners and Sides“. Name r<Maske>: 8-Bit-Nachbarmaske N=1 NO=2 O=4 SO=8 S=16 SW=32 W=64 NW=128 (Bit = Nachbar ist Fels; Eckbits nur, wenn beide Seiten Fels). Konvexe Ecken Radius 10 px, konkave Radius 5 px (Parameter rOut/rIn in tools/spritegen/rock10.js), helle Kante 3 px innen, dunkle Kontur 1 px außen auf dem Boden.",
+        "Boden liegt als eigene Ebene darunter; Fels-Kacheln sind sonst transparent.",
+        "front_*: Vorderseite mit abgerundeten unteren Ecken (links/Mitte/rechts/einzeln) unter jede Felskachel, deren Süden Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_shadow_realm",
+          "file": "art/environment/tiles/rock_blob_shadow_realm.png",
+          "w": 256,
+          "h": 224,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 7,
+          "tiles": [
+            "r0",
+            "r1",
+            "r4",
+            "r5",
+            "r7",
+            "r16",
+            "r17",
+            "r20",
+            "r21",
+            "r23",
+            "r28",
+            "r29",
+            "r31",
+            "r64",
+            "r65",
+            "r68",
+            "r69",
+            "r71",
+            "r80",
+            "r81",
+            "r84",
+            "r85",
+            "r87",
+            "r92",
+            "r93",
+            "r95",
+            "r112",
+            "r113",
+            "r116",
+            "r117",
+            "r119",
+            "r124",
+            "r125",
+            "r127",
+            "r193",
+            "r197",
+            "r199",
+            "r209",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r255",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single",
+            "cave_mouth_a"
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/tiles/rock_blob_slime_grotto",
+      "title": "Fels-Terrain (rund) slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "47 Kacheln für Godot-Terrain „Match Corners and Sides“. Name r<Maske>: 8-Bit-Nachbarmaske N=1 NO=2 O=4 SO=8 S=16 SW=32 W=64 NW=128 (Bit = Nachbar ist Fels; Eckbits nur, wenn beide Seiten Fels). Konvexe Ecken Radius 10 px, konkave Radius 5 px (Parameter rOut/rIn in tools/spritegen/rock10.js), helle Kante 3 px innen, dunkle Kontur 1 px außen auf dem Boden.",
+        "Boden liegt als eigene Ebene darunter; Fels-Kacheln sind sonst transparent.",
+        "front_*: Vorderseite mit abgerundeten unteren Ecken (links/Mitte/rechts/einzeln) unter jede Felskachel, deren Süden Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_slime_grotto",
+          "file": "art/environment/tiles/rock_blob_slime_grotto.png",
+          "w": 256,
+          "h": 224,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 7,
+          "tiles": [
+            "r0",
+            "r1",
+            "r4",
+            "r5",
+            "r7",
+            "r16",
+            "r17",
+            "r20",
+            "r21",
+            "r23",
+            "r28",
+            "r29",
+            "r31",
+            "r64",
+            "r65",
+            "r68",
+            "r69",
+            "r71",
+            "r80",
+            "r81",
+            "r84",
+            "r85",
+            "r87",
+            "r92",
+            "r93",
+            "r95",
+            "r112",
+            "r113",
+            "r116",
+            "r117",
+            "r119",
+            "r124",
+            "r125",
+            "r127",
+            "r193",
+            "r197",
+            "r199",
+            "r209",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r255",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single",
+            "cave_mouth_a"
+          ]
+        }
+      ],
+      "module": "rock10",
+      "priority": 24
+    },
+    {
+      "id": "environment/deco/stairs_cut",
+      "title": "In den Fels geschlagene Treppe",
+      "dir": "art/environment/deco",
+      "notes": [
+        "32×32, 4 Stufen, auf eine Klippenkachel setzen (ersetzt dort die Vorderseite); kachelbar für höhere Klippen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "stairs_cut",
+          "file": "art/environment/deco/stairs_cut.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/doors/cave_mouth_crypt_soft",
+      "title": "Höhlenmund weich",
+      "dir": "art/environment/doors",
+      "notes": [
+        "64×48 wie cave_mouth_<biom>."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_crypt_soft",
+          "file": "art/environment/doors/cave_mouth_crypt_soft.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/tiles/crypt_soft_tileset",
+      "title": "Weicher Erdboden (crypt_soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Erdboden ohne Fugen in warmem Terrakotta, vier Varianten; Raster unsichtbar."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "crypt_soft_tileset",
+          "file": "art/environment/tiles/crypt_soft_tileset.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "floor_1",
+            "floor_2",
+            "floor_3",
+            "floor_4"
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/tiles/floor_extra_crypt_soft",
+      "title": "Bodenzonen crypt_soft",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "slab = Plateauboden (heller), cobble/dirt/rubble wie Erde mit Kieseln."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "floor_extra_crypt_soft",
+          "file": "art/environment/tiles/floor_extra_crypt_soft.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "slab",
+            "cobble",
+            "dirt",
+            "rubble"
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/tiles/rock_blob_crypt_soft",
+      "title": "Fels-Terrain weich (crypt_soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Wie rock_blob_<biom>, aber: Radius 11/6 px, Kante 4 px hell, Kontur #2a2740 statt Schwarz, Vorderseite = Felswand mit senkrechten Streifen statt Ziegel."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_crypt_soft",
+          "file": "art/environment/tiles/rock_blob_crypt_soft.png",
+          "w": 256,
+          "h": 224,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 7,
+          "tiles": [
+            "r0",
+            "r1",
+            "r4",
+            "r5",
+            "r7",
+            "r16",
+            "r17",
+            "r20",
+            "r21",
+            "r23",
+            "r28",
+            "r29",
+            "r31",
+            "r64",
+            "r65",
+            "r68",
+            "r69",
+            "r71",
+            "r80",
+            "r81",
+            "r84",
+            "r85",
+            "r87",
+            "r92",
+            "r93",
+            "r95",
+            "r112",
+            "r113",
+            "r116",
+            "r117",
+            "r119",
+            "r124",
+            "r125",
+            "r127",
+            "r193",
+            "r197",
+            "r199",
+            "r209",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r255",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single",
+            "pad"
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/tiles/wall_autotile_crypt_soft",
+      "title": "Autotile-Platzhalter crypt_soft",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Nur Kompatibilität für den Mockup-Renderer; im Spiel das rock_blob-Terrain verwenden."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_autotile_crypt_soft",
+          "file": "art/environment/tiles/wall_autotile_crypt_soft.png",
+          "w": 128,
+          "h": 160,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 5,
+          "tiles": [
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
+            "m6",
+            "m7",
+            "m8",
+            "m9",
+            "m10",
+            "m11",
+            "m12",
+            "m13",
+            "m14",
+            "m15",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single"
+          ]
+        }
+      ],
+      "module": "soft11",
+      "priority": 25
+    },
+    {
+      "id": "environment/doors/gates",
+      "title": "Verschlossene Zugänge (V12)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "Regel: Zwischen zwei Räumen liegt höchstens 1 Kachel Gang. Ein geschlossener Zugang ist bündig in der Mauerlinie gefüllt (Steinblock oder Fallgitter, 32×48 = Krone + Vorderseite), dahinter ist es dunkel. Öffnen 0,4 s (4 Frames, 10 fps), letzter Frame = frei, dann Gang sichtbar.",
+        "gate_slab: Steinblock sinkt in den Boden (Krypta, Schattenreich). gate_bars: Fallgitter hebt sich in die Mauer (Grotte, Glutkammer, Arena). Je Biom per Modulate einfärben.",
+        "Nord-Zugang: Sprite auf der Vorderseiten-Kachel (y −16). Süd-Zugang: Sprite auf der unteren Kronenkachel (y −16), Spieler steht davor. Seitentüren: door_side_* behalten, aber Gang auf 1 Kachel kürzen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "gate_slab_open",
+          "file": "art/environment/doors/gate_slab_open_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            48
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "gate_bars_open",
+          "file": "art/environment/doors/gate_bars_open_4f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 4,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            48
+          ]
+        }
+      ],
+      "module": "gates12",
+      "priority": 26
     }
   ]
 }

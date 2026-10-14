@@ -132,6 +132,54 @@
         30
       ],
       "note": "Maske zu player_fall_4f, Frame für Frame deckungsgleich"
+    },
+    {
+      "name": "player_jump",
+      "file": "player_jump_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Seitenansicht (Gang-Segmente): Absprung, Flug, Scheitel; Fall = player_fall Frame 1"
+    },
+    {
+      "name": "player_land",
+      "file": "player_land_2f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 2,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_tint_mask_jump",
+      "file": "player_tint_mask_jump_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
     }
   ]
 }
