@@ -783,6 +783,13 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Beschluss:** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
 - **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/claude_design_antwort/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
 
+### D-130 – Gegner-Verhalten: Slime-Banden, Flankieren, Seitenwechsel
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude im Auftrag des Projektmitglieds (Playtest: „mehr Gegner, die hinter einen kommen“)
+- **Beschluss:** Eine Koordination je Raum (`EnemyPack`, Regeln in `EnemyTactics`) verteilt je Ziel (nächster lebender Spieler oder Köder, Koop-fähig) Plätze. Slimes (Tag `swarm`) bilden Rudel aus 3–5 Tieren, die nacheinander springen (0,3 s Ducken mit hellem Landering, 0,4 s Flug ohne Schaden/Kollision, Landung neben oder hinter dem Spieler, nie näher als 40 px). Nahkämpfer verteilen sich auf Ringplätze; ab Raum 6 schneidet etwa ein Drittel einem fliehenden Ziel den Weg ab. Fernkämpfer wechseln ab etwa Raum 4 alle 6–10 s die Seite. Stärke sanft ab Raum 1, voll ab Raum 10. Bosse und Champions ausgenommen, ihre Begleiter nicht. Zufall aus einem vom Dungeon-Seed und der Raumnummer abgeleiteten Generator.
+- **Messung (Bot Schwert, 24 Seeds × 3):** Median Raum 30 → 30; Schaden je Kampfraum Raum 1–5 0,094 → 0,056, Raum 6–10 0,148 → 0,101. Ob es sich „von hinten“ genug anfühlt, zeigt der Playtest.
+- **Folgen:** `enemies/ai/`, `enemy_base.gd` Zustand `HOP`; Töne `slime_hop`/`slime_land` fehlen noch (bis dahin stumm). Ergänzt D-118, D-120.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

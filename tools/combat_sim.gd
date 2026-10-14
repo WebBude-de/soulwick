@@ -39,6 +39,8 @@ func _run() -> void:
 	player.health.reset(1000.0)
 	await _frames(60 * 15)
 	_check(player.health.get_health() < 1000.0, "enemies dealt damage to the idle player (%.1f HP left)" % player.health.get_health())
+	# Group tactics (KONZEPT_RAEUME_V2 §6): the room's enemies share one coordinator.
+	_check(room.enemy_container.has_meta(&"enemy_pack"), "room 1 enemies are coordinated (EnemyPack)")
 
 	# 2) Fight with real weapons and upgrades. Drive the weapon directly (no mouse in headless).
 	player.set_physics_process(false)

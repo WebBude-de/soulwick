@@ -107,6 +107,11 @@ func step_light(delta: float, lit: bool) -> void:
 	_apply_frozen(LightVariantRules.guardian_frozen(lit, frozen, _dark_time))
 
 
+## The guardian is a light puzzle with its own rules: no ring places or packs (EnemyPack).
+func uses_tactics() -> bool:
+	return false
+
+
 func _is_committed() -> bool:
 	return _state in [State.LEAP, State.ATTACK, State.CHARGE]
 

@@ -72,6 +72,8 @@ func _run() -> void:
 
 	await _check_obstacle_avoidance(room, player)
 	await _check_u_wall(room, player)
+	await _check_slime_pack(room, player)
+	await _check_flanking(room, player)
 
 	# Elites: every kind spawns, glows, shows its badge and the volatile one explodes on death.
 	for kind in [1, 2, 3]:
@@ -259,6 +261,89 @@ func _check_u_wall(room: Node, player: Node) -> void:
 	for cell in saved:
 		tiles.set_cell(cell, 0, saved[cell])
 	await _frames(3)
+
+
+## Slime pack (KONZEPT_RAEUME_V2 §6): four slimes in room 10 form one pack, hop one after another
+## with a landing marker, never land on the player, deal no damage in the air and end up on
+## several sides of the player.
+func _check_slime_pack(room: Node, player: Node) -> void:
+	player.hurtbox.set_invulnerable(&"pack_check", true)
+	var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
+	player.global_position = center + Vector2(-120, 0)
+	var slimes: Array = []
+	for i in 4:
+		var slime := _spawn(load("res://enemies/data/slime.tres"), room, player, 10)
+		slime.position = room.to_local(player.global_position + Vector2(330, -90 + i * 60))
+		room.enemy_container.add_child(slime)
+		slimes.append(slime)
+	var stats := {"hops": 0, "closest": INF}
+	for slime in slimes:
+		slime.ability_used.connect(func(enemy: Node, ability: StringName) -> void:
+			if ability == &"hop":
+				stats.hops += 1
+			elif ability == &"hop_land":
+				stats.closest = minf(stats.closest, enemy.global_position.distance_to(player.global_position)))
+	var damage_in_air := false
+	var unmarked := false
+	var behind := false
+	var packs := 0
+	for i in 60 * 6:
+		await physics_frame
+		for slime in slimes:
+			if not is_instance_valid(slime):
+				continue
+			if slime.is_airborne():
+				damage_in_air = damage_in_air or slime._attack_hitbox.is_active()
+				var marker: Node2D = slime.get_node_or_null("HopMarker")
+				unmarked = unmarked or marker == null or not marker.visible
+			if slime.global_position.x < player.global_position.x - 20.0:
+				behind = true
+			if slime.get_tactics() != null:
+				packs = maxi(packs, slime.get_tactics().get_pack_count())
+	print("Slime pack: %d hops, closest landing %.0f px, packs %d, behind %s" % [stats.hops, stats.closest, packs, behind])
+	_check(packs == 1, "four slimes form one pack")
+	_check(stats.hops >= 4, "the pack hops")
+	_check(stats.closest >= 40.0 - 0.5, "slimes never land on the player")
+	_check(not damage_in_air, "no damage in the air")
+	_check(not unmarked, "every landing is marked")
+	_check(behind, "the pack gets behind the player")
+	for slime in slimes:
+		if is_instance_valid(slime) and not slime.is_dead():
+			slime.health.take_damage(INF)
+	player.hurtbox.set_invulnerable(&"pack_check", false)
+	await _frames(60)
+
+
+## Flanking: four skeletons coming from one side of the player in room 10 spread over the ring;
+## at least one reaches the far side instead of queueing behind the others.
+func _check_flanking(room: Node, player: Node) -> void:
+	player.hurtbox.set_invulnerable(&"flank_check", true)
+	var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
+	player.global_position = center + Vector2(-120, 0)
+	var skeletons: Array = []
+	for i in 4:
+		var skeleton := _spawn(load("res://enemies/data/skeleton.tres"), room, player, 10)
+		skeleton.position = room.to_local(player.global_position + Vector2(340 + (i % 2) * 40, -90 + i * 60))
+		room.enemy_container.add_child(skeleton)
+		skeletons.append(skeleton)
+	var far_side := false
+	var seconds := 0.0
+	for i in 60 * 8:
+		await physics_frame
+		for skeleton in skeletons:
+			var offset: Vector2 = skeleton.global_position - player.global_position
+			if offset.x < 0.0 and absf(offset.angle()) > PI * 0.6:
+				far_side = true
+		if far_side:
+			seconds = i / 60.0
+			break
+	print("Flanking: far side reached %s after %.1f s" % [far_side, seconds])
+	_check(far_side, "skeletons flank the player instead of queueing")
+	for skeleton in skeletons:
+		if is_instance_valid(skeleton) and not skeleton.is_dead():
+			skeleton.health.take_damage(INF)
+	player.hurtbox.set_invulnerable(&"flank_check", false)
+	await _frames(60)
 
 
 func _spawn(data: Resource, room: Node, player: Node, room_index: int, champion := false) -> Node:

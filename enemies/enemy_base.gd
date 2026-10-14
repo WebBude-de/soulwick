@@ -11,6 +11,10 @@ extends CharacterBody2D
 ## towards a pit lifts that block until the knockback settles; an enemy that then stands over a
 ## pit falls and dies (a kill, its gold drops at the rim). Champions, golems and bosses never fall
 ## (ChasmRules.can_enemy_fall).
+## Group tactics (KONZEPT_RAEUME_V2 §6): normal enemies ask the coordinator of their room
+## (EnemyPack) where to walk - ring places around their target, cutting off a fleeing target, side
+## changes of ranged enemies - and slimes (tag "swarm") hop in packs, one after another, with a
+## landing marker and without damage in the air. Bosses and champions keep their own behaviour.
 
 signal died(enemy: Enemy)
 ## A minion created by this enemy; the room tracks it like any other enemy.
@@ -27,7 +31,7 @@ signal intro_ended(enemy: Enemy)
 ## Internal: the death animation is over or its time limit ran out (see _wait_for_death_animation).
 signal death_wait_over
 
-enum State { IDLE, CHASE, TELEGRAPH, ATTACK, CHARGE, LEAP, RECOVER, DEAD, ROAR }
+enum State { IDLE, CHASE, TELEGRAPH, ATTACK, CHARGE, LEAP, RECOVER, DEAD, ROAR, HOP }
 enum Action { NORMAL, VOLLEY, SPECIAL, SUMMON }
 enum Elite { NONE, SWIFT, ARMORED, VOLATILE }
 
@@ -79,6 +83,9 @@ const TARGET_INTERVAL := 0.5
 const STEER_LOOKAHEAD := 64.0
 const DETOUR_TIME := 0.45
 const DETOUR_ANGLES: Array[float] = [PI / 4.0, -PI / 4.0, PI / 2.0, -PI / 2.0, PI * 0.75, -PI * 0.75]
+## Landing marker of a pack hop: a pale ring, clearly not the red attack telegraph (no damage).
+const HOP_MARKER_COLOR := Color(0.85, 0.95, 1.0, 0.16)
+const HOP_MARKER_OUTLINE := Color(0.85, 0.95, 1.0, 0.6)
 
 @export var data: EnemyData
 ## How fast knockback velocity decays, in px/s².
@@ -139,6 +146,13 @@ var _pit_unbound := false
 var _pit_edge_position := Vector2.ZERO
 var _pit_pusher: Node = null
 var _fell_into_pit := false
+## Group tactics (EnemyPack of the container) and the current pack hop.
+var _pack: EnemyPack = null
+var _hop: EnemyHop = null
+var _hop_marker: PlaceholderShape = null
+var _hop_tween: Tween = null
+var _hop_blocked_left := 0.0
+var _base_layer := 0
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -160,6 +174,7 @@ func _ready() -> void:
 		return
 	add_to_group(&"enemies")
 	_base_mask = collision_mask
+	_base_layer = collision_layer
 	_navigation = EnemyNavigation.new(self, _navigation_agent)
 	SpriteFx.apply(_sprite)
 	_apply_data()
@@ -213,6 +228,58 @@ func has_phases() -> bool:
 
 func is_roaring() -> bool:
 	return _state == State.ROAR
+
+
+# --- Group tactics (EnemyPack, EnemyTactics) ---
+
+## Takes part in the group tactics: normal enemies and their minions that walk; never bosses,
+## champions or the crowned enemy of a bounty (their behaviour stays as it is).
+func uses_tactics() -> bool:
+	if data == null or data.is_boss or is_miniboss or data.move_speed <= 0.0:
+		return false
+	return BountyFlight.of(self) == null
+
+
+## Alive, fighting and part of the tactics right now.
+func is_tactical() -> bool:
+	return uses_tactics() and _state != State.DEAD and not _in_intro and is_inside_tree()
+
+
+## Slimes: hop in packs (tag "swarm").
+func is_swarm() -> bool:
+	return data != null and data.tags.has(&"swarm")
+
+
+func is_chasing() -> bool:
+	return _state == State.CHASE
+
+
+func is_hopping() -> bool:
+	return _state == State.HOP
+
+
+## In the air during a pack hop: no collision, no damage, no pit push.
+func is_airborne() -> bool:
+	return _state == State.HOP and _hop != null and _hop.airborne
+
+
+## Current target as a node: the nearest living player or a decoy (null = none).
+func get_target_node() -> Node2D:
+	return _target if is_instance_valid(_target) else null
+
+
+func get_room_index() -> int:
+	return _room_index
+
+
+## Coordinator of this enemy's room (null for bosses, champions and before the first frame).
+func get_tactics() -> EnemyPack:
+	return _pack
+
+
+## Global landing point of the current hop (Vector2.INF without a hop). For tools and tests.
+func get_hop_landing() -> Vector2:
+	return _hop.landing if _hop != null else Vector2.INF
 
 
 # --- Boss intro (BossIntro) ---
@@ -356,6 +423,11 @@ func _physics_process(delta: float) -> void:
 		return
 	_update_target()
 	_navigation.tick(delta)
+	if _pack == null and uses_tactics():
+		_pack = EnemyPack.for_enemy(self)
+	if _pack != null:
+		_pack.tick(self, delta)
+	_hop_blocked_left -= delta
 	_state_time_left -= delta
 	_detour_left -= delta
 	velocity = Vector2.ZERO
@@ -384,12 +456,14 @@ func _physics_process(delta: float) -> void:
 		State.ROAR:
 			if _state_time_left <= 0.0:
 				_finish_roar()
+		State.HOP:
+			_process_hop(delta)
 
 	# Died inside this frame (self-destruct, own blast): _on_died owns the sprite now; moving on
 	# would overwrite the death animation with idle and the enemy would never be freed.
 	if _state == State.DEAD:
 		return
-	if _state != State.LEAP:
+	if _state != State.LEAP and not is_airborne():
 		if _pit_unbound:
 			# Off its feet: only the push moves it, it cannot walk itself into or out of the abyss.
 			velocity = Vector2.ZERO
@@ -461,10 +535,16 @@ func _process_chase() -> void:
 		EnemyData.AttackKind.MELEE:
 			if distance <= data.attack_range:
 				_start_telegraph(direction, next if next == Action.SPECIAL else Action.NORMAL)
-			else:
-				velocity = _chase_direction(direction) * speed
+			elif not _try_hop():
+				# Ring place, cut-off point or the target itself (EnemyPack); pack slimes creep
+				# between their hops.
+				var factor := _pack.creep_factor(self, distance) if _pack != null and _hop_blocked_left <= 0.0 else 1.0
+				velocity = _walk_direction(_tactical_goal()) * speed * factor
 		EnemyData.AttackKind.RANGED:
-			if distance > data.attack_range:
+			if _pack != null and _pack.is_relocating(self):
+				# Side change: around the target to the new side, no shots meanwhile.
+				velocity = _walk_direction(_pack.walk_goal(self)) * speed
+			elif distance > data.attack_range:
 				velocity = _chase_direction(direction) * speed
 			elif distance < data.preferred_min_distance and _state_time_left > 0.0:
 				velocity = _steer(-direction) * speed
@@ -480,6 +560,21 @@ func _process_chase() -> void:
 func _chase_direction(direction: Vector2) -> Vector2:
 	var path_direction := _navigation.direction_to(_body_shape.global_position, _target.global_position)
 	return _follow_path(path_direction, direction)
+
+
+## Walking direction towards any goal (ring place, cut-off point): like _chase_direction.
+func _walk_direction(goal: Vector2) -> Vector2:
+	var to_goal := goal - global_position
+	var direction := to_goal.normalized() if to_goal.length() > 0.001 else Vector2.RIGHT
+	var path_direction := _navigation.direction_to(_body_shape.global_position, goal)
+	return _follow_path(path_direction, direction)
+
+
+## The walking goal from the room's tactics (the target itself without them).
+func _tactical_goal() -> Vector2:
+	if _pack != null:
+		return _pack.walk_goal(self)
+	return _target.global_position
 
 
 ## Ranged enemies without a free shot walk the path towards the target until the shot is free.
@@ -861,6 +956,124 @@ func _summon() -> void:
 	ability_used.emit(self, &"summon")
 
 
+# --- Pack hop (EnemyPack beat, EnemyHop) ---
+
+## The pack gave this slime its turn: hop towards its place if the way is free, else walk.
+func _try_hop() -> bool:
+	if _pack == null or _pit_unbound or not _pack.wants_hop(self):
+		return false
+	var radius := (_body_shape.shape as CircleShape2D).radius
+	var offset := global_position - _body_shape.global_position
+	var landing := EnemyHop.clear_landing(self, _body_shape.global_position, offset, _pack.hop_landing(self), radius, _hop_mask())
+	if landing == Vector2.INF:
+		_pack.hop_refused(self)
+		_hop_blocked_left = EnemyTactics.HOP_BLOCKED_TIME
+		return false
+	_pack.hop_started(self)
+	_hop = EnemyHop.new(global_position, landing)
+	_enter_state(State.HOP)
+	_show_hop_marker(landing)
+	# Crouch: wide and flat until the jump.
+	_hop_tween = create_tween()
+	_hop_tween.tween_property(_sprite, "scale", Vector2(_sprite_scale * 1.2, _sprite_scale * 0.8), EnemyTactics.HOP_WINDUP)
+	return true
+
+
+func _process_hop(delta: float) -> void:
+	if _hop == null:
+		_enter_state(State.CHASE)
+		return
+	if not _hop.airborne:
+		_hop.windup_left -= delta
+		if _hop.windup_left <= 0.0:
+			_take_off()
+		return
+	_hop.air_time += delta
+	global_position = _hop.start.lerp(_hop.landing, _hop.get_progress())
+	_sprite.position.y = -_hop.get_height(_visual_scale)
+	if _hop.get_progress() >= 1.0:
+		_land_hop()
+
+
+func _take_off() -> void:
+	_hop.airborne = true
+	_hop.start = global_position
+	_kill_hop_tween()
+	collision_mask = 0
+	collision_layer = 0
+	_sprite.scale = Vector2(_sprite_scale * 0.85, _sprite_scale * 1.15)
+	Sfx.play_at(self, &"slime_hop", global_position, -8.0)
+	ability_used.emit(self, &"hop")
+
+
+## Lands next to (never on) a player, takes its body back and rests a moment.
+func _land_hop() -> void:
+	var radius := (_body_shape.shape as CircleShape2D).radius
+	var offset := global_position - _body_shape.global_position
+	global_position = EnemyHop.safe_landing(self, offset, _hop, EnemyTargeting.living_players(get_tree()), radius, _hop_mask())
+	_end_hop()
+	Burst.spawn(get_parent(), global_position, data.placeholder_color, 6, 70.0, 0.25, 2.5)
+	Sfx.play_at(self, &"slime_land", global_position, -10.0)
+	_sprite.scale = Vector2(_sprite_scale * 1.25, _sprite_scale * 0.75)
+	_hop_tween = create_tween()
+	_hop_tween.tween_property(_sprite, "scale", Vector2.ONE * _sprite_scale, 0.15)
+	ability_used.emit(self, &"hop_land")
+	_enter_state(State.RECOVER)
+	_state_time_left = EnemyTactics.HOP_LAND_PAUSE
+
+
+## A hit during the crouch stops the hop (the knockback wins); in the air it flies on.
+func _cancel_hop() -> void:
+	if _hop == null or _hop.airborne:
+		return
+	_end_hop()
+	_sprite.scale = Vector2.ONE * _sprite_scale
+	_enter_state(State.RECOVER)
+	_state_time_left = EnemyTactics.HOP_LAND_PAUSE
+
+
+func _end_hop() -> void:
+	_kill_hop_tween()
+	_hop = null
+	_sprite.position.y = 0.0
+	if _state != State.DEAD:
+		collision_mask = _base_mask
+		collision_layer = _base_layer
+	if _hop_marker != null:
+		_hop_marker.visible = false
+
+
+func _kill_hop_tween() -> void:
+	if _hop_tween != null and _hop_tween.is_valid():
+		_hop_tween.kill()
+	_hop_tween = null
+
+
+## Walls, props and abysses; not players and enemies (the slime lands beside them).
+func _hop_mask() -> int:
+	var mask := _base_mask & ~(PhysicsLayers.PLAYER | PhysicsLayers.ENEMIES)
+	return mask if mask != 0 else PhysicsLayers.WORLD
+
+
+## Pale ring on the landing point, growing until the slime lands (warning: it comes here).
+func _show_hop_marker(landing: Vector2) -> void:
+	if _hop_marker == null:
+		_hop_marker = PlaceholderShape.new()
+		_hop_marker.name = "HopMarker"
+		_hop_marker.top_level = true
+		_hop_marker.z_index = -1
+		_hop_marker.color = HOP_MARKER_COLOR
+		_hop_marker.outline_color = HOP_MARKER_OUTLINE
+		add_child(_hop_marker)
+	# The body circle sits half a radius below the origin: mark where the feet will be.
+	_hop_marker.radius = (_body_shape.shape as CircleShape2D).radius * 1.2
+	_hop_marker.global_position = landing + _body_shape.position
+	_hop_marker.visible = true
+	_hop_marker.scale = Vector2.ONE * 0.5
+	var tween := _hop_marker.create_tween()
+	tween.tween_property(_hop_marker, "scale", Vector2.ONE, EnemyTactics.HOP_WINDUP + EnemyTactics.HOP_AIR)
+
+
 # --- Phase two ---
 
 func _start_roar() -> void:
@@ -999,6 +1212,10 @@ func _update_animation(delta: float) -> void:
 	if _state in [State.TELEGRAPH, State.ATTACK, State.CHARGE, State.LEAP]:
 		_sprite.flip_h = _attack_direction.x < 0.0
 		return
+	if _state == State.HOP and _hop != null:
+		_sprite.flip_h = _hop.landing.x < _hop.start.x
+		_play(&"walk" if _hop.airborne else &"idle")
+		return
 	if _target != null:
 		_sprite.flip_h = _target.global_position.x < global_position.x
 	if _state == State.ROAR:
@@ -1110,6 +1327,8 @@ func _on_health_changed(current: float, maximum: float) -> void:
 
 func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	_knockback_velocity = damage.knockback * (1.0 - get_knockback_resistance())
+	if _state == State.HOP and not result.killed:
+		_cancel_hop()
 	if not result.killed:
 		_check_pit_push(damage.source)
 	var top := global_position + Vector2(0.0, -data.body_radius * _visual_scale - 22.0)
@@ -1123,6 +1342,11 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 
 
 func _on_died() -> void:
+	if _hop != null:
+		# Hit in the air: the body comes down on checked ground (gold and splits land there).
+		if _hop.airborne:
+			global_position = _hop.get_ground_point()
+		_end_hop()
 	_enter_state(State.DEAD)
 	end_intro()
 	_attack_hitbox.end_attack()
@@ -1248,7 +1472,7 @@ func is_pit_unbound() -> bool:
 ## Called with every hit: a strong enough knockback whose slide reaches an abyss lifts the pit
 ## block (and the enemy's own walking) until it settles. Nothing changes without a pit nearby.
 func _check_pit_push(pusher: Node) -> void:
-	if _pit_unbound or _state == State.DEAD or _state == State.LEAP or not can_fall_into_pit():
+	if _pit_unbound or _state == State.DEAD or _state == State.LEAP or is_airborne() or not can_fall_into_pit():
 		return
 	var speed := _knockback_velocity.length()
 	if not ChasmRules.knockback_can_push(speed) or not is_inside_tree():
