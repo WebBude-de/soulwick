@@ -1,23 +1,23 @@
-# Katakombengang (M): Bloecke verschiedener Breite mit Gassen dazwischen, Fackeln in ihren
-# Vorderseiten, eine Truhe in der Ecke mit Fallen davor (Fallen nur mit Grund).
-name: Katakombengang
+# Katakombengang (M): Bloecke verschiedener Breite mit zwei Kacheln breiten Gassen, eine Fackel in der
+# Vorderseite eines Blocks, die Truhe in einer Nische mit Fallen davor (Fallen nur mit Grund).
 role: combat
 mode: clear
-biomes: crypt, shadow_realm
-size: 25x14
 mirror: yes
+biomes: crypt, shadow_realm
+name: Katakombengang
+exit: 1
+size: 23x13
 ---
-#########################
-#########################
-##T#########N#########T##
-##.....................##
-##..###..##...####..##.##
-##..#T#..##...#T##..##.##
-##G...................G##
-###....###...##....###.##
-###....#T#...##....###.##
-##.....................##
-##......k............+.##
-##..........@.......+c.##
-############S############
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxT####N#####T#N#xxxx
+xxxx...............xxxx
+xx.................xxxx
+xx..###..##...###....xx
+xx..#T#..##...###....xx
+xxx....G.....G.......xx
+xxx........@........xxx
+xxxxx###..##...##+cxxxx
+xxxxxxxx..##...##+.xxxx
+xxxxxxxxxxxxxSxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

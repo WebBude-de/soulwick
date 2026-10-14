@@ -15,10 +15,12 @@ const PAUSE_OPTIONS: StringName = &"options"
 
 ## Pause panel width and run end dialog width in mockup pixels (ui_spec screens.pause / dialog).
 const PAUSE_WIDTH := 170.0
-const RUN_END_WIDTH := 262.0
+const RUN_END_WIDTH := 300.0
 const CONFIRM_WIDTH := 220.0
-## Run end stat tiles (mockup pixels).
-const STAT_TILE_SIZE := Vector2(54, 30)
+## Run end stat tiles (mockup pixels; R8 lower, the dialog stays under 60 % of the screen).
+const STAT_TILE_SIZE := Vector2(62, 24)
+const SKULL_ICON: Texture2D = preload("res://art/ui/skull_icon.png")
+const TROPHY_ICON: Texture2D = preload("res://art/ui/trophy_icon.png")
 
 ## Set by WorldController so the pause menu can offer "Run abbrechen" only inside the dungeon.
 var in_dungeon := false
@@ -72,6 +74,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func open_pause_menu() -> void:
 	var modal := Modal.create(GameManager.PAUSE_MENU)
 	modal.cancel_allowed = false
+	modal.accent = UiKit.COLOR_GOLD
 	_pause_modal = modal
 	modal.frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"normal", 10, 10))
 	modal.set_width(PAUSE_WIDTH)
@@ -156,7 +159,12 @@ func open_options() -> void:
 		UiSound.back(view)
 		modal.finish())
 	modal.content.add_child(view)
-	modal.set_footer(Loc.t(&"MENU_PAUSED"))
+	modal.accent = UiKit.COLOR_GOLD
+	# "Spiel pausiert" inside the panel (R8: the footer line at the screen edge ran into the HUD).
+	var paused := UiKit.text_label(Loc.t(&"MENU_PAUSED"), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	paused.name = "Paused"
+	paused.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	modal.content.add_child(paused)
 	var pause := _pause_modal
 	if pause != null:
 		pause.visible = false
@@ -187,25 +195,32 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 		title_color = UiKit.COLOR_GOLD
 	var room: int = summary.get("room", 1)
 	var cycle := floori(float(maxi(1, room) - 1) / RoomSequence.CYCLE_LENGTH) + 1
+	var icon := SKULL_ICON if reason == RunManager.EndReason.DEATH else TROPHY_ICON
 	var modal := UiDialog.create_menu(GameManager.PAUSE_RUN_END, RUN_END_WIDTH, title_text,
-			DungeonTexts.t(&"RUNEND_SUBTITLE", [room, cycle]), DungeonTexts.t(&"RUNEND_EYEBROW"), title_color, title_color)
+			DungeonTexts.t(&"RUNEND_SUBTITLE", [room, cycle]), DungeonTexts.t(&"RUNEND_EYEBROW"), title_color, title_color, icon)
 	modal.cancel_allowed = false
+	# Record and cause of death share one line (R8: compact).
+	var notes := UiKit.hbox(int(UiKit.px(8)))
+	notes.name = "Notes"
+	notes.alignment = BoxContainer.ALIGNMENT_CENTER
 	var record_before: int = stats.get("record_before", 0)
 	if record_before > 0 and room > record_before:
 		var record := UiKit.text_label(DungeonTexts.t(&"RUNEND_RECORD", [record_before]), UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
-		record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		modal.content.add_child(record)
+		record.name = "Record"
+		notes.add_child(record)
 	var cause: String = stats.get("cause", "")
 	if reason == RunManager.EndReason.DEATH and not cause.is_empty():
 		var cause_label := UiKit.text_label(DungeonTexts.t(&"RUNEND_CAUSE", [cause]), UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
-		cause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		modal.content.add_child(cause_label)
-	modal.content.add_child(_stat_tiles([
+		notes.add_child(cause_label)
+	if notes.get_child_count() > 0:
+		modal.content.add_child(notes)
+	var tiles := _stat_tiles([
 		[str(stats.get("rooms_cleared", 0)), DungeonTexts.t(&"RUNEND_ROOMS")],
 		[str(stats.get("kills", 0)), DungeonTexts.t(&"RUNEND_KILLS")],
 		[str(stats.get("upgrades", 0)), DungeonTexts.t(&"RUNEND_UPGRADES")],
 		[RunRecap.format_duration(stats.get("play_time", 0.0)), DungeonTexts.t(&"RUNEND_TIME")],
-	]))
+	], title_color)
+	modal.content.add_child(tiles)
 	var rows: Array = [
 		[DungeonTexts.t(&"RUNEND_GOLD_EARNED"), str(summary.get("gold_earned", summary.get("remaining_gold", 0))), UiKit.COLOR_TEXT_SOFT],
 		[DungeonTexts.t(&"RUNEND_GOLD_LEFT"), str(summary.get("remaining_gold", 0)), UiKit.COLOR_GOLD],
@@ -214,29 +229,41 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 	if summary.get("remaining_crystals", 0) > 0:
 		rows.append([DungeonTexts.t(&"RUNEND_CRYSTALS", [ratio_text]), "+%d" % summary.get("crystal_payout", 0), UiKit.COLOR_CRYSTAL])
 	rows.append([DungeonTexts.t(&"RUNEND_VILLAGE_GOLD"), str(SaveManager.get_permanent_gold()), UiKit.COLOR_TEXT])
-	UiDialog.add_rows(modal, rows)
-	UiDialog.add_buttons(modal, [
-		{"text": DungeonTexts.t(&"RUNEND_TO_VILLAGE"), "key": DungeonTexts.t(&"MENU_KEY_ENTER"), "result": RUN_END_VILLAGE, "default": true},
-		{"text": DungeonTexts.t(&"RUNEND_NEW_RUN"), "key": "N", "result": RUN_END_NEW_RUN},
-	], false)
+	modal.content.add_child(_row_grid(rows))
+	# Both buttons sit in the key bar (R8: no extra row; their key caps name the keys).
+	var buttons := UiKit.hbox(int(UiKit.px(6)))
+	buttons.name = "Buttons"
+	var home := UiDialog.option_button(DungeonTexts.t(&"RUNEND_TO_VILLAGE"), "", DungeonTexts.t(&"MENU_KEY_ENTER"), modal.finish.bind(RUN_END_VILLAGE), true)
+	buttons.add_child(home)
+	var again := UiDialog.option_button(DungeonTexts.t(&"RUNEND_NEW_RUN"), "", "N", modal.finish.bind(RUN_END_NEW_RUN))
+	buttons.add_child(again)
+	modal.accept_allowed = true
+	modal.accept_result = RUN_END_VILLAGE
 	modal.hotkeys[KEY_N] = modal.finish.bind(RUN_END_NEW_RUN)
-	UiDialog.add_footnote(modal, DungeonTexts.t(&"RUNEND_FOOTNOTE"))
-	modal.set_key_hints([
-		[DungeonTexts.t(&"MENU_KEY_ENTER"), DungeonTexts.t(&"RUNEND_HINT_VILLAGE")],
-		["N", DungeonTexts.t(&"RUNEND_HINT_NEW_RUN")],
-	])
+	var dealt: Array = []
+	dealt.append_array(tiles.get_children())
+	dealt.append(home)
+	dealt.append(again)
+	modal.deal(dealt)
+	modal.set_key_hints([], true, buttons)
 	var choice: Variant = await modal.open(self)
 	return choice if choice is StringName else RUN_END_VILLAGE
 
 
-func _stat_tiles(entries: Array) -> Control:
+## Four stat tiles in panel_dark with a thin band in the run end colour (R8).
+func _stat_tiles(entries: Array, accent := UiKit.COLOR_GOLD) -> Control:
 	var row := UiKit.hbox(int(UiKit.px(4)))
+	row.name = "Stats"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	for entry in entries:
-		var tile := UiKit.panel(&"dark")
-		tile.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 3, 3))
-		tile.custom_minimum_size = UiKit.pxv(STAT_TILE_SIZE.x, STAT_TILE_SIZE.y)
+		var tile := UiCard.new()
+		tile.normal_kind = &"dark"
+		tile.focused_kind = &"dark"
+		tile.padding = Vector2(4, 3)
+		tile.accent = Color(accent, 0.8)
 		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tile.mouse_default_cursor_shape = Control.CURSOR_ARROW
+		tile.custom_minimum_size = UiKit.pxv(STAT_TILE_SIZE.x, STAT_TILE_SIZE.y)
 		var box := UiKit.vbox(0)
 		box.alignment = BoxContainer.ALIGNMENT_CENTER
 		var value := UiKit.text_label(String(entry[0]), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT, true)
@@ -248,6 +275,22 @@ func _stat_tiles(entries: Array) -> Control:
 		tile.add_child(box)
 		row.add_child(tile)
 	return row
+
+
+## Value rows in two columns (gold, payout, crystals, village gold), so the run end stays low.
+func _row_grid(rows: Array) -> Control:
+	var grid := GridContainer.new()
+	grid.name = "Rows"
+	grid.columns = 2
+	grid.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	grid.add_theme_constant_override("h_separation", int(UiKit.px(12)))
+	grid.add_theme_constant_override("v_separation", int(UiKit.px(3)))
+	for row: Array in rows:
+		var color: Color = row[2] if row.size() > 2 else UiKit.COLOR_TEXT
+		var line := UiKit.value_row(String(row[0]), String(row[1]), color, UiKit.SIZE_BODY)
+		line.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		grid.add_child(line)
+	return grid
 
 
 func _add_pause_button(modal: Modal, button: Button) -> void:

@@ -1,0 +1,24 @@
+# Saeulenwald (L) als Hoehle: zwei versetzte Reihen Felspfeiler, Gaenge zwei Kacheln breit.
+role: combat
+class: L
+biomes: all
+mode: clear
+mirror: yes
+name: Saeulenwald (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..................xxxxx
+xxxx.....................xxxx
+xx....##...##...##...##....xx
+xx..G.##...##...##...##.G..xx
+xx.............G....r......xx
+xxx.....##...##...##......xxx
+xxx.....##...##...##......xxx
+xxxx.G....k............G.xxxx
+xxxxx.......@...........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

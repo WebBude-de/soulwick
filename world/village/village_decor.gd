@@ -6,6 +6,8 @@ extends Node2D
 ## so the village always looks the same (for the same set of art files). Nothing here collides, so
 ## the decoration can never block a way. Art via VillageArt (placeholders until SPRITES_V4 arrives).
 ## Village calls populate() once in _ready, after the props were lifted (SortLift).
+## R7: the square, the stairs and the stone slabs count as paths, the ridge (rock face) as a blocker;
+## a little denser than in B3 (the village felt empty).
 
 ## Fixed seed: same village on every start.
 const SEED := 20261014
@@ -13,9 +15,9 @@ const SEED := 20261014
 const STEP := 32.0
 const JITTER := 10.0
 ## TESTWERT: chance per candidate next to a path, next to a wall and on open grass.
-const PATH_DENSITY := 0.5
+const PATH_DENSITY := 0.6
 const WALL_DENSITY := 0.8
-const FIELD_DENSITY := 0.12
+const FIELD_DENSITY := 0.17
 ## A candidate is "at the path" up to this distance from a path (world px).
 const PATH_BAND := 40.0
 ## Beside a wall: within this distance left/right/below a building and in the lower WALL_SHARE of it.
@@ -43,9 +45,11 @@ static func collect_rules(village: Node2D) -> Dictionary:
 	var ground := village.get_node("Ground") as VillageTiles
 	var tile := 32.0 * ground.scale.x
 	var paths: Array[Rect2] = []
-	for rect in ground.path_rects:
+	for rect in ground.get_paved_rects():
 		paths.append(Rect2(Vector2(rect.position) * tile, Vector2(rect.size) * tile))
 	var blockers: Array[Rect2] = []
+	for rect in ground.cliff_rects:
+		blockers.append(Rect2(Vector2(rect.position) * tile, Vector2(rect.size) * tile))
 	var walls: Array[Rect2] = []
 	var clear: Array[Vector3] = []
 	for prop in village.get_node("Buildings").get_children():

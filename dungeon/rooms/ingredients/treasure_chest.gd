@@ -10,8 +10,9 @@ extends Node2D
 
 signal opened(chest: TreasureChest, player: Player)
 
-const PROMPT := "Truhe öffnen"
-const DIALOG_TITLE := "Truhe geöffnet!"
+## Translation keys (D-111, R8).
+const PROMPT := &"CHEST_PROMPT"
+const DIALOG_TITLE := &"CHEST_OPENED"
 const GLOW_RADIUS := 80.0
 const GLOW_INTENSITY := 0.6
 const OPEN_FPS := 10.0
@@ -53,7 +54,7 @@ func _ready() -> void:
 	add_child(body)
 	_interactable = Interactable.new()
 	_interactable.name = "Interactable"
-	_interactable.prompt = PROMPT
+	_interactable.prompt = DungeonTexts.t(PROMPT)
 	var area := CircleShape2D.new()
 	area.radius = INTERACT_RADIUS
 	var area_shape := CollisionShape2D.new()
@@ -113,7 +114,7 @@ func grant_reward(_player: Player) -> void:
 		var offer := context.upgrade_manager.roll_offer(context.get_owned_weapons(), context.rng)
 		if offer.is_empty():
 			return
-		var choice: UpgradeData = await context.ui.choose_upgrade(offer, DIALOG_TITLE)
+		var choice: UpgradeData = await context.ui.choose_upgrade(offer, DungeonTexts.t(DIALOG_TITLE))
 		if choice != null and is_instance_valid(context.upgrade_manager):
 			context.upgrade_manager.acquire_upgrade(choice)
 

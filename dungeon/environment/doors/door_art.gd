@@ -4,9 +4,19 @@ extends RefCounted
 ## docs/SPRITES_V4.md §4, built by DoorStyle) win automatically; while a file is missing, a
 ## placeholder is painted here pixel by pixel in the HANDOUT palette. Everything is cached.
 ## Visual only: randomness here is a fixed hash, so every door of a style looks the same.
+## Gates (M2, gates.json) are one neutral strip per kind (slab, bars), tinted by DoorView; the
+## placeholder cave mouth is the biome's arch on a wider rock lintel.
 
-## Colour of the dark passage inside delivered frames (art/environment/doors/doors.json).
+## Colour of the dark passage inside delivered frames (art/environment/doors/doors.json) and of the
+## soft palette (cave_mouth_crypt_soft, the gates' space behind the slab and between the bars). Every
+## opening is made transparent (playtest 14.10.2026: no black hole in a door, the corridor and the
+## next room show through; a veiled next room darkens itself).
 const PASSAGE_COLOR := Color("#0b0a12")
+const SOFT_PASSAGE_COLOR := Color("#1a1626")
+## Passage pixels this transparent or more count too (the cave mouths fade their opening upwards).
+const PASSAGE_MIN_ALPHA := 0.3
+## Dark sheet between the arch and the swirl of art/environment/props/exit_portal_6f.png (open_fill).
+const PORTAL_FILL := Color("#1d1536")
 const OUTLINE := Color("1c1a2b")
 const VOID_TOP := Color("0c0a13")
 const VOID_MID := Color("15131f")
@@ -29,6 +39,14 @@ const PLAQUE_SIZE := Vector2i(20, 20)
 const SYMBOL_SIZE := Vector2i(16, 16)
 ## Width in art px of the placeholder leaf of a west/east door (A10).
 const SIDE_LEAF_WIDTH := 12
+## Overlay sheet of a biome (32 px cells): pebbles and a tuft at the foot of a mouth (M2).
+const OVERLAY_PATH := "res://art/environment/tiles/overlay_%s.png"
+const OVERLAY_CELLS: Dictionary[StringName, int] = {&"pebbles": 1, &"tuft": 2}
+const OVERLAY_CELL := 32
+## Placeholder gate colours (neutral grey like the delivered strips; DoorView tints them).
+const GATE_STONE_LIGHT := Color("a29db4")
+const GATE_STONE_MID := Color("7d7891")
+const GATE_STONE_DARK := Color("575269")
 ## UI icons shown on the placeholder sign until door_special_symbols.png exists.
 const SYMBOL_ICONS := {
 	&"shop": "res://art/ui/gold_icon.png",
@@ -77,13 +95,34 @@ static func has_symbol_file(symbol_id: StringName) -> bool:
 	return sheet != null and index >= 0 and sheet.get_width() >= (index + 1) * SYMBOL_SIZE.x
 
 
-## Frame texture (48x48, boss 64x56): delivered file or placeholder.
+## Frame texture (arch 48x48, cave mouth 64x48, boss 64x56): delivered file or placeholder. A missing
+## soft crypt mouth falls back to the plain crypt mouth.
 static func get_frame(style: DoorStyle) -> Texture2D:
 	var key := "frame_%s" % style.get_key()
 	if not _cache.has(key):
 		var file := _load_file(_art_path(style.get_frame_path()))
+		if file == null and style.soft:
+			file = _load_file(_art_path(style.get_frame_path().replace(DoorStyle.SOFT_SUFFIX, "")))
 		_cache[key] = ImageTexture.create_from_image(open_passage(file.get_image())) if file != null \
 				else ImageTexture.create_from_image(paint_frame(style))
+	return _cache[key]
+
+
+## One cell of the biome's overlay sheet (pebbles, tuft), null without the sheet.
+static func get_overlay(biome_id: StringName, soft: bool, cell: StringName) -> Texture2D:
+	var key := "overlay_%s_%s_%s" % [biome_id, soft, cell]
+	if not _cache.has(key):
+		var sheet: Texture2D = null
+		if soft:
+			sheet = _load_file(OVERLAY_PATH % (String(biome_id) + DoorStyle.SOFT_SUFFIX))
+		if sheet == null:
+			sheet = _load_file(OVERLAY_PATH % biome_id)
+		var atlas: AtlasTexture = null
+		if sheet != null and OVERLAY_CELLS.has(cell):
+			atlas = AtlasTexture.new()
+			atlas.atlas = sheet
+			atlas.region = Rect2(OVERLAY_CELLS[cell] * OVERLAY_CELL, 0, OVERLAY_CELL, OVERLAY_CELL)
+		_cache[key] = atlas
 	return _cache[key]
 
 
@@ -109,8 +148,59 @@ static func open_passage(image: Image) -> Image:
 
 
 static func _is_passage(color: Color) -> bool:
-	return color.a > 0.5 and absf(color.r - PASSAGE_COLOR.r) + absf(color.g - PASSAGE_COLOR.g) \
-			+ absf(color.b - PASSAGE_COLOR.b) < 0.03
+	return color.a > PASSAGE_MIN_ALPHA and (_close(color, PASSAGE_COLOR) or _close(color, SOFT_PASSAGE_COLOR))
+
+
+static func _close(color: Color, other: Color) -> bool:
+	return absf(color.r - other.r) + absf(color.g - other.g) + absf(color.b - other.b) < 0.03
+
+
+## texture with the dark sheet under an arch made transparent: every pixel of the colour fill that is
+## connected to one in the top third (e.g. the exit portal: PORTAL_FILL between the arch and the swirl;
+## dark parts of the swirl itself are not connected and stay). Cached by path.
+static func open_fill(texture: Texture2D, fill: Color) -> Texture2D:
+	if texture == null:
+		return texture
+	var key := "open_fill_%s_%s" % [texture.resource_path if not texture.resource_path.is_empty() else str(texture.get_instance_id()), fill.to_html()]
+	if not _cache.has(key):
+		var image := texture.get_image()
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_RGBA8)
+		var stack: Array[Vector2i] = []
+		for y in image.get_height() / 3:
+			for x in image.get_width():
+				stack.append(Vector2i(x, y))
+		var bounds := Rect2i(Vector2i.ZERO, image.get_size())
+		while not stack.is_empty():
+			var point: Vector2i = stack.pop_back()
+			if not bounds.has_point(point):
+				continue
+			var c := image.get_pixelv(point)
+			if c.a <= PASSAGE_MIN_ALPHA or not _close(c, fill):
+				continue
+			image.set_pixelv(point, Color(0, 0, 0, 0))
+			for step: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+				stack.append(point + step)
+		_cache[key] = ImageTexture.create_from_image(image)
+	return _cache[key]
+
+
+## Delivered gate strips paint the space behind the slab and between the bars as a dark sheet (soft
+## passage colour, alpha 0.9): it becomes transparent, so an open or opening gate shows the corridor.
+## The block itself (outline at full alpha) stays.
+static func open_gate_strip(image: Image) -> Image:
+	if image == null:
+		return image
+	if image.is_compressed():
+		image.decompress()
+	image.convert(Image.FORMAT_RGBA8)
+	for y in image.get_height():
+		for x in image.get_width():
+			var c := image.get_pixel(x, y)
+			if c.a < 0.97 and _is_passage(c):
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+	return image
 
 
 ## Leaf of a west/east wall door (A10): delivered file or a placeholder made from the front leaf,
@@ -123,14 +213,13 @@ static func get_side_leaf_strip(style: DoorStyle) -> Texture2D:
 	return _cache[key]
 
 
-## Placeholder side leaf: every frame of the front leaf turned a quarter and squeezed into a
-## narrow slab in the middle of the tile, so it reads as a door seen from above.
+## Placeholder side leaf: every frame of the biome's door leaf (wood, vines, veil, portcullis; not
+## the gate) turned a quarter and squeezed into a narrow slab in the middle of the tile, so it reads
+## as a door seen from above.
 static func paint_side_leaf_strip(style: DoorStyle) -> Image:
-	var front := get_leaf_strip(style).get_image()
-	if front.is_compressed():
-		front.decompress()
-	front.convert(Image.FORMAT_RGBA8)
-	var size := style.leaf_size
+	var classic := _classic_style(style)
+	var front := paint_leaf_strip(classic)
+	var size := classic.leaf_size
 	var frames := maxi(1, front.get_width() / maxi(1, size.x))
 	var strip := _new_image(Vector2i(size.y * frames, size.y))
 	for f in frames:
@@ -141,12 +230,16 @@ static func paint_side_leaf_strip(style: DoorStyle) -> Image:
 	return strip
 
 
-## Leaf strip, four frames of 32x32 (frame 1 closed, frame 4 open).
+## Leaf strip of a north door, four frames (frame 1 closed, frame 4 open): the gate (32x48) or the
+## boss gate's double door (32x32).
 static func get_leaf_strip(style: DoorStyle) -> Texture2D:
 	var key := "leaf_%s" % style.get_key()
 	if not _cache.has(key):
 		var file := _load_file(_art_path(style.get_leaf_path()))
-		_cache[key] = file if file != null else ImageTexture.create_from_image(paint_leaf_strip(style))
+		if file != null and style.is_gate():
+			_cache[key] = ImageTexture.create_from_image(open_gate_strip(file.get_image()))
+		else:
+			_cache[key] = file if file != null else ImageTexture.create_from_image(paint_leaf_strip(style))
 	return _cache[key]
 
 
@@ -345,6 +438,8 @@ static func _leaf_mask(style: DoorStyle) -> Dictionary:
 
 
 static func paint_frame(style: DoorStyle) -> Image:
+	if style.is_cave() and not style.is_boss():
+		return _paint_cave_frame(style)
 	var image := _new_image(style.frame_size)
 	var masks := _frame_masks(style)
 	var body: Dictionary = masks["body"]
@@ -381,6 +476,38 @@ static func paint_frame(style: DoorStyle) -> Image:
 		&"boss":
 			_paint_boss_details(image, style)
 	return image
+
+
+## Placeholder cave mouth: the biome's arch on a rough rock lintel two tiles wide, the passage open.
+static func _paint_cave_frame(style: DoorStyle) -> Image:
+	var arch_style := _classic_style(style)
+	var arch := paint_frame(arch_style)
+	var image := _new_image(style.frame_size)
+	var shift := (style.leaf_offset - arch_style.leaf_offset)
+	for y in style.frame_size.y:
+		for x in style.frame_size.x:
+			var cx := float(style.frame_size.x - 1) * 0.5
+			var outer := Vector2(x, y).distance_to(Vector2(cx, 26.0)) <= 30.0 + (_hash(x / 3, y / 3, 41) - 0.5) * 3.0
+			if outer and y >= 2:
+				image.set_pixel(x, y, _shade(style.stone_dark, (_hash(x / 2, y / 2, 42) - 0.5) * 0.2))
+	image.blend_rect(arch, Rect2i(Vector2i.ZERO, arch.get_size()), shift)
+	# The passage stays open (transparent) through the rock too.
+	for y in range(style.leaf_offset.y - 4, style.frame_size.y):
+		for x in range(style.leaf_offset.x + 1, style.leaf_offset.x + 31):
+			var p := Vector2i(x, y) - shift
+			if p.x >= 0 and p.y >= 0 and p.x < arch.get_width() and p.y < arch.get_height() and arch.get_pixelv(p).a < 0.1:
+				image.set_pixel(x, y, Color(0, 0, 0, 0))
+	_outline(image)
+	return image
+
+
+## The biome's door with an arch and a plain 32x32 leaf: placeholder base of side leaves and of
+## the placeholder cave mouth.
+static func _classic_style(style: DoorStyle) -> DoorStyle:
+	var classic := DoorStyle.for_door(style.biome_id, style.kind, style.symbol)
+	classic.gate = &""
+	classic.leaf_size = Vector2i(32, 32)
+	return classic
 
 
 ## Crypt: arch of voussoirs with a keystone, brick posts, light from the top left.
@@ -760,6 +887,8 @@ static func _hue_close(a: float, b: float) -> bool:
 # --- Leaves ---
 
 static func paint_leaf_strip(style: DoorStyle) -> Image:
+	if style.is_gate():
+		return paint_gate_strip(style.gate)
 	var size := style.leaf_size
 	var strip := _new_image(Vector2i(size.x * LEAF_FRAMES, size.y))
 	var visible := _leaf_mask(style)
@@ -783,6 +912,63 @@ static func paint_leaf_strip(style: DoorStyle) -> Image:
 					frame.set_pixel(x, y, Color(0, 0, 0, 0))
 		strip.blit_rect(frame, Rect2i(Vector2i.ZERO, size), Vector2i(f * size.x, 0))
 	return strip
+
+
+## Placeholder gate (gates.json): 32x48 frames, frame 1 closed and flush like a piece of wall with a
+## crown on top, frame 4 open. The slab sinks into the floor, the bars rise into the wall.
+static func paint_gate_strip(gate: StringName) -> Image:
+	var size := DoorStyle.GATE_SIZE
+	var strip := _new_image(Vector2i(size.x * LEAF_FRAMES, size.y))
+	for f in LEAF_FRAMES:
+		var frame := _new_image(size)
+		if gate == DoorStyle.GATE_BARS:
+			_paint_gate_bars(frame, f)
+		else:
+			_paint_gate_slab(frame, f)
+		strip.blit_rect(frame, Rect2i(Vector2i.ZERO, size), Vector2i(f * size.x, 0))
+	return strip
+
+
+## Stone block with a crown cap and brick courses; it sinks: frame f shows the top (48 - 16 f) px
+## standing on the floor line, the last frame only a lip.
+static func _paint_gate_slab(image: Image, frame: int) -> void:
+	var size := image.get_size()
+	var visible := [size.y, 30, 14, 3][frame] as int
+	var top := size.y - visible
+	for y in range(top, size.y):
+		var src := y - top
+		for x in size.x:
+			var c := GATE_STONE_MID
+			if src < 14:
+				c = GATE_STONE_LIGHT if src < 2 else GATE_STONE_MID.lightened(0.08)
+			else:
+				var course := (src - 14) / 8
+				var joint := (src - 14) % 8 == 7 or (x + (course % 2) * 8) % 16 == 0
+				c = GATE_STONE_DARK if joint else GATE_STONE_MID
+			if x == 0 or x == size.x - 1:
+				c = OUTLINE
+			image.set_pixel(x, y, c)
+	for x in size.x:
+		image.set_pixel(x, top, OUTLINE)
+
+
+## Portcullis: iron grid over the dark passage, rising into the wall (the bottom row of spikes last).
+static func _paint_gate_bars(image: Image, frame: int) -> void:
+	var size := image.get_size()
+	var lift := [0, 14, 28, 44][frame] as int
+	for y in size.y:
+		var src := y + lift
+		if src >= size.y:
+			break
+		for x in size.x:
+			var vertical := x % 7 == 3 or x % 7 == 4
+			var horizontal := src % 12 == 5 or src % 12 == 6
+			if vertical:
+				image.set_pixel(x, y, METAL_MID if x % 7 == 3 else METAL_DARK)
+			elif horizontal:
+				image.set_pixel(x, y, METAL_DARK)
+			elif src < 12:
+				image.set_pixel(x, y, GATE_STONE_MID)
 
 
 ## Open passage: dark, a hint of floor at the bottom.

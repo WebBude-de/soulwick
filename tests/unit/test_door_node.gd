@@ -1,6 +1,8 @@
 extends GutTest
 ## D1 doors as nodes: open/closed state, collision and signals behave as before D1; the view
 ## (frame, torches, sign, glow, threat light) follows configure() without touching the state.
+## M2: an exit is a gate (32x48 leaf standing on the floor line), an entrance a gap without leaf that
+## never shuts and only blocks when nothing lies behind it.
 
 const DOOR_SCENE: PackedScene = preload("res://dungeon/environment/doors/door.tscn")
 const TEST_SAVE_PATH := "user://test_door_node_save.cfg"
@@ -90,14 +92,46 @@ func test_configure_builds_the_view() -> void:
 	assert_null(door.view.get_threat_light())
 
 
-func test_entrance_door_is_only_a_leaf_in_the_south_wall() -> void:
-	# An arch on the low south wall would face away and reach into the room behind (playtest).
+func test_entrance_is_an_open_gap_without_a_leaf() -> void:
+	# M2: one gate per transition, the gate of the room before; the entrance only shows the gap.
 	var door := _door()
 	door.configure(&"crypt", DoorStyle.KIND_NORMAL, &"shop", true)
+	door.set_open_instant(true)
 	assert_true(door.is_entrance)
 	assert_eq(door.view.get_torches().size(), 0)
 	assert_null(door.view.get_symbol_sprite())
 	assert_null(door.view.get_frame_sprite())
+	assert_false((door.get_node("Sprite") as AnimatedSprite2D).visible, "no leaf")
+	door.close()
+	assert_true(door.is_open, "nothing shuts in the entrance")
+	await wait_physics_frames(1)
+	assert_true(_shape(door).disabled, "the gap lets everyone through")
+	for piece in door.view.get_rubble():
+		assert_false(piece.visible)
+
+
+func test_entrance_blocks_when_nothing_lies_behind_it() -> void:
+	var door := _door()
+	door.configure(&"crypt", DoorStyle.KIND_NORMAL, &"", true)
+	door.set_open_instant(true)
+	door.block()
+	assert_false(door.is_open)
+	await wait_physics_frames(1)
+	assert_false(_shape(door).disabled, "the gap is shut")
+	assert_false(door.view.get_rubble().is_empty())
+	for piece in door.view.get_rubble():
+		assert_true(piece.visible, "rubble fills the gap")
+
+
+func test_exit_gate_stands_on_the_floor_line() -> void:
+	var door := _door()
+	door.configure(&"crypt")
+	var leaf := door.get_node("Sprite") as AnimatedSprite2D
+	assert_true(door.get_style().is_gate())
+	assert_eq(leaf.sprite_frames.get_frame_count(&"open"), 4)
+	assert_eq(Vector2i(leaf.sprite_frames.get_frame_texture(&"open", 0).get_size()), DoorStyle.GATE_SIZE)
+	assert_eq(leaf.position, Vector2(0, -32), "front tile plus half the crown")
+	assert_almost_eq(leaf.sprite_frames.get_animation_speed(&"open"), DoorStyle.GATE_FPS, 0.01, "0.4 s")
 
 
 func test_configure_keeps_state_and_collision() -> void:

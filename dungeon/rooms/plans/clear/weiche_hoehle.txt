@@ -1,0 +1,22 @@
+# Makeover 3, Mockup 31 (weiche Hoehle): Mund oben in der Mitte, zwei Emporen links und rechts (bis
+# M3 als Fels, Plan-Marker ^), Felsblock in der Mitte, gestufter Umriss unten.
+role: combat
+mode: clear
+mirror: yes
+biomes: all
+name: Weiche Hoehle
+size: 23x13
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T##xxxxxx
+xx^^^^.........^^^^^xxx
+xx^^^^.....::...^^^^xxx
+xx^^^^.......,,..^^^xxx
+xx.....G....,,...^^..xx
+xx.....###......C.G..xx
+xx....K###....G......xx
+xxxxG......@......xxxxx
+xxxxxx.......xx..xxxxxx
+xxxxxxxxxxSxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

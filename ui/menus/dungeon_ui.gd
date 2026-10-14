@@ -39,16 +39,18 @@ const INTRO_BANNER_AFTER := 1.0
 const INTRO_BANNER_AFTER_RUNNING := 3.0
 const INTRO_HOLD_MAX := 15.0
 ## Colour stripe on the left of every banner (07_ui.md: 4-6 px of the mode colour).
-const BANNER_STRIPE_WIDTH := 3.0
+const BANNER_STRIPE_WIDTH := 4.0
 ## Task bar and boss bar top (mockup pixels).
 const TOP_BAR_Y := 4.0
 ## Banner subtitles wrap at this width (mockup pixels); the intro's rule line earlier, so the goal
 ## banner stays a compact plaque in the middle (07_ui_intro_arena.png).
 const BANNER_SUBTITLE_WIDTH := 280.0
 const INTRO_SUBTITLE_WIDTH := 190.0
-## Boss HP bar (ui_spec hud.boss_bar.bar), mockup pixels.
-const BOSS_BAR_SIZE := Vector2(180, 7)
-const BOSS_BAR_WIDTH := 180.0
+## Boss bar (R8: compact, as high as the task bar it replaces, never over the room line): portrait,
+## name and phase in one line, HP bar under it. Mockup pixels.
+const BOSS_BAR_SIZE := Vector2(168, 4)
+const BOSS_BAR_WIDTH := 168.0
+const BOSS_PORTRAIT_SIZE := 16.0
 const BOSS_BAR_COLOR := Color("#a66ef0")
 const BOSS_BAR_ENRAGED_COLOR := Color("#e0463a")
 const CHAMPION_BAR_COLOR := Color("#e0b84a")
@@ -63,31 +65,44 @@ const HINT_TIME := 5.0
 const HINT_WIDTH := 150.0
 ## Enemy hint cards end this far above the bottom edge: clear of the HUD weapon block (mockup px).
 const HINT_BOTTOM := 36.0
-## Upgrade cards (ui_spec screens.upgrade_pick.cards), inside UiDialog.WIDTH_WIDE.
-const CARD_SIZE := Vector2(132, 150)
-const CARD_GAP := 8.0
-const CARD_LIFT := 4.0
-## Shop grid: 3 columns, gap 6 (ui_spec screens.shop.grid) inside UiDialog.WIDTH_WIDE.
+## Upgrade cards inside UiDialog.WIDTH_WIDE (R8: compact so the dialog stays under 60 % of the
+## screen height; ui_spec had 124 × 158). Padding: vertical, horizontal (mockup pixels).
+const CARD_SIZE := Vector2(136, 82)
+const CARD_PADDING := Vector2(7, 6)
+const CARD_NAME_WIDTH := 86.0
+const CARD_GAP := 6.0
+const CARD_LIFT := 3.0
+const STACK_PIP_SIZE := 4.0
+## Sound of an upgrade pick.
+const PICK_SOUND: StringName = &"upgrade"
+## Shop grid: 3 columns, gap 6 (ui_spec screens.shop.grid) inside UiDialog.WIDTH_WIDE. R8: compact
+## cards (2 rows stay under 60 % of the screen): symbol tile with the key under it, kind and price
+## on top, name, effect (2 lines) or the state badge.
 const SHOP_COLUMNS := 3
-const SHOP_GAP := 6.0
-const SHOP_CARD_SIZE := Vector2(138, 66)
-## Columns of a shop card: padding 10 + icon 24 + gap 5 + text 99 = 138. The bottom line holds the
-## key cap, the state (badge or action) and the price.
+const SHOP_GAP := 5.0
+const SHOP_CARD_SIZE := Vector2(138, 40)
+const SHOP_CARD_PADDING := Vector2(6, 6)
 const SHOP_ICON_SIZE := 24.0
 const SHOP_TEXT_WIDTH := 96.0
-const SHOP_PRICE_WIDTH := 24.0
+const SHOP_PRICE_WIDTH := 22.0
 ## Weapon comparison panel (ui_spec screens.weapon_room).
 const WEAPON_PANEL_WIDTH := 310.0
 const WEAPON_COLUMN_GAP := 6.0
-## Tab overview panel (ui_spec screens.tab_overview).
-const OVERVIEW_SIZE := Vector2(452, 236)
-const OVERVIEW_LIST_HEIGHT := 150.0
+const WEAPON_ICON_SIZE := 16.0
+## Tab overview panel (ui_spec screens.tab_overview; R8 lower, max 60 % of the screen).
+const OVERVIEW_SIZE := Vector2(452, 158)
+const OVERVIEW_LIST_HEIGHT := 72.0
 const DIALOG_WIDTH := UiDialog.WIDTH_NARROW
-const CHOICE_DIALOG_WIDTH := 250.0
-## Campfire dialog: width in mockup pixels; above CAMPFIRE_LIST_ROWS rows of upgrades it scrolls.
-const CAMPFIRE_DIALOG_WIDTH := UiDialog.WIDTH_MEDIUM
+const CHOICE_DIALOG_WIDTH := 262.0
+## Option cards of choose_option (mockup pixels).
+const OPTION_CARD_WIDTH := 112.0
+## Campfire dialog: width, heal column and heal button height in mockup pixels; above
+## CAMPFIRE_LIST_ROWS upgrades the list scrolls.
+const CAMPFIRE_DIALOG_WIDTH := 330.0
+const CAMPFIRE_HEAL_WIDTH := 110.0
+const CAMPFIRE_HEAL_HEIGHT := 34.0
 const CAMPFIRE_LIST_ROWS := 4
-const CAMPFIRE_LIST_HEIGHT := 112.0
+const CAMPFIRE_LIST_HEIGHT := 70.0
 const NUMBER_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 
 var context: DungeonContext = null
@@ -279,6 +294,14 @@ func _display_banner(entry: Dictionary) -> void:
 	slide.set_parallel(true)
 	slide.tween_property(box, "modulate:a", 1.0, 0.25)
 	slide.tween_property(box, "position:y", top, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# R8: the stripe grows down and the symbol pops a moment later.
+	var stripe := box.find_child("Stripe", true, false) as Control
+	if stripe != null:
+		stripe.scale.y = 0.0
+		UiKit.ui_tween(stripe).tween_property(stripe, "scale:y", 1.0, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var symbol := box.find_child("Icon", true, false) as Control
+	if symbol != null:
+		UiKit.pop_in(symbol, 0.12, 0.5, 0.3)
 	if _banner_hold:
 		return
 	var default_time := GENRE_BANNER_TIME if entry.has("genre") else BANNER_TIME
@@ -355,7 +378,8 @@ func _build_banner_plaque(entry: Dictionary) -> Control:
 	if not eyebrow.is_empty():
 		text.add_child(UiKit.eyebrow(eyebrow, color if kind == &"intro" else UiKit.COLOR_MUTED))
 	var title_color := UiKit.COLOR_GOLD if kind == &"intro" else color
-	var title := UiKit.text_label(entry["title"], UiKit.SIZE_TITLE_LARGE if kind == &"intro" else UiKit.SIZE_TITLE, title_color, true)
+	# 07_ui.md: title 14 px Pixelify for every banner (R8).
+	var title := UiKit.text_label(entry["title"], UiKit.SIZE_TITLE_LARGE, title_color, true)
 	title.name = "Title"
 	text.add_child(title)
 	var subtitle: String = entry.get("subtitle", "")
@@ -385,8 +409,7 @@ func _build_banner_plaque(entry: Dictionary) -> Control:
 ## Hook for DungeonManager._announce_room: banner with name and symbol for rooms with gameplay of
 ## their own; the first time per save also the explanation card. Normal combat rooms stay unnamed.
 ## An arena starts its intro here (R3: door shuts, camera on the gates, "Überlebe N Wellen", 3-2-1,
-## task bar). An ambush arena is named when it springs (on_arena_started, connected here). Returns
-## the genre (RoomGenre.NONE = nothing shown). A room is announced once.
+## task bar). Returns the genre (RoomGenre.NONE = nothing shown). A room is announced once.
 ## A special room builds its content (pact altar or not, kind of trial) only in activate(), right
 ## after the announcement: it is named one call later, so the hook may sit before or after activate.
 ## Room modes (RoomObjective.MODES) are named one frame later too, and only when the mode did not
@@ -481,18 +504,18 @@ func arena_focus(room: RoomController) -> Vector2:
 	return center.lerp(best, 0.5)
 
 
-## RoomController.arena_started: an ambush is named now ("Hinterhalt!"); a plain arena only if its
-## entry was not announced (show_room_genre does that on entry). Both get the task bar.
-func on_arena_started(room: RoomController, ambush: bool) -> void:
+## RoomController.arena_started: an arena whose entry was not announced is named now (show_room_genre
+## does that on entry) and gets the task bar. There is no ambush any more (D-120, R8 cleanup): the
+## flag of the signal is ignored.
+func on_arena_started(room: RoomController, _ambush := false) -> void:
 	if room == null or not is_instance_valid(room):
 		return
 	ArenaObjective.attach_to(room)
 	var id := room.get_instance_id()
-	var genre := RoomGenre.AMBUSH if ambush else RoomGenre.ARENA
-	if _announced_rooms.get(id, RoomGenre.NONE) == genre:
+	if _announced_rooms.get(id, RoomGenre.NONE) == RoomGenre.ARENA:
 		return
-	_announced_rooms[id] = genre
-	show_genre(genre, room)
+	_announced_rooms[id] = RoomGenre.ARENA
+	show_genre(RoomGenre.ARENA, room)
 
 
 ## The explanation card on screen (null if none), for tests and tools.
@@ -744,34 +767,38 @@ func _set_controls_hint_waiting(waiting: bool) -> void:
 
 # --- Boss bar ---
 
-## Boss or champion bar: portrait, name (+ tier "II", "III"), room, HP bar in the boss colour,
-## HP text, phase indicator and badges (docs/design screen 11).
+## Boss or champion bar (R8, compact; replaces the task bar): portrait, name (+ tier "II", "III"),
+## badges and phase in one line, the HP bar in the boss colour with the phase-two mark under it,
+## HP as a small number on the right. The phase change flashes the bar and shakes it once.
 func show_boss_bar(enemy: Enemy) -> void:
 	if _boss != null and is_instance_valid(_boss):
 		_disconnect_boss(_boss)
 	_boss = enemy
 	var champion := enemy.is_champion()
 	if champion:
-		_boss_name.text = "Champion: " + enemy.get_display_name()
+		_boss_name.text = _t(&"BOSS_BAR_CHAMPION", [enemy.get_display_name()])
 	else:
 		_boss_name.text = BossRules.boss_title(enemy.get_display_name(), enemy.get_boss_tier())
 	_boss_name.add_theme_color_override("font_color", UiKit.COLOR_GOLD)
-	_boss_sub.text = "Raum %d · %s" % [maxi(1, RunManager.get_current_room()), "Champion" if champion else "Boss"]
+	_boss_sub.text = _t(&"BOSS_BAR_ROOM", [maxi(1, RunManager.get_current_room()), _t(&"BOSS_BAR_KIND_CHAMPION" if champion else &"BOSS_BAR_KIND_BOSS")])
 	_boss_color = _boss_color_for(enemy, champion)
 	_set_boss_health(enemy.health.get_health(), enemy.health.get_max_health())
 	_set_boss_phase(enemy.phase, champion)
 	for child in _boss_badges.get_children():
 		child.queue_free()
 	for badge in enemy.get_ability_badges():
-		_boss_badges.add_child(UiKit.pixel_icon(EnemyBadges.get_texture(badge), 12.0))
+		_boss_badges.add_child(UiKit.pixel_icon(EnemyBadges.get_texture(badge), 8.0))
 	var portrait := EnemyArt.get_portrait(enemy.data)
 	_boss_portrait.texture = portrait
 	_boss_portrait.visible = portrait != null
 	enemy.health.health_changed.connect(_on_boss_health_changed)
 	enemy.phase_changed.connect(_on_boss_phase_changed)
 	enemy.died.connect(_on_boss_died)
+	var appearing := not _boss_bar_root.visible
 	_boss_bar_root.visible = true
 	_update_top_bars()
+	if appearing:
+		UiKit.pop_in(_boss_bar_root, 0.0, 0.85, 0.3)
 
 
 func hide_boss_bar() -> void:
@@ -795,9 +822,9 @@ func _boss_color_for(enemy: Enemy, champion: bool) -> Color:
 func _set_boss_phase(phase: int, champion: bool) -> void:
 	var enraged := phase >= 2
 	if champion:
-		_boss_phase.text = "Wütend!" if enraged else ""
+		_boss_phase.text = _t(&"BOSS_BAR_ENRAGED") if enraged else ""
 	else:
-		_boss_phase.text = "Phase 2 – Raserei!" if enraged else "Phase 1"
+		_boss_phase.text = _t(&"BOSS_BAR_PHASE_TWO") if enraged else _t(&"BOSS_BAR_PHASE_ONE")
 	_boss_phase.visible = not _boss_phase.text.is_empty()
 	_boss_phase.add_theme_color_override("font_color", BOSS_BAR_ENRAGED_COLOR if enraged else UiKit.COLOR_MUTED)
 	_boss_marker.visible = not enraged
@@ -807,7 +834,7 @@ func _set_boss_phase(phase: int, champion: bool) -> void:
 func _set_boss_health(current: float, maximum: float) -> void:
 	_boss_bar.max_value = maximum
 	_boss_bar.value = current
-	_boss_hp_text.text = "%s / %s" % [DamageNumber.format_amount(ceilf(current * 2.0) * 0.5), DamageNumber.format_amount(maximum)]
+	_boss_hp_text.text = DamageNumber.format_amount(ceilf(maxf(0.0, current) * 2.0) * 0.5)
 
 
 func _on_boss_health_changed(current: float, maximum: float) -> void:
@@ -819,11 +846,12 @@ func _on_boss_phase_changed(enemy: Enemy, phase: int) -> void:
 	_set_boss_phase(phase, champion)
 	_boss_bar_root.modulate = Color(2.0, 1.2, 1.2)
 	_boss_bar_root.create_tween().tween_property(_boss_bar_root, "modulate", Color.WHITE, 0.5)
+	UiKit.bump(_boss_bar_root, 1.08, 0.3)
 	if champion:
-		show_banner("%s wird wütend!" % enemy.data.display_name, "Er ruft Verstärkung", BOSS_BAR_ENRAGED_COLOR)
+		show_banner(_t(&"BOSS_BANNER_CHAMPION_ENRAGED", [enemy.get_display_name()]), _t(&"BOSS_BANNER_CHAMPION_ENRAGED_SUB"), BOSS_BAR_ENRAGED_COLOR)
 		return
-	var subtitle := enemy.data.enrage_text if not enemy.data.enrage_text.is_empty() else "Phase 2"
-	show_banner("%s rast!" % enemy.data.display_name, subtitle, BOSS_BAR_ENRAGED_COLOR)
+	var subtitle := enemy.data.enrage_text if not enemy.data.enrage_text.is_empty() else _t(&"BOSS_BANNER_PHASE_TWO_SUB")
+	show_banner(_t(&"BOSS_BANNER_PHASE_TWO", [enemy.get_display_name()]), subtitle, BOSS_BAR_ENRAGED_COLOR)
 	_queue_hint_once({"id": EnemyHints.PHASE_TWO_HINT_ID, "title": EnemyHints.PHASE_TWO_TITLE, "text": EnemyHints.PHASE_TWO_TEXT, "badge": &""})
 
 
@@ -878,7 +906,8 @@ func _build_objective_bar() -> void:
 
 func _build_boss_bar() -> void:
 	var frame := UiKit.panel(&"dark")
-	frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 4, 6))
+	frame.name = "BossBar"
+	frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 3, 6))
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.theme = UiKit.get_theme()
 	frame.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -886,33 +915,48 @@ func _build_boss_bar() -> void:
 	frame.position.y = UiKit.px(TOP_BAR_Y)
 	frame.add_to_group(Hud.TOP_CENTER_GROUP)
 	add_child(frame)
-	var row := UiKit.hbox(int(UiKit.px(8)))
+	var row := UiKit.hbox(int(UiKit.px(5)))
 	frame.add_child(row)
-	_boss_portrait = UiKit.pixel_icon(null, 48.0)
-	_boss_portrait.custom_minimum_size = Vector2.ONE * UiKit.art_px(48.0)
+	_boss_portrait = UiKit.pixel_icon(null, BOSS_PORTRAIT_SIZE)
+	_boss_portrait.name = "Portrait"
+	_boss_portrait.custom_minimum_size = Vector2.ONE * UiKit.art_px(BOSS_PORTRAIT_SIZE, 48.0)
 	_boss_portrait.visible = false
 	row.add_child(_boss_portrait)
-	var box := UiKit.vbox(int(UiKit.px(3)))
+	var box := UiKit.vbox(int(UiKit.px(2)))
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(box)
-	var header := UiKit.hbox(int(UiKit.px(4)))
+	var header := UiKit.hbox(int(UiKit.px(3)))
 	box.add_child(header)
-	_boss_name = UiKit.text_label("", UiKit.SIZE_VALUE, UiKit.COLOR_GOLD, true)
-	_boss_name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_boss_name = UiKit.text_label("", UiKit.SIZE_CARD_NAME, UiKit.COLOR_GOLD, true)
+	_boss_name.name = "Name"
 	header.add_child(_boss_name)
-	_boss_badges = UiKit.hbox(int(UiKit.px(2)))
+	_boss_badges = UiKit.hbox(int(UiKit.px(1)))
+	_boss_badges.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	header.add_child(_boss_badges)
-	_boss_sub = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
-	_boss_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(spacer)
+	_boss_phase = UiKit.text_label("", UiKit.SIZE_EYEBROW + 1, UiKit.COLOR_MUTED)
+	_boss_phase.name = "Phase"
+	_boss_phase.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(_boss_phase)
+	# Room and kind ("Raum 15 · Boss") are on the room line of the HUD already; kept for tools.
+	_boss_sub = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	_boss_sub.visible = false
 	header.add_child(_boss_sub)
+	var bar_row := UiKit.hbox(int(UiKit.px(4)))
+	box.add_child(bar_row)
 	_boss_bar = ProgressBar.new()
+	_boss_bar.name = "Health"
 	_boss_bar.show_percentage = false
 	_boss_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_boss_bar.custom_minimum_size = UiKit.pxv(BOSS_BAR_SIZE.x, BOSS_BAR_SIZE.y)
+	_boss_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_boss_fill = UiKit.bar_style(BOSS_BAR_COLOR)
 	_boss_bar.add_theme_stylebox_override("fill", _boss_fill)
-	_boss_bar.add_theme_stylebox_override("background", UiKit.bar_style(UiKit.COLOR_BG))
-	box.add_child(_boss_bar)
+	_boss_bar.add_theme_stylebox_override("background", UiKit.bar_style(UiKit.COLOR_SHADOW))
+	bar_row.add_child(_boss_bar)
 	# Marks the phase-two threshold until it is reached.
 	_boss_marker = ColorRect.new()
 	_boss_marker.color = Color(UiKit.COLOR_TEXT, 0.85)
@@ -921,14 +965,11 @@ func _build_boss_bar() -> void:
 	_boss_marker.position = Vector2(UiKit.px(BOSS_BAR_SIZE.x) * BossRules.PHASE_TWO_THRESHOLD - marker_width * 0.5, -UiKit.px(1))
 	_boss_marker.size = Vector2(marker_width, UiKit.px(BOSS_BAR_SIZE.y + 2))
 	_boss_bar.add_child(_boss_marker)
-	var footer := UiKit.hbox(int(UiKit.px(6)))
-	box.add_child(footer)
-	_boss_hp_text = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_TEXT)
-	_boss_hp_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(_boss_hp_text)
-	_boss_phase = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
-	_boss_phase.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	footer.add_child(_boss_phase)
+	_boss_hp_text = UiKit.text_label("", UiKit.SIZE_EYEBROW + 1, UiKit.COLOR_TEXT_SOFT, true)
+	_boss_hp_text.name = "HealthText"
+	_boss_hp_text.custom_minimum_size.x = UiKit.px(16)
+	_boss_hp_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	bar_row.add_child(_boss_hp_text)
 	_boss_bar_root = frame
 	frame.visible = false
 
@@ -946,6 +987,12 @@ func _unhandled_input(event: InputEvent) -> void:
 
 # --- Shared pieces of the menu kit ---
 
+## No line break between a number and its unit sign ("80 %", "+2 HP" stays "80" / "% des …" otherwise).
+static func keep_together(text: String) -> String:
+	var regex := RegEx.create_from_string("(\\d) (%|HP|px)")
+	return regex.sub(text, "$1\u00a0$2", true)
+
+
 ## Key cap text of number keys 1..count: "1", "1–3".
 static func number_range(count: int) -> String:
 	return "1" if count <= 1 else "1–%d" % mini(count, NUMBER_KEYS.size())
@@ -955,14 +1002,19 @@ static func _t(key: StringName, args: Array = []) -> String:
 	return DungeonTexts.t(key, args)
 
 
-## Fixed-size slot so the focused card can rise by CARD_LIFT without moving its neighbours.
+## Fixed-size slot so the focused card can rise by CARD_LIFT (into the gap above) without moving its
+## neighbours.
 func _lift_holder(card: UiCard) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.custom_minimum_size = card.custom_minimum_size + Vector2(0, UiKit.px(CARD_LIFT))
+	holder.custom_minimum_size = card.custom_minimum_size
 	holder.add_child(card)
-	card.position = Vector2(0, UiKit.px(CARD_LIFT))
+	card.position = Vector2.ZERO
 	card.set_meta(&"lift_holder", true)
+	# The card may grow with long texts: the slot follows.
+	card.minimum_size_changed.connect(func() -> void:
+		if is_instance_valid(card) and is_instance_valid(holder):
+			holder.custom_minimum_size = card.get_combined_minimum_size())
 	return holder
 
 
@@ -972,7 +1024,7 @@ func _focus_card(cards: Array[UiCard], target: UiCard) -> void:
 			continue
 		card.focused = card == target
 		if card.has_meta(&"lift_holder"):
-			card.position.y = 0.0 if card.focused else UiKit.px(CARD_LIFT)
+			card.position.y = -UiKit.px(CARD_LIFT) if card.focused else 0.0
 
 
 ## Enter on a card row: the focused card.
@@ -1038,25 +1090,30 @@ func _filler() -> Control:
 ## Click a card (or its "Wählen") or press 1–3 to pick it at once; ←/→ move the focus, Enter
 ## picks the focused card.
 ## stack_gain: stacks the pick will gain (pact altar: more than one); the cards show the result.
+## R8: compact cards in the category colour, dealt in one after another; a pick leaves a burst.
 func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1) -> UpgradeData:
 	if offer.is_empty():
 		return null
 	var subtitle := _t(&"UPGRADE_SUBTITLE") if stack_gain <= 1 else _t(&"UPGRADE_SUBTITLE_STACKS", [stack_gain])
-	var modal := UiDialog.create_menu(GameManager.PAUSE_UPGRADE_CHOICE, UiDialog.WIDTH_WIDE, title, subtitle, _t(&"UPGRADE_EYEBROW"))
+	var accent := UiKit.COLOR_MAGIC if stack_gain > 1 else UiKit.COLOR_GOLD
+	var modal := UiDialog.create_menu(GameManager.PAUSE_UPGRADE_CHOICE, UiDialog.WIDTH_WIDE, title, subtitle, _t(&"UPGRADE_EYEBROW"), accent)
 	modal.cancel_allowed = false
 	var row := UiKit.hbox(int(UiKit.px(CARD_GAP)))
+	row.name = "Cards"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	modal.content.add_child(row)
 	var cards: Array[UiCard] = []
 	for i in offer.size():
 		var upgrade := offer[i]
 		var card := _upgrade_card(upgrade, i, modal.finish.bind(upgrade), stack_gain)
-		row.add_child(_lift_holder(card))
+		var holder := _lift_holder(card)
+		row.add_child(holder)
 		cards.append(card)
 		card.pressed.connect(modal.finish.bind(upgrade))
 		card.focus_requested.connect(_focus_card.bind(cards, card))
 		if i < NUMBER_KEYS.size():
 			modal.hotkeys[NUMBER_KEYS[i]] = card.activate
+	modal.deal(cards)
 	modal.accept_action = _activate_focused.bind(cards)
 	modal.input_handler = _arrow_focus.bind(cards)
 	modal.set_key_hints([
@@ -1067,35 +1124,111 @@ func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1) -
 	return await modal.open(self)
 
 
+## One upgrade card (R8, chosen from two variants by screenshot): category band along the top
+## edge, the 32 px symbol on a tile in the category colour next to the category and the name, the
+## short effect below, then the stack line (pips for limited upgrades) and "[1] Wählen". The
+## "Wählen" button carries the pick (tools press it, balance_sim reads the upgrade from its bound
+## arguments).
 func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable, stack_gain := 1) -> UiCard:
+	var color := UiKit.category_color(upgrade.category)
 	var card := UiCard.new()
-	card.padding = Vector2(7, 6)
+	card.name = "Upgrade%d" % (index + 1)
+	card.accent = color
+	card.pick_sound = PICK_SOUND
+	card.padding = CARD_PADDING
 	card.custom_minimum_size = UiKit.pxv(CARD_SIZE.x, CARD_SIZE.y)
-	var box := UiKit.vbox(int(UiKit.px(4)))
+	var box := UiKit.vbox(int(UiKit.px(3)))
 	card.add_child(box)
-	var eyebrow := UiKit.eyebrow(UiKit.category_name(upgrade.category), UiKit.category_color(upgrade.category))
-	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(eyebrow)
-	box.add_child(UiKit.pixel_icon(upgrade.icon, 32.0))
-	var name_label := UiKit.title(DataTexts.upgrade_name(upgrade), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT)
+	var head := UiKit.hbox(int(UiKit.px(4)))
+	box.add_child(head)
+	var tile := _symbol_tile(upgrade.icon, color)
+	tile.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	head.add_child(tile)
+	card.symbol = tile.get_child(0) as Control
+	var names := UiKit.vbox(0)
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(names)
+	names.add_child(UiKit.eyebrow(UiKit.category_name(upgrade.category), color))
+	var name_label := UiKit.text_label(DataTexts.upgrade_name(upgrade), UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
+	name_label.name = "Name"
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.custom_minimum_size.x = UiKit.px(CARD_SIZE.x - 16.0)
-	box.add_child(name_label)
-	var description := UiKit.wrapped_text(DataTexts.upgrade_description(upgrade), CARD_SIZE.x - 16.0)
-	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.custom_minimum_size.x = UiKit.px(CARD_NAME_WIDTH)
+	names.add_child(name_label)
+	var description := UiKit.wrapped_text(keep_together(DataTexts.upgrade_description(upgrade)), CARD_SIZE.x - CARD_PADDING.y * 2.0)
+	description.name = "Description"
 	box.add_child(description)
 	box.add_child(_filler())
-	var stacks := context.upgrade_manager.get_stacks(upgrade.id) if context != null else 0
-	var stack_label: Label
-	if upgrade.is_limited():
-		var after := mini(stacks + stack_gain, upgrade.max_stacks)
-		stack_label = UiKit.text_label(_t(&"UPGRADE_STACKS_LIMITED", [stacks, upgrade.max_stacks, after, upgrade.max_stacks]), UiKit.SIZE_BODY, UiKit.COLOR_SUCCESS)
-	else:
-		stack_label = UiKit.text_label(_t(&"UPGRADE_STACKS_UNLIMITED", [stacks, stacks + stack_gain]), UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
-	stack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(stack_label)
-	box.add_child(_key_row(str(index + 1), _link_button(_t(&"MENU_CHOOSE"), on_pick)))
+	var bottom := UiKit.hbox(int(UiKit.px(3)))
+	box.add_child(bottom)
+	var stacks := _stack_line(upgrade, stack_gain, color)
+	stacks.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom.add_child(stacks)
+	bottom.add_child(_key_row(str(index + 1), _link_button(_t(&"MENU_CHOOSE"), on_pick)))
 	return card
+
+
+## The card symbol on a dark tile framed in the category colour (32 px symbol, 07_ui.md).
+func _symbol_tile(texture: Texture2D, color: Color, spec_size := 32.0) -> PanelContainer:
+	var tile := PanelContainer.new()
+	tile.name = "SymbolTile"
+	tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(color.darkened(0.82), 0.95)
+	style.border_color = color.darkened(0.25)
+	style.set_border_width_all(UiKit.ART_SCALE)
+	style.anti_aliasing = false
+	var inset := UiKit.px(2)
+	style.content_margin_left = inset
+	style.content_margin_right = inset
+	style.content_margin_top = inset
+	style.content_margin_bottom = inset
+	tile.add_theme_stylebox_override("panel", style)
+	var picture := UiKit.pixel_icon(texture, spec_size)
+	picture.name = "Symbol"
+	tile.add_child(picture)
+	return tile
+
+
+## Stack line of a card: pips for limited upgrades (owned muted, gained in the category colour,
+## free as outlines), else "Stufe 1 → 2 · unbegrenzt".
+func _stack_line(upgrade: UpgradeData, stack_gain: int, color: Color) -> HBoxContainer:
+	var row := UiKit.hbox(int(UiKit.px(1)))
+	row.name = "Stacks"
+	var stacks := context.upgrade_manager.get_stacks(upgrade.id) if context != null else 0
+	if not upgrade.is_limited():
+		var text := UiKit.text_label(_t(&"UPGRADE_STACKS_UNLIMITED", [stacks, stacks + stack_gain]), UiKit.SIZE_EYEBROW + 1, UiKit.COLOR_MUTED)
+		text.name = "StackText"
+		row.add_child(text)
+		return row
+	var after := mini(stacks + stack_gain, upgrade.max_stacks)
+	for i in upgrade.max_stacks:
+		var pip := Panel.new()
+		pip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		pip.custom_minimum_size = Vector2.ONE * UiKit.px(STACK_PIP_SIZE)
+		pip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var style := StyleBoxFlat.new()
+		style.anti_aliasing = false
+		style.set_border_width_all(UiKit.ART_SCALE)
+		if i < stacks:
+			style.bg_color = UiKit.COLOR_MUTED
+			style.border_color = UiKit.COLOR_SHADOW
+		elif i < after:
+			style.bg_color = color
+			style.border_color = color.lightened(0.4)
+		else:
+			style.bg_color = Color(0, 0, 0, 0)
+			style.border_color = UiKit.COLOR_EMPTY_SLOT
+		pip.add_theme_stylebox_override("panel", style)
+		row.add_child(pip)
+	var gap := Control.new()
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gap.custom_minimum_size.x = UiKit.px(2)
+	row.add_child(gap)
+	var label := UiKit.text_label(_t(&"UPGRADE_STACKS_LIMITED", [stacks, upgrade.max_stacks, after, upgrade.max_stacks]), UiKit.SIZE_EYEBROW + 1, UiKit.COLOR_SUCCESS)
+	label.name = "StackText"
+	row.add_child(label)
+	return row
 
 
 # --- Shop (screen 04) ---
@@ -1103,7 +1236,8 @@ func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable, stack_ga
 ## The merchant's offers in a 3-column grid. 1–6 or a click buys; offers that cannot be bought keep
 ## their look and show why (badge); clicking them plays the error sound. Esc closes.
 func open_shop(offers: Array[ShopOffer], player: Player) -> void:
-	var modal := UiDialog.create_menu(GameManager.PAUSE_SHOP, UiDialog.WIDTH_WIDE, _t(&"SHOP_TITLE"), _t(&"SHOP_SUBTITLE"), _t(&"SHOP_EYEBROW"))
+	var modal := UiDialog.create_menu(GameManager.PAUSE_SHOP, UiDialog.WIDTH_WIDE, _t(&"SHOP_TITLE"), "", _t(&"SHOP_EYEBROW"),
+			UiKit.COLOR_GOLD, UiKit.COLOR_GOLD, RoomGenre.get_icon(RoomGenre.SHOP), true)
 	var gold_badge := UiKit.panel(&"dark")
 	gold_badge.name = "GoldBadge"
 	gold_badge.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 2, 5))
@@ -1145,6 +1279,7 @@ func open_shop(offers: Array[ShopOffer], player: Player) -> void:
 				cards[i].activate()
 	modal.set_meta(&"refresh", refresh)
 	refresh.call()
+	modal.deal(cards)
 	await modal.open(self)
 
 
@@ -1165,49 +1300,45 @@ func get_offer_state(offer: ShopOffer, player: Player) -> StringName:
 
 func _shop_card(offer: ShopOffer, index: int, player: Player, modal: Modal) -> UiCard:
 	var state := get_offer_state(offer, player)
+	var eyebrow := _shop_eyebrow(offer)
+	var color: Color = eyebrow[1]
 	var card := UiCard.new()
 	card.name = "Offer%d" % (index + 1)
 	card.set_meta(&"offer_state", state)
-	card.padding = Vector2(5, 5)
+	card.accent = color if state != &"sold" else UiKit.COLOR_DISABLED
+	card.pick_sound = &"coin"
+	card.padding = SHOP_CARD_PADDING
 	card.custom_minimum_size = UiKit.pxv(SHOP_CARD_SIZE.x, SHOP_CARD_SIZE.y)
-	var box := UiKit.vbox(int(UiKit.px(3)))
-	card.add_child(box)
-	var row := UiKit.hbox(int(UiKit.px(5)))
-	box.add_child(row)
-	var offer_icon := UiKit.pixel_icon(offer.get_icon(), SHOP_ICON_SIZE)
-	offer_icon.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var row := UiKit.hbox(int(UiKit.px(4)))
+	card.add_child(row)
+	var tile := _symbol_tile(offer.get_icon(), color, SHOP_ICON_SIZE)
+	tile.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	var offer_icon := tile.get_child(0) as Control
+	card.symbol = offer_icon
 	if offer.kind == ShopOffer.Kind.WEAPON:
 		offer_icon.modulate = offer.weapon.tint
 	if state == &"sold":
 		offer_icon.modulate = Color(0.42, 0.4, 0.5)
-	row.add_child(offer_icon)
-	var text := UiKit.vbox(0)
+	row.add_child(_with_key(tile, str(index + 1) if index < NUMBER_KEYS.size() else ""))
+	var text := UiKit.vbox(int(UiKit.px(1)))
 	text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(text)
-	var eyebrow := _shop_eyebrow(offer)
-	var eyebrow_label := UiKit.eyebrow(eyebrow[0], eyebrow[1])
-	eyebrow_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	eyebrow_label.custom_minimum_size.x = UiKit.px(SHOP_TEXT_WIDTH)
-	text.add_child(eyebrow_label)
+	var top := UiKit.hbox(int(UiKit.px(2)))
+	text.add_child(top)
 	var title_color := UiKit.COLOR_MUTED if state == &"sold" else UiKit.COLOR_TEXT
-	text.add_child(_fitted_label(offer.get_title(), SHOP_TEXT_WIDTH, UiKit.SIZE_CARD_NAME, title_color))
-	var description := offer.get_description()
-	if offer.kind == ShopOffer.Kind.WEAPON:
-		description = DataTexts.weapon_stats_text(player.weapon_controller, offer.weapon)
-	text.add_child(UiKit.wrapped_text(description, SHOP_TEXT_WIDTH, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
-	box.add_child(_filler())
-	var footer := UiKit.hbox(int(UiKit.px(4)))
-	footer.name = "State"
-	box.add_child(footer)
-	if index < NUMBER_KEYS.size():
-		footer.add_child(UiChip.key(str(index + 1)))
-	var spacer := Control.new()
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	footer.add_child(spacer)
-	footer.add_child(_shop_state(offer, state))
+	var title := _fitted_label(offer.get_title(), SHOP_TEXT_WIDTH - SHOP_PRICE_WIDTH, UiKit.SIZE_CARD_NAME, title_color)
+	title.name = "Name"
+	title.tooltip_text = eyebrow[0]
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(title)
 	if state != &"sold":
-		footer.add_child(_shop_price(offer, state))
+		top.add_child(_shop_price(offer, state))
+	var footer := UiKit.hbox(int(UiKit.px(3)))
+	footer.name = "State"
+	text.add_child(footer)
+	var status := _shop_state(offer, state, player)
+	status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footer.add_child(status)
 	card.disabled = state in [&"sold", &"unavailable", &"too_expensive"]
 	card.pressed.connect(_on_buy_pressed.bind(offer, player, modal))
 	card.focus_requested.connect(func() -> void: card.focused = true)
@@ -1215,7 +1346,8 @@ func _shop_card(offer: ShopOffer, index: int, player: Player, modal: Modal) -> U
 	return card
 
 
-## Price: gold, red when there is too little gold, muted when the offer cannot be bought anyway.
+## Price: gold, red with a lock when there is too little gold, muted when the offer cannot be bought
+## anyway.
 func _shop_price(offer: ShopOffer, state: StringName) -> Control:
 	var price_color := UiKit.COLOR_GOLD
 	match state:
@@ -1223,32 +1355,72 @@ func _shop_price(offer: ShopOffer, state: StringName) -> Control:
 			price_color = UiKit.COLOR_DANGER
 		&"unavailable":
 			price_color = UiKit.COLOR_DISABLED
-	var price := UiKit.icon_value(UiKit.GOLD_ICON, str(offer.price), price_color, UiKit.SIZE_VALUE, 12.0)
+	var holder := UiKit.hbox(int(UiKit.px(1)))
+	holder.name = "PriceRow"
+	holder.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if state == &"too_expensive":
+		holder.tooltip_text = _t(&"STATE_TOO_LITTLE_GOLD")
+		holder.mouse_filter = Control.MOUSE_FILTER_PASS
+		var lock := UiKit.pixel_icon(UiKit.LOCK_ICON, UiChip.BADGE_ICON_SIZE)
+		lock.name = "Lock"
+		lock.modulate = UiKit.COLOR_DANGER_SOFT
+		holder.add_child(lock)
+	var price := UiKit.icon_value(UiKit.GOLD_ICON, str(offer.price), price_color, UiKit.SIZE_KEY_HINT, 8.0)
 	price.name = "Price"
 	price.alignment = BoxContainer.ALIGNMENT_END
-	price.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	price.custom_minimum_size.x = UiKit.px(SHOP_PRICE_WIDTH)
-	return price
+	holder.add_child(price)
+	return holder
 
 
-## The line under an offer: a badge for every state that blocks the purchase (UX2), else the action.
-func _shop_state(offer: ShopOffer, state: StringName) -> Control:
+## The line under the name: the effect, or a badge for every state that blocks the purchase (UX2:
+## sold, at the limit, HP full); too little gold keeps the effect and shows a badge-less red price
+## with a lock (R8: no wall of red badges).
+func _shop_state(offer: ShopOffer, state: StringName, player: Player) -> Control:
 	match state:
 		&"sold":
-			return UiChip.badge(_t(&"STATE_SOLD"), UiKit.COLOR_MUTED)
+			return _shrunk(UiChip.badge(_t(&"STATE_SOLD"), UiKit.COLOR_MUTED))
 		&"unavailable":
-			return UiChip.badge(_unavailable_text(offer), UiKit.COLOR_SHIELD)
-		&"too_expensive":
-			return UiChip.badge(_t(&"STATE_TOO_LITTLE_GOLD"), UiKit.COLOR_DANGER_SOFT, UiKit.LOCK_ICON)
-		&"replace":
-			return _centered_label(_t(&"STATE_REPLACE_SLOT"), UiKit.COLOR_GOLD)
-	return _centered_label(_t(&"MENU_HINT_BUY"), UiKit.COLOR_MUTED)
-
-
-func _centered_label(text: String, color: Color) -> Label:
-	var label := UiKit.text_label(text, UiKit.SIZE_BODY, color)
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+			return _shrunk(UiChip.badge(_unavailable_text(offer), UiKit.COLOR_SHIELD))
+	var description := offer.get_description()
+	if offer.kind == ShopOffer.Kind.WEAPON:
+		description = DataTexts.weapon_stats_text(player.weapon_controller, offer.weapon)
+	var color := UiKit.COLOR_TEXT_SOFT
+	if state == &"replace":
+		description = _t(&"STATE_REPLACE_SLOT") + " · " + description
+	var label := UiKit.wrapped_text(keep_together(description), SHOP_TEXT_WIDTH, UiKit.SIZE_BODY, color)
+	label.name = "Effect"
+	label.max_lines_visible = 2
 	return label
+
+
+## The symbol tile with its number key on the lower left corner (shop cards: saves a row).
+func _with_key(tile: Control, key: String) -> Control:
+	if key.is_empty():
+		return tile
+	var holder := Control.new()
+	holder.name = "TileWithKey"
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	holder.add_child(tile)
+	var chip := UiChip.key(key)
+	holder.add_child(chip)
+	var place := func() -> void:
+		if not is_instance_valid(tile) or not is_instance_valid(chip):
+			return
+		tile.size = tile.get_combined_minimum_size()
+		holder.custom_minimum_size = tile.size + Vector2(0, UiKit.px(3))
+		chip.size = chip.get_combined_minimum_size()
+		chip.position = Vector2(-UiKit.px(2), tile.size.y - chip.size.y + UiKit.px(3))
+	tile.minimum_size_changed.connect(place)
+	chip.minimum_size_changed.connect(place)
+	holder.ready.connect(place)
+	place.call()
+	return holder
+
+
+func _shrunk(control: Control) -> Control:
+	control.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	return control
 
 
 ## Bold label that steps down in font size until the text fits on one line (long names such as
@@ -1314,14 +1486,17 @@ func _on_buy_pressed(offer: ShopOffer, player: Player, modal: Modal) -> void:
 # --- Weapon slot choice (screen 03) ---
 
 ## Returns the slot to replace, or -1 when cancelled. Shows effective stats of all three weapons.
+## R8: the offer on a gold card, the two slots as cards in the weapon colour with their symbol tiles.
 func choose_weapon_slot(new_weapon: WeaponData, player: Player) -> int:
 	var controller := player.weapon_controller
-	var modal := UiDialog.create_menu(GameManager.PAUSE_WEAPON_CHOICE, WEAPON_PANEL_WIDTH, _t(&"WEAPON_TITLE"), _t(&"WEAPON_SUBTITLE"), _t(&"WEAPON_EYEBROW"), UiKit.COLOR_WEAPON)
+	var modal := UiDialog.create_menu(GameManager.PAUSE_WEAPON_CHOICE, WEAPON_PANEL_WIDTH, _t(&"WEAPON_TITLE"), _t(&"WEAPON_SUBTITLE"), _t(&"WEAPON_EYEBROW"),
+			UiKit.COLOR_WEAPON, UiKit.COLOR_GOLD, RoomGenre.get_icon(RoomGenre.WEAPON), true)
 	modal.cancel_result = -1
 	var columns := UiKit.hbox(int(UiKit.px(WEAPON_COLUMN_GAP)))
 	modal.content.add_child(columns)
 	var offer := UiKit.panel(&"gold")
-	offer.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", 6, 6))
+	offer.name = "Offer"
+	offer.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", 7, 6))
 	offer.add_child(_weapon_column(new_weapon, controller, _t(&"WEAPON_OFFER"), UiKit.COLOR_GOLD, ""))
 	offer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_child(offer)
@@ -1330,55 +1505,59 @@ func choose_weapon_slot(new_weapon: WeaponData, player: Player) -> int:
 		var weapon := controller.get_weapon(slot)
 		var role := _t(&"WEAPON_SLOT_ACTIVE" if slot == controller.get_active_slot() else &"WEAPON_SLOT", [slot + 1])
 		var card := UiCard.new()
-		card.padding = Vector2(6, 6)
+		card.name = "Slot%d" % (slot + 1)
+		card.padding = Vector2(7, 6)
+		card.accent = UiKit.COLOR_WEAPON
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		card.add_child(_weapon_column(weapon, controller, role, UiKit.COLOR_SHIELD, str(slot + 1)))
+		var column := _weapon_column(weapon, controller, role, UiKit.COLOR_SHIELD, str(slot + 1))
+		card.add_child(column)
+		card.symbol = column.find_child("Symbol", true, false) as Control
 		card.pressed.connect(modal.finish.bind(slot))
 		card.focus_requested.connect(_focus_card.bind(cards, card))
 		card.mouse_exited.connect(func() -> void: card.focused = false)
 		cards.append(card)
 		columns.add_child(card)
 		modal.hotkeys[NUMBER_KEYS[slot]] = card.activate
+	var dealt: Array = [offer]
+	dealt.append_array(cards)
+	modal.deal(dealt)
 	modal.input_handler = _arrow_focus.bind(cards)
 	modal.accept_action = _activate_focused.bind(cards)
-	UiDialog.add_footnote(modal, _t(&"WEAPON_VALUES_NOTE"))
 	var cancel := UiDialog.option_button(_t(&"MENU_CANCEL"), "", _t(&"MENU_KEY_ESC"), modal.finish.bind(-1))
 	modal.set_key_hints([[number_range(WeaponController.MAX_WEAPON_SLOTS), _t(&"MENU_HINT_REPLACE")]], true, cancel)
 	return await modal.open(self)
 
 
-## One comparison column: icon + name, role eyebrow, effective values and, for a slot, its key.
+## One comparison column: symbol tile + name, role eyebrow, effective values and, for a slot, its key.
 func _weapon_column(weapon: WeaponData, controller: WeaponController, role: String, role_color: Color, key: String) -> Control:
-	var box := UiKit.vbox(int(UiKit.px(2)))
+	var box := UiKit.vbox(int(UiKit.px(1)))
 	if weapon == null:
 		box.add_child(UiKit.eyebrow(role, role_color))
 		box.add_child(UiKit.text_label(_t(&"WEAPON_EMPTY"), UiKit.SIZE_CARD_NAME, UiKit.COLOR_DISABLED))
 		return box
 	var head := UiKit.hbox(int(UiKit.px(4)))
-	var weapon_icon := UiKit.pixel_icon(weapon.icon, 16.0)
-	weapon_icon.modulate = weapon.tint
-	head.add_child(weapon_icon)
+	var tile := _symbol_tile(weapon.icon, UiKit.COLOR_WEAPON, WEAPON_ICON_SIZE)
+	(tile.get_child(0) as Control).modulate = weapon.tint
+	head.add_child(tile)
+	var names := UiKit.vbox(0)
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.add_child(UiKit.eyebrow(role, role_color))
 	var name_label := UiKit.text_label(DataTexts.weapon_name(weapon), UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	head.add_child(name_label)
+	names.add_child(name_label)
+	head.add_child(names)
+	# The slot key (or "Neu" on the offer) sits on the right of the head (R8: one row less).
+	var tag: Control = UiChip.badge(_t(&"STATE_NEW"), UiKit.COLOR_GOLD) if key.is_empty() else UiChip.key(key)
+	tag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	head.add_child(tag)
 	box.add_child(head)
-	box.add_child(UiKit.eyebrow(role, role_color))
 	for row in UiKit.weapon_stat_rows(controller, weapon):
 		var line := UiKit.hbox(int(UiKit.px(3)))
-		line.add_child(UiKit.text_label(row[0], UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+		var caption := UiKit.text_label(row[0], UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		caption.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(caption)
 		line.add_child(UiKit.text_label(row[1], UiKit.SIZE_BODY, UiKit.COLOR_TEXT, true))
 		box.add_child(line)
-	box.add_child(_filler())
-	if key.is_empty():
-		var badge := UiChip.badge(_t(&"STATE_NEW"), UiKit.COLOR_GOLD)
-		badge.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
-		box.add_child(badge)
-	else:
-		var action := UiKit.text_label(_t(&"MENU_HINT_REPLACE"), UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
-		action.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		var row := _key_row(key, action)
-		row.alignment = BoxContainer.ALIGNMENT_BEGIN
-		box.add_child(row)
 	return box
 
 
@@ -1389,33 +1568,48 @@ func _weapon_column(weapon: WeaponData, controller: WeaponController, role: Stri
 func confirm(title: String, text: String, yes_text := "", no_text := "", details: Array = []) -> bool:
 	yes_text = yes_text if not yes_text.is_empty() else _t(&"MENU_YES")
 	no_text = no_text if not no_text.is_empty() else _t(&"MENU_NO")
-	var modal := UiDialog.create_menu(GameManager.PAUSE_CONFIRM, DIALOG_WIDTH, title, text, _t(&"CHOICE_EYEBROW"))
+	var modal := UiDialog.create_menu(GameManager.PAUSE_CONFIRM, DIALOG_WIDTH, title, text, _t(&"CHOICE_EYEBROW"), UiKit.COLOR_SHIELD)
 	modal.cancel_result = false
 	UiDialog.add_rows(modal, details)
-	UiDialog.add_buttons(modal, [
+	var buttons := UiDialog.add_buttons(modal, [
 		{"text": yes_text, "key": _t(&"MENU_KEY_ENTER"), "result": true, "default": true},
 		{"text": no_text, "key": _t(&"MENU_KEY_ESC"), "result": false},
 	], false)
+	modal.deal(buttons)
 	modal.set_key_hints([[_t(&"MENU_KEY_ENTER"), yes_text], [_t(&"MENU_KEY_ESC"), no_text]])
 	return await modal.open(self)
 
 
 ## Decision with equal options side by side (pact altar: "Extra-Upgrade" vs "Pakt schließen").
-## options: [{"text": String, "sub": String}, ...]; returns the chosen index, or -1 on Esc when
-## allow_cancel. 1–n pick directly; the first option is the Enter default.
+## options: [{"text": String, "sub": String, "color": Color (optional accent), "icon": Texture2D
+## (optional)}, ...]; returns the chosen index, or -1 on Esc when allow_cancel. 1–n pick directly;
+## the first option is the Enter default. R8: every option is a card with its accent band; an
+## option whose sub line names a curse ("Fluch: …") is drawn in the curse colour.
 func choose_option(title: String, text: String, details: Array, options: Array, allow_cancel := false, footnote := "") -> int:
-	var modal := UiDialog.create_menu(GameManager.PAUSE_CONFIRM, CHOICE_DIALOG_WIDTH, title, text, _t(&"CHOICE_EYEBROW"))
+	var accent := UiKit.COLOR_MAGIC
+	var modal := UiDialog.create_menu(GameManager.PAUSE_CONFIRM, CHOICE_DIALOG_WIDTH, title, text, _t(&"CHOICE_EYEBROW"), accent)
 	modal.cancel_allowed = allow_cancel
 	modal.cancel_result = -1
 	UiDialog.add_rows(modal, details)
-	var entries: Array = []
+	var row := UiKit.hbox(int(UiKit.px(CARD_GAP)))
+	row.name = "Options"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	modal.content.add_child(row)
+	var cards: Array[UiCard] = []
 	for i in options.size():
 		var option: Dictionary = options[i]
-		var key := str(i + 1) if i < NUMBER_KEYS.size() else ""
-		entries.append({"text": option.get("text", ""), "sub": option.get("sub", ""), "key": key, "result": i, "default": i == 0})
+		var card := _option_card(option, i, modal.finish.bind(i))
+		card.pressed.connect(modal.finish.bind(i))
+		card.focus_requested.connect(_focus_card.bind(cards, card))
+		row.add_child(card)
+		cards.append(card)
 		if i < NUMBER_KEYS.size():
-			modal.hotkeys[NUMBER_KEYS[i]] = modal.finish.bind(i)
-	UiDialog.add_buttons(modal, entries, false)
+			modal.hotkeys[NUMBER_KEYS[i]] = card.activate
+	if not cards.is_empty():
+		_focus_card(cards, cards[0])
+	modal.deal(cards)
+	modal.accept_action = _activate_focused.bind(cards)
+	modal.input_handler = _arrow_focus.bind(cards)
 	if not footnote.is_empty():
 		UiDialog.add_footnote(modal, footnote)
 	var keys: Array = [[number_range(options.size()), _t(&"MENU_HINT_PICK")], [_t(&"MENU_KEY_ENTER"), _t(&"MENU_HINT_CONFIRM")]]
@@ -1425,25 +1619,71 @@ func choose_option(title: String, text: String, details: Array, options: Array, 
 	return await modal.open(self)
 
 
+## One option of choose_option as a card: key cap, title, sub line; the button inside carries the
+## title (tools press dialog buttons by their text).
+func _option_card(option: Dictionary, index: int, on_pick: Callable) -> UiCard:
+	var sub: String = option.get("sub", "")
+	var color: Color = option.get("color", UiKit.COLOR_GOLD)
+	if not option.has("color") and index > 0 and sub.begins_with(_t(&"CHOICE_CURSE_PREFIX")):
+		color = UiKit.COLOR_DANGER_SOFT
+	var card := UiCard.new()
+	card.name = "Option%d" % (index + 1)
+	card.accent = color
+	card.padding = Vector2(7, 6)
+	card.custom_minimum_size.x = UiKit.px(OPTION_CARD_WIDTH)
+	var box := UiKit.vbox(int(UiKit.px(2)))
+	card.add_child(box)
+	var head := UiKit.hbox(int(UiKit.px(4)))
+	box.add_child(head)
+	if index < NUMBER_KEYS.size():
+		head.add_child(UiChip.key(str(index + 1)))
+	var icon_texture: Texture2D = option.get("icon")
+	if icon_texture != null:
+		var tile := _symbol_tile(icon_texture, color, 16.0)
+		head.add_child(tile)
+		card.symbol = tile.get_child(0) as Control
+	var title_button := _link_button(String(option.get("text", "")), on_pick)
+	title_button.name = "Title"
+	title_button.add_theme_font_override("font", UiKit.bold_font())
+	title_button.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_CARD_NAME))
+	title_button.add_theme_color_override("font_color", UiKit.COLOR_TEXT)
+	title_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	head.add_child(title_button)
+	if not sub.is_empty():
+		var sub_label := UiKit.wrapped_text(sub, OPTION_CARD_WIDTH - 14.0, UiKit.SIZE_BODY, color.lightened(0.15))
+		sub_label.name = "Sub"
+		box.add_child(sub_label)
+	return card
+
+
 # --- Campfire (A6, D-103) ---
 
 ## The one choice at the campfire: heal (index 0) or strengthen one of upgrades by a stack
 ## (index 1 + position in upgrades). -1 = Esc, the player may come back. Pauses like the other
 ## choice dialogs. 1 heals, 2–6 pick the first upgrades; Enter takes the highlighted default.
+## R8: two columns - the heal button with the life bar on the left, the upgrades as a list on the
+## right (scrolls above CAMPFIRE_LIST_ROWS), accent in the fire colour.
 func choose_campfire_rest(heal_amount: float, heal_possible: bool, upgrades: Array[UpgradeData], player: Player = null) -> int:
 	var modal := UiDialog.create_menu(GameManager.PAUSE_UPGRADE_CHOICE, CAMPFIRE_DIALOG_WIDTH, _t(&"CAMPFIRE_TITLE"),
-			_t(&"CAMPFIRE_SUBTITLE"), _t(&"CAMPFIRE_EYEBROW"), UiKit.COLOR_EFFECT)
+			"", _t(&"CAMPFIRE_EYEBROW"), UiKit.COLOR_EFFECT, UiKit.COLOR_GOLD,
+			RoomGenre.get_icon(RoomGenre.CAMPFIRE), true)
 	modal.cancel_result = -1
-	if player != null:
-		var hp := "%s / %s" % [DamageNumber.format_amount(player.health.get_health()), DamageNumber.format_amount(player.health.get_max_health())]
-		UiDialog.add_rows(modal, [[_t(&"CAMPFIRE_LIFE"), hp, UiKit.COLOR_DANGER_SOFT]])
+	var columns := UiKit.hbox(int(UiKit.px(8)))
+	columns.name = "Columns"
+	modal.content.add_child(columns)
+	var left := UiKit.vbox(int(UiKit.px(4)))
+	left.custom_minimum_size.x = UiKit.px(CAMPFIRE_HEAL_WIDTH)
+	columns.add_child(left)
 	var heal_sub := _t(&"CAMPFIRE_HEAL_AMOUNT", [DamageNumber.format_amount(heal_amount)]) if heal_possible else _t(&"CAMPFIRE_HEAL_FULL")
 	var heal := UiDialog.option_button(_t(&"CAMPFIRE_HEAL"), heal_sub, "1", modal.finish.bind(0), heal_possible)
 	heal.name = "Heal"
 	UiDialog.set_option_icon(heal, UiKit.HEART_ICON)
 	heal.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heal.custom_minimum_size.y = UiKit.px(CAMPFIRE_HEAL_HEIGHT)
 	UiDialog.set_option_enabled(heal, heal_possible)
-	modal.content.add_child(heal)
+	left.add_child(heal)
+	if player != null:
+		left.add_child(_life_bar(player, heal_possible, heal_amount))
 	if heal_possible:
 		modal.accept_allowed = true
 		modal.accept_result = 0
@@ -1452,38 +1692,78 @@ func choose_campfire_rest(heal_amount: float, heal_possible: bool, upgrades: Arr
 			modal.finish(0)
 		else:
 			UiSound.error(modal)
+	var right := UiKit.vbox(int(UiKit.px(3)))
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	columns.add_child(right)
+	var dealt: Array = [heal]
 	if upgrades.is_empty():
-		UiDialog.add_footnote(modal, _t(&"CAMPFIRE_NO_UPGRADE"))
+		var none := UiKit.wrapped_text(_t(&"CAMPFIRE_NO_UPGRADE"), CAMPFIRE_DIALOG_WIDTH - CAMPFIRE_HEAL_WIDTH - 40.0, UiKit.SIZE_BODY, UiKit.COLOR_DISABLED)
+		right.add_child(none)
 	else:
-		UiDialog.add_section(modal, _t(&"CAMPFIRE_OR_UPGRADE"))
-		var grid := GridContainer.new()
-		grid.columns = 2
-		grid.add_theme_constant_override("h_separation", int(UiKit.px(4)))
-		grid.add_theme_constant_override("v_separation", int(UiKit.px(4)))
+		var section := UiKit.eyebrow(_t(&"CAMPFIRE_OR_UPGRADE"), UiKit.COLOR_GOLD)
+		section.name = "Section"
+		right.add_child(section)
+		var list := UiKit.vbox(int(UiKit.px(3)))
+		list.name = "Upgrades"
 		for i in upgrades.size():
 			var upgrade := upgrades[i]
 			var key := str(i + 2) if i + 1 < NUMBER_KEYS.size() else ""
-			var button := UiDialog.option_button(DataTexts.upgrade_name(upgrade), _campfire_stack_text(upgrade), key, modal.finish.bind(i + 1))
+			var button := UiDialog.option_button(DataTexts.upgrade_name(upgrade), "", key, modal.finish.bind(i + 1))
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			button.alignment = HORIZONTAL_ALIGNMENT_LEFT
 			UiDialog.set_option_icon(button, upgrade.icon)
-			grid.add_child(button)
+			UiDialog.set_option_hint(button, _campfire_stack_text(upgrade), UiKit.category_color(upgrade.category))
+			Modal.compact_buttons(button)
+			list.add_child(button)
+			dealt.append(button)
 			if i + 1 < NUMBER_KEYS.size():
 				modal.hotkeys[NUMBER_KEYS[i + 1]] = modal.finish.bind(i + 1)
-		if upgrades.size() > CAMPFIRE_LIST_ROWS * 2:
+		if upgrades.size() > CAMPFIRE_LIST_ROWS:
 			var scroll := ScrollContainer.new()
+			scroll.name = "Scroll"
 			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 			scroll.custom_minimum_size.y = UiKit.px(CAMPFIRE_LIST_HEIGHT)
-			grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			scroll.add_child(grid)
-			modal.content.add_child(scroll)
+			list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			scroll.add_child(list)
+			right.add_child(scroll)
 		else:
-			modal.content.add_child(grid)
+			right.add_child(list)
+	modal.deal(dealt)
 	var keys: Array = [[number_range(upgrades.size() + 1), _t(&"MENU_HINT_PICK")]]
 	if heal_possible:
 		keys.append([_t(&"MENU_KEY_ENTER"), _t(&"CAMPFIRE_HEAL")])
 	keys.append([_t(&"MENU_KEY_ESC"), _t(&"MENU_HINT_LATER")])
 	modal.set_key_hints(keys)
 	return await modal.open(self)
+
+
+## Life bar under the heal button: current HP in red, what healing adds as a lighter part, "4.5 / 6".
+func _life_bar(player: Player, heal_possible: bool, heal_amount: float) -> Control:
+	var box := UiKit.vbox(int(UiKit.px(1)))
+	box.name = "Life"
+	var current := player.health.get_health()
+	var maximum := maxf(player.health.get_max_health(), 0.01)
+	var hp := "%s / %s" % [DamageNumber.format_amount(current), DamageNumber.format_amount(maximum)]
+	box.add_child(UiKit.value_row(_t(&"CAMPFIRE_LIFE"), hp, UiKit.COLOR_DANGER_SOFT, UiKit.SIZE_BODY))
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	bar.max_value = maximum
+	bar.value = minf(maximum, current + (heal_amount if heal_possible else 0.0))
+	bar.custom_minimum_size.y = UiKit.px(4)
+	bar.add_theme_stylebox_override("background", UiKit.bar_style(UiKit.COLOR_SHADOW))
+	bar.add_theme_stylebox_override("fill", UiKit.bar_style(UiKit.COLOR_DANGER_SOFT.darkened(0.35)))
+	var now := ProgressBar.new()
+	now.show_percentage = false
+	now.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	now.max_value = maximum
+	now.value = current
+	now.set_anchors_preset(Control.PRESET_FULL_RECT)
+	now.add_theme_stylebox_override("background", StyleBoxEmpty.new())
+	now.add_theme_stylebox_override("fill", UiKit.bar_style(UiKit.COLOR_DANGER))
+	bar.add_child(now)
+	box.add_child(bar)
+	return box
 
 
 func _campfire_stack_text(upgrade: UpgradeData) -> String:
@@ -1499,12 +1779,18 @@ func show_upgrade_overview() -> void:
 	var modal := UiDialog.create_menu(GameManager.PAUSE_UPGRADE_OVERVIEW, OVERVIEW_SIZE.x, _t(&"OVERVIEW_TITLE"), "",
 			_t(&"OVERVIEW_EYEBROW", [maxi(1, RunManager.get_current_room())]))
 	_overview = modal
-	modal.frame.custom_minimum_size.y = UiKit.px(OVERVIEW_SIZE.y)
 	var columns := UiKit.hbox(int(UiKit.px(12)))
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	modal.content.add_child(columns)
-	columns.add_child(_overview_upgrades())
-	columns.add_child(_overview_values())
+	var left := _overview_upgrades()
+	columns.add_child(left)
+	var right := _overview_values()
+	columns.add_child(right)
+	# The HP/shield/dash line goes under the upgrade list (R8: the values column was the tall one).
+	var stats := right.get_node_or_null(^"Stats")
+	if stats != null:
+		right.remove_child(stats)
+		left.add_child(stats)
 	modal.set_key_hints([[_t(&"MENU_KEY_TAB"), ""], [_t(&"MENU_KEY_ESC"), _t(&"MENU_HINT_CLOSE")]])
 	await modal.open(self)
 	_overview = null
@@ -1518,7 +1804,7 @@ func _overview_upgrades() -> Control:
 	var total := 0
 	for upgrade in active:
 		total += context.upgrade_manager.get_stacks(upgrade.id)
-	column.add_child(UiKit.text_label(_t(&"OVERVIEW_UPGRADES", [total]), UiKit.SIZE_HEADING, UiKit.COLOR_GOLD, true))
+	column.add_child(UiKit.eyebrow(_t(&"OVERVIEW_UPGRADES", [total]), UiKit.COLOR_GOLD))
 	if active.is_empty():
 		column.add_child(UiKit.text_label(_t(&"OVERVIEW_NO_UPGRADES"), UiKit.SIZE_KEY_HINT, UiKit.COLOR_MUTED))
 		return column
@@ -1531,8 +1817,8 @@ func _overview_upgrades() -> Control:
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.add_child(list)
 	for upgrade in active:
-		var row := UiKit.hbox(int(UiKit.px(6)))
-		row.add_child(UiKit.pixel_icon(upgrade.icon, 16.0))
+		var row := UiKit.hbox(int(UiKit.px(5)))
+		row.add_child(_symbol_tile(upgrade.icon, UiKit.category_color(upgrade.category), 12.0))
 		var names := UiKit.vbox(0)
 		names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		names.add_child(UiKit.text_label(DataTexts.upgrade_name(upgrade), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true))
@@ -1552,7 +1838,7 @@ func _overview_upgrades() -> Control:
 func _overview_values() -> Control:
 	var column := UiKit.vbox(int(UiKit.px(5)))
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_child(UiKit.text_label(_t(&"OVERVIEW_VALUES"), UiKit.SIZE_HEADING, UiKit.COLOR_GOLD, true))
+	column.add_child(UiKit.eyebrow(_t(&"OVERVIEW_VALUES"), UiKit.COLOR_GOLD))
 	if context == null or context.player == null:
 		return column
 	var player := context.player
@@ -1563,14 +1849,14 @@ func _overview_values() -> Control:
 			continue
 		var active := slot == controller.get_active_slot()
 		var card := UiKit.panel(&"gold" if active else &"normal")
-		card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold" if active else &"normal", 5, 6))
-		var box := UiKit.vbox(int(UiKit.px(1)))
+		card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold" if active else &"normal", 4, 6))
+		var box := UiKit.vbox(0)
 		card.add_child(box)
 		var head := UiKit.hbox(int(UiKit.px(4)))
-		var weapon_icon := UiKit.pixel_icon(weapon.icon, 16.0)
+		var weapon_icon := UiKit.pixel_icon(weapon.icon, 12.0)
 		weapon_icon.modulate = weapon.tint
 		head.add_child(weapon_icon)
-		head.add_child(UiKit.text_label(DataTexts.weapon_name(weapon), UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true))
+		head.add_child(UiKit.text_label(DataTexts.weapon_name(weapon), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true))
 		head.add_child(UiKit.text_label(_t(&"OVERVIEW_SLOT_ACTIVE" if active else &"OVERVIEW_SLOT", [slot + 1]), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 		box.add_child(head)
 		for line in _weapon_breakdown(controller, weapon):
@@ -1582,7 +1868,9 @@ func _overview_values() -> Control:
 		DamageNumber.format_amount(player.shield.get_shield()),
 		DamageNumber.format_amount(ShieldComponent.SOFTCAP_THRESHOLD),
 		DamageNumber.format_amount(snappedf(player.dash_cooldown, 0.1))])
-	column.add_child(UiKit.wrapped_text(stats, OVERVIEW_SIZE.x * 0.5 - 18.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	var stats_label := UiKit.wrapped_text(stats, OVERVIEW_SIZE.x * 0.5 - 18.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	stats_label.name = "Stats"
+	column.add_child(stats_label)
 	var curses := _overview_curses()
 	if curses != null:
 		column.add_child(curses)
@@ -1621,22 +1909,22 @@ func _overview_curses() -> Control:
 func _weapon_breakdown(controller: WeaponController, weapon: WeaponData) -> PackedStringArray:
 	var damage := controller.get_effective_damage(weapon)
 	var rate := controller.get_effective_attack_rate(weapon)
-	var first := "%s Schaden%s · %.2f/s%s" % [
+	var first := _t(&"OVERVIEW_WEAPON_LINE", [
 		DamageNumber.format_amount(DamageProcessor.round_damage(damage)), _factor_text(weapon.base_damage, damage),
-		rate, _factor_text(weapon.attack_rate, rate)]
+		rate, _factor_text(weapon.attack_rate, rate)])
 	var extras: PackedStringArray = []
 	var rows := UiKit.weapon_stat_rows(controller, weapon)
 	for i in range(2, rows.size()):
 		extras.append("%s %s" % [rows[i][0], rows[i][1]])
 	var projectiles := controller.get_projectile_count(weapon)
 	if projectiles > 1:
-		extras.append("%d Geschosse" % projectiles)
+		extras.append(_t(&"OVERVIEW_PROJECTILES", [projectiles]))
 	var pierce := controller.get_pierce_count(weapon)
 	if pierce > 0:
-		extras.append("Durchschlag %d" % pierce)
+		extras.append(_t(&"OVERVIEW_PIERCE", [pierce]))
 	var bounce := controller.get_bounce_count(weapon)
 	if bounce > 0:
-		extras.append("Abpraller %d" % bounce)
+		extras.append(_t(&"OVERVIEW_BOUNCE", [bounce]))
 	return PackedStringArray([first, " · ".join(extras)])
 
 

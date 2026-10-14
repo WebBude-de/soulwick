@@ -247,9 +247,9 @@ func _on_run_finished(player: Player, flawless: bool) -> void:
 		Burst.spawn(get_parent(), player.global_position + Vector2(0, -24), FLAWLESS_COLOR, 18, 130.0)
 	if context != null and context.ui != null:
 		if flawless:
-			context.ui.show_banner("Makellos!", "+%d Seelenkristall" % TrialRules.FLAWLESS_CRYSTALS, FLAWLESS_COLOR)
+			context.ui.show_banner(DungeonTexts.t(&"TRIAL_FLAWLESS"), DungeonTexts.t(&"TRIAL_FLAWLESS_SUB", [TrialRules.FLAWLESS_CRYSTALS]), FLAWLESS_COLOR)
 		else:
-			context.ui.show_banner("Prüfung bestanden", "Die Truhe gehört dir", CAPTION_COLOR)
+			context.ui.show_banner(DungeonTexts.t(&"TRIAL_PASSED"), DungeonTexts.t(&"TRIAL_PASSED_SUB"), CAPTION_COLOR)
 
 
 func _on_chest_opened(player: Player) -> void:
@@ -266,10 +266,10 @@ func _offer_chest_upgrade(player: Player) -> void:
 		return
 	var offer := context.upgrade_manager.roll_offer(player.weapon_controller.get_owned_weapons(), context.rng)
 	if offer.is_empty():
-		context.ui.show_banner("Die Truhe ist leer", "Keine Upgrades verfügbar", CAPTION_COLOR)
+		context.ui.show_banner(DungeonTexts.t(&"TRIAL_EMPTY"), DungeonTexts.t(&"UPGRADES_NONE"), CAPTION_COLOR)
 		return
 	_choosing = true
-	var choice: UpgradeData = await context.ui.choose_upgrade(offer, "Truhe der Prüfung")
+	var choice: UpgradeData = await context.ui.choose_upgrade(offer, DungeonTexts.t(&"TRIAL_CHEST"))
 	_choosing = false
 	if choice != null:
 		context.upgrade_manager.acquire_upgrade(choice)
@@ -311,7 +311,7 @@ func _build_props() -> void:
 	add_blocker(Vector2(44, 18), chest.base_position + Vector2(0, -10))
 	var caption_text := SpecialTable.get_trial_name(kind)
 	add_caption(caption_text, Vector2(TrialLayout.START.position.x + 1.5, TrialLayout.START.position.y - 0.0) * tile + Vector2(40, 14))
-	var reward := add_caption("Makellos: +%d Kristall" % TrialRules.FLAWLESS_CRYSTALS, chest.base_position + Vector2(0, -92))
+	var reward := add_caption(DungeonTexts.t(&"TRIAL_FLAWLESS_CAPTION", [TrialRules.FLAWLESS_CRYSTALS]), chest.base_position + Vector2(0, -92))
 	reward.add_theme_color_override("font_color", FLAWLESS_COLOR)
 	reward.add_theme_font_size_override("font_size", 13)
 

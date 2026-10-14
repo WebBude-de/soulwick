@@ -49,9 +49,9 @@ func _build_altar() -> void:
 	add_light(170.0, Vector2(0, -40))
 	_sprite = add_animated(ALTAR_STRIP, Vector2i(32, 48), 6.0, Vector2(16, 46))
 	add_blocker(Vector2(44, 24), Vector2(0, -10))
-	_interactable = add_interactable("Upgrade wählen", 56.0, Vector2(0, -24))
+	_interactable = add_interactable(DungeonTexts.t(&"ALTAR_PROMPT"), 56.0, Vector2(0, -24))
 	_interactable.interacted.connect(_on_interacted)
-	add_caption("Upgrade-Altar", Vector2(0, -116))
+	add_caption(DungeonTexts.t(&"ROOM_UPGRADE_ALTAR_TITLE"), Vector2(0, -116))
 
 
 func _build_pact_altar() -> void:
@@ -59,11 +59,11 @@ func _build_pact_altar() -> void:
 	light.flicker = 0.1
 	_sprite = add_animated(TrialArt.get_texture(TrialArt.PACT_ALTAR), TrialArt.get_frame_size(TrialArt.PACT_ALTAR), 6.0, TrialArt.get_pivot(TrialArt.PACT_ALTAR))
 	add_blocker(Vector2(44, 24), Vector2(0, -10))
-	_interactable = add_interactable("Pakt-Altar befragen", 56.0, Vector2(0, -24))
+	_interactable = add_interactable(DungeonTexts.t(&"PACT_PROMPT"), 56.0, Vector2(0, -24))
 	_interactable.interacted.connect(_on_interacted)
-	var title := add_caption("Pakt-Altar", Vector2(0, -132))
+	var title := add_caption(DungeonTexts.t(&"ROOM_PACT_TITLE"), Vector2(0, -132))
 	title.add_theme_color_override("font_color", PACT_COLOR)
-	var price := add_caption("Preis: %s" % PlayerCurses.get_curse_effect(pact_curse), Vector2(0, -110))
+	var price := add_caption(DungeonTexts.t(&"PACT_PRICE", [PlayerCurses.get_curse_effect(pact_curse)]), Vector2(0, -110))
 	price.add_theme_font_size_override("font_size", 13)
 	price.add_theme_color_override("font_color", Color(1.0, 0.6, 0.55))
 	_add_curse_icon(Vector2(0, -160))
@@ -116,9 +116,9 @@ func _on_interacted(player: Player) -> void:
 		_choosing = false
 		_interactable.enabled = false
 		_sprite.modulate = Color(0.6, 0.6, 0.7)
-		add_caption("Keine Upgrades verfügbar", Vector2(0, -140))
+		add_caption(DungeonTexts.t(&"UPGRADES_NONE"), Vector2(0, -140))
 		return
-	var title := "Pakt" if pact else ("Pakt-Altar" if is_pact else "Upgrade-Altar")
+	var title := DungeonTexts.t(&"PACT_DETAIL") if pact else DungeonTexts.t(&"ROOM_PACT_TITLE" if is_pact else &"ROOM_UPGRADE_ALTAR_TITLE")
 	var choice: UpgradeData = await context.ui.choose_upgrade(offer, title, PACT_STACKS if pact else 1)
 	_choosing = false
 	if choice != null and is_instance_valid(player):
@@ -145,19 +145,19 @@ func roll_pact_offer(owned: Array[WeaponData]) -> Array[UpgradeData]:
 
 ## 0 = normal extra upgrade, 1 = pact, -1 = Esc.
 func _ask_pact(curse: int) -> int:
-	var options: Array = [{"text": "Extra-Upgrade", "sub": "1 Stufe, kein Preis"}]
+	var options: Array = [{"text": DungeonTexts.t(&"PACT_OPTION_PLAIN"), "sub": DungeonTexts.t(&"PACT_OPTION_PLAIN_SUB"), "color": UiKit.COLOR_GOLD}]
 	var details: Array = []
-	var text := "Nimm ein gewöhnliches Upgrade – oder schließe einen Pakt."
+	var text := DungeonTexts.t(&"PACT_QUESTION")
 	if curse >= 0:
-		options.append({"text": "Pakt schließen", "sub": "Fluch: %s" % PlayerCurses.get_curse_name(curse)})
+		options.append({"text": DungeonTexts.t(&"PACT_OPTION_PACT"), "sub": DungeonTexts.t(&"PACT_OPTION_CURSE", [PlayerCurses.get_curse_name(curse)]), "color": UiKit.COLOR_DANGER_SOFT})
 		details = [
-			["Pakt", "Upgrade +%d Stufen" % PACT_STACKS, UiKit.COLOR_GOLD],
-			["Fluch (ganzer Run)", PlayerCurses.get_curse_effect(curse), UiKit.COLOR_DANGER_SOFT],
+			[DungeonTexts.t(&"PACT_DETAIL"), DungeonTexts.t(&"PACT_DETAIL_VALUE", [PACT_STACKS]), UiKit.COLOR_GOLD],
+			[DungeonTexts.t(&"PACT_DETAIL_CURSE"), PlayerCurses.get_curse_effect(curse), UiKit.COLOR_DANGER_SOFT],
 		]
 	else:
-		text = "Der Altar verlangt nichts mehr von dir – nur das gewöhnliche Upgrade bleibt."
-	var footnote := "Flüche zeigt die Übersicht (Tab)." if curse >= 0 else ""
-	return await context.ui.choose_option("Pakt-Altar", text, details, options, true, footnote)
+		text = DungeonTexts.t(&"PACT_NOTHING")
+	var footnote := DungeonTexts.t(&"PACT_FOOTNOTE") if curse >= 0 else ""
+	return await context.ui.choose_option(DungeonTexts.t(&"ROOM_PACT_TITLE"), text, details, options, true, footnote)
 
 
 ## Effects of a choice: the upgrade (one stack, or PACT_STACKS for a pact) and the curse.
@@ -170,7 +170,7 @@ func _on_choice_taken(player: Player, upgrade: UpgradeData, curse: int) -> void:
 		Sfx.play_at(self, &"blind", global_position)
 		Burst.spawn(get_parent(), global_position + Vector2(0, -50), PACT_COLOR, 24, 150.0)
 		if context.ui != null:
-			context.ui.show_banner("Pakt geschlossen", "%s: %s" % [PlayerCurses.get_curse_name(curse), PlayerCurses.get_curse_effect(curse)], PACT_COLOR)
+			context.ui.show_banner(DungeonTexts.t(&"PACT_DONE"), "%s: %s" % [PlayerCurses.get_curse_name(curse), PlayerCurses.get_curse_effect(curse)], PACT_COLOR)
 	else:
 		Sfx.play_at(self, &"upgrade", global_position)
 

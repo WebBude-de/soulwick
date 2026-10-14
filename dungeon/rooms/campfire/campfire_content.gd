@@ -84,9 +84,9 @@ func _on_setup() -> void:
 	add_blocker(Vector2(56, 14), BEDROLL_OFFSET + Vector2(0, -8))
 	add_sprite(CampfireArt.get_texture(CampfireArt.PACK), PACK_PIVOT, PACK_OFFSET)
 	add_blocker(Vector2(24, 12), PACK_OFFSET + Vector2(0, -6))
-	_interactable = add_interactable("Am Feuer rasten", 72.0, Vector2(0, 8))
+	_interactable = add_interactable(DungeonTexts.t(&"CAMPFIRE_PROMPT"), 72.0, Vector2(0, 8))
 	_interactable.interacted.connect(_on_interacted)
-	add_caption("Lagerfeuer", Vector2(0, -92))
+	add_caption(DungeonTexts.t(&"ROOM_CAMPFIRE_TITLE"), Vector2(0, -92))
 	_add_biome_glows()
 	_add_transition_overlays()
 	rest_taken.connect(_on_rest_taken)
@@ -117,7 +117,7 @@ func _on_interacted(player: Player) -> void:
 	var upgrades := get_stackable_upgrades(context.upgrade_manager)
 	var heal_possible := can_heal(player)
 	if upgrades.is_empty() and not heal_possible:
-		context.ui.show_banner("Gut ausgeruht", "Volle Gesundheit, kein Upgrade zum Stärken", UiKit.COLOR_GOLD)
+		context.ui.show_banner(DungeonTexts.t(&"CAMPFIRE_RESTED_TITLE"), DungeonTexts.t(&"CAMPFIRE_RESTED_SUB"), UiKit.COLOR_GOLD)
 		return
 	_choosing = true
 	var pick: int = await context.ui.choose_campfire_rest(HEAL_AMOUNT, heal_possible, upgrades, player)
@@ -146,7 +146,7 @@ func _update_interactable() -> void:
 		if not has_rested(player):
 			return
 	_interactable.enabled = false
-	_interactable.prompt = "Ausgeruht"
+	_interactable.prompt = DungeonTexts.t(&"CAMPFIRE_RESTED_PROMPT")
 
 
 ## All players of the run. Single player today; the list keeps the per-player logic ready (MP1).

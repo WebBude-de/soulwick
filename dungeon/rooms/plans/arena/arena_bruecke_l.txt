@@ -1,0 +1,25 @@
+# Brueckenarena (L) als Hoehle: ein Graben quer durch die Mitte mit einer Bruecke, vier Tore in der
+# Nordwand, Feuerschalen in den Ecken.
+role: combat
+class: L
+kind: arena
+mode: arena
+biomes: all
+name: Brueckenarena (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxg###g###N###g###gxxxxxx
+xxxxxx..................xxxxx
+xxxx.B.................B.xxxx
+xx.........................xx
+xx.........................xx
+xx......~~~~~~=~~~~~~......xx
+xxx.....~~~~~~=~~~~~~.....xxx
+xxx.......................xxx
+xxxx.B.................B.xxxx
+xxxxx........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

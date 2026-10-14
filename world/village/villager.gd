@@ -35,6 +35,7 @@ var _forward := true
 var _wait := 0.0
 var _has_walk := false
 var _bob_time := 0.0
+var _cloak := Color.WHITE
 
 
 ## Next route index after index (count points): loop or back and forth. Returns [index, forward].
@@ -68,6 +69,7 @@ func _ready() -> void:
 	# Feet (lowest opaque row of the art) at FEET_OFFSET.
 	_sprite.offset = Vector2(0, VillageArt.feet_offset_y(frames))
 	_sprite.position = FEET_OFFSET
+	_sprite.self_modulate = _cloak
 	add_child(_sprite)
 	_sprite.play(&"idle")
 	DropShadow.attach(self, 7.0 * art_scale * frame_size.x / 32.0, FEET_OFFSET.y)
@@ -75,6 +77,17 @@ func _ready() -> void:
 		position = route[0] - FEET_OFFSET
 	_target = 1 if route.size() > 1 else 0
 	_wait = randf_range(0.0, pause_max)
+
+
+## Cloak colour of a rescued villager (R7: LostVillager.CLOAK_TINTS, like in the escort room).
+func set_cloak(tint: Color) -> void:
+	_cloak = tint
+	if _sprite != null:
+		_sprite.self_modulate = tint
+
+
+func get_cloak() -> Color:
+	return _cloak
 
 
 ## Feet position in village coordinates.

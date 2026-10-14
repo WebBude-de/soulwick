@@ -1,21 +1,22 @@
-# Wachposten (S): eine Quermauer mit breitem Durchlass teilt den Raum, im Durchlass steht der
-# Wachposten (Fackelstaender, Schutt, Knochen); Fackeln buendig in der Quermauer.
-name: Wachposten
+# Wachposten (S): ein Wachfeuer zwischen zwei Felsbloecken, Quellen an den Flanken; Nordplaetze an
+# beiden Seiten fuer eine Abzweigung.
 role: combat
 mode: clear
+mirror: yes
 biomes: all
-size: 19x13
+name: Wachposten
+exit: 2
+size: 21x12
 ---
-###################
-###################
-###n#####N#####n###
-##...............##
-##..G.........G..##
-##...............##
-#######.....#######
-####T##..Z..##T####
-##...............##
-##.G...........G.##
-##.......@.......##
-#########S#########
-###################
+xxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxx
+xxx#N####N###T#N#xxxx
+xxx....,,.......:xxxx
+xx..........G....xxxx
+xx...##.....##.....xx
+xx...##..Z..##.....xx
+xxx.G.........G....xx
+xxxx.........k....xxx
+xxxxx...@.....xxxxxxx
+xxxxxxxxxxSxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxx

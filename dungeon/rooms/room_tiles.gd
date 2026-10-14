@@ -40,6 +40,17 @@ extends TileMapLayer
 ## wall (secret_cracks, plan cell 'q') and the wall fronts holding a fixture (front_fixtures: torch,
 ## niche, gate, rift - nothing else goes there). A secret niche is drawn as plain rock until its
 ## wall breaks, so it never shows as a box in the rock.
+## Walls as one 47-piece terrain (M1, RockTerrain): the same floor mask, but every border between
+## floor and solid gets the same edge, corners included. This layer keeps collision and navigation
+## (floor cells, an invisible solid tile on every solid cell); a draw-only child layer ("Rock")
+## draws the pieces (composited over the floor), the backdrop below every room the enclosed rock, so
+## no room's plain rock covers a neighbour's edge. rock_style picks the look: BLOB = cave rock (soft
+## set, seamless floor), WALL = masonry (the biome's set with brick fronts on its tile floor). Floor
+## zones (zone_cells: slab, cobble, dirt, rubble with frayed edges) and scatter overlays
+## (overlay_cells) lie on two draw-only child layers between floor and rock; the generator fixes both
+## per template (no dungeon RNG). plateau_tiles, ladder_tiles and stair_tiles only carry the plan's
+## height markers for M3; until then they are rock. Without the terrain art (editor, old tilesets)
+## the walls fall back to the WallAutotile pieces above.
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -99,6 +110,12 @@ const MOSS_FLOOR := Vector2i(3, 0)
 
 ## Wall a door sits in; same order as RoomTemplate.DoorSide.
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
+## What the walls are made of (M1): masonry or cave rock.
+enum RockStyle { WALL, BLOB }
+## Child layers of a cave room (draw only), in drawing order.
+const ZONES_NAME := "Zones"
+const OVERLAYS_NAME := "Overlays"
+const ROCK_NAME := "Rock"
 ## Outward direction of each side (from the floor through the door).
 const SIDE_DIRECTIONS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 ## No second exit (branch_exit.x).
@@ -199,6 +216,27 @@ signal walls_opened(tiles: Array[Vector2i])
 		bridge_rects = value
 		_pits_dirty = true
 		_queue_paint()
+## Masonry (rest, boss, crypt halls, campfire) or a cave of rock (RockTerrain look, M1).
+@export var rock_style: RockStyle = RockStyle.WALL:
+	set(value):
+		rock_style = value
+		_queue_paint()
+## Plan header "cave": the room's entrance is a cave mouth instead of an arch (door art: M2).
+@export var cave_mouth := false
+## Floor zones of the plan (M1): x, y = floor tile, z = RockTerrain.Zone.
+@export var zone_cells: Array[Vector3i] = []:
+	set(value):
+		zone_cells = value
+		_queue_paint()
+## Scatter overlays (M1): x, y = floor tile, z = RockTerrain.Overlay | RockTerrain.FLIP_BIT * flip.
+@export var overlay_cells: Array[Vector3i] = []:
+	set(value):
+		overlay_cells = value
+		_queue_paint()
+## Height markers of the plan for M3 (plateau '^', ladder 'L', stairs '&'); built as rock until then.
+@export var plateau_tiles: Array[Vector2i] = []
+@export var ladder_tiles: Array[Vector2i] = []
+@export var stair_tiles: Array[Vector2i] = []
 
 var _paint_queued := false
 var _backdrop: TileMapLayer = null
@@ -233,6 +271,12 @@ var _extra_floor: Dictionary[Vector2i, bool] = {}
 var _niche_open := false
 var _water: ShallowWater = null
 var _cliffs: Node2D = null
+## The 47-piece terrain is drawn (its art is there); decided at each paint(). _look follows rock_style.
+var _terrain_active := false
+var _look := RockTerrain.Look.MASONRY
+var _zone_layer: TileMapLayer = null
+var _overlay_layer: TileMapLayer = null
+var _rock_layer: TileMapLayer = null
 
 
 func _ready() -> void:
@@ -763,6 +807,7 @@ func set_biome_blend(next_tileset: TileSet, next_tint: Color, from_row: float, t
 		_blend_material = ShaderMaterial.new()
 		_blend_material.shader = BLEND_SHADER
 	WallAutotile.ensure_source(next_tileset)
+	RockTerrain.ensure_sources(next_tileset)
 	_blend_layer = _make_blend_layer(_blend_layer, BLEND_NAME, 0)
 	_blend_backdrop = _make_blend_layer(_blend_backdrop, BLEND_BACKDROP_NAME, -1)
 	for layer: TileMapLayer in [_blend_layer, _blend_backdrop]:
@@ -819,11 +864,15 @@ func _copy_cells_to_blend() -> void:
 		return
 	_blend_layer.clear()
 	for cell in get_used_cells():
-		_blend_layer.set_cell(cell, get_cell_source_id(cell), get_cell_atlas_coords(cell))
+		# A solid cell of the terrain is invisible here: its piece lies on the rock layer.
+		if _rock_layer != null and _rock_layer.get_cell_source_id(cell) >= 0:
+			_blend_layer.set_cell(cell, _rock_layer.get_cell_source_id(cell), _rock_layer.get_cell_atlas_coords(cell))
+		else:
+			_blend_layer.set_cell(cell, get_cell_source_id(cell), get_cell_atlas_coords(cell))
 	_blend_backdrop.clear()
 	if _backdrop != null:
 		for cell in _backdrop.get_used_cells():
-			_blend_backdrop.set_cell(cell, SOURCE_ID, _backdrop.get_cell_atlas_coords(cell))
+			_blend_backdrop.set_cell(cell, _backdrop.get_cell_source_id(cell), _backdrop.get_cell_atlas_coords(cell))
 
 
 ## The shader works in world space (TileMapLayer quadrants have their own transforms).
@@ -846,11 +895,16 @@ func use_tileset(new_tileset: TileSet) -> void:
 	# The wall pieces of the new biome must exist before the cells point at them.
 	WallAutotile.ensure_source(new_tileset)
 	AbyssAutotile.ensure_source(new_tileset)
+	# The cave pieces too (same source ids and layout in every biome); without them the room
+	# falls back to masonry on the next paint.
+	var had_terrain := _terrain_active
+	var terrain := RockTerrain.ensure_sources(new_tileset) and RockTerrain.has_look(new_tileset, _look_of_style())
 	tile_set = new_tileset
-	if _backdrop != null:
-		_backdrop.tile_set = new_tileset
-	if _abyss_under != null:
-		_abyss_under.tile_set = new_tileset
+	for layer in [_backdrop, _abyss_under, _zone_layer, _overlay_layer, _rock_layer]:
+		if layer != null:
+			(layer as TileMapLayer).tile_set = new_tileset
+	if had_terrain != terrain and is_inside_tree():
+		paint()
 	# The rock faces and the water take the biome's colours.
 	if is_inside_tree():
 		_paint_cliffs()
@@ -869,9 +923,17 @@ func paint() -> void:
 	_floor_cells.clear()
 	if _abyss_under != null:
 		_abyss_under.clear()
+	for layer in [_zone_layer, _overlay_layer, _rock_layer]:
+		if layer != null:
+			(layer as TileMapLayer).clear()
+	_look = _look_of_style()
+	_terrain_active = false
 	if WallAutotile.ensure_source(tile_set):
 		AbyssAutotile.ensure_source(tile_set)
+		_terrain_active = RockTerrain.ensure_sources(tile_set) and RockTerrain.has_look(tile_set, _look)
 		_paint_from_mask(rng)
+		if _terrain_active:
+			_paint_ground_details()
 	else:
 		_paint_legacy(rng)
 	_paint_backdrop()
@@ -917,6 +979,9 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 				if moss_tiles.has(tile):
 					_floor_cells[tile] = MOSS_FLOOR
 				_paint_floor_cell(tile)
+				continue
+			if _terrain_active:
+				_paint_rock_cell(tile, floor_mask)
 				continue
 			var piece := WallAutotile.cell_for_floor(tile, floor_mask)
 			if piece == WallAutotile.ROCK:
@@ -1059,6 +1124,11 @@ func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 				rng.seed = absi(hash(tile)) + floor_seed
 				_floor_cells[tile] = _random_floor(rng)
 			_paint_floor_cell(tile)
+			if _rock_layer != null:
+				_rock_layer.erase_cell(tile)
+			continue
+		if _terrain_active:
+			_paint_rock_cell(tile, floor_mask)
 			continue
 		var piece := WallAutotile.cell_for_floor(tile, floor_mask)
 		if piece == WallAutotile.ROCK:
@@ -1085,13 +1155,130 @@ func _paint_backdrop() -> void:
 	_backdrop.clear()
 	var outer := get_backdrop_rect()
 	var painted := get_painted_parts()
+	var cell := get_rock_fill_cell()
 	for y in range(outer.position.y, outer.end.y):
 		for x in range(outer.position.x, outer.end.x):
 			var tile := Vector2i(x, y)
-			if not _in_any(painted, tile):
-				_backdrop.set_cell(tile, SOURCE_ID, WALL_TOP)
+			# With the terrain the enclosed rock of the room itself lies here too (below every room).
+			if _terrain_active or not _in_any(painted, tile):
+				_backdrop.set_cell(tile, cell.z, Vector2i(cell.x, cell.y))
 	if _blend_backdrop != null:
 		_copy_cells_to_blend()
+
+
+## Cell of plain rock around the room (backdrop, and the hook for rock fills of the DungeonManager):
+## x, y = atlas coords, z = source id. Masonry rooms: the wall-top tile; cave rooms: full rock.
+func get_rock_fill_cell() -> Vector3i:
+	if _terrain_active:
+		return RockTerrain.fill_cell(_look, tile_set)
+	return Vector3i(WALL_TOP.x, WALL_TOP.y, SOURCE_ID)
+
+
+## Is the room's rock the cave's soft rock (M1)? True for cave rooms and, with the soft set, for
+## masonry rooms too: both share the rock, its fill around the room and the soft doors, so neither
+## has to give way to the other where they meet (PassageSeam, DoorStyle). get_look() tells them apart.
+func is_cave_look() -> bool:
+	if not _terrain_active:
+		return false
+	return _look == RockTerrain.Look.CAVE or RockTerrain.floor_source(_look, tile_set) == RockTerrain.SOURCE_MASONRY_GROUND
+
+
+## Atlas source of plain floor cells (SOURCE_ID without the terrain, else the look's floor source).
+func get_floor_source() -> int:
+	if _terrain_active and RockTerrain.floor_source(_look, tile_set) >= 0:
+		return RockTerrain.floor_source(_look, tile_set)
+	return SOURCE_ID
+
+
+## The look the walls are drawn in (RockTerrain.Look, from rock_style).
+func get_look() -> RockTerrain.Look:
+	return _look
+
+
+## Is the 47-piece terrain drawn (either look)?
+func is_terrain_drawn() -> bool:
+	return _terrain_active
+
+
+func _look_of_style() -> RockTerrain.Look:
+	return RockTerrain.Look.CAVE if rock_style == RockStyle.BLOB else RockTerrain.Look.MASONRY
+
+
+func get_rock_layer() -> TileMapLayer:
+	return _rock_layer
+
+
+func get_zone_layer() -> TileMapLayer:
+	return _zone_layer
+
+
+func get_overlay_layer() -> TileMapLayer:
+	return _overlay_layer
+
+
+## Solid tile with the terrain: this layer gets the invisible solid tile (collision, no navigation),
+## the rock layer the piece of the mass; enclosed rock is left to the backdrop.
+func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
+	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.SOLID)
+	_ensure_cave_layers()
+	if RockTerrain.is_enclosed(tile, floor_mask):
+		_rock_layer.erase_cell(tile)
+	else:
+		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask))
+
+
+## The draw-only child layers of a cave room, in drawing order: zones, overlays, rock.
+func _ensure_cave_layers() -> void:
+	if _rock_layer != null:
+		return
+	_zone_layer = _make_draw_layer(ZONES_NAME)
+	_overlay_layer = _make_draw_layer(OVERLAYS_NAME)
+	_rock_layer = _make_draw_layer(ROCK_NAME)
+
+
+func _make_draw_layer(layer_name: String) -> TileMapLayer:
+	var layer := TileMapLayer.new()
+	layer.name = layer_name
+	layer.collision_enabled = false
+	layer.navigation_enabled = false
+	layer.occlusion_enabled = false
+	layer.use_parent_material = true
+	layer.tile_set = tile_set
+	add_child(layer, false, Node.INTERNAL_MODE_FRONT)
+	return layer
+
+
+## Zones and overlays of the plan, never on pits, bridges, water or walls.
+func _paint_ground_details() -> void:
+	if zone_cells.is_empty() and overlay_cells.is_empty():
+		return
+	_ensure_cave_layers()
+	var floor_mask := get_floor_mask()
+	var zones: Dictionary[Vector2i, int] = {}
+	var zone_source := RockTerrain.zone_source(_look, tile_set)
+	if tile_set.has_source(zone_source):
+		for cell in zone_cells:
+			var tile := Vector2i(cell.x, cell.y)
+			if _plain_ground(tile, floor_mask):
+				zones[tile] = cell.z
+	var directions: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+	for tile: Vector2i in zones:
+		var same := 0
+		for i in directions.size():
+			if zones.get(tile + directions[i], -1) == zones[tile]:
+				same |= 1 << i
+		_zone_layer.set_cell(tile, zone_source, RockTerrain.zone_coords(zones[tile], same))
+	if tile_set.has_source(RockTerrain.SOURCE_OVERLAY):
+		for cell in overlay_cells:
+			var tile := Vector2i(cell.x, cell.y)
+			if not _plain_ground(tile, floor_mask):
+				continue
+			var flip := TileSetAtlasSource.TRANSFORM_FLIP_H if cell.z & RockTerrain.FLIP_BIT else 0
+			_overlay_layer.set_cell(tile, RockTerrain.SOURCE_OVERLAY, Vector2i(cell.z % RockTerrain.FLIP_BIT, 0), flip)
+
+
+func _plain_ground(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
+	return floor_mask.has(tile) and not is_pit(tile) and not is_bridge(tile) and not is_water(tile)
 
 
 ## Floor tile of the mask: abyss piece, bridge (with the abyss below it) or the remembered floor.
@@ -1099,13 +1286,25 @@ func _paint_floor_cell(tile: Vector2i) -> void:
 	if is_pit(tile):
 		_set_abyss_cell(self, tile)
 		_set_under_cell(tile, false)
+		_erase_ground_details(tile)
 	elif is_bridge(tile):
 		var piece := _bridge_piece(tile)
 		set_cell(tile, SOURCE_BRIDGE, piece[0], piece[1])
 		_set_under_cell(tile, true)
+	elif _terrain_active and RockTerrain.floor_source(_look, tile_set) >= 0:
+		set_cell(tile, RockTerrain.floor_source(_look, tile_set), RockTerrain.ground_coords(_floor_cells.get(tile, FLOOR_TILES[0]).x))
+		_set_under_cell(tile, false)
 	else:
 		_put_tile(tile, _floor_cells.get(tile, FLOOR_TILES[0]))
 		_set_under_cell(tile, false)
+
+
+## A floor tile that became abyss loses its zone and overlay.
+func _erase_ground_details(tile: Vector2i) -> void:
+	if _zone_layer != null:
+		_zone_layer.erase_cell(tile)
+	if _overlay_layer != null:
+		_overlay_layer.erase_cell(tile)
 
 
 ## Abyss piece of a pit tile on layer (bridges count as abyss for the rim).
@@ -1221,12 +1420,15 @@ func _paint_cliffs() -> void:
 			child.queue_free()
 	if Engine.is_editor_hint() or tile_set == null or not has_pits():
 		return
-	var path := CLIFF_ART_PATH % WallAutotile.biome_of(tile_set)
-	if not ResourceLoader.exists(path):
-		path = CLIFF_ART_PATH % "crypt"
-	if not ResourceLoader.exists(path):
-		return
-	var texture := load(path) as Texture2D
+	# A cave's abyss falls away under the same rock face as its walls (M1).
+	var texture: Texture2D = RockTerrain.cliff_texture(WallAutotile.biome_of(tile_set)) if _terrain_active and _look == RockTerrain.Look.CAVE else null
+	if texture == null:
+		var path := CLIFF_ART_PATH % WallAutotile.biome_of(tile_set)
+		if not ResourceLoader.exists(path):
+			path = CLIFF_ART_PATH % "crypt"
+		if not ResourceLoader.exists(path):
+			return
+		texture = load(path) as Texture2D
 	if _cliffs == null:
 		_cliffs = Node2D.new()
 		_cliffs.name = CLIFF_NAME

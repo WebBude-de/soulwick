@@ -22,10 +22,11 @@ const GOLD_ICON: Texture2D = preload("res://art/ui/gold_icon.png")
 const CRYSTAL_ICON: Texture2D = preload("res://art/ui/crystal_icon.png")
 const INFO_ICON: Texture2D = preload("res://art/ui/icon_info.png")
 const LOCK_ICON: Texture2D = preload("res://art/ui/icon_lock.png")
-## Notice at the top of the screen: seconds visible (plus fade), fade time, top margin in px.
+## Notice at the top of the screen: seconds visible (plus fade), fade time, top margin in px
+## (R7, 07_ui.md: below the HUD row, whose gold panel ends at about 90 px).
 const NOTICE_TIME := 4.0
 const NOTICE_FADE := 0.4
-const NOTICE_TOP := 70.0
+const NOTICE_TOP := 104.0
 const NOTICE_TEXT_WIDTH := 520.0
 const UPGRADE_ICONS := {
 	MetaProgression.VITALITY: preload("res://art/ui/meta_vitality.png"),

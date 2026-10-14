@@ -1,7 +1,7 @@
 class_name GameOptions
 extends RefCounted
 ## Player options that are not the Music/SFX volumes (UX1, UX3): language (D-111), master volume,
-## window mode, VSync, screen shake, hit stop, damage numbers, reduced flashes. Global like the
+## window mode, VSync, brightness (R8, R6 hook), light effects (L1), screen shake, hit stop, damage numbers, reduced flashes. Global like the
 ## volumes (settings.cfg [options] via SaveManager.get_option/set_option, not per save slot).
 ## apply_all() runs at start (scenes/main.gd, scenes/world_controller.gd); the options view calls
 ## the setters, which store and apply at once. F11 toggles the window mode everywhere.
@@ -25,6 +25,18 @@ const SCREEN_SHAKE: StringName = &"screen_shake"
 const HIT_STOP: StringName = &"hit_stop"
 const DAMAGE_NUMBERS: StringName = &"damage_numbers"
 const REDUCE_FLASHES: StringName = &"reduce_flashes"
+## Brightness of the dungeon darkness, -1 (darker) .. +1 (brighter), 0 = as designed (R6/R8). Only
+## the drawn ambient moves (LightingProfile.set_brightness); what enemies and the player see in game
+## logic (LightQuery) stays the same.
+const BRIGHTNESS: StringName = &"brightness"
+const BRIGHTNESS_MIN := -1.0
+const BRIGHTNESS_MAX := 1.0
+## Light effects (L1): "high" draws glow halos, biome grading, mist and ambient particles, "low"
+## switches them off for weak computers (LightingQuality). Gameplay light stays the same.
+const LIGHT_EFFECTS: StringName = &"light_effects"
+const LIGHT_LOW: StringName = &"low"
+const LIGHT_HIGH: StringName = &"high"
+const LIGHT_LEVELS: Array[StringName] = [LIGHT_LOW, LIGHT_HIGH]
 
 const LANGUAGE_AUTO: StringName = &"auto"
 const LANGUAGES: Array[StringName] = [LANGUAGE_AUTO, &"en", &"de"]
@@ -49,6 +61,8 @@ const DEFAULTS := {
 	HIT_STOP: true,
 	DAMAGE_NUMBERS: true,
 	REDUCE_FLASHES: false,
+	BRIGHTNESS: 0.0,
+	LIGHT_EFFECTS: "high",
 }
 
 
@@ -57,6 +71,8 @@ static func apply_all() -> void:
 	apply_window_mode()
 	apply_vsync()
 	apply_master_volume()
+	apply_brightness()
+	apply_light_effects()
 	CameraShake.enabled = is_screen_shake_enabled()
 
 
@@ -194,6 +210,44 @@ static func apply_vsync() -> void:
 	var on := is_vsync_enabled()
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if on else DisplayServer.VSYNC_DISABLED)
 	Engine.max_fps = 0 if on else MAX_FPS_WITHOUT_VSYNC
+
+
+# --- Brightness (R8, hook of R6) ---
+
+## -1 .. +1, 0 = as designed.
+static func get_brightness() -> float:
+	var value: Variant = SaveManager.get_option(BRIGHTNESS, 0.0)
+	if typeof(value) != TYPE_FLOAT and typeof(value) != TYPE_INT:
+		return 0.0
+	return clampf(float(value), BRIGHTNESS_MIN, BRIGHTNESS_MAX)
+
+
+static func set_brightness(value: float) -> void:
+	SaveManager.set_option(BRIGHTNESS, snappedf(clampf(value, BRIGHTNESS_MIN, BRIGHTNESS_MAX), 0.05))
+	apply_brightness()
+
+
+static func apply_brightness() -> void:
+	LightingProfile.set_brightness(get_brightness())
+
+
+# --- Light effects (L1) ---
+
+## "high" (default) or "low".
+static func get_light_effects() -> StringName:
+	var value := StringName(str(SaveManager.get_option(LIGHT_EFFECTS, "high")))
+	return value if LIGHT_LEVELS.has(value) else LIGHT_HIGH
+
+
+static func set_light_effects(level: StringName) -> void:
+	if not LIGHT_LEVELS.has(level):
+		level = LIGHT_HIGH
+	SaveManager.set_option(LIGHT_EFFECTS, String(level))
+	apply_light_effects()
+
+
+static func apply_light_effects() -> void:
+	LightingQuality.set_high(get_light_effects() == LIGHT_HIGH)
 
 
 # --- Game feel ---

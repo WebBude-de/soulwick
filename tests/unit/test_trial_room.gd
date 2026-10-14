@@ -105,7 +105,10 @@ func test_shortcut_gate_opens_the_way_back() -> void:
 	assert_true(tiles.is_walkable(TrialLayout.CHEST_TILE + Vector2i.RIGHT))
 	await wait_physics_frames(2)
 	var cell := Vector2i(TrialLayout.GATE.position.x, TrialLayout.GATE.position.y)
-	assert_eq(tiles.get_cell_source_id(cell), RoomTiles.SOURCE_ID, "repainted as floor")
+	assert_eq(tiles.get_cell_source_id(cell), tiles.get_floor_source(), "repainted as floor")
+	assert_not_null(tiles.get_cell_tile_data(cell).get_navigation_polygon(0), "walkable for the navigation")
+	if tiles.get_rock_layer() != null:
+		assert_eq(tiles.get_rock_layer().get_cell_source_id(cell), -1, "no rock left on the gate")
 
 
 func test_path_runs_from_start_to_finish_inside_the_parcours() -> void:

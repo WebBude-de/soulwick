@@ -1,0 +1,25 @@
+# Dunkle Hoehle (L): fast schwarz, ein brennender und fuenf kalte Fackelstaender, Steinwaechter im
+# Dunkeln, zwei Felsbloecke werfen Schatten. Keine Wandfackeln.
+role: combat
+class: L
+biomes: all
+mode: beacon
+auto_deco: no
+name: Dunkle Hoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxx####N###########xxxxxxx
+xxxxxx..................xxxxx
+xxxx.u.................u.xxxx
+xx............M............xx
+xx.......##.......##.......xx
+xx.....M.##...u...##.M.....xx
+xxx......##.......##......xxx
+xxx.......................xxx
+xxxx.u.................u.xxxx
+xxxxx.......t@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

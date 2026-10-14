@@ -1,0 +1,23 @@
+# Makeover 3, Mockup 26 (Rundhoehle): runder Umriss, Felsblock links, Empore rechts (bis M3 als Fels,
+# Plan-Marker ^), Tropfstelle, Kristall; Nordplatz links fuer eine Abzweigung.
+role: combat
+mode: clear
+mirror: yes
+biomes: all
+name: Rundhoehle
+exit: 2
+size: 23x13
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxN#T#####N####T#xxxx
+xxx...:......,,....xxxx
+xx....::.G.......k..xxx
+xx...G........^^^^...xx
+xx............^^^^d..xx
+xxx....###...........xx
+xxxx..C###....,,..G.xxx
+xxxxx......@,,.G...xxxx
+xxxxxxx..........xxxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

@@ -1,21 +1,20 @@
-# Waffenkammer-Nische (01_raumarten.md, Ruhe): die zwei Waffensockel (WeaponContent) stehen am
-# Waffenstaender j vor einer Nische der Nordseite, Fackeln in den Mauervorspruengen, Kisten links und
-# rechts.
-name: Waffenkammer
+# Waffenkammer (Makeover 3 §13, Mockup 32): Apsis mit Seitennischen, die Waffensockel (WeaponContent)
+# am Ende des Plattenwegs, Saerge und Kerzen in den Nischen, Fass und Schutt am Eingang.
 role: rest
 mode: rest
-special: weapon
 biomes: all
+special: weapon
+name: Waffenkammer
 size: 17x11
 ---
-#################
-#################
-########N########
-##T##.......##T##
-##..a.......a..##
-##......j......##
-##...........r.##
-##.............##
-##......@......##
-########S########
-#################
+xxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxx
+xxx#T###N###T#xxx
+xxx.;;;;;;;;;.xxx
+xx#o..;;;;;..o#xx
+xx#.K.;;j;;.K.#xx
+xx#.b.;;;;;.r.#xx
+xxxx..;;;;;..xxxx
+xxxxx..;;;..xxxxx
+xxxxxxxxSxxxxxxxx
+xxxxxxxxxxxxxxxxx

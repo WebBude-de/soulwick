@@ -55,9 +55,49 @@ func test_each_biome_has_its_own_leaf_and_sound() -> void:
 		assert_eq(style.kind, DoorStyle.KIND_NORMAL)
 		assert_eq(style.frame_size, Vector2i(48, 48), "frame size %s" % biome)
 		leaves[style.leaf_kind] = true
-		sounds[style.open_sound] = true
-	assert_eq(leaves.size(), 4, "four different leaves")
-	assert_eq(sounds.size(), 4, "four different opening sounds")
+		sounds[style.side_open_sound] = true
+	assert_eq(leaves.size(), 4, "four different side leaves")
+	assert_eq(sounds.size(), 4, "four different side door sounds")
+
+
+## M2 (gates.json): slab in crypt and shadow realm, portcullis in grotto and forge and every arena;
+## stone grinds, chains rattle; cave rooms frame their gate with the cave mouth.
+func test_gates_per_biome_and_room() -> void:
+	assert_eq(DoorStyle.for_door(&"crypt").gate, DoorStyle.GATE_SLAB)
+	assert_eq(DoorStyle.for_door(&"shadow_realm").gate, DoorStyle.GATE_SLAB)
+	assert_eq(DoorStyle.for_door(&"slime_grotto").gate, DoorStyle.GATE_BARS)
+	assert_eq(DoorStyle.for_door(&"ember_forge").gate, DoorStyle.GATE_BARS)
+	assert_eq(DoorStyle.for_door(&"crypt").open_sound, &"stone_grind")
+	assert_eq(DoorStyle.for_door(&"ember_forge").open_sound, &"door_open_gate")
+	var arena := DoorStyle.for_door(&"crypt")
+	arena.apply_room_look(false, false, true)
+	assert_eq(arena.gate, DoorStyle.GATE_BARS, "arenas close their ways with a portcullis")
+	var cave := DoorStyle.for_door(&"slime_grotto")
+	cave.apply_room_look(true)
+	assert_true(cave.is_cave())
+	assert_eq(cave.frame_size, DoorStyle.CAVE_FRAME_SIZE)
+	assert_eq(cave.leaf_offset, DoorStyle.CAVE_LEAF_OFFSET)
+	assert_eq(cave.get_frame_path(), "res://art/environment/doors/cave_mouth_slime_grotto.png")
+	var soft := DoorStyle.for_door(&"crypt")
+	soft.apply_room_look(true, true)
+	assert_eq(soft.get_frame_path(), "res://art/environment/doors/cave_mouth_crypt_soft.png")
+	var boss := DoorStyle.for_door(&"slime_grotto", DoorStyle.KIND_BOSS)
+	boss.apply_room_look(true, false, true)
+	assert_false(boss.is_gate(), "the boss gate keeps its chained double door")
+	assert_false(boss.is_cave())
+	assert_ne(DoorStyle.for_door(&"crypt").get_key(), cave.get_key())
+
+
+func test_cave_rooms_by_template_or_fallback() -> void:
+	assert_false(DoorStyle.is_cave_room(null, &"slime_grotto"))
+	var hall := (load("res://dungeon/rooms/combat/combat_hall.tscn") as PackedScene).instantiate() as RoomController
+	autofree(hall)
+	var template := RoomTemplate.of(hall)
+	if template != null and &"cave" in template:
+		assert_eq(DoorStyle.is_cave_room(hall, &"slime_grotto"), bool(template.get(&"cave")), "the plan header decides")
+	else:
+		assert_true(DoorStyle.is_cave_room(hall, &"slime_grotto"), "fallback: grotto combat rooms are caves")
+		assert_false(DoorStyle.is_cave_room(hall, &"crypt"), "fallback: crypt halls are built")
 
 
 func test_biome_leaf_kinds() -> void:
@@ -89,9 +129,10 @@ func test_boss_gate() -> void:
 
 func test_file_names_follow_sprites_v4() -> void:
 	assert_eq(DoorStyle.for_door(&"crypt").get_frame_path(), "res://art/environment/doors/door_frame_crypt.png")
-	assert_eq(DoorStyle.for_door(&"slime_grotto").get_leaf_path(), "res://art/environment/doors/door_slime_grotto_open_4f.png")
+	assert_eq(DoorStyle.for_door(&"slime_grotto").get_leaf_path(), "res://art/environment/doors/gate_bars_open_4f.png")
 	assert_eq(DoorStyle.for_door(&"shadow_realm").get_frame_path(), "res://art/environment/doors/door_frame_shadow_realm.png")
-	assert_eq(DoorStyle.for_door(&"ember_forge").get_leaf_path(), "res://art/environment/doors/door_ember_forge_open_4f.png")
+	assert_eq(DoorStyle.for_door(&"shadow_realm").get_leaf_path(), "res://art/environment/doors/gate_slab_open_4f.png")
+	assert_eq(DoorStyle.for_door(&"ember_forge").get_side_leaf_path(), "res://art/environment/doors/door_side_ember_forge_open_4f.png")
 	var boss := DoorStyle.for_door(&"ember_forge", DoorStyle.KIND_BOSS)
 	assert_eq(boss.get_frame_path(), "res://art/environment/doors/door_frame_boss.png")
 	assert_eq(boss.get_leaf_path(), "res://art/environment/doors/door_boss_open_4f.png")
@@ -132,6 +173,7 @@ func test_every_door_sound_exists() -> void:
 		for biome in DoorStyle.BIOMES:
 			var style := DoorStyle.for_door(biome, kind)
 			sounds[style.open_sound] = true
+			sounds[style.side_open_sound] = true
 			if style.close_sound != &"":
 				sounds[style.close_sound] = true
 	for sound: StringName in sounds:
@@ -172,7 +214,7 @@ func test_placeholder_leaf_ends_open() -> void:
 
 func test_delivered_frame_and_leaf_replace_placeholders() -> void:
 	_save_png("door_frame_shadow_realm.png", Vector2i(48, 48), Color.MAGENTA)
-	_save_png("door_shadow_realm_open_4f.png", Vector2i(128, 32), Color.CYAN)
+	_save_png("gate_slab_open_4f.png", Vector2i(128, 48), Color.CYAN)
 	var style := DoorStyle.for_door(&"shadow_realm")
 	assert_true(DoorArt.has_frame_file(style))
 	assert_true(DoorArt.has_leaf_file(style))
@@ -224,7 +266,7 @@ func test_delivered_art_in_the_repository_is_used() -> void:
 				continue
 			assert_true(DoorArt.has_leaf_file(style), "leaf %s %s" % [biome, kind])
 			assert_eq(Vector2i(DoorArt.get_frame(style).get_size()), style.frame_size, "frame size %s %s" % [biome, kind])
-			assert_eq(Vector2i(DoorArt.get_leaf_strip(style).get_size()), Vector2i(128, 32))
+			assert_eq(Vector2i(DoorArt.get_leaf_strip(style).get_size()), Vector2i(style.leaf_size.x * DoorArt.LEAF_FRAMES, style.leaf_size.y))
 	for symbol in [&"shop", &"weapon", &"fountain", &"upgrade", &"trial", &"campfire"]:
 		if DoorArt.has_symbol_file(symbol):
 			assert_true(DoorArt.get_symbol(symbol) is AtlasTexture, "sign %s from the sheet" % symbol)

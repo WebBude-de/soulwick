@@ -1,0 +1,24 @@
+# Jagdhoehle (L): Felspfeiler in zwei versetzten Reihen als Sichtblocker, das Fluchtloch hinten rechts,
+# der Gekroente in der Mitte, Wachen zwischen den Pfeilern.
+role: combat
+class: L
+biomes: all
+mode: hunt
+name: Jagdhoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####T###xxxxxx
+xxxxxx..................xxxxx
+xxxx...................e.xxxx
+xx....##...##...##...##....xx
+xx....##...##...##...##....xx
+xx.............9...........xx
+xxx.....##...##...##..3...xxx
+xxx..3..##...##...##......xxx
+xxxx.......3.............xxxx
+xxxxx........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

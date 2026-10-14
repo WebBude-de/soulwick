@@ -1,0 +1,23 @@
+# Makeover 2, Plan 25 (Aschegrube), auf 23x13 verdichtet: achteckige Grube mit Kopfstein-Ring um einen
+# Aschekegel und Erde-Rand, vier Tore in der Nordwand, Feuerschalen unten.
+role: combat
+kind: arena
+mode: arena
+biomes: all
+name: Aschegrube
+size: 23x13
+exit: 2
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxg#N#g#N#g#N#gxxxxx
+xxxxx:::::::::::::xxxxx
+xxxx::::,,,,,,,::::xxxx
+xx.::::,,,,,,,,,::::.xx
+xx:::,,,,,###,,,,,:::xx
+xx::,,,,,,###,,,,,,::xx
+xxx::,,,,,,,,,,,,,::xxx
+xxxx::B....@....B::xxxx
+xxxxx::::.....::::xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

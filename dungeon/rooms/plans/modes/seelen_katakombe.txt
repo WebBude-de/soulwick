@@ -1,25 +1,22 @@
-# Claude Design 06 (Seelen sammeln): Katakomben-Raster aus 4x2-Bloecken mit Ein-Kachel-Gassen,
-# Risse an zwei Kreuzungen, Seelen an festen Plaetzen. Abweichung: die Nordtuer sitzt ueber einer
-# Gasse (im Entwurf ueber einem Block).
-name: Katakombe der Seelen
+# Makeover 2, Plan 24 (Kristallkluft, Seelen), als Hoehle: versetzte Felsbloecke, zwoelf Seelen-Plaetze
+# verteilt (D-135), Risse als Quellen zwischen den Bloecken.
 role: combat
 mode: souls
 biomes: all
-size: 25x15
+name: Kristallkluft der Seelen
 auto_deco: no
+size: 23x13
 ---
-#########################
-#########################
-###T#####T#####T######N##
-##.*...................##
-##.####.####.####.####.##
-##.####.####.####.####.##
-##.*.....i.....*.......##
-##.####.####.####.####.##
-##.####.####.####.####.##
-##.......*.....i...*...##
-##.####.####.####.####.##
-##.####.####.####.####.##
-##.*....@..............##
-############S############
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxT######N######Txxxx
+xxxx.*.....,.....*.xxxx
+xx................i..xx
+xx..*.##..*...##.*...xx
+xx....##..i...##.....xx
+xxx*......##.*....*.xxx
+xxx...*...##....i...xxx
+xxxx.*......@...*..xxxx
+xxxxx..........*..xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

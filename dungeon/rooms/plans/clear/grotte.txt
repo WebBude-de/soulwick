@@ -1,24 +1,23 @@
-# Grotte (M): unregelmaessiger Rand aus Felsnasen, ein Becken mit seichtem Wasser, Tropfstelle am
-# Beckenrand, ein Felsklotz, Pfuetzen als Quellen.
-name: Grotte
+# Grotte (M): zwei Wasserbecken, Felsblock in der Mitte, Pfuetzen als Quellen, Moos an der Tropfstelle;
+# Nordplaetze an beiden Seiten fuer eine Abzweigung.
 role: combat
 mode: clear
-biomes: slime_grotto, shadow_realm
-size: 25x15
 mirror: yes
+biomes: slime_grotto, shadow_realm
+name: Grotte
+exit: 2
+size: 23x13
 ---
-#########################
-#########################
-#####T####N#####T########
-####..............#######
-###...p............######
-##...................####
-##..www........##...p..##
-##..www.d......##......##
-##.....................##
-###.........P..........##
-###..p.................##
-####...................##
-#####......@...........##
-###########S#############
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxx#N####N###T###N##xxx
+xxx.....,,.......:.xxxx
+xx.................xxxx
+xx..ww....##....p....xx
+xx..www...##..d......xx
+xxx.ww..p.##.........xx
+xxx........m....ww..xxx
+xxxx.p.@.......www.xxxx
+xxxxx.........ww..xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

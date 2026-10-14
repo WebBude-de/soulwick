@@ -36,6 +36,9 @@ var _status_panel: PanelContainer = null
 var _status: Label = null
 var _pulse := 0.0
 var _closing := false
+## The result moment of the goal before (pop, wait, fade, close). A new goal cancels it, so the old
+## goal's close never takes the new one away (R4a bug: next mode room within ~2.2 s).
+var _result_tween: Tween = null
 
 
 func _init() -> void:
@@ -48,10 +51,14 @@ func _init() -> void:
 
 ## Shows objective (and follows it until it ends).
 func bind(goal: RoomObjective) -> void:
+	_cancel_result()
 	unbind()
 	objective = goal
 	_closing = false
 	modulate = Color.WHITE
+	_panel.scale = Vector2.ONE
+	# A new goal pops in (R8).
+	UiKit.pop_in(_panel, 0.0, 0.85, 0.24)
 	goal.changed.connect(refresh)
 	goal.finished.connect(_on_finished)
 	goal.tree_exiting.connect(_on_objective_gone)
@@ -151,13 +158,35 @@ func _set_danger_look(on: bool) -> void:
 func _on_finished(_success: bool) -> void:
 	refresh()
 	_closing = true
+	_cancel_result()
+	var goal := objective
 	var tween := create_tween()
+	_result_tween = tween
 	_panel.scale = Vector2(1.08, 1.08)
 	_panel.pivot_offset = _panel.size * 0.5
 	tween.tween_property(_panel, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	tween.tween_interval(RESULT_TIME)
 	tween.tween_property(self, "modulate:a", 0.0, FADE_TIME)
-	tween.tween_callback(_close)
+	tween.tween_callback(_close_after_result.bind(goal))
+
+
+## End of the result moment: closes only if the bar still shows that goal.
+func _close_after_result(goal: RoomObjective) -> void:
+	_result_tween = null
+	if objective != goal and objective != null:
+		return
+	_close()
+
+
+## true while the result moment of a finished goal plays (for tests).
+func is_showing_result() -> bool:
+	return _result_tween != null and _result_tween.is_valid() and _result_tween.is_running()
+
+
+func _cancel_result() -> void:
+	if _result_tween != null and _result_tween.is_valid():
+		_result_tween.kill()
+	_result_tween = null
 
 
 func _on_objective_gone() -> void:

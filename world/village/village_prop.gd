@@ -5,16 +5,22 @@ extends StaticBody2D
 ## VillageArt placeholder) with its pivot at the bottom centre on the node origin. Without art and
 ## without placeholder the prop removes itself, collision included, so nothing invisible blocks.
 ## Placed by tools/generate_village.py; SortLift lifts it like every other prop.
+## R7: animated strips with any frame count (<art_name>_<frames>f.png, or a drawn placeholder of that
+## name, e.g. the soul flame bowl) and an optional light (the bowl's violet glow).
 
 ## File name without extension in art/environment/village/.
 @export var art_name := ""
 ## Solid base (world px, centred above the origin); zero = walk through.
 @export var solid_size := Vector2.ZERO
 @export var flip := false
-
-## TESTWERT: speed of animated props (<art_name>_4f.png, e.g. the pond ripples).
-const ANIMATION_FPS := 4.0
-const ANIMATION_FRAMES := 4
+## Frames of the animated strip <art_name>_<frames>f.png (used when that file or placeholder exists).
+@export var frames := 4
+## TESTWERT: speed of animated props (e.g. the pond ripples, the flame bowl).
+@export var fps := 4.0
+## Light of the prop (0 = none): radius (world px), colour (LightPalette) and height above the base.
+@export var light_radius := 0.0
+@export var light_color := Color(0, 0, 0, 0)
+@export var light_height := 0.0
 
 var _sprite: Sprite2D = null
 var _animation_time := 0.0
@@ -22,9 +28,9 @@ var _animation_time := 0.0
 
 func _ready() -> void:
 	collision_mask = 0
-	var strip_path := VillageArt.DIR + "%s_%df.png" % [art_name, ANIMATION_FRAMES]
-	var animated := ResourceLoader.exists(strip_path)
-	var texture := load(strip_path) as Texture2D if animated else VillageArt.get_texture(art_name)
+	var strip := VillageArt.get_texture("%s_%df" % [art_name, frames]) if frames > 1 else null
+	var animated := strip != null
+	var texture := strip if animated else VillageArt.get_texture(art_name)
 	if texture == null:
 		queue_free()
 		return
@@ -35,9 +41,18 @@ func _ready() -> void:
 	_sprite.flip_h = flip
 	_sprite.offset = Vector2(0, -texture.get_height() * 0.5)
 	if animated:
-		_sprite.hframes = ANIMATION_FRAMES
+		_sprite.hframes = frames
 	set_process(animated)
 	add_child(_sprite)
+	if light_radius > 0.0:
+		var light := LightSource.new()
+		light.name = "PropLight"
+		light.radius = light_radius
+		light.flicker = 0.05
+		light.color = light_color
+		light.position = Vector2(0, -light_height)
+		light.ground_offset = Vector2(0, light_height)
+		add_child(light)
 	if solid_size != Vector2.ZERO:
 		var shape := RectangleShape2D.new()
 		shape.size = solid_size
@@ -50,7 +65,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_animation_time += delta
-	_sprite.frame = int(_animation_time * ANIMATION_FPS) % ANIMATION_FRAMES
+	_sprite.frame = int(_animation_time * fps) % frames
 
 
 ## Ground rectangle (village coordinates) the prop reserves around base, its solid base or a small

@@ -10,6 +10,12 @@ extends Node2D
 ## On load the village records reached unlock events and announces new ones once ("Neu freigeschaltet").
 ## B3: the layout comes from tools/generate_village.py (neighbour houses, villagers, chimney smoke,
 ## props from docs/SPRITES_V4.md); the small decoration is scattered here by VillageDecor.
+## R7 (06_dorf.md): village square instead of a cross, the dungeon ruin up on the ridge
+## (VillageEntrance), rescued villagers and chickens from the escort walk around (RescueRecord,
+## D-135), the evening is a soft vignette with lit windows (VillageEvening). Building names show only
+## near a player and never together with a notice (07_ui.md); a locked building keeps its name
+## readable: a small lock on the door sign, the "Öffnet nach …" text is in the door prompt and the
+## notice. The chronicle has a board in front: empty before the first run, one chalk mark per run.
 
 signal dungeon_requested
 ## Emitted when the player uses a building door; id is the building's building_id metadata.
@@ -27,17 +33,29 @@ const SIGN_WOOD := Color("#8a5a34")
 const SIGN_WOOD_DARK := Color("#5c3a24")
 const SIGN_WOOD_LIGHT := Color("#a8703f")
 const LOCK_ICON: Texture2D = preload("res://art/ui/icon_lock.png")
-## Lock marker above a locked door (world px): offset above the sign, maximum text width.
+## Lock marker above a locked door (world px): offset above the sign.
 const LOCK_OFFSET := Vector2(0, -22)
-const LOCK_TEXT_WIDTH := 260.0
 ## A locked building and its caption are drawn slightly darker (not the sign or the lock).
 const LOCKED_TINT := Color(0.72, 0.7, 0.8)
+## TESTWERT: a building's name shows while a player is this close to its door (world px), fade speed.
+const CAPTION_NEAR := 400.0
+const CAPTION_FADE := 4.0
+## TESTWERT: rescued villagers and chickens walking in the village at most (D-135, RescueRecord).
+const MAX_RESCUED_VILLAGERS := 6
+const MAX_RESCUED_CHICKENS := 4
+## TESTWERT: lantern of a rescued villager at night (world px radius, intensity).
+const RESCUED_LANTERN_RADIUS := 110.0
+const RESCUED_LANTERN_INTENSITY := 0.8
+## Chronicle board next to the chronicle's door (world px from the door, art bottom centre).
+const BOARD_OFFSET := Vector2(-78, 0)
 
 @onready var _entrance: Interactable = $Buildings/DungeonEntrance/Interactable
 @onready var _ground: VillageTiles = $Ground
 @onready var _buildings: Node2D = $Buildings
 @onready var _decor: VillageDecor = $Decor
 @onready var _ambience: VillageAmbience = $Ambience
+@onready var _villagers: Node2D = $Villagers
+@onready var _evening: VillageEvening = get_node_or_null(^"Evening") as VillageEvening
 
 var ui: VillageUI = null
 ## building id -> its info marker (only buildings that still need their explanation).
@@ -52,6 +70,8 @@ func _ready() -> void:
 	add_child(ui)
 	_entrance.interacted.connect(_on_entrance_used)
 	_add_missing_signs()
+	_add_chronicle_board()
+	_populate_rescued()
 	# Sort buildings, decoration and NPCs by their base line against the player's feet.
 	SortLift.lift_props(_buildings)
 	# Building NPCs stand with their real feet line on the ground (not every art ends on row 29).
@@ -64,6 +84,8 @@ func _ready() -> void:
 	_ambience.setup(Rect2(get_camera_limits()))
 	# Lamps light up the village at dusk and night (VillageDaylight, darkness set by WorldController).
 	VillageDaylight.add_lamp_lights(_buildings)
+	# Windows glow in the evening (VillageEvening fades them in with the darkness).
+	VillageEvening.add_window_glows(_buildings)
 	# Unlock events reached in the last run (or missed by an older build) open buildings now.
 	var new_events := MetaUnlocks.sync_from_save()
 	var announcements := MetaUnlocks.take_announcements()
@@ -78,6 +100,11 @@ func _ready() -> void:
 	refresh_locks()
 	SaveManager.seen_changed.connect(_on_seen_changed)
 	ui.show_unlocks(announcements)
+	_update_captions(INF)
+
+
+func _process(delta: float) -> void:
+	_update_captions(delta)
 
 
 ## Lock or intro marker per building from the save: locked buildings get the lock (and no intro
@@ -97,8 +124,6 @@ func refresh_locks() -> void:
 			door.prompt = "%s · %s" % [VillageBuildings.get_display_name(building_id), MetaUnlocks.get_building_lock_text(building_id)]
 			if not has_lock_marker(building_id):
 				_add_lock_marker(building as Node2D, building_id)
-			else:
-				(_lock_markers[building_id].get_node(^"LockText") as Label).text = MetaUnlocks.get_building_lock_text(building_id)
 			_remove_marker(_intro_markers, building_id)
 		else:
 			var prompt: String = VillageBuildings.get_prompt(building_id)
@@ -136,7 +161,8 @@ func has_intro_marker(building_id: StringName) -> bool:
 	return _intro_markers.has(building_id) and is_instance_valid(_intro_markers[building_id])
 
 
-## True while the building is locked and shows the lock with "Öffnet nach …" (for tests and tools).
+## True while the building is locked and shows the lock (for tests and tools); "Öffnet nach …" is in
+## the door prompt and the notice.
 func has_lock_marker(building_id: StringName) -> bool:
 	return _lock_markers.has(building_id) and is_instance_valid(_lock_markers[building_id])
 
@@ -228,8 +254,8 @@ func _add_intro_marker(building: Node2D, building_id: StringName) -> void:
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
 
-## Lock icon above the door sign with "Öffnet nach …" between it and the caption (the building
-## stays visible).
+## Small lock above the door sign (R7: no text panel that would cover the building's name; the
+## "Öffnet nach …" text is in the door prompt and in the notice on E). The building stays visible.
 func _add_lock_marker(building: Node2D, building_id: StringName) -> void:
 	var sign := building.get_node_or_null("Sign") as Node2D
 	var marker := Node2D.new()
@@ -240,20 +266,6 @@ func _add_lock_marker(building: Node2D, building_id: StringName) -> void:
 	icon.texture = LOCK_ICON
 	icon.scale = Vector2(2, 2)
 	marker.add_child(icon)
-	# Same small dark panel as the interaction prompt, wrapped so it never runs into a neighbour's caption.
-	var label := Label.new()
-	label.name = "LockText"
-	label.text = MetaUnlocks.get_building_lock_text(building_id)
-	UiKit.apply_prompt_style(label)
-	label.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_EYEBROW))
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	label.custom_minimum_size.x = LOCK_TEXT_WIDTH
-	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	marker.add_child(label)
-	# The wrapped height is only known after layout: keep the panel centred above the lock icon.
-	label.resized.connect(func() -> void: label.position = Vector2(-label.size.x / 2.0, -label.size.y - 20))
-	label.size = Vector2(LOCK_TEXT_WIDTH, 0)
 	building.add_child(marker)
 	_lock_markers[building_id] = marker
 
@@ -272,3 +284,121 @@ func _on_seen_changed(id: StringName) -> void:
 			if is_instance_valid(marker):
 				marker.queue_free()
 			_intro_markers.erase(building_id)
+
+
+# --- R7: names near the player, chronicle board, rescued villagers ---
+
+## Building names (and "Dungeon") fade in while a player is near the door and never while a notice
+## is on screen (07_ui.md: world captions and banners never share the screen). delta = INF snaps.
+func _update_captions(delta: float) -> void:
+	var positions := _player_positions()
+	var notice_up := ui != null and ui.get_notice() != null
+	for building in _buildings.get_children():
+		var caption := building.get_node_or_null(^"Caption") as Label
+		if caption == null:
+			continue
+		var anchor := (building as Node2D).global_position
+		var near := false
+		for point in positions:
+			if point.distance_to(anchor) <= CAPTION_NEAR:
+				near = true
+				break
+		var target := 1.0 if near and not notice_up else 0.0
+		caption.self_modulate.a = target if is_inf(delta) else move_toward(caption.self_modulate.a, target, CAPTION_FADE * delta)
+
+
+## True while the building's name is (becoming) visible, for tests and tools.
+func is_caption_shown(node_name: StringName) -> bool:
+	var caption := _buildings.get_node_or_null(NodePath(String(node_name) + "/Caption")) as Label
+	return caption != null and caption.self_modulate.a > 0.5
+
+
+## Every player in the village (coop: all of them).
+func _player_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Node2D
+		if player != null and is_instance_valid(player):
+			positions.append(player.global_position)
+	return positions
+
+
+## The chronicle's board: empty before the first run (instead of a sign over the name), then one
+## chalk mark per run (StatsTracker.RUNS, at most VillagePlaceholders.BOARD_MAX_TALLY).
+func _add_chronicle_board() -> void:
+	var chronicle := _buildings.get_node_or_null(^"Chronicle") as Node2D
+	if chronicle == null or chronicle.get_node_or_null(^"Board") != null:
+		return
+	var board := Sprite2D.new()
+	board.name = "Board"
+	board.texture = VillageArt.get_texture("chronicle_board")
+	board.scale = Vector2.ONE * VillageArt.SCALE
+	board.offset = Vector2(0, -board.texture.get_height() * 0.5)
+	board.position = BOARD_OFFSET
+	var runs := int(SaveManager.get_stat(StatsTracker.RUNS))
+	if runs > 0:
+		var tally := Sprite2D.new()
+		tally.name = "Tally"
+		tally.texture = VillagePlaceholders.tally_overlay(runs)
+		tally.offset = board.offset
+		board.add_child(tally)
+	chronicle.add_child(board)
+
+
+## Number of chalk marks on the chronicle board (0 = empty), for tests.
+func get_board_tally() -> int:
+	var tally := _buildings.get_node_or_null(^"Chronicle/Board/Tally")
+	return mini(int(SaveManager.get_stat(StatsTracker.RUNS)), VillagePlaceholders.BOARD_MAX_TALLY) if tally != null else 0
+
+
+## Rescued villagers and chickens shown in the village (RescueRecord, capped).
+static func rescued_shown(chicken: bool) -> int:
+	return clampi(RescueRecord.get_rescued(chicken), 0, MAX_RESCUED_CHICKENS if chicken else MAX_RESCUED_VILLAGERS)
+
+
+## Keeps one generator slot per rescued villager/chicken (rescue order) and frees the rest. Rescued
+## villagers wear the cloak colours of the escort (LostVillager.CLOAK_TINTS) and carry their lantern,
+## lit at night.
+func _populate_rescued() -> void:
+	var villagers := rescued_shown(false)
+	var chickens := rescued_shown(true)
+	for node in _villagers.get_children():
+		var villager := node as Villager
+		if villager == null:
+			continue
+		var is_villager := villager.has_meta(&"rescued_slot")
+		var is_chicken := villager.has_meta(&"rescued_chicken_slot")
+		if not is_villager and not is_chicken:
+			continue
+		var slot := int(villager.get_meta(&"rescued_slot" if is_villager else &"rescued_chicken_slot"))
+		if slot >= (villagers if is_villager else chickens) or villager.is_queued_for_deletion():
+			_villagers.remove_child(villager)
+			if not villager.is_queued_for_deletion():
+				villager.free()
+			continue
+		if is_villager:
+			villager.set_cloak(LostVillager.CLOAK_TINTS[slot % LostVillager.CLOAK_TINTS.size()])
+			var lantern := LightSource.new()
+			lantern.name = "Lantern"
+			lantern.radius = RESCUED_LANTERN_RADIUS
+			lantern.color = LightPalette.WARM
+			lantern.flicker = 0.05
+			var offset := (LostVillager.LANTERN_ANCHOR - LostVillager.PIVOT) * VillageArt.SCALE
+			lantern.position = Villager.FEET_OFFSET + offset
+			lantern.ground_offset = Vector2(0, -offset.y)
+			villager.add_child(lantern)
+			VillageEvening.mark_night(lantern, RESCUED_LANTERN_INTENSITY)
+
+
+## Rescued villagers (chicken = false) or chickens walking in the village right now.
+func get_rescued_walkers(chicken := false) -> Array[Villager]:
+	var result: Array[Villager] = []
+	var key := &"rescued_chicken_slot" if chicken else &"rescued_slot"
+	for node in _villagers.get_children():
+		if node is Villager and node.has_meta(key) and not node.is_queued_for_deletion():
+			result.append(node as Villager)
+	return result
+
+
+func get_evening() -> VillageEvening:
+	return _evening

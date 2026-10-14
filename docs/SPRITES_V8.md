@@ -15,9 +15,11 @@
 
 | Datei | Größe | Beschreibung |
 | --- | --- | --- |
-| `art/environment/village/dungeon_entrance_v2.png` | 96×80 | Ruine mit Treppe nach unten, zwei Fackeln, Ketten (siehe `06_dorf.md`) |
-| `art/environment/village/entrance_flame_bowl_6f.png` | 6 × 32×32 | Seelenflammen-Becken vor dem Eingang |
-| `art/environment/village/ravens_4f.png` | 4 × 32×16 | Raben auf dem Bogen, fliegen beim Nähern auf |
+| `art/environment/village/dungeon_entrance_v2.png` | 96×80, Pivot unten Mitte (48,80) | Ruine mit Treppe nach unten, Ketten, Seelen-Rune (siehe `06_dorf.md`); Fackelflammen bei (35,51) und (61,51), Raben sitzen auf dem Sturz bei ca. (48,18) |
+| `art/environment/village/entrance_flame_bowl_6f.png` | 6 × 32×32, Pivot unten Mitte | Seelenflammen-Becken vor dem Eingang |
+| `art/environment/village/ravens_4f.png` | 4 × 32×16 | Raben: sitzen, picken, Flügel oben, Flügel unten; Füße auf der untersten Zeile |
+| `art/environment/village/village_tiles_v2.png` | 256×32 (8 Kacheln) | Pflaster A/B, Felskante A/B (nur Zeile 6–28 fest), Treppe links/rechts, Steinplatten A/B |
+| `art/environment/village/chronicle_board.png` | 24×30 | leere Kreidetafel auf einer Staffelei vor der Chronik; Schieferfläche x3–20 / y3–16 für Kreidestriche |
 
 ## 3. UI
 

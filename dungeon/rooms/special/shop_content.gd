@@ -12,9 +12,9 @@ func _on_setup() -> void:
 	add_animated(MERCHANT_TEXTURE, Vector2i(32, 32), 4.0, Vector2(16, 30), Vector2(0, -28))
 	add_sprite(COUNTER_TEXTURE, Vector2(32, 30))
 	add_blocker(Vector2(120, 36), Vector2(0, -16))
-	var interactable := add_interactable("Shop öffnen", 64.0, Vector2(0, 10))
+	var interactable := add_interactable(DungeonTexts.t(&"SHOP_PROMPT"), 64.0, Vector2(0, 10))
 	interactable.interacted.connect(_on_interacted)
-	add_caption("Händler", Vector2(0, -110))
+	add_caption(DungeonTexts.t(&"ROOM_SHOP_TITLE"), Vector2(0, -110))
 	_offers = context.economy.generate_shop_offers(room.room_index, context)
 
 

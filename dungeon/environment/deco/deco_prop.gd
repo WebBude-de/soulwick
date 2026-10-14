@@ -39,6 +39,9 @@ const ITEMS := {
 	&"log": {"path": "res://art/environment/campfire/log_seat.png", "frame": Vector2i(32, 16), "pivot": Vector2(16, 14), "layer": Layer.FLOOR},
 	&"pack": {"path": "res://art/environment/campfire/pack.png", "frame": Vector2i(16, 16), "pivot": Vector2(8, 15), "layer": Layer.FLOOR},
 	&"torch_stand_unlit": {"path": "res://art/environment/variants/torch_stand_unlit.png", "frame": Vector2i(16, 40), "pivot": Vector2(8, 39), "layer": Layer.STANDING, "solid": Vector2(24, 14)},
+	# Moving points of a cave room (M1, Makeover 2 "Bewegung im Bild"): a slow wisp of fog on the
+	# floor (the abyss mist, faint) until fog_floor_4f is delivered (SPRITES_V9).
+	&"mist": {"path": "res://art/environment/props/abyss_mist_4f.png", "frame": Vector2i(32, 32), "frames": 4, "fps": 2.5, "pivot": Vector2(16, 20), "layer": Layer.FLOOR, "alpha": 0.4, "additive": true},
 }
 ## A puddle under a drip: the blob of the toxic puddle filled with the shallow water's glitter
 ## (both delivered strips have four 32 px frames), built once at runtime.
@@ -143,6 +146,10 @@ func _build_sprite(data: Dictionary) -> void:
 		sprite.scale.x = -sprite.scale.x
 	sprite.modulate = tint
 	sprite.modulate.a *= data.get("alpha", 1.0)
+	if data.get("additive", false):
+		var additive := CanvasItemMaterial.new()
+		additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		sprite.material = additive
 	add_child(sprite)
 	if sprite is AnimatedProp:
 		# Not all drips and puddles in step.

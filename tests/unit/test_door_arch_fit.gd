@@ -1,7 +1,8 @@
 extends GutTest
 ## Arches never cut off (R5, 04_wandsystem.md): at every north door place of every template the arch
-## (48 px, boss gate 64 px wide, 1.5 / 1.75 tiles tall) stands on solid wall - front and both crowns
-## beside the corridor are wall, no floor, no niche - and no wall fixture of the plan hangs inside it.
+## (48 px, cave mouth and boss gate 64 px wide - half a tile beside the door tile, M2 -, 1.5 / 1.75
+## tiles tall) stands on solid wall - front and both crowns beside the corridor are wall, no floor, no
+## niche - and no wall fixture of the plan hangs inside it.
 
 var _old_save_path: String
 

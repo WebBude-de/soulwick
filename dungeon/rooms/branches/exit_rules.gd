@@ -6,8 +6,12 @@ extends RefCounted
 ## - The exit lies north, west or east, never on the entrance wall. A room before anything but a
 ##   normal combat room (special room, trial, miniboss, boss, campfire) is left to the north: those
 ##   templates have their entrance in the south wall only.
-## - The next room is entered through the opposite wall. Its last entrance corridor tile and the
-##   exit's last corridor tile are the same world tile (the corridor end, see RoomTiles).
+## - The next room is entered through the opposite wall. One gate per transition, at most one tile of
+##   corridor (M2, 11_makeover3_komplett.md §11/§12): the two rooms overlap along the corridor, so the
+##   gate sits in the wall of the room being left and the next room's wall is the one-tile corridor.
+##   North: the next room's south wall lies on this room's wall crown (JOIN_OVERLAP 2); west/east: the
+##   next room's wall column is the corridor tile right behind this room's door (JOIN_OVERLAP 1).
+##   Where the two rooms paint over each other, each keeps its own floor and walls (PassageSeam).
 ## - Overlap: at most three rooms live at once, so the next room only has to keep clear of the
 ##   rooms still alive besides its predecessor (Footprint: rock may lie on rock, never on a floor,
 ##   wall or corridor). If it would clash with one of them, its entrance corridor gets longer (the
@@ -31,6 +35,11 @@ const SIDE_WEIGHTS: Dictionary[int, float] = {NORTH: 0.5, EAST: 0.25, WEST: 0.25
 ## A turn is only taken when the estimate says the next room needs at most this many extra
 ## corridor tiles (TESTWERT). Straight on is always possible.
 const MAX_TURN_EXTRA := 0
+## Corridor tiles two joined rooms share, by exit wall (M2): the next room's entrance corridor ends this
+## many tiles back inside the exit corridor. North 2: its south wall is this room's crown row, the gate
+## stands in the front row; west/east 1: its wall column follows this room's door column. 0 would be
+## the old join with a dark corridor of three tiles between two doors.
+const JOIN_OVERLAP: Dictionary[int, int] = {NORTH: 2, EAST: 1, SOUTH: 1, WEST: 1}
 
 
 ## Walls a room may be left through: never the entrance wall, only where the template has a door
@@ -105,9 +114,20 @@ static func world_rect(origin: Vector2i, size: Vector2i, entrance_side: int, ext
 	return Rect2i(origin + painted.position, painted.size)
 
 
-## World tile where a room's exit corridor ends (the next room joins there).
+## World tile the next room's entrance corridor ends on (the join, M2): the exit's last corridor tile
+## moved JOIN_OVERLAP tiles back towards the door.
 static func exit_corridor_end(origin: Vector2i, size: Vector2i, exit_side: int, place: int) -> Vector2i:
-	return origin + RoomTiles.corridor_end_of(exit_side, place, size)
+	return origin + RoomTiles.corridor_end_of(exit_side, place, size) - RoomTiles.SIDE_DIRECTIONS[exit_side] * join_overlap(exit_side)
+
+
+static func join_overlap(exit_side: int) -> int:
+	return JOIN_OVERLAP.get(exit_side, 1)
+
+
+## Rows (north) or columns (west/east) two joined rooms paint in common: the shared corridor tiles
+## and the end tile.
+static func shared_lines(exit_side: int) -> int:
+	return join_overlap(exit_side) + 1
 
 
 ## A reach (entrance_reach) grown by extra tiles away from the corridor end: the room moved further

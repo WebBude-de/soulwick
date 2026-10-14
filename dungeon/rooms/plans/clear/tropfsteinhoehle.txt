@@ -1,0 +1,23 @@
+# Makeover 2, Plan 18 (Tropfsteinhoehle), auf 23x13 verdichtet: unregelmaessige Grotte, Wasserbecken
+# rechts, Kopfstein-Pfad, Erde-Fleck, Tropfstelle, Kristall als Lichtinsel, Felsblock in der Mitte;
+# zweiter Nordplatz rechts fuer eine Abzweigung.
+role: combat
+mode: clear
+mirror: yes
+biomes: all
+name: Tropfsteinhoehle
+size: 23x13
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxx#####N###T###N#xxx
+xxxxx#..,,...::...:.xxx
+xxxx#..,,,,..p.::...xxx
+xx...p.,,,....d.www..xx
+xx..........##..www..xx
+xx....C.....##...ww..xx
+xxx#p....,,....p...xxxx
+xxxx#..@..,,,......xxxx
+xxxxxx....,,..##..xxxxx
+xxxxxxxxxxSxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

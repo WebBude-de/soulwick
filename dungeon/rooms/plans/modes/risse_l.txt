@@ -1,0 +1,24 @@
+# Risshoehle (L): vier Beschwoerungsrisse, zwei in der Nordwand, zwei in den Vorderseiten von
+# Felsbloecken, Lavaspalten als Begleitquellen.
+role: combat
+class: L
+biomes: all
+mode: rifts
+name: Risshoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###!###N####!###Txxxxx
+xxxxxx..................xxxxx
+xxxx.....................xxxx
+xx...v.................v...xx
+xx.........................xx
+xx......##....v....##......xx
+xxx.....#!.........!#.....xxx
+xxx.......................xxx
+xxxx..v....r.....r....v..xxxx
+xxxxx........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -382,6 +382,10 @@ func get_vision_overlay() -> VisionOverlay:
 	return get_tree().get_first_node_in_group(VisionOverlay.GROUP) as VisionOverlay
 
 
-func _wake(enemy: Enemy) -> void:
-	if is_instance_valid(enemy) and not enemy.is_dead() and enemy.is_in_intro():
+## Untyped on purpose: guards may already be freed, and a typed parameter fails before the check.
+func _wake(candidate: Variant) -> void:
+	if not is_instance_valid(candidate):
+		return
+	var enemy := candidate as Enemy
+	if enemy != null and not enemy.is_dead() and enemy.is_in_intro():
 		enemy.end_intro()

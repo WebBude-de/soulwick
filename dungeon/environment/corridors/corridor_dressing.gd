@@ -8,6 +8,9 @@ extends Node2D
 ##   - NICHE: a lit niche in the wall front above a side corridor (north corridors have no front:
 ##     a drip instead),
 ##   - STAIRS: a few steps down in the middle of the corridor (Höhenversatz).
+## M2: the corridor is one tile - the entrance gap in this room's wall (the entrance has no leaf any
+## more) - plus any extra tiles of a longer corridor. Playtest 14.10.2026: no decoration in corridors
+## and gates at all (DRESS_CORRIDORS off); the styles stay for the corridor art of SPRITES_V8 §1.
 ## Placeholders until the corridor art of SPRITES_V8 §1 arrives (corridor_<biome>_<style>.png); only
 ## floor decals and wall fixtures, nothing blocks the way. Optics only: the style comes from a hash of
 ## the run seed and the room number, never from the dungeon RNG (the room stream stays the same).
@@ -15,6 +18,8 @@ extends Node2D
 enum Style { STRAIGHT, DRIP, NICHE, STAIRS }
 
 const NODE_NAME := &"CorridorDressing"
+## Corridors get no decoration of their own (playtest 14.10.2026). Design switch.
+const DRESS_CORRIDORS := false
 ## Weights of the styles (TESTWERTE).
 const STYLE_WEIGHTS: Dictionary[Style, float] = {
 	Style.STRAIGHT: 0.35,
@@ -47,7 +52,7 @@ const STONE_TINTS: Dictionary[StringName, Color] = {
 
 var style: Style = Style.STRAIGHT
 var biome_id: StringName = &"crypt"
-## Room-local floor tiles of the corridor between the two doors, from this room's door outwards.
+## Room-local floor tiles of the corridor, from this room's entrance gap outwards.
 var tiles: Array[Vector2i] = []
 ## Direction from this room's door along the corridor (RoomTiles.SIDE_DIRECTIONS of its side).
 var direction := Vector2i.DOWN
@@ -74,17 +79,18 @@ static func pick_style(run_seed: int, room_index: int, entrance_side: int) -> St
 	return picked
 
 
-## Room-local tiles strictly between the entrance door of room (side, place) and the exit door of the
-## room before it (room-local too), walking out of the entrance; empty if they do not line up.
+## Room-local corridor tiles from the entrance gap of room (side, place) up to the exit door of the
+## room before it (room-local too, not included), walking out of the entrance; empty if they do not
+## line up. M2: the gap itself is the corridor (the entrance has no leaf).
 static func tiles_between(entrance: Vector2i, size: Vector2i, other_door: Vector2i) -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
 	var step: Vector2i = RoomTiles.SIDE_DIRECTIONS[entrance.x]
 	var tile := RoomTiles.door_tile_of(entrance.x, entrance.y, size)
 	for i in RoomTiles.MAX_CORRIDOR_EXTRA + 8:
-		tile += step
 		if tile == other_door:
 			return result
 		result.append(tile)
+		tile += step
 	return []
 
 
@@ -93,8 +99,10 @@ static func tiles_between(entrance: Vector2i, size: Vector2i, other_door: Vector
 static func attach(room: Node2D, other_door: Vector2i, run_seed: int, room_index: int, biome: StringName) -> CorridorDressing:
 	var room_tiles := room.get_node("Tiles") as RoomTiles
 	var between := tiles_between(room_tiles.get_entrance_door(), room_tiles.room_size, other_door)
-	if between.is_empty():
+	# The entrance gap stays bare; a one-tile corridor gets no dressing at all.
+	if not DRESS_CORRIDORS or between.size() <= 1:
 		return null
+	between = between.slice(1)
 	var dressing := CorridorDressing.new()
 	dressing.name = NODE_NAME
 	dressing.tiles = between

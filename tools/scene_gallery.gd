@@ -1,30 +1,35 @@
 extends SceneTree
 ## Scene gallery for design work (needs a window, not --headless): PNG photos of the game as it looks
-## today, weaknesses included - main menu, village, every combat template, special rooms, bosses,
-## combat variants, arena and ambush, doors, the secret niche, the room chain and the dungeon UI.
+## today, weaknesses included - main menu, village, real runs (enemies appearing, doors, corridors,
+## chain, boss, campfire), branch and secret niche, every room template (plans R1, also the L plans
+## for 3-4 players), special rooms, bosses, the room modes (minigames R4: intro and game view), the
+## arena, doors with their way signs and the dungeon UI.
 ## Two kinds of pictures: overview (whole room, full light, no HUD/dialogs) and game view (normal
-## camera and darkness, HUD on, mid-fight).
+## camera and lighting, HUD on, mid-fight).
 ## Writes <out>/NNN_<name>.png (running number over the phases taken) and a manifest with category
 ## and details per picture (user://scene_gallery_manifest.tsv) for the index.
 ##
 ## Usage: godot --path . -s tools/scene_gallery.gd -- [out_dir] [phases] [filter]
 ##   out_dir: default docs/design/szenen; relative paths start at the project folder
-##   phases:  comma list of menu,village,run,branch,templates,special,variants,arena,doors,ui
+##   phases:  comma list of menu,village,run,branch,templates,special,modes,arena,doors,ui
 ##            (default: all of them in this order)
-##   filter:  templates phase only: template ids containing this text (R1 plan templates)
+##   filter:  templates phase only: template ids containing this text (R1 plan templates); "alle" =
+##            every template. Default: every combat plan once (no mirror, the biome changes from plan
+##            to plan) and every boss, miniboss, rest and campfire template.
 ##
 ## Test storage only (SaveManager.set_storage_root), German texts, randomness only through fixed
-## dungeon seeds. Real rooms come from seeded runs; every template, biome, special room and variant
-## is built with the same steps as DungeonManager._prepare_slot ("staged" far away from the streamed
+## dungeon seeds. Real rooms come from seeded runs; every template, biome, special room and mode is
+## built with the same steps as DungeonManager._prepare_slot ("staged" far away from the streamed
 ## rooms), because single-player runs never draw L templates and biomes start every 15 rooms.
-## Game code is not changed: forced content goes through the existing test hooks (forced_ambush,
-## forced_kind, forced_pact, BranchRules/SecretRules.chance_override, CombatVariant.attach_to).
+## Game code is not changed: forced content goes through the existing hooks (forced_kind,
+## forced_pact, BranchRules/SecretRules.chance_override, VariantTable.pick_for + RoomVariants.attach,
+## Door.show_way).
 ## Classes are accessed dynamically: this script is compiled before the autoloads exist.
 
 const STORAGE_ROOT := "user://scene_gallery_storage"
 const MANIFEST_PATH := "user://scene_gallery_manifest.tsv"
 const DEFAULT_OUT := "docs/design/szenen"
-const PHASES: PackedStringArray = ["menu", "village", "run", "branch", "templates", "special", "variants", "arena", "doors", "ui"]
+const PHASES: PackedStringArray = ["menu", "village", "run", "branch", "templates", "special", "modes", "arena", "doors", "ui"]
 const WINDOW_SIZE := Vector2i(1920, 1080)
 ## Seeds of the dungeon runs (DungeonManager.seed_value).
 const RUN_SEED := 7311
@@ -52,6 +57,27 @@ const EAST := 1
 const SOUTH := 2
 const WEST := 3
 const TILE := 64.0
+## Room modes (R4): [mode id, slug, room number (biome), plan template]; every mode in its own plan,
+## two of them also in their L plan for 3-4 players (D-084).
+const MODE_LIST := [
+	[&"escort", "geleit", 22, "geleit_pfad_slime_grotto"],
+	[&"souls", "seelen", 37, "seelen_katakombe_shadow_realm"],
+	[&"collapse", "einsturz", 52, "einsturz_halle_ember_forge"],
+	[&"flame", "flamme", 37, "flamme_schrein_shadow_realm"],
+	[&"relic", "reliquie", 8, "reliquie_kammer_crypt"],
+	[&"rifts", "risse", 52, "risse_schlucht_ember_forge"],
+	[&"hunt", "jagd", 8, "jagd_saeulenhalle_crypt"],
+	[&"lightfire", "lichtfeuer", 38, "lichtfeuer_halle_shadow_realm"],
+	[&"souls", "seelen_l", 7, "seelen_l_crypt"],
+	[&"escort", "geleit_l", 52, "geleit_l_ember_forge"],
+]
+## The elite nest (branch) and the wager altar stay variants of their own.
+const VARIANT_LIST := [
+	[&"elite_nest", "elite_nest", 53, "kreuzgang_ember_forge"],
+	[&"wager", "wagnis_altar", 23, "gruft_slime_grotto"],
+]
+## Way signs shown on the north door per biome (R5): one mode each.
+const DOOR_MODES: Array[StringName] = [&"arena", &"flame", &"souls", &"collapse"]
 
 var _out := ""
 var _phases: PackedStringArray = PHASES
@@ -112,8 +138,8 @@ func _run() -> void:
 				await _phase_templates()
 			"special":
 				await _phase_special()
-			"variants":
-				await _phase_variants()
+			"modes":
+				await _phase_modes()
 			"arena":
 				await _phase_arena()
 			"doors":
@@ -143,16 +169,15 @@ func _prepare_storage() -> void:
 	save_manager.save_game()
 
 
-## An experienced player: no controls card, no first-time cards in the dungeon (the UI phase shows
-## one on purpose: the catacomb stays unexplained), no enemy hints.
+## An experienced player: no controls card, no first-time cards in the dungeon (the modes and arena
+## phases show them on purpose), no enemy hints.
 func _mark_experienced() -> void:
 	var save_manager := root.get_node("SaveManager")
 	save_manager.mark_seen(&"hint_controls")
 	save_manager.mark_seen(&"hint_chasm")
 	save_manager.mark_seen(&"hint_secret_wall")
 	for genre: StringName in _genre_script.TABLE.keys():
-		if genre != &"catacomb":
-			_genre_script.mark_explained(genre)
+		_genre_script.mark_explained(genre)
 
 
 func _on_node_added(node: Node) -> void:
@@ -462,9 +487,11 @@ func _phase_branch() -> void:
 
 # --- Phase: every room template (plans, R1) ---
 
-## Every template of both catalogs (combat, then boss, miniboss, rest, campfire) in its own biome.
-## Optional filter in the third argument: only template ids containing one of its comma separated
-## parts (e.g. "grabhalle,stube"). Rest rooms are entered, so their content (shop, altar) shows.
+## The templates of both catalogs (combat, then boss, miniboss, rest, campfire) in their own biome:
+## every combat plan once (no mirrored copy, the biome changes from plan to plan) and every other
+## template. Optional filter in the third argument: "alle" = every template, else only template ids
+## containing one of its comma separated parts (e.g. "grabhalle,stube"). Rest rooms are entered, so
+## their content (shop, altar) shows.
 func _phase_templates() -> void:
 	await _ensure_stage()
 	var catalog_script: GDScript = load("res://dungeon/rooms/room_catalog.gd")
@@ -472,6 +499,9 @@ func _phase_templates() -> void:
 	var seen := {}
 	var args := OS.get_cmdline_user_args()
 	var only: PackedStringArray = args[2].split(",", false) if args.size() > 2 else PackedStringArray()
+	var every := only.has("alle")
+	if every:
+		only = PackedStringArray()
 	for catalog: Object in [catalog_script.load_default(), catalog_script.load_plans()]:
 		if catalog == null:
 			continue
@@ -485,7 +515,9 @@ func _phase_templates() -> void:
 				continue
 			seen[entry.id] = true
 			entries.append(entry)
-	var kind_slugs := ["kampfraum", "arena", "abgrund"]
+	if only.is_empty() and not every:
+		entries = _one_per_plan(entries)
+	var kind_slugs := ["kampfraum", "arena", "kampfraum"]
 	var size_names := ["S", "M", "L"]
 	var role_types := {&"combat": COMBAT, &"boss": BOSS, &"miniboss": MINIBOSS, &"rest": SPECIAL, &"campfire": CAMPFIRE}
 	for entry: Resource in entries:
@@ -500,13 +532,36 @@ func _phase_templates() -> void:
 			await _seconds(1.0)
 		var kind: String = kind_slugs[int(entry.room_kind)] if entry.role == &"combat" else String(entry.role)
 		var slug := "%s_%s_%s" % [kind, entry.id, BIOME_SLUGS[biome]]
+		var size_name: String = size_names[int(entry.size_class)] + (" (3–4 Spieler)" if int(entry.size_class) == 2 else "")
 		var details := "Plan %s -> Vorlage %s (%s, Modus %s, Größe %s, %dx%d Kacheln): %s" % [entry.plan_id, entry.id, kind, entry.mode,
-				size_names[int(entry.size_class)], entry.room_size.x, entry.room_size.y, _describe(room)]
+				size_name, entry.room_size.x, entry.room_size.y, _describe(room)]
 		await _room_overview(room, slug, "Raum-Vorlage", details, 1)
 		if room_type == SPECIAL:
 			_restore_vision(room)
 		_unstage(room)
 		await _frames(4)
+
+
+## Every combat plan once: a template without mirror, the biome changing from plan to plan; other
+## roles keep every template.
+func _one_per_plan(entries: Array) -> Array:
+	var result: Array = []
+	var plans := {}
+	for entry: Resource in entries:
+		if entry.role != &"combat":
+			result.append(entry)
+			continue
+		if plans.has(entry.plan_id):
+			continue
+		var wanted: StringName = BIOME_IDS[plans.size() % BIOME_IDS.size()]
+		var chosen: Resource = entry
+		for other: Resource in entries:
+			if other.plan_id == entry.plan_id and not other.mirrored and other.allowed_biomes.has(wanted):
+				chosen = other
+				break
+		plans[entry.plan_id] = true
+		result.append(chosen)
+	return result
 
 
 # --- Phase: special rooms, minibosses, bosses ---
@@ -604,132 +659,176 @@ func _phase_special() -> void:
 		await _frames(4)
 
 
-# --- Phase: combat variants ---
+# --- Phase: room modes (minigames R4) ---
 
-func _phase_variants() -> void:
+## Every mode in its plan: overview before, the full intro (camera on the goal, banner with the
+## explanation card), the game view mid-fight with the task bar, the whole room mid-fight. Then the
+## elite nest and the wager altar.
+func _phase_modes() -> void:
 	await _ensure_stage()
-	# [variant id, slug, room number, templates to try]
-	var list := [
-		[&"soul_flame", "seelenflamme", 22, ["kreuzgang_slime_grotto", "gewoelbe_slime_grotto"]],
-		[&"rifts", "beschwoerungsrisse", 37, ["kreuzgang_shadow_realm", "galerie_shadow_realm"]],
-		[&"gravedigger", "totengraeber", 7, ["grabhalle", "ruinenhof_crypt"]],
-		[&"bounty", "kopfgeld", 52, ["gewoelbe_ember_forge", "kreuzgang_ember_forge"]],
-		[&"stone_guardian", "steinwaechter", 38, ["zwei_kammern_shadow_realm", "galerie_shadow_realm"]],
-		[&"lantern", "laternentraeger", 8, ["saeulenhalle_crypt", "gruft_crypt"]],
-		[&"torch_room", "fackelraum", 36, ["kreuzgang_shadow_realm", "gewoelbe_shadow_realm"]],
-		[&"elite_nest", "elite_nest", 53, ["kreuzgang_ember_forge", "schmiede_ember_forge"]],
-		[&"wager", "wagnis_altar", 23, ["gruft_slime_grotto", "kreuzgang_slime_grotto"]],
-	]
-	for item in list:
-		var room: Node = null
-		for template_id: String in item[3]:
-			var scene: PackedScene = load("res://dungeon/rooms/combat/%s.tscn" % template_id)
-			room = _stage(scene, item[2], COMBAT)
-			await _frames(4)
-			if _attach_variant(room, item[0]):
-				break
+	var save_manager := root.get_node("SaveManager")
+	for item in MODE_LIST:
+		var id: StringName = item[0]
+		var room := _stage(load("res://dungeon/rooms/combat/%s.tscn" % item[3]), item[2], COMBAT)
+		await _frames(4)
+		var mode := _attach_mode(room, id)
+		if mode == null:
+			print("mode %s could not be attached to %s" % [id, item[3]])
 			_unstage(room)
-			room = null
 			await _frames(4)
-		if room == null:
-			print("variant %s could not be attached" % item[0])
 			continue
-		var biome_slug: String = BIOME_SLUGS[_biome_of(item[2])]
+		var base := "modus_%s_%s" % [item[1], BIOME_SLUGS[_biome_of(item[2])]]
+		await _room_overview(room, base + "_vorher", "Modus", "Modus %s vor dem Betreten, ganzer Raum: %s" % [id, _describe(room)], 0)
+		# The full intro as the first time per save (the gallery player has seen every mode).
+		save_manager.get(&"_seen").erase(_genre_script.get_seen_id(id))
 		await _enter_staged(room)
-		# After the genre banner (about 3.6 s on screen), the fight is under way.
+		await _seconds(1.2)
+		await _shot(base + "_intro_kamera", "Modus", "Modus %s: Intro beim ersten Mal, Kamera auf dem Ziel (1,2 s nach dem Betreten)" % id)
+		await _seconds(1.0)
+		await _shot(base + "_intro_banner", "Modus", "Modus %s: Intro, Ziel-Banner und Erklärkarte (2,2 s)" % id)
+		var intro: Object = load("res://dungeon/modes/room_intro.gd").get_intro(room)
+		if intro != null:
+			intro.skip()
+		_genre_script.mark_explained(id)
+		await _seconds(0.5)
+		await _play_mode(mode, id)
 		await _fight(4.2)
-		await _shot("variante_%s_%s_spielansicht" % [item[1], biome_slug], "Kampf-Variante", "Variante %s mitten im Kampf (4 s nach dem Betreten), Spielansicht: %s" % [item[0], _describe(room)])
-		await _room_overview(room, "variante_%s_%s_uebersicht" % [item[1], biome_slug], "Kampf-Variante", "Variante %s mitten im Kampf, ganzer Raum: %s" % [item[0], _describe(room)], 0)
+		await _shot(base + "_spielansicht", "Modus", "Modus %s mitten im Kampf (ca. 5 s nach dem Intro), Spielansicht mit Aufgabenleiste: %s" % [id, _describe(room)])
+		if id == &"collapse":
+			# 12 s further on: several fields have broken.
+			mode.step(12.0)
+			await _seconds(1.2)
+		await _room_overview(room, base + "_kampf", "Modus", "Modus %s mitten im Kampf, ganzer Raum: %s" % [id, _describe(room)], 0)
+		_unstage(room)
+		await _frames(6)
+	for item in VARIANT_LIST:
+		var room := _stage(load("res://dungeon/rooms/combat/%s.tscn" % item[3]), item[2], COMBAT)
+		await _frames(4)
+		if _attach_mode(room, item[0]) == null:
+			print("variant %s could not be attached" % item[0])
+			_unstage(room)
+			await _frames(4)
+			continue
+		var base := "variante_%s_%s" % [item[1], BIOME_SLUGS[_biome_of(item[2])]]
+		await _enter_staged(room)
+		await _fight(4.2)
+		await _shot(base + "_spielansicht", "Variante", "Variante %s mitten im Kampf (4 s nach dem Betreten), Spielansicht: %s" % [item[0], _describe(room)])
+		await _room_overview(room, base + "_uebersicht", "Variante", "Variante %s mitten im Kampf, ganzer Raum: %s" % [item[0], _describe(room)], 0)
 		_unstage(room)
 		await _frames(4)
 
 
-## Hangs a combat variant, the elite nest or the wager altar onto a staged room (like _prepare_slot).
-func _attach_variant(room: Node, id: StringName) -> bool:
+## Hangs a mode, the elite nest or the wager altar onto a staged room (like _prepare_slot); returns
+## its node (null if it did not fit).
+func _attach_mode(room: Node, id: StringName) -> Node:
 	var context: Object = _dungeon.context
 	if id == &"elite_nest":
-		return (load("res://dungeon/variants/elite_nest_variant.gd") as GDScript).call(&"attach", room, context.rng.randi()) != null
-	var pick: Object = load("res://dungeon/variants/variant_table.gd").Pick.new()
+		return load("res://dungeon/variants/elite_nest_variant.gd").call(&"attach", room, context.rng.randi())
+	var table: GDScript = load("res://dungeon/variants/variant_table.gd")
+	var pick: Object = table.Pick.new() if id == &"wager" else table.pick_for(id)
 	if id == &"wager":
 		pick.wager = true
-	else:
-		pick.variant_id = id
 	load("res://dungeon/variants/room_variants.gd").attach(room, pick, context.rng)
 	if id == &"wager":
 		var altar: Node = room.get_node_or_null("WagerAltar")
-		if altar == null:
-			return false
-		altar.accept(_player)
-		return true
-	return room.get_variant_id() == id
+		if altar != null:
+			altar.accept(_player)
+		return altar
+	var mode: Node = load("res://dungeon/variants/combat_variant.gd").of(room)
+	return mode if mode != null and mode.variant_id == id else null
 
 
-# --- Phase: arena and ambush ---
+## What a player does in the mode before the game view: carry the relic, light fires, chase the
+## crowned one, walk beside the villager, stand at the flame.
+func _play_mode(mode: Node, id: StringName) -> void:
+	match id:
+		&"relic":
+			var relic: Node2D = mode.relics[0]
+			_player.global_position = relic.global_position + Vector2(0, -8)
+			await _seconds(0.3)
+			relic.pick_up(_player)
+			_player.global_position = relic.global_position.lerp(mode.altar.global_position, 0.45)
+		&"lightfire":
+			for i in mini(2, mode.torches.size()):
+				mode.torches[i].ignite(_player)
+			_player.global_position = mode.torches[0].global_position + Vector2(48, 24)
+		&"hunt":
+			_player.global_position = mode.crowned.global_position + Vector2(-260, 40)
+		&"escort":
+			if mode.villager != null:
+				_player.global_position = mode.villager.global_position + Vector2(-56, 24)
+		&"flame":
+			_player.global_position = mode.flame.global_position + Vector2(0, 110)
+	_reset_player_camera()
 
+
+# --- Phase: arena ---
+
+## Arena of the gates (grotto) and the large arena for 3-4 players (ember forge): intro, gates
+## warning, enemies stepping out of the walls, the first wave.
 func _phase_arena() -> void:
 	await _ensure_stage()
-	# Arena: enemies step out of the walls right after entering.
-	var arena := _stage(load("res://dungeon/rooms/combat/arena_tore_slime_grotto.tscn"), 22, COMBAT, {"ambush": 0})
-	await _frames(10)
-	await _enter_staged(arena)
-	await _seconds(0.2)
-	await _shot("arena_1_wand_bricht_auf", "Arena/Hinterhalt", "Arena (Arena der Tore, Schleimgrotte) 0,2 s nach dem Betreten: Wand-Tore kündigen sich an")
-	await _seconds(0.25)
-	await _room_overview(arena, "arena_uebersicht_tore", "Arena/Hinterhalt", "Arena ca. 0,5 s nach dem Betreten, ganzer Raum (alle Wand-Tore): %s" % _describe(arena), 0)
-	_restore_vision(arena)
-	await _seconds(0.1)
-	await _shot("arena_2_gegner_treten_heraus", "Arena/Hinterhalt", "Arena ca. 0,75 s: Gegner treten aus der Wand")
-	await _seconds(0.45)
-	await _shot("arena_3_gegner_im_raum", "Arena/Hinterhalt", "Arena ca. 1,2 s: erste Welle im Raum")
-	await _room_overview(arena, "arena_uebersicht_erste_welle", "Arena/Hinterhalt", "Arena mitten in der ersten Welle, ganzer Raum: %s" % _describe(arena), 0)
-	_unstage(arena)
-	await _frames(6)
-	# Ambush: looks empty, breaks open when the door closes behind the player.
-	var ambush := _stage(load("res://dungeon/rooms/combat/arena_grube_ember_forge.tscn"), 52, COMBAT, {"ambush": 1})
-	await _frames(10)
-	await _room_overview(ambush, "hinterhalt_vorher_leer", "Arena/Hinterhalt", "Hinterhalt vor dem Betreten (wirkt leer): %s" % _describe(ambush), 1)
-	await _enter_staged(ambush)
-	await _seconds(0.1)
-	await _shot("hinterhalt_1_tuer_schliesst", "Arena/Hinterhalt", "Hinterhalt (Arena mit Grube, Glutkammer) 0,1 s: Tür schließt hinter dem Spieler")
-	await _seconds(0.45)
-	await _shot("hinterhalt_2_ausbruch", "Arena/Hinterhalt", "Hinterhalt 0,55 s: Ausbruch aus den Wänden")
-	await _room_overview(ambush, "hinterhalt_uebersicht_ausbruch", "Arena/Hinterhalt", "Hinterhalt ca. 0,7 s, ganzer Raum beim Ausbruch: %s" % _describe(ambush), 0)
-	_restore_vision(ambush)
-	await _seconds(0.3)
-	await _shot("hinterhalt_3_gegner_treten_heraus", "Arena/Hinterhalt", "Hinterhalt ca. 1,1 s: Gegner treten heraus")
-	await _seconds(0.6)
-	await _shot("hinterhalt_4_kampf", "Arena/Hinterhalt", "Hinterhalt 1,6 s: Kampf läuft")
-	_unstage(ambush)
-	await _frames(6)
+	var save_manager := root.get_node("SaveManager")
+	for item in [["arena_tore_slime_grotto", 22, "tore", "Arena der Tore"], ["arena_gross_l_ember_forge", 52, "gross_l", "Große Arena (L)"]]:
+		var arena := _stage(load("res://dungeon/rooms/combat/%s.tscn" % item[0]), item[1], COMBAT)
+		await _frames(10)
+		save_manager.get(&"_seen").erase(_genre_script.get_seen_id(&"arena"))
+		await _enter_staged(arena)
+		await _seconds(1.2)
+		await _shot("arena_%s_1_intro" % item[2], "Arena", "%s (%s): Intro beim ersten Mal, 1,2 s nach dem Betreten" % [item[3], _biome_name(arena)])
+		var intro: Object = load("res://dungeon/modes/room_intro.gd").get_intro(arena)
+		if intro != null:
+			intro.skip()
+		_genre_script.mark_explained(&"arena")
+		await _seconds(0.3)
+		await _shot("arena_%s_2_tore_warnen" % item[2], "Arena", "%s 0,3 s nach dem Intro: Wand-Tore kündigen sich an" % item[3])
+		await _room_overview(arena, "arena_%s_uebersicht_tore" % item[2], "Arena", "%s 0,4 s nach dem Intro, ganzer Raum (alle Wand-Tore): %s" % [item[3], _describe(arena)], 0)
+		_restore_vision(arena)
+		await _seconds(0.5)
+		await _shot("arena_%s_3_gegner_treten_heraus" % item[2], "Arena", "%s ca. 1 s nach dem Intro: Gegner treten aus der Wand" % item[3])
+		await _seconds(0.9)
+		await _room_overview(arena, "arena_%s_uebersicht_erste_welle" % item[2], "Arena", "%s mitten in der ersten Welle, ganzer Raum: %s" % [item[3], _describe(arena)], 0)
+		_unstage(arena)
+		await _frames(6)
 
 
 # --- Phase: doors ---
 
+## Per biome: the north door before a clear room, with a mode sign and in the game view; side doors
+## of a template with west and east places; the boss gates before the boss rooms.
 func _phase_doors() -> void:
 	await _ensure_stage()
+	var signs: GDScript = load("res://dungeon/environment/doors/door_signs.gd")
 	for biome in 4:
-		var plan: PackedScene = load("res://dungeon/rooms/combat/kreuzgang_%s.tscn" % BIOME_IDS[biome])
-		var room := _stage(plan, BIOME_ROOMS[biome], COMBAT)
+		var room := _stage(load("res://dungeon/rooms/combat/kreuzgang_%s.tscn" % BIOME_IDS[biome]), BIOME_ROOMS[biome], COMBAT)
 		await _frames(10)
 		_overlay().set_biome(room.spawner.get_biome(room.room_index), true)
-		await _door_shot(room, room.get_chosen_exit(), "tuer_nord_%s" % BIOME_SLUGS[biome], "Tür", "Nordtür (Ausgang, geschlossen) in %s, nah" % _biome_name(room))
+		var exit: Vector2i = room.get_chosen_exit()
+		var door: Node = room.get_exit_doors()[0]
+		door.show_way(&"", signs.way_color(door.get_style(), &""))
+		await _door_shot(room, exit, "tuer_nord_%s_saeubern" % BIOME_SLUGS[biome], "Tür", "Nordtür (Ausgang, geschlossen) vor einem Säubern-Raum in %s, nah" % _biome_name(room))
+		var mode: StringName = DOOR_MODES[biome]
+		door.show_way(mode, signs.way_color(door.get_style(), mode))
+		await _door_shot(room, exit, "tuer_nord_%s_modus_%s" % [BIOME_SLUGS[biome], mode], "Tür", "Nordtür mit Symbol und Lichtkegel des nächsten Modus '%s' in %s, nah" % [mode, _biome_name(room)])
+		await _door_game_shot(room, exit, "tuer_nord_%s_modus_%s_spielansicht" % [BIOME_SLUGS[biome], mode], "Nordtür mit Modus '%s', Spielansicht 3 Kacheln davor (%s)" % [mode, _biome_name(room)])
 		if biome == 0:
 			await _door_shot(room, room.get_node("Tiles").get_entrance_door(), "tuer_sued_eingang_%s" % BIOME_SLUGS[biome], "Tür", "Eingangstür Süd (offen) in %s, nah" % _biome_name(room))
 		_unstage(room)
 		await _frames(4)
 	# Side doors: entered from the west, leaving to the east.
-	var ring: PackedScene = load("res://dungeon/rooms/combat/normal_ring_m.tscn")
-	for biome: int in [1, 2]:
-		var probe: Node = ring.instantiate()
-		var tiles: Node = probe.get_node("Tiles")
-		var west: Array = tiles.get_door_slots(WEST)
-		var east: Array = tiles.get_door_slots(EAST)
+	for biome in 4:
+		var scene := _side_template(BIOME_IDS[biome])
+		if scene == null:
+			print("no template with west and east door places in ", BIOME_IDS[biome])
+			continue
+		var probe: Node = scene.instantiate()
+		var west: Array = probe.get_node("Tiles").get_door_slots(WEST)
+		var east: Array = probe.get_node("Tiles").get_door_slots(EAST)
 		probe.free()
-		if west.is_empty() or east.is_empty():
-			print("ring template has no side door places")
-			break
-		var room := _stage(ring, BIOME_ROOMS[biome], COMBAT, {"entrance": Vector2i(WEST, west[0]), "exits": [Vector2i(EAST, east[0])]})
+		var room := _stage(scene, BIOME_ROOMS[biome], COMBAT, {"entrance": Vector2i(WEST, west[0]), "exits": [Vector2i(EAST, east[0])]})
 		await _frames(10)
+		var door: Node = room.get_exit_doors()[0]
+		door.show_way(&"", signs.way_color(door.get_style(), &""))
 		await _door_shot(room, Vector2i(WEST, west[0]), "seitentuer_west_eingang_%s" % BIOME_SLUGS[biome], "Tür", "Seitentür West als Eingang (offen) in %s, nah" % _biome_name(room))
 		await _door_shot(room, Vector2i(EAST, east[0]), "seitentuer_ost_ausgang_%s" % BIOME_SLUGS[biome], "Tür", "Seitentür Ost als Ausgang (geschlossen) in %s, nah" % _biome_name(room))
 		_unstage(room)
@@ -741,6 +840,15 @@ func _phase_doors() -> void:
 		await _door_shot(room, room.get_chosen_exit(), "bosstor_%s" % BIOME_SLUGS[_biome_of(index)], "Tür", "Bosstor: Ausgang von Raum %d (%s) vor dem Bossraum, nah" % [index, _biome_name(room)])
 		_unstage(room)
 		await _frames(4)
+
+
+## A clear S template of the biome with west and east door places (side doors).
+func _side_template(biome: StringName) -> PackedScene:
+	var catalog: Object = load("res://dungeon/rooms/room_catalog.gd").load_default()
+	for entry in catalog.get_entries():
+		if entry.allows_biome(biome) and entry.allows_entrance(WEST) and entry.allows_entrance(EAST) and entry.size_class == 0 and entry.mode == &"clear":
+			return entry.scene
+	return null
 
 
 # --- Phase: dungeon UI ---
@@ -762,7 +870,7 @@ func _phase_ui() -> void:
 	if _player.health.get_health() > 3.0:
 		_player.health.take_damage(2.0)
 	# HUD mid-fight.
-	var room := _stage(load("res://dungeon/rooms/combat/normal_cross_m.tscn"), 37, COMBAT)
+	var room := _stage(load("res://dungeon/rooms/combat/kreuzgang_shadow_realm.tscn"), 37, COMBAT)
 	await _frames(8)
 	await _enter_staged(room)
 	await _fight(4.2)
@@ -781,16 +889,6 @@ func _phase_ui() -> void:
 	await _close_modals()
 	await _close_modals()
 	_unstage(room)
-	await _frames(6)
-	# Genre banner with the first-time card: a catacomb (its explanation is shown again on purpose).
-	root.get_node("SaveManager").get(&"_seen").erase(_genre_script.get_seen_id(&"catacomb"))
-	var catacomb := _stage(load("res://dungeon/rooms/combat/normal_catacomb_m.tscn"), 22, COMBAT)
-	await _frames(8)
-	await _enter_staged(catacomb)
-	await _seconds(0.9)
-	await _shot("genre_banner_katakombe_mit_erklaerkarte", "UI", "Genre-Banner 'Katakombe' mit Erklärkarte beim ersten Betreten (Schleimgrotte)")
-	await _seconds(1.0)
-	_unstage(catacomb)
 	await _frames(6)
 
 
@@ -835,7 +933,7 @@ func _ensure_stage() -> void:
 
 
 ## Builds a room like DungeonManager._prepare_slot (setup, door plan, ingredients, encounter group),
-## far away from the streamed rooms. opts: special, trial, pact, portal, ambush, entrance, exits.
+## far away from the streamed rooms. opts: special, trial, pact, portal, entrance, exits.
 func _stage(scene: PackedScene, index: int, room_type: int, opts := {}) -> Node:
 	var context: Object = _dungeon.context
 	var room: Node = scene.instantiate()
@@ -846,8 +944,6 @@ func _stage(scene: PackedScene, index: int, room_type: int, opts := {}) -> Node:
 	var slot: int = _seq.get_slot_for_room(index)
 	room.slot_index = slot + 1 if room_type == CAMPFIRE else slot
 	room.setup(index, room_type, int(opts.get("special", -1)), bool(opts.get("portal", false)), context, false)
-	if opts.has("ambush"):
-		room.forced_ambush = int(opts["ambush"])
 	var tiles: Node = room.get_node("Tiles")
 	var entrance: Vector2i = opts.get("entrance", Vector2i(SOUTH, tiles.entrance_x))
 	var exits: Array[Vector2i] = []
@@ -872,8 +968,9 @@ func _stage(scene: PackedScene, index: int, room_type: int, opts := {}) -> Node:
 	return room
 
 
-## The player walks into a staged room: room number, darkness and genre banner like
-## DungeonManager._on_player_entered_room, then the room starts.
+## The player walks into a staged room: the enter trigger (modes start their intro), room number,
+## darkness and genre banner like DungeonManager._on_player_entered_room, then the room starts and
+## the lighting profile of the room comes in (room_activated, R6).
 func _enter_staged(room: Node) -> void:
 	await _wait_for_quiet_ui()
 	var run_manager := root.get_node("RunManager")
@@ -881,8 +978,10 @@ func _enter_staged(room: Node) -> void:
 	run_manager.room_changed.emit(room.room_index)
 	_player.global_position = room.get_player_start()
 	_reset_player_camera()
+	room._on_body_entered(_player)
 	_dungeon._apply_vision(room)
 	room.activate()
+	_dungeon.room_activated.emit(room)
 	await _frames(2)
 
 
@@ -946,6 +1045,22 @@ func _door_shot(room: Node, door: Vector2i, slug: String, category: String, deta
 	var center: Vector2 = room.to_global(_tiles_script.tile_center(tile) - outward * TILE * 0.6)
 	await _overview_at(center, 1.6, slug, category, details + " (%s)" % _biome_name(room))
 	_restore_vision(room)
+
+
+## A door in the game view: the player three tiles in front of it, room lighting, HUD on.
+func _door_game_shot(room: Node, door: Vector2i, slug: String, details: String) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	var tile: Vector2i = _tiles_script.door_tile_of(door.x, door.y, tiles.room_size)
+	var outward: Vector2 = Vector2(_tiles_script.SIDE_DIRECTIONS[door.x])
+	_player.global_position = room.to_global(_tiles_script.tile_center(tile) - outward * TILE * 3.0)
+	_reset_player_camera()
+	_restore_vision(room)
+	await _seconds(0.6)
+	await _shot(slug, "Tür", details)
+	var first: Node = _dungeon.get_room(1)
+	if first != null:
+		_player.global_position = first.get_player_start()
+		_reset_player_camera()
 
 
 ## Corridor between a room's exit and the next room's entrance.
@@ -1026,7 +1141,8 @@ func _light_full() -> void:
 		overlay.set_vision(0.0, 2400.0, true)
 
 
-## Darkness of a room as the DungeonManager sets it (without its banners).
+## Light of a room as the game sets it (without banners): the biome, the light circle of the
+## DungeonManager and the lighting profile of the room (R6, VisionOverlay on room_activated).
 func _restore_vision(room: Node) -> void:
 	var overlay := _overlay()
 	if overlay == null or room == null or not is_instance_valid(room):
@@ -1039,6 +1155,7 @@ func _restore_vision(room: Node) -> void:
 		overlay.set_vision(0.9, 300.0, true)
 	else:
 		overlay.set_vision(0.97, load("res://dungeon/variants/room_variants.gd").room_vision_radius(room), true)
+	overlay.set_lighting(load("res://components/visual/lighting_profile.gd").for_room(room), true)
 
 
 func _hide_ui(hidden: bool) -> void:
@@ -1151,7 +1268,9 @@ func _find_modal(_from: Node) -> Node:
 	return modals[0] if not modals.is_empty() else null
 
 
-## Answers every open dialog: cancel where allowed, else the first card or button.
+## Answers every open dialog: cancel where allowed, else the first card, else what Enter gives (the
+## run end: back to the village, never a new run that would replace the staging dungeon), else the
+## first button.
 func _close_modals() -> void:
 	for attempt in 12:
 		var modal := _find_modal(root)
@@ -1166,6 +1285,9 @@ func _close_modals() -> void:
 					card.activate()
 					done = true
 					break
+			if not done and modal.get(&"accept_result") != null:
+				modal.finish(modal.accept_result)
+				done = true
 			if not done:
 				for button in modal.find_children("*", "Button", true, false):
 					if not button.disabled:
@@ -1190,27 +1312,22 @@ func _describe(room: Node) -> String:
 	parts.append("Vorlage %s" % (template.id if template != null else room.scene_file_path.get_file().get_basename()))
 	parts.append("Biom %s" % _biome_name(room))
 	parts.append("%dx%d" % [tiles.room_size.x, tiles.room_size.y])
+	if template != null and int(template.size_class) == 2:
+		parts.append("Größe L")
 	var exits: Array[String] = []
 	for door in tiles.get_exit_doors():
 		exits.append(SIDE_NAMES[door.x])
 	parts.append("Eingang %s, Ausgang %s" % [SIDE_NAMES[tiles.entrance_side], "/".join(exits)])
-	var scatter: Node = room.get_node_or_null("Ingredients")
-	if scatter != null and scatter.get("plan") != null:
-		var ingredient_set: GDScript = load("res://dungeon/rooms/ingredients/ingredient_set.gd")
-		var names: Array[String] = []
-		for kind in scatter.plan.ingredients:
-			names.append(str(ingredient_set.get_kind_name(kind)))
-		parts.append("Zutaten [%s]" % ", ".join(names))
 	var genre := str(_genre_script.of_room(room))
 	if not genre.is_empty():
 		parts.append("Genre %s" % genre)
 	var variant := str(room.get_variant_id()) if room.has_method(&"get_variant_id") else ""
 	if not variant.is_empty():
-		parts.append("Variante %s" % variant)
+		parts.append("Modus %s" % variant)
 	if room.has_method(&"has_wager_altar") and room.has_wager_altar():
 		parts.append("Wagnis-Altar")
 	if room.is_arena:
-		parts.append("Hinterhalt" if room.is_ambush else "Arena")
+		parts.append("Arena")
 	if tiles.has_method(&"has_pits") and tiles.has_pits():
 		parts.append("Abgründe")
 	if room.get_node_or_null("SecretNiche") != null:

@@ -1,0 +1,24 @@
+# Sumpfpfad (L) als Hoehle: der Weg aus Kopfstein in Kurven zwischen Wasserbecken zum Ausgang oben
+# rechts, Pfuetzen als Quellen am Weg.
+role: combat
+class: L
+biomes: all
+mode: escort
+name: Sumpfpfad (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###T###T####N###xxxxxx
+xxxxxx......#...........xxxxx
+xxxx.......p.....,,,.....xxxx
+xx...............,,,...p...xx
+xx...www.##.,,,,,,.........xx
+xx...www.##.,,,,,,...www...xx
+xxx......,,,,........www..xxx
+xxx....p.,,,,.www.p.......xxx
+xxxx.,,,,,,...www........xxxx
+xxxx1........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

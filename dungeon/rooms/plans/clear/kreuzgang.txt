@@ -1,23 +1,22 @@
-# Kreuzgang (M): die vier Ecken sind Fels, Quellen an den Armenden, zwei Pfeiler in der Mitte,
-# gestuerzte Saeule und Opferstelle im Suedarm.
-name: Kreuzgang
+# Kreuzgang (M): Umgang um einen Hof aus Fels, Quellen in den Ecken des Umgangs; Nordplatz rechts fuer
+# eine Abzweigung.
 role: combat
 mode: clear
+mirror: yes
 biomes: all
-size: 25x15
+name: Kreuzgang
+size: 23x13
 ---
-#########################
-#########################
-######T#####N#####T######
-######.............######
-######.G.........G.######
-######.............######
-##.....................##
-##.G.....##...##.....G.##
-##.......##...##.......##
-##.....................##
-##.........P....K......##
-######.............######
-######......@......######
-############S############
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxT###N######T#N#xxx
+xxxxx....,,.......:.xxx
+xxxx................xxx
+xx...................xx
+xx...G..#######..G...xx
+xx......#######......xx
+xxx.................xxx
+xxxx..K.........G..xxxx
+xxxxxx...@.....xxxxxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

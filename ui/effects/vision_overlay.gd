@@ -8,9 +8,14 @@ extends CanvasLayer
 ## from set_vision stay the gameplay truth; the profile only lifts the unlit environment and widens
 ## the drawn circles, except in rooms that are dark on purpose (LightingProfile.deep()).
 ## Also owns the PostProcess pass (layer 3) and forwards the bound player to it.
+## L1: glow halos around the sources, flickering/breathing source brightness, mist in the light and
+## the biome grade (BiomeGrade: shadow/highlight tint, vignette) are drawn in the same single pass;
+## LightingQuality low switches them off. With more lights on screen than the shader takes, the
+## gameplay lights (counts_as_light) and the strongest ones near the view centre are kept.
 
 const SHADER: Shader = preload("res://components/visual/vision.gdshader")
-const MAX_LIGHTS := 24
+## Must match MAX_LIGHTS in vision.gdshader.
+const MAX_LIGHTS := 32
 const BLIND_RADIUS := 110.0
 const RADIUS_SMOOTHING := 4.0
 const DARKNESS_SPEED := 1.2
@@ -23,12 +28,24 @@ const DARK_GRAIN := 0.018
 ## The darkness raster is locked to the world on blocks of this many screen px.
 const PIXEL_SIZE := 4.0
 ## Coloured light (R6, TESTWERTE): tint of what a light touches and faint haze in the dark.
-const LIGHT_TINT := 0.45
+const LIGHT_TINT := 0.6
 const LIGHT_HAZE := 0.08
 ## Lit areas a little brighter than the plain scene (R6, TESTWERT).
 const LIGHT_BOOST := 0.15
 ## Coloured light fades in with the darkness (none in daylight): glow = clamp(darkness * this).
 const GLOW_PER_DARKNESS := 2.5
+## L1 (TESTWERTE): glow halo strength and core size (share of the light radius), shadow lift and
+## highlight tint of the biome grade, how fast the grade follows a biome change.
+const HALO_STRENGTH := 0.42
+const HALO_SHARE := 0.5
+## Self-lit art (lava, flames, crystals): share of the darkness kept off, glow strength, reach in
+## world px (TESTWERTE).
+const EMISSIVE_KEEP := 0.75
+const EMISSIVE_GLOW := 0.55
+const EMISSIVE_RADIUS := 5.0
+const SHADOW_LIFT := 0.35
+const HIGHLIGHT_MIX := 0.5
+const GRADE_SPEED := 1.5
 
 var _material: ShaderMaterial
 var _rect: ColorRect
@@ -49,6 +66,9 @@ var _player_scale := 1.0
 var _source_scale := 1.0
 var _softness_scale := 1.0
 var _visual_darkness := 0.0
+## Biome grade (L1): target from set_biome, drawn value blends towards the effective one.
+var _grade_target: BiomeGrade = BiomeGrade.for_biome(&"")
+var _grade: BiomeGrade = BiomeGrade.neutral()
 
 
 func _ready() -> void:
@@ -66,6 +86,7 @@ func _ready() -> void:
 	_post_process.name = "PostProcess"
 	add_child(_post_process)
 	_snap_profile()
+	_grade = _effective_grade()
 
 
 func bind_player(player: Player) -> void:
@@ -101,14 +122,24 @@ func set_dark_color(color: Color, instant := false) -> void:
 ## Applies a biome's darkness colour, ambient particles (dust, spores, wisps, embers) and its
 ## default look (LightingProfile.for_biome) until a room sets its own.
 func set_biome(biome: BiomeData, instant := false) -> void:
-	if biome == null:
-		set_dark_color(DEFAULT_DARK_COLOR, instant)
-		AmbientParticles.set_biome_for(self, &"")
-		set_lighting(LightingProfile.for_biome(&""), instant)
-		return
-	set_dark_color(biome.darkness_color, instant)
-	AmbientParticles.set_biome_for(self, biome.id)
-	set_lighting(LightingProfile.for_biome(biome.id), instant)
+	var biome_id: StringName = biome.id if biome != null else &""
+	set_dark_color(biome.darkness_color if biome != null else DEFAULT_DARK_COLOR, instant)
+	AmbientParticles.set_biome_for(self, biome_id)
+	set_lighting(LightingProfile.for_biome(biome_id), instant)
+	set_grade(BiomeGrade.for_biome(biome_id), instant)
+
+
+## Colour grading of the dungeon (L1). Blends over ~0.7 s unless instant. The village and the menu
+## use their own grade (see _effective_grade).
+func set_grade(grade: BiomeGrade, instant := false) -> void:
+	_grade_target = grade if grade != null else BiomeGrade.for_biome(&"")
+	if instant:
+		_grade = _effective_grade()
+
+
+## The grade as drawn right now (after blending; neutral with LightingQuality low).
+func get_grade() -> BiomeGrade:
+	return _grade if LightingQuality.is_high() else BiomeGrade.neutral()
 
 
 ## Look of the current room (R6): ambient cap and drawn circle sizes. Blends unless instant.
@@ -169,6 +200,7 @@ func _process(delta: float) -> void:
 	var blend := 1.0 - exp(-DARK_COLOR_SPEED * 3.0 * delta)
 	_dark_color = _dark_color.lerp(_target_dark_color, blend)
 	_post_process.grain = DARK_GRAIN * clampf((_visual_darkness - 0.5) * 2.0, 0.0, 1.0)
+	_grade = _grade.lerp_to(_effective_grade(), 1.0 - exp(-GRADE_SPEED * 3.0 * delta))
 
 	var screen := get_viewport().get_visible_rect().size
 	var canvas := get_viewport().get_canvas_transform()
@@ -188,6 +220,7 @@ func _process(delta: float) -> void:
 	# Lock the dither raster to the world, so it scrolls with the floor instead of shimmering.
 	var origin := canvas.origin
 	_material.set_shader_parameter(&"grid_offset", Vector2(fposmod(origin.x, PIXEL_SIZE * 4.0), fposmod(origin.y, PIXEL_SIZE * 4.0)))
+	_apply_fx(origin, zoom)
 
 	var low_hp := 0.0
 	if _player != null and is_instance_valid(_player) and _player.is_alive():
@@ -205,6 +238,37 @@ func _effective_profile() -> LightingProfile:
 	if GameManager.get_phase() != GameManager.Phase.DUNGEON:
 		return LightingProfile.neutral()
 	return _profile
+
+
+## The grade that applies right now: the biome's in the dungeon, warm lamps and blue shadows in the
+## village at night (none by day), nothing in the menu.
+func _effective_grade() -> BiomeGrade:
+	match GameManager.get_phase():
+		GameManager.Phase.DUNGEON:
+			return _grade_target
+		GameManager.Phase.VILLAGE:
+			return BiomeGrade.for_village(VillageDaylight.night_from_darkness(_visual_darkness))
+	return BiomeGrade.neutral()
+
+
+## L1 parameters of the pass: quality switch, halo, mist (world-locked) and the biome grade.
+func _apply_fx(origin: Vector2, zoom: float) -> void:
+	var grade := get_grade()
+	_material.set_shader_parameter(&"quality", 1.0 if LightingQuality.is_high() else 0.0)
+	_material.set_shader_parameter(&"halo_strength", HALO_STRENGTH)
+	_material.set_shader_parameter(&"halo_share", HALO_SHARE)
+	_material.set_shader_parameter(&"emissive_keep", EMISSIVE_KEEP)
+	_material.set_shader_parameter(&"emissive_glow", EMISSIVE_GLOW)
+	_material.set_shader_parameter(&"emissive_radius", EMISSIVE_RADIUS * zoom)
+	_material.set_shader_parameter(&"world_origin", origin)
+	_material.set_shader_parameter(&"world_zoom", zoom)
+	_material.set_shader_parameter(&"mist_strength", grade.mist)
+	_material.set_shader_parameter(&"grade_shadow", grade.shadow)
+	_material.set_shader_parameter(&"grade_highlight", grade.highlight)
+	_material.set_shader_parameter(&"grade_amount", grade.amount)
+	_material.set_shader_parameter(&"shadow_lift", SHADOW_LIFT)
+	_material.set_shader_parameter(&"highlight_mix", HIGHLIGHT_MIX)
+	_material.set_shader_parameter(&"vignette", grade.vignette)
 
 
 func _update_profile(delta: float, blinded: bool) -> void:
@@ -234,27 +298,56 @@ func _snap_profile() -> void:
 func _update_lights(canvas: Transform2D, zoom: float, screen: Vector2) -> void:
 	var packed := PackedVector4Array()
 	var colors := PackedVector4Array()
+	var halos := PackedFloat32Array()
 	if _visual_darkness > 0.0:
-		for node in get_tree().get_nodes_in_group(LightSource.GROUP):
-			var light := node as LightSource
-			if light == null or not light.is_lit():
-				continue
-			var pos := canvas * light.global_position
-			var r := light.get_current_radius() * zoom * _source_scale
-			if pos.x < -r or pos.y < -r or pos.x > screen.x + r or pos.y > screen.y + r:
-				continue
-			packed.append(Vector4(pos.x, pos.y, r, light.intensity))
+		var picked := pick_lights(get_tree().get_nodes_in_group(LightSource.GROUP), canvas, zoom * _source_scale, screen)
+		for entry in picked:
+			var light: LightSource = entry[0]
+			var pos: Vector2 = entry[1]
+			var r: float = entry[2]
+			packed.append(Vector4(pos.x, pos.y, r, light.get_draw_intensity()))
 			var color := light.get_draw_color()
 			colors.append(Vector4(color.r, color.g, color.b, LightPalette.tint_strength(color)))
-			if packed.size() >= MAX_LIGHTS:
-				break
+			halos.append(light.get_halo())
 	var count := packed.size()
 	while packed.size() < MAX_LIGHTS:
 		packed.append(Vector4.ZERO)
 		colors.append(Vector4.ZERO)
+		halos.append(0.0)
 	_material.set_shader_parameter(&"lights", packed)
 	_material.set_shader_parameter(&"light_colors", colors)
+	_material.set_shader_parameter(&"light_halos", halos)
 	_material.set_shader_parameter(&"light_count", count)
+
+
+## The lights to draw: every burning LightSource whose circle touches the screen, as
+## [light, screen position, screen radius]. With more than MAX_LIGHTS the gameplay lights
+## (counts_as_light) come first, then the strongest ones nearest to the view centre.
+static func pick_lights(nodes: Array, canvas: Transform2D, radius_scale: float, screen: Vector2) -> Array:
+	var visible_lights: Array = []
+	for node in nodes:
+		var light := node as LightSource
+		if light == null or not light.is_lit():
+			continue
+		var pos := canvas * light.global_position
+		var r := light.get_current_radius() * radius_scale
+		if pos.x < -r or pos.y < -r or pos.x > screen.x + r or pos.y > screen.y + r:
+			continue
+		visible_lights.append([light, pos, r])
+	if visible_lights.size() <= MAX_LIGHTS:
+		return visible_lights
+	var centre := screen * 0.5
+	var diagonal := maxf(screen.length(), 1.0)
+	for entry in visible_lights:
+		var light: LightSource = entry[0]
+		var dist: float = (entry[1] as Vector2).distance_to(centre)
+		var score := light.intensity * float(entry[2]) / (1.0 + dist / diagonal * 4.0)
+		if light.counts_as_light:
+			score += 1000000.0
+		entry.append(score)
+	visible_lights.sort_custom(func(a: Array, b: Array) -> bool: return float(a[3]) > float(b[3]))
+	visible_lights.resize(MAX_LIGHTS)
+	return visible_lights
 
 
 func _on_room_activated(room: Node) -> void:

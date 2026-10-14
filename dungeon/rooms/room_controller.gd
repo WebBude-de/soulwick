@@ -285,7 +285,7 @@ func activate() -> void:
 	if state != State.PREPARED:
 		return
 	state = State.ACTIVE
-	_entrance_door.close()
+	# M2: the entrance is an open gap; the gate of the room before shuts behind the players (GateCloser).
 	if is_campfire():
 		# No room of its own (D-103): nothing to clear, no completion, the way on is open.
 		_completion_reported = true

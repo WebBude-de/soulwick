@@ -14,8 +14,9 @@ const VISION_RADIUS := 320.0
 ## Darkness colours: warm violet at dusk and dawn, deep blue at night.
 const DUSK_COLOR := Color("#2a1430")
 const NIGHT_COLOR := Color("#070b24")
-## TESTWERT: light of the village lamps.
-const LAMP_RADIUS := 170.0
+## TESTWERT: light of the village lamps (R7: warm light islands of 3 tiles).
+const LAMP_RADIUS := 192.0
+const LAMP_INTENSITY := 0.85
 const LAMP_FLICKER := 0.04
 
 
@@ -42,6 +43,14 @@ static func night_amount(hour: float) -> float:
 	return 0.0
 
 
+## Night amount (0..1) back from a darkness as drawn: the VisionOverlay carries the clock's value
+## (VillageEvening follows it, so tools that set the overlay also set the evening look).
+static func night_from_darkness(darkness: float) -> float:
+	if NIGHT_DARKNESS <= 0.0:
+		return 0.0
+	return clampf(darkness / NIGHT_DARKNESS, 0.0, 1.0)
+
+
 ## Colour of the darkness: violet while the light changes, blue in full night.
 static func dark_color_for_hour(hour: float) -> Color:
 	var night := night_amount(hour)
@@ -56,7 +65,9 @@ static func add_lamp_lights(props: Node) -> void:
 		var light := LightSource.new()
 		light.name = "LampLight"
 		light.radius = LAMP_RADIUS
+		light.intensity = LAMP_INTENSITY
 		light.flicker = LAMP_FLICKER
+		light.color = LightPalette.WARM
 		# Lamp head near the top of the 96 px post (the prop origin is already SortLift-raised by 16 px).
 		light.position = Vector2(0, -72)
 		prop.add_child(light)

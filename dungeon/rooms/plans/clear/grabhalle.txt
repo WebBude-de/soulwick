@@ -1,19 +1,22 @@
 # Claude Design 01: Graeber in zwei Reihen, je ein Sarg links und rechts, eingestuerzte Saeule als
 # Deckung, Opferstelle. Abweichung: die Opferstelle K steht eine Reihe hoeher (sonst in der
 # Eingangsschneise).
+# Sprengfass F neben der rissigen Wand q (Welle C): die Geheimnische laesst sich auch ohne Bomber, Stab oder Hammer oeffnen (Fass erst ab Raum 3).
+# Abzweigung (Welle C): Nordtuer-Plaetze an beiden Seiten, mindestens 8 Spalten auseinander (zwei Spezialraeume passen nebeneinander, R5): nur rechts (links liegt die rissige Wand); rechte Nische und Fackel ruecken nach innen, das rechte obere Grab eine Reihe tiefer.
 name: Grabhalle
 role: combat
 mode: clear
 biomes: crypt
 size: 23x13
 weight: 1.0
+rock: wall
 ---
 #######################
 #######################
-##T###n####N####n###T##
-##...................##
-##.G....o.......o..G.##
-##...................##
+##T#q#n####N##n##T#N###
+##...F...............##
+##.G....o.......o....##
+##.................G.##
 ##..##....P......##..##
 ##..##...........##..##
 ##.........K.........##

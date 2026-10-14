@@ -12,6 +12,8 @@ extends Resource
 ## flame, ...) are only drawn when their mode is asked for (R4); plain fights draw "clear" and
 ## "arena" plans. The weight of a plan scales its share. Boss, miniboss, rest and campfire plans
 ## live in a second catalog (PLANS_PATH, load_plans) with the helpers pick_plan()/find_boss_scene().
+## Size L (plans "*_l", class L) is for groups of 3-4 players (D-084): clear, arena and every mode
+## have L plans in every biome; a pick only gets them when its sizes ask for L.
 
 const DEFAULT_PATH := "res://dungeon/rooms/combat/combat_catalog.tres"
 ## Boss, miniboss, rest and campfire plans (generator, RoomTemplate.role).
@@ -196,26 +198,43 @@ func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGener
 ## holds through every fallback step except the very last one. biome_id &"" = the biome of
 ## room_index (R1). mode &"" = a plain fight (clear and arena plans); a mode (&"escort", ...) asks
 ## for the plans of that mode (R4). Candidates are weighted by RoomTemplate.weight (one draw).
+## The fallback steps first try every size up to the largest allowed one (a single-player run never
+## gets an L room for 3-4 players, D-084), only then any size.
 func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1, mode: StringName = &"") -> RoomTemplate:
 	_ensure_indexed()
-	var any_size: Array[RoomSequence.RoomSize] = []
 	var biome := _biome_or_room(biome_id, room_index)
 	var candidates := _candidates(kind, sizes, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
 		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
 		candidates = _candidates(-1, sizes, biome, room_index, entrance_side, mode)
-	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, biome, room_index, entrance_side, mode)
-	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, &"", 0, entrance_side, mode)
-	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, &"", 0, -1, mode)
-	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, &"", 0, -1, &"*")
+	var any_size: Array[RoomSequence.RoomSize] = []
+	for limit in [sizes_up_to(sizes), any_size]:
+		if not candidates.is_empty():
+			break
+		candidates = _candidates(-1, limit, biome, room_index, entrance_side, mode)
+		if candidates.is_empty():
+			candidates = _candidates(-1, limit, &"", 0, entrance_side, mode)
+		if candidates.is_empty():
+			candidates = _candidates(-1, limit, &"", 0, -1, mode)
+		if candidates.is_empty():
+			candidates = _candidates(-1, limit, &"", 0, -1, &"*")
 	if candidates.is_empty():
 		return null
 	return _pick_weighted(candidates, rng)
+
+
+## Every size class up to the largest of sizes (S, M for [M]; empty sizes = any size).
+static func sizes_up_to(sizes: Array[RoomSequence.RoomSize]) -> Array[RoomSequence.RoomSize]:
+	var result: Array[RoomSequence.RoomSize] = []
+	if sizes.is_empty():
+		return result
+	var largest := 0
+	for size in sizes:
+		largest = maxi(largest, int(size))
+	for size in largest + 1:
+		result.append(size as RoomSequence.RoomSize)
+	return result
 
 
 ## One draw over the candidates, weighted by RoomTemplate.weight (all zero = uniform).

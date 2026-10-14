@@ -1,22 +1,21 @@
-# Claude Design 10 (Einsturz): Halle ueber einer Kammer, erste Felder sind schon eingebrochen, weitere
-# tragen die Warnmarke X (Reihenfolge baut R4). Abweichung: die eingebrochene Stelle oben liegt links
-# der Nordtuer (im Entwurf direkt darunter, die Tuer waere unerreichbar).
-name: Einsturzhalle
+# Claude Design 10 (Einsturz) als Hoehle: Halle ueber einer Kammer, erste Felder sind schon
+# eingebrochen, weitere tragen die Warnmarke X (Reihenfolge baut der Modus).
 role: combat
 mode: collapse
 biomes: all
+name: Einsturzhalle
 size: 23x13
 ---
-#######################
-#######################
-###########N#####T#####
-##......~~...........##
-##..~~X.~~.....X.....##
-##..~~.........v.....##
-##....X...~~~........##
-##.v......~~~...X~~..##
-##.........X.....~~..##
-##..X................##
-##.........@.........##
-###########S###########
-#######################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxx#####N####T#xxx
+xxxxxx.............xxxx
+xxxxx...............xxx
+xx....~~X.~~.....X...xx
+xx....~~.....v.......xx
+xx......X...~~~......xx
+xxx.v.......~~~..X..xxx
+xxxx...X...@....v..xxxx
+xxxxx..X..........xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

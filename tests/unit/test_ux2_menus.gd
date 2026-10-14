@@ -105,7 +105,9 @@ func _assert_kit_frame(modal: Modal, what: String) -> void:
 	assert_not_null(modal.content.get_node_or_null(^"Header"), "%s: shared header" % what)
 	assert_true(modal.key_bar.visible, "%s: key bar inside the panel" % what)
 	assert_true(_texts(modal.key_bar).has(DungeonTexts.t(&"MENU_PAUSED")), "%s: names the pause" % what)
-	assert_gt(modal.key_bar.find_children("Key", "", true, false).size(), 0, "%s: key caps" % what)
+	# Key caps of the hints, or of the buttons placed in the bar (run end, R8).
+	var caps := modal.key_bar.find_children("Key", "", true, false).size() + modal.key_bar.find_children("KeyCap", "", true, false).size()
+	assert_gt(caps, 0, "%s: key caps" % what)
 
 
 # --- Shop states ---
@@ -144,12 +146,18 @@ func test_shop_cards_keep_their_look_and_show_badges() -> void:
 	var cheap_card := modal.find_child("Offer1", true, false) as UiCard
 	var expensive_card := modal.find_child("Offer2", true, false) as UiCard
 	var sold_card := modal.find_child("Offer3", true, false) as UiCard
+	# The cards are dealt in (R8); once they are there, none is half transparent. Physics frames
+	# run while the dialog pauses the tree (wait_seconds would not).
+	await wait_physics_frames(50)
 	for card in [cheap_card, expensive_card, sold_card]:
 		assert_eq((card as UiCard).modulate.a, 1.0, "no half transparency")
 	assert_false(cheap_card.disabled)
 	assert_eq(_badge_texts(cheap_card).size(), 0, "a buyable offer needs no badge")
 	assert_true(expensive_card.disabled)
-	assert_true(_badge_texts(expensive_card).has(DungeonTexts.t(&"STATE_TOO_LITTLE_GOLD").to_upper()))
+	# R8: too little gold is a red price with a lock (and the reason as tooltip), no badge wall.
+	assert_eq(_badge_texts(expensive_card).size(), 0)
+	assert_not_null(expensive_card.find_child("Lock", true, false))
+	assert_eq((expensive_card.find_child("PriceRow", true, false) as Control).tooltip_text, DungeonTexts.t(&"STATE_TOO_LITTLE_GOLD"))
 	var price := expensive_card.find_child("Price", true, false)
 	var price_label := price.get_child(1) as Label
 	assert_eq(price_label.get_theme_color("font_color"), UiKit.COLOR_DANGER, "price in red")
@@ -295,7 +303,7 @@ func test_copied_texts_match_their_sources() -> void:
 	assert_eq(DungeonTexts.DE[&"ROOM_TRIAL_GAUNTLET_INTRO"], TrialContent.get_intro_text(SpecialTable.TrialKind.GAUNTLET))
 	assert_eq(DungeonTexts.DE[&"ROOM_TRIAL_LIGHT_RUN_INTRO"], TrialContent.get_intro_text(SpecialTable.TrialKind.LIGHT_RUN))
 	assert_eq(DungeonTexts.DE[&"ROOM_PACT_INTRO"], ALTAR_SCRIPT.PACT_INTRO_TEXT)
-	for key: StringName in [WaveRules.ARENA_TITLE, WaveRules.ARENA_INTRO_TEXT, WaveRules.AMBUSH_TITLE, WaveRules.AMBUSH_INTRO_TEXT]:
+	for key: StringName in [WaveRules.ARENA_TITLE, WaveRules.ARENA_INTRO_TEXT]:
 		assert_true(DungeonTexts.has_text(key), "A5 key %s has a German text" % key)
 
 

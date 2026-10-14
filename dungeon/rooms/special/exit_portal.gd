@@ -6,19 +6,20 @@ const PORTAL_TEXTURE: Texture2D = preload("res://art/environment/props/exit_port
 
 func _on_setup() -> void:
 	add_light(170.0, Vector2(0, -40))
-	add_animated(PORTAL_TEXTURE, Vector2i(32, 48), 8.0, Vector2(16, 46))
-	var interactable := add_interactable("Dungeon verlassen", 48.0, Vector2(0, -30))
+	# M2: the dark fill above the swirl is see-through (DoorArt.open_fill).
+	add_animated(DoorArt.open_fill(PORTAL_TEXTURE, DoorArt.PORTAL_FILL), Vector2i(32, 48), 8.0, Vector2(16, 46))
+	var interactable := add_interactable(DungeonTexts.t(&"PORTAL_PROMPT"), 48.0, Vector2(0, -30))
 	interactable.interacted.connect(_on_interacted)
-	add_caption("Ausgang", Vector2(0, -116))
+	add_caption(DungeonTexts.t(&"PORTAL_CAPTION"), Vector2(0, -116))
 
 
 func _on_interacted(_player: Player) -> void:
 	var gold := RunManager.get_run_gold()
 	var confirmed: bool = await context.ui.confirm(
-		"Dungeon verlassen?",
-		"Der Run endet. Du nimmst 100 %% deines Run-Goldes mit (%d Gold)." % gold,
-		"Verlassen", "Weiterspielen",
-		[["Run-Gold", str(gold), UiKit.COLOR_GOLD], ["Gutschrift (100 %)", str(gold), UiKit.COLOR_SUCCESS]])
+		DungeonTexts.t(&"PORTAL_QUESTION"),
+		DungeonTexts.t(&"PORTAL_TEXT", [gold]),
+		DungeonTexts.t(&"PORTAL_LEAVE"), DungeonTexts.t(&"PORTAL_STAY"),
+		[[Loc.t(&"GAME_UI_RUN_GOLD"), str(gold), UiKit.COLOR_GOLD], [DungeonTexts.t(&"RUNEND_PAYOUT", ["100 %"]), str(gold), UiKit.COLOR_SUCCESS]])
 	if confirmed:
 		Sfx.play_ui(self, &"portal")
 		context.manager.end_run(RunManager.EndReason.EXIT)

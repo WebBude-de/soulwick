@@ -11,8 +11,11 @@ extends RefCounted
 ## Widths in mockup pixels: WIDTH_NARROW (confirmations), WIDTH_MEDIUM (campfire, weapon slot),
 ## WIDTH_WIDE (cards: upgrade choice, shop, Tab overview).
 
-## Panel padding in mockup pixels (ui_spec dialog.padding: vertical, horizontal).
-const PADDING := Vector2(10, 12)
+## Panel padding in mockup pixels (ui_spec dialog.padding: vertical, horizontal; R8 tighter so the
+## dialogs stay under 60 % of the screen height).
+const PADDING := Vector2(8, 12)
+## Symbol before a dialog title (mockup pixels).
+const HEADER_ICON_SIZE := 16.0
 const WIDTH_NARROW := 232.0
 const WIDTH_MEDIUM := 300.0
 const WIDTH_WIDE := 452.0
@@ -40,13 +43,17 @@ static func create(reason: StringName, spec_width: float, title_text: String, bo
 	return modal
 
 
-## The dungeon menu frame (UX2): eyebrow (accent colour, capitals), title, wrapped subtitle and a
-## divider. Add the body to modal.content, then set_key_hints for the key bar.
+## The dungeon menu frame (UX2, R8): the eyebrow as a small tag in the accent colour, the title
+## (optionally with a 16 px symbol in front), a wrapped subtitle and a divider in the accent colour;
+## the accent also runs as a stripe down the left inner edge of the panel. Add the body to
+## modal.content, then set_key_hints for the key bar. icon: optional symbol before the title,
+## tint_icon colours grey symbols (door symbols) in the accent.
 static func create_menu(reason: StringName, spec_width: float, title_text: String, subtitle := "", eyebrow := "",
-		accent := UiKit.COLOR_GOLD, title_color := UiKit.COLOR_GOLD) -> Modal:
+		accent := UiKit.COLOR_GOLD, title_color := UiKit.COLOR_GOLD, icon: Texture2D = null, tint_icon := false) -> Modal:
 	var modal := Modal.create(reason)
 	modal.frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"normal", PADDING.x, PADDING.y))
 	modal.set_width(spec_width)
+	modal.accent = accent
 	var header := UiKit.hbox(int(UiKit.px(4)))
 	header.name = "Header"
 	modal.content.add_child(header)
@@ -54,7 +61,7 @@ static func create_menu(reason: StringName, spec_width: float, title_text: Strin
 	left.name = "BadgeBalance"
 	left.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	header.add_child(left)
-	var center := UiKit.vbox(int(UiKit.px(1)))
+	var center := UiKit.vbox(int(UiKit.px(2)))
 	center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(center)
 	var right := UiKit.hbox(0)
@@ -62,17 +69,66 @@ static func create_menu(reason: StringName, spec_width: float, title_text: Strin
 	right.alignment = BoxContainer.ALIGNMENT_END
 	header.add_child(right)
 	if not eyebrow.is_empty():
-		var eyebrow_label := UiKit.eyebrow(eyebrow, accent)
-		eyebrow_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		center.add_child(eyebrow_label)
-	center.add_child(UiKit.title(title_text, UiKit.SIZE_TITLE, title_color))
+		_add_tab(modal, center, eyebrow, accent)
+	var title_row := UiKit.hbox(int(UiKit.px(5)))
+	title_row.name = "TitleRow"
+	title_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	center.add_child(title_row)
+	if icon != null:
+		var symbol := UiKit.pixel_icon(icon, HEADER_ICON_SIZE)
+		symbol.name = "Icon"
+		if tint_icon:
+			symbol.modulate = accent
+		title_row.add_child(symbol)
+	var title_label := UiKit.title(title_text, UiKit.SIZE_TITLE, title_color)
+	title_label.name = "Title"
+	title_row.add_child(title_label)
 	if not subtitle.is_empty():
 		var sub := UiKit.wrapped_text(subtitle, spec_width - PADDING.y * 2.0 - 60.0, UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+		sub.name = "Subtitle"
 		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		sub.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		center.add_child(sub)
-	modal.content.add_child(UiKit.separator())
+	modal.content.add_child(UiKit.accent_line(accent))
 	return modal
+
+
+## The eyebrow as a tag in the accent colour that sits on the top edge of the panel (half outside,
+## like a label tab) and takes no height of its own. The anchor is a zero-height row of the header.
+static func _add_tab(modal: Modal, header_column: VBoxContainer, text: String, accent: Color) -> UiChip:
+	var anchor := Control.new()
+	anchor.name = "TabAnchor"
+	anchor.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	header_column.add_child(anchor)
+	var tag := UiChip.badge(text, accent)
+	tag.name = "Eyebrow"
+	tag.add_theme_stylebox_override("panel", tab_style(accent))
+	anchor.add_child(tag)
+	var place := func() -> void:
+		if not is_instance_valid(tag) or not is_instance_valid(anchor):
+			return
+		tag.size = tag.get_combined_minimum_size()
+		# Centred over the header, its middle on the panel's top frame line.
+		tag.position = Vector2(roundf((anchor.size.x - tag.size.x) * 0.5),
+				roundf(-UiKit.px(PADDING.x) - tag.size.y * 0.5 + UiCard.FRAME_INSET * UiKit.ART_SCALE))
+	anchor.resized.connect(place)
+	tag.resized.connect(place)
+	modal.frame.resized.connect(place)
+	return tag
+
+
+## Tag look: dark face, accent rim (2 art px), like a small plaque on the frame.
+static func tab_style(accent: Color) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = accent.darkened(0.8)
+	style.border_color = accent
+	style.anti_aliasing = false
+	style.set_border_width_all(UiKit.ART_SCALE)
+	style.content_margin_left = UiKit.px(5)
+	style.content_margin_right = UiKit.px(5)
+	style.content_margin_top = UiKit.px(1)
+	style.content_margin_bottom = UiKit.px(1)
+	return style
 
 
 ## Small control on the right of the header (e.g. the run gold in the shop). The title stays centred.
@@ -207,6 +263,24 @@ static func set_option_icon(button: Button, texture: Texture2D) -> void:
 		return
 	button.icon = UiKit.upscale(texture, OPTION_ICON_SCALE)
 	button.add_theme_constant_override("icon_max_width", int(texture.get_width() * OPTION_ICON_SCALE))
+
+
+## Small text on the right of an option button (campfire: "Stufe 1 → 2"), in color.
+static func set_option_hint(button: Button, text: String, color := UiKit.COLOR_MUTED) -> Label:
+	var hint := UiKit.text_label(text, UiKit.SIZE_EYEBROW + 1, color)
+	hint.name = "Hint"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hint.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	hint.set_anchors_and_offsets_preset(Control.PRESET_RIGHT_WIDE)
+	var width := UiKit.get_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.font_px(UiKit.SIZE_EYEBROW + 1)).x
+	hint.offset_left = -width - UiKit.px(OPTION_KEY_MARGIN + 1)
+	hint.offset_right = -UiKit.px(OPTION_KEY_MARGIN + 1)
+	button.add_child(hint)
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		var style := button.get_theme_stylebox(state).duplicate() as StyleBox
+		style.content_margin_right += width + UiKit.px(3)
+		button.add_theme_stylebox_override(state, style)
+	return hint
 
 
 ## Enables or disables an option button; its key cap and sub line follow (muted when disabled).

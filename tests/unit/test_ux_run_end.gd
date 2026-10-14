@@ -96,7 +96,7 @@ func test_run_end_dialog_shows_stats_and_starts_a_new_run_with_n() -> void:
 		texts.append((label as Label).text)
 	var all := "\n".join(texts)
 	for expected in ["Du bist gefallen", "Todesursache: Skelett", "Neuer Rekord!", "31", "11", "4", "12:34",
-			"Run-Gold gesammelt", "95", "+20", "+1", "Gold im Dorf"]:
+			"Run-Gold gesammelt", "95", "+20", "+1", "Dorfgold"]:
 		assert_string_contains(all, expected)
 	var buttons := modal.find_children("*", "Button", true, false)
 	var captions: PackedStringArray = []

@@ -55,7 +55,12 @@ const COLOR_CRYSTAL := Color("#dcbcff")
 const COLOR_SHADOW := Color("#1c1a2b")
 const COLOR_LINE := Color("#3b3650")
 const COLOR_EMPTY_SLOT := Color("#5d577a")
-const COLOR_OVERLAY := Color(21.0 / 255.0, 19.0 / 255.0, 31.0 / 255.0, 0.78)
+## Dialog overlay: the scene stays visible under it, only dimmed (07_ui.md, R8; UX2 had 0.78).
+const COLOR_OVERLAY := Color(21.0 / 255.0, 19.0 / 255.0, 31.0 / 255.0, 0.62)
+## Dialogs never take more than this share of the screen height (07_ui.md, R8).
+const DIALOG_MAX_HEIGHT_RATIO := 0.6
+## Weapon accent of the dialogs (HANDOUT category "Waffe").
+const COLOR_MAGIC := Color("#a66ef0")
 ## Upgrade categories (UpgradeData.Category) -> eyebrow colour and German name.
 const CATEGORY_COLORS := {0: COLOR_SHIELD, 1: COLOR_SUCCESS, 2: COLOR_EFFECT}
 const CATEGORY_NAMES := {0: "Attribut", 1: "Mechanik", 2: "Effekt"}
@@ -370,20 +375,6 @@ static func hbox(separation := 8) -> HBoxContainer:
 	return box
 
 
-static func weapon_stats_text(controller: WeaponController, weapon: WeaponData) -> String:
-	var text := "%s Schaden · %.2f/s" % [
-		DamageNumber.format_amount(DamageProcessor.round_damage(controller.get_effective_damage(weapon))),
-		controller.get_effective_attack_rate(weapon)]
-	match weapon.weapon_type:
-		WeaponData.WeaponType.SWORD, WeaponData.WeaponType.DAGGER:
-			text += " · %d° Schwung" % roundi(controller.get_effective_swing_angle(weapon))
-		WeaponData.WeaponType.STAFF, WeaponData.WeaponType.HAMMER:
-			text += " · %d px Fläche" % roundi(controller.get_effective_aoe_radius(weapon))
-		WeaponData.WeaponType.BOW:
-			text += " · %d px/s" % roundi(controller.get_effective_projectile_speed(weapon))
-	return text
-
-
 # --- Spec factories (sizes in mockup pixels) ---
 
 ## Label with a mockup font size; bold uses Pixelify Sans at weight 700.
@@ -548,6 +539,104 @@ static func weapon_stat_rows(controller: WeaponController, weapon: WeaponData) -
 		WeaponData.WeaponType.BOW:
 			rows.append(PackedStringArray([Loc.t(&"STAT_ARROW"), "%d px/s" % roundi(controller.get_effective_projectile_speed(weapon))]))
 	return rows
+
+
+# --- Accents and motion (R8: dialogs and HUD feel alive; optics only) ---
+
+## Divider in an accent colour that fades out to both sides (dialog headers, R8).
+static func accent_line(color: Color, height := 1.0) -> TextureRect:
+	var gradient := Gradient.new()
+	gradient.offsets = PackedFloat32Array([0.0, 0.2, 0.8, 1.0])
+	gradient.colors = PackedColorArray([Color(color, 0.0), color, color, Color(color, 0.0)])
+	var texture := GradientTexture1D.new()
+	texture.gradient = gradient
+	texture.width = 64
+	var line := TextureRect.new()
+	line.name = "AccentLine"
+	line.texture = texture
+	line.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	line.stretch_mode = TextureRect.STRETCH_SCALE
+	line.custom_minimum_size = Vector2(0, maxf(1.0, px(height)))
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return line
+
+
+## Tween that keeps running while the game is paused (dialogs) and ignores HitStop's time scale.
+## The node must process while paused (Modal and the HUD layers do).
+static func ui_tween(node: Node) -> Tween:
+	return node.create_tween().set_ignore_time_scale(true)
+
+
+## Fades control in and scales it from `from` to 1 around its centre with a small overshoot, after
+## delay seconds. Containers keep the layout; only scale and alpha move.
+static func pop_in(control: Control, delay := 0.0, from := 0.9, time := 0.24) -> Tween:
+	control.modulate.a = 0.0
+	control.scale = Vector2.ONE * from
+	control.pivot_offset = control.size * 0.5
+	var tween := ui_tween(control)
+	if delay > 0.0:
+		tween.tween_interval(delay)
+	tween.tween_callback(func() -> void:
+		if is_instance_valid(control):
+			control.pivot_offset = control.size * 0.5)
+	tween.set_parallel(true)
+	tween.tween_property(control, "modulate:a", 1.0, time * 0.6)
+	tween.tween_property(control, "scale", Vector2.ONE, time).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	return tween
+
+
+## Short bump (value changed: gold, a heart): scale up to amount and back around the centre.
+static func bump(control: Control, amount := 1.25, time := 0.2) -> void:
+	if control == null or not control.is_inside_tree():
+		return
+	if control.has_meta(&"bump_tween"):
+		var old := control.get_meta(&"bump_tween") as Tween
+		if old != null and old.is_valid():
+			old.kill()
+	control.pivot_offset = control.size * 0.5
+	var tween := ui_tween(control)
+	tween.tween_property(control, "scale", Vector2.ONE * amount, time * 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(control, "scale", Vector2.ONE, time * 0.65).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	control.set_meta(&"bump_tween", tween)
+
+
+## "Taken!" at a card (upgrade picked, offer bought): its icon grows and fades, a ring in color
+## widens. Lives on its own layer above the dialogs, so it outlasts the dialog that closes now.
+static func pick_burst(source: Control, texture: Texture2D, color: Color) -> void:
+	if source == null or not source.is_inside_tree():
+		return
+	var rect := source.get_global_rect()
+	var layer := CanvasLayer.new()
+	layer.name = "PickBurst"
+	layer.layer = 40
+	layer.process_mode = Node.PROCESS_MODE_ALWAYS
+	source.get_tree().root.add_child(layer)
+	var center := rect.get_center()
+	var ring := Panel.new()
+	var style := StyleBoxFlat.new()
+	style.draw_center = false
+	style.border_color = color
+	style.set_border_width_all(ART_SCALE)
+	style.anti_aliasing = false
+	ring.add_theme_stylebox_override("panel", style)
+	ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring.size = rect.size
+	ring.position = rect.position
+	ring.pivot_offset = rect.size * 0.5
+	layer.add_child(ring)
+	var tween := ui_tween(layer)
+	tween.set_parallel(true)
+	tween.tween_property(ring, "scale", Vector2(1.12, 1.18), 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(ring, "modulate:a", 0.0, 0.32)
+	if texture != null:
+		var picture := icon(upscale(texture), art_px(32.0, maxf(texture.get_width(), texture.get_height())))
+		picture.size = picture.custom_minimum_size
+		picture.position = center - picture.size * 0.5
+		picture.pivot_offset = picture.size * 0.5
+		layer.add_child(picture)
+		tween.tween_property(picture, "scale", Vector2.ONE * 2.2, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(picture, "modulate:a", 0.0, 0.36).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.chain().tween_callback(layer.queue_free)
 
 
 static func category_color(category: int) -> Color:

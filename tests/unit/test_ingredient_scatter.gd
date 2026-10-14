@@ -128,9 +128,21 @@ func test_two_or_three_ingredients_per_room() -> void:
 	assert_true(counts.has(2) and counts.has(3), "both 2 and 3 occur: %s" % counts)
 
 
+## An open rectangular hall (21 x 11, a few markers): the planner's own playground. Since M1 the
+## plan rooms are caves full of rock and keep two tiles between solid things, so a long chokepoint
+## gate rarely finds a spot there; plan rooms scatter nothing anyway (R1).
+func _open_layout() -> IngredientScatter.Layout:
+	var tiles := RoomTiles.new()
+	autofree(tiles)
+	tiles.room_size = Vector2i(21, 11)
+	tiles.entrance_x = 10
+	tiles.exit_x = 10
+	var markers: Array[Vector2i] = [Vector2i(3, 2), Vector2i(17, 2), Vector2i(10, 4), Vector2i(3, 8), Vector2i(17, 8)]
+	return IngredientScatter.Layout.from_tiles(tiles, markers, [] as Array[Vector2i])
+
+
 func test_distribution_over_many_seeds() -> void:
-	var prepared := _prepare(_entry(&"arena_tore_crypt"))
-	var layout: IngredientScatter.Layout = prepared[0]
+	var layout := _open_layout()
 	var all_kinds: Array[int] = IngredientScatter.ALL_KINDS
 	var counts := {}
 	var crypt := IngredientSet.load_for_id(&"crypt")
@@ -142,18 +154,18 @@ func test_distribution_over_many_seeds() -> void:
 	for kind in all_kinds:
 		lines.append("%s %d" % [IngredientSet.get_kind_name(kind), counts.get(kind, 0)])
 		assert_gt(counts.get(kind, 0), DISTRIBUTION_SEEDS * 0.15, "%s appears often enough" % IngredientSet.get_kind_name(kind))
-	gut.p("crypt, arena of the gates, %d seeds: %s" % [DISTRIBUTION_SEEDS, ", ".join(lines)])
+	gut.p("crypt, open hall, %d seeds: %s" % [DISTRIBUTION_SEEDS, ", ".join(lines)])
 	# Weighted: the light ingredient (1.0) comes clearly more often than explosives (0.6).
 	assert_gt(counts.get(IngredientSet.Kind.LIGHT, 0), counts.get(IngredientSet.Kind.EXPLOSIVES, 0))
 
 
 func test_explosives_follow_the_set() -> void:
-	var prepared := _prepare(_entry(&"arena_tore_crypt"))
+	var layout := _open_layout()
 	var all_kinds: Array[int] = IngredientScatter.ALL_KINDS
 	for i in 120:
-		var grotto := IngredientScatter.plan_room(prepared[0], IngredientSet.load_for_id(&"slime_grotto"), all_kinds, 12, _rng(i))
+		var grotto := IngredientScatter.plan_room(layout, IngredientSet.load_for_id(&"slime_grotto"), all_kinds, 12, _rng(i))
 		assert_false(grotto.ingredients.has(IngredientSet.Kind.EXPLOSIVES), "never in the slime grotto")
-		var early := IngredientScatter.plan_room(prepared[0], IngredientSet.load_for_id(&"ember_forge"), all_kinds, 1, _rng(i))
+		var early := IngredientScatter.plan_room(layout, IngredientSet.load_for_id(&"ember_forge"), all_kinds, 1, _rng(i))
 		assert_false(early.ingredients.has(IngredientSet.Kind.EXPLOSIVES), "not in room 1")
 
 

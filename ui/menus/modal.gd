@@ -5,12 +5,21 @@ extends Control
 ## Look (docs/design): overlay rgba(21,19,31,0.78), centred panel. Keys are named either in the
 ## key bar inside the panel (set_key_hints: key caps + "Spiel pausiert", the dungeon menu kit of
 ## UX2) or, for older dialogs, in a footer line at the bottom of the screen (set_footer).
+## R8: the scene stays visible under a lighter overlay, the panel pops in, cards are dealt in one
+## after another (deal), an optional accent stripe in the mode/dialog colour runs down the left
+## inner edge of the panel (accent), and no dialog is taller than UiKit.DIALOG_MAX_HEIGHT_RATIO of
+## the screen (fits_screen, checked by the tests). Choosing stays instant: finish() returns at once.
 
 signal finished(result: Variant)
 
 const DIM_COLOR := UiKit.COLOR_OVERLAY
-## Gap between content rows in mockup pixels (ui_spec dialog.gap).
-const CONTENT_GAP := 6.0
+## Gap between content rows in mockup pixels (ui_spec dialog.gap; R8 tighter, dialogs max 60 %).
+const CONTENT_GAP := 4.0
+## Accent stripe on the left inner edge of the panel, mockup pixels (07_ui.md: 4-6 px of the colour).
+const ACCENT_WIDTH := 3.0
+## Cards dealt in after the panel: first delay and step (seconds, optics).
+const DEAL_DELAY := 0.08
+const DEAL_STEP := 0.05
 ## Footer distance from the bottom edge in mockup pixels.
 const FOOTER_BOTTOM := 12.0
 
@@ -32,10 +41,18 @@ var hotkeys: Dictionary = {}
 var accept_action: Callable = Callable()
 ## Optional key handler (event) -> bool, asked first (e.g. ↑/↓ through the pause menu buttons).
 var input_handler: Callable = Callable()
+## Colour of the stripe on the left inner edge of the panel (alpha 0 = none).
+var accent := Color(0, 0, 0, 0):
+	set(value):
+		accent = value
+		if frame != null:
+			frame.queue_redraw()
 
 var _done := false
 var _dim: ColorRect = null
 var _footer: Label = null
+## Controls that pop in one after another once the panel is up (cards of a row).
+var _deal: Array[Control] = []
 
 
 static func create(reason: StringName, panel_kind := &"normal") -> Modal:
@@ -49,10 +66,31 @@ func open(parent: Node) -> Variant:
 	parent.add_child(self)
 	GameManager.request_pause(pause_reason)
 	Sfx.play_ui(self, &"ui_open")
-	# Small pop-in instead of an instant cut.
-	modulate.a = 0.0
-	create_tween().set_ignore_time_scale(true).tween_property(self, "modulate:a", 1.0, 0.15)
+	_animate_in()
 	return await finished
+
+
+## Lets these controls pop in one after another once the dialog opens (call before open()).
+func deal(controls: Array) -> void:
+	for control in controls:
+		if control is Control:
+			_deal.append(control)
+
+
+## true while the panel is not taller than UiKit.DIALOG_MAX_HEIGHT_RATIO of the screen (07_ui.md).
+func fits_screen() -> bool:
+	return frame.get_combined_minimum_size().y <= get_viewport_rect().size.y * UiKit.DIALOG_MAX_HEIGHT_RATIO + 0.5
+
+
+## Overlay fades in, the panel pops (slightly smaller, overshoot), then the dealt cards follow.
+func _animate_in() -> void:
+	var dim_target := _dim.color.a
+	_dim.color.a = 0.0
+	UiKit.ui_tween(_dim).tween_property(_dim, "color:a", dim_target, 0.18)
+	UiKit.pop_in(frame, 0.0, 0.94, 0.22)
+	for i in _deal.size():
+		if is_instance_valid(_deal[i]):
+			UiKit.pop_in(_deal[i], DEAL_DELAY + DEAL_STEP * i, 0.85, 0.26)
 
 
 func finish(result: Variant = null) -> void:
@@ -107,11 +145,24 @@ func set_key_hints(entries: Array, paused := true, action: Control = null) -> vo
 	row.add_child(filler)
 	if action != null:
 		action.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		compact_buttons(action)
 		row.add_child(action)
 	if paused:
 		var note := UiKit.text_label(DungeonTexts.t(&"MENU_PAUSED"), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(note)
+
+
+## Buttons in the key bar get less vertical padding (R8: dialogs max 60 % of the screen).
+static func compact_buttons(control: Control) -> void:
+	var buttons: Array = [control] if control is Button else control.find_children("*", "Button", true, false)
+	for button: Button in buttons:
+		for state in ["normal", "hover", "pressed", "disabled"]:
+			var style := button.get_theme_stylebox(state).duplicate() as StyleBox
+			var trim := maxf(0.0, style.content_margin_top - UiKit.px(2))
+			style.content_margin_top -= trim
+			style.content_margin_bottom -= trim
+			button.add_theme_stylebox_override(state, style)
 
 
 ## Fixed panel width in mockup pixels (dialogs: 220 / 230 / 250, pause: 170).
@@ -132,6 +183,7 @@ func _build(panel_kind: StringName) -> void:
 	add_child(center)
 	frame = UiKit.panel(panel_kind)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.draw.connect(_draw_accent)
 	center.add_child(frame)
 	var outer := UiKit.vbox(int(UiKit.px(CONTENT_GAP)))
 	frame.add_child(outer)
@@ -141,6 +193,17 @@ func _build(panel_kind: StringName) -> void:
 	key_bar.name = "KeyBar"
 	key_bar.visible = false
 	outer.add_child(key_bar)
+
+
+## The accent stripe inside the panel border, from top to bottom (drawn under the content).
+func _draw_accent() -> void:
+	if accent.a <= 0.0:
+		return
+	# Right inside the outer frame of panel.png (3 art pixels), over its inner line.
+	var inset := float(UiCard.FRAME_INSET * UiKit.ART_SCALE)
+	var width := UiKit.px(ACCENT_WIDTH)
+	frame.draw_rect(Rect2(inset, inset, width, frame.size.y - inset * 2.0), accent)
+	frame.draw_rect(Rect2(inset + width, inset, UiKit.ART_SCALE, frame.size.y - inset * 2.0), Color(accent, 0.35))
 
 
 func _unhandled_input(event: InputEvent) -> void:

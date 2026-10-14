@@ -1,0 +1,24 @@
+# Flammenschrein (L) als Hoehle: die Flamme auf dem Plattenweg in der Mitte, zwei Lichtkristalle,
+# Felsbloecke links und rechts, Risse in den Ecken.
+role: combat
+class: L
+biomes: all
+mode: flame
+name: Flammenschrein (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..................xxxxx
+xxxx........;;;;;........xxxx
+xx..i.......;;;;;.......i..xx
+xx.....##...;;f;;...##.....xx
+xx.....##...C;;;C...##.....xx
+xxx....##...;;;;;...##....xxx
+xxx........i;;;;;i........xxx
+xxxx.i.................i.xxxx
+xxxxx........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -1,0 +1,139 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
+
+[node name="LichtfeuerLCrypt" instance=ExtResource("1_base")]
+room_kind = 0
+room_size_class = 2
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(25, 10)
+entrance_x = 12
+exit_x = 8
+floor_seed = 525
+wall_rects = Array[Rect2i]([Rect2i(0, 0, 4, 1), Rect2i(22, 0, 3, 1), Rect2i(0, 1, 2, 1), Rect2i(23, 1, 2, 1), Rect2i(7, 3, 2, 3), Rect2i(16, 3, 2, 3), Rect2i(0, 5, 1, 2), Rect2i(24, 5, 1, 2), Rect2i(0, 7, 2, 1), Rect2i(23, 7, 2, 1), Rect2i(0, 8, 3, 1), Rect2i(22, 8, 3, 1), Rect2i(0, 9, 5, 1), Rect2i(20, 9, 5, 1)])
+door_slots = Array[Vector2i]([Vector2i(2, 12), Vector2i(0, 8), Vector2i(0, 13), Vector2i(0, 19), Vector2i(3, 3), Vector2i(1, 3)])
+rock_style = 1
+cave_mouth = true
+zone_cells = Array[Vector3i]([Vector3i(0, 2, 2), Vector3i(1, 2, 2), Vector3i(1, 3, 2), Vector3i(1, 4, 2), Vector3i(1, 5, 2), Vector3i(2, 1, 2), Vector3i(2, 2, 2), Vector3i(2, 3, 2), Vector3i(2, 4, 2), Vector3i(9, 1, 0), Vector3i(9, 2, 0), Vector3i(9, 3, 0), Vector3i(9, 5, 1), Vector3i(10, 1, 0), Vector3i(10, 2, 0), Vector3i(10, 5, 1), Vector3i(11, 2, 0), Vector3i(11, 3, 0), Vector3i(11, 4, 0), Vector3i(11, 5, 1), Vector3i(11, 6, 1), Vector3i(12, 5, 1), Vector3i(12, 6, 1), Vector3i(12, 7, 1), Vector3i(20, 0, 2), Vector3i(21, 0, 2), Vector3i(21, 1, 2), Vector3i(21, 2, 2), Vector3i(21, 6, 2), Vector3i(22, 5, 2), Vector3i(22, 6, 2), Vector3i(22, 7, 2), Vector3i(23, 4, 2), Vector3i(23, 5, 2), Vector3i(23, 6, 2)])
+overlay_cells = Array[Vector3i]([Vector3i(3, 8, 10), Vector3i(4, 0, 9), Vector3i(4, 1, 13), Vector3i(5, 8, 3), Vector3i(6, 4, 1), Vector3i(7, 2, 5), Vector3i(8, 2, 9), Vector3i(9, 3, 0), Vector3i(9, 5, 11), Vector3i(9, 6, 8), Vector3i(10, 4, 0), Vector3i(10, 9, 13), Vector3i(15, 2, 8), Vector3i(15, 3, 10), Vector3i(15, 4, 5), Vector3i(18, 2, 11), Vector3i(21, 0, 0), Vector3i(21, 8, 1), Vector3i(22, 1, 0), Vector3i(22, 7, 8)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(992, 32)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(544, 160)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(1248, 544)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(352, 608)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(1248, 224)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(288, 32)
+
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(864, 288)
+
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(288, 352)
+
+[node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(608, 416)
+
+[node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(736, 32)
+
+[node name="Spawn11" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1376, 32)
+
+[node name="Spawn12" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1056, 416)
+
+[node name="Spawn13" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1440, 416)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(800, 352)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(1184, 160)
+
+[node name="PlayerStart" type="Marker2D" parent="."]
+position = Vector2(736, 544)
+
+[node name="Objectives" type="Node2D" parent="."]
+
+[node name="TorchStandUnlit1" type="Marker2D" parent="Objectives"]
+position = Vector2(224, 96)
+metadata/objective_kind = &"torch_stand_unlit"
+metadata/tile = Vector2i(3, 1)
+
+[node name="TorchStandUnlit2" type="Marker2D" parent="Objectives"]
+position = Vector2(1376, 96)
+metadata/objective_kind = &"torch_stand_unlit"
+metadata/tile = Vector2i(21, 1)
+
+[node name="StoneGuardian1" type="Marker2D" parent="Objectives"]
+position = Vector2(800, 160)
+metadata/objective_kind = &"stone_guardian"
+metadata/tile = Vector2i(12, 2)
+
+[node name="StoneGuardian2" type="Marker2D" parent="Objectives"]
+position = Vector2(352, 288)
+metadata/objective_kind = &"stone_guardian"
+metadata/tile = Vector2i(5, 4)
+
+[node name="TorchStandUnlit3" type="Marker2D" parent="Objectives"]
+position = Vector2(800, 288)
+metadata/objective_kind = &"torch_stand_unlit"
+metadata/tile = Vector2i(12, 4)
+
+[node name="StoneGuardian3" type="Marker2D" parent="Objectives"]
+position = Vector2(1248, 288)
+metadata/objective_kind = &"stone_guardian"
+metadata/tile = Vector2i(19, 4)
+
+[node name="TorchStandUnlit4" type="Marker2D" parent="Objectives"]
+position = Vector2(224, 480)
+metadata/objective_kind = &"torch_stand_unlit"
+metadata/tile = Vector2i(3, 7)
+
+[node name="TorchStandUnlit5" type="Marker2D" parent="Objectives"]
+position = Vector2(1376, 480)
+metadata/objective_kind = &"torch_stand_unlit"
+metadata/tile = Vector2i(21, 7)
+
+[node name="TorchStand1" type="Marker2D" parent="Objectives"]
+position = Vector2(672, 544)
+metadata/objective_kind = &"torch_stand"
+metadata/tile = Vector2i(10, 8)
+metadata/built = true
+
+[node name="TorchStand1" type="Node2D" parent="Props"]
+position = Vector2(672, 568)
+script = ExtResource("2_deco")
+item = &"torch_stand"
+tint = Color(1, 0.85, 0.6, 1)
+blocked_tiles = Array[Vector2i]([Vector2i(10, 8)])
+
+[node name="Mist1" type="Node2D" parent="Props"]
+position = Vector2(610, 290)
+script = ExtResource("2_deco")
+item = &"mist"
+
+[node name="Mist2" type="Node2D" parent="Props"]
+position = Vector2(354, 34)
+script = ExtResource("2_deco")
+item = &"mist"
+
+[node name="Ingredients" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("3_scatter")
+allowed = Array[int]([])

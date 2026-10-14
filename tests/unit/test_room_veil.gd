@@ -1,6 +1,7 @@
 extends GutTest
 ## Nothing pops up (R5): a prepared room lies dark under its veil (floor and walls, not the entrance
-## corridor) until a player steps into the entrance corridor or the room activates.
+## wall with its gap - M2: that gap is the one corridor tile, seen through the open gate) until a
+## player steps into the entrance corridor or the room activates.
 
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
@@ -34,17 +35,18 @@ func test_veil_rect_leaves_the_entrance_side_open() -> void:
 	var size := Vector2i(15, 9)
 	var body := ExitRules.body_rect_of(size)
 	var south := RoomVeil.get_veil_rect(size, RoomTiles.DoorSide.SOUTH)
-	assert_eq(south.end.y, body.end.y, "south entrance: the corridor below stays visible")
+	assert_eq(south.end.y, size.y, "south entrance: the south wall with the gap and the corridor stay visible")
 	assert_eq(south.position.y, body.position.y - 1, "one tile of rock above")
 	var west := RoomVeil.get_veil_rect(size, RoomTiles.DoorSide.WEST)
-	assert_eq(west.position.x, body.position.x, "west entrance: no rock covered on that side")
+	assert_eq(west.position.x, 0, "west entrance: the west wall stays visible")
 	assert_eq(west.end.y, body.end.y + 1)
 	var east := RoomVeil.get_veil_rect(size, RoomTiles.DoorSide.EAST)
-	assert_eq(east.end.x, body.end.x)
+	assert_eq(east.end.x, size.x)
 	for side: int in [RoomTiles.DoorSide.SOUTH, RoomTiles.DoorSide.WEST, RoomTiles.DoorSide.EAST]:
 		var rect := RoomVeil.get_veil_rect(size, side)
-		var outside := RoomTiles.corridor_end_of(side, 4, size)
-		assert_false(rect.has_point(outside), "the corridor end stays free (side %d)" % side)
+		var gap := RoomTiles.door_tile_of(side, 4, size)
+		assert_false(rect.has_point(gap), "the entrance gap stays free (side %d)" % side)
+		assert_true(rect.has_point(RoomTiles.inside_tile_of(side, 4, size)), "the floor behind it is veiled (side %d)" % side)
 
 
 func test_texture_has_soft_edges() -> void:
@@ -53,6 +55,26 @@ func test_texture_has_soft_edges() -> void:
 	assert_eq(image.get_size(), Vector2i(6, 4) * RoomVeil.PIXELS_PER_TILE)
 	assert_lt(image.get_pixel(0, 0).a, 0.2, "transparent border")
 	assert_almost_eq(image.get_pixel(image.get_width() / 2, image.get_height() / 2).a, 1.0, 0.01, "solid inside")
+
+
+## Playtest 14.10.2026: the veil follows the room (floor and the tiles right around it, soft), so no
+## straight edge of a dark rectangle runs through the rock between two rooms.
+func test_veil_follows_the_shape_of_the_room() -> void:
+	var size := Vector2i(10, 6)
+	var floor_mask: Dictionary[Vector2i, bool] = {}
+	for y in size.y:
+		for x in size.x:
+			# An L-shaped floor: the top right quarter is rock.
+			if not (x >= 6 and y < 3):
+				floor_mask[Vector2i(x, y)] = true
+	var rect := RoomVeil.get_veil_rect(size, RoomTiles.DoorSide.SOUTH)
+	var image := RoomVeil.make_shape_texture(rect, floor_mask, size).get_image()
+	var at := func(tile: Vector2i) -> float:
+		var p := (tile - rect.position) * RoomVeil.PIXELS_PER_TILE + Vector2i.ONE * (RoomVeil.PIXELS_PER_TILE / 2)
+		return image.get_pixelv(p).a
+	assert_gt(at.call(Vector2i(2, 3)), 0.95, "the floor is veiled")
+	assert_lt(at.call(Vector2i(9, 0)), 0.2, "rock two tiles away from the floor is not")
+	assert_lt(at.call(Vector2i(-2, -3)), 0.05, "nothing at the outer corner")
 
 
 func test_veil_covers_the_room_until_lifted() -> void:

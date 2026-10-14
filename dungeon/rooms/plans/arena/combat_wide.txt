@@ -1,26 +1,23 @@
-# Saeulenring-Arena (M): vier Pfeiler mit Toren in ihrer Vorderseite, vier Tore in der Nordwand,
-# Feuerschalen in den Ecken. Behaelt den alten Dateinamen combat_wide.tscn (dungeon.tscn).
-name: Saeulenring
+# Saeulenring-Arena (M) als Hoehle: zwei Felspfeiler mit Toren in ihrer Vorderseite, vier Tore in der
+# Nordwand, Feuerschalen in den Ecken. Behaelt den alten Dateinamen combat_wide.tscn (dungeon.tscn).
 role: combat
 kind: arena
 mode: arena
 biomes: all
-size: 23x16
+name: Saeulenring
 scene: combat/combat_wide.tscn
+size: 23x13
 ---
-#######################
-#######################
-####g###g##N##g###g####
-##...................##
-##..B.............B..##
-##...................##
-##.....##.....##.....##
-##.....#g.....g#.....##
-##...................##
-##..r.............r..##
-##...##.........##...##
-##...#g.........g#...##
-##...................##
-##..B......@......B..##
-###########S###########
-#######################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxg###g##N##g###gxxxx
+xxxx...............xxxx
+xxx.B.............B.xxx
+xx.........r.........xx
+xx....##.......##....xx
+xx....#g.......g#....xx
+xxx.................xxx
+xxxxB......@......Bxxxx
+xxxxx.............xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

@@ -21,10 +21,13 @@ func test_backdrop_surrounds_room_with_rock() -> void:
 	assert_not_null(backdrop)
 	var outer := tiles.get_backdrop_rect()
 	assert_eq(outer.size, Vector2i(15 + 4 + RoomTiles.BACKDROP_MARGIN.x * 2, 9 + 5 + RoomTiles.BACKDROP_MARGIN.y * 2))
-	# Corners of the ring are rock, cells covered by the room itself are left to the main layer.
-	assert_eq(backdrop.get_cell_atlas_coords(outer.position), RoomTiles.WALL_TOP)
-	assert_eq(backdrop.get_cell_atlas_coords(outer.end - Vector2i.ONE), RoomTiles.WALL_TOP)
-	assert_eq(backdrop.get_cell_source_id(Vector2i(3, 3)), -1)
+	# Corners of the ring are rock; with the terrain (M1) the room's own enclosed rock lies on the
+	# backdrop too, under the room's floor and pieces.
+	var fill := tiles.get_rock_fill_cell()
+	assert_eq(backdrop.get_cell_source_id(outer.position), fill.z)
+	assert_eq(backdrop.get_cell_atlas_coords(outer.position), Vector2i(fill.x, fill.y))
+	assert_eq(backdrop.get_cell_atlas_coords(outer.end - Vector2i.ONE), Vector2i(fill.x, fill.y))
+	assert_eq(backdrop.get_cell_source_id(Vector2i(3, 3)), fill.z if tiles.is_terrain_drawn() else -1)
 
 
 func test_backdrop_draws_below_room_and_has_no_collision() -> void:
@@ -45,9 +48,10 @@ func test_corridors_stay_floor() -> void:
 func test_repaint_does_not_duplicate_backdrop() -> void:
 	var tiles := _make_tiles()
 	var first := tiles.get_backdrop()
+	var children := tiles.get_child_count(true)
 	tiles.paint()
 	assert_same(tiles.get_backdrop(), first)
-	assert_eq(tiles.get_child_count(true), 1)
+	assert_eq(tiles.get_child_count(true), children, "backdrop and the terrain layers are reused")
 
 
 func test_drop_shadow_texture_is_cached_and_sized() -> void:

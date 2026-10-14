@@ -5,16 +5,14 @@ extends RefCounted
 ## unnamed. One table: genre -> texts (DungeonTexts keys), banner group, colour and symbol.
 ## Pure: describe() reads a room once, resolve() decides from that, so tests need no rooms.
 ##
-## Ambush arenas look empty on entry: they resolve to NONE and are named when they spring
-## (RoomController.arena_started, DungeonUI.on_arena_started). Room modes and the wager altar: a
-## room that answers get_variant_id() -> StringName (a mode id such as &"flame", RoomVariants) or
-## has_wager_altar() -> true gets that genre.
+## Room modes and the wager altar: a room that answers get_variant_id() -> StringName (a mode id such
+## as &"flame", ModeRegistry) or has_wager_altar() -> true gets that genre. There is no ambush genre
+## any more (D-120; R8 removed its texts and table row).
 
 enum Group { COMBAT, SPECIAL, TRIAL, REST, WAGER }
 
 const NONE: StringName = &""
 const ARENA: StringName = WaveRules.INTRO_GENRE_ARENA
-const AMBUSH: StringName = WaveRules.INTRO_GENRE_AMBUSH
 const CATACOMB: StringName = &"catacomb"
 const CHASM: StringName = &"chasm"
 const TRIAL_GAUNTLET: StringName = &"trial_gauntlet"
@@ -32,9 +30,7 @@ const SECRET: StringName = &"secret"
 ## SaveManager seen id of the first-time card: "room_intro_<genre>" (D-110).
 const SEEN_PREFIX := "room_intro_"
 
-const WAVE_ICON := "res://art/environment/rooms/wave_banner_icon.png"
 const SKULL_ICON := "res://art/ui/skull_icon.png"
-const CROWN_ICON := "res://art/environment/variants/bounty_crown.png"
 const WAGER_ICONS := "res://art/environment/variants/wager_icons.png"
 
 ## key: prefix of the DungeonTexts keys (<key>_TITLE, <key>_SUB, <key>_INTRO); icon: a file, a door
@@ -42,7 +38,6 @@ const WAGER_ICONS := "res://art/environment/variants/wager_icons.png"
 const TABLE: Dictionary[StringName, Dictionary] = {
 	# Arena: crossed swords in red like its door (07_ui.md, RoomObjective.MODES).
 	ARENA: {"key": "ROOM_ARENA", "group": Group.COMBAT, "color": Color("#e0463a"), "icon": "mode:arena", "tint": true},
-	AMBUSH: {"key": "ROOM_AMBUSH", "group": Group.COMBAT, "color": Color("#e0463a"), "icon": WAVE_ICON, "tint": true},
 	CATACOMB: {"key": "ROOM_CATACOMB", "group": Group.COMBAT, "color": Color("#b8b09a"), "icon": SKULL_ICON, "tint": false},
 	CHASM: {"key": "ROOM_CHASM", "group": Group.COMBAT, "color": Color("#6cb2ec"), "icon": "", "tint": false},
 	TRIAL_GAUNTLET: {"key": "ROOM_TRIAL_GAUNTLET", "group": Group.TRIAL, "color": Color("#f2cf4a"), "icon": "door:trial", "tint": true},
@@ -86,7 +81,7 @@ const TRIAL_GENRES := {
 static func describe(room: RoomController) -> Dictionary:
 	var info := {
 		"campfire": false, "room_type": -1, "special_type": -1, "room_kind": -1, "combat": false,
-		"arena": false, "ambush": false, "catacomb": false, "trial_kind": -1, "pact": false,
+		"arena": false, "catacomb": false, "trial_kind": -1, "pact": false,
 		"variant": NONE, "wager": false,
 	}
 	if room == null or not is_instance_valid(room):
@@ -97,7 +92,6 @@ static func describe(room: RoomController) -> Dictionary:
 	info["combat"] = room.has_room_kind()
 	info["room_kind"] = int(room.room_kind)
 	info["arena"] = room.is_arena_room()
-	info["ambush"] = room.is_ambush_room()
 	var template := RoomTemplate.of(room) if room.has_room_kind() else null
 	info["catacomb"] = template != null and template.shape == RoomTemplate.Shape.CATACOMB
 	for child in room.get_children():
@@ -143,8 +137,7 @@ static func resolve(info: Dictionary) -> StringName:
 		return NONE
 	var kind: int = info.get("room_kind", -1)
 	if kind == RoomSequence.RoomKind.ARENA and info.get("arena", false):
-		# An ambush keeps its secret until the door closes (named by DungeonUI.on_arena_started).
-		return NONE if info.get("ambush", false) else ARENA
+		return ARENA
 	if kind == RoomSequence.RoomKind.CHASM:
 		return CHASM
 	if info.get("catacomb", false):
@@ -192,7 +185,7 @@ static func get_intro(genre: StringName) -> String:
 	return DungeonTexts.t(StringName(_key(genre) + "_INTRO"))
 
 
-## Eyebrow over the banner title: "RAUM 7 · KAMPFRAUM", "RAST ZWISCHEN DEN GEBIETEN".
+## Eyebrow over the banner title: "RAUM 7 · KAMPFRAUM", "RAST ZWISCHEN DEN BIOMEN".
 static func get_eyebrow(genre: StringName, room_index: int) -> String:
 	if not has_genre(genre):
 		return ""

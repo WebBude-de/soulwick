@@ -1,6 +1,7 @@
 extends GutTest
-## Corridors with character (R5): the tiles between two doors, a style per run, room and wall from a
-## hash (no dungeon RNG), every style dressed from plan decoration that never blocks the way.
+## Corridors with character (R5): the corridor tiles (M2: the entrance gap and anything up to the gate
+## of the room before), a style per run, room and wall from a hash (no dungeon RNG), every style
+## dressed from plan decoration that never blocks the way.
 
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 
@@ -18,13 +19,16 @@ func after_all() -> void:
 
 func test_tiles_between_the_doors() -> void:
 	var size := Vector2i(15, 9)
-	# South entrance at 7, the previous room's north exit door three tiles further down.
+	# M2: the gate of the room before right behind the entrance gap - the gap is the corridor.
+	var one := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.SOUTH, 7), size, Vector2i(7, 10))
+	assert_eq(one, [Vector2i(7, 9)] as Array[Vector2i], "one tile: the entrance gap")
+	# A longer corridor: the previous room's north exit door three tiles further down.
 	var south := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.SOUTH, 7), size, Vector2i(7, 12))
-	assert_eq(south, [Vector2i(7, 10), Vector2i(7, 11)] as Array[Vector2i])
-	var west := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.WEST, 4), size, Vector2i(-3, 4))
-	assert_eq(west, [Vector2i(-2, 4)] as Array[Vector2i])
-	var east := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.EAST, 4), size, Vector2i(18, 4))
-	assert_eq(east, [Vector2i(16, 4), Vector2i(17, 4)] as Array[Vector2i])
+	assert_eq(south, [Vector2i(7, 9), Vector2i(7, 10), Vector2i(7, 11)] as Array[Vector2i])
+	var west := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.WEST, 4), size, Vector2i(-2, 4))
+	assert_eq(west, [Vector2i(-1, 4)] as Array[Vector2i])
+	var east := CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.EAST, 4), size, Vector2i(17, 4))
+	assert_eq(east, [Vector2i(15, 4), Vector2i(16, 4)] as Array[Vector2i])
 	assert_true(CorridorDressing.tiles_between(Vector2i(RoomTiles.DoorSide.SOUTH, 7), size, Vector2i(3, 12)).is_empty(), "doors that do not line up")
 
 
@@ -64,9 +68,15 @@ func test_attach_dresses_the_entrance_corridor() -> void:
 	context.rng = RandomNumberGenerator.new()
 	room.setup(3, RoomSequence.RoomType.COMBAT, -1, false, context)
 	add_child_autofree(room)
+	# M2: the gate of the room before right behind the entrance gap - nothing to dress (playtest).
+	assert_null(CorridorDressing.attach(room, Vector2i(tiles.entrance_x, tiles.room_size.y + 1), 99, 3, &"slime_grotto"), "the one-tile corridor stays bare")
+	# A longer corridor: only its tiles beyond the gap could be dressed, and only with the switch on.
 	var other_door := Vector2i(tiles.entrance_x, tiles.room_size.y + 3)
 	var dressing := CorridorDressing.attach(room, other_door, 99, 3, &"slime_grotto")
+	if not CorridorDressing.DRESS_CORRIDORS:
+		assert_null(dressing, "no decoration in corridors (playtest 14.10.2026)")
+		return
 	assert_not_null(dressing)
-	assert_eq(dressing.tiles.size(), 2)
+	assert_eq(dressing.tiles, [Vector2i(tiles.entrance_x, tiles.room_size.y + 1), Vector2i(tiles.entrance_x, tiles.room_size.y + 2)] as Array[Vector2i], "not the entrance gap")
 	assert_eq(dressing.direction, Vector2i.DOWN)
 	assert_null(CorridorDressing.attach(room, Vector2i(0, 0), 99, 3, &"crypt"), "nothing between doors that do not line up")

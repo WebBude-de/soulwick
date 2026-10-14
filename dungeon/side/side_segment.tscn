@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://dungeon/side/side_segment.gd" id="1_segment"]
+
+[node name="SideSegment" type="Node2D"]
+script = ExtResource("1_segment")

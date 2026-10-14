@@ -71,10 +71,11 @@ func test_locked_buildings_show_lock_and_text() -> void:
 	for id in [VillageBuildings.CHRONICLE, VillageBuildings.TRADER]:
 		assert_true(village.has_lock_marker(id), "%s locked in a fresh save" % id)
 		var building := _door(village, id).get_parent()
-		var text := building.find_child("LockText", true, false) as Label
-		assert_not_null(text)
-		assert_eq(text.text, MetaUnlocks.get_building_lock_text(id))
 		assert_not_null(building.find_child("LockIcon", true, false), "icon_lock")
+		# R7: no text panel over the building's name; the text is in the door prompt (and the notice).
+		var marker := building.find_child("LockMarker", true, false)
+		assert_eq(marker.find_children("*", "Label", true, false).size(), 0, "%s: no sign that covers the name" % id)
+		assert_string_contains(_door(village, id).prompt, MetaUnlocks.get_building_lock_text(id))
 		assert_string_contains(_door(village, id).prompt, "Öffnet")
 		assert_true(building.visible, "the building stays visible")
 	for id in [VillageBuildings.FORGE, VillageBuildings.GUILD, VillageBuildings.HOME]:

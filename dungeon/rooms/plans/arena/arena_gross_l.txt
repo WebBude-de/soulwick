@@ -1,0 +1,25 @@
+# Grosse Arena (L) als Hoehle: vier Tore in der Nordwand, zwei in Felspfeilern, Feuerschalen in den
+# Ecken, Schutt als Deckung.
+role: combat
+class: L
+kind: arena
+mode: arena
+biomes: all
+name: Grosse Arena (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxg###g###N###g###gxxxxxx
+xxxxxx..................xxxxx
+xxxx.B.................B.xxxx
+xx.........................xx
+xx......##.........##......xx
+xx......#g.........g#......xx
+xxx.......................xxx
+xxx.........r...r.........xxx
+xxxx.B.................B.xxxx
+xxxxx........@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

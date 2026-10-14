@@ -1,0 +1,24 @@
+# Seelenhoehle (L): versetzte Felsbloecke, zwoelf Seelen-Plaetze verteilt (D-135), Risse als Quellen.
+role: combat
+class: L
+biomes: all
+mode: souls
+auto_deco: no
+name: Seelenhoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx*...............*.xxxxx
+xxxx...........i.........xxxx
+xx..*..##..*.##..*.##...*..xx
+xx.....##....##....##......xx
+xx.........................xx
+xxx...*...##..*.##....*...xxx
+xxx.......##....##.i......xxx
+xxxx....i....*...........xxxx
+xxxxx*.....@........*...xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

@@ -1,22 +1,22 @@
-# Claude Design 03 (Geleit): Eingang unten links, Ausgang oben rechts, der Weg als S-Kurve um
-# Wasserbecken (verlangsamt) und zwei Mauern; Pfuetzen als Quellen flankieren den Weg. Die Figur
-# (1) und der Pfad gehoeren R4.
-name: Geleitpfad
+# Makeover 2, Plan 22 (Sumpfgrotte, Geleit), auf 23x13 verdichtet: Wasserbecken links und rechts,
+# Kopfstein-Trittpfad als Geleitweg in einer S-Kurve, Pfuetzen als Quellen am Weg, Eingang unten
+# links, Ausgang oben rechts, Felsblock am Weg.
 role: combat
 mode: escort
 biomes: all
-size: 25x13
+name: Sumpfgrotte
+size: 23x13
 ---
-#########################
-#########################
-##T######T#######T###N###
-##.........p...........##
-##..ww......##.........##
-##..ww......##...p.....##
-##......1...##.........##
-##..........##..wwww...##
-##...p..........wwww...##
-##.......##............##
-##..@....##......p.....##
-####S####################
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT#####T###N##xxxx
+xxxxxx.......,,..:.xxxx
+xxx.ww....wwww...,,.xxx
+xx..www..p.www##.p...xx
+xx....,,,,....##,,...xx
+xx.ww...,,,,,,,,,.ww.xx
+xxx.ww.p...,,,..www.xxx
+xxxx1.....,,..p..w.xxxx
+xxxxx.@...,,..#..xxxxxx
+xxxxxxxSxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

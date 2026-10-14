@@ -17,9 +17,9 @@ func _on_setup() -> void:
 	while weapons.size() > MAX_WEAPONS:
 		weapons.remove_at(context.rng.randi_range(0, weapons.size() - 1))
 	if weapons.is_empty():
-		add_caption("Keine neuen Waffen", Vector2(0, -40))
+		add_caption(DungeonTexts.t(&"WEAPON_NONE_LEFT"), Vector2(0, -40))
 		return
-	add_caption("Waffenauswahl – nimm eine", Vector2(0, -130))
+	add_caption(DungeonTexts.t(&"WEAPON_ROOM_CAPTION"), Vector2(0, -130))
 	add_light(240.0, Vector2(0, -30))
 	for i in weapons.size():
 		var x := (float(i) - float(weapons.size() - 1) * 0.5) * PEDESTAL_SPACING
@@ -42,7 +42,7 @@ func _add_pedestal(weapon: WeaponData, at: Vector2) -> void:
 	weapon_sprite.rotation = -PI / 4.0
 	weapon_sprite.modulate = weapon.tint
 	weapon_sprite.scale *= weapon.sprite_scale
-	var interactable := add_interactable("%s nehmen" % weapon.display_name, 48.0, at + Vector2(0, -20))
+	var interactable := add_interactable(DungeonTexts.t(&"WEAPON_TAKE", [DataTexts.weapon_name(weapon)]), 48.0, at + Vector2(0, -20))
 	interactable.interacted.connect(_on_pedestal_used.bind(weapon))
 	_pedestals.append({"sprite": weapon_sprite, "base_y": weapon_sprite.position.y, "interactable": interactable, "weapon": weapon})
 

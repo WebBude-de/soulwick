@@ -1,22 +1,22 @@
-# Claude Design 15: Abgrund als Bauteil, zwei Gruben und eine Haengebruecke, Kante zum Hineinstossen,
-# Kristall als Ziel. Abweichungen: die Bruecke endet eine Reihe vor dem Eingang (keine Grube in der
-# Eingangsschneise), ein zweiter Bodenriss rechts.
-name: Brueckenkreuz
+# Claude Design 15, als Hoehle: zwei Gruben an den Waenden, eine dritte mit Haengebruecke vor dem
+# Eingang, Kante zum Hineinstossen, Kristall als Ziel.
 role: combat
 mode: clear
 biomes: shadow_realm, ember_forge, crypt
+name: Brueckenkreuz
 size: 23x13
+exit: 2
 ---
-#######################
-#######################
-###T#######N#######T###
-##...................##
-##.~~~~.........~~~~.##
-##.~~~~....C....~~~~.##
-##.~~~~.........~~~~.##
-##......~~~=~~~......##
-##..i...~~~=~~~...i..##
-##...................##
-##.........@.........##
-###########S###########
-#######################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxx##N#T###N###N#Txxxx
+xxxx.....i.........xxxx
+xxxx...............xxxx
+xxxx~~~~...C...~~~~xxxx
+xx..~~~~.......~~~~..xx
+xx......~~~=~~~......xx
+xx..i...~~~=~~~...i..xx
+xxxx........@.i....xxxx
+xxxxx.............xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

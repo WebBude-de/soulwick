@@ -9,12 +9,19 @@ the building's dialog (D-078). Enterable buildings get a wooden sign above the d
 24x16, pivot top centre, SPRITES_V3 section 4) so their purpose is visible from outside (D-087).
 The player's home (MM1) opens the wardrobe ("Umkleiden").
 
-B3 (Dorf beleben): compact map (30x19) with two streets, a market square with the fountain and the
-dungeon entrance at the end of the main road; neighbour houses (house_1..3, no door), barrels,
-crates, garden fences, chimney smoke, villagers walking routes on the paths, pollen/fireflies.
-Props whose art is still missing (bench, cart, hay bales, signpost, pond, chickens, cat;
-docs/SPRITES_V4.md) are placed as VillageProp/Villager and appear once the file exists.
+B3 (Dorf beleben): neighbour houses (house_1..3, no door), barrels, crates, garden fences, chimney
+smoke, villagers walking routes on the paths, pollen/fireflies. Props whose art may be missing are
+placed as VillageProp/Villager and appear once the file exists (or with a drawn placeholder).
 Small decoration (flowers, stones, grass, bushes) is scattered at runtime by VillageDecor.
+
+R7 (Dorf und Dungeon-Eingang, docs/design/claude_design_antwort/06_dorf.md): no symmetric cross any
+more. A cobbled village square with the fountain in the middle, the houses around it slightly offset,
+lanes leaving it to the west, the south (spawn) and the east; the way to the dungeon climbs from the
+square's north-east corner to stairs in a ridge (rock face, solid) at the top edge. On the terrace
+above: the ruin of the entrance (dungeon_entrance_v2, VillageEntrance with torches and ravens), a
+path of stone slabs and the soul flame bowl in front, forest around it. Fences, beds and hay bales
+stand in groups (chicken yard, vegetable garden); chickens and the cat keep to their territory.
+Slots for rescued villagers and chickens (RescueRecord, D-135): Village keeps as many as were rescued.
 """
 from pathlib import Path
 
@@ -22,7 +29,7 @@ T = 64
 SCALE = 2
 OUT = Path(__file__).resolve().parent.parent / "world" / "village" / "village.tscn"
 ART_UI = Path(__file__).resolve().parent.parent / "art" / "ui"
-MAP_SIZE = (30, 19)
+MAP_SIZE = (32, 20)
 BUILDING_DIR = "res://art/environment/buildings"
 PROP_DIR = "res://art/environment/props"
 
@@ -48,100 +55,157 @@ DOOR_HEIGHT = 30
 SIGN_SIZE = (24, 16)
 SIGN_GAP = 1
 
-# Layout in tiles. Upper street y 7-8, lower street y 15-16, main road x 14-15 from the dungeon
-# entrance (y 5) to the spawn (y 17), market square x 12-17 / y 9-11 around the fountain.
-PATHS = [(2, 7, 26, 2), (2, 15, 26, 2), (14, 5, 2, 13), (12, 9, 6, 3)]  # x, y, w, h
-ENTRANCE = (15, 5)
-SPAWN = (15, 17.4)
+# Ground (tiles, x, y, w, h). Ridge with the rock face in row 6, the terrace (rows 1-5) above it.
+# Paths: the square (with a dirt rim around the cobbles), the climb to the stairs, the west lane,
+# the south path to the spawn, the lane in the south-west and the east lane.
+PATHS = [
+    (13, 9, 8, 5), (12, 10, 10, 3),  # square with cut corners, dirt rim
+    (21, 8, 3, 2), (22, 7, 2, 1),  # climb from the square's north-east corner to the stairs
+    (2, 10, 10, 2),            # west lane
+    (15, 14, 2, 5),            # south path to the spawn
+    (3, 17, 12, 2),            # south-west lane
+    (17, 15, 14, 2),           # east lane
+]
+PLAZA = [(14, 10, 6, 3), (13, 11, 8, 1)]  # cobbles inside the square, rounded
+CLIFFS = [(1, 6, 21, 1), (24, 6, 7, 1)]
+STAIRS = [(22, 6, 2, 1)]
+SLABS = [(22, 4, 2, 2)]
+ENTRANCE = (23, 4)
+SPAWN = (16.0, 17.8)
 
 # node name, sprite, tile position of the door pivot, caption, prompt, building id, door sign
 BUILDINGS = [
-    ("Forge", "forge", (7.6, 7), "Schmiede", "Schmiede betreten", "forge", "sign_forge"),
-    ("Chronicle", "chronicle_hall", (19.6, 7), "Chronik", "Chronik betreten", "chronicle", "sign_chronicle"),
-    ("Home", "home", (11.6, 15), "Zuhause", "Umkleiden", "home", "sign_home"),
-    ("TradingPost", "trading_post", (18, 15), "Handelsposten", "Handelsposten betreten", "trader", "sign_trading"),
-    ("Guild", "guild_hall", (23.8, 15), "Gilde", "Gilde betreten", "guild", "sign_guild"),
+    ("Forge", "forge", (8.6, 10), "Schmiede", "Schmiede betreten", "forge", "sign_forge"),
+    ("Chronicle", "chronicle_hall", (14.6, 9), "Chronik", "Chronik betreten", "chronicle", "sign_chronicle"),
+    ("Home", "home", (11.2, 17), "Zuhause", "Umkleiden", "home", "sign_home"),
+    ("TradingPost", "trading_post", (23.6, 15), "Handelsposten", "Handelsposten betreten", "trader", "sign_trading"),
+    ("Guild", "guild_hall", (28.4, 15), "Gilde", "Gilde betreten", "guild", "sign_guild"),
 ]
 # Neighbour houses without a door: name, sprite, tile position (bottom centre), mirrored
 HOUSES = [
-    ("HouseNW", "house_2", (3.6, 7), False),
-    ("HouseN", "house_1", (11.6, 7), False),
-    ("HouseNE", "house_3", (24.4, 7), False),
-    ("HouseSW", "house_1", (3.6, 15), True),
-    ("HouseS", "house_2", (7.5, 15), True),
+    ("HouseW", "house_2", (4.4, 10), False),
+    ("HouseN", "house_1", (18.2, 9), True),
+    ("HouseNE", "house_3", (27.4, 10.4), False),
+    ("HouseSW", "house_1", (4.6, 17), False),
+    ("HouseS", "house_3", (7.9, 17), True),
 ]
 # npc name, frames, tile position (feet), face left
 NPCS = [
-    ("Smith", "smith", (9.75, 6.95), True),
-    ("Chronicler", "chronicler", (21.0, 6.95), True),
-    ("Trader", "trader", (20.6, 14.95), True),
-    ("GuildMaster", "guild_master", (26.0, 14.95), True),
+    ("Smith", "smith", (10.55, 9.95), True),
+    ("Chronicler", "chronicler", (16.1, 8.95), True),
+    ("Trader", "trader", (26.15, 14.95), True),
+    ("GuildMaster", "guild_master", (30.45, 14.95), True),
 ]
 # decoration: name, folder, texture, size, pivot, tile position, solid radius (0 = none), frames
 LAMP = (BUILDING_DIR, "lamp_post_4f", (16, 48), (8, 47))
 BARREL = (PROP_DIR, "barrel", (32, 32), (16, 31))
 CRATE = (PROP_DIR, "crate", (32, 32), (16, 31))
 DECOR = [
-    ("Fountain", PROP_DIR, "fountain_4f", (32, 40), (16, 38), (15, 10.6), 20, 4),
-    ("Well", BUILDING_DIR, "well_4f", (32, 40), (16, 38), (9.2, 11.3), 22, 4),
-    ("MarketStall", BUILDING_DIR, "market_stall", (64, 48), (32, 44), (21, 11.4), 40, 1),
-    ("Lamp1", *LAMP, (13.4, 6.95), 8, 4),
-    ("Lamp2", *LAMP, (16.6, 6.95), 8, 4),
-    ("Lamp3", *LAMP, (13.4, 14.95), 8, 4),
-    ("Lamp4", *LAMP, (16.6, 14.95), 8, 4),
-    ("Lamp5", *LAMP, (11.6, 11.95), 8, 4),
-    ("Lamp6", *LAMP, (18.4, 11.95), 8, 4),
-    ("Barrel1", *BARREL, (5.55, 6.9), 11, 1),
-    ("Barrel2", *BARREL, (22.55, 11.45), 11, 1),
-    ("Barrel3", *BARREL, (9.85, 14.85), 11, 1),
-    ("Barrel4", *BARREL, (26.4, 6.9), 11, 1),
-    ("Crate1", *CRATE, (21.3, 14.7), 12, 1),
-    ("Crate2", *CRATE, (23.3, 11.5), 12, 1),
-    ("Crate3", *CRATE, (5.4, 14.85), 12, 1),
+    ("Fountain", PROP_DIR, "fountain_4f", (32, 40), (16, 38), (16.5, 12.1), 20, 4),
+    ("Well", BUILDING_DIR, "well_4f", (32, 40), (16, 38), (6.5, 9.6), 22, 4),
+    ("MarketStall", BUILDING_DIR, "market_stall", (64, 48), (32, 44), (20.3, 12.9), 40, 1),
+    # Lamps as light islands (VillageDaylight.LAMP_RADIUS = 3 tiles), not along one axis.
+    ("Lamp1", *LAMP, (12.35, 13.75), 8, 4),
+    ("Lamp2", *LAMP, (12.45, 9.75), 8, 4),
+    ("Lamp3", *LAMP, (20.6, 7.75), 8, 4),
+    ("Lamp4", *LAMP, (6.0, 12.4), 8, 4),
+    ("Lamp5", *LAMP, (17.5, 18.6), 8, 4),
+    ("Lamp6", *LAMP, (22.0, 17.6), 8, 4),
+    ("Barrel1", *BARREL, (6.0, 16.9), 11, 1),
+    ("Barrel2", *BARREL, (25.5, 10.3), 11, 1),
+    ("Barrel3", *BARREL, (22.3, 14.9), 11, 1),
+    ("Barrel4", *BARREL, (10.7, 8.6), 11, 1),
+    ("Crate1", *CRATE, (29.5, 10.4), 12, 1),
+    ("Crate2", *CRATE, (2.6, 16.9), 12, 1),
+    ("Crate3", *CRATE, (24.9, 14.95), 12, 1),
+    ("Crate4", *CRATE, (21.6, 13.85), 12, 1),
 ]
-# Props from docs/SPRITES_V4.md (art/environment/village/<art>.png; placeholder or hidden until then):
-# name, art, tile position (bottom centre), solid size in world px (None = walk through), mirrored
+# Props (art/environment/village/<art>.png; placeholder or hidden until then): name, art, tile
+# position (bottom centre), solid size in world px (None = walk through), mirrored, extra lines.
+BOWL_LIGHT = 'frames = 6\nfps = 8.0\nlight_radius = 170.0\nlight_color = Color(0.72, 0.45, 1, 1)\nlight_height = 40.0\n'
 PROPS = [
-    ("FenceW1", "garden_fence", (3.5, 9.75), (60, 12), False),
-    ("FenceW2", "garden_fence", (4.5, 9.75), (60, 12), False),
-    ("FenceW3", "garden_fence", (6.5, 9.75), (60, 12), False),
-    ("FenceW4", "garden_fence", (3.5, 12.2), (60, 12), False),
-    ("FenceW5", "garden_fence", (4.5, 12.2), (60, 12), False),
-    ("FenceW6", "garden_fence", (5.5, 12.2), (60, 12), False),
-    ("FenceW7", "garden_fence", (6.5, 12.2), (60, 12), False),
-    ("Bench", "bench", (11.0, 9.8), (56, 14), False),
-    ("Signpost", "signpost", (13.4, 17.55), (12, 10), False),
-    ("Cart", "cart", (27.5, 14.85), (80, 24), False),
-    ("HayBale1", "hay_bale", (4.3, 11.3), (44, 18), False),
-    ("HayBale2", "hay_bale", (5.4, 11.6), (44, 18), True),
-    ("Pond", "pond", (25.4, 11.5), (110, 44), False),
+    # Chicken yard in the west: fence above and below (gate in the lower row), hay inside.
+    ("YardFence1", "garden_fence", (2.5, 12.6), (60, 12), False, ""),
+    ("YardFence2", "garden_fence", (3.5, 12.6), (60, 12), False, ""),
+    ("YardFence3", "garden_fence", (4.5, 12.6), (60, 12), False, ""),
+    ("YardFence4", "garden_fence", (5.5, 12.6), (60, 12), False, ""),
+    ("YardFence5", "garden_fence", (2.5, 14.45), (60, 12), False, ""),
+    ("YardFence6", "garden_fence", (3.5, 14.45), (60, 12), False, ""),
+    ("YardFence7", "garden_fence", (5.5, 14.45), (60, 12), False, ""),
+    ("HayBale1", "hay_bale", (3.1, 13.75), (44, 18), False, ""),
+    ("HayBale2", "hay_bale", (5.5, 13.5), (44, 18), True, ""),
+    # Vegetable garden next to the house in the south-west: fence and beds.
+    ("GardenFence1", "garden_fence", (7.5, 12.6), (60, 12), False, ""),
+    ("GardenFence2", "garden_fence", (8.5, 12.6), (60, 12), False, ""),
+    ("Bed1", "flower_bed", (7.4, 13.3), None, False, ""),
+    ("Bed2", "flower_bed", (8.6, 13.3), None, True, ""),
+    ("Bed3", "flower_bed", (8.0, 14.0), None, False, ""),
+    # Bench looking onto the square, signpost at the spawn, cart and hay in the east.
+    ("Bench", "bench", (11.5, 8.95), (56, 14), False, ""),
+    ("Signpost", "signpost", (17.4, 17.3), (12, 10), False, ""),
+    ("Cart", "cart", (29.7, 17.8), (80, 24), False, ""),
+    ("HayBale3", "hay_bale", (27.6, 17.9), (44, 18), False, ""),
+    ("Pond", "pond", (24.3, 11.9), (110, 44), False, ""),
+    ("PondBench", "bench", (24.4, 10.75), (56, 14), False, ""),
+    # Small field in the south-east next to the cart.
+    ("FieldFence1", "garden_fence", (24.5, 17.6), (60, 12), False, ""),
+    ("FieldFence2", "garden_fence", (25.5, 17.6), (60, 12), False, ""),
+    ("Bed4", "flower_bed", (24.4, 18.5), None, False, ""),
+    ("Bed5", "flower_bed", (25.6, 18.5), None, True, ""),
+    # In front of the dungeon ruin: soul flame bowl and rubble.
+    ("FlameBowl", "entrance_flame_bowl", (21.25, 5.3), (28, 12), False, BOWL_LIGHT),
+    ("Rubble1", "stones", (20.3, 5.55), None, False, ""),
+    ("Rubble2", "stones", (24.9, 5.1), None, True, ""),
 ]
 # Villagers walk the paths (feet positions in tiles); placeholder = an NPC sprite with a tint.
 # name, art, fallback frames, tint, loop, speed, route
 VILLAGERS = [
     ("Villager1", "villager_1", "guild_master", "Color(1, 0.9, 0.8, 1)", False, 30,
-     [(3.0, 8.2), (9.4, 8.35), (13.0, 8.2), (17.2, 8.35), (26.8, 8.2)]),
+     [(2.6, 10.6), (7.0, 10.5), (11.6, 11.2), (13.6, 10.2)]),
     ("Villager2", "villager_2", "smith", "Color(0.82, 0.9, 1, 1)", False, 26,
-     [(3.2, 16.3), (9.0, 16.2), (15.6, 16.4), (21.0, 16.25), (26.8, 16.3)]),
+     [(17.4, 16.4), (21.0, 16.3), (25.0, 16.4), (29.8, 16.3)]),
     ("Villager3", "villager_3", "chronicler", "Color(1, 0.86, 0.95, 1)", True, 22,
-     [(12.2, 9.5), (12.6, 11.5), (17.4, 11.6), (17.8, 9.5)]),
+     [(14.0, 10.0), (18.8, 10.0), (18.6, 13.4), (14.2, 13.6)]),
 ]
-# Animals: only with art (SPRITES_V4). name, art, loop, speed, route
+# Rescued villagers (RescueRecord, D-135): one slot each in rescue order; Village frees the slots
+# that are not rescued yet. loop, speed, route (on the paths)
+RESCUED = [
+    (False, 20, [(15.5, 15.0), (15.6, 18.2)]),
+    (False, 24, [(3.4, 17.6), (9.0, 17.9), (13.8, 17.6)]),
+    (False, 18, [(22.4, 7.4), (21.8, 8.4), (21.3, 9.5), (19.6, 9.6)]),
+    (False, 26, [(17.6, 15.6), (27.0, 15.8)]),
+    (False, 22, [(3.0, 11.4), (10.6, 11.6)]),
+    (True, 16, [(15.0, 11.0), (17.8, 11.0), (17.8, 13.2), (15.2, 13.4)]),
+]
+# Animals keep to their territory (06_dorf.md): only with art (or the chicken placeholder).
+# name, art, loop, speed, route
 ANIMALS = [
-    ("Chicken1", "chicken", True, 18, [(3.6, 10.6), (4.8, 10.25), (6.2, 10.9), (5.0, 11.8)]),
-    ("Chicken2", "chicken", True, 16, [(6.0, 11.7), (4.0, 11.9), (3.4, 10.5)]),
-    ("Cat", "cat", False, 22, [(9.0, 17.45), (12.4, 17.6)]),
+    ("Chicken1", "chicken", True, 18, [(2.8, 13.0), (4.2, 12.9), (5.8, 13.3), (4.0, 14.0)]),
+    ("Chicken2", "chicken", True, 16, [(5.6, 14.0), (3.4, 14.1), (2.9, 13.2)]),
+    ("Cat", "cat", False, 22, [(9.6, 18.3), (13.2, 18.4)]),
+]
+# Rescued chickens: two more in the yard, two in the garden and at the pond. loop, speed, route
+RESCUED_CHICKENS = [
+    (False, 16, [(3.6, 13.4), (5.2, 13.8)]),
+    (False, 14, [(4.8, 12.95), (2.9, 13.8)]),
+    (False, 15, [(7.2, 13.7), (9.0, 13.6)]),
+    (False, 15, [(22.6, 10.4), (23.6, 10.5)]),
 ]
 TREES = [
-    # forest behind the upper row
-    (1.3, 3.4), (4.3, 3.4), (9.6, 3.4), (12.2, 3.6), (17.6, 3.6), (21.4, 3.4), (26.0, 3.4), (28.4, 3.4),
-    (2.8, 2.2), (7.6, 2.2), (10.8, 2.2), (19.6, 2.2), (23.6, 2.2), (27.2, 2.2),
-    # left and right edge
-    (1.0, 6.6), (1.1, 12.2), (2.4, 11.9), (1.1, 14.6), (1.0, 17.9),
-    (28.6, 6.6), (28.5, 10.6), (28.6, 14.6), (28.9, 17.9),
+    # forest on the terrace above the ridge, darker towards the back; free around the ruin
+    (1.5, 1.5), (3.6, 1.2), (5.4, 1.7), (7.7, 1.3), (9.4, 1.6), (11.6, 1.2), (13.5, 1.7), (15.7, 1.3),
+    (17.4, 1.6), (19.5, 1.3), (21.0, 1.1), (25.3, 1.2), (27.0, 1.6), (28.8, 1.2), (30.4, 1.7),
+    (2.3, 3.2), (4.5, 2.9), (6.8, 3.4), (8.5, 2.8), (10.7, 3.3), (12.4, 2.9), (14.8, 3.4), (16.5, 2.8),
+    (18.7, 3.3), (27.8, 3.0), (29.8, 3.4),
+    (1.5, 5.2), (4.0, 5.5), (7.6, 5.0), (11.2, 5.4), (14.4, 5.1), (17.6, 5.5), (26.4, 5.3), (29.2, 5.5),
+    # a few trees at the village's edge
+    (1.2, 12.4), (1.1, 15.0), (30.6, 12.4), (1.0, 18.6),
 ]
-BUSHES = [(3, 17), (26, 17), (20, 17)]
-STUMPS = [(8, 17)]
+# Terrace trees further back are darker (deep forest behind the ridge): rows above these tile ys.
+TREE_SHADES = [(2.0, "Color(0.66, 0.74, 0.7, 1)"), (4.0, "Color(0.8, 0.86, 0.82, 1)")]
+# Bushes along the foot of the ridge soften its line; a few more at the edges.
+BUSHES = [(2, 18), (30, 18), (20, 18), (24, 5), (1, 7), (6, 7), (11, 7), (16, 7), (24, 7), (30, 7)]
+STUMPS = [(19, 5)]
 
 
 def vec(x, y):
@@ -150,6 +214,10 @@ def vec(x, y):
 
 def tiles(pos):
     return vec(pos[0] * T, pos[1] * T)
+
+
+def rects(items):
+    return ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in items)
 
 
 def caption(parent, text, top, size=18):
@@ -173,7 +241,7 @@ def main():
         '[ext_resource type="Script" path="res://world/village/village_tiles.gd" id="2_tiles"]',
         '[ext_resource type="TileSet" path="res://world/village/village_tileset.tres" id="3_tileset"]',
         '[ext_resource type="Script" path="res://components/interaction/interactable.gd" id="4_interactable"]',
-        '[ext_resource type="Texture2D" path="res://art/environment/props/dungeon_entrance.png" id="5_entrance"]',
+        '[ext_resource type="Script" path="res://world/village/village_entrance.gd" id="5_entrance"]',
         '[ext_resource type="Texture2D" path="res://art/environment/buildings/tree.png" id="6_tree"]',
         '[ext_resource type="Script" path="res://components/visual/animated_prop.gd" id="7_prop"]',
     ]
@@ -234,11 +302,11 @@ position = {vec(centre_x, -solid_h / 2 - 4)}
 shape = SubResource("{sid}")
 ''' + smoke(f"Buildings/{name}", info, flip)
 
-    paths = ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in PATHS)
     bushes = ", ".join(f"Vector2i({x}, {y})" for x, y in BUSHES)
     stumps = ", ".join(f"Vector2i({x}, {y})" for x, y in STUMPS)
     decor_script = add_ext("Script", "res://world/village/village_decor.gd")
     ambience_script = add_ext("Script", "res://world/village/village_ambience.gd")
+    evening_script = add_ext("Script", "res://world/village/village_evening.gd")
     nodes.append(f'''[node name="Village" type="Node2D"]
 y_sort_enabled = true
 script = ExtResource("1_village")
@@ -249,9 +317,13 @@ scale = Vector2(2, 2)
 tile_set = ExtResource("3_tileset")
 script = ExtResource("2_tiles")
 map_size = Vector2i({MAP_SIZE[0]}, {MAP_SIZE[1]})
-path_rects = Array[Rect2i]([{paths}])
+path_rects = Array[Rect2i]([{rects(PATHS)}])
 bush_tiles = Array[Vector2i]([{bushes}])
 stump_tiles = Array[Vector2i]([{stumps}])
+plaza_rects = Array[Rect2i]([{rects(PLAZA)}])
+cliff_rects = Array[Rect2i]([{rects(CLIFFS)}])
+stair_rects = Array[Rect2i]([{rects(STAIRS)}])
+slab_rects = Array[Rect2i]([{rects(SLABS)}])
 
 [node name="Buildings" type="Node2D" parent="."]
 y_sort_enabled = true
@@ -265,22 +337,25 @@ y_sort_enabled = true
 
 [node name="Ambience" type="CPUParticles2D" parent="."]
 script = ExtResource("{ambience_script}")
+
+[node name="Evening" type="Node" parent="."]
+script = ExtResource("{evening_script}")
 ''')
 
-    # Dungeon entrance at the top end of the main road.
-    rect_shape("Rect_entrance", 104, 40)
+    # Dungeon entrance: the ruin on the terrace (VillageEntrance builds sprite, torches and ravens).
+    rect_shape("Rect_entrance", 176, 56)
     circle_shape("Circle_entrance", 56)
     nodes.append(f'''[node name="DungeonEntrance" type="StaticBody2D" parent="Buildings"]
 position = {tiles(ENTRANCE)}
 collision_mask = 0
+script = ExtResource("5_entrance")
 
 [node name="Sprite" type="Sprite2D" parent="Buildings/DungeonEntrance"]
 scale = Vector2(2, 2)
-texture = ExtResource("5_entrance")
-offset = Vector2(0, -30)
+offset = Vector2(0, -40)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/DungeonEntrance"]
-position = Vector2(0, -24)
+position = Vector2(0, -28)
 shape = SubResource("Rect_entrance")
 
 [node name="Interactable" type="Area2D" parent="Buildings/DungeonEntrance"]
@@ -291,7 +366,7 @@ prompt = "Dungeon betreten"
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/DungeonEntrance/Interactable"]
 shape = SubResource("Circle_entrance")
 
-''' + caption("Buildings/DungeonEntrance", "Dungeon", -170, 20))
+''' + caption("Buildings/DungeonEntrance", "Dungeon", -196, 20))
 
     circle_shape("Circle_door", 32)
     for name, tex, pos, title, prompt, building_id, sign in BUILDINGS:
@@ -344,6 +419,7 @@ position = Vector2(0, -6)
 shape = SubResource("Circle_npc")
 ''')
 
+    fountain_sound = add_ext("Script", "res://world/village/fountain_sound.gd")
     for name, folder, tex, (w, h), (px, py), pos, radius, frames in DECOR:
         texture_id = add_ext("Texture2D", f"{folder}/{tex}.png")
         if frames > 1:
@@ -374,10 +450,26 @@ collision_mask = 0
 position = Vector2(0, -8)
 shape = SubResource("{sid}")
 '''
+        if name == "Fountain":
+            light_script = add_ext("Script", "res://components/visual/light_source.gd")
+            body += f'''
+[node name="Sound" type="AudioStreamPlayer2D" parent="Buildings/{name}"]
+position = Vector2(0, -24)
+script = ExtResource("{fountain_sound}")
+
+[node name="WaterLight" type="Node2D" parent="Buildings/{name}"]
+position = Vector2(0, -30)
+script = ExtResource("{light_script}")
+radius = 130.0
+intensity = 0.6
+flicker = 0.03
+ground_offset = Vector2(0, 30)
+color = Color(0.42, 0.82, 1, 1)
+'''
         nodes.append(body)
 
     prop_script = add_ext("Script", "res://world/village/village_prop.gd")
-    for name, art, pos, solid, flip in PROPS:
+    for name, art, pos, solid, flip, extra in PROPS:
         solid_line = f"solid_size = {vec(*solid)}\n" if solid else ""
         flip_line = "flip = true\n" if flip else ""
         nodes.append(f'''[node name="{name}" type="StaticBody2D" parent="Buildings"]
@@ -385,14 +477,16 @@ position = {tiles(pos)}
 collision_mask = 0
 script = ExtResource("{prop_script}")
 art_name = "{art}"
-{solid_line}{flip_line}''')
+{solid_line}{flip_line}{extra}''')
 
     circle_shape("Circle_trunk", 14)
     for i, pos in enumerate(TREES):
+        shade = next((color for limit, color in TREE_SHADES if pos[1] < limit), None)
+        shade_line = f"modulate = {shade}\n" if shade else ""
         nodes.append(f'''[node name="Tree{i}" type="StaticBody2D" parent="Buildings"]
 position = {tiles(pos)}
 collision_mask = 0
-
+{shade_line}
 [node name="Sprite" type="Sprite2D" parent="Buildings/Tree{i}"]
 scale = Vector2(2, 2)
 texture = ExtResource("6_tree")
@@ -420,6 +514,18 @@ art_name = "{art}"
 fallback_frames = ExtResource("{frames_id}")
 tint = {tint}
 ''')
+    for i, (loop, speed, points) in enumerate(RESCUED):
+        nodes.append(f'''[node name="Rescued{i + 1}" type="Node2D" parent="Villagers"]
+position = {tiles(points[0])}
+script = ExtResource("{villager_script}")
+route = {route(points)}
+loop = {"true" if loop else "false"}
+speed = {speed:g}
+pause_max = 6.0
+art_name = "lost_villager"
+optional = true
+metadata/rescued_slot = {i}
+''')
     for name, art, loop, speed, points in ANIMALS:
         nodes.append(f'''[node name="{name}" type="Node2D" parent="Villagers"]
 position = {tiles(points[0])}
@@ -430,6 +536,18 @@ speed = {speed:g}
 pause_max = 5.0
 art_name = "{art}"
 optional = true
+''')
+    for i, (loop, speed, points) in enumerate(RESCUED_CHICKENS):
+        nodes.append(f'''[node name="RescuedChicken{i + 1}" type="Node2D" parent="Villagers"]
+position = {tiles(points[0])}
+script = ExtResource("{villager_script}")
+route = {route(points)}
+loop = {"true" if loop else "false"}
+speed = {speed:g}
+pause_max = 5.0
+art_name = "chicken"
+optional = true
+metadata/rescued_chicken_slot = {i}
 ''')
 
     nodes.append(f'''[node name="PlayerSpawn" type="Marker2D" parent="."]

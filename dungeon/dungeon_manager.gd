@@ -17,6 +17,12 @@ extends Node2D
 ## branch room builds both ways when it is entered (one more live room, MAX_LIVE_ROOMS_BRANCH); the
 ## way not chosen fades out and leaves plain rock behind. A branch whose two ways cannot both be
 ## placed next to the live rooms is not offered (_ways_fit).
+## One gate per transition (M2): two rooms lie at most one corridor tile apart (ExitRules.JOIN_OVERLAP),
+## the exit gate of the room being left is the only door, the entrance is an open gap without a leaf.
+## Once every living player is inside the new room, that gate shuts behind them for good (GateCloser,
+## no way back). Where two joined rooms paint over each other each keeps its own floor and walls
+## (PassageSeam); when a room is unloaded its neighbour gets its cells back and blocks its entrance,
+## which now leads nowhere (Door.block).
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
@@ -107,6 +113,8 @@ var _rock_fills: Dictionary[int, Array] = {}
 var _rock_root: Node2D = null
 ## Seed of the run (optics that vary per run without drawing from the dungeon RNG).
 var _run_seed := 0
+## M5: slot of the room the last side segment led into (never two segments in a row).
+var _last_side_slot := -1
 ## Size and entrance place of special templates (branch fit check), by scene path.
 var _layout_cache: Dictionary[String, Vector3i] = {}
 
@@ -367,22 +375,95 @@ func _plan_links(room: RoomController, previous: RoomController, previous_exit: 
 			exits = pair
 			options = branch.options
 			_branch_cycle = BranchRules.get_cycle(index)
-	room.apply_door_plan(Vector2i(entrance_side, entrance_place), exits, extra, options)
+	var entrance := Vector2i(entrance_side, entrance_place)
+	room.apply_door_plan(entrance, exits, extra, options)
 	# Secret niche (after the doors: their lanes stay free).
 	var pick := SecretRules.roll(index, room.room_type, int(room.room_kind), context.rng)
 	if not pick.has_secret or not allow_secret:
 		return {}
-	# Behind the north wall, clear of the live rooms (the previous one lies behind another wall).
-	var sites: Array[SecretRules.Site] = []
-	var others := get_live_footprints(previous)
-	for candidate in SecretRules.find_sites(tiles, _secret_forbidden(room, tiles), _torch_columns(room)):
-		if not ExitRules.niche_clashes(origin, candidate.get_rect(), others):
-			sites.append(candidate)
+	var sites := _niche_sites(room, tiles, origin, previous, next_type)
+	# M2: a niche behind the north wall and a way north exclude each other (the next room's floor
+	# starts two rows above this floor). When only the north wall offers a niche, a plain fight leaves
+	# through a side wall that needs no longer corridor instead; the niche's own roll picks it (no RNG).
+	if sites.is_empty() and combat and options.is_empty() and exits[0].x == RoomTiles.DoorSide.NORTH:
+		var side := _side_exit_for_niche(sides, estimates, pick.site_roll)
+		if side >= 0:
+			room.apply_door_plan(entrance, [Vector2i(side, _exit_place(tiles, side))] as Array[Vector2i], extra, options)
+			sites = _niche_sites(room, tiles, origin, previous, next_type)
+			if sites.is_empty():
+				room.apply_door_plan(entrance, exits, extra, options)
 	var site := SecretRules.choose_site(sites, pick.site_roll)
 	if site == null:
 		return {}
 	SecretNiche.carve(room, site)
 	return {"site": site, "content": pick.content}
+
+
+## Places for a secret niche in a planned room: clear of the live rooms (the previous one lies
+## behind another wall) and, when it reaches into the rock north of the room (behind the north wall or
+## behind rock in the first floor row), clear of the room a north exit leads to (M2).
+func _niche_sites(room: RoomController, tiles: RoomTiles, origin: Vector2i, previous: RoomController, next_type: int) -> Array[SecretRules.Site]:
+	var sites: Array[SecretRules.Site] = []
+	var others := get_live_footprints(previous)
+	var north := _has_north_exit(tiles)
+	var next_bodies := _next_bodies_north(origin, tiles, next_type) if north else []
+	for candidate in SecretRules.find_sites(tiles, _secret_forbidden(room, tiles), _torch_columns(room)):
+		if ExitRules.niche_clashes(origin, candidate.get_rect(), others):
+			continue
+		if north and not _niche_clear(origin, candidate, next_bodies):
+			continue
+		sites.append(candidate)
+	return sites
+
+
+## A side exit (no longer corridor needed) for a room whose niche must sit behind its north wall;
+## roll in [0, 1) picks among them. -1 if there is none.
+static func _side_exit_for_niche(sides: Array[int], estimates: Array[int], roll: float) -> int:
+	var options: Array[int] = []
+	for i in sides.size():
+		var estimate := estimates[i] if i < estimates.size() else 0
+		if sides[i] != RoomTiles.DoorSide.NORTH and estimate <= ExitRules.MAX_TURN_EXTRA:
+			options.append(sides[i])
+	if options.is_empty():
+		return -1
+	return options[mini(options.size() - 1, floori(roll * options.size()))]
+
+
+static func _has_north_exit(tiles: RoomTiles) -> bool:
+	for exit in tiles.get_exit_doors():
+		if exit.x == RoomTiles.DoorSide.NORTH:
+			return true
+	return false
+
+
+## World body rectangles the room behind each north exit may cover (worst case over the combat
+## templates); empty before a room that is no normal combat room (special, boss and campfire rooms
+## are wider and drawn later: no niche behind the north wall then).
+func _next_bodies_north(origin: Vector2i, tiles: RoomTiles, next_type: int) -> Array:
+	if not RoomSequence.is_normal_combat(next_type as RoomSequence.RoomType):
+		return []
+	var reach := _get_combat_reach(RoomTiles.DoorSide.SOUTH)
+	var bodies: Array = []
+	for exit in tiles.get_exit_doors():
+		if exit.x == RoomTiles.DoorSide.NORTH:
+			var end := ExitRules.exit_corridor_end(origin, tiles.room_size, exit.x, exit.y)
+			bodies.append(Rect2i(reach.body.position + end, reach.body.size))
+	return bodies
+
+
+## A niche (with the rock around it) clear of every possible room behind a north exit: one that stays
+## below the wall crown always is; above it, it must miss the bodies (none known: not clear).
+static func _niche_clear(origin: Vector2i, site: SecretRules.Site, bodies: Array) -> bool:
+	var rect := site.get_rect()
+	if rect.position.y - 1 >= -1:
+		return true
+	if bodies.is_empty():
+		return false
+	var world := Rect2i(origin + rect.position - Vector2i.ONE, rect.size + Vector2i(2, 2))
+	for body: Rect2i in bodies:
+		if world.intersects(body):
+			return false
+	return true
 
 
 ## Place of an exit on a wall: the template's own north exit, else the place nearest the middle.
@@ -470,11 +551,13 @@ static func _exit_of(previous: RoomController, via_exit: int) -> Vector2i:
 
 ## A prepared room lies dark behind its door (RoomVeil, not the first room), the door of the room
 ## before it shows the way (DoorSigns) and the corridor between gets its style (CorridorDressing).
+## Where the two rooms overlap each keeps its own floor and walls (PassageSeam, M2).
 func _dress_way(previous: RoomController, room: RoomController, previous_exit: Vector2i, option: BranchOption, via_exit: int) -> void:
 	if room.slot_index > 1:
 		RoomVeil.attach(room)
 	if previous == null:
 		return
+	PassageSeam.join(previous, room)
 	var doors := previous.get_exit_doors()
 	var door_index := via_exit if via_exit >= 0 else maxi(0, previous.get_chosen_branch())
 	if door_index < doors.size():
@@ -527,6 +610,8 @@ func _free_faded(way: RoomController) -> void:
 		return
 	_fading_rooms.erase(way)
 	if is_instance_valid(way):
+		# The branch room gets back the wall it shared with this way (M2).
+		PassageSeam.release(way, room_container.get_children())
 		room_container.remove_child(way)
 		way.free()
 
@@ -558,9 +643,11 @@ func _leave_rock(way: RoomController, owner_slot: int) -> void:
 	fill.occlusion_enabled = false
 	fill.position = way.position + tiles.position
 	var rect := tiles.get_backdrop_rect()
+	# M1: the room's own rock fill (soft terrain), so the rooms around draw their round edges over it.
+	var cell := tiles.get_rock_fill_cell()
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
-			fill.set_cell(Vector2i(x, y), RoomTiles.SOURCE_ID, RoomTiles.WALL_TOP)
+			fill.set_cell(Vector2i(x, y), cell.z, Vector2i(cell.x, cell.y))
 	_rock_root.add_child(fill)
 	var fills: Array = _rock_fills.get(owner_slot, [])
 	fills.append(fill)
@@ -734,6 +821,11 @@ func _unload_slot(slot: int) -> void:
 		return
 	_rooms.erase(slot)
 	room.mark_unloaded()
+	# M2: the room after it gets back the wall they shared, and its open entrance leads nowhere now.
+	PassageSeam.release(room, room_container.get_children())
+	var entrance := Door.entrance_of(_rooms.get(slot + 1))
+	if entrance != null:
+		entrance.block()
 	room_container.remove_child(room)
 	# free(), not queue_free(): the instance must be gone before the next one is created.
 	room.free()
@@ -785,14 +877,33 @@ func _on_player_entered_room(room: RoomController) -> void:
 	RoomVeil.lift_room(room)
 	_apply_vision(room)
 	room.activate()
+	# No way back (M2): the gate of the room before shuts once everyone is inside this one.
+	GateCloser.close_behind(_rooms.get(room.slot_index - 1), room)
 	# A branch room builds both ways now, dark behind its doors (D-105, R5).
 	if room.is_branch_room():
 		_prepare_branch_ways(room)
 	else:
 		_prepare_slot(room.slot_index + 1)
+		_plan_side_way(room, _rooms.get(room.slot_index + 1))
 	if room.is_campfire():
 		_begin_campfire(room)
 	room_activated.emit(room)
+
+
+## M5: the way from room to next may run through a side segment (SideRules: after the campfire,
+## the ladder way, 10 % after a rest room; never before the boss, never twice in a row).
+func _plan_side_way(room: RoomController, next: RoomController, ladder_way := false) -> void:
+	var gate := SideWays.plan(room, next, _run_seed, _last_side_slot == room.slot_index, ladder_way)
+	if gate != null:
+		gate.passed.connect(_on_side_gate_passed)
+
+
+func _on_side_gate_passed(gate: SideGate, _player: Player) -> void:
+	if _run_ending or not is_instance_valid(gate.next_room):
+		return
+	_last_side_slot = gate.next_room.slot_index
+	var players: Array[Player] = [context.player]  # MP: every player of the session
+	SideTransit.start(self, players, gate.layout, gate.next_room.room_index, context, gate.rng_seed, gate.place_players)
 
 
 ## Campfire entered: the boss music has faded, the next biome's ambient bed comes in (C3 hook);
@@ -812,7 +923,7 @@ func _on_room_completed(room: RoomController) -> void:
 	if room.room_type != RoomSequence.RoomType.SPECIAL:
 		ui.hide_boss_bar()
 		var is_boss := room.room_type == RoomSequence.RoomType.BOSS
-		ui.show_banner("Boss besiegt!" if is_boss else "Raum geschafft!", "Der Weg ist frei", Color(1.0, 0.85, 0.4))
+		ui.show_banner(DungeonTexts.t(&"BOSS_DEFEATED_TITLE" if is_boss else &"ROOM_CLEARED_TITLE"), DungeonTexts.t(&"ROOM_CLEARED_SUB"), Color(1.0, 0.85, 0.4))
 		Sfx.play_ui(self, &"room_clear")
 		# Let the death animation play and the gold fly in before any dialog opens (D-070).
 		await get_tree().create_timer(REWARD_DIALOG_DELAY, false).timeout
@@ -820,15 +931,15 @@ func _on_room_completed(room: RoomController) -> void:
 			return
 
 	if room.room_type == RoomSequence.RoomType.COMBAT_UPGRADE:
-		await _offer_upgrade("Kampf gewonnen!")
+		await _offer_upgrade(DungeonTexts.t(&"UPGRADE_TITLE_COMBAT"))
 	elif room.room_type == RoomSequence.RoomType.BOSS:
 		if CAMPFIRE_EXIT_PORTAL:
 			# The portal waits at the campfire behind the door (D-103).
-			ui.show_banner("Ein Lagerfeuer wartet", "Rast und Ausgang hinter der Tür", CAMPFIRE_BANNER_COLOR)
+			ui.show_banner(DungeonTexts.t(&"CAMPFIRE_AHEAD_TITLE"), DungeonTexts.t(&"CAMPFIRE_AHEAD_SUB"), CAMPFIRE_BANNER_COLOR)
 		else:
 			# Checkpoint: after every boss an exit portal appears (D-073).
 			room.spawn_exit_portal()
-			ui.show_banner("Ein Portal ist erschienen", "Gold sichern oder tiefer hinab?", Color(0.6, 0.85, 1.0))
+			ui.show_banner(DungeonTexts.t(&"PORTAL_APPEARED_TITLE"), DungeonTexts.t(&"PORTAL_APPEARED_SUB"), Color(0.6, 0.85, 1.0))
 	if is_instance_valid(room):
 		room.open_exit()
 
@@ -872,13 +983,13 @@ func _announce_room(room: RoomController, biome: BiomeData) -> void:
 	var kind_text := get_room_kind_label(room) if SHOW_ROOM_KIND_BANNER else ""
 	var entering_biome := room.room_index > 1 and (room.room_index - 1) % RoomSequence.BOSS_INTERVAL == 0
 	if entering_biome and biome != null:
-		ui.show_banner(biome.display_name, _with_kind("Ein neues Gebiet", kind_text), biome.tile_tint)
+		ui.show_banner(biome.display_name, _with_kind(DungeonTexts.t(&"BIOME_NEW_SUB"), kind_text), biome.tile_tint)
 		Sfx.play_ui(self, &"portal", -6.0)
 	elif room.is_extra_dark and room.room_index > 1 and RoomSequence.get_biome(room.room_index) != RoomSequence.Biome.SHADOW_REALM:
-		ui.show_banner("Finsternis", _with_kind("Hier ist es noch dunkler …", kind_text), Color(0.7, 0.6, 1.0))
+		ui.show_banner(DungeonTexts.t(&"DARKNESS_TITLE"), _with_kind(DungeonTexts.t(&"DARKNESS_SUB"), kind_text), Color(0.7, 0.6, 1.0))
 	elif not kind_text.is_empty() and room.room_index > 1:
 		# Room 1 keeps the run start banner (Proviant).
-		ui.show_banner(kind_text, "Raum %d" % room.room_index, ROOM_KIND_BANNER_COLOR)
+		ui.show_banner(kind_text, Loc.t(&"HUD_ROOM", [room.room_index]), ROOM_KIND_BANNER_COLOR)
 	# Arena, catacomb, special rooms, trials: named banner, explained once per save (UX2). Normal
 	# combat rooms stay unnamed; banners queue behind each other.
 	var genre := ui.show_room_genre(room)
@@ -932,7 +1043,7 @@ func _announce_boss(enemy: Enemy) -> void:
 		if not is_instance_valid(enemy) or enemy.is_dead():
 			return
 	else:
-		ui.show_banner(enemy.data.display_name, "Boss", Color(0.95, 0.4, 1.0))
+		ui.show_banner(enemy.data.display_name, DungeonTexts.t(&"BOSS_BAR_KIND_BOSS"), Color(0.95, 0.4, 1.0))
 		Sfx.play_ui(self, &"boss_roar")
 		CameraShake.shake(self, 9.0)
 	ui.show_boss_bar(enemy)

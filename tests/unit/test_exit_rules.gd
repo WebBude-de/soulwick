@@ -1,8 +1,9 @@
 extends GutTest
 ## Way-finding (A10, KONZEPT_RAEUME §7.1, D-105): doors in every wall (RoomTiles geometry), the exit
 ## rules (never the entrance wall, north before rooms entered from the south only, weighted turns),
-## joining rooms at the shared corridor end, the overlap rule (rock on rock is fine, never on a
-## floor, wall or corridor) with longer corridors, and the door places of every combat template.
+## joining rooms with one corridor tile (M2: the next room's wall is the corridor), the overlap rule
+## (rock on rock is fine, never on a floor, wall or corridor) with longer corridors, and the door
+## places of every combat template.
 
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 
@@ -96,11 +97,30 @@ func test_joined_rooms_share_the_corridor_end() -> void:
 	var end := ExitRules.exit_corridor_end(Vector2i.ZERO, first, ExitRules.EAST, 4)
 	var origin := ExitRules.origin_for(end, second, ExitRules.WEST, 5)
 	assert_eq(origin + RoomTiles.corridor_end_of(ExitRules.WEST, 5, second), end)
-	assert_eq(origin, Vector2i(18, -1), "west room starts three columns behind the east wall")
+	assert_eq(origin, Vector2i(17, -1), "M2: the west room's floor starts two columns behind the east wall")
 	var a := ExitRules.footprint_of(Vector2i.ZERO, first, Vector2i(ExitRules.SOUTH, 7), 0, [Vector2i(ExitRules.EAST, 4)] as Array[Vector2i])
 	var b := ExitRules.footprint_of(origin, second, Vector2i(ExitRules.WEST, 5), 0)
 	var cut := a.get_bounds().intersection(b.get_bounds())
-	assert_eq(cut.size.x, 1, "neighbours share one column of their rings")
+	assert_eq(cut.size.x, ExitRules.shared_lines(ExitRules.EAST), "neighbours share the corridor and the wall column")
+
+
+## M2: one gate (the exit door of the room left) and one tile of corridor (the next room's wall)
+## between the two floors, on every wall.
+func test_one_corridor_tile_between_gate_and_floor() -> void:
+	var first := Vector2i(15, 9)
+	var second := Vector2i(17, 11)
+	for exit: Vector2i in [Vector2i(ExitRules.NORTH, 7), Vector2i(ExitRules.EAST, 4), Vector2i(ExitRules.WEST, 4)]:
+		var entrance_side := RoomTiles.opposite_side(exit.x)
+		var place := 8 if entrance_side == ExitRules.SOUTH else 5
+		var end := ExitRules.exit_corridor_end(Vector2i.ZERO, first, exit.x, exit.y)
+		var origin := ExitRules.origin_for(end, second, entrance_side, place)
+		var gate := RoomTiles.door_tile_of(exit.x, exit.y, first)
+		var inside := origin + RoomTiles.inside_tile_of(entrance_side, place, second)
+		var direction: Vector2i = RoomTiles.SIDE_DIRECTIONS[exit.x]
+		assert_eq(inside, gate + direction * 2, "side %d: gate, one corridor tile, floor" % exit.x)
+		assert_eq(origin + RoomTiles.door_tile_of(entrance_side, place, second), gate + direction, "side %d: the corridor tile is the next room's entrance" % exit.x)
+	assert_eq(ExitRules.join_overlap(ExitRules.NORTH), 2, "north: the next room's south wall lies on the crown")
+	assert_eq(ExitRules.join_overlap(ExitRules.EAST), 1)
 
 
 func test_rock_on_rock_is_fine_but_never_on_a_floor() -> void:
@@ -134,6 +154,16 @@ func test_straight_on_never_needs_a_longer_corridor() -> void:
 	var end2 := ExitRules.exit_corridor_end(origin, size, ExitRules.NORTH, 9)
 	var others: Array[ExitRules.Footprint] = [previous]
 	assert_eq(ExitRules.extra_needed(end2, size, Vector2i(ExitRules.SOUTH, 9), others), 0)
+
+
+## M2: a niche behind the north wall and a way north exclude each other; a plain fight with only
+## north niche places leaves through a side wall that needs no longer corridor (the niche's roll picks).
+func test_a_niche_behind_the_north_wall_turns_the_way_aside() -> void:
+	var sides: Array[int] = [ExitRules.NORTH, ExitRules.EAST, ExitRules.WEST]
+	assert_eq(DungeonManager._side_exit_for_niche(sides, [0, 0, 0] as Array[int], 0.1), ExitRules.EAST)
+	assert_eq(DungeonManager._side_exit_for_niche(sides, [0, 0, 0] as Array[int], 0.9), ExitRules.WEST)
+	assert_eq(DungeonManager._side_exit_for_niche(sides, [0, 5, 0] as Array[int], 0.1), ExitRules.WEST, "no turn that needs a longer corridor")
+	assert_eq(DungeonManager._side_exit_for_niche([ExitRules.NORTH] as Array[int], [0] as Array[int], 0.5), -1, "north only: no niche behind the north wall")
 
 
 # --- Templates ---

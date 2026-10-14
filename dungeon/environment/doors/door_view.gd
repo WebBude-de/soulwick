@@ -6,7 +6,12 @@ extends Node2D
 ## The way behind an exit door (R5, 05_tueren.md): the mode symbol over the arch (or over the corridor
 ## of a side door) and a light cone in the mode colour on the floor in front of the door, pointing
 ## into the room, with a soft light of the same colour (DoorStyle.mode / way_color).
-## Positions are world px relative to the door's tile origin (top-left of the leaf).
+## One gate per transition (M2): a north exit shows its gate (DoorStyle.gate, 32x48, standing on the
+## floor line of the front tile and reaching half a tile into the crown) in the biome's tint, framed by
+## the cave mouth or the arch, two pebbles and a tuft at its foot. The light cone shines at
+## CONE_CLOSED_SHARE while the gate is shut and at full strength once it is open. An entrance draws
+## nothing but a little rubble while it is blocked (nothing behind it).
+## Positions are world px relative to the door's tile origin (top-left of the door tile).
 
 ## Glow strengths (alpha of the additive overlay). Kept low for long sessions. TESTWERTE.
 const GLOW_PULSE_BASE := 0.35
@@ -27,6 +32,8 @@ const TORCH_LIGHT_RADIUS := 170.0
 const TORCH_LIGHT_RADIUS_BOSS := 220.0
 const TORCH_LIGHT_INTENSITY := 0.85
 const TORCH_LIGHT_FLICKER := 0.07
+## How far below the door tile the torch light sits (world px). TESTWERT
+const TORCH_LIGHT_DROP := 40.0
 const FLASH_DURATION := 0.45
 ## Sign colour for delivered (white/grey) symbol art.
 const SYMBOL_TINT := Color("f2cf4a")
@@ -43,12 +50,33 @@ const CONE_FADE_TIME := 0.6
 const CONE_Z := -7
 const WAY_LIGHT_RADIUS := 150.0
 const WAY_LIGHT_INTENSITY := 0.8
+## Cone and way light of a shut gate: a hint of the way (M2, 11_makeover3_komplett.md §11). TESTWERT
+const CONE_CLOSED_SHARE := 0.3
+## The cone follows the gate within its opening time (0.4 s).
+const CONE_SHARE_TIME := 0.4
+## Pebbles and a tuft at the foot of a mouth (M2 §2.2/§12): place (world px from the door tile
+## origin) and scale; floor decals over the floor tiles, under the cone.
+const MOUTH_DECO := [
+	{"cell": &"pebbles", "pos": Vector2(-26, 70), "scale": 1.2, "flip": false},
+	{"cell": &"pebbles", "pos": Vector2(84, 74), "scale": 1.0, "flip": true},
+	{"cell": &"tuft", "pos": Vector2(-34, 50), "scale": 1.4, "flip": false},
+]
+const MOUTH_DECO_Z := -9
+## Rubble in an entrance that leads nowhere any more (DecoProp items).
+const BLOCKED_RUBBLE := [
+	{"item": &"rubble_2", "pos": Vector2(30, 40)},
+	{"item": &"rubble_1", "pos": Vector2(18, 54)},
+]
 ## The mode symbol hangs this far above the arch (world px) and a little lighter than the mode
 ## colour, so dark modes (Lichtfeuer, Flamme) read on the rock.
 const MODE_SYMBOL_GAP := 2.0
 const MODE_SYMBOL_LIGHTEN := 0.25
 const PIXEL_SCALE := 2.0
 const TILE := 64.0
+## Side doors: the torch on the front above the corridor reaches up to y -72 (pivot (16, 18) at
+## -TILE + 28, scale 2); the sign's centre sits above it with a gap (16 px art = 32 px tall).
+const SIDE_TORCH_Y := -TILE + 28.0
+const SIDE_SYMBOL_Y := SIDE_TORCH_Y - 18.0 * PIXEL_SCALE - 12.0 - 16.0
 
 var style: DoorStyle = null
 var is_entrance := false
@@ -68,6 +96,10 @@ var _cone: Sprite2D = null
 var _way_light: LightSource = null
 var _sealed := false
 var _door_open := false
+## Share of the cone and way light shown (CONE_CLOSED_SHARE .. 1).
+var _cone_share := CONE_CLOSED_SHARE
+var _mouth_deco: Array[Sprite2D] = []
+var _rubble: Array[Node2D] = []
 var _glow_strength := 0.0
 var _time := randf() * 10.0
 
@@ -83,12 +115,19 @@ func setup(leaf: AnimatedSprite2D) -> void:
 		_leaf.animation_finished.connect(_on_leaf_finished)
 
 
-## Builds all visuals for a style. Entrance doors (south wall) get frame and leaf only.
+## Builds all visuals for a style. Entrances (M2) get no leaf and no frame: an open gap in the wall.
 func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 	style = new_style
 	is_entrance = entrance
 	_clear()
+	if is_entrance:
+		if _leaf != null:
+			_leaf.sprite_frames = null
+			_leaf.visible = false
+		_build_rubble()
+		return
 	if _leaf != null:
+		_leaf.visible = true
 		var strip := DoorArt.get_leaf_strip(style)
 		var frames := SpriteStrip.make_frames(strip, style.leaf_size, 1.0, false, &"closed")
 		# "closed" = first frame of the strip only.
@@ -96,17 +135,18 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 			frames.remove_frame(&"closed", frames.get_frame_count(&"closed") - 1)
 		SpriteStrip.add_strip(frames, &"open", strip, style.leaf_size, style.leaf_fps, false)
 		_leaf.sprite_frames = frames
+		# A gate stands on the floor line of its tile and reaches up into the crown (gates.json).
+		_leaf.position = Vector2(0.0, float(32 - style.leaf_size.y) * PIXEL_SCALE)
+		_leaf.modulate = style.tint if style.is_gate() else Color.WHITE
 	if _is_side():
 		_apply_side_style()
 		return
 	var frame_pos := -Vector2(style.leaf_offset) * PIXEL_SCALE
-	# The passage of the frame is transparent (DoorArt.open_passage); the leaf sits in it, and a
-	# player walking through is drawn behind the arch. Entrance doors sit in the low south wall: an
-	# arch there would face away from the camera and reach into the room behind, so they keep only
-	# the leaf in the wall opening.
-	if is_entrance:
-		return
+	# The passage of the frame is transparent (DoorArt.open_passage); the gate sits in it, and a
+	# player walking through is drawn behind the arch or the mouth.
 	_frame = _make_sprite("Frame", DoorArt.get_frame(style), frame_pos, 0)
+	if not style.is_boss():
+		_build_mouth_deco()
 	if style.is_boss():
 		# The boss gate is biome-neutral and tinted per biome (SPRITES_V4 §4), placeholder too.
 		_frame.modulate = style.tint
@@ -133,7 +173,7 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 func set_symbol(symbol_id: StringName) -> void:
 	if _symbol != null:
 		remove_child(_symbol)
-		_symbol.queue_free()
+		_symbol.free()
 		_symbol = null
 	if style == null or is_entrance or style.is_boss():
 		return
@@ -152,8 +192,9 @@ func set_symbol(symbol_id: StringName) -> void:
 	elif DoorArt.has_symbol_file(symbol_id) and not DoorStyle.is_branch_symbol(symbol_id):
 		_symbol.modulate = SYMBOL_TINT
 	if _is_side():
-		# Over the brick front above the corridor, on the wall top.
-		_symbol.position = Vector2(TILE * 0.5, -TILE - 4.0)
+		# On the wall top above the torch of the brick front, clear of its flame (playtest 14.10.2026:
+		# a sign must never cover a torch).
+		_symbol.position = Vector2(TILE * 0.5, SIDE_SYMBOL_Y)
 	elif mode_icon != null:
 		# The mode floats over the arch (05_tueren.md), clear of the keystone ornament.
 		var arch_top := -float(style.leaf_offset.y) * PIXEL_SCALE
@@ -200,7 +241,8 @@ func _is_side() -> bool:
 
 
 ## West/east wall door (A10): the leaf seen from above in the corridor (mirrored for the east wall),
-## a torch on the brick front above the corridor, the sign over it. Entrance doors: leaf only.
+## a torch on the brick front above the corridor, the sign over it. M2: the corridor behind it is one
+## tile, the wall of the next room.
 func _apply_side_style() -> void:
 	if _leaf != null:
 		var strip := DoorArt.get_side_leaf_strip(style)
@@ -209,11 +251,11 @@ func _apply_side_style() -> void:
 		var frames := SpriteStrip.make_frames(strip, frame_size, 1.0, false, &"closed")
 		while frames.get_frame_count(&"closed") > 1:
 			frames.remove_frame(&"closed", frames.get_frame_count(&"closed") - 1)
-		SpriteStrip.add_strip(frames, &"open", strip, frame_size, style.leaf_fps, false)
+		SpriteStrip.add_strip(frames, &"open", strip, frame_size, style.side_leaf_fps, false)
 		_leaf.sprite_frames = frames
 		_leaf.flip_h = side == RoomTiles.DoorSide.EAST
-	if is_entrance:
-		return
+		_leaf.position = Vector2.ZERO
+		_leaf.modulate = Color.WHITE
 	var strip_path := style.torch_strip_path
 	if not strip_path.is_empty() and ResourceLoader.exists(strip_path):
 		var torch := AnimatedProp.new()
@@ -223,11 +265,11 @@ func _apply_side_style() -> void:
 		torch.pivot = Vector2(16, 31) if style.torch_mode == DoorStyle.TORCH_BRAZIER else Vector2(16, 18)
 		torch.strip = load(strip_path) as Texture2D
 		torch.scale = Vector2.ONE * PIXEL_SCALE
-		torch.position = Vector2(TILE * 0.5, -TILE + 28.0)
+		torch.position = Vector2(TILE * 0.5, SIDE_TORCH_Y)
 		add_child(torch)
 		_torches.append(torch)
 	_add_torch_light()
-	_torch_light.position = Vector2(TILE * 0.5, -TILE * 0.5)
+	_torch_light.position = Vector2(TILE * 0.5, -TILE * 0.5) + get_inward() * (TILE * 0.5 + TORCH_LIGHT_DROP)
 	set_symbol(style.symbol)
 	_build_way_light()
 	if style.glow_mode == DoorStyle.GLOW_THREAT:
@@ -276,9 +318,50 @@ func get_inward() -> Vector2:
 	return Vector2.DOWN
 
 
+## Pebbles and moss at the foot of the mouth or arch (M2 §12), from the biome's overlay sheet.
+func _build_mouth_deco() -> void:
+	for entry: Dictionary in MOUTH_DECO:
+		var texture := DoorArt.get_overlay(style.biome_id, style.soft, entry["cell"])
+		if texture == null:
+			continue
+		var deco := Sprite2D.new()
+		deco.name = "Mouth%s%d" % [String(entry["cell"]).capitalize(), _mouth_deco.size()]
+		deco.texture = texture
+		deco.scale = Vector2.ONE * PIXEL_SCALE * float(entry["scale"]) * 0.5
+		deco.flip_h = entry["flip"]
+		deco.position = entry["pos"]
+		deco.z_index = MOUTH_DECO_Z
+		deco.z_as_relative = false
+		add_child(deco)
+		_mouth_deco.append(deco)
+
+
+func get_mouth_deco() -> Array[Sprite2D]:
+	return _mouth_deco
+
+
+## Rubble in a blocked entrance (shown while the entrance is shut, see show_state).
+func _build_rubble() -> void:
+	for entry: Dictionary in BLOCKED_RUBBLE:
+		var prop := DecoProp.new()
+		prop.name = String(entry["item"]).to_pascal_case()
+		prop.item = entry["item"]
+		prop.position = entry["pos"]
+		prop.visible = false
+		add_child(prop)
+		_rubble.append(prop)
+
+
+func get_rubble() -> Array[Node2D]:
+	return _rubble
+
+
 ## Shows a state without effects (setup, streaming).
 func show_state(open: bool) -> void:
 	_door_open = open
+	_cone_share = 1.0 if open else CONE_CLOSED_SHARE
+	for piece in _rubble:
+		piece.visible = not open
 	if _leaf == null or _leaf.sprite_frames == null:
 		return
 	if open:
@@ -292,7 +375,7 @@ func show_state(open: bool) -> void:
 
 ## Door.state_changed: animates and plays effects unless instant.
 func on_state_changed(open: bool, instant: bool) -> void:
-	if instant:
+	if instant or is_entrance:
 		show_state(open)
 		return
 	var changed := open != _door_open
@@ -331,8 +414,19 @@ func _process(delta: float) -> void:
 	if _threat_light != null:
 		var pulse := 0.5 + 0.5 * sin(_time * GLOW_THREAT_SPEED)
 		_threat_light.intensity = 0.0 if _door_open else lerpf(THREAT_LIGHT_MIN, THREAT_LIGHT_MAX, pulse)
-	if _cone != null and not _sealed:
-		_cone.modulate.a = CONE_ALPHA + CONE_PULSE * sin(_time * CONE_PULSE_SPEED)
+	if not _sealed:
+		# Shut gate: a hint of the way; open: full light (M2).
+		var share_target := 1.0 if _door_open else CONE_CLOSED_SHARE
+		_cone_share = move_toward(_cone_share, share_target, delta * (1.0 - CONE_CLOSED_SHARE) / CONE_SHARE_TIME)
+		if _cone != null:
+			_cone.modulate.a = (CONE_ALPHA + CONE_PULSE * sin(_time * CONE_PULSE_SPEED)) * _cone_share
+		if _way_light != null:
+			_way_light.intensity = WAY_LIGHT_INTENSITY * _cone_share
+
+
+## Share of the way's light shown right now (CONE_CLOSED_SHARE shut, 1 open).
+func get_cone_share() -> float:
+	return _cone_share
 
 
 func _target_glow() -> float:
@@ -356,6 +450,16 @@ func _play_open_effects() -> void:
 	var floor_line := to_global(Vector2(TILE * 0.5, TILE - 4.0))
 	Burst.spawn(self, lintel, style.particle_color, 14, style.particle_speed, 0.7, 4.0)
 	Burst.spawn(self, floor_line, style.particle_color.darkened(0.2), 10, style.particle_speed * 0.7, 0.5, 3.0)
+	LightSource.flash(self, centre, style.flash_radius, FLASH_DURATION)
+	if not _is_side() and style.is_gate():
+		# The slab grinds into the floor (dust at its foot), the bars rattle up (grit from the slot).
+		if style.gate == DoorStyle.GATE_SLAB:
+			Burst.spawn(self, floor_line, style.tint.darkened(0.35), 16, 90.0, 0.6, 4.0)
+		else:
+			Burst.spawn(self, to_global(Vector2(TILE * 0.5, -TILE * 0.4)), DoorArt.METAL_MID, 12, 140.0, 0.45, 3.0)
+		if sounds_enabled:
+			Sfx.play_at(self, style.open_sound, centre)
+		return
 	match style.leaf_kind:
 		DoorStyle.LEAF_PORTCULLIS:
 			Burst.spawn(self, floor_line, Color("ff8a3c"), 18, 240.0, 0.5, 3.0)
@@ -366,9 +470,8 @@ func _play_open_effects() -> void:
 		DoorStyle.LEAF_DOUBLE:
 			Burst.spawn(self, centre, DoorArt.METAL_MID, 14, 220.0, 0.6, 4.0)
 			Burst.spawn(self, centre, style.glow_color, 12, 160.0, 0.5, 3.0)
-	LightSource.flash(self, centre, style.flash_radius, FLASH_DURATION)
 	if sounds_enabled:
-		Sfx.play_at(self, style.open_sound, centre)
+		Sfx.play_at(self, style.side_open_sound if _is_side() else style.open_sound, centre)
 
 
 func _play_close_effects() -> void:
@@ -442,12 +545,12 @@ func _build_way_light() -> void:
 		var additive := CanvasItemMaterial.new()
 		additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		_cone.material = additive
-		_cone.modulate = Color(style.way_color, CONE_ALPHA)
+		_cone.modulate = Color(style.way_color, CONE_ALPHA * _cone_share)
 		add_child(_cone)
 	_way_light = LightSource.new()
 	_way_light.name = "WayLight"
 	_way_light.radius = WAY_LIGHT_RADIUS
-	_way_light.intensity = WAY_LIGHT_INTENSITY
+	_way_light.intensity = WAY_LIGHT_INTENSITY * _cone_share
 	_way_light.color = Color(style.way_color, 1.0)
 	_way_light.position = edge + inward * TILE * 0.8
 	add_child(_way_light)
@@ -459,7 +562,8 @@ func _add_torch_light() -> void:
 	_torch_light.radius = TORCH_LIGHT_RADIUS_BOSS if style.is_boss() else TORCH_LIGHT_RADIUS
 	_torch_light.intensity = TORCH_LIGHT_INTENSITY
 	_torch_light.flicker = TORCH_LIGHT_FLICKER
-	_torch_light.position = Vector2(TILE * 0.5, 8.0)
+	# The torches light the room in front of the gate, not the corridor behind it (M2 playtest).
+	_torch_light.position = Vector2(TILE * 0.5, TILE + TORCH_LIGHT_DROP)
 	add_child(_torch_light)
 
 
@@ -480,9 +584,11 @@ func _make_sprite(node_name: String, texture: Texture2D, pos: Vector2, z: int) -
 
 
 func _clear() -> void:
+	# Gone at once: apply_style runs several times while a room is prepared (configure, set_destination,
+	# show_way), queued copies would pile up until the end of the frame.
 	for child in get_children():
 		remove_child(child)
-		child.queue_free()
+		child.free()
 	_frame = null
 	_glow = null
 	_symbol = null
@@ -491,3 +597,5 @@ func _clear() -> void:
 	_threat_light = null
 	_cone = null
 	_way_light = null
+	_mouth_deco.clear()
+	_rubble.clear()

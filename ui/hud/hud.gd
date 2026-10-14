@@ -6,6 +6,9 @@ extends CanvasLayer
 ## slots with effective values, special and dash cooldown (bottom left).
 ## Village: village gold + soul crystals (top right) and chronicle values (bottom left).
 ## All measurements are mockup pixels (480×270) converted with UiKit.px / UiKit.art_px.
+## R8: values that change hop once (hearts, shield, gold, crystals); the weapon block sits in one
+## panel_dark with the slots, the active weapon's name and values, and its keys as key caps
+## ([Q] Bogen · [RMB] Wirbelschlag · [Space] Dash) with the cooldown bars next to them.
 
 const HEART_TEXTURES: Array[Texture2D] = [
 	preload("res://art/ui/heart_empty.png"),
@@ -55,7 +58,10 @@ const SLOT_ICON_SIZE := 16.0
 const INACTIVE_SLOT_ALPHA := 0.8
 const SMALL_ICON_SIZE := 12.0
 const HINT_MAX_WIDTH := 200.0
-const DASH_BAR_SIZE := Vector2(24, 2)
+const DASH_BAR_SIZE := Vector2(18, 2)
+const SPECIAL_BAR_SIZE := Vector2(18, 2)
+## Hop of a changed value (scale).
+const BUMP_SCALE := 1.3
 const CHRONICLE_REFRESH := 1.0
 
 var _player: Player = null
@@ -80,14 +86,21 @@ var _crystal_icon: TextureRect
 var _room_box: VBoxContainer
 var _room_label: Label
 var _room_detail: Label
-var _weapon_root: HBoxContainer
+var _weapon_root: Control
 var _weapon_panels: Array[PanelContainer] = []
 ## Special cooldown bar per weapon slot (null for empty slots).
 var _special_bars: Array[ProgressBar] = [null, null]
 var _weapon_name: Label
 var _weapon_stats: Label
+## Key caps with captions under the weapon values (switch, special, dash).
+var _weapon_keys: HBoxContainer
 var _weapon_hint: Label
 var _dash_bar: ProgressBar
+## Special cooldown of the active weapon next to its key cap (null without a special).
+var _special_key_bar: ProgressBar = null
+## Last shown fill of every heart (quarter steps) and values, so only changes hop.
+var _heart_fills: Array[int] = []
+var _last_values := {}
 var _hint_label: Label
 var _currency_frame: PanelContainer
 var _village_gold: Label
@@ -239,35 +252,50 @@ func _build_room(root: Control) -> void:
 
 
 func _build_weapons(root: Control) -> void:
+	var frame := UiKit.panel(&"dark")
+	frame.name = "WeaponBlock"
+	frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 4, 5))
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
+	frame.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	frame.offset_left = UiKit.px(WEAPON_MARGIN)
+	frame.offset_bottom = -UiKit.px(WEAPON_MARGIN)
+	root.add_child(frame)
+	_weapon_root = frame
 	var row := UiKit.hbox(int(UiKit.px(SLOT_GAP)))
-	row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
-	row.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	row.offset_left = UiKit.px(WEAPON_MARGIN)
-	row.offset_bottom = -UiKit.px(WEAPON_MARGIN)
-	root.add_child(row)
-	_weapon_root = row
+	frame.add_child(row)
 	for slot in WeaponController.MAX_WEAPON_SLOTS:
-		var frame := PanelContainer.new()
-		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		frame.custom_minimum_size = Vector2.ONE * UiKit.px(SLOT_SIZE)
-		row.add_child(frame)
-		_weapon_panels.append(frame)
-	var text := UiKit.vbox(0)
-	text.alignment = BoxContainer.ALIGNMENT_END
+		var slot_frame := PanelContainer.new()
+		slot_frame.name = "Slot%d" % (slot + 1)
+		slot_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		slot_frame.custom_minimum_size = Vector2.ONE * UiKit.px(SLOT_SIZE)
+		slot_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(slot_frame)
+		_weapon_panels.append(slot_frame)
 	var spacer := Control.new()
-	spacer.custom_minimum_size.x = UiKit.px(SLOT_GAP)
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.custom_minimum_size.x = UiKit.px(2)
 	row.add_child(spacer)
+	var text := UiKit.vbox(int(UiKit.px(1)))
+	text.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(text)
+	var head := UiKit.hbox(int(UiKit.px(4)))
+	text.add_child(head)
 	_weapon_name = UiKit.text_label("", UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
-	text.add_child(_weapon_name)
+	_weapon_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(_weapon_name)
 	_weapon_stats = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
-	text.add_child(_weapon_stats)
-	var hint_row := UiKit.hbox(int(UiKit.px(4)))
-	text.add_child(hint_row)
+	_weapon_stats.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	head.add_child(_weapon_stats)
+	_weapon_keys = UiKit.hbox(int(UiKit.px(5)))
+	_weapon_keys.name = "Keys"
+	text.add_child(_weapon_keys)
+	# Plain text of the key line (tools and tests read it; the key caps show it).
 	_weapon_hint = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_DISABLED)
-	hint_row.add_child(_weapon_hint)
+	_weapon_hint.visible = false
+	text.add_child(_weapon_hint)
 	_dash_bar = _cooldown_bar(UiKit.COLOR_SHIELD, DASH_BAR_SIZE)
-	hint_row.add_child(_dash_bar)
+	_add_key(_key_name(ControlsInfo.DASH), Loc.t(&"HUD_DASH")).add_child(_dash_bar)
 
 
 func _build_hint(root: Control) -> void:
@@ -350,13 +378,19 @@ func _on_health_changed(current: float, maximum: float) -> void:
 		var icon := UiKit.icon(HEART_TEXTURES[0], HEART_SIZE)
 		_hearts.add_child(icon)
 		_heart_icons.append(icon)
+	while _heart_fills.size() < _heart_icons.size():
+		_heart_fills.append(-1)
 	for i in _heart_icons.size():
 		var icon := _heart_icons[i]
 		icon.visible = i < shown
 		if not icon.visible:
 			continue
 		var fill := clampf(current - i * HP_PER_HEART, 0.0, HP_PER_HEART)
-		icon.texture = HEART_TEXTURES[roundi(fill / HP_PER_HEART * 4.0)]
+		var quarters := roundi(fill / HP_PER_HEART * 4.0)
+		icon.texture = HEART_TEXTURES[quarters]
+		if _heart_fills[i] >= 0 and _heart_fills[i] != quarters:
+			UiKit.bump(icon, BUMP_SCALE)
+		_heart_fills[i] = quarters
 	_heart_count_label.visible = compact
 	if compact:
 		_heart_count_label.text = "×%d" % ceili(maxf(0.0, current) / HP_PER_HEART)
@@ -376,13 +410,24 @@ func get_visible_heart_count() -> int:
 
 
 func _on_shield_changed(current: float) -> void:
-	_shield_label.text = DamageNumber.format_amount(current)
+	_set_value(_shield_label, DamageNumber.format_amount(current))
+
+
+## Sets a value label; a changed value hops once (R8).
+func _set_value(label: Label, text: String) -> void:
+	if label.text == text:
+		return
+	var known := _last_values.has(label)
+	label.text = text
+	_last_values[label] = text
+	if known and _dungeon_mode:
+		UiKit.bump(label, BUMP_SCALE)
 
 
 func _on_gold_changed() -> void:
-	_gold_label.text = str(RunManager.get_run_gold() if _dungeon_mode else SaveManager.get_permanent_gold())
+	_set_value(_gold_label, str(RunManager.get_run_gold() if _dungeon_mode else SaveManager.get_permanent_gold()))
 	var crystals := RunManager.get_run_crystals() if _dungeon_mode else SaveManager.get_permanent_crystals()
-	_crystal_label.text = str(crystals)
+	_set_value(_crystal_label, str(crystals))
 	# Run crystals only matter once there are some (bosses and champions drop them).
 	_crystal_label.visible = crystals > 0
 	_crystal_icon.visible = crystals > 0
@@ -408,7 +453,8 @@ func _on_room_changed(room_index: int) -> void:
 	_room_label.text = Loc.t(&"HUD_ROOM", [room])
 	var detail := Loc.t(&"HUD_ROOM_DETAIL", [cycle, type_name])
 	if _heal_countdown >= 0:
-		detail += " · " + Loc.t(&"HUD_NEXT_HEAL", [_heal_countdown])
+		# Own line (R8): the room line stays narrow next to the task bar and the boss bar.
+		detail += "\n" + Loc.t(&"HUD_NEXT_HEAL", [_heal_countdown])
 	_room_detail.text = detail
 
 
@@ -479,21 +525,51 @@ func _on_weapons_changed() -> void:
 	_update_special_bars()
 
 
-## Name, effective values and key hints of the active weapon ("Q Bogen · RMB Wirbelschlag · Space Dash"),
-## names translated through DataTexts (D-111).
+## Name, effective values and key caps of the active weapon ([Q] Bogen · [RMB] Wirbelschlag ·
+## [Space] Dash, R8), names translated through DataTexts (D-111). The plain line stays in _weapon_hint.
 func _refresh_weapon_text(controller: WeaponController, active_slot: int) -> void:
 	var weapon := controller.get_weapon(active_slot)
 	_weapon_name.text = DataTexts.weapon_name(weapon) if weapon != null else "–"
 	_weapon_stats.text = DataTexts.weapon_stats_text(controller, weapon) if weapon != null else ""
 	var hints: PackedStringArray = []
+	if _dash_bar.get_parent() != null:
+		_dash_bar.get_parent().remove_child(_dash_bar)
+	for child in _weapon_keys.get_children():
+		_weapon_keys.remove_child(child)
+		child.queue_free()
+	_special_key_bar = null
 	for slot in WeaponController.MAX_WEAPON_SLOTS:
 		var other := controller.get_weapon(slot)
 		if slot != active_slot and other != null:
 			hints.append(Loc.t(&"HUD_KEY_SWITCH", [DataTexts.weapon_name(other)]))
+			_add_key(_key_name(ControlsInfo.SWITCH), DataTexts.weapon_name(other))
 	if weapon != null and weapon.special_name != "":
 		hints.append(Loc.t(&"HUD_KEY_SPECIAL", [DataTexts.weapon_special_name(weapon)]))
+		var special := _add_key(_key_name(ControlsInfo.SPECIAL), DataTexts.weapon_special_name(weapon))
+		_special_key_bar = _cooldown_bar(UiKit.COLOR_GOLD, SPECIAL_BAR_SIZE)
+		special.add_child(_special_key_bar)
 	hints.append(Loc.t(&"HUD_KEY_DASH"))
+	var dash := _add_key(_key_name(ControlsInfo.DASH), Loc.t(&"HUD_DASH"))
+	dash.add_child(_dash_bar)
 	_weapon_hint.text = " · ".join(hints)
+
+
+## Key cap + caption in the key line; returns the pair (cooldown bars go behind the caption).
+func _add_key(key: String, caption: String) -> HBoxContainer:
+	var pair := UiKit.hbox(int(UiKit.px(2)))
+	if not key.is_empty():
+		pair.add_child(UiChip.key(key))
+	var label := UiKit.text_label(caption, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	pair.add_child(label)
+	_weapon_keys.add_child(pair)
+	return pair
+
+
+## First key of a control (ControlsInfo), e.g. "Q", "RMT", "Leertaste".
+static func _key_name(id: StringName) -> String:
+	var actions := ControlsInfo.actions(id)
+	return ControlsInfo.action_key(actions[0]) if not actions.is_empty() else ""
 
 
 ## Thin cooldown bar along the bottom edge of a slot; full when the special is ready again.
@@ -515,6 +591,10 @@ func _update_special_bars() -> void:
 	if _player == null or not is_instance_valid(_player):
 		return
 	var controller := _player.weapon_controller
+	if _special_key_bar != null and is_instance_valid(_special_key_bar):
+		var active_charge := controller.get_special_charge(controller.get_active_slot())
+		_special_key_bar.value = active_charge
+		_special_key_bar.modulate = Color.WHITE if active_charge >= 1.0 else Color(0.6, 0.6, 0.6)
 	for slot in _special_bars.size():
 		var bar := _special_bars[slot]
 		if bar == null or not is_instance_valid(bar):

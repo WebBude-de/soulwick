@@ -1,21 +1,23 @@
-# Gruft (S): kleine Kammer mit zwei Pfeilern, Opferstelle und Schutt; Quellen in drei Ecken.
-name: Gruft
+# Gruft (M): Sarkophage (in den anderen Biomen deren Bodenquelle) um einen Felskern, zwei Felsbloecke
+# vor dem Eingang; Nordplaetze an beiden Seiten fuer eine Abzweigung.
 role: combat
 mode: clear
-biomes: all
-size: 19x13
 mirror: yes
+biomes: all
+name: Gruft
+exit: 2
+size: 21x13
 ---
-###################
-###################
-###T#####N#####T###
-##...............##
-##.G..##.....##..##
-##....##.....##..##
-##...............##
-##...r.......K...##
-##...............##
-##.G...........G.##
-##.......@.......##
-#########S#########
-###################
+xxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxx
+xxx#N####N####T#N#xxx
+xxx....,,.......:.xxx
+xx.................xx
+xx..s....###....s..xx
+xx.......###.......xx
+xxx.s..##...##...sxxx
+xxx....##...##....xxx
+xxxx.K.........k..xxx
+xxxxx...@........xxxx
+xxxxxxxxxxSxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxx

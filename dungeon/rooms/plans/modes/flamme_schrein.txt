@@ -1,21 +1,22 @@
-# Claude Design 04 (Flamme hueten): die Flamme auf ihrem Podest zwischen zwei Mauerstuempfen, drei
-# Lichtkristalle, Bodenrisse in den vier Ecken.
-name: Flammenschrein
+# Makeover 2, Plan 23 (Zerfallene Kapelle), auf 23x13 verdichtet: Kreuzschiff mit zwei Seitenkapellen
+# (Alkoven mit eigener Wand und Sarg), Platten-Mittelgang zur Flamme, Geroell vor dem Querschiff,
+# Bodenrisse in den vier Ecken.
 role: combat
 mode: flame
 biomes: all
-size: 21x13
+name: Zerfallene Kapelle
+size: 23x13
 ---
-#####################
-#####################
-###T#######N#####T###
-##.................##
-##.i.....C.......i.##
-##....##.....##....##
-##....##..f..##....##
-##.................##
-##.......@.........##
-##.i.............i.##
-##...C.......C.....##
-#########S###########
-#####################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###Txxxxxxxx
+xxxxxx.;;;;;;;.xxxxxxxx
+xx..##.;;;;;;;;;.##..xx
+xx.o##.;;;;f;;;;.##o.xx
+xx.........;.........xx
+xx..i..##%.,.%##..i..xx
+xx.....##.....##.....xx
+xxxx.i.....@.....i.xxxx
+xxxxx.............xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

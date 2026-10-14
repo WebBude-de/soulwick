@@ -38,10 +38,7 @@ const AMBUSH_MIN_SIDES := 3
 ## are the genres for SaveManager.has_seen("room_intro_<genre>").
 const ARENA_TITLE := &"ROOM_ARENA_TITLE"
 const ARENA_INTRO_TEXT := &"ROOM_ARENA_INTRO"
-const AMBUSH_TITLE := &"ROOM_AMBUSH_TITLE"
-const AMBUSH_INTRO_TEXT := &"ROOM_AMBUSH_INTRO"
 const INTRO_GENRE_ARENA := &"arena"
-const INTRO_GENRE_AMBUSH := &"ambush"
 
 
 ## Is this room fought as an arena with waves from the walls?

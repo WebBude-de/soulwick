@@ -1,22 +1,22 @@
-# Saeulenhalle (M): zwei versetzte Reihen 2x2-Pfeiler, Schutt an den Waenden, Opferstelle.
-name: Saeulenhalle
+# Saeulenhalle (M): zwei versetzte Reihen Felspfeiler, Gaenge dazwischen zwei Kacheln breit;
+# Nordplatz rechts fuer eine Abzweigung.
 role: combat
 mode: clear
-biomes: all
-size: 23x14
 mirror: yes
+biomes: all
+name: Saeulenhalle
+size: 23x13
 ---
-#######################
-#######################
-##T####n###N####T######
-##...................##
-##.G..##....##....##.##
-##....##....##....##.##
-##...................##
-##..r.......K.......r##
-##...................##
-##.......##....##....##
-##.G.....##....##..G.##
-##.........@.........##
-###########S###########
-#######################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxT###N#####T#N#xxxx
+xxxxx..............xxxx
+xxxx...............xxxx
+xx...##...##...##....xx
+xx...##...##...##....xx
+xx..G...##...##...G..xx
+xxx.....##...##.....xxx
+xxxx..k.......G..K.xxxx
+xxxxx..@..........xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

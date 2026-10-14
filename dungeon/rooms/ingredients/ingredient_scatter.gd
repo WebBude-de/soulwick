@@ -37,6 +37,10 @@ const WALL_SPACING := 2
 const LIGHT_SPACING := 4
 const DARK_ZONE_DOOR_DISTANCE := 3
 const PLACEMENT_ATTEMPTS := 40
+## Chokepoints (M1, playtest 14.10.2026): the gap between two wall stubs is two tiles wide, and most
+## chokepoints are gates (a niche keeps a one-tile pocket). TESTWERTE
+const CHOKE_GAP := 2
+const CHOKE_GATE_SHARE := 0.85
 const ALL_KINDS: Array[int] = [0, 1, 2, 3, 4, 5, 6]
 
 ## Items a placement puts into the room.
@@ -434,13 +438,14 @@ static func _place_chokepoint(state: ScatterState, rng: RandomNumberGenerator) -
 		var anchor := _random_tile(state, rng)
 		var tiles: Array[Vector2i] = []
 		var keep_free: Array[Vector2i] = []
-		if rng.randf() < 0.5:
+		if rng.randf() < CHOKE_GATE_SHARE:
 			# Gate: stub a, gap, stub b along one axis (horizontal stubs two rows deep: crown, front).
+			# The gap is CHOKE_GAP wide: no one-tile slots that look like a way (M1).
 			var horizontal := rng.randf() < 0.5
 			var along := Vector2i.RIGHT if horizontal else Vector2i.DOWN
 			var depth := 2 if horizontal else 1
 			var stub_a := rng.randi_range(2, 3)
-			var gap := rng.randi_range(1, 2)
+			var gap := CHOKE_GAP
 			var stub_b := rng.randi_range(2, 3)
 			for i in stub_a + gap + stub_b:
 				for row in depth:

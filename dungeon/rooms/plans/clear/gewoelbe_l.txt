@@ -1,0 +1,25 @@
+# Gewoelbe (L, 3-4 Spieler) als Hoehle: ein massiver Felskern in der Mitte, vier Felspfeiler im Umgang,
+# Platten am Nordweg, Quellen in den Buchten.
+role: combat
+class: L
+biomes: all
+mode: clear
+mirror: yes
+name: Gewoelbe (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..........K.......xxxxx
+xxxx.......;;;;;;;.......xxxx
+xx..G.##.............##.G..xx
+xx....##....#####....##....xx
+xx...k......#####..........xx
+xxx.........#####.........xxx
+xxx..G..##..#####..##..G..xxx
+xxxx....##..,,,,,..##....xxxx
+xxxxx.......@,,,,.G.....xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

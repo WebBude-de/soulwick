@@ -1,21 +1,20 @@
-# Claude Design 12 (Haendlerstube): Theke mit Haendler links, Kisten, Kerzen, ein Kristall; der
-# Laden selbst (Theke, Haendler, Angebote) entsteht zur Laufzeit am ContentAnchor (ShopContent).
-# Abweichung: der Kristall steht rechts der Eingangsschneise.
-name: Haendlerstube
+# Haendlerstube (Makeover 3 §13): Theke mit Haendler in der Bucht links (ShopContent), Lager mit Fass
+# und Kiste, Kerzen, ein Kristall; Kopfstein vor der Rueckwand, Plattenweg zur Tuer.
 role: rest
 mode: rest
-special: shop
 biomes: all
+special: shop
+name: Haendlerstube
 size: 15x11
 ---
-###############
-###############
-##T###N####T###
-##...........##
-##..h...K....##
-##..H........##
-##..b........##
-##.......C...##
-##.....@.....##
-#######S#######
-###############
+xxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxx
+xxxT###N###Txxx
+xxx.,,,,,,,.xxx
+xx#h.....;..#xx
+xx.H.....;.C.xx
+xx.....K.;...xx
+xxxb.....;..xxx
+xxxx...;;..xxxx
+xxxxxxxSxxxxxxx
+xxxxxxxxxxxxxxx

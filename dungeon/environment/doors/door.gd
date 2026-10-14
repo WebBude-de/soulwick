@@ -6,6 +6,12 @@ extends StaticBody2D
 ## Biome and destination come from outside: configure() / configure_for_room() / set_destination().
 ## The way behind an exit door (R5): show_way() puts the mode symbol over it and a light cone in the
 ## mode colour in front of it (DoorSigns decides both from the prepared next room).
+## One gate per transition (M2): an exit is the gate of the transition (closed, opening, open; sealed
+## at a branch), flush in the wall of the room being left; its frame follows that room's wall (cave
+## mouth or arch, DoorStyle.apply_room_look); it shuts again behind the group once everyone is inside
+## the next room (GateCloser). An entrance is no door any more: an open gap in the wall without a leaf
+## (close() does nothing, the gate behind it is the door). It only blocks while nothing lies behind it
+## (room 1, or the room before was unloaded: block()).
 
 ## Emitted on every open()/close()/set_open_instant(); instant = no animation or effects.
 signal state_changed(open: bool, instant: bool)
@@ -13,7 +19,8 @@ signal state_changed(open: bool, instant: bool)
 var is_open := false
 ## Look of the door. Unconfigured doors use the crypt style.
 var style: DoorStyle = DoorStyle.for_door(DoorStyle.DEFAULT_BIOME)
-## Entrance doors sit in the south wall: frame and leaf only, no torches and no sign.
+## Entrance of a room (M2): an open gap without leaf, frame, torches or sign; blocks only when nothing
+## lies behind it.
 var is_entrance := false
 ## Wall the door stands in (RoomTiles.DoorSide, A10): north and south doors face the camera, west and
 ## east doors are seen from above (DoorView draws them as narrow leaves with a torch above).
@@ -44,6 +51,9 @@ func _ready() -> void:
 func configure(biome_id: StringName, kind: StringName = DoorStyle.KIND_NORMAL, symbol: StringName = &"", entrance := false) -> void:
 	style = DoorStyle.for_door(biome_id, kind, symbol)
 	is_entrance = entrance
+	# The wall around the gate is the wall of the room the door belongs to (M2).
+	var room := get_parent()
+	style.apply_room_look(DoorStyle.is_cave_room(room, style.biome_id), DoorStyle.is_soft_room(room, style.biome_id), DoorStyle.is_arena_room(room))
 	is_configured = true
 	_copy_way()
 	if is_node_ready():
@@ -115,8 +125,33 @@ func open() -> void:
 	_apply(true, false)
 
 
+## Shuts an exit gate. An entrance has nothing to shut (M2: the gate of the room before is the
+## door); see block().
 func close() -> void:
+	if is_entrance:
+		return
 	_apply(false, false)
+
+
+## Nothing lies behind this entrance any more (the room before it was unloaded): the gap blocks.
+## Instant, without effects.
+func block() -> void:
+	_apply(false, true)
+
+
+## Is an entrance passable? Exits: is_open.
+func is_passable() -> bool:
+	return is_open
+
+
+## The entrance of a room (its Door child with is_entrance), null without one.
+static func entrance_of(room: Node) -> Door:
+	if room == null or not is_instance_valid(room):
+		return null
+	for child in room.get_children():
+		if child is Door and (child as Door).is_entrance:
+			return child
+	return null
 
 
 func set_open_instant(value: bool) -> void:

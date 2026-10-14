@@ -1,0 +1,25 @@
+# Drei Kammern (L) als Hoehle: zwei Felsrippen teilen die Hoehle in drei Kammern, offen ueber den
+# Nord- und Suedweg, ein Felsblock in der Mittelkammer.
+role: combat
+class: L
+biomes: all
+mode: clear
+mirror: yes
+name: Drei Kammern (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..................xxxxx
+xxxx.....................xxxx
+xx...G...##...G...##...G...xx
+xx..::::.##.......##.::::..xx
+xx..::::.##..###..##.::::..xx
+xxx.o:::.##..###..##.:::o.xxx
+xxx...G..##.......##..G...xxx
+xxxx........,,G,,........xxxx
+xxxxx.......@,,,,.......xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

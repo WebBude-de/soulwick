@@ -5,6 +5,8 @@ extends RefCounted
 ## props get a pixel placeholder in the palette (flowers, grass, stones, bush, stump, garden fence,
 ## flower bed, hay bale, bench, signpost, pond, chicken); the rest (cart, cat) has none and stays
 ## away (VillageProp/Villager free themselves). All art is drawn at SCALE like the village.
+## R7: the open SPRITES_V8 §2 art (dungeon_entrance_v2, entrance_flame_bowl_6f, ravens_4f) and the
+## new ground atlas (village_tiles_v2) and chronicle board are drawn by VillagePlaceholders.
 
 const DIR := "res://art/environment/village/"
 const NPC_DIR := "res://art/characters/npcs/"
@@ -147,6 +149,16 @@ static func make_placeholder(art_name: String) -> Texture2D:
 			return _signpost()
 		"pond":
 			return _pond(rng)
+		"village_tiles_v2":
+			return VillagePlaceholders.tiles_v2()
+		"dungeon_entrance_v2":
+			return VillagePlaceholders.entrance_ruin()
+		"entrance_flame_bowl_6f":
+			return VillagePlaceholders.flame_bowl()
+		"ravens_4f":
+			return VillagePlaceholders.ravens()
+		"chronicle_board":
+			return VillagePlaceholders.chronicle_board()
 	return null
 
 
@@ -190,7 +202,11 @@ static func _is_grass(color: Color) -> bool:
 	return color.a > 0.5 and color.g > color.r and color.g > color.b and color.get_luminance() > 0.25
 
 
-## 1 px outline (palette) around everything drawn so far.
+## 1 px outline (palette) around everything drawn so far (also for VillagePlaceholders).
+static func add_outline(image: Image) -> void:
+	_outline(image)
+
+
 static func _outline(image: Image) -> void:
 	var size := image.get_size()
 	var edge: Array[Vector2i] = []

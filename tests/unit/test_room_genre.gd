@@ -62,8 +62,7 @@ func test_normal_combat_rooms_have_no_genre() -> void:
 
 func test_combat_genres() -> void:
 	assert_eq(RoomGenre.resolve(_info({"room_kind": RoomSequence.RoomKind.ARENA, "arena": true})), RoomGenre.ARENA)
-	assert_eq(RoomGenre.resolve(_info({"room_kind": RoomSequence.RoomKind.ARENA, "arena": true, "ambush": true})), RoomGenre.NONE,
-		"an ambush looks empty on entry")
+	assert_false(RoomGenre.TABLE.has(&"ambush"), "no ambush genre any more (D-120, R8)")
 	assert_eq(RoomGenre.resolve(_info({"room_kind": RoomSequence.RoomKind.CHASM})), RoomGenre.CHASM)
 	assert_eq(RoomGenre.resolve(_info({"catacomb": true})), RoomGenre.CATACOMB)
 	assert_eq(RoomGenre.resolve(_info({"variant": &"flame"})), &"flame", "room modes via get_variant_id (R4)")
@@ -118,8 +117,7 @@ func test_every_genre_has_texts_and_a_colour() -> void:
 			assert_false(text.begins_with("ROOM_"), "%s: '%s' is not a raw key" % [genre, text])
 		assert_lt(RoomGenre.get_intro(genre).count(". ") + 1, 6, "%s: a short explanation" % genre)
 	assert_eq(RoomGenre.get_title(RoomGenre.ARENA), "Arena")
-	assert_eq(RoomGenre.get_title(RoomGenre.AMBUSH), "Hinterhalt!")
-	assert_not_null(RoomGenre.get_icon(RoomGenre.ARENA), "arena: wave_banner_icon")
+	assert_not_null(RoomGenre.get_icon(RoomGenre.ARENA), "arena: mode symbol")
 	assert_not_null(RoomGenre.get_icon(RoomGenre.SHOP), "special rooms: door symbol")
 
 
@@ -149,14 +147,13 @@ func test_genre_banner_and_card_once_per_save() -> void:
 	assert_not_null(other.get_room_intro_card(), "every genre has its own card")
 
 
-func test_ambush_is_named_when_it_springs() -> void:
+func test_an_arena_started_unannounced_is_named_once() -> void:
 	var ui := _ui()
 	var room: RoomController = autofree(RoomController.new())
 	ui.on_arena_started(room, true)
 	var title := ui.get_banner().find_child("Title", true, false) as Label
-	assert_eq(title.text, "Hinterhalt!")
-	assert_eq(ui.get_room_intro_card().genre, RoomGenre.AMBUSH)
-	ui.on_arena_started(room, true)
+	assert_eq(title.text, "Arena", "the old ambush flag changes nothing (D-120)")
+	ui.on_arena_started(room, false)
 	assert_eq(ui.get_banner_queue_size(), 0, "a room is named once")
 
 

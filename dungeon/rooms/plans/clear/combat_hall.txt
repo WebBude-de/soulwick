@@ -1,26 +1,27 @@
-# Kleine Halle (S): zwei Pfeiler, eine Opferstelle, Schutt. Behaelt den alten Dateinamen
-# combat_hall.tscn (dungeon.tscn und viele Tests laden ihn); 15x9 Boden, Ein- und Ausgang in
-# Spalte 7 wie zuvor. Bewusst ohne Quellen: der Raum zeigt den Rueckfall auf die alten
-# Spawnpunkte (R2) und bietet zwei Nordplaetze fuer eine Abzweigung.
-name: Kleine Halle
+# Kleine Hoehle (S): zwei Felsbloecke, eine Opferstelle, viel freier Boden. Behaelt den alten
+# Dateinamen combat_hall.tscn (dungeon.tscn und viele Tests laden ihn); Ein- und Ausgang in Spalte 7
+# wie zuvor, Nordplatz links fuer eine Abzweigung, rissige Wand rechts (Geheimnische). Bewusst ohne
+# Quellen: der Raum zeigt den Rueckfall auf die alten Spawnpunkte (R2).
 role: combat
 mode: clear
 biomes: all
-size: 19x14
 weight: 0.7
+auto_deco: no
+exit: 2
 scene: combat/combat_hall.tscn
+name: Kleine Halle
+size: 19x13
 ---
-###################
-###################
-##T####n#N######T##
-##...............##
-##...............##
-##..........##...##
-##..........##...##
-##......K........##
-##...##..........##
-##...##.....k....##
-##.......@.......##
-##...............##
-#########S#########
-###################
+xxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxx
+xxxxN####N###q#xxxx
+xxx.......:....xxxx
+xxx.............xxx
+xx........##.....xx
+xx...##...##.....xx
+xx...##.K........xx
+xxxx...........xxxx
+xxxx#..........xxxx
+xxxxxx.......#xxxxx
+xxxxxxxxxSxxxxxxxxx
+xxxxxxxxxxxxxxxxxxx

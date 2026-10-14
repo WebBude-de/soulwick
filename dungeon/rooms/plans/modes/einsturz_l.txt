@@ -1,0 +1,23 @@
+# Einsturzhoehle (L): erste Felder sind schon eingebrochen, weitere tragen die Warnmarke X.
+role: combat
+class: L
+biomes: all
+mode: collapse
+name: Einsturzhoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..................xxxxx
+xxxx.....................xxxx
+xx............X............xx
+xx..v..~~..X.....X.~~...v..xx
+xx.....~~..........~~......xx
+xxx..........~~~..........xxx
+xxx.......X..~~~..X.......xxx
+xxxx..X...............X..xxxx
+xxxxx.......@...v.......xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

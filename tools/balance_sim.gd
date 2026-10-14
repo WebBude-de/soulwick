@@ -438,7 +438,7 @@ func _use_special(room: Node) -> void:
 			if prompt.begins_with("Aus dem Brunnen") and player.health.get_health() < player.health.get_max_health():
 				child.interact(player)
 				_rec.fountain = 1
-			elif prompt.begins_with("Upgrade wählen"):
+			elif prompt.begins_with(load("res://ui/menus/dungeon_texts.gd").t(&"ALTAR_PROMPT")):
 				child.interact(player)
 	await _frames(4)
 	for i in 200:

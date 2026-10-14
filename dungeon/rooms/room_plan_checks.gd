@@ -9,7 +9,9 @@ extends RefCounted
 ##     source counted as blocked (sources are never in the way);
 ##   - every door free: no abyss, no solid prop, no source in its lane (three tiles wide, two deep);
 ##   - no decoration, no floor source on a tile that is the only way (articulation point);
-##   - spike traps only with a reason: a chest close by or a side passage.
+##   - spike traps only with a reason: a chest close by or a side passage;
+##   - no one-tile slots between two solid or unwalkable things (rock, wall, abyss), no wall front
+##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose.
 ## problems() returns readable lines, empty = fine.
 
 ## Rows of a door lane that stay free (generator DOOR_LANE_ROWS).
@@ -87,7 +89,30 @@ static func problems(room: Node) -> Array[String]:
 				neighbours += 1
 		if not near_chest and neighbours > 2:
 			result.append("trap at %s without a reason" % tile)
+	result.append_array(slot_problems(tiles))
 	return result
+
+
+## One-tile slots and wall fronts right above the abyss (M1).
+static func slot_problems(tiles: RoomTiles) -> Array[String]:
+	var result: Array[String] = []
+	var floor_mask := tiles.get_floor_mask()
+	var floor_rect := Rect2i(Vector2i.ZERO, tiles.room_size)
+	for tile: Vector2i in floor_mask:
+		if not floor_rect.has_point(tile) or tiles.is_pit(tile) or tiles.is_bridge(tile):
+			continue
+		if _closed(tiles, floor_mask, tile + Vector2i.LEFT) and _closed(tiles, floor_mask, tile + Vector2i.RIGHT):
+			result.append("one-tile slot at %s (west/east)" % tile)
+		elif _closed(tiles, floor_mask, tile + Vector2i.UP) and _closed(tiles, floor_mask, tile + Vector2i.DOWN):
+			result.append("one-tile slot at %s (north/south)" % tile)
+	for pit in tiles.get_pit_tiles():
+		if not floor_mask.has(pit + Vector2i.UP):
+			result.append("wall front right above the abyss at %s" % pit)
+	return result
+
+
+static func _closed(tiles: RoomTiles, floor_mask: Dictionary[Vector2i, bool], tile: Vector2i) -> bool:
+	return not floor_mask.has(tile) or tiles.is_pit(tile)
 
 
 ## Floor tiles blocked by props: DecoProp tiles, crates, barrels, rubble, chests, light islands.

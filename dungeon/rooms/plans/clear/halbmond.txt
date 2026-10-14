@@ -1,0 +1,23 @@
+# Makeover 2, Plan 19 (Halbmondhalle), auf 23x13 verdichtet: der Weg laeuft als Halbmond um einen
+# massiven Felskern, Platten in den oberen Ecken, Graeber in den Hoernern, Opferstelle und
+# gestuerzte Saeule im Sueden; zweiter Nordplatz rechts fuer eine Abzweigung.
+role: combat
+mode: clear
+mirror: yes
+biomes: all
+name: Halbmondhalle
+size: 23x13
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxT####N#######T#N#xxx
+xx#;;....,,.##...;;..xx
+xx#G..,,....G......;.xx
+xx...................xx
+xx...,,..#######.....xx
+xx...G.,.#######..G.#xx
+xx##...,..#####....##xx
+xx###.K......P.k..###xx
+xxxxxx..@........xxxxxx
+xxxxxxxxxxSxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

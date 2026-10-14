@@ -42,7 +42,7 @@ static func planned_waves(arena_room: RoomController) -> int:
 
 func bind_room(arena_room: RoomController) -> void:
 	setup_mode(RoomObjective.ARENA)
-	genre = RoomGenre.AMBUSH if arena_room.is_ambush_room() else RoomGenre.ARENA
+	genre = RoomGenre.ARENA
 	_room = arena_room
 	room = arena_room
 	goal_args = [planned_waves(arena_room)]

@@ -13,7 +13,8 @@ exit_x = 8
 floor_seed = 120
 wall_rects = Array[Rect2i]([Rect2i(3, 2, 2, 2), Rect2i(12, 2, 2, 2), Rect2i(3, 6, 2, 2), Rect2i(12, 6, 2, 2)])
 door_slots = Array[Vector2i]([Vector2i(2, 8), Vector2i(0, 8)])
-front_fixtures = Array[Vector2i]([Vector2i(2, -1), Vector2i(4, 3), Vector2i(6, -1), Vector2i(10, -1), Vector2i(14, -1)])
+front_fixtures = Array[Vector2i]([Vector2i(2, -1), Vector2i(6, -1), Vector2i(10, -1), Vector2i(14, -1)])
+overlay_cells = Array[Vector3i]([Vector3i(0, 6, 8), Vector3i(0, 7, 5), Vector3i(1, 5, 13), Vector3i(1, 6, 8), Vector3i(2, 0, 9), Vector3i(2, 6, 8), Vector3i(2, 8, 13), Vector3i(3, 0, 0), Vector3i(3, 1, 5), Vector3i(3, 4, 3), Vector3i(3, 5, 0), Vector3i(3, 8, 8), Vector3i(4, 1, 9), Vector3i(4, 4, 0), Vector3i(4, 8, 0), Vector3i(5, 1, 8), Vector3i(5, 6, 5), Vector3i(5, 8, 9), Vector3i(6, 8, 9), Vector3i(7, 3, 0), Vector3i(8, 3, 13), Vector3i(9, 3, 9), Vector3i(9, 4, 9), Vector3i(10, 0, 5), Vector3i(10, 8, 1), Vector3i(10, 9, 0), Vector3i(11, 1, 0), Vector3i(11, 2, 8), Vector3i(11, 6, 9), Vector3i(11, 8, 0), Vector3i(12, 1, 9), Vector3i(12, 8, 5), Vector3i(13, 1, 8), Vector3i(13, 4, 1), Vector3i(13, 5, 5), Vector3i(13, 8, 9), Vector3i(13, 9, 0), Vector3i(14, 8, 5), Vector3i(16, 1, 13), Vector3i(16, 2, 13)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(96, 96)
@@ -86,76 +87,97 @@ item = &"wall_niche"
 position = Vector2(896, -64)
 
 [node name="Candles1" type="Node2D" parent="Props"]
-position = Vector2(541, 292)
+position = Vector2(546, 290)
 script = ExtResource("3_deco")
 item = &"candles"
 
 [node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(513, 306)
+position = Vector2(546, 308)
 script = ExtResource("3_deco")
 item = &"bones_1"
 flip = true
 
-[node name="Gravestone1" type="Node2D" parent="Props"]
-position = Vector2(572, 274)
-script = ExtResource("3_deco")
-item = &"gravestone"
-still_frame = 0
-
 [node name="Anvil1" type="Node2D" parent="Props"]
-position = Vector2(798, 632)
+position = Vector2(32, 376)
 script = ExtResource("3_deco")
 item = &"anvil"
-blocked_tiles = Array[Vector2i]([Vector2i(12, 9)])
+blocked_tiles = Array[Vector2i]([Vector2i(0, 5)])
 
 [node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(832, 621)
+position = Vector2(34, 290)
 script = ExtResource("3_deco")
 item = &"rubble_1"
+flip = true
 
 [node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(945, 230)
+position = Vector2(34, 266)
 script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
+item = &"rubble_2"
 
 [node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(967, 243)
+position = Vector2(418, 610)
+script = ExtResource("3_deco")
+item = &"rubble_1"
+
+[node name="RubbleBit4" type="Node2D" parent="Props"]
+position = Vector2(418, 586)
 script = ExtResource("3_deco")
 item = &"rubble_2"
 flip = true
 
-[node name="Bit1" type="Node2D" parent="Props"]
-position = Vector2(960, 212)
+[node name="RubbleBit5" type="Node2D" parent="Props"]
+position = Vector2(372, 586)
 script = ExtResource("3_deco")
-item = &"rubble_2"
+item = &"rubble_1"
 flip = true
 
 [node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(289, 45)
-script = ExtResource("3_deco")
-item = &"bone_pile"
-flip = true
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(318, 48)
+position = Vector2(366, 616)
 script = ExtResource("3_deco")
 item = &"bones_2"
 
-[node name="Anvil2" type="Node2D" parent="Props"]
-position = Vector2(290, 312)
+[node name="RubbleBit6" type="Node2D" parent="Props"]
+position = Vector2(802, 610)
 script = ExtResource("3_deco")
-item = &"anvil"
+item = &"rubble_1"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(4, 4)])
 
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(320, 314)
+[node name="RubbleBit7" type="Node2D" parent="Props"]
+position = Vector2(802, 586)
+script = ExtResource("3_deco")
+item = &"rubble_2"
+flip = true
+
+[node name="RubbleBit8" type="Node2D" parent="Props"]
+position = Vector2(756, 586)
+script = ExtResource("3_deco")
+item = &"rubble_1"
+flip = true
+
+[node name="Bones3" type="Node2D" parent="Props"]
+position = Vector2(750, 616)
+script = ExtResource("3_deco")
+item = &"bones_2"
+flip = true
+
+[node name="RubbleBit9" type="Node2D" parent="Props"]
+position = Vector2(802, 34)
+script = ExtResource("3_deco")
+item = &"rubble_1"
+flip = true
+
+[node name="RubbleBit10" type="Node2D" parent="Props"]
+position = Vector2(802, 58)
+script = ExtResource("3_deco")
+item = &"rubble_2"
+
+[node name="RubbleBit11" type="Node2D" parent="Props"]
+position = Vector2(756, 58)
 script = ExtResource("3_deco")
 item = &"rubble_1"
 
-[node name="Chains1" type="Node2D" parent="Props"]
-position = Vector2(288, 256)
+[node name="Bones4" type="Node2D" parent="Props"]
+position = Vector2(750, 28)
 script = ExtResource("3_deco")
-item = &"chains"
+item = &"bones_2"
 flip = true

@@ -1,24 +1,23 @@
-# Claude Design 02 (Arena der Tore): vier Gittertore in der Nordwand, zwei in kurzen Innenmauern
-# (buendig in deren Vorderseite), vier Feuerschalen markieren den Ring, Schutt als Deckung.
-name: Arena der Tore
+# Claude Design 02 (Arena der Tore) als Hoehle: vier Tore in der Nordwand, zwei in den Vorderseiten
+# kurzer Felsbloecke, Feuerschalen markieren den Ring; die Mitte bleibt offen.
 role: combat
 kind: arena
 mode: arena
 biomes: all
-size: 25x15
+name: Arena der Tore
+size: 23x13
+exit: 2
 ---
-#########################
-#########################
-###g####g###N###g####g###
-##.....................##
-##..B.............B....##
-##.....................##
-##....##.........##....##
-##....#g.........g#....##
-##.....................##
-##.....r......r........##
-##..B.......@.....B....##
-##.....................##
-##.....................##
-############S############
-#########################
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxg#N#g##N##N#g#xxxxx
+xxxx..............xxxxx
+xxxB............B...xxx
+xx.....##.....##.....xx
+xx.....#g.....g#.....xx
+xx..B.............B..xx
+xxx.................xxx
+xxxx......@........xxxx
+xxxxx.............xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

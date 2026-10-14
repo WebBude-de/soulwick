@@ -4,6 +4,11 @@ extends RefCounted
 ## chosen from the biome of the room and the kind of room behind the door. Pure data, no nodes.
 ## Art files (docs/SPRITES_V4.md §4) are resolved by DoorArt; until they exist DoorArt paints
 ## placeholders from the palette fields below.
+## One gate per transition (M2, 11_makeover3_komplett.md §11/§12, art/environment/doors/gates.json):
+## the leaf of a north exit is a gate flush in the wall line (stone slab sinking into the floor or a
+## portcullis rising into the wall, 32x48 = front + half the crown, 0.4 s), framed by an arch in built
+## rooms or a cave mouth in caves (apply_room_look). West/east doors keep door_side_<biome>, the boss
+## gate keeps its chained double door. Entrances show no leaf at all (DoorView).
 
 const DEFAULT_BIOME := &"crypt"
 const BIOMES: Array[StringName] = [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
@@ -30,6 +35,45 @@ const LEAF_VINES := &"vines"
 const LEAF_VEIL := &"veil"
 const LEAF_PORTCULLIS := &"portcullis"
 const LEAF_DOUBLE := &"double"
+
+## Gates of a transition (gates.json): stone slab (crypt, shadow realm) or portcullis (grotto, forge,
+## every arena). Neutral grey art, tinted per biome (tint).
+const GATE_SLAB := &"slab"
+const GATE_BARS := &"bars"
+const GATE_SIZE := Vector2i(32, 48)
+## Four frames in 0.4 s (gates.json: 10 fps).
+const GATE_FPS := 10.0
+const BIOME_GATES: Dictionary[StringName, StringName] = {
+	&"crypt": GATE_SLAB,
+	&"slime_grotto": GATE_BARS,
+	&"shadow_realm": GATE_SLAB,
+	&"ember_forge": GATE_BARS,
+}
+## Stone grinds, chains rattle; shutting behind the group: the slab lands, the bars rattle down.
+const GATE_SOUNDS: Dictionary[StringName, StringName] = {
+	GATE_SLAB: &"stone_grind",
+	GATE_BARS: &"door_open_gate",
+}
+const GATE_CLOSE_SOUNDS: Dictionary[StringName, StringName] = {
+	GATE_SLAB: &"stone_clank",
+	GATE_BARS: &"door_open_gate",
+}
+## Frame around a north door: arch of the biome (built rooms) or cave mouth (caves, M2 §2.2).
+const FRAME_ARCH := &"arch"
+const FRAME_CAVE := &"cave"
+## cave_mouth_<biome>.png: 64x48, the 32x32 door tile at (16, 16) (cave_mouth_*.json).
+const CAVE_FRAME_SIZE := Vector2i(64, 48)
+const CAVE_LEAF_OFFSET := Vector2i(16, 16)
+## Fallback while a room template has no "cave" field of its own (plan header, M1): these biomes dig
+## their combat rooms into the rock (11_makeover3_komplett.md §2.1); crypt halls, boss, rest and
+## campfire rooms are built. TESTWERT (design choice until every plan says it)
+const CAVE_BIOMES: Array[StringName] = [&"slime_grotto", &"shadow_realm", &"ember_forge"]
+## Soft cave palette (M1: crypt_soft and its palette swaps): cave_mouth_<biome>_soft.png when it
+## exists (crypt delivered, the others by tools/build_tilesets.gd), else the biome's own mouth.
+const SOFT_SUFFIX := "_soft"
+## M1's rock terrain: which biomes draw their caves in the soft set (RockTerrain.is_soft). Loaded by
+## path, so the door works with or without it.
+const ROCK_TERRAIN_PATH := "res://dungeon/rooms/walls/rock_terrain.gd"
 
 ## Glow overlay behaviour (DoorFx): none, slow pulse (runes), flicker (embers), threat (boss gate,
 ## strong pulse while closed, gone once open).
@@ -59,13 +103,22 @@ var symbol: StringName = &""
 var mode: StringName = &""
 var way_color := Color(0, 0, 0, 0)
 
-## Frame and leaf in art px; leaf_offset = top-left of the leaf inside the frame.
+## Frame and leaf in art px; leaf_offset = top-left of the door tile (32x32) inside the frame. A gate
+## is taller than its tile and reaches leaf_size.y - 32 px up into the crown.
 var frame_size := Vector2i(48, 48)
-var leaf_size := Vector2i(32, 32)
+var leaf_size := GATE_SIZE
 var leaf_offset := Vector2i(8, 16)
+## Material of the biome's doors: the placeholder of a side leaf and the burst of particles.
 var leaf_kind: StringName = LEAF_WOOD
-## Speed of the opening animation (art/environment/doors/doors.json).
-var leaf_fps := 8.0
+## The gate of a north exit (GATE_SLAB / GATE_BARS); &"" for the boss gate (chained double door).
+var gate: StringName = GATE_SLAB
+## FRAME_ARCH or FRAME_CAVE (apply_room_look); the boss gate has its own frame.
+var frame_kind: StringName = FRAME_ARCH
+## Soft cave palette (cave_mouth_<biome>_soft).
+var soft := false
+## Speed of the opening animation (gates.json; boss and side leaves: doors.json).
+var leaf_fps := GATE_FPS
+var side_leaf_fps := 8.0
 
 ## Placeholder palette (docs/HANDOUT.md).
 var stone_light := Color("8f88ad")
@@ -85,7 +138,9 @@ var torch_mode: StringName = TORCH_WALL
 var particle_color := Color("b9b3c9")
 var particle_speed := 120.0
 var flash_radius := 150.0
-var open_sound: StringName = &"door_open_stone"
+var open_sound: StringName = &"stone_grind"
+## West/east doors keep the biome's own leaf and sound (door_side_<biome>).
+var side_open_sound: StringName = &"door_open_stone"
 ## Played when the door shuts behind the player; &"" = silent (as before D1).
 var close_sound: StringName = &""
 
@@ -98,9 +153,63 @@ static func for_door(biome: StringName, door_kind: StringName = KIND_NORMAL, doo
 	style.kind = KIND_BOSS if door_kind == KIND_BOSS else KIND_NORMAL
 	style.symbol = door_symbol if SYMBOLS.has(door_symbol) or BRANCH_SYMBOLS.has(door_symbol) else &""
 	style._apply_biome()
+	style._apply_gate(BIOME_GATES.get(style.biome_id, GATE_SLAB))
 	if style.kind == KIND_BOSS:
 		style._apply_boss()
 	return style
+
+
+## The wall the door stands in (M2): a cave mouth in rock, an arch in built rooms; the soft crypt
+## palette; arenas close their ways with a portcullis. No effect on the boss gate.
+func apply_room_look(cave: bool, soft_palette := false, arena := false) -> void:
+	if is_boss():
+		return
+	frame_kind = FRAME_CAVE if cave else FRAME_ARCH
+	frame_size = CAVE_FRAME_SIZE if cave else Vector2i(48, 48)
+	leaf_offset = CAVE_LEAF_OFFSET if cave else Vector2i(8, 16)
+	soft = soft_palette and cave
+	if arena:
+		_apply_gate(GATE_BARS)
+
+
+## Look of the wall of room (a RoomController; null or anything else: an arch). From the template's
+## plan header when it says so ("cave", M1), else by role and biome (CAVE_BIOMES).
+static func is_cave_room(room: Node, biome: StringName) -> bool:
+	if room == null or not is_instance_valid(room) or not room.has_method(&"is_campfire"):
+		return false
+	# The plan header "cave" (M1): on the room's tiles, else on its template.
+	var tiles := room.get_node_or_null("Tiles")
+	if tiles != null and &"cave_mouth" in tiles:
+		return bool(tiles.get(&"cave_mouth"))
+	var template := RoomTemplate.of(room)
+	if template != null and &"cave" in template:
+		return bool(template.get(&"cave"))
+	if template != null and template.role != RoomTemplate.ROLE_COMBAT and template.role != RoomTemplate.ROLE_MINIBOSS:
+		return false
+	var type := int(room.get(&"room_type"))
+	if type == RoomSequence.RoomType.SPECIAL or type == RoomSequence.RoomType.BOSS or room.call(&"is_campfire"):
+		return false
+	return CAVE_BIOMES.has(biome)
+
+
+## Soft palette of a room: the template's "palette" when it has one, a room drawn in M1's cave look
+## (RoomTiles.is_cave_look) in a biome RockTerrain draws soft, or a soft tileset.
+static func is_soft_room(room: Node, biome: StringName = DEFAULT_BIOME) -> bool:
+	if room == null or not is_instance_valid(room) or not room.has_method(&"is_campfire"):
+		return false
+	var template := RoomTemplate.of(room)
+	if template != null and &"palette" in template:
+		return String(template.get(&"palette")).contains("soft")
+	var tiles := room.get_node_or_null("Tiles") as TileMapLayer
+	if tiles != null and tiles.has_method(&"is_cave_look") and tiles.call(&"is_cave_look"):
+		var terrain: Script = load(ROCK_TERRAIN_PATH) if ResourceLoader.exists(ROCK_TERRAIN_PATH) else null
+		return terrain == null or bool(terrain.call(&"is_soft", biome))
+	return tiles != null and tiles.tile_set != null and tiles.tile_set.resource_path.contains("soft")
+
+
+static func is_arena_room(room: Node) -> bool:
+	return room != null and is_instance_valid(room) and &"room_kind" in room \
+			and int(room.get(&"room_kind")) == RoomSequence.RoomKind.ARENA
 
 
 ## Door kind for a door into a room of this RoomSequence.RoomType.
@@ -142,19 +251,34 @@ func is_boss() -> bool:
 	return kind == KIND_BOSS
 
 
+func is_gate() -> bool:
+	return gate != &""
+
+
+func is_cave() -> bool:
+	return frame_kind == FRAME_CAVE
+
+
 ## Does the door throw a light cone of the way behind it (R5)?
 func has_way_light() -> bool:
 	return way_color.a > 0.0
 
 
-## Frame file of this style (may not exist yet).
+## Frame file of this style (may not exist yet): boss gate, cave mouth or arch.
 func get_frame_path() -> String:
-	return ART_DIR + ("door_frame_boss.png" if is_boss() else "door_frame_%s.png" % biome_id)
+	if is_boss():
+		return ART_DIR + "door_frame_boss.png"
+	if is_cave():
+		return ART_DIR + "cave_mouth_%s%s.png" % [biome_id, SOFT_SUFFIX if soft else ""]
+	return ART_DIR + "door_frame_%s.png" % biome_id
 
 
-## Four-frame leaf strip (frame 1 closed, frame 4 open).
+## Four-frame leaf strip of a north door (frame 1 closed, frame 4 open): the gate (32x48 frames,
+## gates.json) or the boss gate's double door (32x32).
 func get_leaf_path() -> String:
-	return ART_DIR + ("door_boss_open_4f.png" if is_boss() else "door_%s_open_4f.png" % biome_id)
+	if is_boss() or not is_gate():
+		return ART_DIR + "door_boss_open_4f.png"
+	return ART_DIR + "gate_%s_open_4f.png" % gate
 
 
 ## Leaf of a door in the west or east wall, seen from above (A10, docs/SPRITES_V7.md): four
@@ -169,7 +293,15 @@ static func get_symbols_path() -> String:
 
 ## Cache key for generated art.
 func get_key() -> String:
-	return "%s_%s" % [biome_id, kind]
+	return "%s_%s_%s_%s%s" % [biome_id, kind, frame_kind, gate, SOFT_SUFFIX if soft else ""]
+
+
+func _apply_gate(gate_kind: StringName) -> void:
+	gate = gate_kind
+	leaf_size = GATE_SIZE
+	leaf_fps = GATE_FPS
+	open_sound = GATE_SOUNDS.get(gate_kind, &"stone_grind")
+	close_sound = GATE_CLOSE_SOUNDS.get(gate_kind, &"stone_clank")
 
 
 func _apply_biome() -> void:
@@ -185,7 +317,7 @@ func _apply_biome() -> void:
 			leaf_kind = LEAF_VINES
 			particle_color = Color("8fdc6a")
 			particle_speed = 80.0
-			open_sound = &"door_open_vines"
+			side_open_sound = &"door_open_vines"
 			tint = Color("bfe8c8")
 		&"shadow_realm":
 			stone_light = Color("5d577a")
@@ -197,7 +329,7 @@ func _apply_biome() -> void:
 			leaf_kind = LEAF_VEIL
 			particle_color = Color("dcbcff")
 			particle_speed = 90.0
-			open_sound = &"door_open_rune"
+			side_open_sound = &"door_open_rune"
 			tint = Color("cdb8f0")
 		&"ember_forge":
 			stone_light = Color("8c8f9a")
@@ -210,7 +342,7 @@ func _apply_biome() -> void:
 			torch_mode = TORCH_BRAZIER
 			particle_color = Color("ffd166")
 			particle_speed = 190.0
-			open_sound = &"door_open_gate"
+			side_open_sound = &"door_open_gate"
 			tint = Color("f0c4a8")
 		_:
 			stone_light = Color("8f88ad")
@@ -222,14 +354,17 @@ func _apply_biome() -> void:
 			leaf_kind = LEAF_WOOD
 			particle_color = Color("b9b3c9")
 			particle_speed = 110.0
-			open_sound = &"door_open_stone"
+			side_open_sound = &"door_open_stone"
 			tint = Color.WHITE
 
 
 func _apply_boss() -> void:
 	frame_size = Vector2i(64, 56)
+	leaf_size = Vector2i(32, 32)
 	leaf_offset = Vector2i(16, 24)
 	leaf_kind = LEAF_DOUBLE
+	gate = &""
+	frame_kind = FRAME_ARCH
 	leaf_fps = 6.0
 	# Threatening red glow while closed, whatever the biome (skull eyes, seam, chains).
 	glow_color = Color("e0463a")
@@ -241,5 +376,6 @@ func _apply_boss() -> void:
 	particle_speed = 170.0
 	flash_radius = 230.0
 	open_sound = &"door_boss_unlock"
+	side_open_sound = &"door_boss_unlock"
 	close_sound = &"door_boss_close"
 	symbol = &""

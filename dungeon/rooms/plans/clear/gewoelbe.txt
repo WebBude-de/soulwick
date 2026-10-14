@@ -1,10 +1,12 @@
 # Gewoelbe (M): ein massiver Block in der Mitte, der Weg fuehrt aussen herum; Fackeln und eine
 # Nische sitzen buendig in der Suedseite des Blocks.
 name: Gewoelbe
+id: gewoelbe_crypt
 role: combat
 mode: clear
-biomes: all
+biomes: crypt
 size: 23x14
+rock: wall
 ---
 #######################
 #######################

@@ -13,16 +13,17 @@ const STAGES: Array[Array] = [
 	[ControlsInfo.MOVE, ControlsInfo.AIM, ControlsInfo.ATTACK, ControlsInfo.DASH],
 	[ControlsInfo.SPECIAL, ControlsInfo.SWITCH, ControlsInfo.INTERACT, ControlsInfo.OVERVIEW],
 ]
-## Short captions for the card (the options page has the long ones).
+## Short captions for the card as translation keys (the options page has the long ones; R8: no
+## German literals any more).
 const CAPTIONS := {
-	ControlsInfo.MOVE: "Bewegen",
-	ControlsInfo.AIM: "Zielen",
-	ControlsInfo.ATTACK: "Angreifen",
-	ControlsInfo.DASH: "Dash – ausweichen",
-	ControlsInfo.SPECIAL: "Spezialangriff",
-	ControlsInfo.SWITCH: "Waffe wechseln",
-	ControlsInfo.INTERACT: "Benutzen",
-	ControlsInfo.OVERVIEW: "Upgrades und Werte",
+	ControlsInfo.MOVE: &"CONTROLS_MOVE",
+	ControlsInfo.AIM: &"CONTROLS_AIM",
+	ControlsInfo.ATTACK: &"CONTROLS_ATTACK",
+	ControlsInfo.DASH: &"HINT_CONTROLS_DASH",
+	ControlsInfo.SPECIAL: &"CONTROLS_SPECIAL",
+	ControlsInfo.SWITCH: &"CONTROLS_SWITCH",
+	ControlsInfo.INTERACT: &"CONTROLS_INTERACT",
+	ControlsInfo.OVERVIEW: &"CONTROLS_OVERVIEW",
 }
 ## TESTWERTE: longest time per step (unpaused game seconds), pause after the last key of a step.
 const STAGE_TIME := 16.0
@@ -61,7 +62,7 @@ func _ready() -> void:
 	box.add_child(_eyebrow)
 	_list = UiKit.vbox(int(UiKit.px(3)))
 	box.add_child(_list)
-	var footer := UiKit.text_label("Alle Tasten: Esc → Optionen", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	var footer := UiKit.text_label(&"HINT_CONTROLS_FOOTER", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	box.add_child(footer)
 	minimum_size_changed.connect(_layout)
 	get_viewport().size_changed.connect(_layout)
@@ -141,11 +142,11 @@ func _show_stage(stage: int) -> void:
 	for child in _list.get_children():
 		_list.remove_child(child)
 		child.queue_free()
-	_eyebrow.text = ("Steuerung %d / %d" % [stage + 1, STAGES.size()]).to_upper()
+	_eyebrow.text = Loc.t(&"HINT_CONTROLS_STEP", [stage + 1, STAGES.size()]).to_upper()
 	for id: StringName in STAGES[stage]:
 		var row := UiKit.hbox(int(UiKit.px(5)))
 		row.add_child(OptionsView.key_chip(ControlsInfo.key_text(id), KEY_WIDTH))
-		var caption := UiKit.text_label(CAPTIONS.get(id, ControlsInfo.caption(id)), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		var caption := UiKit.text_label(Loc.t(CAPTIONS[id]) if CAPTIONS.has(id) else ControlsInfo.caption(id), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(caption)
 		row.set_meta(&"caption", caption)

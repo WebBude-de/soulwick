@@ -1,0 +1,23 @@
+# Makeover 2, Plan 20 (Schraege Halle), auf 23x13 verdichtet: Parallelogramm mit Stufen-Diagonalen,
+# Erde oben, Geroell unten, Felsblock als Sichtblocker, Risse in den spitzen Ecken.
+role: combat
+mode: clear
+mirror: yes
+biomes: all
+name: Schraege Halle
+size: 23x13
+exit: 2
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxx##N##N###T##N#xxx
+xxxxxx..::....i.:.:.xxx
+xxxxx..::::.........xxx
+xxxx.......i.........xx
+xx...i........##.....xx
+xx......C.....##..G..xx
+xx..%%%%..........xxxxx
+xxx..%%%..@.....ixxxxxx
+xxxxx..%.........xxxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx

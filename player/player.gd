@@ -59,6 +59,9 @@ var _input_locks: Dictionary[StringName, bool] = {}
 var _stun_stars: Node2D = null
 ## Falling into an abyss and the last safe spot of this player (A4, D-086, D-088).
 var fall: PlayerFall = null
+## Side-view gang segments (M5): while active it moves this player (gravity, jump, ladders) instead
+## of the top-down movement; null or inactive = top-down as always.
+var side_motion: PlayerSideMotion = null
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var shield: ShieldComponent = $ShieldComponent
@@ -101,23 +104,31 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_tick_timers(delta)
-	fall.update(delta)
+	var side_view := is_side_view()
+	if not side_view:
+		fall.update(delta)
 
 	_aim = get_aim_direction()
 	weapon_controller.aim_direction = _aim
 
 	if is_stunned() or is_input_locked():
-		velocity = Vector2.ZERO
-		move_and_slide()
+		if side_view:
+			side_motion.physics_step(delta, false)
+		else:
+			velocity = Vector2.ZERO
+			move_and_slide()
 		_prompt_label.visible = false
 		_update_visuals(Vector2.ZERO)
 		return
 
 	var move_input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
-	if Input.is_action_just_pressed(&"dash") and can_dash():
-		_start_dash(move_input, _aim)
-	velocity = _dash_direction * dash_speed if is_dashing() else move_input * move_speed
-	move_and_slide()
+	if side_view:
+		move_input = side_motion.physics_step(delta, true)
+	else:
+		if Input.is_action_just_pressed(&"dash") and can_dash():
+			_start_dash(move_input, _aim)
+		velocity = _dash_direction * dash_speed if is_dashing() else move_input * move_speed
+		move_and_slide()
 
 	if Input.is_action_just_pressed(&"switch_weapon"):
 		weapon_controller.switch_weapon()
@@ -146,6 +157,19 @@ func is_dashing() -> bool:
 
 func can_dash() -> bool:
 	return not is_dashing() and _dash_cooldown_left <= 0.0
+
+
+## Dash in a fixed direction (side-view segments, M5); false while dashing or cooling down.
+func try_dash(direction: Vector2) -> bool:
+	if not can_dash() or direction == Vector2.ZERO:
+		return false
+	_start_dash(direction.normalized(), direction.normalized())
+	return true
+
+
+## A side-view segment moves this player right now (M5).
+func is_side_view() -> bool:
+	return side_motion != null and side_motion.is_active()
 
 
 func get_dash_cooldown_left() -> float:
@@ -259,7 +283,9 @@ func _tick_timers(delta: float) -> void:
 func _update_visuals(move_input: Vector2) -> void:
 	var facing_left := _aim.x < 0.0
 	_sprite.flip_h = facing_left
-	if is_dashing():
+	if is_side_view():
+		_play(side_motion.get_animation(move_input))
+	elif is_dashing():
 		_play(&"dash")
 	elif move_input != Vector2.ZERO:
 		_play(&"walk")

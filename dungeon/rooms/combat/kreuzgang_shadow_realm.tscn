@@ -10,160 +10,147 @@ room_kind = 0
 room_size_class = 1
 
 [node name="Tiles" parent="."]
-room_size = Vector2i(21, 10)
-entrance_x = 10
-exit_x = 10
+room_size = Vector2i(19, 8)
+entrance_x = 9
+exit_x = 7
 floor_seed = 22
-wall_rects = Array[Rect2i]([Rect2i(0, 0, 4, 3), Rect2i(17, 0, 4, 3), Rect2i(7, 4, 2, 2), Rect2i(12, 4, 2, 2), Rect2i(0, 8, 4, 2), Rect2i(17, 8, 4, 2)])
-moss_tiles = Array[Vector2i]([Vector2i(5, 3), Vector2i(5, 4), Vector2i(5, 5), Vector2i(6, 3), Vector2i(6, 4), Vector2i(6, 5), Vector2i(7, 3)])
-door_slots = Array[Vector2i]([Vector2i(2, 10), Vector2i(0, 10), Vector2i(3, 6), Vector2i(1, 6)])
-front_fixtures = Array[Vector2i]([Vector2i(4, -1), Vector2i(16, -1)])
+wall_rects = Array[Rect2i]([Rect2i(0, 0, 3, 1), Rect2i(18, 0, 1, 2), Rect2i(0, 1, 2, 1), Rect2i(6, 3, 7, 2), Rect2i(0, 5, 1, 1), Rect2i(18, 5, 1, 1), Rect2i(0, 6, 2, 1), Rect2i(17, 6, 2, 1), Rect2i(0, 7, 4, 1), Rect2i(13, 7, 6, 1)])
+door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 7), Vector2i(0, 16), Vector2i(3, 3), Vector2i(1, 3)])
+front_fixtures = Array[Vector2i]([Vector2i(3, -1), Vector2i(14, -1)])
+rock_style = 1
+cave_mouth = true
+zone_cells = Array[Vector3i]([Vector3i(0, 2, 2), Vector3i(0, 3, 2), Vector3i(1, 2, 2), Vector3i(1, 3, 2), Vector3i(1, 4, 2), Vector3i(2, 2, 2), Vector3i(2, 3, 2), Vector3i(2, 4, 2), Vector3i(2, 5, 2), Vector3i(2, 6, 2), Vector3i(3, 4, 2), Vector3i(3, 5, 2), Vector3i(3, 6, 2), Vector3i(4, 5, 2), Vector3i(4, 6, 2), Vector3i(5, 3, 0), Vector3i(5, 4, 0), Vector3i(5, 5, 0), Vector3i(6, 5, 0), Vector3i(6, 6, 0), Vector3i(7, 0, 1), Vector3i(7, 5, 0), Vector3i(8, 0, 1), Vector3i(16, 0, 2)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 5, 1), Vector3i(2, 1, 8), Vector3i(2, 6, 1), Vector3i(3, 5, 9), Vector3i(3, 6, 9), Vector3i(4, 7, 0), Vector3i(5, 4, 2), Vector3i(5, 5, 0), Vector3i(5, 6, 13), Vector3i(5, 7, 1), Vector3i(7, 2, 10), Vector3i(7, 5, 0), Vector3i(8, 2, 13), Vector3i(9, 0, 1), Vector3i(9, 2, 0), Vector3i(10, 2, 9), Vector3i(11, 6, 13), Vector3i(12, 2, 1), Vector3i(12, 5, 1), Vector3i(13, 4, 9), Vector3i(15, 4, 9), Vector3i(15, 6, 11), Vector3i(16, 6, 1)])
 
 [node name="Spawn1" parent="SpawnPoints"]
-position = Vector2(352, 96)
+position = Vector2(224, 224)
 
 [node name="Spawn2" parent="SpawnPoints"]
-position = Vector2(992, 96)
+position = Vector2(992, 224)
 
 [node name="Spawn3" parent="SpawnPoints"]
-position = Vector2(672, 224)
+position = Vector2(928, 416)
 
 [node name="Spawn4" parent="SpawnPoints"]
-position = Vector2(352, 480)
+position = Vector2(608, 32)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(992, 480)
+position = Vector2(288, 480)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(160, 224)
+position = Vector2(352, 32)
 
 [node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1184, 224)
+position = Vector2(864, 32)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(544, 32)
+position = Vector2(480, 160)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(800, 32)
+position = Vector2(736, 160)
 
 [node name="ContentAnchor" parent="."]
-position = Vector2(672, 288)
+position = Vector2(608, 160)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(992, 160)
+position = Vector2(928, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
-position = Vector2(672, 608)
+position = Vector2(480, 480)
 
 [node name="Sources" type="Node2D" parent="."]
 
 [node name="Source1" type="Marker2D" parent="Sources"]
-position = Vector2(352, 96)
+position = Vector2(224, 224)
 metadata/source_kind = &"rift"
-metadata/tile = Vector2i(5, 1)
-metadata/floor_tile = Vector2i(5, 1)
+metadata/tile = Vector2i(3, 3)
+metadata/floor_tile = Vector2i(3, 3)
 metadata/wall_side = -1
 
 [node name="Source2" type="Marker2D" parent="Sources"]
-position = Vector2(992, 96)
+position = Vector2(992, 224)
 metadata/source_kind = &"rift"
-metadata/tile = Vector2i(15, 1)
-metadata/floor_tile = Vector2i(15, 1)
+metadata/tile = Vector2i(15, 3)
+metadata/floor_tile = Vector2i(15, 3)
 metadata/wall_side = -1
 
 [node name="Source3" type="Marker2D" parent="Sources"]
-position = Vector2(96, 288)
+position = Vector2(928, 416)
 metadata/source_kind = &"rift"
-metadata/tile = Vector2i(1, 4)
-metadata/floor_tile = Vector2i(1, 4)
-metadata/wall_side = -1
-
-[node name="Source4" type="Marker2D" parent="Sources"]
-position = Vector2(1248, 288)
-metadata/source_kind = &"rift"
-metadata/tile = Vector2i(19, 4)
-metadata/floor_tile = Vector2i(19, 4)
+metadata/tile = Vector2i(14, 6)
+metadata/floor_tile = Vector2i(14, 6)
 metadata/wall_side = -1
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(256, -64)
+position = Vector2(192, -64)
 
 [node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(1024, -64)
-
-[node name="Pillar1" type="Node2D" parent="Props"]
-position = Vector2(640, 504)
-script = ExtResource("3_deco")
-item = &"pillar_fallen"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(9, 7), Vector2i(10, 7)])
-
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(565, 494)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(587, 521)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
+position = Vector2(896, -64)
 
 [node name="Candles1" type="Node2D" parent="Props"]
-position = Vector2(924, 484)
+position = Vector2(290, 418)
 script = ExtResource("3_deco")
 item = &"candles"
+flip = true
 
 [node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(901, 498)
-script = ExtResource("3_deco")
-item = &"bones_1"
-flip = true
-
-[node name="Gravestone1" type="Node2D" parent="Props"]
-position = Vector2(956, 466)
-script = ExtResource("3_deco")
-item = &"gravestone"
-still_frame = 0
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(308, 608)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(326, 628)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="Bit1" type="Node2D" parent="Props"]
-position = Vector2(320, 597)
+position = Vector2(290, 436)
 script = ExtResource("3_deco")
 item = &"bones_1"
 flip = true
 
 [node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(481, 38)
+position = Vector2(226, 34)
 script = ExtResource("3_deco")
 item = &"bone_pile"
 
 [node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(510, 53)
+position = Vector2(226, 64)
 script = ExtResource("3_deco")
 item = &"bones_2"
 
-[node name="Puddle1" type="Node2D" parent="Props"]
-position = Vector2(416, 294)
+[node name="Bones4" type="Node2D" parent="Props"]
+position = Vector2(278, 64)
 script = ExtResource("3_deco")
-item = &"puddle"
-tint = Color(0.72, 0.6, 1, 1)
+item = &"bones_1"
 
-[node name="Drip1" type="Node2D" parent="Props"]
-position = Vector2(416, 292)
+[node name="RubbleBit1" type="Node2D" parent="Props"]
+position = Vector2(802, 482)
 script = ExtResource("3_deco")
-item = &"drip"
+item = &"rubble_1"
+
+[node name="RubbleBit2" type="Node2D" parent="Props"]
+position = Vector2(802, 458)
+script = ExtResource("3_deco")
+item = &"rubble_2"
+flip = true
+
+[node name="RubbleBit3" type="Node2D" parent="Props"]
+position = Vector2(756, 458)
+script = ExtResource("3_deco")
+item = &"rubble_1"
+flip = true
+
+[node name="Bones5" type="Node2D" parent="Props"]
+position = Vector2(750, 488)
+script = ExtResource("3_deco")
+item = &"bones_2"
+
+[node name="Crystals1" type="Node2D" parent="Props"]
+position = Vector2(1120, 376)
+script = ExtResource("3_deco")
+item = &"crystal_cluster"
+blocked_tiles = Array[Vector2i]([Vector2i(17, 5)])
+
+[node name="RubbleBit4" type="Node2D" parent="Props"]
+position = Vector2(1058, 354)
+script = ExtResource("3_deco")
+item = &"rubble_2"
+
+[node name="RubbleBit5" type="Node2D" parent="Props"]
+position = Vector2(1058, 330)
+script = ExtResource("3_deco")
+item = &"rubble_1"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

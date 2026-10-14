@@ -2,9 +2,12 @@ class_name OptionsView
 extends VBoxContainer
 ## The options content shared by the main menu ("Optionen" panel) and the pause menu, so both look
 ## and behave the same (UX1, UX3). Three tabs under the eyebrow: "Allgemein" (Ton: Musik, Effekte,
-## Gesamt · Sprache), "Bild" (Anzeige: Fenstermodus, VSync · Spielgefühl: Bildschirmwackeln,
+## Gesamt · Sprache), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
 ## Trefferstopp, Schadenszahlen, Blitze reduzieren) and "Tasten" (key overview from ControlsInfo).
 ## "Zurücksetzen" (all options and volumes, after a confirmation) sits next to "Zurück".
+## The view keeps one size whatever tab or row is shown (_fix_layout): every page gets the size of
+## the largest one, captions the width of the longest "> caption", the key line the height of its
+## longest text. Measured again after a language change.
 ##
 ## Keys: ↑/↓ row (the tab strip and the reset button are rows too), ←/→ change (on the tab row:
 ## switch tab), Enter toggles / next tab / reset, Q/E switch tabs anywhere. Esc is NOT used here
@@ -22,9 +25,11 @@ signal back_requested
 ## Kept for hosts and tests: CONTROLS = the "Tasten" tab, SETTINGS = the other two.
 enum Page { SETTINGS, CONTROLS }
 enum Tab { GENERAL, DISPLAY, CONTROLS }
-enum Row { TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES, RESET }
+enum Row { TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES, BRIGHTNESS, LIGHT_EFFECTS, RESET }
 
 const STEP := 0.05
+## Brightness slider step (GameOptions.BRIGHTNESS, -1 .. +1).
+const BRIGHTNESS_STEP := 0.1
 ## Sizes in mockup pixels.
 const CAPTION_WIDTH := 66.0
 const SLIDER_SIZE := Vector2(90, 10)
@@ -37,7 +42,7 @@ const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPL
 ## Rows per tab, in keyboard order.
 const TAB_ROWS := {
 	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.RESET],
-	Tab.DISPLAY: [Row.TABS, Row.WINDOW, Row.VSYNC, Row.SHAKE, Row.HIT_STOP, Row.DAMAGE_NUMBERS, Row.REDUCE_FLASHES, Row.RESET],
+	Tab.DISPLAY: [Row.TABS, Row.WINDOW, Row.VSYNC, Row.BRIGHTNESS, Row.LIGHT_EFFECTS, Row.SHAKE, Row.HIT_STOP, Row.DAMAGE_NUMBERS, Row.REDUCE_FLASHES, Row.RESET],
 	Tab.CONTROLS: [Row.TABS, Row.RESET],
 }
 const SLIDER_BUSES := {Row.MUSIC: &"Music", Row.SFX: &"SFX", Row.MASTER: &"Master"}
@@ -51,6 +56,7 @@ const CHOICE_VALUES := {
 	Row.HIT_STOP: [false, true],
 	Row.DAMAGE_NUMBERS: [false, true],
 	Row.REDUCE_FLASHES: [false, true],
+	Row.LIGHT_EFFECTS: [&"low", &"high"],
 }
 
 ## true: the view reads keys in _unhandled_input (pause menu); false: the host calls handle_input.
@@ -96,13 +102,9 @@ func _ready() -> void:
 		_pages_host.add_theme_constant_override("margin_" + side, 0)
 	add_child(_pages_host)
 	_pages = [_build_general(), _build_display(), _build_controls()]
-	var height := 0.0
 	for page in _pages:
 		page.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		_pages_host.add_child(page)
-		height = maxf(height, page.get_combined_minimum_size().y)
-	# All tabs share the tallest page's height, so the panel does not jump when switching.
-	_pages_host.custom_minimum_size.y = height
 	_actions = UiKit.hbox(int(UiKit.px(6)))
 	_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(_actions)
@@ -114,6 +116,7 @@ func _ready() -> void:
 	_refresh_choices()
 	_show_tab(Tab.GENERAL)
 	_set_row(Row.MUSIC)
+	_fix_layout()
 
 
 func _exit_tree() -> void:
@@ -173,6 +176,9 @@ func change(direction: int) -> void:
 	elif SLIDER_BUSES.has(_row):
 		var slider := _sliders[_row] as HSlider
 		slider.value = clampf(slider.value + STEP * direction, 0.0, 1.0)
+	elif _row == Row.BRIGHTNESS:
+		var slider := _sliders[_row] as HSlider
+		slider.value = clampf(slider.value + BRIGHTNESS_STEP * direction, GameOptions.BRIGHTNESS_MIN, GameOptions.BRIGHTNESS_MAX)
 	elif CHOICE_VALUES.has(_row):
 		var values: Array = CHOICE_VALUES[_row]
 		_pick(_row, posmod(_choice_index(_row) + direction, values.size()))
@@ -341,6 +347,43 @@ func _retranslate() -> void:
 	_set_row(_row)
 	_update_footer()
 	_fill_controls_rows()
+	_fix_layout()
+
+
+## One size for every tab and row (the window must not jump): captions as wide as the longest
+## selected caption, all pages as large as the largest page, the key line as high as its longest
+## text at that width. Hidden pages do not count in a container, so the size is set explicitly.
+func _fix_layout() -> void:
+	if _pages_host == null:
+		return
+	var caption_width := UiKit.px(CAPTION_WIDTH)
+	for key in _captions:
+		var caption := _captions[key] as Label
+		var text := "> " + tr(caption.get_meta(&"caption") as StringName)
+		caption_width = maxf(caption_width, _text_width(caption, text))
+	for key in _captions:
+		(_captions[key] as Label).custom_minimum_size.x = ceilf(caption_width)
+	_pages_host.custom_minimum_size = Vector2.ZERO
+	var page_size := Vector2.ZERO
+	for page in _pages:
+		page_size = page_size.max(page.get_combined_minimum_size())
+	_pages_host.custom_minimum_size = page_size.ceil()
+	if _footer != null:
+		var width := maxf(page_size.x, get_combined_minimum_size().x)
+		var height := 0.0
+		for key in [&"OPTIONS_FOOTER", &"OPTIONS_FOOTER_CONTROLS", &"OPTIONS_RESET_QUESTION"]:
+			height = maxf(height, _text_height(_footer, tr(key), width))
+		_footer.custom_minimum_size.y = ceilf(height)
+
+
+static func _text_width(label: Label, text: String) -> float:
+	var font := label.get_theme_font(&"font")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size(&"font_size")).x
+
+
+static func _text_height(label: Label, text: String, width: float) -> float:
+	var font := label.get_theme_font(&"font")
+	return font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_CENTER, width, label.get_theme_font_size(&"font_size")).y
 
 
 func _hover_row(row: Row) -> void:
@@ -368,6 +411,8 @@ func _choice_index(row: Row) -> int:
 			current = GameOptions.are_damage_numbers_enabled()
 		Row.REDUCE_FLASHES:
 			current = GameOptions.is_reduce_flashes_enabled()
+		Row.LIGHT_EFFECTS:
+			current = GameOptions.get_light_effects()
 	var index := values.find(current)
 	if index < 0 and row == Row.SHAKE:
 		# Any other strength (hand-edited file) shows as the nearest step.
@@ -399,6 +444,8 @@ func _pick(row: Row, index: int) -> void:
 			GameOptions.set_damage_numbers(value)
 		Row.REDUCE_FLASHES:
 			GameOptions.set_reduce_flashes(value)
+		Row.LIGHT_EFFECTS:
+			GameOptions.set_light_effects(value)
 	_refresh_choices()
 
 
@@ -410,6 +457,10 @@ func _refresh_choices() -> void:
 func _refresh_sliders() -> void:
 	for row in _sliders:
 		var slider := _sliders[row] as HSlider
+		if row == Row.BRIGHTNESS:
+			slider.set_value_no_signal(GameOptions.get_brightness())
+			(_values[row] as Label).text = brightness_text(GameOptions.get_brightness())
+			continue
 		var value := GameOptions.get_master_volume() if row == Row.MASTER else SaveManager.get_volume(SLIDER_BUSES[row])
 		slider.set_value_no_signal(value)
 		(_values[row] as Label).text = "%d %%" % roundi(value * 100.0)
@@ -477,6 +528,8 @@ func _build_display() -> VBoxContainer:
 	box.add_child(_section(&"OPTIONS_SECTION_DISPLAY"))
 	box.add_child(_choice_row(Row.WINDOW, &"OPTIONS_WINDOW_MODE", [&"OPTIONS_WINDOWED", &"OPTIONS_FULLSCREEN", &"OPTIONS_BORDERLESS"]))
 	box.add_child(_choice_row(Row.VSYNC, &"OPTIONS_VSYNC", [&"COMMON_OFF", &"COMMON_ON"]))
+	box.add_child(_brightness_row())
+	box.add_child(_choice_row(Row.LIGHT_EFFECTS, &"OPTIONS_LIGHT_EFFECTS", [&"OPTIONS_LIGHT_LOW", &"OPTIONS_LIGHT_HIGH"]))
 	box.add_child(_section(&"OPTIONS_SECTION_FEEL"))
 	box.add_child(_choice_row(Row.SHAKE, &"OPTIONS_SHAKE", [&"COMMON_OFF", &"OPTIONS_SHAKE_LIGHT", &"OPTIONS_SHAKE_NORMAL"]))
 	box.add_child(_choice_row(Row.HIT_STOP, &"OPTIONS_HIT_STOP", [&"COMMON_OFF", &"COMMON_ON"]))
@@ -565,6 +618,44 @@ func _slider_row(row: Row, caption_key: StringName) -> Control:
 	_sliders[row] = slider
 	_values[row] = value
 	return box
+
+
+## Brightness slider (R8): -1 .. +1, stored and applied at once (GameOptions.set_brightness), value
+## as "+20 %" / "0 %".
+func _brightness_row() -> Control:
+	var row := Row.BRIGHTNESS
+	var box := _row_box(row, &"OPTIONS_BRIGHTNESS")
+	var slider := HSlider.new()
+	slider.name = "Brightness"
+	slider.min_value = GameOptions.BRIGHTNESS_MIN
+	slider.max_value = GameOptions.BRIGHTNESS_MAX
+	slider.step = BRIGHTNESS_STEP
+	slider.value = GameOptions.get_brightness()
+	slider.custom_minimum_size = UiKit.pxv(SLIDER_SIZE.x, SLIDER_SIZE.y)
+	slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	slider.focus_mode = Control.FOCUS_NONE
+	slider.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	slider.mouse_entered.connect(_hover_row.bind(row))
+	box.add_child(slider)
+	var value := UiKit.text_label(brightness_text(slider.value), UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+	value.custom_minimum_size.x = UiKit.px(VALUE_WIDTH)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(value)
+	slider.value_changed.connect(func(new_value: float) -> void:
+		GameOptions.set_brightness(new_value)
+		value.text = brightness_text(new_value)
+		_set_row(row)
+		UiSound.step(slider))
+	_sliders[row] = slider
+	_values[row] = value
+	return box
+
+
+## "+20 %", "-50 %", "0 %".
+static func brightness_text(value: float) -> String:
+	var percent := roundi(value * 100.0)
+	return ("+%d %%" % percent) if percent > 0 else ("%d %%" % percent)
 
 
 ## Choice row ("Fenster | Vollbild | Randlos"): the active option is framed gold. labels are

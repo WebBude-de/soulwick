@@ -49,11 +49,13 @@ func _combat_pair() -> Array[BranchOption]:
 	return [BranchOption.create(BranchOption.Kind.ELITE_NEST, -1, BranchOption.ELITE_NEST_ID), BranchOption.create(BranchOption.Kind.SAFE)]
 
 
-## Footprint of a previous room right below the branch room (south entrance).
+## Footprint of a previous room right below the branch room (south entrance), joined like the chain
+## does it (M2: one corridor tile, ExitRules.exit_corridor_end).
 func _previous_below(tiles: RoomTiles) -> ExitRules.Footprint:
-	var exit_end := RoomTiles.corridor_end_of(RoomTiles.DoorSide.SOUTH, tiles.room_size.x / 2, tiles.room_size)
+	var join := RoomTiles.corridor_end_of(RoomTiles.DoorSide.SOUTH, tiles.room_size.x / 2, tiles.room_size)
 	var size := Vector2i(15, 9)
-	var origin := ExitRules.origin_for(exit_end, size, RoomTiles.DoorSide.NORTH, 7)
+	var origin := join - (ExitRules.exit_corridor_end(Vector2i.ZERO, size, RoomTiles.DoorSide.NORTH, 7))
+	assert_eq(ExitRules.exit_corridor_end(origin, size, RoomTiles.DoorSide.NORTH, 7), join)
 	return ExitRules.footprint_of(origin, size, Vector2i(RoomTiles.DoorSide.SOUTH, 7), 0, [Vector2i(RoomTiles.DoorSide.NORTH, 7)] as Array[Vector2i])
 
 

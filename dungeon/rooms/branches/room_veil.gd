@@ -6,6 +6,10 @@ extends Node2D
 ## opens); it lifts when a player walks into the entrance corridor or when the room activates, and
 ## the room lights up. Pure optics: no collision, no gameplay state, no dungeon RNG.
 ## The DungeonManager attaches one to every prepared room except the first.
+## M2 (one tile of corridor): the entrance is the gap in the room's own wall, seen through the open
+## gate of the room before; the veil leaves that wall line free and fades in over the first floor row.
+## It follows the room's shape (its floor and the walls right around it, softened over a tile), so
+## no straight edge of a dark rectangle crosses the rock between two rooms (playtest 14.10.2026).
 
 signal lifted(veil: RoomVeil)
 
@@ -54,20 +58,20 @@ static func lift_room(target: Node, instant := false) -> void:
 
 
 ## Room-local tile rectangle the veil covers: floor and wall ring, one tile of rock around it,
-## except on the entrance side, where the corridor stays visible.
+## except on the entrance side, where the wall with the entrance gap and the corridor stay visible.
 static func get_veil_rect(size: Vector2i, entrance_side: int) -> Rect2i:
 	var body := ExitRules.body_rect_of(size)
 	var grow := [1, 1, 1, 1]
 	# Order of grow_individual: left, top, right, bottom.
 	match entrance_side:
 		RoomTiles.DoorSide.WEST:
-			grow[0] = 0
+			grow[0] = -1
 		RoomTiles.DoorSide.NORTH:
-			grow[1] = 0
+			grow[1] = -2
 		RoomTiles.DoorSide.EAST:
-			grow[2] = 0
+			grow[2] = -1
 		_:
-			grow[3] = 0
+			grow[3] = -1
 	return body.grow_individual(grow[0], grow[1], grow[2], grow[3])
 
 
@@ -83,7 +87,7 @@ func _ready() -> void:
 	_sheet = Sprite2D.new()
 	_sheet.name = "Sheet"
 	_sheet.centered = false
-	_sheet.texture = make_texture(rect.size)
+	_sheet.texture = make_shape_texture(rect, tiles.get_floor_mask(), tiles.room_size)
 	_sheet.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_sheet.scale = Vector2.ONE * RoomTiles.TILE_WORLD / PIXELS_PER_TILE
 	_sheet.position = RoomTiles.tile_to_local(rect.position)
@@ -114,6 +118,62 @@ func lift(instant := false) -> void:
 	var tween := create_tween()
 	tween.tween_property(_sheet, "modulate:a", 0.0, LIFT_TIME)
 	tween.tween_callback(hide)
+
+
+## White sheet over rect (room tiles) that covers the floor of the room (inside its floor rectangle)
+## and the tiles right around it, softened by EDGE_PIXELS; the colour comes from modulate.
+static func make_shape_texture(rect: Rect2i, floor_mask: Dictionary, room_size: Vector2i) -> ImageTexture:
+	var size := Vector2i(maxi(1, rect.size.x), maxi(1, rect.size.y)) * PIXELS_PER_TILE
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	var covered: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in floor_mask:
+		if not floor_rect.has_point(tile):
+			continue
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var near := tile + Vector2i(dx, dy)
+				if rect.has_point(near):
+					covered[near] = true
+	var alpha := PackedFloat32Array()
+	alpha.resize(size.x * size.y)
+	for tile: Vector2i in covered:
+		var origin := (tile - rect.position) * PIXELS_PER_TILE
+		for py in PIXELS_PER_TILE:
+			for px in PIXELS_PER_TILE:
+				alpha[(origin.y + py) * size.x + origin.x + px] = 1.0
+	alpha = _blur(alpha, size, EDGE_PIXELS / 2)
+	alpha = _blur(alpha, size, EDGE_PIXELS / 2)
+	var image := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	for y in size.y:
+		for x in size.x:
+			var a := alpha[y * size.x + x]
+			# Nothing at the sheet's border, whatever the shape.
+			var edge := mini(mini(x, size.x - 1 - x), mini(y, size.y - 1 - y))
+			a *= clampf((float(edge) + 0.5) / EDGE_PIXELS, 0.0, 1.0)
+			image.set_pixel(x, y, Color(1, 1, 1, a * a * (3.0 - 2.0 * a)))
+	return ImageTexture.create_from_image(image)
+
+
+## Box blur of a w x h field with the given radius (one pass).
+static func _blur(values: PackedFloat32Array, size: Vector2i, radius: int) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(values.size())
+	for y in size.y:
+		for x in size.x:
+			var total := 0.0
+			var count := 0
+			for dy in range(-radius, radius + 1):
+				var yy := y + dy
+				if yy < 0 or yy >= size.y:
+					continue
+				for dx in range(-radius, radius + 1):
+					var xx := x + dx
+					if xx < 0 or xx >= size.x:
+						continue
+					total += values[yy * size.x + xx]
+					count += 1
+			out[y * size.x + x] = total / float(maxi(1, count))
+	return out
 
 
 ## White sheet of size tiles with a soft edge (alpha 0 at the border, 1 one tile inside); the colour

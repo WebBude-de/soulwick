@@ -620,7 +620,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-107 – Dorf mit Tageszeit
 
 - **Status:** VERBINDLICH (Wunsch Projektmitglied: „abends dunkler, an Zeit anpassen“) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
-- **Beschluss:** Das Dorf folgt der **lokalen Uhrzeit**: tagsüber (7–17:30 Uhr) hell, Abenddämmerung bis 20 Uhr in warmem Violett, Nacht (20–5 Uhr) in tiefem Blau mit Dunkelheit 0,6, Morgendämmerung bis 7 Uhr. Umsetzung über das Vision-Overlay wie im Dungeon (D-067): Der Spieler hat einen Lichtkreis (320 px), jede Laterne eine Lichtquelle (170 px). Glühwürmchen ab 19 Uhr, Pollen tagsüber (B3). Reine Optik, keine Spielwirkung.
+- **Beschluss:** Das Dorf folgt der **lokalen Uhrzeit**: tagsüber (7–17:30 Uhr) hell, Abenddämmerung bis 20 Uhr in warmem Violett, Nacht (20–5 Uhr) in tiefem Blau mit Dunkelheit 0,6, Morgendämmerung bis 7 Uhr. Umsetzung über das Vision-Overlay wie im Dungeon (D-067): Der Spieler hat einen Lichtkreis (320 px), jede Laterne eine Lichtquelle (170 px; seit R7 192 px = 3 Kacheln, D-138). Glühwürmchen ab 19 Uhr, Pollen tagsüber (B3). Reine Optik, keine Spielwirkung.
 - **Folgen:** `world/village/village_daylight.gd`, `scenes/world_controller.gd`, `world/village/village.gd`, Test `test_village_daylight.gd`.
 
 ### D-108 – Zielbild Crossplay: Steam, Google Play, App Store
@@ -837,6 +837,57 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Türen:** Jede Ausgangstür zeigt den Modus des schon gebauten nächsten Raums (Symbol über Torbogen bzw. Seitengang, Lichtkegel in Modusfarbe); Säubern Biomfarbe ohne Symbol; Spezial/Ruhe/Lagerfeuer ihr Symbol in Gold; Miniboss und Bosstor rot. Der unbekannte Weg einer Abzweigung zeigt sein Modus-Symbol statt „?“ (weicht von D-117 ab). Seitentüren mit `door_side_<biom>`; Torbogen in allen Vorlagen ganz (Test `test_door_arch_fit`).
 - **Gänge:** Stil je Gang (gerade / Tropfstelle / Nische / Treppe, 35/25/20/20) per Hash aus Seed, Raum und Wand, ohne Dungeon-RNG; Platzhalter bis zu den Gang-Grafiken (SPRITES_V8).
 - **Nichts ploppt auf:** Jeder vorbereitete Raum liegt unter einem dunklen Schleier (0,62) und wird beim Betreten des Eingangsgangs hell. Eine Abzweigung baut beim Betreten beide Wege (höchstens 4 lebende Räume während der Wahl), der nicht gewählte blendet in 0,9 s aus. Abzweigung nur, wenn beide Wege Platz haben. Gleicher Seed = gleiche Räume.
+
+### D-138 – Dorf mit Platz, Geretteten und inszeniertem Eingang (R7)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Claude Design `06_dorf.md`
+- **Beschluss:** Karte 32×20 ohne Wegekreuz: gepflasterter Platz mit Brunnen, Gassen nach Westen, Süden (Spawn) und Osten. Der Weg zum Dungeon steigt über eine Treppe in einer Felskante zur Ruine (Fackeln, Ketten, Seelen-Rune, Seelenflammen-Becken, Raben, die bei Nähe auffliegen). Gerettete aus dem Geleit (D-135) laufen als Dorfbewohner herum (höchstens 6, abends mit Laterne), gerettete Hühner in festen Revieren (höchstens 4). Laternen 192 px (ändert D-107), Fenster leuchten abends. Gebäudenamen nur bei Nähe und nie zusammen mit einem Hinweis; gesperrte Gebäude ohne Textschild. Platzhalter bis zu den Grafiken aus SPRITES_V8.
+
+### D-139 – UI-Rework: Karten-Dialoge, HUD, Banner (R8)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Claude Design `07_ui.md`
+- **Beschluss:** Dialoge höchstens 60 % der Bildschirmhöhe, Szene bleibt sichtbar (Overlay 0,62), Karten werden ausgeteilt, Akzentstreifen in Modusfarbe. Upgrade-Karten mit Kategorie-Band und Stufen-Punkten; Händler kompakt; Run-Ende mit Knöpfen in der Tastenleiste. HUD: Werte hüpfen bei Änderung, Tasten als Tastenkappen, Bossleiste ersetzt die Aufgabenleiste. Option Helligkeit −100…+100 %. Alle Texte im Dungeon über Übersetzungsschlüssel (D-111). Das Hinterhalt-Genre ist entfernt (D-120).
+- **Offen (Projektmitglied):** Tastennamen „RMT/Space“ oder „Rechtsklick/Leertaste“; Begriff „Geheimnische“ auf Englisch.
+
+### D-140 – Kamera 1,25× mit Überblick beim Betreten (M4)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Makeover 3 §9 und Playtest („Bildschirm bewegt sich zu viel“)
+- **Zoom:** Dungeon 1,25×; Bossraum, Lagerfeuer und Dorf 1,0×; das HUD skaliert nie mit. Beim Betreten eines Raums 0,35 s heraus auf 1,0×, 1 s Überblick (länger, solange das Raum-Intro schwenkt, höchstens 4 s), 0,8 s zurück; im Überblick neigt sich das Bild bis 240 px zur Raummitte.
+- **Folgen:** Totzone 64×48, Vorlauf höchstens 48×36 px, linear mit 24 px/s (kein Über- und kein Zurückschwingen beim Umdrehen); beim Laufen ohne Verzögerung, nur Sprünge gleiten; nach 0,8 s Stillstand zurück auf den Spieler. Wackeln wird durch den Zoom geteilt.
+- **Koop:** Die Kamera folgt `camera_targets()`; die Gruppenkamera setzt die MP-Sitzung über `set_targets_provider`.
+- **Offen:** Miniboss- und Arena-Räume 1,0× wie der Bossraum? Bis zur Antwort 1,25×.
+
+### D-141 – Licht und Shader (L1)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Playtest („mehr mit Lichtern und Shadern arbeiten“)
+- **Beschluss:** Alle Lichteffekte laufen im einen Vollbild-Durchgang `vision.gdshader`. Schein um jede Quelle in ihrer Farbe (Feuer, Lava, Magie, Blitze; Türkegel ohne Schein), Selbstleuchten heller, satter Pixel, Feuer flackert in der Helligkeit, Seelen- und Magielichter atmen (±14 %, 2,6 s), Biomfackeln leuchten in ihrer Flammenfarbe, Partikel-Blitze ab 8 Partikeln. Biomstimmung je Biom (`BiomeGrade.TABLE`: Schattenfarbe, Lichtertönung, Vignette, Nebel), Dorf nachts blau mit warmen Laternen. Bis 32 Lichter je Bild, Gameplay-Lichter haben Vorrang. Option „Lichteffekte: Hoch / Niedrig“ (Standard Hoch).
+- **Grenze:** reine Optik; `LightQuery`, `counts_as_light` und die logischen Sichtwerte bleiben (D-067, R6).
+- **Nebenbei:** Optionenfenster mit fester Größe über alle Tabs.
+
+### D-142 – Fels-Terrain, eine weiche Palette, organische Pläne (M1)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Makeover 2/3 und Playtest
+- **Wände:** 47-Kacheln-Terrain mit Vorderseiten auf einer eigenen Ebene; jede Boden/Fels-Grenze hat denselben Rand, auch an Ecken. Kollision und Navigation bleiben auf dem Raum-Layer.
+- **Looks:** Höhle und gemauert (Ruhe, Boss, Miniboss, Lagerfeuer, drei Krypta-Hallen) teilen je Biom **eine** weiche Palette (`crypt_soft` als Vorlage, andere Biome per Palettentausch, Schalter `RockTerrain.SOFT_BIOMES`).
+- **Pläne:** Höhlen 17×11 bis 23×13, kein Rechteck, Felsblock/Empore/Abgrund innen, gerade Kanten ≤ 8, Boden ≤ 60 %. Für alle Pläne: keine 1-Kachel-Spalten (0 oder ≥ 2 Kacheln), keine Mauerfront direkt über dem Abgrund, kein Fels neben Türplätzen, nichts überlappt, feste Objekte 1 Kachel Abstand, alles erreichbar (Test `test_room_terrain`).
+- **Deko:** weniger, größere Gruppen an Ecken und Buchten; Overlays nur an Wänden und Gruppen, nie in Tor- und Gangfeldern; alles nur auf begehbarem Boden; 2–3 bewegte Punkte je Raum; Wasser mit runder Kontur. Zufall aus der Vorlagen-ID, nicht aus dem Dungeon-RNG.
+- **Höhe (`^ L &`)** ist vorbereitet und bis M3 Fels.
+
+### D-143 – Ein Tor pro Übergang, 1-Kachel-Gang, kein Zurück (M2)
+
+- **Status:** VERBINDLICH (Wunsch Projektmitglied 14.10.2026: „Die Tore sollen zugehen, wenn man in den nächsten Raum gegangen ist“) · Werte **TESTWERT** · **Datum:** 2026-10-14
+- **Gang:** Zwischen Tor und Boden des nächsten Raums liegt genau eine Gangkachel; wo sich Räume überdecken, behält jeder Boden und Mauern (`PassageSeam`). Ein längerer Gang bleibt Notfall (D-117).
+- **Tor:** genau eins je Übergang, im Ausgang des verlassenen Raums: Steinblock (Krypta, Schattenreich) bzw. Fallgitter (Grotte, Glutkammer, jede Arena), 0,4 s mit Ton; Lichtkegel 30 % geschlossen, 100 % offen. Der Eingang des nächsten Raums ist ein offener Höhlenmund bzw. Torbogen ohne Türblatt. Türöffnungen und Portal sind durchsichtig. Bosstor und Seitentüren bleiben.
+- **Kein Zurück:** Sind alle lebenden Spieler im neuen Raum, schließt das Tor dahinter für immer (auch für Gegner), nie solange jemand im Gang steht.
+- **Ersetzt:** den Tür-Teil von D-008 („Kampfraum-Eingang schließt“); ergänzt D-117 und D-137.
+- **Offen (Koop):** Wiederbelebte Spieler hinter einem geschlossenen Tor – Vorschlag: sie erscheinen beim Team.
+
+### D-144 – Gang-Segmente in Seitenansicht (M5)
+
+- **Status:** VORGESCHLAGEN (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Makeover 3 und Mockup 29
+- **Beschluss:** Zwischen manchen Räumen liegt ein kurzes Jump'n'Run-Segment in Seitenansicht: Tor → Schwarzblende 0,3 s → Banner „Abstieg“ (die ersten 3 Male mit Tastenhinweis) → Segment → Tür → Schwarzblende → nächster Raum. Immer nach dem Lagerfeuer, als Leiter-Weg einer Abzweigung (noch nicht angeschlossen), 10 % nach Ruhe-Räumen; nie vor dem Boss, nie zweimal hintereinander, abschaltbar. 4 Pläne je Biom, gespiegelt 8.
+- **Physik:** Schwerkraft 1800 px/s² (Fallen ×1,4), Sprung 2,5 Kacheln (759 px/s), Kojote 0,1 s, Puffer 0,12 s, variable Höhe, Laufen 1,3 × Bewegungstempo, Dash waagerecht. Zufall nur aus Run-Seed + Slot, Zustand je Spieler am Spieler.
+- **Offen (Projektmitglied):** Münzen Run-Gold ×1,5 und goldene Münze = 1 Seelenkristall; Grube ½ Herz und nie tödlich (Abgrund im Raum 1 Herz, D-115); ersetzt der Leiter-Weg den Raum n+1 oder liegt er davor.
 
 ## 8. Vorlagen für spätere Entscheidungen
 

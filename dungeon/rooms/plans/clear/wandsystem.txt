@@ -1,21 +1,25 @@
 # Claude Design 14 (Wandsystem-Demo): dicke Mauer, 2x2-Pfeiler, Stumpf an der Suedwand, Nische und
 # rissige Wand buendig in der Vorderseite, Seitentueren im Gang. Abweichung: der Eingang S liegt
 # zwei Spalten weiter rechts (im Entwurf stand der Mauerstumpf direkt vor der Treppe).
+# Sprengfass F neben der rissigen Wand q (Welle C): die Geheimnische laesst sich auch ohne Bomber, Stab oder Hammer oeffnen (Fass erst ab Raum 3).
 name: Wandsystem
+id: wandsystem_crypt
 role: combat
 mode: clear
-biomes: crypt, ember_forge
+biomes: crypt
 size: 19x11
 mirror: yes
+rock: wall
+exit: 2
 ---
 ###################
 ###################
-###T##n##q##N######
+####N#n##q##N###T##
+##........F......##
 ##...............##
-##..####.........##
 W...####....##...##
-##..####....##...##
-##..........##....E
-##.....##........##
+##..####....##...E.
+##...............##
+##............#####
 ##########S########
 ###################

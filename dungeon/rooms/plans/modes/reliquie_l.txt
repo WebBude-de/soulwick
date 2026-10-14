@@ -1,0 +1,24 @@
+# Reliquienhoehle (L): zwei Wege um einen Felskern zur Reliquie hinten rechts, der Altar neben dem
+# Eingang, Wachen an den Wegen.
+role: combat
+class: L
+biomes: all
+mode: relic
+name: Reliquienhoehle (L)
+size: 29x15
+---
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxT###N###T####N###Txxxxx
+xxxxxx..................xxxxx
+xxxx............3......R.xxxx
+xx...G.....................xx
+xx.........#######.........xx
+xx.........#######......G..xx
+xxx........#######........xxx
+xxx.....G............3....xxx
+xxxx..........G..........xxxx
+xxxxx.A......@..........xxxxx
+xxxxxxx...............xxxxxxx
+xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxxxxxxxx

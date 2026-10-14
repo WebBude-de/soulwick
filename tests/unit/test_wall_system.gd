@@ -3,6 +3,8 @@ extends GutTest
 ## brick front wherever floor lies south of a wall, the north wall two crowns plus a front, pillars
 ## and inner walls from the same pieces in every biome; plan fixtures (torch, niche, gate, rift,
 ## cracked wall) sit flush in a brick front; a secret niche stays rock until its wall breaks.
+## Since M1 the pieces are drawn as one 47-piece terrain (RockTerrain, caves and masonry): the room
+## layer keeps an invisible solid tile per wall cell (collision), the rock layer the pieces.
 
 const BIOMES: Array[StringName] = [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
 const BIOME_TILESET_PATH := "res://dungeon/environment/%s_tileset.tres"
@@ -64,16 +66,19 @@ func test_wall_pieces_by_neighbours() -> void:
 func test_outer_wall_follows_the_same_rule() -> void:
 	var tiles := _tiles_of(HALL)
 	var floor_mask := tiles.get_floor_mask()
-	# North wall: front right above the floor, crown with its edge above it, rock above that.
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(2, -1), floor_mask), WallAutotile.front_coords(WallAutotile.Front.MIDDLE))
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(2, -2), floor_mask), WallAutotile.crown_coords(WallAutotile.N | WallAutotile.E | WallAutotile.W, 0))
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(2, -3), floor_mask), WallAutotile.ROCK)
-	# South wall: crown with its edge towards the floor, no front (seen from the south).
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(2, tiles.room_size.y), floor_mask), WallAutotile.crown_coords(WallAutotile.E | WallAutotile.S | WallAutotile.W, 0))
-	# Top-left corner above the side wall: plain crown with the corner piece only.
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(-1, -2), floor_mask), WallAutotile.crown_coords(15, WallAutotile.CORNER_BOTTOM_RIGHT))
-	# Exit corridor: the fronts beside it get their side edge.
-	assert_eq(WallAutotile.cell_for_floor(Vector2i(tiles.exit_x - 1, -1), floor_mask), WallAutotile.front_coords(WallAutotile.Front.RIGHT))
+	var x := tiles.exit_x - 2
+	# North wall: front right above the floor, the crown above it runs into the front (no edge
+	# there, the front has its own light top), rock above that.
+	assert_eq(RockTerrain.piece_for(Vector2i(x, -1), floor_mask), RockTerrain.front_coords(RockTerrain.Front.MIDDLE))
+	assert_eq(RockTerrain.mask_for(Vector2i(x, -2), floor_mask), RockTerrain.FULL, "crown over the front")
+	assert_true(RockTerrain.is_enclosed(Vector2i(x, -3), floor_mask), "rock above (the backdrop shows it)")
+	# South wall: rock with its edge towards the floor, no front (seen from the south).
+	var south := Vector2i(tiles.entrance_x - 1, tiles.room_size.y)
+	assert_eq(RockTerrain.mask_for(south, floor_mask) & RockTerrain.N, 0, "edge towards the floor")
+	assert_false(WallAutotile.is_front(south, floor_mask))
+	# Exit corridor: the fronts beside it get their rounded side.
+	assert_eq(RockTerrain.piece_for(Vector2i(tiles.exit_x - 1, -1), floor_mask), RockTerrain.front_coords(RockTerrain.Front.RIGHT))
+	assert_eq(RockTerrain.piece_for(Vector2i(tiles.exit_x + 1, -1), floor_mask), RockTerrain.front_coords(RockTerrain.Front.LEFT))
 
 
 func test_north_wall_is_two_crowns_and_a_front_wherever_floor_follows() -> void:
@@ -156,19 +161,30 @@ func test_walls_use_the_generated_pieces_in_every_biome() -> void:
 		var path := BIOME_TILESET_PATH % biome
 		var tileset := load(path if ResourceLoader.exists(path) else BASE_TILESET_PATH) as TileSet
 		tiles.use_tileset(tileset)
-		assert_true(tileset.has_source(WallAutotile.SOURCE_ID), "%s: wall pieces added" % biome)
+		tiles.paint()
+		assert_true(tileset.has_source(RockTerrain.SOURCE_MASONRY_ROCK), "%s: masonry pieces added" % biome)
+		assert_true(tiles.is_terrain_drawn() and tiles.get_look() == RockTerrain.Look.MASONRY, "%s: a crypt hall is masonry" % biome)
+		assert_true(tiles.is_cave_look(), "%s: in the soft rock of the caves (same palette)" % biome)
+		var rock := tiles.get_rock_layer()
+		var floor_mask := tiles.get_floor_mask()
 		var fronts := 0
 		for wall: Vector2i in tiles.get_wall_mass():
-			var source := tiles.get_cell_source_id(wall)
-			assert_true(source == RoomTiles.SOURCE_WALL or (source == RoomTiles.SOURCE_ID and tiles.get_cell_atlas_coords(wall) == RoomTiles.WALL_TOP), "%s: %s is a wall piece or rock" % [biome, wall])
+			assert_eq(tiles.get_cell_source_id(wall), RockTerrain.SOURCE_GROUND, "%s: %s solid cell" % [biome, wall])
+			assert_eq(tiles.get_cell_atlas_coords(wall), RockTerrain.SOLID)
 			var data := tiles.get_cell_tile_data(wall)
-			if data != null:
-				assert_gt(data.get_collision_polygons_count(0), 0, "%s: walls collide (WORLD)" % biome)
-				assert_null(data.get_navigation_polygon(0), "%s: no navigation on walls" % biome)
-			if source == RoomTiles.SOURCE_WALL and tiles.get_cell_atlas_coords(wall).y == WallAutotile.FRONT_ROW:
+			assert_gt(data.get_collision_polygons_count(0), 0, "%s: walls collide (WORLD)" % biome)
+			assert_null(data.get_navigation_polygon(0), "%s: no navigation on walls" % biome)
+			if RockTerrain.is_enclosed(wall, floor_mask):
+				assert_eq(rock.get_cell_source_id(wall), -1, "%s: enclosed %s left to the backdrop" % [biome, wall])
+				continue
+			assert_eq(rock.get_cell_source_id(wall), RockTerrain.SOURCE_MASONRY_ROCK, "%s: %s drawn" % [biome, wall])
+			assert_eq(rock.get_cell_atlas_coords(wall), RockTerrain.piece_for(wall, floor_mask))
+			if WallAutotile.is_front(wall, floor_mask):
 				fronts += 1
 		assert_gt(fronts, 0, "%s: the block shows its front" % biome)
-		assert_eq(tiles.get_cell_source_id(tiles.get_entrance_inside_tile()), RoomTiles.SOURCE_ID, "%s: floor stays floor" % biome)
+		var inside := tiles.get_entrance_inside_tile()
+		assert_eq(tiles.get_cell_source_id(inside), RockTerrain.floor_source(RockTerrain.Look.MASONRY, tileset), "%s: floor stays floor" % biome)
+		assert_not_null(tiles.get_cell_tile_data(inside).get_navigation_polygon(0), "%s: floor carries the navigation" % biome)
 
 
 func test_runtime_walls_repaint_and_block() -> void:
@@ -179,10 +195,13 @@ func test_runtime_walls_repaint_and_block() -> void:
 	tiles.add_wall_rects(rects)
 	assert_false(tiles.is_walkable(Vector2i(1, 2)))
 	assert_false(tiles.is_walkable(Vector2i(2, 3)))
-	assert_eq(tiles.get_cell_source_id(Vector2i(2, 2)), RoomTiles.SOURCE_WALL)
-	assert_eq(tiles.get_cell_atlas_coords(Vector2i(2, 3)), WallAutotile.front_coords(WallAutotile.Front.RIGHT))
-	assert_eq(tiles.get_cell_source_id(Vector2i(4, -1)), RoomTiles.SOURCE_WALL, "the north wall is drawn by the same rule")
-	assert_eq(tiles.get_cell_atlas_coords(Vector2i(4, -1)).y, WallAutotile.FRONT_ROW, "and keeps its front")
+	assert_eq(tiles.get_cell_atlas_coords(Vector2i(2, 2)), RockTerrain.SOLID, "the new wall collides")
+	var floor_mask := tiles.get_floor_mask()
+	var rock := tiles.get_rock_layer()
+	assert_eq(rock.get_cell_atlas_coords(Vector2i(2, 3)), RockTerrain.piece_for(Vector2i(2, 3), floor_mask), "its front is drawn")
+	assert_true(WallAutotile.is_front(Vector2i(2, 3), floor_mask))
+	assert_eq(rock.get_cell_atlas_coords(Vector2i(4, -1)), RockTerrain.piece_for(Vector2i(4, -1), floor_mask), "the north wall is drawn by the same rule")
+	assert_true(WallAutotile.is_front(Vector2i(4, -1), floor_mask), "and keeps its front")
 
 
 func test_closed_niche_is_rock_until_the_wall_breaks() -> void:
@@ -197,14 +216,16 @@ func test_closed_niche_is_rock_until_the_wall_breaks() -> void:
 	for tile in site.niche:
 		assert_false(tiles.get_floor_mask().has(tile), "niche %s is not floor while sealed" % tile)
 		var source := tiles.get_cell_source_id(tile)
-		assert_true(source == RoomTiles.SOURCE_WALL or tiles.get_cell_atlas_coords(tile) == RoomTiles.WALL_TOP, "niche %s drawn as rock (no box in the rock)" % tile)
+		assert_true(source == -1 or tiles.get_cell_atlas_coords(tile) == RockTerrain.SOLID, "niche %s drawn as rock (no box in the rock)" % tile)
+		assert_true(RockTerrain.is_enclosed(tile, tiles.get_floor_mask()), "niche %s is plain rock" % tile)
 	# The crack itself is a plain front before it breaks (the cracked art lies on top).
 	assert_true(WallAutotile.is_front(site.crack, tiles.get_floor_mask()))
 	tiles.open_wall_tiles(site.opening)
 	assert_true(tiles.is_niche_open())
 	for tile in site.niche:
 		assert_true(tiles.get_floor_mask().has(tile), "niche %s floor after the break" % tile)
-		assert_eq(tiles.get_cell_source_id(tile), RoomTiles.SOURCE_ID, "niche %s painted as floor" % tile)
+		assert_eq(tiles.get_cell_source_id(tile), RockTerrain.SOURCE_GROUND, "niche %s painted as cave floor" % tile)
+		assert_eq(tiles.get_rock_layer().get_cell_source_id(tile), -1, "no rock left on the niche %s" % tile)
 	assert_true(tiles.get_reachable_tiles().has(site.get_content_tile()), "open after the break")
 
 

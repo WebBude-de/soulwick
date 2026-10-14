@@ -15,6 +15,11 @@ extends SceneTree
 ## on entry; a branch room builds both ways when entered (4 live rooms at most, both dark, no
 ## overlap), the chosen one becomes room n+1 and the other fades out. Every exit door shows the way
 ## (light cone, mode symbol of the room behind it), every corridor between two doors has a style.
+## One gate per transition (M2): between the exit gate of a room and the floor of the next one lies
+## one corridor tile (plus a longer corridor's extra tiles), nothing solid of either room lies on the
+## other's floor or in the corridor, the entrance is an open gap without a leaf (it blocks once the
+## room before is unloaded), the exit is a gate whose light cone shines at 30 % while shut and fully
+## once open, and the gate shuts behind the player once he is inside the next room (no way back).
 ## Room plans (R1, D-120): every room is checked against the plan rules on entry (RoomPlanChecks:
 ## every floor tile reachable with props and sources blocked, doors free, nothing in the only way,
 ## traps with a reason); combat rooms come from a plan of their biome and scatter nothing at random.
@@ -58,6 +63,10 @@ var _longest_corridor := 0
 var _over_limit := 0
 var _corridor_styles := {}
 var _door_modes := {}
+## M2: transitions checked, corridor tiles between gate and floor seen (counts), gates and frames seen.
+var _transitions := 0
+var _gaps := {}
+var _gate_looks := {}
 ## Dungeon seed from the command line (0 = random, as in the game).
 var _seed := 0
 
@@ -179,6 +188,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	if index > 1:
 		var veil: Node = room.get_node_or_null("RoomVeil")
 		_check(veil != null and veil.is_lifted(), "room %d: lit up on entry (veil lifted)" % index)
+		_check_transition(index, room)
 	var tiles_of_room: Node = room.get_node("Tiles")
 	_entrance_sides[tiles_of_room.entrance_side] = _entrance_sides.get(tiles_of_room.entrance_side, 0) + 1
 	_longest_corridor = maxi(_longest_corridor, tiles_of_room.entrance_corridor_extra)
@@ -282,6 +292,9 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		await _take_branch(index, room, player)
 	var exit_door: Node = room._exit_door
 	_check(exit_door.is_open, "room %d exit opened after completion" % index)
+	if exit_door.is_open and exit_door.get_style().has_way_light():
+		await _frames(30)
+		_check(exit_door.view.get_cone_share() > 0.95, "room %d: the open gate shows the way in full light (%.2f)" % [index, exit_door.view.get_cone_share()])
 	if type_name == "BOSS" and exit_door.is_open:
 		return await _play_campfire(index, player, run_manager)
 	return exit_door.is_open
@@ -297,11 +310,87 @@ func _check_no_overlap(index: int) -> void:
 			var second: Node = rooms[b]
 			var cut: Rect2i = _dungeon.get_room_rect(first).intersection(_dungeon.get_room_rect(second))
 			if absi(first.slot_index - second.slot_index) == 1:
-				_check(cut.size.x <= 1 or cut.size.y <= 1, "room %d: neighbours %s/%s only share their corridor line (%s)" % [index, first.name, second.name, cut])
+				# M2: joined rooms share the corridor tiles and the wall line (ExitRules.shared_lines).
+				var newer: Node = first if first.slot_index > second.slot_index else second
+				var shared: int = 3 + newer.get_node("Tiles").entrance_corridor_extra
+				_check(cut.size.x <= shared or cut.size.y <= shared, "room %d: neighbours %s/%s only share their corridor lines (%s)" % [index, first.name, second.name, cut])
 			else:
 				# Rock may lie on rock (outer rings); never on a floor, a wall or a corridor.
 				_check(not _dungeon.rooms_clash(first, second), "room %d: %s and %s do not overlap (%s %s / %s %s)" % [index, first.name, second.name,
 						_dungeon.get_room_rect(first), _describe_doors(first), _dungeon.get_room_rect(second), _describe_doors(second)])
+
+
+## One gate per transition (M2): room was just entered from the room before it (slot - 1).
+func _check_transition(index: int, room: Node) -> void:
+	var previous: Node = _dungeon.get_room_at_slot(room.slot_index - 1)
+	if previous == null:
+		_fail("room %d: the room before it is gone on entry" % index)
+		return
+	_transitions += 1
+	var door_script: GDScript = load("res://dungeon/environment/doors/door.gd")
+	var exit: Vector2i = previous.get_chosen_exit()
+	var tiles: Node = room.get_node("Tiles")
+	var previous_tiles: Node = previous.get_node("Tiles")
+	var direction: Vector2i = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT][exit.x]
+	var origin: Vector2i = _dungeon.get_room_origin(room)
+	var previous_origin: Vector2i = _dungeon.get_room_origin(previous)
+	var gate_tile: Vector2i = previous_origin + previous_tiles.door_tile_of(exit.x, exit.y, previous_tiles.room_size)
+	var inside: Vector2i = origin + tiles.get_entrance_inside_tile()
+	var between: int = (inside - gate_tile).x * direction.x + (inside - gate_tile).y * direction.y - 1
+	_gaps[between] = _gaps.get(between, 0) + 1
+	_check(between == 1 + tiles.entrance_corridor_extra, "room %d: one corridor tile behind the gate (%d, extra %d)" % [index, between, tiles.entrance_corridor_extra])
+	# Gate in the wall of the room left; it shuts behind the player for good (no way back).
+	var gate: Node = previous._exit_door
+	_check(not gate.is_open, "room %d: the gate of %s shut behind the player" % [index, previous.name])
+	var style: Object = gate.get_style()
+	var look := "boss" if style.is_boss() else ("side" if gate.is_side_door() else "%s/%s" % [style.frame_kind, style.gate])
+	_gate_looks[look] = _gate_looks.get(look, 0) + 1
+	if not gate.is_side_door() and not style.is_boss():
+		_check(style.is_gate(), "room %d: the exit of %s is a gate" % [index, previous.name])
+	var entrance: Node = door_script.entrance_of(room)
+	_check(entrance != null and entrance.is_open, "room %d: the entrance is open behind the player" % index)
+	if entrance != null:
+		_check(not entrance.get_node("Sprite").visible, "room %d: the entrance has no leaf" % index)
+	if previous.slot_index > 1:
+		var previous_entrance: Node = door_script.entrance_of(previous)
+		_check(previous_entrance != null and not previous_entrance.is_open, "room %d: the entrance of %s leads nowhere and blocks" % [index, previous.name])
+	# The corridor and both floors are free of the other room's rock (PassageSeam).
+	var space: PhysicsDirectSpaceState2D = room.get_world_2d().direct_space_state
+	for step in between + 2:
+		var tile: Vector2i = gate_tile + direction * step
+		_check(_tile_bodies(space, tile).is_empty(), "room %d: corridor tile %s is free" % [index, tile])
+	for pair: Array in [[room, previous], [previous, room]]:
+		var owner_room: Node = pair[0]
+		var other: Node = pair[1]
+		var owner_tiles: Node = owner_room.get_node("Tiles")
+		var owner_origin: Vector2i = _dungeon.get_room_origin(owner_room)
+		var other_rect: Rect2i = _dungeon.get_room_rect(other)
+		var floor_rect := Rect2i(owner_origin, owner_tiles.room_size)
+		var cut := floor_rect.intersection(other_rect)
+		var blocked: Array[Vector2i] = []
+		for y in range(cut.position.y, cut.end.y):
+			for x in range(cut.position.x, cut.end.x):
+				var world := Vector2i(x, y)
+				if owner_tiles.is_walkable(world - owner_origin) and not _tile_bodies(space, world).is_empty():
+					blocked.append(world)
+		_check(blocked.is_empty(), "room %d: no rock of %s on the floor of %s %s" % [index, other.name, owner_room.name, blocked])
+	# A shut gate shows its way at 30 %.
+	for door: Node in room.get_exit_doors():
+		if not door.is_open and door.get_style().has_way_light() and room.room_type != 2:
+			_check(door.view.get_cone_share() < 0.35, "room %d: the shut gate shows its way dimmed (%.2f)" % [index, door.view.get_cone_share()])
+
+
+## Tile layers that collide at the centre of a world tile (WORLD layer).
+func _tile_bodies(space: PhysicsDirectSpaceState2D, tile: Vector2i) -> Array:
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = (Vector2(tile) + Vector2(0.5, 0.5)) * 64.0
+	query.collision_mask = 1
+	query.collide_with_areas = false
+	var bodies: Array = []
+	for hit: Dictionary in space.intersect_point(query, 8):
+		if hit["collider"] is TileMapLayer:
+			bodies.append(hit["collider"])
+	return bodies
 
 
 ## "S3 -> N7 (+0)": entrance wall and place, exits, extra corridor tiles (test output).
@@ -376,8 +465,9 @@ func _check_dark_way(index: int, room: Node, next: Node, door_index: int) -> voi
 	_check(door.get_way_mode() == expected, "room %d: door %d shows mode '%s' of %s (%s)" % [index, door_index, expected, next.name, door.get_way_mode()])
 	var mode_name: String = String(expected) if expected != &"" else ("special" if next.room_type == 2 else "plain")
 	_door_modes[mode_name] = _door_modes.get(mode_name, 0) + 1
+	# M2 playtest: no decoration in corridors and gates.
 	var dressing: Node = next.get_node_or_null("CorridorDressing")
-	_check(dressing != null and not dressing.get_props().is_empty(), "room %d: the corridor to %s has a style" % [index, next.name])
+	_check(dressing == null, "room %d: no decoration in the corridor to %s" % [index, next.name])
 	if dressing != null:
 		var style_name: String = ["straight", "drip", "niche", "stairs"][dressing.style]
 		_corridor_styles[style_name] = _corridor_styles.get(style_name, 0) + 1
@@ -546,6 +636,7 @@ func _print_kind_distribution() -> void:
 	print("branches taken: %s" % ", ".join(_branches_taken))
 	print("corridor styles: %s" % _format_counts(_corridor_styles))
 	print("door ways shown: %s" % _format_counts(_door_modes))
+	print("transitions: %d, corridor tiles behind the gate: %s, gates: %s" % [_transitions, _format_counts(_gaps), _format_counts(_gate_looks)])
 	print("secret niches opened: %s" % ", ".join(_secrets_opened))
 
 

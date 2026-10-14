@@ -46,9 +46,7 @@ const ROLE_CAMPFIRE := &"campfire"
 @export var door_slots: Array[Vector2i] = []
 ## Spawn marker tiles of the scene (same order as SpawnPoints/Spawn1..n).
 @export var spawn_tiles: Array[Vector2i] = []
-## Markers in dead ends (catacomb ambush, KONZEPT_RAEUME §3.2); a subset of spawn_tiles.
-@export var ambush_tiles: Array[Vector2i] = []
-## Treasure chest in the deepest dead end (catacomb); (-1, -1) = none.
+## First treasure chest of the plan (cell 'c'); (-1, -1) = none.
 @export var chest_tile := Vector2i(-1, -1)
 ## BiomeData.id values this template may appear in; empty = every biome.
 @export var allowed_biomes: Array[StringName] = []
@@ -68,6 +66,11 @@ const ROLE_CAMPFIRE := &"campfire"
 @export var special_types: Array[int] = []
 ## A mirrored copy of the plan (generator option "mirror").
 @export var mirrored := false
+## What the walls are made of (plan header "rock", M1): RoomTiles.RockStyle WALL (masonry) or BLOB
+## (cave rock). Same value as the scene's RoomTiles.rock_style.
+@export var rock_style := 0
+## Plan header "cave": a cave mouth instead of an arch at the doors (door art: M2).
+@export var cave := false
 
 
 func allows_room(room_index: int) -> bool:

@@ -81,7 +81,7 @@ func test_runtime_pits_open_and_close() -> void:
 	assert_ne(tiles.get_cell_source_id(Vector2i(2, 2)), RoomTiles.SOURCE_ID, "painted as abyss")
 	tiles.remove_pit_tiles([Vector2i(2, 2)] as Array[Vector2i])
 	assert_false(tiles.is_pit(Vector2i(2, 2)))
-	assert_eq(tiles.get_cell_source_id(Vector2i(2, 2)), RoomTiles.SOURCE_ID)
+	assert_eq(tiles.get_cell_source_id(Vector2i(2, 2)), tiles.get_floor_source(), "floor again (the look's floor, M1)")
 	assert_eq(tiles.get_cell_atlas_coords(Vector2i(2, 2)), floor_piece, "the same floor comes back")
 	assert_eq(changes.size(), 2)
 

@@ -1,0 +1,23 @@
+# Makeover 2, Plan 21 (Glutgraben), auf 23x13 verdichtet: Graben quer durch den Raum mit Bruecke in
+# der Mitte, Geroellraender, Spalten diagonal versetzt, Feuerschalen asymmetrisch, Felsblock rechts.
+role: combat
+mode: clear
+mirror: yes
+biomes: ember_forge, crypt, shadow_realm
+name: Glutgraben
+size: 23x13
+exit: 2
+---
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
+xxxx#T#N###N###N#T#xxxx
+xxxx#.....%%%v.....xxxx
+xxx#v......%%%%%..B.xxx
+xx.......~~=~~.......xx
+xx......~~~=~~~..##..xx
+xx..%...~~~=~~~..##..xx
+xxx......~~=~~......xxx
+xxxxv.B....@.....v.xxxx
+xxxxx#.....,,,....xxxxx
+xxxxxxxxxxxSxxxxxxxxxxx
+xxxxxxxxxxxxxxxxxxxxxxx
