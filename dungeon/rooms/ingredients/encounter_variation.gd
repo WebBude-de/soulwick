@@ -14,7 +14,7 @@ enum GroupTheme { MIXED, RANGED, SWARM }
 ## Themes and the quiet room start with the first rooms of the second cycle (like arena and chasm).
 const FROM_ROOM := 6  # TESTWERT
 ## Theme chances in GroupTheme order (TESTWERTE).
-const THEME_WEIGHTS: Array[float] = [0.7, 0.15, 0.15]
+const THEME_WEIGHTS: Array[float] = [0.75, 0.1, 0.15]  # D-118: ranged 0.15 -> 0.1
 ## Share of quiet rooms among the normal combat rooms from FROM_ROOM (KONZEPT §3.4). TESTWERT
 const QUIET_CHANCE := 0.08
 ## Strong enemies in a quiet room.

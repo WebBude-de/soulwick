@@ -100,5 +100,5 @@ func test_gold_drop_stays_flat_and_price_grows_per_block() -> void:
 	var factor := _economy.config.gold_drop_factor
 	assert_eq(_economy.get_gold_drop(slime, 1, false), maxi(1, roundi(slime.gold_drop * factor)))
 	assert_eq(_economy.get_gold_drop(slime, 26, false), _economy.get_gold_drop(slime, 1, false))
-	assert_eq(_economy.get_gold_drop(slime, 5, true), roundi(slime.gold_drop * factor * 5.0), "champions drop 5x")
+	assert_eq(_economy.get_gold_drop(slime, 5, true), roundi(slime.gold_drop * factor * _economy.config.miniboss_gold_multiplier), "champions drop more")
 	assert_gt(_economy.get_price(ShopOffer.Kind.UPGRADE, 30), _economy.get_price(ShopOffer.Kind.UPGRADE, 1))

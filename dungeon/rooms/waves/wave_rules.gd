@@ -6,21 +6,23 @@ extends RefCounted
 ## waves (D-074) and wait until the running wave is cleared. Overflow: more enemies than spawn
 ## places -> the rest arrives as an extra wave.
 
-## Rooms 1-5 are normal combat rooms only (D-100). TESTWERT
-const ARENA_FROM_ROOM := 6
+## Earlier rooms are normal combat rooms only (D-100). TESTWERT (D-118: 6 -> 10, playtest; keep equal
+## to RoomSequence.CHASM_FROM_ROOM, where the room kind draw starts)
+const ARENA_FROM_ROOM := 10
 ## Waves of an arena: two, three from ARENA_DEEP_FROM_ROOM (TESTWERTE). Never fewer than the
 ## waves a normal room of the same depth already has (D-074).
 const ARENA_WAVES := 2
 const ARENA_WAVES_DEEP := 3
-const ARENA_DEEP_FROM_ROOM := 15
-## An arena wave of one would call the next wave at once. TESTWERT
-const ARENA_MIN_WAVE_SIZE := 2
+const ARENA_DEEP_FROM_ROOM := 30  # TESTWERT (D-118: 15 -> 30, like the second wave of normal rooms)
+## An arena wave of one would call the next wave at once. TESTWERT (D-118: 2 -> 3)
+const ARENA_MIN_WAVE_SIZE := 3
 ## Each arena wave rolls the normal count of the room (D-074) times this factor, never below the
 ## smallest normal count: an arena fights 2-3 such waves, so it stays harder than a normal room
-## without doubling it. TESTWERT
-const ARENA_WAVE_SIZE_FACTOR := 0.75
-## Arena: the next wave starts when at most this many enemies of the running wave are left. TESTWERT
-const NEXT_WAVE_AT_REMAINING := 1
+## without doubling it. TESTWERT (D-118: 0.75 -> 1.0, playtest: the arena is the busy room)
+const ARENA_WAVE_SIZE_FACTOR := 1.0
+## Arena: the next wave starts when at most this many enemies of the running wave are left.
+## TESTWERT (D-118: 1 -> 0, playtest: the next wave only once the running one is cleared)
+const NEXT_WAVE_AT_REMAINING := 0
 ## Share of arenas that are an ambush (room looks empty, enemies break out when the door closes). TESTWERT
 const AMBUSH_CHANCE := 0.25
 ## No enemy steps out of a wall closer than this to any player (KONZEPT_RAEUME 3.1). TESTWERT

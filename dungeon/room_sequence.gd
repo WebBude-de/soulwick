@@ -81,14 +81,16 @@ static func is_normal_combat(room_type: RoomType) -> bool:
 
 
 ## Inclusive min/max number of normal enemies (D-074): gentle start, denser deeper down.
+## TESTWERTE (D-118, playtest "too little going on"): about 1.5-2x the D-074 counts
+## (1-2 / 2-3 / 2-4 / 3-5), the single enemies are weaker instead (enemies/data/*.tres).
 static func get_enemy_count_range(room_index: int) -> Vector2i:
 	if room_index <= 3:
-		return Vector2i(1, 2)
-	if room_index < 15:
-		return Vector2i(2, 3)
-	if room_index < 30:
 		return Vector2i(2, 4)
-	return Vector2i(3, 5)
+	if room_index < 15:
+		return Vector2i(4, 5)
+	if room_index < 30:
+		return Vector2i(4, 6)
+	return Vector2i(5, 8)
 
 
 ## Number of enemy waves in a normal combat room: more pressure deeper down (D-074).
@@ -153,8 +155,9 @@ static func roll_portal(rng: RandomNumberGenerator) -> bool:
 	return rng.randf() < PORTAL_CHANCE
 
 
-## Arena and chasm rooms appear from this room on; rooms 1-5 are normal combat rooms (D-100, TESTWERT).
-const CHASM_FROM_ROOM := 6
+## Arena and chasm rooms appear from this room on; earlier rooms are normal combat rooms (D-100).
+## TESTWERT (D-118: 6 -> 10, playtest: arenas shortly before the first boss; = WaveRules.ARENA_FROM_ROOM).
+const CHASM_FROM_ROOM := 10
 ## Room kind weights in RoomKind order (D-100, TESTWERTE): rooms 1-5 and from CHASM_FROM_ROOM.
 const ROOM_KIND_WEIGHTS_EARLY: Array[float] = [1.0, 0.0, 0.0]
 const ROOM_KIND_WEIGHTS: Array[float] = [0.4, 0.35, 0.25]

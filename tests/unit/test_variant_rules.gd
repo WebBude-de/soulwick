@@ -138,7 +138,7 @@ func test_choose_variant_follows_the_weights() -> void:
 # --- Variant numbers ---
 
 func test_soul_flame_numbers() -> void:
-	assert_eq(VariantRules.FLAME_DURATION, 40.0, "40 s (KONZEPT §4.1)")
+	assert_eq(VariantRules.FLAME_DURATION, 24.0, "24 s (D-118, KONZEPT §4.1 said 40 s)")
 	assert_eq(VariantRules.FLAME_RAID_SHARE, 0.7, "70 % go for the flame")
 	assert_true(VariantRules.is_raider(0.69))
 	assert_false(VariantRules.is_raider(0.7))
@@ -151,14 +151,15 @@ func test_soul_flame_numbers() -> void:
 func test_raid_waves_by_time_or_when_the_room_runs_empty() -> void:
 	assert_true(VariantRules.should_send_wave(12.0, VariantRules.FLAME_WAVE_INTERVAL, 5, true), "every interval")
 	assert_false(VariantRules.should_send_wave(12.0, 4.0, 5, true))
-	assert_true(VariantRules.should_send_wave(12.0, 4.0, 1, true), "at most one enemy left")
+	assert_true(VariantRules.should_send_wave(12.0, VariantRules.FLAME_WAVE_MIN_GAP, 1, true), "at most one enemy left")
+	assert_false(VariantRules.should_send_wave(12.0, VariantRules.FLAME_WAVE_MIN_GAP - 0.5, 1, true), "minimum gap (D-118)")
 	assert_false(VariantRules.should_send_wave(1.0, 1.0, 0, true), "not two waves at once")
-	assert_false(VariantRules.should_send_wave(41.0, 20.0, 0, true), "raid over after 40 s")
+	assert_false(VariantRules.should_send_wave(VariantRules.FLAME_DURATION + 1.0, 20.0, 0, true), "raid over after the flame time")
 	assert_false(VariantRules.should_send_wave(12.0, 20.0, 0, false), "no raid once the flame is out")
-	assert_eq(VariantRules.flame_wave_size(10), 6)
+	assert_eq(VariantRules.flame_wave_size(10), 5, "half a normal roll (D-118)")
 	assert_eq(VariantRules.flame_wave_size(1), VariantRules.FLAME_WAVE_MIN)
-	assert_true(VariantRules.flame_holds_room(39.0, true))
-	assert_false(VariantRules.flame_holds_room(40.0, true))
+	assert_true(VariantRules.flame_holds_room(VariantRules.FLAME_DURATION - 1.0, true))
+	assert_false(VariantRules.flame_holds_room(VariantRules.FLAME_DURATION, true))
 	assert_false(VariantRules.flame_holds_room(0.0, false))
 
 

@@ -27,7 +27,7 @@ func _other_kind() -> int:
 
 
 ## A combat room with skeletons only (no splitting slimes), fixed RNG seed and an optional group.
-func _room(arena := true, ambush := 0, room_index := 8, group: EncounterGroup = null) -> RoomController:
+func _room(arena := true, ambush := 0, room_index := 12, group: EncounterGroup = null) -> RoomController:
 	var room := HALL.instantiate() as RoomController
 	room.room_kind = RoomSequence.RoomKind.ARENA if arena else _other_kind() as RoomSequence.RoomKind
 	room.forced_ambush = ambush
@@ -95,13 +95,13 @@ func test_arena_plans_two_waves_and_three_deeper() -> void:
 	assert_eq(room.get_wave_progress(), Vector2i(1, 2))
 	for size in room.get_wave_sizes():
 		assert_gte(size, WaveRules.ARENA_MIN_WAVE_SIZE)
-	var deep := _room(true, 0, 16)
+	var deep := _room(true, 0, 31)
 	deep.activate()
 	assert_eq(deep.get_wave_progress().y, 3)
 
 
-func test_next_wave_starts_when_one_enemy_is_left() -> void:
-	var room := _room(true, 0, 8, _fixed_count(3))
+func test_next_wave_starts_when_the_wave_is_cleared() -> void:
+	var room := _room(true, 0, 12, _fixed_count(3))
 	watch_signals(room)
 	room.activate()
 	assert_signal_emitted_with_parameters(room, "arena_started", [room, false])
@@ -114,13 +114,16 @@ func test_next_wave_starts_when_one_enemy_is_left() -> void:
 	assert_signal_not_emitted(room, "wave_started")
 	_kill(first[1])
 	await wait_frames(2)
-	assert_eq(room.get_wave_progress().x, 2, "one left: wave 2 comes")
+	assert_eq(room.get_wave_progress().x, 1, "one left: still wave 1 (D-118)")
+	_kill(first[2])
+	await wait_frames(2)
+	assert_eq(room.get_wave_progress().x, 2, "wave 1 cleared: wave 2 comes")
 	assert_signal_emitted_with_parameters(room, "wave_started", [room, 2, 2])
-	assert_eq(_living(room).size(), 1 + 3, "the straggler plus wave 2")
+	assert_eq(_living(room).size(), 3, "wave 2")
 
 
 func test_room_counts_as_cleared_only_after_the_last_wave() -> void:
-	var room := _room(true, 0, 16, _fixed_count(2))
+	var room := _room(true, 0, 31, _fixed_count(2))
 	watch_signals(room)
 	room.activate()
 	for wave in range(1, 4):
@@ -135,7 +138,7 @@ func test_room_counts_as_cleared_only_after_the_last_wave() -> void:
 
 
 func test_enemies_wait_in_the_wall_and_step_out() -> void:
-	var room := _room(true, 0, 8, _fixed_count(2))
+	var room := _room(true, 0, 12, _fixed_count(2))
 	room.activate()
 	var enemies := _living(room)
 	var gates := room.get_arena_waves().get_last_gates()
@@ -153,7 +156,7 @@ func test_enemies_wait_in_the_wall_and_step_out() -> void:
 func test_gates_keep_the_distance_to_every_player() -> void:
 	var first: Player = add_child_autofree(PLAYER_SCENE.instantiate())
 	var second: Player = add_child_autofree(PLAYER_SCENE.instantiate())
-	var room := _room(true, 0, 8, _fixed_count(4))
+	var room := _room(true, 0, 12, _fixed_count(4))
 	await wait_frames(2)
 	# One player at the west wall, one at the north wall.
 	first.global_position = room.to_global(Vector2(40, 288))
@@ -169,7 +172,7 @@ func test_gates_keep_the_distance_to_every_player() -> void:
 
 
 func test_ambush_looks_empty_and_starts_when_the_door_closes() -> void:
-	var room := _room(true, 1, 8, _fixed_count(3))
+	var room := _room(true, 1, 12, _fixed_count(3))
 	await wait_frames(2)
 	assert_true(room.is_ambush_room())
 	assert_true(room.is_arena_room())
@@ -197,7 +200,7 @@ func test_ambush_looks_empty_and_starts_when_the_door_closes() -> void:
 
 
 func test_ambush_waits_for_the_door_and_not_for_activation() -> void:
-	var room := _room(true, 1, 8, _fixed_count(2))
+	var room := _room(true, 1, 12, _fixed_count(2))
 	await wait_frames(1)
 	room.state = RoomController.State.ACTIVE
 	assert_false(room.is_encounter_started())

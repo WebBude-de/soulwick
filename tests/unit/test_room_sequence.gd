@@ -22,10 +22,11 @@ func test_boss_every_fifteen_rooms_endlessly() -> void:
 
 
 func test_enemy_count_range() -> void:
-	assert_eq(RoomSequence.get_enemy_count_range(1), Vector2i(1, 2), "gentle start")
-	assert_eq(RoomSequence.get_enemy_count_range(6), Vector2i(2, 3))
-	assert_eq(RoomSequence.get_enemy_count_range(16), Vector2i(2, 4))
-	assert_eq(RoomSequence.get_enemy_count_range(31), Vector2i(3, 5))
+	# D-118 (playtest): more but weaker enemies in every depth.
+	assert_eq(RoomSequence.get_enemy_count_range(1), Vector2i(2, 4), "busy start, weak enemies")
+	assert_eq(RoomSequence.get_enemy_count_range(6), Vector2i(4, 5))
+	assert_eq(RoomSequence.get_enemy_count_range(16), Vector2i(4, 6))
+	assert_eq(RoomSequence.get_enemy_count_range(31), Vector2i(5, 8))
 
 
 func test_biomes_and_boss_tiers() -> void:

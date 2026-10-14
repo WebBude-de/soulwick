@@ -65,18 +65,19 @@ func test_arena_only_for_arena_kind_from_room_six() -> void:
 	assert_false(WaveRules.is_arena(RoomSequence.RoomType.BOSS, arena, 15))
 
 
-func test_arena_has_two_waves_and_three_from_room_fifteen() -> void:
+func test_arena_has_two_waves_and_three_from_room_thirty() -> void:
 	assert_eq(WaveRules.get_wave_count(6, true), 2)
-	assert_eq(WaveRules.get_wave_count(14, true), 2)
-	assert_eq(WaveRules.get_wave_count(16, true), 3)
+	assert_eq(WaveRules.get_wave_count(16, true), 2, "two waves up to room 29 (D-118)")
+	assert_eq(WaveRules.get_wave_count(29, true), 2)
+	assert_eq(WaveRules.get_wave_count(31, true), 3)
 	assert_eq(WaveRules.get_wave_count(61, true), 3)
 	# Normal rooms keep D-074.
 	assert_eq(WaveRules.get_wave_count(16, false), RoomSequence.get_wave_count(16))
 	assert_eq(WaveRules.get_wave_count(61, false), RoomSequence.get_wave_count(61))
 
 
-func test_next_wave_at_one_left_in_an_arena_and_at_none_otherwise() -> void:
-	assert_true(WaveRules.should_start_next_wave(1, true))
+func test_next_wave_only_after_the_running_wave_is_cleared() -> void:
+	assert_false(WaveRules.should_start_next_wave(1, true), "arena too (D-118, playtest)")
 	assert_true(WaveRules.should_start_next_wave(0, true))
 	assert_false(WaveRules.should_start_next_wave(2, true))
 	assert_true(WaveRules.should_start_next_wave(0, false))
@@ -211,8 +212,9 @@ func test_spawner_reports_overflow_beyond_the_markers() -> void:
 func test_count_follows_the_group_range_and_factor() -> void:
 	var spawner := _spawner()
 	var rng := _rng(2)
+	var limits := RoomSequence.get_enemy_count_range(8)
 	for i in 50:
-		assert_between(spawner.roll_enemy_count(8, rng), 2, 3)
+		assert_between(spawner.roll_enemy_count(8, rng), limits.x, limits.y)
 		assert_gte(spawner.roll_enemy_count(2, rng, 2), 2, "arena minimum")
 	var group := EncounterGroup.new()
 	group.count_range = Vector2i(1, 2)

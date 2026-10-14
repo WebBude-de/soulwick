@@ -415,7 +415,7 @@ func _check_room_kind(index: int, room: Node) -> void:
 	var used: int = room.room_kind
 	_check(rolled >= 0, "room %d has a rolled room kind" % index)
 	if index < sequence.get_script_constant_map()["CHASM_FROM_ROOM"]:
-		_check(rolled == kinds["NORMAL"], "room %d: only normal rooms before room 6" % index)
+		_check(rolled == kinds["NORMAL"], "room %d: only normal rooms before room %d" % [index, sequence.get_script_constant_map()["CHASM_FROM_ROOM"]])
 	_check(not (used == chasm and _previous_kind == chasm), "room %d: no chasm room right after a chasm room" % index)
 	var catalog: Object = _dungeon.get_combat_catalog()
 	var expected: int = rolled if catalog.has_kind(rolled, sequence.SOLO_ROOM_SIZES) else kinds["NORMAL"]
@@ -435,8 +435,9 @@ func _check_room_kind(index: int, room: Node) -> void:
 func _print_kind_distribution() -> void:
 	var sequence: GDScript = load("res://dungeon/room_sequence.gd")
 	var constants := sequence.get_script_constant_map()
-	print("room kinds rolled, rooms 1-5: %s (weights %s)" % [_format_counts(_rolled_early), constants["ROOM_KIND_WEIGHTS_EARLY"]])
-	print("room kinds rolled, rooms 6+: %s (weights %s)" % [_format_counts(_rolled_deep), constants["ROOM_KIND_WEIGHTS"]])
+	var first_kind_room: int = constants["CHASM_FROM_ROOM"]
+	print("room kinds rolled, rooms 1-%d: %s (weights %s)" % [first_kind_room - 1, _format_counts(_rolled_early), constants["ROOM_KIND_WEIGHTS_EARLY"]])
+	print("room kinds rolled, rooms %d+: %s (weights %s)" % [first_kind_room, _format_counts(_rolled_deep), constants["ROOM_KIND_WEIGHTS"]])
 	print("room kinds used (after template fallback): %s" % _format_counts(_used_kinds))
 	# One run is a small sample: the same draw over many simulated 47-room runs for comparison.
 	var rng := RandomNumberGenerator.new()
@@ -454,8 +455,8 @@ func _print_kind_distribution() -> void:
 			var kind_name: String = sequence.get_kind_name(kind)
 			bucket[kind_name] = bucket.get(kind_name, 0) + 1
 			previous = kind
-	print("room kinds drawn over 1000 simulated runs, rooms 1-5: %s" % _format_counts(early))
-	print("room kinds drawn over 1000 simulated runs, rooms 6+: %s" % _format_counts(deep))
+	print("room kinds drawn over 1000 simulated runs, rooms 1-%d: %s" % [first_kind_room - 1, _format_counts(early)])
+	print("room kinds drawn over 1000 simulated runs, rooms %d+: %s" % [first_kind_room, _format_counts(deep)])
 	print("shapes played (kind · shape · size): %s" % _format_counts(_shapes_seen))
 	print("ingredients scattered: %s" % _format_counts(_ingredients_seen))
 	print("abyss: %d chasm rooms, %d rooms with holes" % [_chasm_rooms, _hole_rooms])

@@ -46,7 +46,7 @@ func test_rooms_one_to_five_are_normal_only() -> void:
 
 
 func test_deeper_rooms_use_the_d100_weights() -> void:
-	for room_index in [6, 17, 120]:
+	for room_index in [RoomSequence.CHASM_FROM_ROOM, 17, 120]:
 		var shares := _shares(room_index, RoomSequence.RoomKind.ARENA, 23 + room_index)
 		assert_almost_eq(shares[RoomSequence.RoomKind.NORMAL], 0.40, 0.02, "room %d normal" % room_index)
 		assert_almost_eq(shares[RoomSequence.RoomKind.ARENA], 0.35, 0.02, "room %d arena" % room_index)
@@ -54,7 +54,7 @@ func test_deeper_rooms_use_the_d100_weights() -> void:
 
 
 func test_no_chasm_right_after_chasm() -> void:
-	var shares := _shares(8, RoomSequence.RoomKind.CHASM, 5)
+	var shares := _shares(12, RoomSequence.RoomKind.CHASM, 5)
 	assert_eq(shares[RoomSequence.RoomKind.CHASM], 0.0)
 	# The chasm share is split proportionally: 40/75 normal, 35/75 arena.
 	assert_almost_eq(shares[RoomSequence.RoomKind.NORMAL], 0.40 / 0.75, 0.02)

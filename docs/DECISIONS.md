@@ -732,6 +732,29 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Zufall:** je normalem Kampfraum 8 zusätzliche Werte des Dungeon-RNG (Ausgang 1, Abzweigung 4, Nische 3).
 - **Offen (Projektmitglied):** längerer Gang statt „nach oben ausweichen“ ok? Elite-Nest 2 Kristalle richtig? Händler nur Mechanik-/Effekt-Upgrades? Abzweigung ohne Bestätigung im Einzelspieler? Abzweigung in etwa zwei Dritteln der Zyklen zu oft?
 
+### D-118 – Balance nach dem Raum-Ausbau und Playtest „mehr los, einzeln schwächer“
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-10-14 / Claude im Auftrag des Projektmitglieds (Balance delegiert; Playtest-Rückmeldung 14.10.2026 umgesetzt, sie hat Vorrang vor dem Bot)
+- **Anlass:** Nach Phase 2 erreichte der Bot mit dem Schwert nur noch Raum 16–22. Messung mit `balance_sim.gd` und einer Mess-Kopie (feste Dungeon-Seeds, Todesursache je Fallenart, Raumart/Variante/Gegnergruppe je Raum, Giftpfützen und Lavaspalten werden wie Stachelfallen umgangen): Knochenkönig tötete 38 % der Schwert-Bots, Schattenlord 100 % aller Waffen; Seelenflamme und Beschwörungsrisse waren die tödlichsten Kampfräume (Risse mit Bogen: Tod in 50 % der Rissräume); reine Fernkampf-Gruppen fünfmal so viel Schaden wie gemischte. **Fallen** als Todesursache waren fast nur Giftpfützen der Schleimgrotte, die der Bot nicht umgeht (Messartefakt; mit Umgehen 0–1 Tode je 80 Runs, Stachelfallen 1–2; Prüfungsräume können nicht töten, Abgründe kosten den Bot nichts, weil er nie fällt). Playtest: Balance insgesamt gut, aber zu wenig los (ein Gegner, nächster Raum), Arena zu früh und zu dünn (Raum 6: 1 Slime, sofort „Welle 2 von 2“).
+- **Messung** (Mess-Kopie, Gift/Lava umgehen, gleiche Dungeon-Seeds, Schwert 40 / Bogen 20 / Stab 20 Runs; erreichte Räume Median, Boss 15/30/45 geschlagen):
+
+| Waffe | vorher | nachher |
+| --- | --- | --- |
+| Schwert | Median 18 · 57 % / 29 % / 0 % | Median 34 · 92 % / 68 % / 8 % |
+| Bogen | Median 36 · 87 % / 73 % / 0 % | Median 45 · 100 % / 87 % / 27 % |
+| Stab | Median 42,5 · 100 % / 90 % / 0 % | Median 44 · 95 % / 95 % / 10 % |
+
+  `balance_sim.gd` ohne Änderung (Seeds 11–18 / 21–24 / 31–34, je 3 Runs): Schwert Median 16,5 → 32,5, Bogen 29,5 → 37, Stab 30,5 → 45 (Bogen nachher 6 Runs, zwei Prozesse abgestürzt). Schaden je normalem Kampfraum 1–15 unverändert (0,10–0,11 HP), aber 4–5 statt 2–3 Gegner und 25–50 % längere Kämpfe. Schild bei Raum 45 (Wahl „tank“) 13–16, Gold beim Tod 130–166 (2–3 Shop-Käufe).
+- **Beschluss (Zahlen, alt → neu):**
+  - **Mehr, aber schwächere Gegner (Playtest):** Gegner je Welle Raum 1–3 1–2 → 2–4, Raum 4–14 2–3 → 4–5, Raum 15–29 2–4 → 4–6, ab Raum 30 3–5 → 5–8 (`RoomSequence.get_enemy_count_range`). Alle normalen Gegner HP ×0,6 und Schaden ×0,65: Slime 20/1 → 12/0,65, Skelett 28/1 → 17/0,65, Bogenschütze 16/1 → 10/0,65, Bomber 12/1,5 → 7/1, Schattenwesen 16/1 → 10/0,65, Splitterschleim 26/1 → 16/0,65, Mini-Slime 6/0,5 → 4/0,35, Golem 90/2 → 54/1,3, Nekromant 30/1 → 18/0,65. Ein Treffer kostet damit in Raum 1–10 ½ statt 1 HP, ab Raum 36 1,5 statt 2,5–3 HP. Gold: `gold_drop_factor` 0,7 → 0,4, Champion-Gold ×5 → ×9 (Einkommen je Raum ungefähr wie vorher).
+  - **Arena (Playtest):** erst ab Raum 10 (`ARENA_FROM_ROOM` und `RoomSequence.CHASM_FROM_ROOM` 6 → 10, damit die Raumart-Ziehung passt; Abgrundräume damit auch erst ab Raum 10, kleine Löcher weiter ab Raum 6), Wellengröße ×0,75 → ×1,0, mindestens 2 → 3 Gegner, nächste Welle erst, wenn die laufende leer ist (bei ≤ 1 → 0 übrig), dritte Welle ab Raum 15 → 30.
+  - **Fernkampf gezielt:** Bogenschütze Abklingzeit 1,6 → 1,8 s; Nekromant Abklingzeit 1,5 → 1,8 s, Beschwörung jeder 3. → 4. Angriff; reine Fernkampf-Gruppen 15 → 10 % (`THEME_WEIGHTS` 0,7/0,15/0,15 → 0,75/0,1/0,15).
+  - **Varianten:** Seelenflamme Angriffszeit 40 → 24 s, Mindestabstand der Wellen 3 → 8 s, Wellengröße ×0,6 → ×0,5 (vorher 4–7× der Schaden eines normalen Raums, jetzt 2–3×). Beschwörungsriss 40 → 30 HP. Totengräber, Kopfgeld, Steinwächter, Laterne, Fackelraum, Elite-Nest und Geheimnischen liegen im Bot nahe am normalen Raum: unverändert.
+  - **Bosse nur gezielt (Playtest):** Knochenkönig Schaden 1,5 → 1,25 (Treffer in Raum 15: 2 → 1,5 HP), Schleimkönigin Schaden 1,5 → 1,25 (Raum 30: 3 → 2,5 HP), Schattenlord Schaden 1,5 → 0,9 und Abklingzeit 0,9 → 1,1 s (Raum 45: 4,5 → 2,5 HP je Treffer; vorher 0 % Siege). Boss-HP unverändert.
+  - **Schwert** Grundschaden 14 → 15 (Startwaffe, im Bot 10 Räume hinter Bogen und Stab).
+- **Offen:** Schattenlord bleibt die größte Hürde (Bot gewinnt 10–40 %), Glutgolem (Raum 60) kaum gemessen. Schwert-Bot endet seltener zwischen Raum 40 und 80 als die Fernkampfwaffen (28 % gegen 55–67 %). Champions sind durch die schwächeren Grundwerte rund 40 % schwächer (Champion-Faktor ×3 HP / ×1,5 Schaden ist kein TESTWERT, D-077). Nach dem neuen Gegnerverhalten (Slime-Banden, Flankieren) neu messen.
+- **Ersetzt:** Zahlenwerte aus D-074 (Gegneranzahl), D-086/D-100/D-115 (Arena und Abgrundraum ab Raum 6), D-089 (Schwert 14), D-091 (Goldfaktor 0,7), D-113 (Arena-Wellengröße, nächste Welle bei 1, drei Wellen ab Raum 15, Gruppen 70/15/15), D-114 (Seelenflamme 40 s, 3 s, ×0,6; Riss 40 HP) und die Gegner- und Boss-TESTWERTE aus §4 bzw. D-055/D-064.
+
 ### D-119 – Crossplay-Architektur: Host + eigener Relay, Steam → Android → iOS, Publisher WebBude
 
 - **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (ROADMAP_CROSSPLAY CP0 Fragen 3 und 4, Publisher); Ausarbeitung Claude

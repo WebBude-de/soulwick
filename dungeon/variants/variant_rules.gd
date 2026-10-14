@@ -24,16 +24,16 @@ const ALL: Array[StringName] = [SOUL_FLAME, RIFTS, GRAVEDIGGER, BOUNTY, STONE_GU
 # --- Soul flame (§4.1) ---
 
 ## Raid waves come for this long after the fight started; then the rest must be beaten.
-const FLAME_DURATION := 40.0  # TESTWERT
+const FLAME_DURATION := 24.0  # TESTWERT (D-118: 40 -> 24)
 ## Share of the enemies that go for the flame instead of the players.
 const FLAME_RAID_SHARE := 0.7  # TESTWERT
 ## A raid wave every this many seconds, or earlier once at most FLAME_WAVE_AT_ALIVE enemies are left.
 const FLAME_WAVE_INTERVAL := 10.0  # TESTWERT
 const FLAME_WAVE_AT_ALIVE := 1
 ## Never two raid waves closer than this (also the first one after the start).
-const FLAME_WAVE_MIN_GAP := 3.0  # TESTWERT
+const FLAME_WAVE_MIN_GAP := 8.0  # TESTWERT (D-118: 3 -> 8)
 ## Size of a raid wave: the room's normal roll times this factor, at least FLAME_WAVE_MIN.
-const FLAME_WAVE_FACTOR := 0.6  # TESTWERT
+const FLAME_WAVE_FACTOR := 0.5  # TESTWERT (D-118: 0.6 -> 0.5)
 const FLAME_WAVE_MIN := 2
 ## Flame health in hits of a plain enemy: scaled with the enemy damage of the room, so the number
 ## of hits it takes stays the same with depth.
