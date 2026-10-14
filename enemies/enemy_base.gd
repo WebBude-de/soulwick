@@ -67,6 +67,8 @@ const FALLBACK_SUMMON_EVERY := 4
 const FALLBACK_SUMMON_COUNT := 2
 const ROAR_INVULNERABILITY := &"roar"
 const INTRO_INVULNERABILITY := &"intro"
+## Seconds between two target choices (nearest living player, EnemyTargeting). TESTWERT
+const TARGET_INTERVAL := 0.5
 ## Obstacle avoidance: look this far ahead, then keep a found detour for a moment.
 const STEER_LOOKAHEAD := 64.0
 const DETOUR_TIME := 0.45
@@ -120,6 +122,10 @@ var _elite_label: Label = null
 var _in_intro := false
 var _intro_time_left := 0.0
 var _death_wait_done := false
+var _target_rethink_left := 0.0
+var _unstick_count := 0
+## Pathfinding around walls (A2); see EnemyNavigation.
+var _navigation: EnemyNavigation = null
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -131,6 +137,7 @@ var _death_wait_done := false
 @onready var _telegraph_circle: PlaceholderShape = $TelegraphCircle
 @onready var _telegraph_line: Line2D = $TelegraphLine
 @onready var _health_bar: ProgressBar = $HealthBar
+@onready var _navigation_agent: NavigationAgent2D = $NavigationAgent
 
 
 func _ready() -> void:
@@ -140,6 +147,7 @@ func _ready() -> void:
 		return
 	add_to_group(&"enemies")
 	_base_mask = collision_mask
+	_navigation = EnemyNavigation.new(self, _navigation_agent)
 	SpriteFx.apply(_sprite)
 	_apply_data()
 	health.health_changed.connect(_on_health_changed)
@@ -278,6 +286,8 @@ func _apply_data() -> void:
 	var radius := data.body_radius * _visual_scale
 	_apply_art()
 	(_body_shape.shape as CircleShape2D).radius = radius * 0.75
+	if _navigation != null:
+		_navigation.set_radius(radius * 0.75)
 	_body_shape.position = Vector2(0.0, radius * 0.5)
 	(_hurtbox_shape.shape as CircleShape2D).radius = radius
 	(_attack_shape.shape as CircleShape2D).radius = data.attack_radius
@@ -332,6 +342,7 @@ func _physics_process(delta: float) -> void:
 		_process_intro(delta)
 		return
 	_update_target()
+	_navigation.tick(delta)
 	_state_time_left -= delta
 	_detour_left -= delta
 	velocity = Vector2.ZERO
@@ -380,13 +391,30 @@ func _physics_process(delta: float) -> void:
 	_update_animation(delta)
 
 
+## Nearest living player (coop-ready, D-088), re-chosen every TARGET_INTERVAL and at once when
+## the current target dies or leaves.
 func _update_target() -> void:
-	if _target != null and is_instance_valid(_target) and _target.is_alive():
+	_target_rethink_left -= get_physics_process_delta_time()
+	var current: Player = _target if is_instance_valid(_target) else null
+	if current != null and _target_rethink_left > 0.0 and EnemyTargeting.is_alive(current):
 		return
-	_target = null
-	var player := get_tree().get_first_node_in_group(&"player") as Player
-	if player != null and player.is_alive():
-		_target = player
+	_target_rethink_left = TARGET_INTERVAL
+	_target = EnemyTargeting.choose(get_tree().get_nodes_in_group(&"player"), global_position, current) as Player
+
+
+## The enemy's current target (null = no living player). For tools and tests.
+func get_target() -> Player:
+	return _target if is_instance_valid(_target) else null
+
+
+## Pathfinding state, for tools and tests.
+## Walking speed: data, depth scaling and enrage, plus the pact curse of the target (D-112).
+func get_move_speed() -> float:
+	return data.move_speed * _speed_multiplier * PlayerCurses.enemy_speed_factor(_target)
+
+
+func get_navigation() -> EnemyNavigation:
+	return _navigation
 
 
 func _process_chase() -> void:
@@ -396,7 +424,7 @@ func _process_chase() -> void:
 	var to_target := _target.global_position - global_position
 	var distance := to_target.length()
 	var direction := to_target / distance if distance > 0.001 else Vector2.RIGHT
-	var speed := data.move_speed * _speed_multiplier
+	var speed := get_move_speed()
 
 	var next := _next_action()
 	if next == Action.VOLLEY and distance <= data.volley_range:
@@ -414,14 +442,61 @@ func _process_chase() -> void:
 			if distance <= data.attack_range:
 				_start_telegraph(direction, next if next == Action.SPECIAL else Action.NORMAL)
 			else:
-				velocity = _steer(direction) * speed
+				velocity = _chase_direction(direction) * speed
 		EnemyData.AttackKind.RANGED:
 			if distance > data.attack_range:
-				velocity = _steer(direction) * speed
+				velocity = _chase_direction(direction) * speed
 			elif distance < data.preferred_min_distance and _state_time_left > 0.0:
 				velocity = _steer(-direction) * speed
+			elif not _navigation.has_free_shot(_body_shape.global_position, _target.global_position):
+				# In range, but a wall is in the way: find a firing position over the navigation.
+				velocity = _firing_position_direction(direction) * speed
 			else:
 				_start_telegraph(direction, Action.NORMAL)
+
+
+## Walking direction towards the target: straight with the old steering while the way is free,
+## along the navigation path around walls, pillars and abysses when it is not (EnemyNavigation).
+func _chase_direction(direction: Vector2) -> Vector2:
+	var path_direction := _navigation.direction_to(_body_shape.global_position, _target.global_position)
+	return _follow_path(path_direction, direction)
+
+
+## Ranged enemies without a free shot walk the path towards the target until the shot is free.
+func _firing_position_direction(direction: Vector2) -> Vector2:
+	var path_direction := _navigation.path_direction(_body_shape.global_position, _target.global_position)
+	return _follow_path(path_direction, direction)
+
+
+func _follow_path(path_direction: Vector2, direction: Vector2) -> Vector2:
+	if path_direction == Vector2.ZERO:
+		return _steer(direction)
+	if _detour_left > 0.0:
+		return _detour
+	if _navigation.is_stuck(get_physics_process_delta_time()):
+		# Jammed by other enemies or a crate on the path (crates are not part of the navigation):
+		# step aside for a moment, alternating sides, preferring the side without a wall.
+		_unstick_count += 1
+		var side := path_direction.orthogonal()
+		var push := _crowd_push()
+		if push.dot(side) < -0.1 or (absf(push.dot(side)) <= 0.1 and _unstick_count % 2 == 1):
+			side = -side
+		if _is_blocked(side):
+			side = -side
+		_detour = (side + path_direction * 0.35).normalized()
+		_detour_left = DETOUR_TIME
+		return _detour
+	return path_direction
+
+
+## Sum of the push-back normals of other enemies touched in the last move (zero without contact).
+func _crowd_push() -> Vector2:
+	var push := Vector2.ZERO
+	for i in get_slide_collision_count():
+		var collision := get_slide_collision(i)
+		if collision.get_collider() is Enemy:
+			push += collision.get_normal()
+	return push
 
 
 ## Walks around pillars and walls instead of pushing against them: if a short circle cast in the
@@ -563,7 +638,9 @@ func _process_telegraph(delta: float) -> void:
 	if _action == Action.SPECIAL and data.special == EnemyData.Special.SELF_DESTRUCT:
 		# Chase while the fuse burns, blinking faster and faster.
 		if _target != null:
-			velocity = (_target.global_position - global_position).normalized() * data.move_speed * _speed_multiplier * 0.6
+			var to_target := (_target.global_position - global_position).normalized()
+			var path_direction := _navigation.direction_to(_body_shape.global_position, _target.global_position)
+			velocity = (path_direction if path_direction != Vector2.ZERO else to_target) * get_move_speed() * 0.6
 		_telegraph_circle.global_position = global_position
 		_fuse_timer -= delta
 		if _fuse_timer <= 0.0:
@@ -701,6 +778,8 @@ func _teleport() -> void:
 			if arena.size == Vector2.ZERO or arena.grow(-48.0).has_point(candidate):
 				destination = candidate
 				break
+		# Never into a pillar or an inner wall: nearest walkable point (unchanged without navigation).
+		destination = _navigation.snap_to_navigation(destination)
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
 	global_position = destination
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
@@ -743,6 +822,9 @@ func _summon() -> void:
 		if arena.size != Vector2.ZERO:
 			var inner := arena.grow(-40.0)
 			spot = spot.clamp(inner.position, inner.end)
+		# Never inside a wall or pillar (A2 navigation; A3 inner walls).
+		if _navigation != null:
+			spot = _navigation.snap_to_navigation(spot)
 		var parent := get_parent() as Node2D
 		minion.position = parent.to_local(spot) if parent != null else spot
 		minion.apply_scaling(_room_index, false)

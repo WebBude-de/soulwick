@@ -1,91 +1,157 @@
 class_name RoomCatalog
 extends Resource
-## Combat room templates indexed by room kind and size class (D-086).
-## Every combat template carries its kind and size as exported properties of its RoomController
-## root (written by tools/generate_room_templates.py); the catalog reads them from the scene state
-## without instantiating the room. The generator also writes combat_catalog.tres next to the
-## templates, so a new template shows up in the game without touching dungeon.tscn.
+## Combat room templates indexed by room kind, size class and biome (D-086, D-100).
+## The generator (tools/generate_room_templates.py) writes one RoomTemplate resource per combat
+## template (dungeon/rooms/templates/) and lists them in combat_catalog.tres, so a new template
+## shows up in the game without touching dungeon.tscn. Extra scenes without a RoomTemplate (the
+## DungeonManager export, tests) are described from their RoomController properties instead, read
+## from the scene state without instantiating the room.
 
 const DEFAULT_PATH := "res://dungeon/rooms/combat/combat_catalog.tres"
 const KIND_PROPERTY := &"room_kind"
 const SIZE_PROPERTY := &"room_size_class"
 
 ## Generated list of all combat templates (combat_catalog.tres).
+@export var entries: Array[RoomTemplate] = []
+## Extra template scenes without metadata resource (kind/size read from the scene).
 @export var templates: Array[PackedScene] = []
 
-var _scenes: Array[PackedScene] = []
-var _kinds: Array[int] = []
-var _sizes: Array[int] = []
+static var _default: RoomCatalog = null
+
+var _entries: Array[RoomTemplate] = []
 var _indexed := false
 
 
 ## Catalog of the generated templates plus extra scenes (duplicates are ignored).
 static func create(extra: Array[PackedScene] = []) -> RoomCatalog:
 	var catalog := RoomCatalog.new()
-	if ResourceLoader.exists(DEFAULT_PATH):
-		var generated := load(DEFAULT_PATH) as RoomCatalog
-		if generated != null:
-			for scene in generated.templates:
-				catalog.add_template(scene)
+	var generated := load_default()
+	if generated != null:
+		for entry in generated.get_entries():
+			catalog.add_entry(entry)
 	for scene in extra:
 		catalog.add_template(scene)
 	return catalog
 
 
-## Registers a template. kind/size -1 = read from the template itself (tests may override them).
+## The generated catalog, loaded once (null if missing).
+static func load_default() -> RoomCatalog:
+	if _default == null and ResourceLoader.exists(DEFAULT_PATH):
+		_default = load(DEFAULT_PATH) as RoomCatalog
+	return _default
+
+
+## RoomTemplate of a live room (by its scene path) in the generated catalog, null if unknown.
+static func find_template_of(room: Node) -> RoomTemplate:
+	var catalog := load_default()
+	if catalog == null or room == null:
+		return null
+	return catalog.find_by_path(room.scene_file_path)
+
+
+func add_entry(entry: RoomTemplate) -> void:
+	_ensure_indexed()
+	_add_entry(entry)
+
+
+## Registers a template scene. kind/size -1 = read from the template itself (tests may override them).
 func add_template(scene: PackedScene, kind := -1, size := -1) -> void:
 	_ensure_indexed()
-	_add(scene, kind, size)
+	if scene == null:
+		return
+	var known := find_by_path(scene.resource_path) if not scene.resource_path.is_empty() else null
+	if known != null or _find_scene(scene) != null:
+		return
+	var info := read_template_info(scene)
+	var entry := RoomTemplate.new()
+	entry.id = StringName(scene.resource_path.get_file().get_basename())
+	entry.scene = scene
+	entry.room_kind = (kind if kind >= 0 else info.x) as RoomSequence.RoomKind
+	entry.size_class = (size if size >= 0 else info.y) as RoomSequence.RoomSize
+	_entries.append(entry)
 
 
 func get_template_count() -> int:
 	_ensure_indexed()
-	return _scenes.size()
+	return _entries.size()
+
+
+func get_entries() -> Array[RoomTemplate]:
+	_ensure_indexed()
+	return _entries.duplicate()
 
 
 func get_templates() -> Array[PackedScene]:
 	_ensure_indexed()
-	return _scenes.duplicate()
+	var scenes: Array[PackedScene] = []
+	for entry in _entries:
+		scenes.append(entry.scene)
+	return scenes
+
+
+func find_by_path(path: String) -> RoomTemplate:
+	_ensure_indexed()
+	if path.is_empty():
+		return null
+	for entry in _entries:
+		if entry.scene != null and entry.scene.resource_path == path:
+			return entry
+	return null
+
+
+func get_template(scene: PackedScene) -> RoomTemplate:
+	_ensure_indexed()
+	var entry := _find_scene(scene)
+	if entry == null and scene != null:
+		entry = find_by_path(scene.resource_path)
+	return entry
 
 
 ## Kind of a registered template, -1 if unknown.
 func get_kind_of(scene: PackedScene) -> int:
-	_ensure_indexed()
-	var i := _scenes.find(scene)
-	return _kinds[i] if i >= 0 else -1
+	var entry := get_template(scene)
+	return int(entry.room_kind) if entry != null else -1
 
 
 ## Size class of a registered template, -1 if unknown.
 func get_size_of(scene: PackedScene) -> int:
+	var entry := get_template(scene)
+	return int(entry.size_class) if entry != null else -1
+
+
+func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName = &"") -> bool:
+	return not _candidates(kind, sizes, biome_id).is_empty()
+
+
+## A template scene of the wanted kind, see pick_template().
+func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"") -> PackedScene:
+	var entry := pick_template(kind, sizes, rng, biome_id)
+	return entry.scene if entry != null else null
+
+
+## A template of the wanted kind in one of the allowed sizes (and allowed in the biome, if given),
+## picked uniformly. Without such a template the room becomes a normal room (D-100), then any
+## template of the allowed sizes, then any. Draws exactly one random number whenever a template
+## exists; null only for an empty catalog.
+func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"") -> RoomTemplate:
 	_ensure_indexed()
-	var i := _scenes.find(scene)
-	return _sizes[i] if i >= 0 else -1
-
-
-func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize]) -> bool:
-	return not _candidates(kind, sizes).is_empty()
-
-
-## A template of the wanted kind in one of the allowed sizes, picked uniformly. Without such a
-## template the room becomes an arena (D-086), then any template of the allowed sizes, then any.
-## Draws exactly one random number whenever a template exists; null only for an empty catalog.
-func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator) -> PackedScene:
-	_ensure_indexed()
-	var candidates := _candidates(kind, sizes)
+	var any_size: Array[RoomSequence.RoomSize] = []
+	var candidates := _candidates(kind, sizes, biome_id)
 	if candidates.is_empty():
-		candidates = _candidates(RoomSequence.RoomKind.ARENA, sizes)
+		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome_id)
 	if candidates.is_empty():
-		candidates = _candidates(-1, sizes)
+		candidates = _candidates(-1, sizes, biome_id)
 	if candidates.is_empty():
-		var any_size: Array[RoomSequence.RoomSize] = []
-		candidates = _candidates(-1, any_size)
+		candidates = _candidates(-1, any_size, biome_id)
+	if candidates.is_empty():
+		candidates = _candidates(-1, any_size, &"")
 	if candidates.is_empty():
 		return null
-	return _scenes[candidates[rng.randi_range(0, candidates.size() - 1)]]
+	return candidates[rng.randi_range(0, candidates.size() - 1)]
 
 
-## Vector2i(kind, size) stored in a template, following inherited scenes down to room_base.
-## Values not set anywhere fall back to the RoomController defaults (arena, S).
+## Vector2i(kind, size) stored in a template scene, following inherited scenes down to room_base.
+## Values not set anywhere fall back to normal, S.
 static func read_template_info(scene: PackedScene) -> Vector2i:
 	var kind := -1
 	var size := -1
@@ -104,38 +170,44 @@ static func read_template_info(scene: PackedScene) -> Vector2i:
 			var instance := state.get_node_instance(0)
 			base = instance.get_state() if instance != null else null
 		state = base
-	return Vector2i(maxi(kind, RoomSequence.RoomKind.ARENA), maxi(size, RoomSequence.RoomSize.S))
+	return Vector2i(maxi(kind, RoomSequence.RoomKind.NORMAL), maxi(size, RoomSequence.RoomSize.S))
 
 
-# kind -1 = any kind, empty sizes = any size.
-func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize]) -> Array[int]:
+# kind -1 = any kind, empty sizes = any size, empty biome = any biome.
+func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName) -> Array[RoomTemplate]:
 	_ensure_indexed()
-	var result: Array[int] = []
-	for i in _scenes.size():
-		if kind >= 0 and _kinds[i] != kind:
+	var result: Array[RoomTemplate] = []
+	for entry in _entries:
+		if kind >= 0 and int(entry.room_kind) != kind:
 			continue
-		if not sizes.is_empty() and not sizes.has(_sizes[i]):
+		if not sizes.is_empty() and not sizes.has(entry.size_class):
 			continue
-		result.append(i)
+		if not entry.allows_biome(biome_id):
+			continue
+		result.append(entry)
 	return result
+
+
+func _find_scene(scene: PackedScene) -> RoomTemplate:
+	for entry in _entries:
+		if entry.scene == scene:
+			return entry
+	return null
 
 
 func _ensure_indexed() -> void:
 	if _indexed:
 		return
 	_indexed = true
+	for entry in entries:
+		_add_entry(entry)
 	for scene in templates:
-		_add(scene, -1, -1)
+		add_template(scene)
 
 
-func _add(scene: PackedScene, kind: int, size: int) -> void:
-	if scene == null or _scenes.has(scene):
+func _add_entry(entry: RoomTemplate) -> void:
+	if entry == null or entry.scene == null or _entries.has(entry):
 		return
-	if not scene.resource_path.is_empty():
-		for known in _scenes:
-			if known.resource_path == scene.resource_path:
-				return
-	var info := read_template_info(scene)
-	_scenes.append(scene)
-	_kinds.append(kind if kind >= 0 else info.x)
-	_sizes.append(size if size >= 0 else info.y)
+	if find_by_path(entry.scene.resource_path) != null:
+		return
+	_entries.append(entry)

@@ -1,0 +1,86 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_1.tscn" id="2_bones_1"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_2.tscn" id="3_bones_2"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="5_scatter"]
+
+[node name="ArenaCrossL" instance=ExtResource("1_base")]
+room_kind = 1
+room_size_class = 2
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(25, 15)
+entrance_x = 12
+exit_x = 12
+floor_seed = 508
+wall_rects = Array[Rect2i]([Rect2i(0, 0, 7, 4), Rect2i(18, 0, 7, 4), Rect2i(0, 11, 7, 4), Rect2i(18, 11, 7, 4)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(32, 288)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(1568, 288)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(800, 160)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(480, 544)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(1120, 544)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(96, 672)
+
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1504, 672)
+
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(480, 32)
+
+[node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1120, 32)
+
+[node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(800, 480)
+
+[node name="Spawn11" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(480, 864)
+
+[node name="Spawn12" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1120, 864)
+
+[node name="Spawn13" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(352, 288)
+
+[node name="Spawn14" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1248, 288)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(800, 480)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(1120, 160)
+
+[node name="Torch0" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(448, -64)
+
+[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(1024, -64)
+
+[node name="Bones_12" parent="Props" instance=ExtResource("2_bones_1")]
+position = Vector2(480, 952)
+
+[node name="Bones_23" parent="Props" instance=ExtResource("3_bones_2")]
+position = Vector2(32, 696)
+
+[node name="Bones_14" parent="Props" instance=ExtResource("2_bones_1")]
+position = Vector2(1568, 696)
+
+[node name="Ingredients" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("5_scatter")
+allowed = Array[int]([0, 1, 4, 5])

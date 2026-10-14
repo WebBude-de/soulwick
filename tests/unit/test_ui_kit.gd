@@ -104,7 +104,8 @@ func test_card_ignores_clicks_while_disabled() -> void:
 	card.disabled = true
 	card.activate()
 	assert_signal_not_emitted(card, "pressed")
-	assert_almost_eq(card.modulate.a, card.disabled_alpha, 0.001)
+	assert_signal_emitted(card, "rejected", "a blocked card answers (error sound, shake)")
+	assert_eq(card.modulate.a, 1.0, "UX2: blocked cards are not half transparent")
 	card.disabled = false
 	card.activate()
 	assert_signal_emitted(card, "pressed")
@@ -159,6 +160,25 @@ func test_hud_switches_between_dungeon_and_village() -> void:
 	assert_string_contains(hud._room_detail.text, "nächste Heilung in 3")
 	hud.set_heal_countdown(-1)
 	assert_false(hud._room_detail.text.contains("Heilung"))
+
+
+func test_hud_hearts_are_reused_and_capped() -> void:
+	var hud: Hud = add_child_autofree(Hud.new())
+	hud._on_health_changed(7.0, 12.0)
+	assert_eq(hud.get_visible_heart_count(), 6)
+	assert_false(hud._heart_count_label.visible)
+	var icons := hud._hearts.get_child_count()
+	hud._on_health_changed(5.5, 12.0)
+	assert_eq(hud._hearts.get_child_count(), icons, "HP changes reuse the icons")
+	assert_eq(hud._heart_icons[2].texture, Hud.HEART_TEXTURES[3], "5.5 HP: third heart three quarters")
+	hud._on_health_changed(40.0, 40.0)
+	assert_eq(hud.get_visible_heart_count(), Hud.HEARTS_PER_ROW * Hud.HEART_ROWS, "two full rows")
+	# Test players with huge max HP: one heart and a count instead of thousands of icons.
+	hud._on_health_changed(99999.0, 99999.0)
+	assert_eq(hud.get_visible_heart_count(), 1)
+	assert_true(hud._heart_count_label.visible)
+	assert_eq(hud._heart_count_label.text, "×50000")
+	assert_lte(hud._hearts.get_child_count(), Hud.HEARTS_PER_ROW * Hud.HEART_ROWS)
 
 
 func _key(keycode: Key) -> InputEventKey:

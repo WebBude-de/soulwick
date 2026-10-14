@@ -4,6 +4,8 @@ extends VBoxContainer
 ## has the button_hover frame, gold text and a gold ">" cursor; other entries have no frame; disabled
 ## entries are greyed out (#7a7396) and show their hint ("bald"). Keyboard: ↑/↓ (also W/S) skip
 ## disabled entries, Enter/Space activates. Mouse: hover selects, click activates.
+## Entry texts and hints are translation keys or composed texts (D-111): keys re-translate
+## themselves on a language change, composed hints are set again by the main menu.
 
 signal activated(id: StringName)
 signal selection_changed(id: StringName)
@@ -112,14 +114,15 @@ func is_entry_enabled(id: StringName) -> bool:
 	return index >= 0 and _enabled[index]
 
 
+## Text as shown (a key is translated).
 func get_entry_text(id: StringName) -> String:
 	var index := _ids.find(id)
-	return _labels[index].text if index >= 0 else ""
+	return tr(_labels[index].text) if index >= 0 else ""
 
 
 func get_entry_hint(id: StringName) -> String:
 	var index := _ids.find(id)
-	return _hints[index].text if index >= 0 else ""
+	return tr(_hints[index].text) if index >= 0 else ""
 
 
 ## Keyboard handling; returns true if the event was used.

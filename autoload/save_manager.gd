@@ -42,7 +42,7 @@ const LEGACY_USER_DIR_NAME := "Dungeon Roguelite"
 const DEFAULT_VOLUMES: Dictionary[StringName, float] = {&"Music": 0.8, &"SFX": 1.0}
 ## Seen ids that "everything seen" of old saves does not cover: the boss story (BI2,
 ## boss_intro_<boss>) is new and should be shown once also in migrated saves.
-const SEEN_ALL_EXCLUDED_PREFIXES: Array[String] = ["boss_intro_"]
+const SEEN_ALL_EXCLUDED_PREFIXES: Array[String] = ["boss_intro_", "room_intro_"]
 ## Suffix of the copy kept before a migration: slot_1.cfg -> slot_1.cfg.v2.bak (written once).
 const MIGRATION_BACKUP_SUFFIX := ".v%d.bak"
 

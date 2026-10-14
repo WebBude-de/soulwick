@@ -2,8 +2,9 @@ class_name Modal
 extends Control
 ## Full-screen dialog that pauses the whole simulation while open (D-043).
 ## Usage: var modal := Modal.create(reason); fill modal.content; var result = await modal.open(parent)
-## Look (docs/design): overlay rgba(21,19,31,0.78), centred panel, optional footer line at the bottom
-## of the screen that names the keys and "Spiel pausiert".
+## Look (docs/design): overlay rgba(21,19,31,0.78), centred panel. Keys are named either in the
+## key bar inside the panel (set_key_hints: key caps + "Spiel pausiert", the dungeon menu kit of
+## UX2) or, for older dialogs, in a footer line at the bottom of the screen (set_footer).
 
 signal finished(result: Variant)
 
@@ -14,6 +15,8 @@ const CONTENT_GAP := 6.0
 const FOOTER_BOTTOM := 12.0
 
 var content: VBoxContainer = null
+## Key bar under content inside the panel (hidden until set_key_hints).
+var key_bar: VBoxContainer = null
 ## The panel around content (PanelContainer); set custom_minimum_size here for fixed widths.
 var frame: PanelContainer = null
 var pause_reason: StringName = &""
@@ -79,6 +82,38 @@ func set_footer(text: String, color := UiKit.COLOR_DISABLED) -> void:
 	_footer.add_theme_color_override("font_color", color)
 
 
+## Key bar inside the panel, below everything in content: a divider, then key caps with captions
+## (entries: [[key, caption], ...], e.g. [["1–3", "wählen"], ["Esc", "später"]]) and, with
+## paused, "Spiel pausiert" on the right. action (e.g. the "Schließen" button of the shop) sits on
+## the right of the bar and saves a row of its own. Calling it again replaces the bar.
+func set_key_hints(entries: Array, paused := true, action: Control = null) -> void:
+	for child in key_bar.get_children():
+		child.queue_free()
+	key_bar.visible = true
+	key_bar.add_child(UiKit.separator())
+	var row := UiKit.hbox(int(UiKit.px(8)))
+	row.name = "Keys"
+	key_bar.add_child(row)
+	for entry: Array in entries:
+		var pair := UiKit.hbox(int(UiKit.px(3)))
+		pair.add_child(UiChip.key(String(entry[0])))
+		var caption := UiKit.text_label(String(entry[1]), UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		pair.add_child(caption)
+		row.add_child(pair)
+	var filler := Control.new()
+	filler.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	filler.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(filler)
+	if action != null:
+		action.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(action)
+	if paused:
+		var note := UiKit.text_label(DungeonTexts.t(&"MENU_PAUSED"), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+		note.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(note)
+
+
 ## Fixed panel width in mockup pixels (dialogs: 220 / 230 / 250, pause: 170).
 func set_width(spec_width: float) -> void:
 	frame.custom_minimum_size.x = UiKit.px(spec_width)
@@ -98,8 +133,14 @@ func _build(panel_kind: StringName) -> void:
 	frame = UiKit.panel(panel_kind)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(frame)
+	var outer := UiKit.vbox(int(UiKit.px(CONTENT_GAP)))
+	frame.add_child(outer)
 	content = UiKit.vbox(int(UiKit.px(CONTENT_GAP)))
-	frame.add_child(content)
+	outer.add_child(content)
+	key_bar = UiKit.vbox(int(UiKit.px(4)))
+	key_bar.name = "KeyBar"
+	key_bar.visible = false
+	outer.add_child(key_bar)
 
 
 func _unhandled_input(event: InputEvent) -> void:

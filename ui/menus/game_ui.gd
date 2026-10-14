@@ -131,57 +131,63 @@ func open_options() -> void:
 
 ## Run end (UX1): title by reason, room and cycle, cause of death, stat tiles (rooms, kills,
 ## upgrades, time), gold and crystal rows. Returns RUN_END_VILLAGE (Enter) or RUN_END_NEW_RUN (N).
+## Same menu kit as the dungeon dialogs (UX2, UiDialog.create_menu): eyebrow, title, divider,
+## option buttons with key caps and the key bar inside the panel.
 ## stats: RunRecap.get_stats(); empty = this GameUI's own recap.
 func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 	if stats.is_empty():
 		stats = _recap.get_stats()
 	var reason: int = summary.get("reason", RunManager.EndReason.DEATH)
-	var title_text := "Du bist gefallen"
+	var title_text := DungeonTexts.t(&"RUNEND_DEATH")
 	var ratio_text := "50 %"
 	var title_color := UiKit.COLOR_DANGER
 	if reason == RunManager.EndReason.EXIT:
-		title_text = "Dungeon verlassen"
+		title_text = DungeonTexts.t(&"RUNEND_EXIT")
 		ratio_text = "100 %"
 		title_color = UiKit.COLOR_GOLD
 	elif reason == RunManager.EndReason.ABORT:
-		title_text = "Run abgebrochen"
+		title_text = DungeonTexts.t(&"RUNEND_ABORT")
 		title_color = UiKit.COLOR_GOLD
-	var modal := UiDialog.create(GameManager.PAUSE_RUN_END, RUN_END_WIDTH, title_text, "", title_color)
-	modal.cancel_allowed = false
 	var room: int = summary.get("room", 1)
-	var subtitle := "Erreichter Raum %d · Zyklus %d" % [room, floori(float(maxi(1, room) - 1) / RoomSequence.CYCLE_LENGTH) + 1]
-	UiDialog.add_subtitle(modal, subtitle)
+	var cycle := floori(float(maxi(1, room) - 1) / RoomSequence.CYCLE_LENGTH) + 1
+	var modal := UiDialog.create_menu(GameManager.PAUSE_RUN_END, RUN_END_WIDTH, title_text,
+			DungeonTexts.t(&"RUNEND_SUBTITLE", [room, cycle]), DungeonTexts.t(&"RUNEND_EYEBROW"), title_color, title_color)
+	modal.cancel_allowed = false
 	var record_before: int = stats.get("record_before", 0)
 	if record_before > 0 and room > record_before:
-		var record := UiKit.text_label("Neuer Rekord! (bisher Raum %d)" % record_before, UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
+		var record := UiKit.text_label(DungeonTexts.t(&"RUNEND_RECORD", [record_before]), UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
 		record.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		modal.content.add_child(record)
 	var cause: String = stats.get("cause", "")
 	if reason == RunManager.EndReason.DEATH and not cause.is_empty():
-		var cause_label := UiKit.text_label("Todesursache: %s" % cause, UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
+		var cause_label := UiKit.text_label(DungeonTexts.t(&"RUNEND_CAUSE", [cause]), UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
 		cause_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		modal.content.add_child(cause_label)
 	modal.content.add_child(_stat_tiles([
-		[str(stats.get("rooms_cleared", 0)), "Räume"],
-		[str(stats.get("kills", 0)), "Gegner"],
-		[str(stats.get("upgrades", 0)), "Upgrades"],
-		[RunRecap.format_duration(stats.get("play_time", 0.0)), "Zeit"],
+		[str(stats.get("rooms_cleared", 0)), DungeonTexts.t(&"RUNEND_ROOMS")],
+		[str(stats.get("kills", 0)), DungeonTexts.t(&"RUNEND_KILLS")],
+		[str(stats.get("upgrades", 0)), DungeonTexts.t(&"RUNEND_UPGRADES")],
+		[RunRecap.format_duration(stats.get("play_time", 0.0)), DungeonTexts.t(&"RUNEND_TIME")],
 	]))
 	var rows: Array = [
-		["Run-Gold gesammelt", str(summary.get("gold_earned", summary.get("remaining_gold", 0))), UiKit.COLOR_TEXT_SOFT],
-		["Run-Gold übrig", str(summary.get("remaining_gold", 0)), UiKit.COLOR_GOLD],
-		["Gutschrift (%s)" % ratio_text, "+%d" % summary.get("payout", 0), UiKit.COLOR_SUCCESS],
+		[DungeonTexts.t(&"RUNEND_GOLD_EARNED"), str(summary.get("gold_earned", summary.get("remaining_gold", 0))), UiKit.COLOR_TEXT_SOFT],
+		[DungeonTexts.t(&"RUNEND_GOLD_LEFT"), str(summary.get("remaining_gold", 0)), UiKit.COLOR_GOLD],
+		[DungeonTexts.t(&"RUNEND_PAYOUT", [ratio_text]), "+%d" % summary.get("payout", 0), UiKit.COLOR_SUCCESS],
 	]
 	if summary.get("remaining_crystals", 0) > 0:
-		rows.append(["Seelenkristalle (%s)" % ratio_text, "+%d" % summary.get("crystal_payout", 0), UiKit.COLOR_CRYSTAL])
-	rows.append(["Gold im Dorf", str(SaveManager.get_permanent_gold()), UiKit.COLOR_TEXT])
+		rows.append([DungeonTexts.t(&"RUNEND_CRYSTALS", [ratio_text]), "+%d" % summary.get("crystal_payout", 0), UiKit.COLOR_CRYSTAL])
+	rows.append([DungeonTexts.t(&"RUNEND_VILLAGE_GOLD"), str(SaveManager.get_permanent_gold()), UiKit.COLOR_TEXT])
 	UiDialog.add_rows(modal, rows)
 	UiDialog.add_buttons(modal, [
-		{"text": "Zurück ins Dorf", "sub": "Enter", "result": RUN_END_VILLAGE, "default": true},
-		{"text": "Neuer Run", "sub": "N", "result": RUN_END_NEW_RUN},
+		{"text": DungeonTexts.t(&"RUNEND_TO_VILLAGE"), "key": DungeonTexts.t(&"MENU_KEY_ENTER"), "result": RUN_END_VILLAGE, "default": true},
+		{"text": DungeonTexts.t(&"RUNEND_NEW_RUN"), "key": "N", "result": RUN_END_NEW_RUN},
 	], false)
 	modal.hotkeys[KEY_N] = modal.finish.bind(RUN_END_NEW_RUN)
-	UiDialog.add_footnote(modal, "Alle Rekorde stehen in der Chronik im Dorf.")
+	UiDialog.add_footnote(modal, DungeonTexts.t(&"RUNEND_FOOTNOTE"))
+	modal.set_key_hints([
+		[DungeonTexts.t(&"MENU_KEY_ENTER"), DungeonTexts.t(&"RUNEND_HINT_VILLAGE")],
+		["N", DungeonTexts.t(&"RUNEND_HINT_NEW_RUN")],
+	])
 	var choice: Variant = await modal.open(self)
 	return choice if choice is StringName else RUN_END_VILLAGE
 

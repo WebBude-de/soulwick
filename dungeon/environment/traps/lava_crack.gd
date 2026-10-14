@@ -105,7 +105,7 @@ func is_warning() -> bool:
 
 
 func _player_near() -> bool:
-	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	var player := EnemyTargeting.nearest_living(get_tree().get_nodes_in_group(&"player"), global_position)
 	return player != null and player.global_position.distance_to(global_position) <= WAKE_DISTANCE
 
 

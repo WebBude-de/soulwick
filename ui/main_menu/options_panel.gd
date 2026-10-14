@@ -1,8 +1,9 @@
 class_name OptionsPanel
 extends MenuPanel
-## "Optionen" in the main menu: the shared OptionsView (volumes, window mode, screen shake, key
-## overview), the same as in the pause menu. Global settings, not per save slot. Esc on the settings
-## page (or "Zurück") closes the panel; volumes are saved when it closes or a slider is released.
+## "Optionen" in the main menu: the shared OptionsView (language, volumes, window mode, game feel,
+## key overview), the same as in the pause menu. Global settings, not per save slot. Esc (or
+## "Zurück") closes the panel unless the view uses it (reset question); volumes are saved when it
+## closes or a slider is released.
 
 ## Kept for callers and tests: one ←/→ step of a volume slider.
 const STEP := OptionsView.STEP

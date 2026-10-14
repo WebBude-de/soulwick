@@ -19,6 +19,7 @@
 
 ## 3. Wo steht was zu tun ist
 
+0. [docs/PRODUKT.md](docs/PRODUKT.md): Produktüberblick für **beide** Repositories (Pitch, Säulen, Loop, Online-Teil, Plattformen, Begriffe); zuerst lesen, wenn der Produktkontext fehlt.
 1. [docs/ROADMAP.md](docs/ROADMAP.md): Haupt-Roadmap (MVP + Endlos-Ausbau, fast fertig) und Prüfstand.
 2. [docs/ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md): **als Nächstes**, in Phasen (D-106): Phase 1 spielbar machen (Hauptmenü, Spielstände, UX, Dorf), Phase 2 **alle Räume** nach [docs/KONZEPT_RAEUME.md](docs/KONZEPT_RAEUME.md) als Einzelspieler-Content, jedes Paket mit Koop-Check.
 3. [docs/ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md): Phase 3, erst nach den Räumen: Koop, Steam, Server, Gilden, Ranglisten; das Plattform-Repo (MP7, MP7b) darf jederzeit parallel laufen. Danach Phase 4 KI-Bosse ([docs/ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md)).

@@ -3,6 +3,9 @@ extends PanelContainer
 ## Base of the main menu's sub panels (Spielstände, Neuer Spielstand, Optionen): framed panel with
 ## eyebrow + title, content rows and a key line at the bottom. The main menu forwards keys to
 ## handle_input(); Esc (or the back button) emits closed.
+## Texts are translation keys (D-111): header and footer labels re-translate themselves on a
+## language change; panels with composed texts call set_header()/set_footer() again in
+## _notification(NOTIFICATION_TRANSLATION_CHANGED).
 
 signal closed
 
@@ -10,6 +13,8 @@ signal closed
 const PADDING := Vector2(8, 10)
 
 var content: VBoxContainer = null
+var _eyebrow: Label = null
+var _title: Label = null
 var _footer: Label = null
 
 
@@ -25,16 +30,27 @@ func set_width(spec_width: float) -> void:
 	custom_minimum_size.x = UiKit.px(spec_width)
 
 
+## eyebrow_text and title_text: translation keys or ready texts (the eyebrow is shown in capitals).
 func add_header(eyebrow_text: String, title_text: String) -> void:
 	var box := UiKit.vbox(int(UiKit.px(1)))
 	if not eyebrow_text.is_empty():
-		box.add_child(UiKit.eyebrow(eyebrow_text, UiKit.COLOR_MUTED))
-	var title := UiKit.text_label(title_text, UiKit.SIZE_TITLE, UiKit.COLOR_GOLD, true)
-	box.add_child(title)
+		_eyebrow = UiKit.eyebrow(eyebrow_text, UiKit.COLOR_MUTED)
+		_eyebrow.uppercase = true
+		box.add_child(_eyebrow)
+	_title = UiKit.text_label(title_text, UiKit.SIZE_TITLE, UiKit.COLOR_GOLD, true)
+	box.add_child(_title)
 	content.add_child(box)
 
 
-## Key line under the content, e.g. "↑↓ wählen · Enter spielen · Esc zurück".
+## Replaces the header texts (composed texts after a language change).
+func set_header(eyebrow_text: String, title_text: String) -> void:
+	if _eyebrow != null:
+		_eyebrow.text = eyebrow_text
+	if _title != null:
+		_title.text = title_text
+
+
+## Key line under the content (translation key or composed text), e.g. "↑↓ wählen · Esc zurück".
 func set_footer(text: String) -> void:
 	if _footer == null:
 		_footer = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
@@ -44,8 +60,9 @@ func set_footer(text: String) -> void:
 	content.move_child(_footer, content.get_child_count() - 1)
 
 
+## The footer as shown (keys translated).
 func get_footer_text() -> String:
-	return _footer.text if _footer != null else ""
+	return tr(_footer.text) if _footer != null else ""
 
 
 ## Override: return true if the event was used.

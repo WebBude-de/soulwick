@@ -17,6 +17,7 @@ var _seed := randf() * 100.0
 static func flash(parent: Node, global_pos: Vector2, flash_radius: float, duration := 0.35) -> void:
 	var light := LightSource.new()
 	light.radius = flash_radius
+	light.intensity *= GameOptions.get_flash_strength()
 	parent.add_child(light)
 	light.global_position = global_pos
 	var tween := light.create_tween()

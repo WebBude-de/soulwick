@@ -3,7 +3,8 @@
 > **Status:** Produktanforderungen, Zielbild MVP · **Stand:** 13.10.2026  
 > **Verbindliche Quelle:** `GDD Master 1.0 – überarbeitet` (10.10.2026), einschließlich späterer explizit bestätigter Entscheidungen.  
 > **Leseregel:** `VERBINDLICH` = beschlossen; `TESTWERT` = vorläufige Balance; `OFFEN` = Teamentscheidung ausstehend; `NACH MVP` = kein Lieferumfang des MVP.  
-> **Abgrenzung:** Dieses Dokument beschreibt das **reale Teamprojekt**, nicht das verworfene ChatGPT-Testprojekt.
+> **Abgrenzung:** Dieses Dokument beschreibt das **reale Teamprojekt**, nicht das verworfene ChatGPT-Testprojekt.  
+> **Produktüberblick für beide Repositories:** [docs/PRODUKT.md](PRODUKT.md); dieses PRD enthält die verbindlichen Spielregeln.
 
 ## 1. Was bauen wir?
 
@@ -42,7 +43,11 @@ Ein eigenständiges **2D-Top-down-Dungeon-Roguelite** mit direkter, mausgesteuer
 
 Ab Raum 6 wiederholt sich der Zyklus. **Nach Raum 45** besteht die Wahl zwischen regulärem Ausstieg (100 % des verbleibenden Run-Goldes) und Fortsetzung des laufenden Runs im Endlosmodus. Die abgeschwächte Skalierung **ab Raum 46** ist noch **OFFEN**.
 
+> **Stand Ausbau:** Es gibt kein Ende und keine Wahl bei Raum 45 mehr (KONZEPT_ENDLOS); der Dungeon geht endlos weiter. Nach jedem Boss folgt ein **Lagerfeuer** (zählt nicht als Raum) mit Rast und festem Exit-Portal (D-103).
+
 **Spezialräume:** Shop, Waffenauswahl, Brunnen, Extra-Upgrade. Die vier Typen werden gleichgewichtet gezogen; der unmittelbar vorherige Typ darf sich nicht wiederholen. Angebote sind freiwillig. In **30 % der Spezialräume** erscheint ein reguläres Exit-Portal; mit **E** plus Bestätigung nutzbar. Die technische Reihenfolge von Portalchance und Raumtypziehung ist **OFFEN**.
+
+> **Stand Ausbau:** Spezialräume werden gewichtet gezogen, neu ist der **Prüfungsraum** (D-102); in einem Drittel der Extra-Upgrade-Räume steht der **Pakt-Altar** (D-112). Kampfräume können ab Raum 6 **Kampf-Varianten** (D-101) oder einen **Wagnis-Altar** (D-104) haben; Raumarten Normal/Arena/Abgrund und Formen nach D-100, Anzeige nach D-110, Belohnungen D-109. Details: [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
 
 ### 4.2 Gegner, Spawning und Schwierigkeit – VERBINDLICH
 
@@ -172,7 +177,7 @@ Was **nach** dem MVP kommen soll, steht in Abschnitt 7.
 - **Gilden-Fortschritt** (Vorschlag D-081): Gildenkasse und Gilden-Schmiede auf dem Server, alle Mitglieder profitieren in Gilden-Runs. Schnelles Spiel hat keine Meta-Boni und keine Auszahlung.
 - **Ranglisten** (D-082): Spieler (Solo und Gruppe) und Gilden, gewertet nach dem höchsten erreichten Raum, bei Gleichstand nach Zeit; Allzeit und monatliche Saison (Wertung als Vorschlag).
 - **Server** (D-083): eigener VPS mit Dokploy, Container für API (TypeScript) und Datenbank (PostgreSQL). Nur Gilden-, Run- und Ranglisten-Daten, **kein Echtzeit-Spielverkehr**. Das Spiel funktioniert ohne Server weiter (Einzelspieler, Schnelles Spiel).
-- **Datenschutz:** nur Steam-ID bzw. Geräte-ID, Name, Gilde und Run-Berichte; Löschung auf Wunsch.
+- **Datenschutz:** nur Steam-ID bzw. Geräte-ID, Name, Gilde und Run-Berichte; Löschung auf Wunsch. *Zielbild D-108 (Vorschlag): zusätzlich die Nutzer-IDs von Google Play Games und Game Center.*
 
 ### 7.3 Schwierigkeit nach Spielerzahl (D-084, TESTWERTE)
 
@@ -207,6 +212,8 @@ Was **nach** dem MVP kommen soll, steht in Abschnitt 7.
 
 ### 7.6 Veröffentlichung auf Steam
 
+> **Zielbild (D-108, Vorschlag):** zusätzlich Google Play und App Store mit Crossplay; Details und offene Punkte in [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md).
+
 - **Vor Steam:** Windows-Build, Schnelles Spiel über direkte IP und virtuelles LAN.
 - **Steam-Entwicklung:** Plugin GodotSteam, Test-AppID 480 (Lobbys und Einladungen ohne eigene App).
 - **Eigene App:** Steam Direct (einmalige Gebühr), danach Steam Playtest oder Beta-Branch für Freunde; Steam-Anmeldung am eigenen Server.
@@ -221,6 +228,8 @@ Was **nach** dem MVP kommen soll, steht in Abschnitt 7.
 - Details: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) · Plan: [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md)
 
 ## 8. Begriffe
+
+Spielbegriffe mit englischer Entsprechung (Biom, Dorf, Seelenkristall, Gilde, Saison …): [PRODUKT.md](PRODUKT.md) §10. Hier stehen die technischen MVP-Begriffe.
 
 | Begriff | Bedeutung |
 | --- | --- |

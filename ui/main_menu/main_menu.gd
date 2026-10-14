@@ -9,13 +9,15 @@ extends Control
 ##
 ## Opening the menu copies the save of older builds into slot 1 once (SaveManager). When a slot is
 ## loaded or created, play_requested is emitted after a short fade; scenes/main.gd starts the game.
+## Texts are translation keys (D-111, localization/translations.csv); composed texts (hints with
+## numbers, record, key line) are rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
 
 signal play_requested
 signal quit_requested
 
 const LOGO_TEXTURE: Texture2D = preload("res://art/ui/logo.png")
 const TROPHY_ICON: Texture2D = preload("res://art/ui/trophy_icon.png")
-const TAGLINE := "Das letzte Licht im endlosen Dunkel"
+const TAGLINE: StringName = &"MENU_TAGLINE"
 ## Shown when project.godot has no application/config/version yet.
 const FALLBACK_VERSION := "dev"
 
@@ -46,6 +48,7 @@ var _crystal_value: Label = null
 var _profile_label: Label = null
 var _status: PanelContainer = null
 var _record_label: Label = null
+var _keys_label: Label = null
 var _fade: ColorRect = null
 var _starting := false
 
@@ -54,6 +57,8 @@ func _ready() -> void:
 	theme = UiKit.get_theme()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# The player's language before the first text is built (also when apply_all did not run yet).
+	GameOptions.apply_language()
 	# Older builds had one save file: bring it into slot 1 before anything is shown.
 	SaveManager.import_legacy_save_into_slot()
 
@@ -85,12 +90,14 @@ func refresh() -> void:
 			used += 1
 	if slot > 0:
 		var summary := SaveManager.get_slot_summary(slot)
-		_list.set_entry(ENTRY_CONTINUE, "Weiterspielen", summary.get("name", ""))
+		_list.set_entry(ENTRY_CONTINUE, &"MENU_CONTINUE", summary.get("name", ""))
 		_show_slot_info(summary)
 	else:
-		_list.set_entry(ENTRY_CONTINUE, "Neues Spiel", "Spielstand anlegen")
+		_list.set_entry(ENTRY_CONTINUE, &"MENU_NEW_GAME", &"MENU_NEW_GAME_HINT")
 		_show_slot_info({})
-	_list.set_entry(ENTRY_SLOTS, "Spielstände", "%d / %d belegt" % [used, SaveSlots.SLOT_COUNT])
+	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
+	if _keys_label != null:
+		_keys_label.text = tr(&"MENU_KEYS") % version_text()
 
 
 func get_list() -> MenuList:
@@ -107,6 +114,13 @@ func get_background() -> MenuBackground:
 
 func is_starting() -> bool:
 	return _starting
+
+
+func _notification(what: int) -> void:
+	# Language changed in the options: composed texts (hints, record, key line) are rebuilt.
+	# (is_node_ready() is already true inside _ready, so check the nodes themselves.)
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _list != null and _status != null:
+		refresh()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -241,7 +255,7 @@ func _show_slot_info(summary: Dictionary) -> void:
 		_crystal_value.text = str(summary.get("crystals", 0))
 		_profile_label.text = summary.get("name", "")
 	var record: int = summary.get("deepest_room", 0)
-	_record_label.text = ("Rekord Raum %d" % record) if record > 0 else "Noch kein Rekord"
+	_record_label.text = (tr(&"MENU_RECORD") % record) if record > 0 else tr(&"MENU_NO_RECORD")
 	var data := CharacterCatalog.get_character(summary.get("character", CharacterCatalog.DEFAULT_ID))
 	_background.set_character(data, summary.get("color", Color(0, 0, 0, 0)))
 
@@ -289,11 +303,11 @@ func _build_list() -> void:
 	_list.custom_minimum_size.x = UiKit.px(MENU_WIDTH)
 	_list.size.x = UiKit.px(MENU_WIDTH)
 	add_child(_list)
-	_list.add_entry(ENTRY_CONTINUE, "Weiterspielen")
-	_list.add_entry(ENTRY_SLOTS, "Spielstände")
-	_list.add_entry(ENTRY_ONLINE, "Online / Gilde", "bald", false)
-	_list.add_entry(ENTRY_OPTIONS, "Optionen", "Ton · Bild · Tasten")
-	_list.add_entry(ENTRY_QUIT, "Beenden")
+	_list.add_entry(ENTRY_CONTINUE, &"MENU_CONTINUE")
+	_list.add_entry(ENTRY_SLOTS, &"MENU_SLOTS")
+	_list.add_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"COMMON_SOON", false)
+	_list.add_entry(ENTRY_OPTIONS, &"MENU_OPTIONS", &"MENU_OPTIONS_HINT")
+	_list.add_entry(ENTRY_QUIT, &"MENU_QUIT")
 	_list.activated.connect(activate)
 
 
@@ -325,9 +339,9 @@ func _build_corners() -> void:
 	_record_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	record_row.add_child(_record_label)
 	status_box.add_child(record_row)
-	var keys := UiKit.text_label("%s · ↑↓ wählen · Enter · Esc" % version_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-	keys.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	status_box.add_child(keys)
+	_keys_label = UiKit.text_label(tr(&"MENU_KEYS") % version_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	_keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status_box.add_child(_keys_label)
 	_status.add_child(status_box)
 	_anchor_corner(_status, true)
 	add_child(_status)

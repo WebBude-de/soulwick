@@ -67,6 +67,12 @@ script = ExtResource("5_hitbox")
 [node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
 shape = SubResource("CircleShape2D_attack")
 
+[node name="NavigationAgent" type="NavigationAgent2D" parent="."]
+path_desired_distance = 20.0
+target_desired_distance = 20.0
+path_max_distance = 96.0
+path_metadata_flags = 0
+
 [node name="HealthBar" type="ProgressBar" parent="."]
 z_index = 20
 offset_left = -16.0

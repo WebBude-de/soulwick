@@ -30,6 +30,8 @@ static func format_amount(amount: float) -> String:
 
 
 static func _spawn(parent: Node, global_pos: Vector2, amount: float, font_color: Color) -> void:
+	if not GameOptions.are_damage_numbers_enabled():
+		return
 	_spawn_label(parent, global_pos, format_amount(amount), font_color)
 
 

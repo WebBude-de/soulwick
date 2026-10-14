@@ -48,7 +48,7 @@ func test_special_type_never_repeats() -> void:
 		assert_ne(special, previous)
 		seen[special] = true
 		previous = special
-	assert_eq(seen.size(), 4, "all four special types appear")
+	assert_eq(seen.size(), RoomSequence.SpecialType.size(), "every special type appears")
 
 
 func test_portal_chance_is_about_thirty_percent() -> void:

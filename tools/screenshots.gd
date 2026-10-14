@@ -18,6 +18,8 @@ func _run() -> void:
 		_out_dir = args[0]
 	DirAccess.make_dir_recursive_absolute(_out_dir)
 	# Slots, settings and the old save live in a test folder: the real save is never touched.
+	# Buttons are found by their German texts; English is the default language (D-111).
+	TranslationServer.set_locale("de")
 	var save_manager := root.get_node("SaveManager")
 	_wipe(STORAGE_ROOT)
 	save_manager.set_storage_root(STORAGE_ROOT)

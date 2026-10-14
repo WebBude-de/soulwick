@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="5_skeleton"]
 [ext_resource type="Resource" path="res://enemies/data/archer.tres" id="6_archer"]
 [ext_resource type="Resource" path="res://enemies/data/slime.tres" id="7_slime"]
+[ext_resource type="Resource" path="res://dungeon/rooms/ingredients/sets/shadow_realm.tres" id="20_ingredients"]
 
 [resource]
 script = ExtResource("1_biome")
@@ -22,3 +23,4 @@ boss_music_track = "boss_shadow_lord"
 ambient_track = "ambient_shadow_realm"
 transition_track = "transition_shadow_realm"
 victory_track = "victory_shadow_lord"
+metadata/ingredient_set = ExtResource("20_ingredients")

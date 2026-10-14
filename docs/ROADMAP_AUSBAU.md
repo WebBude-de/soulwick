@@ -120,30 +120,30 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 - [x] Automatische Übernahme der Dateien aus SPRITES_V4 §4, Platzhalter bis dahin. *(14.10.2026: `DoorArt`; gelieferte Grafiken sind eingebunden, gezeichnete Platzhalter nur als Rückfall)*
 - [x] Tests: Türwahl je Biom/Raumtyp, Rückfall ohne Datei. *(14.10.2026: `test_door_style` 17/17, `test_door_node` 12/12; GUT 460/460, validate 0 failed, smoke_test 20 Räume PASS)*
 
-### UX3 – Sprachen und Einstellungen (D-111, läuft in der Plattform-Sitzung)
+### UX3 – Sprachen und Einstellungen (D-111) ✓ *(14.10.2026; Spielgefühl-Schalter vom Integrator angeschlossen: Bildschirmwackeln, Trefferstopp, Schadenszahlen, Blitzstärke in SpriteFx/PostProcess/LightSource/Boss-Intro, `test_main_menu` auf `de`)*
 
-- [ ] Englisch Standard, Deutsch zweite Sprache, Systemsprache automatisch, umschaltbar in den Optionen; `localization/` mit `translations.csv` und Hilfsklasse `Loc`.
-- [ ] Hauptmenü und Optionen auf Übersetzungsschlüssel umgestellt, Einstellungen ausgebaut (`docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md`).
-- [ ] Schlüsselliste als Vorlage für die zweite Runde (HUD, Dorf, Dungeon-Dialoge – Letztere in UX2).
+- [x] Englisch Standard, Deutsch zweite Sprache, Systemsprache automatisch, umschaltbar in den Optionen; `localization/` mit `translations.csv` und Hilfsklasse `Loc`. *(14.10.2026: 101 Schlüssel, `Loc.install/apply/t/resolve`, Registrierung zur Laufzeit ohne `project.godot`; GUT `test_i18n` 6/6)*
+- [x] Hauptmenü und Optionen auf Übersetzungsschlüssel umgestellt, Einstellungen ausgebaut (`docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md`). *(14.10.2026: drei Reiter Allgemein/Bild/Tasten; Sprache, Gesamtlautstärke, Fenstermodus Fenster/Vollbild/Randlos, VSync, Bildschirmwackeln 3-stufig, Trefferstopp, Schadenszahlen, Blitze reduzieren, Zurücksetzen mit Rückfrage; Live-Umschalten über `NOTIFICATION_TRANSLATION_CHANGED`; `python tools/i18n_check.py ui/options ui/main_menu` = 0; GUT gesamt 621/621 (vorher 605/605), validate 0 failed. **Offen für den Integrator:** je eine Zeile in `CameraShake`, `HitStop`, `DamageNumber`, `SpriteFx`/`PostProcess` sowie `test_main_menu.gd` auf `de` festlegen, siehe Konzept §8)*
+- [x] Schlüsselliste als Vorlage für die zweite Runde (HUD, Dorf, Dungeon-Dialoge – Letztere in UX2). *(14.10.2026: Schema in Konzept §3, Backlog je Ordner in §9: 323 Texte in `.gd`/`.tscn`, 399 mit `.tres`; `tools/i18n_check.py` schlägt Schlüssel vor)*
 
-### UX2 – Gut ins Spiel kommen, einheitliche Dungeon-Menüs (nach A8, D-110)
+### UX2 – Gut ins Spiel kommen, einheitliche Dungeon-Menüs (nach A8, D-110) ✓ *(14.10.2026; vom Integrator angeschlossen: `show_room_genre` in `DungeonManager._announce_room` (Lagerfeuer-Plakette ersetzt das alte Banner), `room_intro_` aus „alles gesehen“ ausgenommen, Werkzeuge suchen Knöpfe mit `de`. Offen: englische Texte für die 166 `DungeonTexts`-Schlüssel (zweite Übersetzungsrunde), Katakombe erst ab Raum 2 (Vorschlag UX2, mit A4/A10))*
 
 > Neue und vereinheitlichte Texte direkt als Übersetzungsschlüssel (D-111, `Loc` aus UX3).
 
 **Ziel (Playtest 14.10.2026):** „Die UI-Menüs von Shop, Lagerfeuer usw. im Dungeon sind so stark unterschiedlich … gleiche das an. Gutes UI, übersichtlich, passend zum Spiel. Schau, dass man gut ins Spiel kommt.“
 
-- [ ] **Ein Menü-Baukasten** für alle Dungeon-Dialoge (Upgrade-Wahl, Händler, Waffenwahl, Lagerfeuer, Altar, Pakt, Prüfungstruhe, Tab-Übersicht, Portal, Run-Ende): gleicher Rahmen, Titel, Untertitel, Karten-Layout, Tastenhinweise, Fußzeile, Sounds.
-- [ ] **Klare Zustände statt Halbtransparenz:** nicht leistbar = Karte normal sichtbar, Preis rot + Hinweis „zu wenig Gold“ + Schloss/Fehlton beim Klick; ausverkauft/gesperrt eigenes Abzeichen.
-- [ ] **Raum-Genres anzeigen** (Banner mit Name und Symbol) für Arena, Katakombe, Abgrund, Varianten, Prüfung, Pakt, Wagnis, Lagerfeuer, Spezialräume; normale Kampfräume ohne Namen.
-- [ ] **Erklärkarte beim ersten Mal** je Genre (`room_intro_<genre>`), 1–2 Sätze, nicht pausierend.
-- [ ] **Einstieg prüfen:** erste 10 Minuten eines neuen Spielstands durchgehen (Dorf → Raum 1 → erste Wahl → erster Spezialraum → erster Boss) und Reibungen beheben (Reihenfolge der Hinweise, Überladung, fehlende Erklärungen).
+- [x] **Ein Menü-Baukasten** für alle Dungeon-Dialoge (Upgrade-Wahl, Händler, Waffenwahl, Lagerfeuer, Altar, Pakt, Prüfungstruhe, Tab-Übersicht, Portal, Run-Ende): gleicher Rahmen, Titel, Untertitel, Karten-Layout, Tastenhinweise, Fußzeile, Sounds. *(14.10.2026: `UiDialog.create_menu` + `Modal.set_key_hints` (Tastenkappen `UiChip`, „Spiel pausiert“ im Panel), Optionsknöpfe mit Taste, ←/→ + Enter in Kartenreihen; alle Texte in `DungeonTexts` als Schlüssel; GUT `test_ux2_menus` 11/11)*
+- [x] **Klare Zustände statt Halbtransparenz:** nicht leistbar = Karte normal sichtbar, Preis rot + Hinweis „zu wenig Gold“ + Schloss/Fehlton beim Klick; ausverkauft/gesperrt eigenes Abzeichen. *(14.10.2026: Abzeichen Verkauft / Am Limit / HP voll / Im Besitz / zu wenig Gold mit Schloss, Fehlton + Wackeln bei Klick und Zifferntaste; `button_disabled.png` im Theme und in allen Knöpfen)*
+- [x] **Raum-Genres anzeigen** (Banner mit Name und Symbol) für Arena, Katakombe, Abgrund, Varianten, Prüfung, Pakt, Wagnis, Lagerfeuer, Spezialräume; normale Kampfräume ohne Namen. *(14.10.2026: `RoomGenre` (Tabelle + `resolve`), `DungeonUI.show_room_genre(room)`, Hinterhalt über `arena_started`; Banner warten aufeinander statt sich zu überschreiben; GUT `test_room_genre` 12/12; Spezialräume werden einen Aufruf später benannt, wenn Pakt/Prüfungsart feststehen)*
+- [x] **Erklärkarte beim ersten Mal** je Genre (`room_intro_<genre>`), 1–2 Sätze, nicht pausierend. *(14.10.2026: `RoomIntroCard` am linken Rand wie die Steuerungs-Karte, Laufbalken, 6–13 s je Textlänge)*
+- [x] **Einstieg prüfen:** erste 10 Minuten eines neuen Spielstands durchgehen (Dorf → Raum 1 → erste Wahl → erster Spezialraum → erster Boss) und Reibungen beheben (Reihenfolge der Hinweise, Überladung, fehlende Erklärungen). *(14.10.2026: nur noch eine Lernkarte gleichzeitig (Steuerung tritt zur Seite), Banner-Warteschlange (Boss besiegt → Neu im Dorf → Lagerfeuer), Genre-Banner mit Hintergrund gegen Welt-Beschriftungen, Gegnerkarten über dem HUD; Rest als Haken im Bericht; smoke_test 20 Räume ohne UI-Fehler, GUT gesamt 645/646 – einziger Fehler `test_enemy_nav` aus A2)*
 
 ### A1 – Raumart-Fundament ✓ *(14.10.2026)*
 
 Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `combat_catalog.tres`, Erreichbarkeitsprüfung mit Dash über 1-Tile-Lücken, Tests `test_room_kind.gd`, `test_room_templates.gd`.
 
-- [ ] **Nacharbeit (mit A3):** Raumarten nach D-100 umbenennen: `NORMAL`, `ARENA`, `CHASM` statt `ARENA`, `STRUCTURED`, `ABYSS`; Gewichte Normal 40 / Arena 35 / Abgrund 25.
-- [ ] **Nacharbeit (mit A5):** Mehr Gegner als Spawnpunkte → Rest als zusätzliche Welle (`EnemySpawner` verlangt heute genau 5 Punkte).
+- [x] **Nacharbeit (mit A3):** Raumarten nach D-100 umbenennen: `NORMAL`, `ARENA`, `CHASM` statt `ARENA`, `STRUCTURED`, `ABYSS`; Gewichte Normal 40 / Arena 35 / Abgrund 25. *(14.10.2026: Raum 1–5 nur Normal, Rückfall ohne Vorlage auf Normal; `get_room_kind_label` nennt nur Arena/Abgrund/Katakombe (D-110); test_room_kind 18/18, smoke_test 47 PASS)*
+- [x] **Nacharbeit (mit A5):** Mehr Gegner als Spawnpunkte → Rest als zusätzliche Welle (`EnemySpawner` verlangt heute genau 5 Punkte). *(14.10.2026: `EnemySpawner` nimmt ≥ 5 Punkte, `RoomController._get_markers` gibt alle weiter, `WaveRules.plan_wave_sizes`; GUT test_waves/test_arena grün)*
 
 ### A2 – Gegner-Wegfindung
 
@@ -151,11 +151,12 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 
 **Dateien:** `tools/build_tilesets.gd`, `dungeon/environment/*tileset*.tres`, `enemies/enemy_base.gd`, `enemies/enemy_base.tscn`, `tests/`.
 
-- [ ] Navigation für begehbare Boden-Tiles; Wände, Säulen, Innenmauern und Abgründe nicht begehbar.
-- [ ] `NavigationAgent2D` am Gegner; Wegpunkte nur ohne freie Sicht zum Ziel (spart Rechenzeit).
-- [ ] Fernkämpfer behalten ihr Abstand-Verhalten, suchen ihre Position über Navigation.
-- [ ] Mehrere Ziele vorbereiten (Koop): Ziel = nächster lebender Spieler.
-- [ ] Leistung: 15+ Gegner ohne Ruckler; automatischer Test „kein Gegner hängt länger als 2 s an einer U-Mauer“.
+- [x] Navigation für begehbare Boden-Tiles; Wände, Säulen, Innenmauern und Abgründe nicht begehbar. *(14.10.2026: Navigationsebene in allen vier Dungeon-Tilesets, nur Boden und Brücken begehbar; Atlas-Quellen 1 Innenmauern, 2 Abgrund, 3 Brücken vorbereitet; GUT test_enemy_nav)*
+- [x] `NavigationAgent2D` am Gegner; Wegpunkte nur ohne freie Sicht zum Ziel (spart Rechenzeit). *(14.10.2026: `EnemyNavigation`, Pfad nur wenn Tiles die Linie blockieren, Kisten/Türen weiter mit altem Ausweichen; Teleport landet nie in Säulen)*
+- [x] Fernkämpfer behalten ihr Abstand-Verhalten, suchen ihre Position über Navigation. *(14.10.2026: ohne freie Schusslinie laufen sie den Pfad, bis sie schießen können)*
+- [x] Mehrere Ziele vorbereiten (Koop): Ziel = nächster lebender Spieler. *(14.10.2026: `EnemyTargeting`, alle 0,5 s neu, Wechsel erst bei 48 px Vorsprung; GUT 5 Tests)*
+- [x] Leistung: 15+ Gegner ohne Ruckler; automatischer Test „kein Gegner hängt länger als 2 s an einer U-Mauer“. *(14.10.2026: 18 Gegner 0,66 ms/Frame, 95 % unter 1,2 ms; U-Mauer in boss_sim und `tests/manual/enemy_nav_check.gd`, längstes Stehen 0,87 s)*
+- [x] **Integration (Integrator):** eigene Navigationskarte je Raum (`isolate_room_navigation` in `RoomController._ready`); feste Hindernisse (Kisten, Fässer, Schutt aus Vorlage und Streuer) nehmen ihrer Kachel die Navigation, bis sie zerbrechen (`RoomTiles.set_navigation_blocked`). boss_sim prüft Bosse und U-Mauer auf leerem Boden statt im zufälligen Raum 1. *(14.10.2026: GUT `test_solid_props_take_the_navigation_off_their_tile`, boss_sim mehrfach grün)*
 
 ### A3 – Formen und Zutaten (KONZEPT_RAEUME §3)
 
@@ -163,18 +164,18 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 
 **Dateien:** `dungeon/rooms/**`, `dungeon/room_sequence.gd`, `tools/generate_room_templates.py`, neue `RoomTemplate`- und `IngredientSet`-Ressourcen, `tests/`.
 
-- [ ] `RoomTemplate`-Resource (Raumart, Form, Größe, Türseiten, Spawnpunkte, erlaubte Biome) statt loser Exporte; Katalog daraus.
-- [ ] `RoomTiles.wall_rects` für Innenmauern mit den gelieferten `inner_wall_tiles*.png` (je Biom).
-- [ ] **Formen** in S/M/L: Rechteck, L-Form, Kreuz, Ring, Zwei Kammern, Säulenhalle; **Katakombe** (M/L, höchstens zwei Sackgassen, Truhe in der tiefsten).
-- [ ] **Zutaten-Streuer** je Biom (`IngredientSet`): Deckung, Fallengruppen, Innenmauern/Säulen, Engstellen/Nischen, Lichtinseln/Dunkelzonen, Explosionsfässer; 2–3 Zutaten je Raum; danach Erreichbarkeitsprüfung.
-- [ ] **Unsichtbare Variation:** Gegnergruppen nach Thema, stiller Raum (8 %, gleiche Gesamt-HP).
-- [ ] Tests: jede Form erreichbar in jedem Biom, Streuer blockiert nie den Weg, Verteilung über viele Seeds.
+- [x] `RoomTemplate`-Resource (Raumart, Form, Größe, Türseiten, Spawnpunkte, erlaubte Biome) statt loser Exporte; Katalog daraus. *(14.10.2026: `dungeon/rooms/templates/*.tres`, `combat_catalog.tres` listet sie, Biom-Filter in `RoomCatalog.pick`; test_room_templates 8/8)*
+- [x] `RoomTiles.wall_rects` für Innenmauern mit den gelieferten `inner_wall_tiles*.png` (je Biom). *(14.10.2026, nach Playtest geändert: alle Mauern, außen wie innen, aus einer Boden-Maske nach SPRITES_V6 – Krone mit Kante, eine Reihe Front nur über Boden; Teile je Biom aus der Außenwand erzeugt (`WallAutotile`), `wall_autotile_<biom>.png` wird übernommen, sobald geliefert; test_room_shapes 13/13)*
+- [x] **Formen** in S/M/L: Rechteck, L-Form, Kreuz, Ring, Zwei Kammern, Säulenhalle; **Katakombe** (M/L, höchstens zwei Sackgassen, Truhe in der tiefsten). *(14.10.2026: 26 Vorlagen, davon 6 Arena (Rechteck/Kreuz/Säulenhalle M/L); Generator prüft Erreichbarkeit, Mauerregel und Katakomben-Regeln; Truhe gibt Upgrade-Auswahl nach dem Kampf (D-109))*
+- [x] **Zutaten-Streuer** je Biom (`IngredientSet`): Deckung, Fallengruppen, Innenmauern/Säulen, Engstellen/Nischen, Lichtinseln/Dunkelzonen, Explosionsfässer; 2–3 Zutaten je Raum; danach Erreichbarkeitsprüfung. *(14.10.2026: `IngredientScatter` in jeder Kampfvorlage, ein Wurf des Dungeon-RNG je Raum; Dunkelzonen wirken erst mit dem VisionOverlay-Haken; test_ingredient_scatter 11/11, test_ingredient_nodes 6/6)*
+- [x] **Unsichtbare Variation:** Gegnergruppen nach Thema, stiller Raum (8 %, gleiche Gesamt-HP). *(14.10.2026: `EncounterVariation` liefert `EncounterGroup`-Daten (A5); vom Integrator nach `room_container.add_child(room)` angeschlossen; test_room_variation 7/7)*
+- [x] Tests: jede Form erreichbar in jedem Biom, Streuer blockiert nie den Weg, Verteilung über viele Seeds. *(14.10.2026: 26 Vorlagen × 4 Biome × 6 Seeds, 400 Seeds Verteilung; GUT gesamt 618/621 – die 3 Fehler liegen in test_i18n, test_main_menu, test_ux_options (UI/Sprache, laufende andere Pakete); smoke_test 47 PASS)*
 
 ### A5 – Arena mit Wellen (KONZEPT_RAEUME §3.1)
 
-- [ ] 2–3 Wellen, Welle 2 startet bei höchstens einem verbleibenden Gegner; Spawn aus Wandlöchern/Toren an mindestens zwei Seiten, Mindestabstand 96 px zum Spieler.
-- [ ] Variante **Hinterhalt**: Raum wirkt leer, Gegner brechen beim Schließen der Tür aus den Wänden.
-- [ ] Arena-Formen (Rechteck M/L, Kreuz, Säulenhalle); Balance mit `balance_sim.gd` gegenprüfen.
+- [x] 2–3 Wellen, Welle 2 startet bei höchstens einem verbleibenden Gegner; Spawn aus Wandlöchern/Toren an mindestens zwei Seiten, Mindestabstand 96 px zum Spieler. *(14.10.2026: `dungeon/rooms/waves/` – `WaveRules`, `WallGates`, `ArenaWaves`, `WallBreach` mit den Grafiken aus SPRITES_V5 §2; ab Raum 6, ab Raum 15 drei Wellen; Gegner warten passiv in der Wand und treten heraus; Abstand zu allen Spielern; GUT 600/600, smoke_test 47 PASS)*
+- [x] Variante **Hinterhalt**: Raum wirkt leer, Gegner brechen beim Schließen der Tür aus den Wänden. *(14.10.2026: 25 % der Arenen, TESTWERT; Start über `Door.state_changed`, erste Welle aus ≥ 3 Wänden; test_arena)*
+- [x] Arena-Formen (Rechteck M/L, Kreuz, Säulenhalle); Balance mit `balance_sim.gd` gegenprüfen. *(14.10.2026: Formen aus A3; Bot 12 Runs Schwert: Median Raum 28 mit Arenen gegen 30 ohne, Schaden je Kampfraum 6–14 0,21 statt 0,10 HP, 16–29 0,70 statt 0,49; Wellengröße × 0,75 als TESTWERT)*
 
 ### A6 – Lagerfeuer (KONZEPT_RAEUME §6.3) ✓ *(14.10.2026)*
 

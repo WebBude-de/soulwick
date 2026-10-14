@@ -1,39 +1,140 @@
 class_name GameOptions
 extends RefCounted
-## Player options that are not volumes (UX1): window mode and screen shake. Global like the
+## Player options that are not the Music/SFX volumes (UX1, UX3): language (D-111), master volume,
+## window mode, VSync, screen shake, hit stop, damage numbers, reduced flashes. Global like the
 ## volumes (settings.cfg [options] via SaveManager.get_option/set_option, not per save slot).
-## apply_all() runs at start (scenes/main.gd, scenes/world_controller.gd); the options panel calls
+## apply_all() runs at start (scenes/main.gd, scenes/world_controller.gd); the options view calls
 ## the setters, which store and apply at once. F11 toggles the window mode everywhere.
+##
+## Game-feel switches are read where the effect happens (one line each, see
+## docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md "Haken"): CameraShake (enabled is set here already,
+## strength via get_screen_shake_strength()), HitStop.trigger (is_hit_stop_enabled()),
+## DamageNumber (are_damage_numbers_enabled()), SpriteFx.flash / PostProcess.hit_pulse
+## (get_flash_strength()).
 
+const LANGUAGE: StringName = &"language"
+## Bus "Master" as an option: SaveManager's volumes only know the Music and SFX buses (their
+## defaults decide what is read back from settings.cfg), so Master would not survive a restart there.
+const MASTER_VOLUME: StringName = &"master_volume"
+const WINDOW_MODE: StringName = &"window_mode"
+## UX1 stored a bool here; it is read once to migrate to WINDOW_MODE.
 const FULLSCREEN: StringName = &"fullscreen"
+const VSYNC: StringName = &"vsync"
+## Strength 0 / 0.5 / 1 (UX1 stored a bool, read as 0 or 1).
 const SCREEN_SHAKE: StringName = &"screen_shake"
+const HIT_STOP: StringName = &"hit_stop"
+const DAMAGE_NUMBERS: StringName = &"damage_numbers"
+const REDUCE_FLASHES: StringName = &"reduce_flashes"
+
+const LANGUAGE_AUTO: StringName = &"auto"
+const LANGUAGES: Array[StringName] = [LANGUAGE_AUTO, &"en", &"de"]
+const WINDOWED: StringName = &"windowed"
+const FULLSCREEN_MODE: StringName = &"fullscreen"
+const BORDERLESS: StringName = &"borderless"
+const WINDOW_MODES: Array[StringName] = [WINDOWED, FULLSCREEN_MODE, BORDERLESS]
+const SHAKE_OFF := 0.0
+const SHAKE_LIGHT := 0.5
+const SHAKE_NORMAL := 1.0
+const SHAKE_STRENGTHS: Array[float] = [SHAKE_OFF, SHAKE_LIGHT, SHAKE_NORMAL]
+## Flash peak with "Blitze reduzieren" (TESTWERT): hit flashes and the chromatic pulse scaled down.
+const REDUCED_FLASH_STRENGTH := 0.35
+const MASTER_BUS: StringName = &"Master"
+
+const DEFAULTS := {
+	LANGUAGE: "auto",
+	MASTER_VOLUME: 1.0,
+	WINDOW_MODE: "windowed",
+	VSYNC: true,
+	SCREEN_SHAKE: SHAKE_NORMAL,
+	HIT_STOP: true,
+	DAMAGE_NUMBERS: true,
+	REDUCE_FLASHES: false,
+}
 
 
 static func apply_all() -> void:
+	apply_language()
 	apply_window_mode()
+	apply_vsync()
+	apply_master_volume()
 	CameraShake.enabled = is_screen_shake_enabled()
 
 
+## Everything back to the defaults: options and the Music/SFX volumes, never save slots.
+static func reset_to_defaults() -> void:
+	for key in DEFAULTS:
+		SaveManager.set_option(key, DEFAULTS[key])
+	for bus in SaveManager.DEFAULT_VOLUMES:
+		SaveManager.set_volume(bus, SaveManager.DEFAULT_VOLUMES[bus])
+	SaveManager.save_settings()
+	apply_all()
+
+
+# --- Language (D-111) ---
+
+## "auto", "en" or "de".
+static func get_language() -> StringName:
+	var value := StringName(SaveManager.get_option(LANGUAGE, "auto"))
+	return value if LANGUAGES.has(value) else LANGUAGE_AUTO
+
+
+static func set_language(language: StringName) -> void:
+	if not LANGUAGES.has(language):
+		language = LANGUAGE_AUTO
+	SaveManager.set_option(LANGUAGE, String(language))
+	apply_language()
+
+
+static func apply_language() -> void:
+	Loc.apply(get_language())
+
+
+# --- Audio ---
+
+## Linear 0..1 of the Master bus.
+static func get_master_volume() -> float:
+	return clampf(SaveManager.get_option(MASTER_VOLUME, 1.0), 0.0, 1.0)
+
+
+static func set_master_volume(linear: float) -> void:
+	SaveManager.set_option(MASTER_VOLUME, clampf(linear, 0.0, 1.0))
+	apply_master_volume()
+
+
+static func apply_master_volume() -> void:
+	var index := AudioServer.get_bus_index(MASTER_BUS)
+	if index >= 0:
+		AudioServer.set_bus_volume_db(index, linear_to_db(maxf(0.0001, get_master_volume())))
+
+
+# --- Window ---
+
+## "windowed", "fullscreen" or "borderless". A UX1 file with fullscreen=true reads as "fullscreen".
+static func get_window_mode() -> StringName:
+	var value := StringName(SaveManager.get_option(WINDOW_MODE, ""))
+	if WINDOW_MODES.has(value):
+		return value
+	return FULLSCREEN_MODE if SaveManager.get_option(FULLSCREEN, false) else WINDOWED
+
+
+static func set_window_mode(mode: StringName) -> void:
+	if not WINDOW_MODES.has(mode):
+		mode = WINDOWED
+	SaveManager.set_option(WINDOW_MODE, String(mode))
+	apply_window_mode()
+
+
+## Fullscreen or borderless: the window covers the screen.
 static func is_fullscreen() -> bool:
-	return SaveManager.get_option(FULLSCREEN, false)
+	return get_window_mode() != WINDOWED
 
 
 static func set_fullscreen(on: bool) -> void:
-	SaveManager.set_option(FULLSCREEN, on)
-	apply_window_mode()
+	set_window_mode(FULLSCREEN_MODE if on else WINDOWED)
 
 
 static func toggle_fullscreen() -> void:
 	set_fullscreen(not is_fullscreen())
-
-
-static func is_screen_shake_enabled() -> bool:
-	return SaveManager.get_option(SCREEN_SHAKE, true)
-
-
-static func set_screen_shake(on: bool) -> void:
-	SaveManager.set_option(SCREEN_SHAKE, on)
-	CameraShake.enabled = on
 
 
 ## Puts the window into the stored mode. Leaves a maximised window alone when "Fenster" is chosen,
@@ -41,13 +142,114 @@ static func set_screen_shake(on: bool) -> void:
 static func apply_window_mode() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
-	var mode := DisplayServer.window_get_mode()
-	var is_full := mode == DisplayServer.WINDOW_MODE_FULLSCREEN or mode == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
-	if is_fullscreen() and not is_full:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
-	elif not is_fullscreen() and is_full:
-		DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+	var current := DisplayServer.window_get_mode()
+	var is_full := current == DisplayServer.WINDOW_MODE_FULLSCREEN or current == DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN
+	var is_borderless := DisplayServer.window_get_flag(DisplayServer.WINDOW_FLAG_BORDERLESS)
+	var screen := DisplayServer.window_get_current_screen()
+	match get_window_mode():
+		FULLSCREEN_MODE:
+			if is_borderless:
+				DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+			if not is_full:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_FULLSCREEN)
+		BORDERLESS:
+			# A frameless window the size of the screen (no mode switch, alt-tab stays quick).
+			if is_full or current == DisplayServer.WINDOW_MODE_MAXIMIZED:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, true)
+			DisplayServer.window_set_position(DisplayServer.screen_get_position(screen))
+			DisplayServer.window_set_size(DisplayServer.screen_get_size(screen))
+		_:
+			if is_full:
+				DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED)
+			if is_borderless:
+				# Back from borderless: the project's window size, centred on the same screen.
+				DisplayServer.window_set_flag(DisplayServer.WINDOW_FLAG_BORDERLESS, false)
+				var size := Vector2i(
+					int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280)),
+					int(ProjectSettings.get_setting("display/window/size/viewport_height", 720)))
+				DisplayServer.window_set_size(size)
+				var offset := Vector2i(Vector2(DisplayServer.screen_get_size(screen) - size) * 0.5)
+				DisplayServer.window_set_position(DisplayServer.screen_get_position(screen) + offset)
 
+
+static func is_vsync_enabled() -> bool:
+	return SaveManager.get_option(VSYNC, true)
+
+
+static func set_vsync(on: bool) -> void:
+	SaveManager.set_option(VSYNC, on)
+	apply_vsync()
+
+
+static func apply_vsync() -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED if is_vsync_enabled() else DisplayServer.VSYNC_DISABLED)
+
+
+# --- Game feel ---
+
+## 0 (off), 0.5 (light) or 1 (normal). Hook for CameraShake.shake: multiply the trauma with it.
+static func get_screen_shake_strength() -> float:
+	var value: Variant = SaveManager.get_option(SCREEN_SHAKE, -1.0)
+	if typeof(value) == TYPE_FLOAT and value >= 0.0:
+		return clampf(value, 0.0, 1.0)
+	# UX1 stored a bool (false = off); an int from a hand-edited file counts as a strength too.
+	var legacy: Variant = SaveManager.get_option(SCREEN_SHAKE, true)
+	if typeof(legacy) == TYPE_BOOL:
+		return SHAKE_NORMAL if legacy else SHAKE_OFF
+	var number: Variant = SaveManager.get_option(SCREEN_SHAKE, 1)
+	return clampf(float(number), 0.0, 1.0)
+
+
+static func set_screen_shake_strength(strength: float) -> void:
+	SaveManager.set_option(SCREEN_SHAKE, clampf(strength, 0.0, 1.0))
+	CameraShake.enabled = strength > 0.0
+
+
+static func is_screen_shake_enabled() -> bool:
+	return get_screen_shake_strength() > 0.0
+
+
+## Kept for callers of UX1: on = normal strength, off = none.
+static func set_screen_shake(on: bool) -> void:
+	set_screen_shake_strength(SHAKE_NORMAL if on else SHAKE_OFF)
+
+
+## Hook for HitStop.trigger: return early when false.
+static func is_hit_stop_enabled() -> bool:
+	return SaveManager.get_option(HIT_STOP, true)
+
+
+static func set_hit_stop(on: bool) -> void:
+	SaveManager.set_option(HIT_STOP, on)
+
+
+## Hook for DamageNumber._spawn: no floating numbers when false (status texts stay).
+static func are_damage_numbers_enabled() -> bool:
+	return SaveManager.get_option(DAMAGE_NUMBERS, true)
+
+
+static func set_damage_numbers(on: bool) -> void:
+	SaveManager.set_option(DAMAGE_NUMBERS, on)
+
+
+static func is_reduce_flashes_enabled() -> bool:
+	return SaveManager.get_option(REDUCE_FLASHES, false)
+
+
+static func set_reduce_flashes(on: bool) -> void:
+	SaveManager.set_option(REDUCE_FLASHES, on)
+
+
+## 1.0 normally, REDUCED_FLASH_STRENGTH with "Blitze reduzieren". Hook for SpriteFx.flash (peak of
+## the flash parameter), PostProcess.hit_pulse (strength) and LightSource.flash (intensity).
+static func get_flash_strength() -> float:
+	return REDUCED_FLASH_STRENGTH if is_reduce_flashes_enabled() else 1.0
+
+
+# --- Shortcuts ---
 
 ## F11 toggles fullscreen. Returns true if the event was used.
 static func handle_shortcut(event: InputEvent) -> bool:

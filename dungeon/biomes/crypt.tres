@@ -7,6 +7,7 @@
 [ext_resource type="Resource" path="res://enemies/data/archer.tres" id="5_archer"]
 [ext_resource type="Resource" path="res://enemies/data/shadow.tres" id="6_shadow"]
 [ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="7_bomber"]
+[ext_resource type="Resource" path="res://dungeon/rooms/ingredients/sets/crypt.tres" id="20_ingredients"]
 
 [resource]
 script = ExtResource("1_biome")
@@ -22,3 +23,4 @@ boss_music_track = "boss_bone_king"
 ambient_track = "ambient_crypt"
 transition_track = "transition_crypt"
 victory_track = "victory_bone_king"
+metadata/ingredient_set = ExtResource("20_ingredients")

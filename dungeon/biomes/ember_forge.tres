@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://enemies/data/necromancer.tres" id="7_necromancer"]
 [ext_resource type="Resource" path="res://enemies/data/splitter_slime.tres" id="8_splitter_slime"]
 [ext_resource type="PackedScene" path="res://dungeon/environment/traps/lava_crack.tscn" id="9_hazard"]
+[ext_resource type="Resource" path="res://dungeon/rooms/ingredients/sets/ember_forge.tres" id="20_ingredients"]
 
 [resource]
 script = ExtResource("1_biome")
@@ -27,3 +28,4 @@ boss_music_track = "boss_ember_golem"
 ambient_track = "ambient_ember_forge"
 transition_track = "transition_ember_forge"
 victory_track = "victory_ember_golem"
+metadata/ingredient_set = ExtResource("20_ingredients")

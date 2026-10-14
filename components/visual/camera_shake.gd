@@ -13,4 +13,4 @@ static func shake(context: Node, strength: float) -> void:
 		return
 	var camera := context.get_viewport().get_camera_2d()
 	if camera != null and camera.has_method(&"add_trauma"):
-		camera.add_trauma(strength * STRENGTH_TO_TRAUMA)
+		camera.add_trauma(strength * STRENGTH_TO_TRAUMA * GameOptions.get_screen_shake_strength())

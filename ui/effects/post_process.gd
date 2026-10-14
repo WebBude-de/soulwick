@@ -71,7 +71,7 @@ func reset() -> void:
 
 
 func hit_pulse(strength := 1.0) -> void:
-	_chroma = maxf(_chroma, clampf(strength, 0.0, 1.0))
+	_chroma = maxf(_chroma, clampf(strength * GameOptions.get_flash_strength(), 0.0, 1.0))
 
 
 func stun(duration: float) -> void:

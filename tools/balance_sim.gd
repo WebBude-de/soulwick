@@ -102,6 +102,8 @@ func _run() -> void:
 	else:
 		rng.randomize()
 	_apply_resource_overrides()
+	# Buttons are found by their German texts; English is the default language (D-111).
+	TranslationServer.set_locale("de")
 	var save_manager := root.get_node("SaveManager")
 	var save_path := "user://balance_sim_%d.cfg" % OS.get_process_id()
 	save_manager.save_path = save_path

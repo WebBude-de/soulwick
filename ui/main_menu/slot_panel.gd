@@ -3,6 +3,7 @@ extends MenuPanel
 ## "Spielstände": one card per slot with name, character, record room, gold/crystals, play time and
 ## last played. Enter plays a used slot or opens "Neuer Spielstand" for an empty one, Del asks before
 ## deleting, Esc goes back. Mouse: hover selects a card, click = Enter, buttons below.
+## Texts are translation keys (D-111); the cards are rebuilt on a language change.
 
 signal play_requested(slot: int)
 signal create_requested(slot: int)
@@ -12,8 +13,8 @@ signal slot_deleted(slot: int)
 const WIDTH := 258.0
 const CARD_HEIGHT := 42.0
 const PREVIEW_SCALE := 2
-const FOOTER_NORMAL := "Klick oder ↑↓ wählen · Enter / nochmal klicken: %s · Entf löschen · Esc zurück"
-const FOOTER_CONFIRM := "Enter löschen · Esc abbrechen"
+const FOOTER_NORMAL: StringName = &"SLOTS_FOOTER"
+const FOOTER_CONFIRM: StringName = &"SLOTS_FOOTER_CONFIRM"
 
 var _summaries: Array[Dictionary] = []
 var _cards: Array[Button] = []
@@ -25,7 +26,7 @@ var _actions: HBoxContainer = null
 
 func _ready() -> void:
 	set_width(WIDTH)
-	add_header("Spielstände", "Wähle deinen Weg")
+	add_header(&"MENU_SLOTS", &"SLOTS_TITLE")
 	_cards_box = UiKit.vbox(int(UiKit.px(4)))
 	content.add_child(_cards_box)
 	_actions = UiKit.hbox(int(UiKit.px(6)))
@@ -53,6 +54,11 @@ func refresh() -> void:
 	_selected = clampi(_selected, 0, _summaries.size() - 1)
 	_confirm_delete = false
 	_update_state()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _cards_box != null and _actions != null:
+		refresh()
 
 
 func select_slot(slot: int) -> void:
@@ -169,20 +175,20 @@ func _rebuild_actions() -> void:
 		child.queue_free()
 	var used: bool = not _summaries.is_empty() and _summaries[_selected].get("exists", false)
 	if _confirm_delete:
-		var delete := MenuPanel.action_button("Löschen", "Enter", confirm_delete, true)
+		var delete := MenuPanel.action_button(&"SLOTS_DELETE", "Enter", confirm_delete, true)
 		delete.add_theme_color_override("font_color", UiKit.COLOR_DANGER_SOFT)
 		delete.add_theme_color_override("font_hover_color", UiKit.COLOR_DANGER_SOFT.lightened(0.2))
 		_actions.add_child(delete)
-		_actions.add_child(MenuPanel.action_button("Abbrechen", "Esc", cancel_delete))
+		_actions.add_child(MenuPanel.action_button(&"COMMON_CANCEL", "Esc", cancel_delete))
 		set_footer(FOOTER_CONFIRM)
 		return
-	_actions.add_child(MenuPanel.action_button("Spielen" if used else "Anlegen", "Enter", activate_selected, true))
-	var delete_button := MenuPanel.action_button("Löschen", "Entf", request_delete)
+	_actions.add_child(MenuPanel.action_button(&"SLOTS_PLAY" if used else &"SLOTS_CREATE", "Enter", activate_selected, true))
+	var delete_button := MenuPanel.action_button(&"SLOTS_DELETE", &"KEY_DELETE", request_delete)
 	delete_button.disabled = not used
 	delete_button.modulate.a = 1.0 if used else 0.45
 	_actions.add_child(delete_button)
-	_actions.add_child(MenuPanel.action_button("Zurück", "Esc", close))
-	set_footer(FOOTER_NORMAL % ("spielen" if used else "anlegen"))
+	_actions.add_child(MenuPanel.action_button(&"COMMON_BACK", "Esc", close))
+	set_footer(tr(FOOTER_NORMAL) % tr(&"SLOTS_ACTION_PLAY" if used else &"SLOTS_ACTION_CREATE"))
 
 
 func _build_card(index: int) -> Button:
@@ -238,28 +244,28 @@ func _build_card(index: int) -> Button:
 	row.add_child(info)
 	var top := UiKit.hbox(int(UiKit.px(4)))
 	info.add_child(top)
-	var title_text: String = summary.get("name", SaveSlots.default_name(slot)) if exists else "Leerer Platz"
+	var title_text: String = summary.get("name", SaveSlots.default_name(slot)) if exists else tr(&"SLOTS_EMPTY")
 	var name_label := UiKit.text_label(title_text, UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT if exists else UiKit.COLOR_MUTED, true)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.clip_text = true
 	top.add_child(name_label)
-	var tag := "Platz %d" % slot
+	var tag := tr(&"SLOTS_SLOT_NUMBER") % slot
 	if exists and slot == SaveManager.get_active_slot():
-		tag = "Aktiv · " + tag
+		tag = tr(&"SLOTS_ACTIVE") + " · " + tag
 	top.add_child(UiKit.eyebrow(tag, UiKit.COLOR_DISABLED))
 
 	if not exists:
-		info.add_child(UiKit.text_label("Neuen Spielstand anlegen", UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
-		info.add_child(UiKit.text_label("frischer Start mit allen Erklärungen", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
+		info.add_child(UiKit.text_label(&"SLOTS_NEW_LINE1", UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+		info.add_child(UiKit.text_label(&"SLOTS_NEW_LINE2", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 	elif summary.get("broken", false):
-		info.add_child(UiKit.text_label("Datei beschädigt", UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT))
-		info.add_child(UiKit.text_label("Laden startet neu, Sicherung als .bak", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
+		info.add_child(UiKit.text_label(&"SLOTS_BROKEN", UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT))
+		info.add_child(UiKit.text_label(&"SLOTS_BROKEN_NOTE", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 	else:
 		var data := CharacterCatalog.get_character(summary.get("character", CharacterCatalog.DEFAULT_ID))
 		var record: int = summary.get("deepest_room", 0)
 		var line := "%s · %s · %s" % [
 			data.display_name if data != null else "",
-			("Rekord Raum %d" % record) if record > 0 else "noch kein Run",
+			(tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN"),
 			SaveSlots.format_play_time(summary.get("play_time", 0.0))]
 		info.add_child(UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 		var bottom := UiKit.hbox(int(UiKit.px(6)))
@@ -275,7 +281,7 @@ func _build_card(index: int) -> Button:
 		info.add_child(bottom)
 
 	if exists:
-		var warning := UiKit.text_label("„%s“ wirklich löschen?\nDer Fortschritt geht verloren." % title_text, UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT, true)
+		var warning := UiKit.text_label(tr(&"SLOTS_DELETE_WARNING") % title_text, UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT, true)
 		warning.name = "Warning"
 		warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		warning.vertical_alignment = VERTICAL_ALIGNMENT_CENTER

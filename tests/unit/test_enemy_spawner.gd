@@ -42,5 +42,5 @@ func test_invalid_marker_count_spawns_nothing() -> void:
 	context.rng = RandomNumberGenerator.new()
 	var markers: Array[Marker2D] = []
 	var spawned := spawner.spawn_encounter(1, RoomSequence.RoomType.COMBAT, markers, Vector2.ZERO, container, context)
-	assert_push_error("expected 5 spawn markers")
+	assert_push_error("expected at least 5 spawn markers")
 	assert_eq(spawned.size(), 0, "a broken template must not produce a (completable) encounter")

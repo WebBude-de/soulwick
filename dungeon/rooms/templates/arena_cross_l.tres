@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RoomTemplate" format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/templates/room_template.gd" id="1_template"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/arena_cross_l.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_template")
+id = &"arena_cross_l"
+scene = ExtResource("2_scene")
+room_kind = 1
+shape = 2
+size_class = 2
+room_size = Vector2i(25, 15)
+entrance_side = 2
+exit_sides = Array[int]([0])
+spawn_tiles = Array[Vector2i]([Vector2i(0, 4), Vector2i(24, 4), Vector2i(12, 2), Vector2i(7, 8), Vector2i(17, 8), Vector2i(1, 10), Vector2i(23, 10), Vector2i(7, 0), Vector2i(17, 0), Vector2i(12, 7), Vector2i(7, 13), Vector2i(17, 13), Vector2i(5, 4), Vector2i(19, 4)])

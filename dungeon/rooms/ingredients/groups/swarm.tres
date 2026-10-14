@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EncounterGroup" format=3]
+
+[ext_resource type="Script" path="res://dungeon/spawning/encounter_group.gd" id="1_group"]
+
+[resource]
+script = ExtResource("1_group")
+id = &"swarm"
+tags = Array[StringName]([&"swarm"])
+allow_extra_types = false

@@ -11,6 +11,13 @@ extends TileMapLayer
 ## A room between two biomes (campfire, A6) gets a second look on top ("BiomeBlend" layers): the
 ## same cells in the next biome's tileset, shown through a soft dithered mask from the entrance
 ## (old biome) to the exit (new biome), see set_biome_blend().
+## All walls, outer and inner, come from one floor mask (get_floor_mask(), SPRITES_V6, D-110): every
+## tile that is not floor is solid; a solid tile with floor right below it is a brick front (one row,
+## always under a crown), every other solid tile is a crown with a light edge where it borders floor
+## or a front, plain rock where it is enclosed (WallAutotile). Inner walls (wall_rects) and pillars
+## just take tiles out of the floor: cut-out corners of a shape look like the rock around the room,
+## a pillar is a crown on its tile plus the front on the tile below. wall_rects therefore hold crown
+## and front; every wall above floor is at least two tiles tall (WallAutotile.is_valid_mass).
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -30,7 +37,12 @@ const INNER_NE := Vector2i(0, 2)
 const INNER_NW := Vector2i(1, 2)
 const INNER_SE := Vector2i(2, 2)
 const INNER_SW := Vector2i(3, 2)
+## Old single-tile pillar; only drawn if a tileset cannot get the wall pieces (no ground atlas).
 const PILLAR := Vector2i(6, 2)
+## Atlas source of the wall pieces, added to the tileset at runtime (WallAutotile).
+const SOURCE_WALL := WallAutotile.SOURCE_ID
+## Share of plain brick fronts drawn with the second brick pattern (like the old north wall).
+const FRONT_ALT_CHANCE := 0.25
 ## Rock ring around the painted room (tiles). Covers the 1280x720 view plus camera tilt/shake.
 const BACKDROP_MARGIN := Vector2i(14, 10)
 const BACKDROP_NAME := "Backdrop"
@@ -53,10 +65,16 @@ const MAX_DASH_GAP := 1
 	set(value):
 		exit_x = value
 		_queue_paint()
-## Single blocking tiles inside the room.
+## Pillars: the crown tile; the front on the tile below belongs to it (two tiles solid).
 @export var pillar_tiles: Array[Vector2i] = []:
 	set(value):
 		pillar_tiles = value
+		_queue_paint()
+## Inner walls in floor tiles (position = top-left tile, size in tiles), crown and front included.
+## Overlaps are fine.
+@export var wall_rects: Array[Rect2i] = []:
+	set(value):
+		wall_rects = value
 		_queue_paint()
 @export var floor_seed := 1:
 	set(value):
@@ -74,6 +92,9 @@ var _blend_backdrop: TileMapLayer = null
 var _blend_material: ShaderMaterial = null
 ## Tile rows (y, may be fractional) where the blend mask is 0 (old biome) and 1 (new biome).
 var _blend_rows := Vector2.ZERO
+## Floor tiles under solid props (crates, barrels, rubble): no navigation polygon, so enemies path
+## around them instead of pushing against them. Collision stays with the prop.
+var _navigation_blocked: Dictionary[Vector2i, bool] = {}
 
 
 func _ready() -> void:
@@ -113,11 +134,73 @@ func get_exit_inside_tile() -> Vector2i:
 # --- Walkability (D-086). Pure layout data from the exported parameters, no painted cells needed,
 # so it also works on templates that are not in the tree (unit tests, generator checks). ---
 
-## Tiles inside the room that block walking. Today: pillars. A3 adds inner walls (wall_rects).
+## Tiles inside the room that block walking: every wall tile (inner walls, pillars, their fronts).
 func get_blocked_tiles() -> Array[Vector2i]:
-	var blocked: Array[Vector2i] = []
-	blocked.assign(pillar_tiles)
-	return blocked
+	return get_wall_tiles()
+
+
+## Floor tiles covered by walls (clipped to the floor), without duplicates.
+func get_wall_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	tiles.assign(get_wall_mass().keys())
+	return tiles
+
+
+## All wall tiles as a set: wall_rects plus every pillar with the front below it.
+func get_wall_mass() -> Dictionary[Vector2i, bool]:
+	var mass: Dictionary[Vector2i, bool] = {}
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	for rect in wall_rects:
+		var clipped := rect.intersection(floor_rect)
+		for y in range(clipped.position.y, clipped.end.y):
+			for x in range(clipped.position.x, clipped.end.x):
+				mass[Vector2i(x, y)] = true
+	for pillar in pillar_tiles:
+		for tile: Vector2i in [pillar, pillar + Vector2i.DOWN]:
+			if floor_rect.has_point(tile):
+				mass[tile] = true
+	return mass
+
+
+## Adds inner walls at runtime (ingredient scatter) and repaints right away, so collision and the
+## navigation of the layer follow before any enemy moves.
+func add_wall_rects(rects: Array[Rect2i]) -> void:
+	if rects.is_empty():
+		return
+	var combined: Array[Rect2i] = wall_rects.duplicate()
+	combined.append_array(rects)
+	wall_rects = combined
+	paint()
+
+
+## Takes the navigation off a floor tile while a solid prop stands on it (or gives it back).
+func set_navigation_blocked(tile: Vector2i, blocked: bool) -> void:
+	if blocked == is_navigation_blocked(tile):
+		return
+	# A freed tile stays in the runtime update (false): Godot keeps the changed tile data of a cell
+	# that drops out of it, so the tile gets its own polygon back explicitly.
+	_navigation_blocked[tile] = blocked
+	notify_runtime_tile_data_update()
+
+
+func is_navigation_blocked(tile: Vector2i) -> bool:
+	return _navigation_blocked.get(tile, false)
+
+
+func _use_tile_data_runtime_update(coords: Vector2i) -> bool:
+	return _navigation_blocked.has(coords)
+
+
+func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
+	if tile_set == null or tile_set.get_navigation_layers_count() == 0:
+		return
+	var polygon: NavigationPolygon = null
+	if not _navigation_blocked[coords]:
+		var source := tile_set.get_source(get_cell_source_id(coords)) as TileSetAtlasSource
+		if source != null:
+			var original := source.get_tile_data(get_cell_atlas_coords(coords), get_cell_alternative_tile(coords))
+			polygon = original.get_navigation_polygon(0) if original != null else null
+	tile_data.set_navigation_polygon(0, polygon)
 
 
 ## Abyss tiles: not walkable, crossable by a dash when at most MAX_DASH_GAP wide (D-086).
@@ -211,6 +294,7 @@ func set_biome_blend(next_tileset: TileSet, next_tint: Color, from_row: float, t
 	if _blend_material == null:
 		_blend_material = ShaderMaterial.new()
 		_blend_material.shader = BLEND_SHADER
+	WallAutotile.ensure_source(next_tileset)
 	_blend_layer = _make_blend_layer(_blend_layer, BLEND_NAME, 0)
 	_blend_backdrop = _make_blend_layer(_blend_backdrop, BLEND_BACKDROP_NAME, -1)
 	for layer: TileMapLayer in [_blend_layer, _blend_backdrop]:
@@ -267,7 +351,7 @@ func _copy_cells_to_blend() -> void:
 		return
 	_blend_layer.clear()
 	for cell in get_used_cells():
-		_blend_layer.set_cell(cell, SOURCE_ID, get_cell_atlas_coords(cell))
+		_blend_layer.set_cell(cell, get_cell_source_id(cell), get_cell_atlas_coords(cell))
 	_blend_backdrop.clear()
 	if _backdrop != null:
 		for cell in _backdrop.get_used_cells():
@@ -291,6 +375,8 @@ func _notification(what: int) -> void:
 
 ## Swaps the tileset (biome art). All tilesets share the same atlas layout.
 func use_tileset(new_tileset: TileSet) -> void:
+	# The wall pieces of the new biome must exist before the cells point at them.
+	WallAutotile.ensure_source(new_tileset)
 	tile_set = new_tileset
 	if _backdrop != null:
 		_backdrop.tile_set = new_tileset
@@ -305,6 +391,51 @@ func paint() -> void:
 	clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = floor_seed
+	if WallAutotile.ensure_source(tile_set):
+		_paint_from_mask(rng)
+	else:
+		_paint_legacy(rng)
+	_paint_backdrop()
+
+
+## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
+## the mask: they are holes in the floor, not walls.
+func get_floor_mask() -> Dictionary[Vector2i, bool]:
+	var floor_mask: Dictionary[Vector2i, bool] = {}
+	for y in room_size.y:
+		for x in room_size.x:
+			floor_mask[Vector2i(x, y)] = true
+	for y in [-1, -2, -3]:
+		floor_mask[Vector2i(exit_x, y)] = true
+	for y in [room_size.y, room_size.y + 1]:
+		floor_mask[Vector2i(entrance_x, y)] = true
+	for tile: Vector2i in get_wall_mass():
+		floor_mask.erase(tile)
+	return floor_mask
+
+
+## One rule for every wall (WallAutotile.cell_for_floor): fronts only right above floor, crowns
+## with edges, enclosed rock as the plain wall-top tile (the rock shader turns it into stones).
+func _paint_from_mask(rng: RandomNumberGenerator) -> void:
+	var floor_mask := get_floor_mask()
+	var rect := _get_painted_rect()
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			var tile := Vector2i(x, y)
+			if floor_mask.has(tile):
+				_put_tile(tile, _random_floor(rng))
+				continue
+			var piece := WallAutotile.cell_for_floor(tile, floor_mask)
+			if piece == WallAutotile.ROCK:
+				_put_tile(tile, WALL_TOP)
+			elif piece == WallAutotile.front_coords(WallAutotile.Front.MIDDLE) and rng.randf() < FRONT_ALT_CHANCE:
+				set_cell(tile, SOURCE_WALL, WallAutotile.front_coords(WallAutotile.Front.MIDDLE_ALT))
+			else:
+				set_cell(tile, SOURCE_WALL, piece)
+
+
+## Editor view (no generated pieces there): the hand-drawn outer wall, walls as pillar tiles.
+func _paint_legacy(rng: RandomNumberGenerator) -> void:
 	var w := room_size.x
 	var h := room_size.y
 
@@ -339,10 +470,8 @@ func paint() -> void:
 	_put_tile(Vector2i(entrance_x + 1, h), OUTER_NW)
 	_put_tile(Vector2i(entrance_x - 1, h + 1), WALL_E)
 	_put_tile(Vector2i(entrance_x + 1, h + 1), WALL_W)
-
-	for tile in pillar_tiles:
+	for tile: Vector2i in get_wall_mass():
 		_put_tile(tile, PILLAR)
-	_paint_backdrop()
 
 
 ## Tiles painted by paint() on this layer: floor plus the wall ring.

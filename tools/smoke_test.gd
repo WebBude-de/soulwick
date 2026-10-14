@@ -1,7 +1,9 @@
 extends SceneTree
 ## Automated play-through (headless): village -> dungeon -> N rooms -> death -> village.
 ## Checks M2/M4/M5 acceptance rules at runtime and prints PASS/FAIL lines. After every boss room
-## it walks through the campfire (D-103) and checks that it does not count as a room.
+## it walks through the campfire (D-103) and checks that it does not count as a room. Combat rooms:
+## room kind rules (D-100), shape and ingredients (A3): every marker and the exit stay reachable
+## after the ingredient scatter; the shapes and ingredients seen are printed at the end.
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
@@ -18,6 +20,9 @@ var _rolled_deep := {}
 var _used_kinds := {}
 var _previous_kind := -1
 var _campfires_seen := 0
+## Shapes and ingredients of the combat rooms played (A3).
+var _shapes_seen := {}
+var _ingredients_seen := {}
 
 
 func _init() -> void:
@@ -29,6 +34,8 @@ func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		rooms_to_play = int(args[0])
+	# Buttons are found by their German texts; English is the default language (D-111).
+	TranslationServer.set_locale("de")
 	var save_manager := root.get_node("SaveManager")
 	save_manager.save_path = SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
@@ -107,8 +114,9 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		# Room 1 is entered by spawning inside it.
 		_check(not room.is_encounter_started(), "room %d: preparing does not start the encounter" % index)
 
-	# Walk in: teleport into the middle of the floor.
-	player.global_position = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
+	# Walk in: teleport onto the walkable tile nearest to the middle of the floor (shapes with a
+	# solid middle, catacomb corridors).
+	player.global_position = room.to_global(_walk_in_point(room))
 	await _frames(6)
 	_check(run_manager.get_current_room() == index, "RunManager room %d" % index)
 	_check(_dungeon.get_room(index - 2) == null, "room %d unloaded when entering %d" % [index - 2, index])
@@ -126,7 +134,14 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		var enemies: Array = room.enemy_container.get_children().filter(func(n): return n.get_script() != null and n.get_script().get_global_name() == &"Enemy")
 		if type_name.begins_with("COMBAT"):
 			_check_room_kind(index, room)
+			_check_shape_and_ingredients(index, room)
 			var limits: Vector2i = load("res://dungeon/room_sequence.gd").get_enemy_count_range(index)
+			# Encounter groups (A3): a quiet room has 1-2 strong enemies, themes may scale the count.
+			# Same rule as EnemySpawner.roll_enemy_count.
+			var group: Resource = room.spawner.encounter_group
+			if group != null:
+				var range: Vector2i = group.get_count_range(index)
+				limits = Vector2i(maxi(1, roundi(range.x * group.count_factor)), maxi(1, roundi(range.y * group.count_factor)))
 			_check(enemies.size() >= limits.x and enemies.size() <= limits.y, "room %d spawned %d enemies (%d-%d)" % [index, enemies.size(), limits.x, limits.y])
 		elif type_name == "BOSS":
 			_check(enemies.size() == 1, "room %d boss spawned alone" % index)
@@ -135,7 +150,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 			_check(_skip_boss_intros() > 0, "room %d boss intro started and was skipped" % index)
 		else:
 			_check(enemies.size() >= 2, "room %d champion comes with an escort (%d)" % [index, enemies.size()])
-		var kind_label: String = _dungeon.get_room_kind_label(room)
+		var kind_label: String = _describe_room(room)
 		print("room %d: %s%s, %d enemies" % [index, type_name, (" [%s]" % kind_label) if not kind_label.is_empty() else "", enemies.size()])
 		for enemy in enemies:
 			_kill(enemy, player)
@@ -218,27 +233,27 @@ func _play_campfire(boss_index: int, player: Node, run_manager: Node) -> bool:
 	return true
 
 
-## Room kind rules (D-086): rooms 1-5 without abyss, no abyss twice in a row, fallback to arena
+## Room kind rules (D-100): rooms 1-5 normal, no chasm twice in a row, fallback to a normal room
 ## only without a template, single-player sizes, spawn marker count per size.
 func _check_room_kind(index: int, room: Node) -> void:
 	var sequence: GDScript = load("res://dungeon/room_sequence.gd")
 	var kinds: Dictionary = sequence.get_script_constant_map()["RoomKind"]
-	var abyss: int = kinds["ABYSS"]
+	var chasm: int = kinds["CHASM"]
 	var solo_sizes: Array = sequence.get_script_constant_map()["SOLO_ROOM_SIZES"]
 	var rolled: int = room.rolled_kind
 	var used: int = room.room_kind
 	_check(rolled >= 0, "room %d has a rolled room kind" % index)
-	if index < sequence.get_script_constant_map()["ABYSS_FROM_ROOM"]:
-		_check(rolled != abyss, "room %d: no abyss before room 6" % index)
-	_check(not (used == abyss and _previous_kind == abyss), "room %d: no abyss room right after an abyss room" % index)
+	if index < sequence.get_script_constant_map()["CHASM_FROM_ROOM"]:
+		_check(rolled == kinds["NORMAL"], "room %d: only normal rooms before room 6" % index)
+	_check(not (used == chasm and _previous_kind == chasm), "room %d: no chasm room right after a chasm room" % index)
 	var catalog: Object = _dungeon.get_combat_catalog()
-	var expected: int = rolled if catalog.has_kind(rolled, sequence.SOLO_ROOM_SIZES) else kinds["ARENA"]
+	var expected: int = rolled if catalog.has_kind(rolled, sequence.SOLO_ROOM_SIZES) else kinds["NORMAL"]
 	_check(used == expected, "room %d: kind %d used for rolled %d (expected %d)" % [index, used, rolled, expected])
 	_check(solo_sizes.has(room.room_size_class), "room %d: single-player size class" % index)
 	var markers: int = room.get_spawn_markers().size()
 	var min_markers: int = sequence.get_min_spawn_points(room.room_size_class)
 	_check(markers >= min_markers and markers <= sequence.get_script_constant_map()["MAX_SPAWN_POINTS"], "room %d: %d spawn markers (min %d)" % [index, markers, min_markers])
-	var bucket: Dictionary = _rolled_early if index < sequence.get_script_constant_map()["ABYSS_FROM_ROOM"] else _rolled_deep
+	var bucket: Dictionary = _rolled_early if index < sequence.get_script_constant_map()["CHASM_FROM_ROOM"] else _rolled_deep
 	var rolled_name: String = sequence.get_kind_name(rolled)
 	var used_name: String = sequence.get_kind_name(used)
 	bucket[rolled_name] = bucket.get(rolled_name, 0) + 1
@@ -264,12 +279,82 @@ func _print_kind_distribution() -> void:
 				previous = -1
 				continue
 			var kind: int = sequence.roll_room_kind(index, previous, rng)
-			var bucket: Dictionary = early if index < constants["ABYSS_FROM_ROOM"] else deep
+			var bucket: Dictionary = early if index < constants["CHASM_FROM_ROOM"] else deep
 			var kind_name: String = sequence.get_kind_name(kind)
 			bucket[kind_name] = bucket.get(kind_name, 0) + 1
 			previous = kind
 	print("room kinds drawn over 1000 simulated runs, rooms 1-5: %s" % _format_counts(early))
 	print("room kinds drawn over 1000 simulated runs, rooms 6+: %s" % _format_counts(deep))
+	print("shapes played (kind · shape · size): %s" % _format_counts(_shapes_seen))
+	print("ingredients scattered: %s" % _format_counts(_ingredients_seen))
+
+
+## Shape and ingredients of a combat room (A3): the scatter ran once from the dungeon RNG, 2-3
+## ingredients (the catacomb may get fewer), exit and every marker still reachable, the room name
+## only for kinds with their own gameplay (D-110).
+func _check_shape_and_ingredients(index: int, room: Node) -> void:
+	var template: Resource = load("res://dungeon/rooms/templates/room_template.gd").of(room)
+	_check(template != null, "room %d: template in the catalog" % index)
+	if template == null:
+		return
+	var label := _describe_room(room)
+	_shapes_seen[label] = _shapes_seen.get(label, 0) + 1
+	var scatter: Node = room.get_node_or_null("Ingredients")
+	_check(scatter != null and scatter.plan != null, "room %d: ingredients scattered" % index)
+	if scatter == null or scatter.plan == null:
+		return
+	var set_script: GDScript = load("res://dungeon/rooms/ingredients/ingredient_set.gd")
+	var count: int = scatter.plan.ingredients.size()
+	var is_catacomb: bool = template.shape == template.Shape.CATACOMB
+	_check(count <= 3 and (count >= 2 or is_catacomb), "room %d: %d ingredients" % [index, count])
+	for kind in scatter.plan.ingredients:
+		var kind_name: String = set_script.get_kind_name(kind)
+		_ingredients_seen[kind_name] = _ingredients_seen.get(kind_name, 0) + 1
+	var tiles: Node = room.get_node("Tiles")
+	var reachable: Dictionary = tiles.get_reachable_tiles()
+	var blocked: Array = scatter.get_blocked_tiles()
+	_check(reachable.has(tiles.get_exit_inside_tile()), "room %d: exit reachable after the scatter" % index)
+	for marker in scatter.get_marker_tiles(room):
+		_check(reachable.has(marker) and not blocked.has(marker), "room %d: marker %s reachable after the scatter" % [index, marker])
+	var name: String = _dungeon.get_room_kind_label(room)
+	var normal: int = load("res://dungeon/room_sequence.gd").get_script_constant_map()["RoomKind"]["NORMAL"]
+	if room.room_kind == normal and not is_catacomb:
+		_check(name.is_empty(), "room %d: normal rooms stay unnamed (D-110)" % index)
+	else:
+		_check(not name.is_empty(), "room %d: '%s' named on entry (D-110)" % [index, name])
+
+
+## "Normal · Ring · M" (test output only; the game shows names only via get_room_kind_label).
+func _describe_room(room: Node) -> String:
+	if not room.has_room_kind():
+		return ""
+	var sequence: GDScript = load("res://dungeon/room_sequence.gd")
+	var template_script: GDScript = load("res://dungeon/rooms/templates/room_template.gd")
+	var template: Resource = template_script.of(room)
+	var shape: String = template_script.get_shape_name(template.shape) if template != null else "?"
+	var label := "%s · %s · %s" % [sequence.get_kind_name(room.room_kind), shape, sequence.get_size_name(room.room_size_class)]
+	if room.rolled_kind >= 0 and room.rolled_kind != room.room_kind:
+		label += " (statt %s)" % sequence.get_kind_name(room.rolled_kind)
+	return label
+
+
+## Centre of the free walkable floor tile nearest to the middle of the room (local position).
+func _walk_in_point(room: Node) -> Vector2:
+	var tiles: Node = room.get_node("Tiles")
+	var reachable: Dictionary = tiles.get_reachable_tiles()
+	var scatter: Node = room.get_node_or_null("Ingredients")
+	var occupied: Array = scatter.get_blocked_tiles() if scatter != null else []
+	var middle: Vector2 = tiles.get_floor_rect().get_center()
+	var best := Vector2i(tiles.entrance_x, tiles.room_size.y - 2)
+	var best_distance := INF
+	for tile: Vector2i in reachable:
+		if tile.x < 0 or tile.y < 0 or tile.x >= tiles.room_size.x or tile.y >= tiles.room_size.y - 1 or occupied.has(tile):
+			continue
+		var distance := ((Vector2(tile) + Vector2(0.5, 0.5)) * 64.0).distance_to(middle)
+		if distance < best_distance:
+			best_distance = distance
+			best = tile
+	return tiles.position + (Vector2(best) + Vector2(0.5, 0.5)) * 64.0
 
 
 func _format_counts(counts: Dictionary) -> String:

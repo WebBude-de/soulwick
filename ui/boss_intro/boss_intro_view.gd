@@ -323,7 +323,7 @@ func _on_ending(_skipped: bool) -> void:
 	if _intro.boss != null and is_instance_valid(_intro.boss):
 		CameraShake.shake(_intro.boss, ROAR_SHAKE)
 	var time := BossIntroRules.FADE_OUT_TIME
-	_flash.color.a = 0.35
+	_flash.color.a = 0.35 * GameOptions.get_flash_strength()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(_flash, "color:a", 0.0, time)
 	tween.tween_property(_root, "modulate:a", 0.0, time).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)

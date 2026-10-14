@@ -18,8 +18,9 @@ static func flash(item: CanvasItem, color := Color.WHITE, duration := FLASH_TIME
 	if material == null:
 		return
 	material.set_shader_parameter(&"flash_color", color)
-	material.set_shader_parameter(&"flash", 1.0)
-	item.create_tween().tween_method(func(v: float) -> void: material.set_shader_parameter(&"flash", v), 1.0, 0.0, duration)
+	var peak := GameOptions.get_flash_strength()
+	material.set_shader_parameter(&"flash", peak)
+	item.create_tween().tween_method(func(v: float) -> void: material.set_shader_parameter(&"flash", v), peak, 0.0, duration)
 
 
 static func outline(item: CanvasItem, color: Color, pulse := 0.4) -> void:

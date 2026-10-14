@@ -667,6 +667,24 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Beschluss:** Spiel und Website gibt es auf **Englisch (Standard)** und **Deutsch**. Das Spiel erkennt die Sprache aus dem System und lässt sie in den Optionen umschalten. Spieltexte laufen über Übersetzungsschlüssel (`localization/translations.csv`, Hilfsklasse `Loc`, Registrierung zur Laufzeit über `TranslationServer`); Doku bleibt Deutsch. Website: playsoulwick.com.
 - **Folgen:** Paket UX3 (Sprachen und Einstellungen, Hauptmenü und Optionen), danach Migration der übrigen UI-Texte (Dungeon-Dialoge in UX2, HUD, Dorf). Neue UI-Texte ab jetzt als Schlüssel.
 
+### D-112 – Prüfungsräume und Pakt-Altar: Ausgestaltung (A8)
+
+- **Status:** VERBINDLICH (Regeln D-102, D-109) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Beschluss:**
+  - Prüfungsraum mit eigener Vorlage (17×10): Der Ausgang ist immer ohne Parcours erreichbar, die Truhe ist von Anfang an sichtbar, nach der Truhe öffnet ein Tor als Rückweg. Spießrutenlauf und Lichtlauf je 50 %, Bröckelboden erst mit A4.
+  - Fehler kosten 1 HP (½ Herz) und lassen mindestens 0,5 HP übrig, danach 0,6 s Sperre; im Dash kein Fehler. Dunkelheit im Lichtlauf: 1 HP pro 2 s am Stück. „Makellos“ = kein Fehler im ganzen Raum → +1 Kristall je Spieler. Die Truhe öffnet einmal für die Gruppe (Schalter `CHEST_FOR_EVERY_PLAYER` für MP5).
+  - Pakt-Altar: Fluch wird je Raum gezogen und am Altar angezeigt; Pakt = Auswahl aus 3 Upgrades, das gewählte steigt um +2 Stufen. Flüche je Spieler (`PlayerCurses`), jeder Fluch höchstens einmal, −1 Max-Herz nie unter 1 Herz.
+  - Prüfungen tragen ihr Schild im Raum („Spießrutenlauf“, „Lichtlauf“), passend zu D-110. Ein Seltenheitssystem für Pakt-Upgrades ist eine Idee für später.
+
+### D-113 – Raumformen, Zutaten, Arena-Wellen und Wegfindung: Ausgestaltung (A2, A3, A5)
+
+- **Status:** VERBINDLICH (Regeln D-086, D-100, D-109, D-110) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Formen (A3):** 26 Vorlagen mit `RoomTemplate`-Resource: Normal = Rechteck, L-Form, Kreuz, Ring, Zwei Kammern, Säulenhalle je S/M/L sowie Katakombe M/L (1 Tile breite Gänge, genau 2 Sackgassen, höchstens 2 Abzweigungen, Truhe in der tiefsten Sackgasse); Arena = Rechteck M/L, Kreuz M/L, Säulenhalle M/L. Fehlt eine Vorlage der gezogenen Art, gilt Normal. Mauern außen und innen aus einer Boden-Maske (Krone, Kante zum Boden, eine Reihe Front nur über Boden), ausgesparte Bereiche wie Fels außerhalb.
+- **Zutaten (A3):** 2–3 je Raum aus einem Satz je Biom (Deckung, Fallengruppe, Innenmauer-Stück, Engstelle/Nische, Lichtinsel + Dunkelzone, Explosionsfässer ab Raum 3 in Krypta/Glutkammer); ein Wurf aus dem Dungeon-RNG je Raum; jede vorher erreichbare Kachel bleibt erreichbar. Fass: Schaden Spieler 1 / Gegner 30, Radius 96 px, Zündung 0,7 s. Dunkelzone Sichtfaktor 0,6. Gegnergruppen ab Raum 6: gemischt 70 / Fernkampf 15 / Schwarm 15; stiller Raum 8 % (nur Normal, 1–2 Gegner, gleiche Gesamt-HP). Vorlagen-Fackeln mindestens 4 Tiles von der Tür.
+- **Arena (A5):** 2 Wellen, ab Raum 15 drei; Wellengröße normaler Wurf ×0,75 (mindestens 2 und der kleinste Normalwert); nächste Welle bei höchstens 1 übrig (normale Räume: 0). 5 feste Tore auf mindestens 2 Wänden, jede Welle aus mindestens 2 Wänden und mindestens 96 px von jedem Spieler; Gegner 0,55 s verborgen + 0,35 s Heraustreten (passiv, unverwundbar). Hinterhalt 25 % der Arenen: leer bis die Eingangstür schließt, dann nach 0,3 s aus mindestens 3 Wänden. Überlauf: mehr Gegner als Punkte/Tore → zusätzliche Welle (erledigt den offenen Punkt aus D-095).
+- **Wegfindung (A2):** Navigation über die Navigationsebene der Dungeon-Tilesets (Boden und Brücken begehbar, Wände/Innenmauern/Abgrund nicht), eine Navigationskarte je Raum; Pfad nur, wenn Tiles die Sicht blockieren; Ziel = nächster lebender Spieler, neu gewählt alle 0,5 s, Wechsel ab 48 px Vorsprung. Sichtcheck 0,15 s, Pfad 0,35 s.
+- **Offen (Balance-Agent):** Arenen sind laut Bot merklich härter (Raum 16–29 mehr Tode, +55 % Zeit je Kampfraum); der Knochenkönig ist seit der Wegfindung tödlicher. Nachmessen und Werte anpassen.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

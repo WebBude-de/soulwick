@@ -12,6 +12,8 @@ static var _token := 0
 static func trigger(context: Node, duration: float, time_scale := FREEZE_SCALE) -> void:
 	if context == null or not context.is_inside_tree():
 		return
+	if not GameOptions.is_hit_stop_enabled():
+		return
 	_token += 1
 	Engine.time_scale = minf(Engine.time_scale, time_scale)
 	var timer := context.get_tree().create_timer(duration, true, false, true)

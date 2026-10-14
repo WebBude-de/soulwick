@@ -8,6 +8,7 @@
 [ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="6_skeleton"]
 [ext_resource type="Resource" path="res://enemies/data/archer.tres" id="7_archer"]
 [ext_resource type="PackedScene" path="res://dungeon/environment/traps/toxic_puddle.tscn" id="8_hazard"]
+[ext_resource type="Resource" path="res://dungeon/rooms/ingredients/sets/slime_grotto.tres" id="20_ingredients"]
 
 [resource]
 script = ExtResource("1_biome")
@@ -26,3 +27,4 @@ boss_music_track = "boss_slime_queen"
 ambient_track = "ambient_slime_grotto"
 transition_track = "transition_slime_grotto"
 victory_track = "victory_slime_queen"
+metadata/ingredient_set = ExtResource("20_ingredients")

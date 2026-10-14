@@ -1,0 +1,52 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_1.tscn" id="2_bones_1"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_2.tscn" id="3_bones_2"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
+
+[node name="NormalLShapeS" instance=ExtResource("1_base")]
+room_kind = 0
+room_size_class = 0
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(15, 9)
+entrance_x = 11
+exit_x = 4
+floor_seed = 711
+wall_rects = Array[Rect2i]([Rect2i(8, 0, 7, 4)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(32, 32)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(160, 544)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(480, 160)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(928, 288)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(224, 224)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(416, 416)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(480, 288)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(736, 288)
+
+[node name="Bones_10" parent="Props" instance=ExtResource("2_bones_1")]
+position = Vector2(480, 56)
+
+[node name="Bones_21" parent="Props" instance=ExtResource("3_bones_2")]
+position = Vector2(32, 568)
+
+[node name="Ingredients" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("4_scatter")
+allowed = Array[int]([0, 1, 2, 3, 4, 5])

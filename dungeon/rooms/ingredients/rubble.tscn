@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/rubble.gd" id="1_rubble"]
+
+[node name="Rubble" type="StaticBody2D"]
+script = ExtResource("1_rubble")

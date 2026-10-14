@@ -39,7 +39,7 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	_age += delta
-	var player := get_tree().get_first_node_in_group(&"player") as Player
+	var player := EnemyTargeting.nearest_living(get_tree().get_nodes_in_group(&"player"), global_position) as Player
 	if _age < MAGNET_DELAY or player == null or not player.is_alive():
 		_pop_velocity = _pop_velocity.move_toward(Vector2.ZERO, POP_FRICTION * delta)
 		global_position += _pop_velocity * delta

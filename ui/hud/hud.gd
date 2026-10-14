@@ -21,6 +21,10 @@ const TROPHY_ICON: Texture2D = preload("res://art/ui/trophy_icon.png")
 const SKULL_ICON: Texture2D = preload("res://art/ui/skull_icon.png")
 const CLOCK_ICON: Texture2D = preload("res://art/ui/clock_icon.png")
 const HP_PER_HEART := 2.0
+## Hearts are shown in at most HEART_ROWS rows of HEARTS_PER_ROW. Beyond that (test players with
+## huge max HP) one heart plus "×N" (hearts left) keeps the HUD readable and cheap.
+const HEARTS_PER_ROW := 10
+const HEART_ROWS := 2
 ## Heart size on screen (16 mockup px, whole multiple of the 16 px art).
 const HEART_SIZE := 16.0 * UiKit.ART_SCALE
 const CONTROLS_HINT := "WASD bewegen · Maus zielen · LMB angreifen · Space Dash · RMB Spezial · Q Waffe · E benutzen · Tab Upgrades · Esc Pause"
@@ -51,7 +55,10 @@ var _campfire_active := false
 var _campfire_area := ""
 
 var _status_frame: PanelContainer
-var _hearts: HBoxContainer
+var _hearts: GridContainer
+## Reused heart icons (never rebuilt per HP change) and the "×N" count of the compact display.
+var _heart_icons: Array[TextureRect] = []
+var _heart_count_label: Label
 var _shield_label: Label
 var _gold_label: Label
 var _crystal_label: Label
@@ -163,8 +170,17 @@ func _build_status(root: Control) -> void:
 	_status_frame = frame
 	var box := UiKit.vbox(int(UiKit.px(3)))
 	frame.add_child(box)
-	_hearts = UiKit.hbox(int(UiKit.px(HEART_GAP)))
-	box.add_child(_hearts)
+	var heart_row := UiKit.hbox(int(UiKit.px(4)))
+	box.add_child(heart_row)
+	_hearts = GridContainer.new()
+	_hearts.columns = HEARTS_PER_ROW
+	_hearts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hearts.add_theme_constant_override("h_separation", int(UiKit.px(HEART_GAP)))
+	_hearts.add_theme_constant_override("v_separation", int(UiKit.px(HEART_GAP)))
+	heart_row.add_child(_hearts)
+	_heart_count_label = _value_label(UiKit.COLOR_DANGER_SOFT)
+	_heart_count_label.visible = false
+	heart_row.add_child(_heart_count_label)
 	var row := UiKit.hbox(int(UiKit.px(4)))
 	row.add_child(UiKit.pixel_icon(SHIELD_ICON, SMALL_ICON_SIZE))
 	_shield_label = _value_label(UiKit.COLOR_TEXT)
@@ -300,14 +316,38 @@ func _cooldown_bar(color: Color, spec_size: Vector2) -> ProgressBar:
 
 # --- Signal handlers ---
 
+## Hearts in quarter steps; the icons are reused, only their textures change.
 func _on_health_changed(current: float, maximum: float) -> void:
-	for child in _hearts.get_children():
-		child.queue_free()
 	var heart_count := ceili(maximum / HP_PER_HEART)
-	for i in heart_count:
+	var compact := is_compact_hearts(heart_count)
+	var shown := 1 if compact else heart_count
+	while _heart_icons.size() < shown:
+		var icon := UiKit.icon(HEART_TEXTURES[0], HEART_SIZE)
+		_hearts.add_child(icon)
+		_heart_icons.append(icon)
+	for i in _heart_icons.size():
+		var icon := _heart_icons[i]
+		icon.visible = i < shown
+		if not icon.visible:
+			continue
 		var fill := clampf(current - i * HP_PER_HEART, 0.0, HP_PER_HEART)
-		var quarters := roundi(fill / HP_PER_HEART * 4.0)
-		_hearts.add_child(UiKit.icon(HEART_TEXTURES[quarters], HEART_SIZE))
+		icon.texture = HEART_TEXTURES[roundi(fill / HP_PER_HEART * 4.0)]
+	_heart_count_label.visible = compact
+	if compact:
+		_heart_count_label.text = "×%d" % ceili(maxf(0.0, current) / HP_PER_HEART)
+
+
+## More hearts than HEART_ROWS rows hold: one heart and "×N" instead.
+static func is_compact_hearts(heart_count: int) -> bool:
+	return heart_count > HEARTS_PER_ROW * HEART_ROWS
+
+
+func get_visible_heart_count() -> int:
+	var count := 0
+	for icon in _heart_icons:
+		if icon.visible:
+			count += 1
+	return count
 
 
 func _on_shield_changed(current: float) -> void:

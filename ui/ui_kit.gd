@@ -27,9 +27,13 @@ const PANEL_GOLD_TEXTURE: Texture2D = preload("res://art/ui/panel_gold.png")
 const PANEL_DARK_TEXTURE: Texture2D = preload("res://art/ui/panel_dark.png")
 const BUTTON_TEXTURE: Texture2D = preload("res://art/ui/button.png")
 const BUTTON_HOVER_TEXTURE: Texture2D = preload("res://art/ui/button_hover.png")
+## Disabled buttons (HANDOUT UI rules, SPRITES_V3): same nine-patch as button.png, text #7a7396.
+const BUTTON_DISABLED_TEXTURE: Texture2D = preload("res://art/ui/button_disabled.png")
 const GOLD_ICON: Texture2D = preload("res://art/ui/gold_icon.png")
 const CRYSTAL_ICON: Texture2D = preload("res://art/ui/crystal_icon.png")
 const SHIELD_ICON: Texture2D = preload("res://art/ui/shield_icon.png")
+const LOCK_ICON: Texture2D = preload("res://art/ui/icon_lock.png")
+const HEART_ICON: Texture2D = preload("res://art/ui/heart_full.png")
 ## Nine-patch border of panels and buttons in art pixels (ui_spec.json "nine_patch_margin").
 const PANEL_BORDER := 6
 const BUTTON_BORDER := 6
@@ -55,6 +59,8 @@ const COLOR_OVERLAY := Color(21.0 / 255.0, 19.0 / 255.0, 31.0 / 255.0, 0.78)
 ## Upgrade categories (UpgradeData.Category) -> eyebrow colour and German name.
 const CATEGORY_COLORS := {0: COLOR_SHIELD, 1: COLOR_SUCCESS, 2: COLOR_EFFECT}
 const CATEGORY_NAMES := {0: "Attribut", 1: "Mechanik", 2: "Effekt"}
+## Translation keys of the category names (DungeonTexts, UX2).
+const CATEGORY_KEYS := {0: &"CATEGORY_ATTRIBUTE", 1: &"CATEGORY_MECHANIC", 2: &"CATEGORY_EFFECT"}
 
 ## Kept for existing callers (main menu, village dialogs).
 const TEXT_COLOR := COLOR_TEXT
@@ -124,6 +130,9 @@ static func get_theme() -> Theme:
 	theme.set_constant("h_separation", "Button", int(px(4)))
 	theme.set_stylebox("focus", "Button", StyleBoxEmpty.new())
 	theme.set_color("font_hover_color", "Button", COLOR_GOLD)
+	# Disabled buttons: button_disabled.png with muted text instead of the normal frame (UX2).
+	theme.set_stylebox("disabled", "Button", panel_style(&"button_disabled"))
+	theme.set_color("font_disabled_color", "Button", COLOR_DISABLED)
 	theme.set_stylebox("background", "ProgressBar", bar_style(COLOR_BG))
 	theme.set_stylebox("fill", "ProgressBar", bar_style(COLOR_GOLD))
 	# Pixel sliders: square track with a 1-art-pixel frame and a pixel grabber (no smooth circle).
@@ -192,7 +201,8 @@ static func scale_stylebox(style: StyleBox) -> StyleBox:
 	return copy
 
 
-## Nine-patch panel style. kind: &"normal", &"gold", &"dark", &"button", &"button_hover".
+## Nine-patch panel style. kind: &"normal", &"gold", &"dark", &"button", &"button_hover",
+## &"button_disabled".
 static func panel_style(kind := &"normal") -> StyleBoxTexture:
 	var key := StringName("panel_" + String(kind))
 	if _styles.has(key):
@@ -210,6 +220,9 @@ static func panel_style(kind := &"normal") -> StyleBoxTexture:
 			content = Vector4(8, 4, 8, 4)
 		&"button_hover":
 			texture = BUTTON_HOVER_TEXTURE
+			content = Vector4(8, 4, 8, 4)
+		&"button_disabled":
+			texture = BUTTON_DISABLED_TEXTURE
 			content = Vector4(8, 4, 8, 4)
 	var style := StyleBoxTexture.new()
 	style.texture = upscale(texture)
@@ -465,8 +478,9 @@ static func dialog_button(content: String, sub: String, on_pressed: Callable, is
 	var sub_height := 0.0
 	if not sub.is_empty():
 		sub_height = px(SIZE_EYEBROW + 3)
-	for state in ["normal", "disabled"]:
-		result.add_theme_stylebox_override(state, _with_bottom(panel_style(normal_kind), sub_height))
+	result.add_theme_stylebox_override("normal", _with_bottom(panel_style(normal_kind), sub_height))
+	result.add_theme_stylebox_override("disabled", _with_bottom(panel_style(&"button_disabled"), sub_height))
+	result.add_theme_color_override("font_disabled_color", COLOR_DISABLED)
 	for state in ["hover", "pressed"]:
 		result.add_theme_stylebox_override(state, _with_bottom(panel_style(&"button_hover"), sub_height))
 	if not sub.is_empty():
@@ -489,6 +503,7 @@ static func menu_button(content: String, hint: String, on_pressed: Callable, dan
 	result.add_theme_stylebox_override("normal", padded_style(&"button", 4, 8))
 	result.add_theme_stylebox_override("hover", padded_style(&"button_hover", 4, 8))
 	result.add_theme_stylebox_override("pressed", padded_style(&"button_hover", 4, 8))
+	result.add_theme_stylebox_override("disabled", padded_style(&"button_disabled", 4, 8))
 	if danger:
 		result.add_theme_color_override("font_color", COLOR_DANGER_SOFT)
 		result.add_theme_color_override("font_hover_color", COLOR_DANGER_SOFT.lightened(0.2))
@@ -540,6 +555,8 @@ static func category_color(category: int) -> Color:
 
 
 static func category_name(category: int) -> String:
+	if CATEGORY_KEYS.has(category):
+		return DungeonTexts.t(CATEGORY_KEYS[category])
 	return CATEGORY_NAMES.get(category, "")
 
 

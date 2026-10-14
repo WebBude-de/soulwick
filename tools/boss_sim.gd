@@ -61,10 +61,14 @@ func _run() -> void:
 			enemy.health.take_damage(INF)
 	await _frames(200)
 
+	# Bare floor: room 1 is a random template (A3); its inner walls, pillars and cover must not
+	# decide whether a boss finds room for a pattern or a test setup is reachable at all.
+	await _clear_floor(room)
 	for case in CASES:
 		await _run_case(case, room, player)
 
 	await _check_obstacle_avoidance(room, player)
+	await _check_u_wall(room, player)
 
 	# Elites: every kind spawns, glows, shows its badge and the volatile one explodes on death.
 	for kind in [1, 2, 3]:
@@ -154,6 +158,21 @@ func _run_case(case: Dictionary, room: Node, player: Node) -> void:
 
 
 ## A wall between enemy and player: the enemy must walk around it (steering).
+func _clear_floor(room: Node) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	tiles.wall_rects.clear()
+	tiles.pillar_tiles.clear()
+	tiles.paint()
+	var props: Array[Node] = room.get_node("Props").get_children()
+	for child in room.get_children():
+		if child.has_method(&"get_built_nodes"):
+			props.append_array(child.call(&"get_built_nodes"))
+	for prop in props:
+		if is_instance_valid(prop) and prop is StaticBody2D:
+			prop.queue_free()
+	await _frames(5)
+
+
 func _check_obstacle_avoidance(room: Node, player: Node) -> void:
 	player.health.reset(99999.0)
 	var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
@@ -179,6 +198,64 @@ func _check_obstacle_avoidance(room: Node, player: Node) -> void:
 	enemy.health.take_damage(INF)
 	wall.queue_free()
 	await _frames(60)
+
+
+## A2: a cup of wall tiles that opens away from the player; a melee and a ranged enemy start inside
+## and must find the way out over the tile navigation. None may stand still in CHASE for more than
+## 2 s, and both must engage (melee: reach the player, ranged: shoot with a free line).
+func _check_u_wall(room: Node, player: Node) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	var size: Vector2i = tiles.room_size
+	var center: int = size.x / 2
+	var bar: int = size.y - 3
+	var saved := {}
+	var cup: Array[Vector2i] = []
+	for x in range(center - 3, center + 4):
+		cup.append(Vector2i(x, bar))
+	for y in range(bar - 3, bar):
+		cup.append(Vector2i(center - 3, y))
+		cup.append(Vector2i(center + 3, y))
+	for y in size.y:
+		for x in size.x:
+			var cell := Vector2i(x, y)
+			saved[cell] = tiles.get_cell_atlas_coords(cell)
+			tiles.set_cell(cell, 0, Vector2i(6, 2) if cup.has(cell) else Vector2i(0, 0))
+	await _frames(3)
+	# Invulnerable instead of refilled: no hit stops while the enemies find their way.
+	player.hurtbox.set_invulnerable(&"u_wall", true)
+	player.global_position = room.to_global((Vector2(center, size.y - 1) + Vector2(0.5, 0.5)) * 64.0)
+	var inside: Vector2 = (Vector2(center, bar - 1) + Vector2(0.5, 0.5)) * 64.0
+	for path in ["res://enemies/data/slime.tres", "res://enemies/data/archer.tres"]:
+		var data: Resource = load(path)
+		var enemy := _spawn(data, room, player, 1)
+		enemy.position = inside
+		room.enemy_container.add_child(enemy)
+		var anchor: Vector2 = enemy.global_position
+		var anchor_time := 0.0
+		var longest := 0.0
+		var engaged := false
+		for i in 60 * 20:
+			await physics_frame
+			var time := i / 60.0
+			if data.attack_kind == 1:
+				engaged = enemy._state == 2 and enemy._action == 0
+			else:
+				engaged = enemy.global_position.distance_to(player.global_position) < 80.0
+			if engaged:
+				break
+			if enemy._state != 1 or enemy.global_position.distance_to(anchor) > 24.0:
+				anchor = enemy.global_position
+				anchor_time = time
+			longest = maxf(longest, time - anchor_time)
+		print("U-wall %s: engaged %s, longest stand %.2f s" % [data.display_name, engaged, longest])
+		_check(engaged, "%s finds the way out of a U-wall" % data.display_name)
+		_check(longest <= 2.0, "%s never hangs longer than 2 s at the U-wall" % data.display_name)
+		enemy.health.take_damage(INF)
+		await _frames(60)
+	player.hurtbox.set_invulnerable(&"u_wall", false)
+	for cell in saved:
+		tiles.set_cell(cell, 0, saved[cell])
+	await _frames(3)
 
 
 func _spawn(data: Resource, room: Node, player: Node, room_index: int, champion := false) -> Node:

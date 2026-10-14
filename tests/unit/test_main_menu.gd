@@ -12,6 +12,7 @@ var _old_settings_path: String
 var _old_legacy_path: String
 var _old_music: float
 var _old_sfx: float
+var _old_locale: String
 
 
 func before_all() -> void:
@@ -21,12 +22,15 @@ func before_all() -> void:
 	_old_legacy_path = SaveManager.legacy_save_path
 	_old_music = SaveManager.get_volume(&"Music")
 	_old_sfx = SaveManager.get_volume(&"SFX")
+	_old_locale = TranslationServer.get_locale()
 
 
 func before_each() -> void:
 	_wipe()
 	SaveManager.set_storage_root(ROOT)
 	SaveManager.load_game()
+	# The asserts read German texts; English is the default on English systems (D-111).
+	GameOptions.set_language(&"de")
 
 
 func after_each() -> void:
@@ -43,6 +47,7 @@ func after_all() -> void:
 	SaveManager.set_volume(&"Music", _old_music)
 	SaveManager.set_volume(&"SFX", _old_sfx)
 	SaveManager.load_game()
+	TranslationServer.set_locale(_old_locale)
 
 
 func _wipe() -> void:

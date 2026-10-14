@@ -1,6 +1,6 @@
 class_name RoomSequence
 extends RefCounted
-## Pure rules of the room order (D-002 .. D-006, endless D-073, room kinds D-086, campfire D-103).
+## Pure rules of the room order (D-002 .. D-006, endless D-073, room kinds D-086/D-100, campfire D-103).
 ## No nodes, fully unit-testable.
 ##
 ## Room numbers vs. slots: every room instance of a run has a slot (its place in the stack of
@@ -11,11 +11,13 @@ extends RefCounted
 
 ## CAMPFIRE never comes from get_room_type(): it only exists between two room numbers (slots).
 enum RoomType { COMBAT, COMBAT_UPGRADE, SPECIAL, MINIBOSS, BOSS, CAMPFIRE }
-enum SpecialType { SHOP, WEAPON, FOUNTAIN, UPGRADE }
+## TRIAL (D-102, A8) must stay 4 = SpecialTable.TRIAL.
+enum SpecialType { SHOP, WEAPON, FOUNTAIN, UPGRADE, TRIAL }
 
 enum Biome { CRYPT, SLIME_GROTTO, SHADOW_REALM, EMBER_FORGE }
-## Kind of a normal combat room (D-086). Independent of the biome.
-enum RoomKind { ARENA, STRUCTURED, ABYSS }
+## Kind of a normal combat room (D-100, replaces the D-086 list). Independent of the biome. Never
+## shown in the game: floor plans (L, cross, ring, ...) are shapes of a template (RoomTemplate.Shape).
+enum RoomKind { NORMAL, ARENA, CHASM }
 ## Size class of a combat template in tiles (D-086): S ~ 15x9, M ~ 19x11, L ~ 25x15.
 enum RoomSize { S, M, L }
 
@@ -151,11 +153,11 @@ static func roll_portal(rng: RandomNumberGenerator) -> bool:
 	return rng.randf() < PORTAL_CHANCE
 
 
-## Abyss rooms appear from this room on (D-086, TESTWERT).
-const ABYSS_FROM_ROOM := 6
-## Room kind weights in RoomKind order (D-086, TESTWERTE): rooms 1-5 and from ABYSS_FROM_ROOM.
-const ROOM_KIND_WEIGHTS_EARLY: Array[float] = [0.5, 0.5, 0.0]
-const ROOM_KIND_WEIGHTS: Array[float] = [0.35, 0.4, 0.25]
+## Arena and chasm rooms appear from this room on; rooms 1-5 are normal combat rooms (D-100, TESTWERT).
+const CHASM_FROM_ROOM := 6
+## Room kind weights in RoomKind order (D-100, TESTWERTE): rooms 1-5 and from CHASM_FROM_ROOM.
+const ROOM_KIND_WEIGHTS_EARLY: Array[float] = [1.0, 0.0, 0.0]
+const ROOM_KIND_WEIGHTS: Array[float] = [0.4, 0.35, 0.25]
 ## Spawn markers per combat template (D-086): at least S 5 / M 8 / L 12, never more than 14.
 const MIN_SPAWN_POINTS: Array[int] = [5, 8, 12]
 const MAX_SPAWN_POINTS := 14
@@ -163,10 +165,10 @@ const MAX_SPAWN_POINTS := 14
 const SOLO_ROOM_SIZES: Array[RoomSize] = [RoomSize.S, RoomSize.M]
 
 
-## Room kind of a normal combat room (D-086). previous_kind is the kind of the room directly
-## before (-1 if that was no combat room): never two abyss rooms in a row, the abyss share is then
-## split proportionally between arena and structured. Always draws exactly one random number.
-## Missing templates of a kind are handled by the template choice (RoomCatalog falls back to arena).
+## Room kind of a normal combat room (D-100). previous_kind is the kind of the room directly
+## before (-1 if that was no combat room): never two chasm rooms in a row, the chasm share is then
+## split proportionally between normal and arena. Always draws exactly one random number.
+## Missing templates of a kind are handled by the template choice (RoomCatalog falls back to normal).
 static func roll_room_kind(room_index: int, previous_kind: int, rng: RandomNumberGenerator) -> RoomKind:
 	var weights := get_room_kind_weights(room_index, previous_kind)
 	var total := 0.0
@@ -181,15 +183,15 @@ static func roll_room_kind(room_index: int, previous_kind: int, rng: RandomNumbe
 	for kind in range(weights.size() - 1, -1, -1):
 		if weights[kind] > 0.0:
 			return kind as RoomKind
-	return RoomKind.ARENA
+	return RoomKind.NORMAL
 
 
 ## Effective (unnormalised) weights in RoomKind order for one draw.
 static func get_room_kind_weights(room_index: int, previous_kind: int) -> Array[float]:
 	var weights: Array[float] = []
-	weights.assign(ROOM_KIND_WEIGHTS if room_index >= ABYSS_FROM_ROOM else ROOM_KIND_WEIGHTS_EARLY)
-	if previous_kind == RoomKind.ABYSS:
-		weights[RoomKind.ABYSS] = 0.0
+	weights.assign(ROOM_KIND_WEIGHTS if room_index >= CHASM_FROM_ROOM else ROOM_KIND_WEIGHTS_EARLY)
+	if previous_kind == RoomKind.CHASM:
+		weights[RoomKind.CHASM] = 0.0
 	return weights
 
 
@@ -210,13 +212,14 @@ static func split_into_waves(enemy_count: int, marker_count: int) -> Array[int]:
 	return waves
 
 
+## Code/test name of a room kind (never shown to the player, D-100).
 static func get_kind_name(kind: int) -> String:
 	match kind:
-		RoomKind.STRUCTURED:
-			return "Strukturiert"
-		RoomKind.ABYSS:
+		RoomKind.ARENA:
+			return "Arena"
+		RoomKind.CHASM:
 			return "Abgrund"
-	return "Arena"
+	return "Normal"
 
 
 static func get_size_name(size: int) -> String:
@@ -253,4 +256,6 @@ static func get_special_name(special_type: int) -> String:
 			return "Brunnen"
 		SpecialType.UPGRADE:
 			return "Upgrade-Altar"
+		SpecialType.TRIAL:
+			return "Prüfung"
 	return ""

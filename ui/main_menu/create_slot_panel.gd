@@ -5,7 +5,7 @@ extends MenuPanel
 ## the character's CharacterData.color_choices (same as the wardrobe at home, where it can be
 ## changed later). Rows: Name (text field) · Charakter (←/→) · Farbe (←/→, 1–6) · buttons.
 ## ↑/↓ change the row, Enter starts, Esc goes back. Typing ticks softly (UiSound). A new save has
-## seen nothing, so the village explains itself (D-087).
+## seen nothing, so the village explains itself (D-087). Texts are translation keys (D-111).
 
 ## color is transparent when the character's default colour was kept (SaveManager stores no colour).
 signal confirmed(slot: int, profile_name: String, character_id: StringName, color: Color)
@@ -24,8 +24,8 @@ const SWATCH_SIZE := 14.0
 const SWATCH_GAP := 3.0
 ## Locked placeholder cards next to the real characters (TESTWERT: 2).
 const LOCKED_CARDS := 2
-const FOOTER := "↑↓ Zeile · ←→ ändern · 1–%d Farbe · Enter starten · Esc zurück"
-const COSMETICS_NOTE := "Weitere Anpassungen später im Zuhause."
+const FOOTER: StringName = &"CREATE_FOOTER"
+const COSMETICS_NOTE: StringName = &"CREATE_COSMETICS_NOTE"
 
 var slot := 1
 
@@ -56,9 +56,9 @@ func _ready() -> void:
 	set_width(WIDTH)
 	_characters = CharacterCatalog.all()
 	_character_index = maxi(0, _characters.find(CharacterCatalog.get_character(CharacterCatalog.DEFAULT_ID)))
-	add_header("Platz %d" % slot, "Neuer Spielstand")
+	add_header(tr(&"SLOTS_SLOT_NUMBER") % slot, &"CREATE_TITLE")
 
-	content.add_child(_row_label("Name"))
+	content.add_child(_row_label(&"CREATE_NAME"))
 	_name_edit = LineEdit.new()
 	_name_edit.max_length = SaveSlots.NAME_MAX_LENGTH
 	_name_edit.placeholder_text = SaveSlots.default_name(slot)
@@ -73,7 +73,7 @@ func _ready() -> void:
 	_name_edit.text_change_rejected.connect(func(_rejected: String) -> void: UiSound.error(self))
 	content.add_child(_name_edit)
 
-	content.add_child(_row_label("Charakter"))
+	content.add_child(_row_label(&"CREATE_CHARACTER"))
 	var cards := UiKit.hbox(int(UiKit.px(4)))
 	cards.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(cards)
@@ -88,7 +88,7 @@ func _ready() -> void:
 	_character_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	content.add_child(_character_text)
 
-	content.add_child(_row_label("Farbe"))
+	content.add_child(_row_label(&"CREATE_COLOR"))
 	var color_row := UiKit.hbox(int(UiKit.px(6)))
 	color_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_swatch_box = UiKit.hbox(int(UiKit.px(SWATCH_GAP)))
@@ -104,14 +104,21 @@ func _ready() -> void:
 
 	var actions := UiKit.hbox(int(UiKit.px(6)))
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	_start_button = MenuPanel.action_button("Los geht's", "Enter", confirm, true)
+	_start_button = MenuPanel.action_button(&"CREATE_START", "Enter", confirm, true)
 	actions.add_child(_start_button)
-	actions.add_child(MenuPanel.action_button("Zurück", "Esc", close))
+	actions.add_child(MenuPanel.action_button(&"COMMON_BACK", "Esc", close))
 	content.add_child(actions)
 
 	_apply_character()
 	_set_row(Row.NAME)
 	_name_edit.grab_focus.call_deferred()
+
+
+func _notification(what: int) -> void:
+	# Language changed: header with the slot number, row captions with the cursor, footer.
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _start_button != null:
+		set_header(tr(&"SLOTS_SLOT_NUMBER") % slot, tr(&"CREATE_TITLE"))
+		_set_row(_row)
 
 
 ## Name as it will be saved (trimmed, default when empty).
@@ -263,14 +270,14 @@ func _set_row(row: Row) -> void:
 	elif _name_edit.has_focus():
 		_name_edit.release_focus()
 	for i in _row_labels.size():
-		var selected := i == int(row)
+		var selected: bool = i == int(row)
 		_row_labels[i].add_theme_color_override("font_color", UiKit.COLOR_GOLD if selected else UiKit.COLOR_MUTED)
-		_row_labels[i].text = ("> " if selected else "") + String(_row_labels[i].get_meta(&"caption"))
+		_row_labels[i].text = ("> " if selected else "") + tr(_row_labels[i].get_meta(&"caption") as StringName)
 	_name_edit.add_theme_stylebox_override("normal", UiKit.padded_style(&"gold" if row == Row.NAME else &"dark", 3, 5))
 	_start_button.add_theme_color_override("font_color", UiKit.COLOR_GOLD if row == Row.START else UiKit.COLOR_TEXT)
 	_style_cards()
 	_style_swatches()
-	set_footer(FOOTER % maxi(1, mini(9, _swatches.size())))
+	set_footer(tr(FOOTER) % maxi(1, mini(9, _swatches.size())))
 
 
 func _apply_character() -> void:
@@ -405,10 +412,10 @@ func _locked_card() -> PanelContainer:
 	if data != null:
 		preview.set_character(data, data.default_color)
 		preview.get_sprite().pause()
-	var label := UiKit.text_label("bald", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	var label := UiKit.text_label(&"COMMON_SOON", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(label)
-	card.tooltip_text = "Weitere Charaktere folgen."
+	card.tooltip_text = &"CREATE_MORE_CHARACTERS"
 	card.mouse_filter = Control.MOUSE_FILTER_STOP
 	card.gui_input.connect(func(event: InputEvent) -> void:
 		var click := event as InputEventMouseButton
@@ -428,8 +435,10 @@ func _card_frame() -> PanelContainer:
 	return card
 
 
-func _row_label(caption: String) -> Label:
-	var label := UiKit.eyebrow(caption, UiKit.COLOR_MUTED)
-	label.set_meta(&"caption", label.text)
+## caption_key: translation key; shown in capitals with the "> " cursor when selected.
+func _row_label(caption_key: StringName) -> Label:
+	var label := UiKit.eyebrow(caption_key, UiKit.COLOR_MUTED)
+	label.uppercase = true
+	label.set_meta(&"caption", caption_key)
 	_row_labels.append(label)
 	return label

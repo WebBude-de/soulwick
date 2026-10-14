@@ -1,0 +1,39 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/explosive_barrel.gd" id="1_barrel"]
+[ext_resource type="Script" path="res://components/health/health_component.gd" id="2_health"]
+[ext_resource type="Script" path="res://components/hurtbox/hurtbox.gd" id="3_hurtbox"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_body"]
+size = Vector2(36, 22)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_hurtbox"]
+size = Vector2(44, 48)
+
+[node name="ExplosiveBarrel" type="StaticBody2D"]
+collision_mask = 0
+script = ExtResource("1_barrel")
+debris_color = Color(0.7, 0.18, 0.1, 1)
+
+[node name="Sprite" type="Sprite2D" parent="."]
+scale = Vector2(2, 2)
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -10)
+shape = SubResource("RectangleShape2D_body")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+max_health = 6.0
+
+[node name="Hurtbox" type="Area2D" parent="." node_paths=PackedStringArray("health")]
+collision_layer = 16
+collision_mask = 0
+monitoring = false
+script = ExtResource("3_hurtbox")
+health = NodePath("../HealthComponent")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+position = Vector2(0, -22)
+shape = SubResource("RectangleShape2D_hurtbox")

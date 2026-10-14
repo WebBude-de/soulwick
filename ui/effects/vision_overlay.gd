@@ -102,6 +102,9 @@ func _process(delta: float) -> void:
 	if running:
 		_blind_left = maxf(0.0, _blind_left - delta)
 	var target_radius := minf(_base_radius, BLIND_RADIUS) if _blind_left > 0.0 else _base_radius
+	# Dark zones of a room (A3 ingredient) narrow the circle while the player stands in them.
+	if _player != null and is_instance_valid(_player):
+		target_radius *= DarkZone.get_vision_factor_at(get_tree(), _player.global_position)
 	_radius = lerpf(_radius, target_radius, 1.0 - exp(-RADIUS_SMOOTHING * delta))
 	_darkness = move_toward(_darkness, _target_darkness, DARKNESS_SPEED * delta)
 	_hurt = maxf(0.0, _hurt - HURT_DECAY * delta)

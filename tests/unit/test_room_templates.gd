@@ -1,6 +1,7 @@
 extends GutTest
-## Combat templates on disk (D-086): spawn marker count per size class, exit and every marker on
-## floor reachable from the entrance. Guards hand edits in the editor as well as the generator.
+## Combat templates on disk (D-086, A3): spawn marker count per size class, every floor tile, the
+## exit and every marker reachable from the entrance, RoomTemplate metadata matching the scene.
+## Guards hand edits in the editor as well as the generator.
 
 const MINIBOSS: PackedScene = preload("res://dungeon/rooms/boss/miniboss_room.tscn")
 
@@ -41,7 +42,7 @@ func test_every_combat_template_has_enough_spawn_markers() -> void:
 		assert_eq(int(room.room_kind), catalog.get_kind_of(scene), "%s: catalog kind" % scene.resource_path)
 
 
-func test_exit_and_markers_are_reachable_from_the_entrance() -> void:
+func test_exit_markers_and_all_floor_are_reachable_from_the_entrance() -> void:
 	for scene in RoomCatalog.create().get_templates():
 		var room := _instantiate(scene)
 		var tiles := room.get_node("Tiles") as RoomTiles
@@ -50,15 +51,46 @@ func test_exit_and_markers_are_reachable_from_the_entrance() -> void:
 		for marker in _markers(room):
 			var tile := RoomTiles.local_to_tile(marker.position - tiles.position)
 			assert_true(reachable.has(tile), "%s: %s on reachable floor (tile %s)" % [scene.resource_path, marker.name, tile])
+		var walkable := tiles.get_walkable_tiles()
+		for tile: Vector2i in walkable:
+			if Rect2i(Vector2i.ZERO, tiles.room_size).has_point(tile):
+				assert_true(reachable.has(tile), "%s: floor tile %s not cut off" % [scene.resource_path, tile])
+		# Room 1 starts the player two tiles inside the entrance.
+		assert_true(walkable.has(Vector2i(tiles.entrance_x, tiles.room_size.y - 2)), "%s: player start free" % scene.resource_path)
 
 
-func test_pillars_are_not_walkable() -> void:
+func test_room_templates_match_their_scenes() -> void:
+	for entry in RoomCatalog.create().get_entries():
+		var room := _instantiate(entry.scene)
+		var tiles := room.get_node("Tiles") as RoomTiles
+		assert_eq(tiles.room_size, entry.room_size, "%s: size" % entry.id)
+		assert_eq(int(room.room_size_class), int(entry.size_class), "%s: size class" % entry.id)
+		var marker_tiles: Array[Vector2i] = []
+		for marker in _markers(room):
+			marker_tiles.append(RoomTiles.local_to_tile(marker.position - tiles.position))
+		assert_eq(marker_tiles, entry.spawn_tiles, "%s: spawn tiles" % entry.id)
+		assert_eq(entry.entrance_side, RoomTemplate.DoorSide.SOUTH, "%s: entrance south" % entry.id)
+		assert_true(entry.exit_sides.has(RoomTemplate.DoorSide.NORTH), "%s: exit north" % entry.id)
+		for tile in entry.ambush_tiles:
+			assert_true(entry.spawn_tiles.has(tile), "%s: ambush tile %s is a marker" % [entry.id, tile])
+		assert_not_null(room.get_node_or_null("Ingredients") as IngredientScatter, "%s: has the ingredient scatter" % entry.id)
+
+
+func test_pillars_and_inner_walls_are_not_walkable() -> void:
 	var room := _instantiate(preload("res://dungeon/rooms/combat/combat_pillars.tscn"))
 	var tiles := room.get_node("Tiles") as RoomTiles
-	assert_false(tiles.is_walkable(Vector2i(4, 3)))
-	assert_true(tiles.is_walkable(Vector2i(5, 3)))
+	var pillar: Vector2i = tiles.pillar_tiles[0]
+	assert_false(tiles.is_walkable(pillar))
+	assert_false(tiles.is_walkable(pillar + Vector2i.DOWN), "the pillar's front blocks too (SPRITES_V6)")
+	assert_true(tiles.is_walkable(pillar + Vector2i.RIGHT))
 	assert_true(tiles.is_walkable(Vector2i(tiles.exit_x, -3)), "exit corridor")
 	assert_false(tiles.is_walkable(Vector2i(-1, 0)), "outer wall")
+	var ring := _instantiate(preload("res://dungeon/rooms/combat/normal_ring_m.tscn"))
+	var ring_tiles := ring.get_node("Tiles") as RoomTiles
+	assert_false(ring_tiles.wall_rects.is_empty())
+	var block: Rect2i = ring_tiles.wall_rects[0]
+	assert_false(ring_tiles.is_walkable(block.position), "inner wall")
+	assert_true(ring_tiles.get_blocked_tiles().has(block.get_center()), "the block is solid")
 
 
 func test_flood_fill_dashes_over_one_tile_gaps_only() -> void:
@@ -86,7 +118,7 @@ func test_non_combat_templates_keep_five_markers() -> void:
 	assert_eq(_markers(_instantiate(MINIBOSS)).size(), 5)
 
 
-func test_room_hands_five_markers_per_wave_to_the_spawner() -> void:
+func test_every_marker_reaches_the_spawner_over_several_waves() -> void:
 	var room := _instantiate(preload("res://dungeon/rooms/combat/combat_wide.tscn"))
 	var context := DungeonContext.new()
 	context.rng = RandomNumberGenerator.new()
@@ -94,11 +126,23 @@ func test_room_hands_five_markers_per_wave_to_the_spawner() -> void:
 	room.setup(2, RoomSequence.RoomType.COMBAT, -1, false, context)
 	# Not in the tree: resolve the onready node by hand.
 	room.spawn_points = room.get_node("SpawnPoints")
-	assert_eq(room.get_spawn_markers().size(), 8)
+	var count := room.get_spawn_markers().size()
+	assert_gte(count, RoomSequence.get_min_spawn_points(RoomSequence.RoomSize.M))
 	var seen := {}
 	for i in 30:
 		var subset: Array[Marker2D] = room._get_markers()
-		assert_eq(subset.size(), RoomController.SPAWNER_MARKER_COUNT)
+		assert_between(subset.size(), 5, count)
 		for marker in subset:
 			seen[marker] = true
-	assert_eq(seen.size(), 8, "every marker gets used over several waves")
+	assert_eq(seen.size(), count, "every marker gets used over several waves")
+
+
+func test_template_torches_keep_clear_of_the_exit_door() -> void:
+	# The exit door brings its own torches (D1); template torches beside it would make four.
+	for scene in RoomCatalog.create().get_templates():
+		var room := _instantiate(scene)
+		var tiles := room.get_node("Tiles") as RoomTiles
+		for prop in room.get_node("Props").get_children():
+			if String(prop.name).begins_with("Torch"):
+				var torch_x := floori((prop as Node2D).position.x / RoomTiles.TILE_WORLD)
+				assert_gte(absi(torch_x - tiles.exit_x), 4, "%s: %s next to the exit door" % [scene.resource_path, prop.name])

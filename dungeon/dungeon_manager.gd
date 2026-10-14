@@ -55,6 +55,8 @@ var _rooms: Dictionary[int, RoomController] = {}
 var _active_slot := 0
 var _completed_rooms := 0
 var _previous_special := -1
+## Weighted special room draw (D-102, A8).
+var _special_table: SpecialTable = SpecialTable.load_default()
 ## Kind of the room prepared last (-1 after a non-combat room): no abyss twice in a row (D-086).
 var _previous_kind := -1
 var _combat_catalog: RoomCatalog = null
@@ -160,7 +162,7 @@ func _prepare_slot(slot: int) -> RoomController:
 	var special := -1
 	var portal := false
 	if room_type == RoomSequence.RoomType.SPECIAL:
-		special = RoomSequence.roll_special_type(_previous_special, context.rng)
+		special = _special_table.roll(_previous_special, context.rng)
 		_previous_special = special
 		portal = RoomSequence.roll_portal(context.rng)
 	elif room_type == RoomSequence.RoomType.CAMPFIRE:
@@ -169,7 +171,7 @@ func _prepare_slot(slot: int) -> RoomController:
 	var rolled_kind := -1
 	if RoomSequence.is_normal_combat(room_type):
 		rolled_kind = RoomSequence.roll_room_kind(index, _previous_kind, context.rng)
-	var room := _template_for(room_type, rolled_kind).instantiate() as RoomController
+	var room := _template_for(room_type, rolled_kind, special).instantiate() as RoomController
 	var is_campfire := room_type == RoomSequence.RoomType.CAMPFIRE
 	room.name = ("Campfire%d" if is_campfire else "Room%d") % index
 	room.rolled_kind = rolled_kind
@@ -180,6 +182,10 @@ func _prepare_slot(slot: int) -> RoomController:
 	room.setup(index, room_type, special, portal, context, extra_dark)
 	room_container.add_child(room)
 	_rooms[slot] = room
+	# Enemy themes and the quiet room (A3) for normal combat rooms; always three RNG draws.
+	if RoomSequence.is_normal_combat(room_type):
+		var plan := EncounterVariation.roll(index, room_type, context.rng, room.room_kind)
+		room.set_encounter_group(EncounterVariation.build_group(plan, index, room.spawner.get_biome(index)))
 	assert(room_container.get_child_count() <= MAX_LIVE_ROOMS, "More than three live rooms.")
 
 	var previous: RoomController = _rooms.get(slot - 1)
@@ -212,11 +218,13 @@ func _unload_slot(slot: int) -> void:
 
 
 ## Combat rooms: a template of the rolled kind in a single-player size (S or M); kinds without a
-## template fall back to an arena (D-086, RoomCatalog.pick).
-func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.ARENA) -> PackedScene:
+## template fall back to a normal room (D-100, RoomCatalog.pick).
+func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1) -> PackedScene:
 	match room_type:
 		RoomSequence.RoomType.SPECIAL:
-			return special_template
+			# Some special types bring their own floor plan (trial room, A8).
+			var own := SpecialTable.get_template_for(special)
+			return own if own != null else special_template
 		RoomSequence.RoomType.MINIBOSS:
 			return miniboss_template
 		RoomSequence.RoomType.BOSS:
@@ -296,16 +304,18 @@ func _offer_upgrade(title: String) -> void:
 
 func _apply_vision(room: RoomController) -> void:
 	var biome := room.spawner.get_biome(room.room_index)
-	var vision_factor := biome.vision_factor if biome != null else 1.0
+	# Pact curse "Lichtkreis -20 %" (D-112) applies on top of the biome factor.
+	var curse_factor := PlayerCurses.vision_factor(context.player)
+	var vision_factor := (biome.vision_factor if biome != null else 1.0) * curse_factor
 	var overlay := get_tree().get_first_node_in_group(VisionOverlay.GROUP) as VisionOverlay
 	if overlay != null:
 		overlay.set_biome(biome, room.room_index == 1)
 		if room.room_type == RoomSequence.RoomType.SPECIAL:
 			# Special rooms are safe and lit (shop, weapons, fountain, altar).
-			overlay.set_vision(SPECIAL_ROOM_DARKNESS, VISION_RADIUS)
+			overlay.set_vision(SPECIAL_ROOM_DARKNESS, VISION_RADIUS * curse_factor)
 		elif room.is_campfire():
 			# Calm and dim; the colour follows the player through the blend (CampfireContent).
-			overlay.set_vision(CAMPFIRE_DARKNESS, VISION_RADIUS)
+			overlay.set_vision(CAMPFIRE_DARKNESS, VISION_RADIUS * curse_factor)
 		else:
 			var radius := EXTRA_DARK_VISION_RADIUS if room.is_extra_dark else VISION_RADIUS
 			overlay.set_vision(DUNGEON_DARKNESS, radius * vision_factor, room.room_index == 1)
@@ -314,9 +324,8 @@ func _apply_vision(room: RoomController) -> void:
 
 func _announce_room(room: RoomController, biome: BiomeData) -> void:
 	if room.is_campfire():
-		var next := room.get_next_biome()
-		var subtitle := "Rast, bevor es weitergeht" if next == null else "Rast vor: %s" % next.display_name
-		ui.show_banner("Lagerfeuer", subtitle, CAMPFIRE_BANNER_COLOR)
+		# Genre plaque "Lagerfeuer" with "Rast vor: <Biom>" (UX2).
+		ui.show_room_genre(room)
 		return
 	var kind_text := get_room_kind_label(room) if SHOW_ROOM_KIND_BANNER else ""
 	var entering_biome := room.room_index > 1 and (room.room_index - 1) % RoomSequence.BOSS_INTERVAL == 0
@@ -328,16 +337,17 @@ func _announce_room(room: RoomController, biome: BiomeData) -> void:
 	elif not kind_text.is_empty() and room.room_index > 1:
 		# Room 1 keeps the run start banner (Proviant).
 		ui.show_banner(kind_text, "Raum %d" % room.room_index, ROOM_KIND_BANNER_COLOR)
+	# Arena, catacomb, special rooms, trials: named banner, explained once per save (UX2). Normal
+	# combat rooms stay unnamed; banners queue behind each other.
+	ui.show_room_genre(room)
 
 
-## "Arena · M" for normal combat rooms, empty otherwise. Marks a fallback ("Arena · S (statt Abgrund)").
+## Name of a combat room with gameplay of its own (D-110): "Arena", "Abgrund", "Katakombe"; empty for
+## normal combat rooms and all other rooms. Kind and shape: RoomTemplate.of(room).
 static func get_room_kind_label(room: RoomController) -> String:
 	if not room.has_room_kind():
 		return ""
-	var label := "%s · %s" % [RoomSequence.get_kind_name(room.room_kind), RoomSequence.get_size_name(room.room_size_class)]
-	if room.rolled_kind >= 0 and room.rolled_kind != room.room_kind:
-		label += " (statt %s)" % RoomSequence.get_kind_name(room.rolled_kind)
-	return label
+	return RoomTemplate.get_room_name(room.room_kind, RoomTemplate.of(room))
 
 
 static func _with_kind(subtitle: String, kind_text: String) -> String:
