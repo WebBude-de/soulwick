@@ -51,7 +51,7 @@ func test_light_run_goes_deep_when_the_special_room_turns_dark() -> void:
 
 
 func test_dark_variants_stay_almost_dark_with_true_circles() -> void:
-	for variant in [&"stone_guardian", &"torch_room", &"lantern"]:
+	for variant in [&"lightfire", &"souls"]:
 		var profile := LightingProfile.for_situation(&"crypt", RoomSequence.RoomType.COMBAT, 0, variant)
 		assert_almost_eq(profile.ambient, LightingProfile.DEEP_AMBIENT, 0.0001, String(variant))
 		assert_eq(profile.player_radius_scale, 1.0, String(variant))

@@ -4,6 +4,8 @@ extends StaticBody2D
 ## Logic only: open/closed and the collision. Looks, particles, light and sound live in DoorView
 ## ($View), which follows state_changed (ROADMAP_AUSBAU D1, decisions separate from effects).
 ## Biome and destination come from outside: configure() / configure_for_room() / set_destination().
+## The way behind an exit door (R5): show_way() puts the mode symbol over it and a light cone in the
+## mode colour in front of it (DoorSigns decides both from the prepared next room).
 
 ## Emitted on every open()/close()/set_open_instant(); instant = no animation or effects.
 signal state_changed(open: bool, instant: bool)
@@ -19,6 +21,9 @@ var side: int = RoomTiles.DoorSide.NORTH
 ## Becomes true with configure(). Only configured doors play their own sounds: before D1 is
 ## wired in, RoomController still plays "door_open" itself.
 var is_configured := false
+## Mode and light colour of the way behind the door (show_way); kept across configure().
+var way_mode: StringName = &""
+var way_color := Color(0, 0, 0, 0)
 
 @onready var _sprite: AnimatedSprite2D = $Sprite
 @onready var _shape: CollisionShape2D = $CollisionShape2D
@@ -40,6 +45,7 @@ func configure(biome_id: StringName, kind: StringName = DoorStyle.KIND_NORMAL, s
 	style = DoorStyle.for_door(biome_id, kind, symbol)
 	is_entrance = entrance
 	is_configured = true
+	_copy_way()
 	if is_node_ready():
 		view.apply_style(style, is_entrance)
 		view.sounds_enabled = true
@@ -82,6 +88,22 @@ func set_branch_symbol(symbol_id: StringName) -> void:
 		view.set_symbol(style.symbol)
 
 
+## The way behind this door (R5): mode of the next room (RoomObjective mode id, &"" = none, its symbol
+## replaces a special or branch sign) and the colour of the light cone (transparent = none).
+## Entrance doors show neither.
+func show_way(mode: StringName, color: Color) -> void:
+	way_mode = mode
+	way_color = color
+	_copy_way()
+	if is_node_ready():
+		view.apply_style(style, is_entrance)
+		view.show_state(is_open)
+
+
+func get_way_mode() -> StringName:
+	return way_mode
+
+
 ## A branch door that was not chosen: it stays shut for good and dims (decision of the room).
 func seal() -> void:
 	_apply(false, true)
@@ -99,6 +121,11 @@ func close() -> void:
 
 func set_open_instant(value: bool) -> void:
 	_apply(value, true)
+
+
+func _copy_way() -> void:
+	style.mode = way_mode
+	style.way_color = way_color
 
 
 func _apply(value: bool, instant: bool) -> void:

@@ -74,7 +74,7 @@ static func roll(room_index: int, room_type: int, next_slot_type: int, has_varia
 		return plan
 	var other := BranchOption.create(BranchOption.Kind.ELITE_NEST, -1, BranchOption.ELITE_NEST_ID)
 	if kind_roll >= ELITE_SHARE and variant_table != null:
-		var hidden := variant_table.choose_variant(RoomSequence.get_biome(room_index + 1), first_roll)
+		var hidden := variant_table.choose_variant(RoomSequence.get_biome(room_index + 1), first_roll, room_index + 1)
 		if hidden != VariantTable.NONE:
 			other = BranchOption.create(BranchOption.Kind.UNKNOWN, -1, hidden)
 	var safe := BranchOption.create(BranchOption.Kind.SAFE)

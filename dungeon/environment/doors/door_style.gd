@@ -53,6 +53,11 @@ var biome_id: StringName = DEFAULT_BIOME
 var kind: StringName = KIND_NORMAL
 ## Symbol id from SYMBOLS or &"" for none.
 var symbol: StringName = &""
+## The way behind the door (R5, 05_tueren.md): mode of the next room (RoomObjective mode id, its
+## symbol replaces symbol) and the colour of the light cone thrown into the room; &"" / transparent
+## = none. Set through Door.show_way (DoorSigns), kept when the door is configured again.
+var mode: StringName = &""
+var way_color := Color(0, 0, 0, 0)
 
 ## Frame and leaf in art px; leaf_offset = top-left of the leaf inside the frame.
 var frame_size := Vector2i(48, 48)
@@ -135,6 +140,11 @@ static func is_branch_symbol(symbol_id: StringName) -> bool:
 
 func is_boss() -> bool:
 	return kind == KIND_BOSS
+
+
+## Does the door throw a light cone of the way behind it (R5)?
+func has_way_light() -> bool:
+	return way_color.a > 0.0
 
 
 ## Frame file of this style (may not exist yet).

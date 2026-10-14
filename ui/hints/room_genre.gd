@@ -6,8 +6,8 @@ extends RefCounted
 ## Pure: describe() reads a room once, resolve() decides from that, so tests need no rooms.
 ##
 ## Ambush arenas look empty on entry: they resolve to NONE and are named when they spring
-## (RoomController.arena_started, DungeonUI.on_arena_started). Combat variants and the wager altar
-## (A7) are prepared: a room that answers get_variant_id() -> StringName (e.g. &"soul_flame") or
+## (RoomController.arena_started, DungeonUI.on_arena_started). Room modes and the wager altar: a
+## room that answers get_variant_id() -> StringName (a mode id such as &"flame", RoomVariants) or
 ## has_wager_altar() -> true gets that genre.
 
 enum Group { COMBAT, SPECIAL, TRIAL, REST, WAGER }
@@ -55,25 +55,18 @@ const TABLE: Dictionary[StringName, Dictionary] = {
 	SHOP: {"key": "ROOM_SHOP", "group": Group.SPECIAL, "color": Color("#f2cf4a"), "icon": "door:shop", "tint": true},
 	WEAPON: {"key": "ROOM_WEAPON", "group": Group.SPECIAL, "color": Color("#a98cf5"), "icon": "door:weapon", "tint": true},
 	FOUNTAIN: {"key": "ROOM_FOUNTAIN", "group": Group.SPECIAL, "color": Color("#6cb2ec"), "icon": "door:fountain", "tint": true},
-	# Combat variants (A7, KONZEPT_RAEUME §4): ids proposed for get_variant_id().
-	&"soul_flame": {"key": "ROOM_SOUL_FLAME", "group": Group.COMBAT, "color": Color("#a66ef0"), "icon": "", "tint": false},
-	&"rifts": {"key": "ROOM_RIFTS", "group": Group.COMBAT, "color": Color("#7ff0c8"), "icon": "", "tint": false},
-	&"stone_guardian": {"key": "ROOM_STONE_GUARDIAN", "group": Group.COMBAT, "color": Color("#9a94b5"), "icon": "", "tint": false},
-	&"lantern": {"key": "ROOM_LANTERN", "group": Group.COMBAT, "color": Color("#ffd166"), "icon": "", "tint": false},
-	&"gravedigger": {"key": "ROOM_GRAVEDIGGER", "group": Group.COMBAT, "color": Color("#b8b09a"), "icon": SKULL_ICON, "tint": false},
-	&"bounty": {"key": "ROOM_BOUNTY", "group": Group.COMBAT, "color": Color("#f2cf4a"), "icon": CROWN_ICON, "tint": false},
-	&"torch_room": {"key": "ROOM_TORCH_ROOM", "group": Group.COMBAT, "color": Color("#ff8a3c"), "icon": "", "tint": false},
+	# Elite nest (A10, only through branches; a room mode by get_variant_id()).
 	&"elite_nest": {"key": "ROOM_ELITE_NEST", "group": Group.COMBAT, "color": Color("#e0b84a"), "icon": "door:elite_nest", "tint": false},
 	# Way-finding (A10): the secret niche, named when its wall breaks.
 	SECRET: {"key": "ROOM_SECRET", "group": Group.COMBAT, "color": Color("#c9b8ff"), "icon": "", "tint": false},
-	# Room modes v2 (KONZEPT_RAEUME_V2 §2, R3): announced by their RoomIntro, not by show_room_genre;
-	# the entries carry the first-time card. Ids and colours as RoomObjective.MODES (Lichtfeuer lifted
-	# for the dark card). "Risse schließen" (RoomObjective.RIFTS) uses the entry &"rifts" above until
-	# R4b turns the variant into the mode.
+	# Room modes v2 (KONZEPT_RAEUME_V2 §2, R3, R4): announced by their RoomIntro, not by show_room_genre;
+	# the entries carry the first-time card. Ids = RoomObjective.MODES = ModeRegistry ids (Lichtfeuer
+	# lifted for the dark card); a room answers its mode through get_variant_id().
 	&"escort": {"key": "MODE_ESCORT", "group": Group.COMBAT, "color": Color("#ffd166"), "icon": "mode:escort", "tint": true},
 	&"flame": {"key": "MODE_FLAME", "group": Group.COMBAT, "color": Color("#8f78e0"), "icon": "mode:flame", "tint": true},
 	&"relic": {"key": "MODE_RELIC", "group": Group.COMBAT, "color": Color("#f2cf4a"), "icon": "mode:relic", "tint": true},
 	&"souls": {"key": "MODE_SOULS", "group": Group.COMBAT, "color": Color("#2fb391"), "icon": "mode:souls", "tint": true},
+	&"rifts": {"key": "MODE_RIFTS", "group": Group.COMBAT, "color": Color("#5fcd62"), "icon": "mode:rifts", "tint": true},
 	&"hunt": {"key": "MODE_HUNT", "group": Group.COMBAT, "color": Color("#ff8a3c"), "icon": "mode:hunt", "tint": true},
 	&"lightfire": {"key": "MODE_LIGHTFIRE", "group": Group.COMBAT, "color": Color("#a48a85"), "icon": "mode:lightfire", "tint": true},
 	&"collapse": {"key": "MODE_COLLAPSE", "group": Group.COMBAT, "color": Color("#8c8f9a"), "icon": "mode:collapse", "tint": true},

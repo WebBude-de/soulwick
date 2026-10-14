@@ -5,9 +5,6 @@
 [resource]
 script = ExtResource("1_table")
 from_room = 6
-variant_chance = 0.2
+variant_chance = 0.35
+max_per_cycle = 2
 wager_chance = 0.12
-variant_ids = Array[StringName]([&"soul_flame", &"rifts", &"gravedigger", &"bounty", &"stone_guardian", &"lantern", &"torch_room"])
-variant_weights = Array[float]([1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0])
-variant_biomes = Array[int]([-1, -1, 0, -1, -1, -1, 2])
-variant_biome_masks = Array[int]([0, 0, 0, 0, 5, 0, 0])

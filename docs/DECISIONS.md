@@ -814,6 +814,30 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Befund:** Etwa jeder dritte Balance-Bot-Prozess (Bogen/Stab) stürzte ab: `0xC0000005` in `AudioServer::_mix_step` (Godot 4.7.2), weil ersetzte Bus-Daten positionaler Sounds zwei Frames später freigegeben werden, während der Mischthread sie noch liest. Tritt nur bei sehr hohen Bildraten auf (headless unbegrenzt, im Spiel nur ohne VSync).
 - **Beschluss:** Ohne VSync begrenzt das Spiel auf 240 FPS (`GameOptions.MAX_FPS_WITHOUT_VSYNC`). `tools/balance_sim.gd` läuft standardmäßig ohne Ton (`audio=1` zur Diagnose). Andere Headless-Tools sollen nachziehen. Godot-Issue melden (ohne Debug-Symbole keine genaue Zeile).
 
+### D-135 – Minispiele Geleit, Seelen sammeln, Einsturz (R4a)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach KONZEPT_RAEUME_V2 §3.3/§3.6/§3.10
+- **Geleit:** verirrter Dorfbewohner (5 % Huhn) läuft einen sichtbaren Pfad zum Ausgang; Köder für 60 % der Gegner, bleibt bei Gegner < 3 Kacheln stehen und ruft, 1,2× schneller neben einem Spieler, 4 Herzen (+1 je weiterem Spieler). Ankunft: Restgegner zerfallen (zählen als Kill), Bonus-Truhe, Rettung im Spielstand (`rescued_villagers`/`rescued_chickens`). Sturz: kein Bonus.
+- **Seelen:** 12 Seelen nacheinander, je 6 s, 45 s gesamt, 1 Gegner je Seele im 1,5-s-Takt; Kristalle 12/9/6 → 3/2/1.
+- **Einsturz:** 30 s, 2×2-Felder brechen von außen nach innen mit 1 s Warnung, nie Inseln; Gegner fallen mit, Spieler landen auf dem Restweg (D-115); Restweg 3 Kacheln breit mit Bonus-Truhe.
+- **Erstes Auftreten:** Raum 6 / 11 / 16.
+
+### D-136 – Minispiele aus den Varianten, Modus-Tabelle (R4b)
+
+- **Status:** VERBINDLICH (Regeln D-120) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Ziehung:** `VariantTable` ist die Modus-Tabelle, Modi stehen in `ModeRegistry` (Id, Skript, Plan-Modus, erster Raum, Gewicht, Biome). Ab Raum 6 sind 35 % der Kampfräume (Plätze 1–3) Minispiele, höchstens 2 je Zyklus, nie derselbe Modus zweimal hintereinander, kein Modus zweimal im Zyklus, noch nicht gesehene Modi zuerst. Erste Räume: Flamme und Geleit 6, Reliquie und Seelen 11, Risse, Jagd, Lichtfeuer, Einsturz 16. Der Zug nennt den Plan-Modus; passt kein Plan, nimmt der Modus eigene Plätze. Wagnis-Altar 12 % der übrigen Kampfräume; Elite-Nest nur über Abzweigungen; Arena bleibt Raumart.
+- **Modi:** Flamme hüten (40 s, Schübe alle 8 s, 70 % zielen auf die Flamme, unversehrt +1 Kristall), Reliquie holen (Träger ×0,75 ohne Angriff, 40 s für den Bonus, ab Raum 26 zwei Reliquien), Risse schließen (Wandrisse mit HP, Schub alle 6 s, unter 40 s +1 Kristall), Jagd (Fluchtloch 15 s, Beute Gold ×6, 30 % Upgrade), Lichtfeuer (Feuer anzünden, Steinwächter nur im Licht verwundbar; jedes Licht zählt wie D-116).
+- **Totengräber:** Eigenschaft der Krypta ab Raum 3, 35 % der Skelette stehen einmal mit halben HP auf.
+- **Gemeinsam:** Intro beim Betreten, Aufgabenleiste, Wachen aus dem Plan, Gegner nur aus Quellen, Misserfolg kostet nur den Bonus.
+- **Ersetzt:** die Varianten aus D-114 und D-116; D-101 „nie zwei Varianten hintereinander“ wird „nie derselbe Modus zweimal hintereinander“.
+
+### D-137 – Türen zeigen den nächsten Raum, Gänge, Abzweigung ohne Aufploppen (R5)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach D-120
+- **Türen:** Jede Ausgangstür zeigt den Modus des schon gebauten nächsten Raums (Symbol über Torbogen bzw. Seitengang, Lichtkegel in Modusfarbe); Säubern Biomfarbe ohne Symbol; Spezial/Ruhe/Lagerfeuer ihr Symbol in Gold; Miniboss und Bosstor rot. Der unbekannte Weg einer Abzweigung zeigt sein Modus-Symbol statt „?“ (weicht von D-117 ab). Seitentüren mit `door_side_<biom>`; Torbogen in allen Vorlagen ganz (Test `test_door_arch_fit`).
+- **Gänge:** Stil je Gang (gerade / Tropfstelle / Nische / Treppe, 35/25/20/20) per Hash aus Seed, Raum und Wand, ohne Dungeon-RNG; Platzhalter bis zu den Gang-Grafiken (SPRITES_V8).
+- **Nichts ploppt auf:** Jeder vorbereitete Raum liegt unter einem dunklen Schleier (0,62) und wird beim Betreten des Eingangsgangs hell. Eine Abzweigung baut beim Betreten beide Wege (höchstens 4 lebende Räume während der Wahl), der nicht gewählte blendet in 0,9 s aus. Abzweigung nur, wenn beide Wege Platz haben. Gleicher Seed = gleiche Räume.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

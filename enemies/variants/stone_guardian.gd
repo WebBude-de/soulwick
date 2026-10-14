@@ -1,15 +1,16 @@
 class_name StoneGuardian
 extends Enemy
-## Stone guardian of the light variant "Steinwächter" (KONZEPT_RAEUME §4.3, A9): a knight statue
-## that only moves outside every light circle. In the light (LightQuery: any player's own circle,
-## torches, crystals, lanterns) it freezes - eyes out, a puff of stone dust - and takes damage; in
+## Stone guardian of "Lichtfeuer" (KONZEPT_RAEUME_V2 §3.9; before the variant "Steinwächter", A9): a
+## knight statue that only moves outside every light circle. In the light (LightQuery: the fires,
+## crystals, torches; the players' own circles only if player_light_counts) it freezes - eyes out, a
+## puff of stone dust - and takes damage; in
 ## the dark it is stone (invulnerable), its eyes glow and it advances. Its only attack is a leap
 ## slam with the usual yellow circle on the target (EnemyData LEAP_SLAM, D-021): from the edge of a
 ## light circle it jumps in, lands in the light and freezes there - that is the moment to strike.
 ## A started leap or strike is finished even if it ends in the light (readable, never cut halfway).
 ## As an Enemy it counts for the room like any other enemy.
-## Decision per frame in LightVariantRules.guardian_frozen; this class only applies it.
-## Before the fight it stands as a dormant statue (active = false, set by the variant).
+## Decision per frame in LightfireRules.guardian_frozen; this class only applies it.
+## Before the fight it stands as a dormant statue (active = false, set by the mode).
 
 signal froze(guardian: StoneGuardian)
 signal thawed(guardian: StoneGuardian)
@@ -22,8 +23,11 @@ const EYE_LIGHT_HEIGHT := -34.0
 ## Feedback on a hit that bounces off the stone, at most this often.
 const CLANK_INTERVAL := 0.2
 
-## Statue until the fight starts (the variant calls activate()).
+## Statue until the fight starts (the mode calls activate()).
 var active := false
+## Do the players' own light circles hold it (LightQuery include_players)? Lichtfeuer: only the fires
+## (LightfireRules.PLAYER_LIGHT_HOLDS_GUARDIANS).
+var player_light_counts := true
 var frozen := true
 
 var _dark_time := 0.0
@@ -82,7 +86,7 @@ func is_frozen() -> bool:
 func is_in_light() -> bool:
 	if not is_inside_tree():
 		return false
-	return LightQuery.is_lit(get_tree(), global_position)
+	return LightQuery.is_lit(get_tree(), global_position, player_light_counts)
 
 
 func _physics_process(delta: float) -> void:
@@ -104,7 +108,7 @@ func step_light(delta: float, lit: bool) -> void:
 	_dark_time = 0.0 if lit else _dark_time + delta
 	if _is_committed():
 		return
-	_apply_frozen(LightVariantRules.guardian_frozen(lit, frozen, _dark_time))
+	_apply_frozen(LightfireRules.guardian_frozen(lit, frozen, _dark_time))
 
 
 ## The guardian is a light puzzle with its own rules: no ring places or packs (EnemyPack).
@@ -120,7 +124,7 @@ func _apply_frozen(value: bool, force := false) -> void:
 	if value == frozen and not force:
 		return
 	frozen = value
-	hurtbox.set_invulnerable(DARK_INVULNERABILITY, not LightVariantRules.guardian_vulnerable(value))
+	hurtbox.set_invulnerable(DARK_INVULNERABILITY, not LightfireRules.guardian_vulnerable(value))
 	if value:
 		# A wind-up in the dark is cut off by the light: no strike comes.
 		_attack_hitbox.end_attack()

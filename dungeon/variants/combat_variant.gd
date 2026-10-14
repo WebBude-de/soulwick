@@ -1,14 +1,16 @@
 class_name CombatVariant
 extends Node2D
-## Common interface of the combat variants (KONZEPT_RAEUME §4, §9.2, D-101): a child node of a
-## normal combat room. The DungeonManager treats the room like any combat room; the variant follows
+## Common interface of the room modes (KONZEPT_RAEUME_V2 §2-§4, D-120; before: the combat variants of
+## KONZEPT_RAEUME §4, D-101): a child node of a normal combat room. Minigames extend RoomMode, which
+## adds the goal, the intro and the helpers for guards and enemy sources; the elite nest (A10)
+## extends this class directly. The DungeonManager treats the room like any combat room; the variant follows
 ## the room's own signals:
 ##   start()  on RoomController.encounter_started (the fight begins, the door is shut),
 ##   finish() on RoomController.completed (all enemies beaten - the room is done as always).
 ## In between the variant decides whether its bonus is met (set_bonus); a variant that has its
-## own failure (flame out, bounty escaped) decides that early. Failure never costs the run, success
+## own failure (flame out, crowned one escaped) decides that early. Failure never costs the run, success
 ## puts a bonus chest with an upgrade choice into the room (D-109, TreasureChest).
-## holds_completion() lets a variant keep the room shut for a while (soul flame raid time); the
+## holds_completion() lets a variant keep the room shut for a while (flame raid time); the
 ## RoomController asks it through RoomVariants.holds_completion (hook).
 ## Decisions emit signals (started, bonus_changed, finished); effects (banner, chest, darkness)
 ## follow them (D-088). Randomness: a variant RNG seeded once from the dungeon RNG on attach, so
@@ -21,7 +23,9 @@ signal finished(variant: CombatVariant, bonus: bool)
 enum Bonus { OPEN, ACHIEVED, LOST }
 
 const NODE_NAME := &"CombatVariant"
-const CHEST_SCENE: PackedScene = preload("res://dungeon/rooms/ingredients/treasure_chest.tscn")
+## Loaded when a chest is placed, never preloaded: TreasureChest -> RoomController -> RoomVariants ->
+## RoomMode -> CombatVariant would close a load cycle and leave the scene empty (SecretNiche too).
+const CHEST_SCENE_PATH := "res://dungeon/rooms/ingredients/treasure_chest.tscn"
 const BANNER_COLOR := Color("#dcbcff")
 const BONUS_COLOR := Color("#f2cf4a")
 const LOST_COLOR := Color("#e0463a")
@@ -41,25 +45,10 @@ var _free: Dictionary[Vector2i, bool] = {}
 
 # --- Creation (RoomVariants.attach) ---
 
-## The variant node for an id, not yet attached (null for unknown ids).
+## The mode node for an id, not yet attached (null for unknown ids). Modes live in ModeRegistry
+## (one line each, scripts loaded by path, so the modes never load each other).
 static func create(id: StringName) -> CombatVariant:
-	match id:
-		VariantRules.SOUL_FLAME:
-			return SoulFlameVariant.new()
-		VariantRules.RIFTS:
-			return RiftsVariant.new()
-		VariantRules.GRAVEDIGGER:
-			return GravediggerVariant.new()
-		VariantRules.BOUNTY:
-			return BountyVariant.new()
-		# Light variants (A9, dungeon/variants/light/)
-		VariantRules.STONE_GUARDIAN:
-			return StoneGuardianVariant.new()
-		VariantRules.LANTERN:
-			return LanternVariant.new()
-		VariantRules.TORCH_ROOM:
-			return TorchRoomVariant.new()
-	return null
+	return ModeRegistry.create(id)
 
 
 ## Attaches the variant id to a prepared normal combat room. seed: one number of the dungeon RNG,
@@ -256,7 +245,7 @@ func spawn_bonus_chests(near_local: Vector2) -> Array[TreasureChest]:
 		var tile := VariantSpots.nearest_free(_free, RoomTiles.local_to_tile(near_local), taken)
 		var spot := RoomTiles.tile_center(tile) + Vector2(0, 22) if tile != VariantSpots.INVALID else near_local
 		taken.append(tile)
-		var chest := CHEST_SCENE.instantiate() as TreasureChest
+		var chest := (load(CHEST_SCENE_PATH) as PackedScene).instantiate() as TreasureChest
 		chest.name = "BonusChest%d" % i
 		chest.upgrade_choices = VariantRules.CHEST_UPGRADE_CHOICES
 		chest.per_player = VariantRules.CHESTS_PER_PLAYER

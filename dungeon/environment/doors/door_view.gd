@@ -3,6 +3,9 @@ extends Node2D
 ## Everything you see and hear of a Door (ROADMAP_AUSBAU D1): leaf animation, frame, torches,
 ## light, glow, symbol, particles, light flash and sound. Follows Door.state_changed and never
 ## changes the door's state itself (logic and effects separated, D-088).
+## The way behind an exit door (R5, 05_tueren.md): the mode symbol over the arch (or over the corridor
+## of a side door) and a light cone in the mode colour on the floor in front of the door, pointing
+## into the room, with a soft light of the same colour (DoorStyle.mode / way_color).
 ## Positions are world px relative to the door's tile origin (top-left of the leaf).
 
 ## Glow strengths (alpha of the additive overlay). Kept low for long sessions. TESTWERTE.
@@ -27,6 +30,23 @@ const TORCH_LIGHT_FLICKER := 0.07
 const FLASH_DURATION := 0.45
 ## Sign colour for delivered (white/grey) symbol art.
 const SYMBOL_TINT := Color("f2cf4a")
+## Light cone of the way (art/environment/doors/door_glow.png, 48x32, pivot top centre): size on top
+## of the pixel scale, strength (alpha of the additive sprite), slow breathing, the soft light it
+## throws. TESTWERTE
+const CONE_PATH := "res://art/environment/doors/door_glow.png"
+const CONE_SCALE := 1.5
+const CONE_ALPHA := 0.8
+const CONE_PULSE := 0.12
+const CONE_PULSE_SPEED := 1.3
+const CONE_FADE_TIME := 0.6
+## Above the floor tiles (z -10) and the floor decals, below the characters.
+const CONE_Z := -7
+const WAY_LIGHT_RADIUS := 150.0
+const WAY_LIGHT_INTENSITY := 0.8
+## The mode symbol hangs this far above the arch (world px) and a little lighter than the mode
+## colour, so dark modes (Lichtfeuer, Flamme) read on the rock.
+const MODE_SYMBOL_GAP := 2.0
+const MODE_SYMBOL_LIGHTEN := 0.25
 const PIXEL_SCALE := 2.0
 const TILE := 64.0
 
@@ -44,6 +64,9 @@ var _symbol: Sprite2D = null
 var _torches: Array[AnimatedProp] = []
 var _torch_light: LightSource = null
 var _threat_light: LightSource = null
+var _cone: Sprite2D = null
+var _way_light: LightSource = null
+var _sealed := false
 var _door_open := false
 var _glow_strength := 0.0
 var _time := randf() * 10.0
@@ -97,6 +120,7 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 	if not is_entrance:
 		_build_torches()
 		set_symbol(style.symbol)
+		_build_way_light()
 	if style.glow_mode == DoorStyle.GLOW_THREAT:
 		_threat_light = LightSource.new()
 		_threat_light.name = "ThreatLight"
@@ -113,19 +137,27 @@ func set_symbol(symbol_id: StringName) -> void:
 		_symbol = null
 	if style == null or is_entrance or style.is_boss():
 		return
-	var texture := DoorArt.get_symbol(symbol_id)
+	# R5: the mode of the next room wins over a special or branch sign (grey art, mode colour).
+	var mode_icon: Texture2D = RoomObjective.get_mode_icon(style.mode) if style.mode != &"" else null
+	var texture: Texture2D = mode_icon if mode_icon != null else DoorArt.get_symbol(symbol_id)
 	if texture == null:
 		return
 	_symbol = Sprite2D.new()
 	_symbol.name = "Symbol"
 	_symbol.texture = texture
 	_symbol.scale = Vector2.ONE * PIXEL_SCALE
+	if mode_icon != null:
+		_symbol.modulate = RoomObjective.get_mode_ui_color(style.mode).lightened(MODE_SYMBOL_LIGHTEN)
 	# Delivered special signs are grey and tinted; the branch signs come in their own colours.
-	if DoorArt.has_symbol_file(symbol_id) and not DoorStyle.is_branch_symbol(symbol_id):
+	elif DoorArt.has_symbol_file(symbol_id) and not DoorStyle.is_branch_symbol(symbol_id):
 		_symbol.modulate = SYMBOL_TINT
 	if _is_side():
 		# Over the brick front above the corridor, on the wall top.
 		_symbol.position = Vector2(TILE * 0.5, -TILE - 4.0)
+	elif mode_icon != null:
+		# The mode floats over the arch (05_tueren.md), clear of the keystone ornament.
+		var arch_top := -float(style.leaf_offset.y) * PIXEL_SCALE
+		_symbol.position = Vector2(TILE * 0.5, arch_top - MODE_SYMBOL_GAP - texture.get_height() * PIXEL_SCALE * 0.5)
 	else:
 		# Hangs on the arch top, centred over the door.
 		var frame_top := -float(style.leaf_offset.y) * PIXEL_SCALE
@@ -138,15 +170,25 @@ func get_symbol_sprite() -> Sprite2D:
 	return _symbol
 
 
-## The way behind this branch door was not taken (D-105): the sign fades, the torch goes out.
+## The way behind this branch door was not taken (D-105): the sign fades, the torch and the light
+## cone go out.
 func show_sealed() -> void:
 	show_state(false)
+	_sealed = true
 	if _symbol != null:
 		var tween := _symbol.create_tween() if _symbol.is_inside_tree() else null
 		if tween != null:
 			tween.tween_property(_symbol, "modulate:a", 0.25, 0.6)
 		else:
 			_symbol.modulate.a = 0.25
+	if _cone != null:
+		var cone_tween := _cone.create_tween() if _cone.is_inside_tree() else null
+		if cone_tween != null:
+			cone_tween.tween_property(_cone, "modulate:a", 0.0, CONE_FADE_TIME)
+		else:
+			_cone.modulate.a = 0.0
+	if _way_light != null:
+		_way_light.intensity = 0.0
 	for torch in _torches:
 		torch.visible = false
 	if _torch_light != null:
@@ -187,6 +229,7 @@ func _apply_side_style() -> void:
 	_add_torch_light()
 	_torch_light.position = Vector2(TILE * 0.5, -TILE * 0.5)
 	set_symbol(style.symbol)
+	_build_way_light()
 	if style.glow_mode == DoorStyle.GLOW_THREAT:
 		_threat_light = LightSource.new()
 		_threat_light.name = "ThreatLight"
@@ -209,6 +252,28 @@ func get_torches() -> Array[AnimatedProp]:
 
 func get_threat_light() -> LightSource:
 	return _threat_light
+
+
+## Light cone of the way in front of the door (R5); null without one.
+func get_cone_sprite() -> Sprite2D:
+	return _cone
+
+
+func get_way_light() -> LightSource:
+	return _way_light
+
+
+## Unit vector from the door into the room it belongs to (the cone points there): south for a north
+## door, east for a west door, west for an east door.
+func get_inward() -> Vector2:
+	match side:
+		RoomTiles.DoorSide.WEST:
+			return Vector2.RIGHT
+		RoomTiles.DoorSide.EAST:
+			return Vector2.LEFT
+		RoomTiles.DoorSide.SOUTH:
+			return Vector2.UP
+	return Vector2.DOWN
 
 
 ## Shows a state without effects (setup, streaming).
@@ -266,6 +331,8 @@ func _process(delta: float) -> void:
 	if _threat_light != null:
 		var pulse := 0.5 + 0.5 * sin(_time * GLOW_THREAT_SPEED)
 		_threat_light.intensity = 0.0 if _door_open else lerpf(THREAT_LIGHT_MIN, THREAT_LIGHT_MAX, pulse)
+	if _cone != null and not _sealed:
+		_cone.modulate.a = CONE_ALPHA + CONE_PULSE * sin(_time * CONE_PULSE_SPEED)
 
 
 func _target_glow() -> float:
@@ -352,6 +419,40 @@ func _build_torches() -> void:
 	_add_torch_light()
 
 
+## Light cone and soft light of the way (R5): door_glow.png tinted with the way colour, its top edge
+## on the door's inner edge, pointing into the room. Not for entrance doors or doors without a way.
+func _build_way_light() -> void:
+	if is_entrance or style == null or not style.has_way_light():
+		return
+	var inward := get_inward()
+	# Inner edge of the door tile, in the middle of the opening.
+	var edge := Vector2(TILE * 0.5, TILE * 0.5) + inward * TILE * 0.5
+	var texture := load(CONE_PATH) as Texture2D if ResourceLoader.exists(CONE_PATH) else null
+	if texture != null:
+		_cone = Sprite2D.new()
+		_cone.name = "Cone"
+		_cone.texture = texture
+		_cone.centered = false
+		# Pivot top centre (door_modes.json): the art hangs down from the door edge.
+		_cone.offset = Vector2(-texture.get_width() * 0.5, 0.0)
+		_cone.scale = Vector2.ONE * PIXEL_SCALE * CONE_SCALE
+		_cone.position = edge
+		_cone.rotation = Vector2.DOWN.angle_to(inward)
+		_cone.z_index = CONE_Z
+		var additive := CanvasItemMaterial.new()
+		additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
+		_cone.material = additive
+		_cone.modulate = Color(style.way_color, CONE_ALPHA)
+		add_child(_cone)
+	_way_light = LightSource.new()
+	_way_light.name = "WayLight"
+	_way_light.radius = WAY_LIGHT_RADIUS
+	_way_light.intensity = WAY_LIGHT_INTENSITY
+	_way_light.color = Color(style.way_color, 1.0)
+	_way_light.position = edge + inward * TILE * 0.8
+	add_child(_way_light)
+
+
 func _add_torch_light() -> void:
 	_torch_light = LightSource.new()
 	_torch_light.name = "TorchLight"
@@ -388,3 +489,5 @@ func _clear() -> void:
 	_torches.clear()
 	_torch_light = null
 	_threat_light = null
+	_cone = null
+	_way_light = null

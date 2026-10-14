@@ -7,18 +7,26 @@ extends SceneTree
 ## Abysses (A4): rooms with pits keep exit and markers reachable on foot, no enemy and no gold over
 ## an abyss, the player never falls while standing on the walk-in tile.
 ## Way-finding (A10): rooms are entered through the south, west or east wall and never overlap a
-## live room other than their neighbour; branch rooms prepare room n+1 only after the choice (the
-## test walks up to a door, the elite nest when offered) and seal the other door; a cracked wall is
-## blown up with a barrel blast and its niche (chest, crystals or merchant) is used. Branches and
-## secrets are made more frequent for the test (BranchRules/SecretRules.chance_override).
+## live room other than their neighbour; branch rooms seal the other door once the test walks up to
+## one (the elite nest when offered); a cracked wall is blown up with a barrel blast and its niche
+## (chest, crystals or merchant) is used. Branches and secrets are made more frequent for the test
+## (BranchRules/SecretRules.chance_override).
+## Nothing pops up (R5): the next room is built and dark (veiled) before its door opens and lights up
+## on entry; a branch room builds both ways when entered (4 live rooms at most, both dark, no
+## overlap), the chosen one becomes room n+1 and the other fades out. Every exit door shows the way
+## (light cone, mode symbol of the room behind it), every corridor between two doors has a style.
 ## Room plans (R1, D-120): every room is checked against the plan rules on entry (RoomPlanChecks:
 ## every floor tile reachable with props and sources blocked, doors free, nothing in the only way,
 ## traps with a reason); combat rooms come from a plan of their biome and scatter nothing at random.
-## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
+## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms] [seed=<n>]
+## seed: a fixed dungeon seed (DungeonManager.seed_value); two runs with the same seed print the same
+## "chain" lines (room, template, doors, mode), the check for a stable room stream (R5).
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const SAVE_PATH := "user://smoke_test_save.cfg"
 const MAX_LIVE_ROOMS := 3
+## While a branch room shows both ways (R5, DungeonManager.MAX_LIVE_ROOMS_BRANCH).
+const MAX_LIVE_ROOMS_BRANCH := 4
 ## Test aid: more branches and secret niches than in the game, so a run of 20+ rooms sees them.
 const BRANCH_CHANCE := 0.7
 const SECRET_CHANCE := 0.45
@@ -46,6 +54,12 @@ var _entrance_sides := {}
 var _branches_taken: Array[String] = []
 var _secrets_opened: Array[String] = []
 var _longest_corridor := 0
+## R5: live rooms over the manager's current limit (frames), corridor styles and door modes seen.
+var _over_limit := 0
+var _corridor_styles := {}
+var _door_modes := {}
+## Dungeon seed from the command line (0 = random, as in the game).
+var _seed := 0
 
 
 func _init() -> void:
@@ -57,6 +71,11 @@ func _run() -> void:
 	var args := OS.get_cmdline_user_args()
 	if not args.is_empty():
 		rooms_to_play = int(args[0])
+	for arg in args:
+		if arg.begins_with("seed="):
+			_seed = int(arg.trim_prefix("seed="))
+	if _seed != 0:
+		node_added.connect(_on_node_added)
 	# Buttons are found by their German texts; English is the default language (D-111).
 	TranslationServer.set_locale("de")
 	var save_manager := root.get_node("SaveManager")
@@ -98,7 +117,8 @@ func _run() -> void:
 			break
 		_check(controller.get_player() == player, "room %d keeps the same player instance" % index)
 
-	_check(_max_live_rooms <= MAX_LIVE_ROOMS, "never more than 3 live rooms (max seen: %d)" % _max_live_rooms)
+	_check(_max_live_rooms <= MAX_LIVE_ROOMS_BRANCH, "never more than %d live rooms (max seen: %d)" % [MAX_LIVE_ROOMS_BRANCH, _max_live_rooms])
+	_check(_over_limit == 0, "live rooms never over the limit: 3, 4 only while a branch shows both ways (%d frames over)" % _over_limit)
 	if rooms_to_play >= 20:
 		_check(_entrance_sides.size() >= 2, "rooms entered through side walls too (%s)" % _entrance_sides)
 		_check(not _branches_taken.is_empty(), "at least one branch taken (%d)" % _branches_taken.size())
@@ -156,6 +176,9 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	await _frames(6)
 	_check(run_manager.get_current_room() == index, "RunManager room %d" % index)
 	_check(_dungeon.get_room(index - 2) == null, "room %d unloaded when entering %d" % [index - 2, index])
+	if index > 1:
+		var veil: Node = room.get_node_or_null("RoomVeil")
+		_check(veil != null and veil.is_lifted(), "room %d: lit up on entry (veil lifted)" % index)
 	var tiles_of_room: Node = room.get_node("Tiles")
 	_entrance_sides[tiles_of_room.entrance_side] = _entrance_sides.get(tiles_of_room.entrance_side, 0) + 1
 	_longest_corridor = maxi(_longest_corridor, tiles_of_room.entrance_corridor_extra)
@@ -166,11 +189,21 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		# Behind a boss room comes the campfire, room index + 1 only behind it (D-103).
 		_check(_dungeon.get_campfire(index) != null, "campfire prepared when entering boss room %d" % index)
 	elif is_branch:
-		# Branch (D-105): room n+1 waits for the choice; the doors show what lies behind them.
-		_check(_dungeon.get_room(index + 1) == null, "branch room %d: room %d waits for the choice" % [index, index + 1])
+		# Branch (D-105, R5): both ways stand built and dark behind the shut doors; room n+1 is the
+		# chosen one, so it is not known yet.
+		_check(_dungeon.get_room(index + 1) == null, "branch room %d: room %d is decided by the choice" % [index, index + 1])
 		_check(room.get_exit_doors().size() == 2, "branch room %d has two exits" % index)
+		var ways: Array = _dungeon.get_branch_ways()
+		_check(ways.size() == 2, "branch room %d: both ways built on entry (%d)" % [index, ways.size()])
+		_check(_dungeon.get_live_room_count() <= MAX_LIVE_ROOMS_BRANCH, "branch room %d: at most %d live rooms" % [index, MAX_LIVE_ROOMS_BRANCH])
+		for i in ways.size():
+			_check_dark_way(index, room, ways[i], i)
+		_check_no_overlap(index)
 	else:
-		_check(_dungeon.get_room(index + 1) != null, "room %d prepared when entering %d" % [index + 1, index])
+		var next_room: Node = _dungeon.get_campfire(index) if type_name == "BOSS" else _dungeon.get_room(index + 1)
+		_check(next_room != null, "room %d prepared when entering %d" % [index + 1, index])
+		if next_room != null:
+			_check_dark_way(index, room, next_room, maxi(0, room.get_chosen_branch()))
 
 	if type_name == "SPECIAL":
 		print("room %d: special %s, portal=%s" % [index, room.special_type, room.has_portal])
@@ -194,7 +227,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 			if group != null:
 				var range: Vector2i = group.get_count_range(index)
 				limits = Vector2i(maxi(1, roundi(range.x * group.count_factor)), maxi(1, roundi(range.y * group.count_factor)))
-			_check(enemies.size() >= limits.x and enemies.size() <= limits.y, "room %d spawned %d enemies (%d-%d)" % [index, enemies.size(), limits.x, limits.y])
+			if room.get_node_or_null("CombatVariant") == null:
+				_check(enemies.size() >= limits.x and enemies.size() <= limits.y, "room %d spawned %d enemies (%d-%d)" % [index, enemies.size(), limits.x, limits.y])
+			else:
+				# Modes bring their own first wave (guards, the crowned one) or spawn over time (R4).
+				_check(enemies.size() >= 0, "room %d: mode room started (%d enemies)" % [index, enemies.size()])
 		elif type_name == "BOSS":
 			_check(enemies.size() == 1, "room %d boss spawned alone" % index)
 			# The boss intro (D-098) keeps the boss invulnerable: skip it like a player would.
@@ -203,11 +240,13 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		else:
 			_check(enemies.size() >= 2, "room %d champion comes with an escort (%d)" % [index, enemies.size()])
 		var kind_label: String = _describe_room(room)
+		print("chain %d: %s %s mode %s special %d" % [index, room.scene_file_path.get_file(), _describe_doors(room), load("res://dungeon/environment/doors/door_signs.gd").mode_of(room), room.special_type])
 		print("room %d: %s%s, %d enemies, doors %s" % [index, type_name, (" [%s]" % kind_label) if not kind_label.is_empty() else "", enemies.size(), _describe_doors(room)])
 		# Combat variants (A7): fast-forward the soul flame raid so the room may close.
 		var variant: Node = room.get_node_or_null("CombatVariant")
 		if variant != null:
-			variant.step(41.0)
+			# The longest mode (souls) holds the room 45 s.
+			variant.step(61.0)
 		for enemy in enemies:
 			_kill(enemy, player)
 		# Splitting slimes, summons and later waves add enemies: keep clearing until empty.
@@ -292,11 +331,16 @@ func _take_branch(index: int, room: Node, player: Node) -> void:
 	player.global_position = room.to_global((Vector2(inside) + Vector2(0.5, 0.5)) * 64.0)
 	await _frames(8)
 	_check(room.get_chosen_branch() == pick, "branch room %d: walking up to door %d chooses it (got %d)" % [index, pick, room.get_chosen_branch()])
+	var ways_before: Array = _dungeon.get_branch_ways()
 	var next: Node = _dungeon.get_room(index + 1)
-	_check(next != null, "branch room %d: room %d prepared after the choice" % [index, index + 1])
-	_check(_dungeon.get_live_room_count() <= MAX_LIVE_ROOMS, "branch room %d: at most 3 live rooms" % index)
+	_check(next != null, "branch room %d: room %d is the chosen way" % [index, index + 1])
+	_check(_dungeon.get_branch_ways().is_empty(), "branch room %d: the ways are decided" % index)
 	var other: Node = room.get_exit_doors()[1 - pick]
 	_check(not other.is_open, "branch room %d: the other door stays sealed" % index)
+	# The way not taken fades out (R5) and is gone before the walk on.
+	await _frames(int(float(_dungeon.get_script().get_script_constant_map()["BRANCH_FADE_TIME"]) * 60.0) + 10)
+	_check(_dungeon.get_live_room_count() <= MAX_LIVE_ROOMS, "branch room %d: the other way faded out, %d live rooms" % [index, _dungeon.get_live_room_count()])
+	_check(next == null or (next.get_node_or_null("RoomVeil") != null and not next.get_node("RoomVeil").is_lifted()), "branch room %d: the chosen way waits dark until entered" % index)
 	var option: Object = options[pick]
 	_branches_taken.append("%d: %s" % [index, option.describe()])
 	if next == null:
@@ -313,6 +357,30 @@ func _take_branch(index: int, room: Node, player: Node) -> void:
 	# The player leaves the zone; the chosen door must be open for the walk on.
 	player.global_position = room.to_global(_walk_in_point(room))
 	await _frames(4)
+
+
+## R5: room next waits built and dark behind exit door_index of room: its veil is down, the door shows
+## the way (light cone; mode symbol of the room behind it), the corridor between has a style.
+func _check_dark_way(index: int, room: Node, next: Node, door_index: int) -> void:
+	var veil: Node = next.get_node_or_null("RoomVeil")
+	_check(veil != null and not veil.is_lifted(), "room %d: %s lies dark behind its door" % [index, next.name])
+	var doors: Array = room.get_exit_doors()
+	if door_index >= doors.size():
+		return
+	var door: Node = doors[door_index]
+	var style: Object = door.get_style()
+	_check(style.has_way_light(), "room %d: exit door %d throws the light of the way" % [index, door_index])
+	var signs: GDScript = load("res://dungeon/environment/doors/door_signs.gd")
+	var option: Object = room.branch_options[door_index] if door_index < room.branch_options.size() else null
+	var expected: StringName = signs.mode_for_way(next, option)
+	_check(door.get_way_mode() == expected, "room %d: door %d shows mode '%s' of %s (%s)" % [index, door_index, expected, next.name, door.get_way_mode()])
+	var mode_name: String = String(expected) if expected != &"" else ("special" if next.room_type == 2 else "plain")
+	_door_modes[mode_name] = _door_modes.get(mode_name, 0) + 1
+	var dressing: Node = next.get_node_or_null("CorridorDressing")
+	_check(dressing != null and not dressing.get_props().is_empty(), "room %d: the corridor to %s has a style" % [index, next.name])
+	if dressing != null:
+		var style_name: String = ["straight", "drip", "niche", "stairs"][dressing.style]
+		_corridor_styles[style_name] = _corridor_styles.get(style_name, 0) + 1
 
 
 ## A cracked wall (A10): a barrel blast in front of it opens the niche; its content is used.
@@ -476,6 +544,8 @@ func _print_kind_distribution() -> void:
 	print("abyss: %d chasm rooms, %d rooms with holes" % [_chasm_rooms, _hole_rooms])
 	print("entrance walls (0 N, 1 E, 2 S, 3 W): %s, longest extra corridor %d" % [_format_counts(_entrance_sides), _longest_corridor])
 	print("branches taken: %s" % ", ".join(_branches_taken))
+	print("corridor styles: %s" % _format_counts(_corridor_styles))
+	print("door ways shown: %s" % _format_counts(_door_modes))
 	print("secret niches opened: %s" % ", ".join(_secrets_opened))
 
 
@@ -538,7 +608,8 @@ func _check_shape_and_ingredients(index: int, room: Node) -> void:
 	_plans_seen[template.plan_id] = _plans_seen.get(template.plan_id, 0) + 1
 	var biome: Resource = room.spawner.get_biome(index)
 	_check(biome == null or template.allows_biome(biome.id), "room %d: plan %s made for the biome %s" % [index, template.id, biome.id if biome != null else &""])
-	_check(template.is_plain_fight(), "room %d: plain fight plan (%s, mode %s)" % [index, template.id, template.mode])
+	var room_mode: StringName = load("res://dungeon/variants/mode_registry.gd").get_plan_mode(room.get_variant_id())
+	_check(template.is_plain_fight() or (room_mode != &"" and template.mode == room_mode), "room %d: plan fits the room (%s, mode %s)" % [index, template.id, template.mode])
 	var scatter: Node = room.get_node_or_null("Ingredients")
 	_check(scatter != null and scatter.plan != null, "room %d: the scatter ran (one RNG draw)" % index)
 	if scatter == null or scatter.plan == null:
@@ -719,9 +790,17 @@ func _expected_type(index: int) -> String:
 	return "COMBAT"
 
 
+## A fixed seed for the dungeon of this run (seed=<n>).
+func _on_node_added(node: Node) -> void:
+	if node.get_script() != null and node.get_script().resource_path.ends_with("dungeon_manager.gd"):
+		node.set(&"seed_value", _seed)
+
+
 func _watch() -> void:
-	if _dungeon != null and is_instance_valid(_dungeon):
+	if _dungeon != null and is_instance_valid(_dungeon) and _dungeon.has_method(&"get_live_room_limit"):
 		_max_live_rooms = maxi(_max_live_rooms, _dungeon.get_live_room_count())
+		if _dungeon.get_live_room_count() > _dungeon.get_live_room_limit():
+			_over_limit += 1
 
 
 func _frames(count: int) -> void:

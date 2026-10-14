@@ -66,7 +66,9 @@ func test_combat_genres() -> void:
 		"an ambush looks empty on entry")
 	assert_eq(RoomGenre.resolve(_info({"room_kind": RoomSequence.RoomKind.CHASM})), RoomGenre.CHASM)
 	assert_eq(RoomGenre.resolve(_info({"catacomb": true})), RoomGenre.CATACOMB)
-	assert_eq(RoomGenre.resolve(_info({"variant": &"soul_flame"})), &"soul_flame", "A7 variants via get_variant_id")
+	assert_eq(RoomGenre.resolve(_info({"variant": &"flame"})), &"flame", "room modes via get_variant_id (R4)")
+	assert_eq(RoomGenre.resolve(_info({"variant": &"rifts"})), &"rifts")
+	assert_eq(RoomGenre.resolve(_info({"variant": &"soul_flame"})), RoomGenre.NONE, "the old variants are gone")
 	assert_eq(RoomGenre.resolve(_info({"variant": &"unknown_variant"})), RoomGenre.NONE)
 	assert_eq(RoomGenre.resolve(_info({"wager": true})), RoomGenre.WAGER_ALTAR)
 

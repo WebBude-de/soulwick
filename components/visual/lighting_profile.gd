@@ -39,7 +39,7 @@ const CAMPFIRE_AMBIENT := 0.48
 ## goes dark on purpose (light run) reaches this cap.
 const DEEP_AMBIENT := 0.84
 ## Combat variants that live from darkness (RoomVariants ids). R4 adds its dark modes here.
-const DEEP_VARIANTS: Array[StringName] = [&"stone_guardian", &"torch_room", &"lantern"]
+const DEEP_VARIANTS: Array[StringName] = [&"lightfire", &"souls"]
 
 ## The player's circle as drawn: the logical radius (300 px, gameplay) times this. 300 * 1.45 = 435 px
 ## with a soft edge of 150 * 1.45 * 1.1 = 239 px: full light to ~196 px, half light at ~315 px

@@ -1,14 +1,12 @@
 extends GutTest
-## Stone guardians (A9, KONZEPT_RAEUME §4.3): frozen and vulnerable in any light circle, stone and
-## advancing in the dark, a wind-up is cut off by the light, a started leap goes on; the variant
-## places dormant statues away from the entrance, wakes them with the fight, counts them for the
-## room and lets the wall torches hold them too. Draw: crypt and shadow realm only.
+## Stone guardians (Lichtfeuer, KONZEPT_RAEUME_V2 §3.9; before A9): frozen and vulnerable in a light
+## circle, stone and advancing in the dark, a wind-up is cut off by the light, a started leap goes on;
+## in Lichtfeuer only the fires hold them, not the players' own circles. The mode itself is tested in
+## test_mode_rooms.gd.
 
-const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const GUARDIAN_SCENE: PackedScene = preload("res://enemies/variants/stone_guardian.tscn")
 const GUARDIAN_DATA: EnemyData = preload("res://enemies/data/stone_guardian.tres")
-const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")
 
 var _old_save_path: String
 
@@ -60,65 +58,18 @@ func _hit(source: Node, amount := 5.0) -> DamageData:
 	return hit
 
 
-func _room(room_index := 8) -> RoomController:
-	var room := HALL.instantiate() as RoomController
-	room.room_kind = RoomSequence.RoomKind.NORMAL
-	var context := DungeonContext.new()
-	context.rng = RandomNumberGenerator.new()
-	context.rng.seed = 41
-	room.setup(room_index, RoomSequence.RoomType.COMBAT, -1, false, context)
-	var spawner := room.get_node("EnemySpawner") as EnemySpawner
-	spawner.biomes = [] as Array[BiomeData]
-	spawner.extra_types = [] as Array[EnemyData]
-	spawner.enemy_types = [SKELETON] as Array[EnemyData]
-	spawner.spawn_weights = [1.0] as Array[float]
-	var group := EncounterGroup.new()
-	group.allow_elites = false
-	group.count_range = Vector2i(4, 4)
-	spawner.encounter_group = group
-	add_child_autofree(room)
-	return room
-
-
-func _attach(room: RoomController, seed_value := 5) -> StoneGuardianVariant:
-	var pick := VariantTable.Pick.new()
-	pick.variant_id = VariantRules.STONE_GUARDIAN
-	var rng := RandomNumberGenerator.new()
-	rng.seed = seed_value
-	assert_eq(RoomVariants.attach(room, pick, rng), VariantRules.STONE_GUARDIAN)
-	return CombatVariant.of(room) as StoneGuardianVariant
-
-
 # --- Rules ---
 
 func test_guardian_numbers() -> void:
-	assert_eq(LightVariantRules.guardian_count(0.0, 1), 2)
-	assert_eq(LightVariantRules.guardian_count(0.99, 1), 4)
-	assert_eq(LightVariantRules.guardian_count(0.0, 3), 4, "+1 per extra player (MP5 parameter)")
-	assert_true(LightVariantRules.guardian_frozen(true, false, 0.0), "light freezes at once")
-	assert_true(LightVariantRules.guardian_frozen(false, true, LightVariantRules.GUARDIAN_THAW_DELAY * 0.5), "short dark: still frozen")
-	assert_false(LightVariantRules.guardian_frozen(false, true, LightVariantRules.GUARDIAN_THAW_DELAY), "then it moves")
-	assert_false(LightVariantRules.guardian_frozen(false, false, 0.0))
-	assert_true(LightVariantRules.guardian_vulnerable(true))
-	assert_false(LightVariantRules.guardian_vulnerable(false))
-
-
-func test_draw_crypt_and_shadow_realm_only() -> void:
-	var table := VariantTable.load_default()
-	for biome in RoomSequence.Biome.values():
-		var allowed := table.get_allowed(biome)
-		var expected: bool = biome == RoomSequence.Biome.CRYPT or biome == RoomSequence.Biome.SHADOW_REALM
-		assert_eq(allowed.has(VariantRules.STONE_GUARDIAN), expected, "biome %d" % biome)
-	assert_eq(table.get_weight(VariantRules.STONE_GUARDIAN), table.get_weight(VariantRules.SOUL_FLAME), "same weight as the A7 variants")
-	var crypt_and_shadow: Array[int] = [RoomSequence.Biome.CRYPT, RoomSequence.Biome.SHADOW_REALM]
-	assert_eq(VariantTable.biome_mask(crypt_and_shadow), 5, "mask in variant_table.tres")
-	var custom := VariantTable.new()
-	custom.variant_ids = [&"a", &"b"] as Array[StringName]
-	custom.variant_weights = [1.0, 1.0] as Array[float]
-	custom.variant_biomes = [1, -1] as Array[int]
-	custom.variant_biome_masks = [0, VariantTable.biome_mask([3] as Array[int])] as Array[int]
-	assert_eq(custom.get_allowed(1), [&"a"] as Array[StringName], "single biome without a mask")
-	assert_eq(custom.get_allowed(3), [&"b"] as Array[StringName], "the mask wins over -1")
+	assert_eq(LightfireRules.guardian_count(0.0, 1), 2)
+	assert_eq(LightfireRules.guardian_count(0.99, 1), 4)
+	assert_eq(LightfireRules.guardian_count(0.0, 3), 4, "+1 per extra player (MP5 parameter)")
+	assert_true(LightfireRules.guardian_frozen(true, false, 0.0), "light freezes at once")
+	assert_true(LightfireRules.guardian_frozen(false, true, LightfireRules.GUARDIAN_THAW_DELAY * 0.5), "short dark: still frozen")
+	assert_false(LightfireRules.guardian_frozen(false, true, LightfireRules.GUARDIAN_THAW_DELAY), "then it moves")
+	assert_false(LightfireRules.guardian_frozen(false, false, 0.0))
+	assert_true(LightfireRules.guardian_vulnerable(true))
+	assert_false(LightfireRules.guardian_vulnerable(false))
 
 
 # --- The guardian ---
@@ -130,7 +81,7 @@ func test_dark_means_stone_light_means_frozen_and_vulnerable() -> void:
 	guardian.activate()
 	assert_true(guardian.is_frozen(), "wakes as a frozen statue")
 	assert_false(guardian.is_in_light(), "far from the player: dark")
-	guardian.step_light(LightVariantRules.GUARDIAN_THAW_DELAY + 0.01, false)
+	guardian.step_light(LightfireRules.GUARDIAN_THAW_DELAY + 0.01, false)
 	assert_false(guardian.is_frozen(), "the dark wakes it")
 	assert_true(guardian.hurtbox.is_invulnerable(), "in the dark it is stone")
 	var health := guardian.health.get_health()
@@ -190,57 +141,20 @@ func test_guardians_never_fall_and_ignore_knockback() -> void:
 	assert_eq(GUARDIAN_DATA.special, EnemyData.Special.LEAP_SLAM)
 
 
-# --- The variant in a real room ---
-
-func test_variant_places_dormant_statues_and_wakes_them_with_the_fight() -> void:
-	var room := _room()
-	var variant := _attach(room)
-	assert_not_null(variant)
-	var count := variant.guardians.size()
-	assert_between(count, LightVariantRules.GUARDIAN_COUNT.x, LightVariantRules.GUARDIAN_COUNT.y)
-	var entrance := room.tiles.get_entrance_inside_tile()
-	for tile in variant.get_guardian_tiles():
-		assert_gte(Vector2(tile - entrance).length(), 2.0, "away from the entrance")
-	for guardian in variant.guardians:
-		assert_false(guardian.active, "dormant before the fight")
-		assert_true(guardian.hurtbox.is_invulnerable())
-	assert_eq(room.get_alive_enemy_count(), 0, "statues do not count before the fight")
-	room.activate()
-	var skeletons := 0
-	for child in room.enemy_container.get_children():
-		if child is Enemy and not child is StoneGuardian:
-			skeletons += 1
-	assert_eq(room.get_alive_enemy_count(), skeletons + count, "guardians count for the room")
-	assert_lt(skeletons, 4, "fewer normal enemies beside the guardians")
-	for guardian in variant.guardians:
-		assert_true(guardian.active)
-
-
-func test_room_is_done_when_guardians_and_enemies_are_gone_and_gives_the_bonus() -> void:
-	var room := _room()
-	var variant := _attach(room)
-	room.activate()
-	for guardian in variant.get_living_guardians():
-		guardian.health.take_damage(INF)
-	assert_false(variant.is_finished(), "the other enemies are still there")
-	for child in room.enemy_container.get_children():
-		var enemy := child as Enemy
-		if enemy != null and not enemy.is_dead():
-			enemy.health.take_damage(INF)
-	await wait_physics_frames(2)
-	assert_true(variant.is_finished())
-	assert_true(variant.is_bonus_achieved(), "cleared = bonus (KONZEPT names no failure)")
-	assert_eq(variant.chests.size(), 1, "one bonus chest for the group")
-
-
-func test_wall_torches_hold_the_guardians_too() -> void:
-	var room := _room()
-	_attach(room)
-	var counted := 0
-	for prop in room.get_node("Props").get_children():
-		if String(prop.name).begins_with("Torch"):
-			for child in prop.get_children():
-				if child is LightSource:
-					assert_true((child as LightSource).counts_as_light)
-					counted += 1
-	assert_gt(counted, 0, "the hall has wall torches")
+func test_lightfire_guardians_ignore_the_players_own_light() -> void:
+	var guardian := _guardian(Vector2(0, 0))
+	guardian.player_light_counts = false
+	var player := _player(Vector2(100, 0))
+	guardian.activate()
+	assert_false(guardian.is_in_light(), "the player's circle does not hold it")
+	guardian.step_light(LightfireRules.GUARDIAN_THAW_DELAY + 0.01, guardian.is_in_light())
+	assert_false(guardian.is_frozen(), "it walks on in the player's light")
+	var torch := RoomTorch.new()
+	torch.build(Color.WHITE, LightfireRules.FIRE_LIGHT_RADIUS)
+	add_child_autofree(torch)
+	torch.global_position = guardian.global_position + Vector2(0, 40)
+	torch.ignite(player)
+	assert_true(guardian.is_in_light(), "a fire holds it")
+	guardian.step_light(0.016, guardian.is_in_light())
+	assert_true(guardian.is_frozen())
+	assert_false(guardian.hurtbox.is_invulnerable(), "in the fire's light it can be broken")

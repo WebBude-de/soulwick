@@ -308,9 +308,18 @@ func start_encounter() -> void:
 	_waves_spawned = 1
 	var enemies: Array[Enemy] = []
 	if RoomSequence.is_normal_combat(room_type):
-		_wave_sizes = _plan_wave_sizes()
-		_waves_total = maxi(1, _wave_sizes.size())
-		enemies = _spawn_wave(1)
+		# R4: a mode may bring its own first wave (guards of the plan, the crowned one).
+		var own := RoomVariants.spawn_first_wave(self)
+		if not own.is_empty():
+			_wave_sizes = [own.size()] as Array[int]
+			_waves_total = 1
+			enemies = own
+			for enemy in own:
+				_track_enemy(enemy, 1)
+		else:
+			_wave_sizes = _plan_wave_sizes()
+			_waves_total = maxi(1, _wave_sizes.size())
+			enemies = _spawn_wave(1)
 	else:
 		_waves_total = 1
 		enemies = spawner.spawn_encounter(room_index, room_type, _get_markers(), content_anchor.position, enemy_container, context, get_arena())

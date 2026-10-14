@@ -7,16 +7,31 @@ extends Node2D
 ## Way-finding (A10, KONZEPT_RAEUME §7, D-105): a room is left to the north, west or east and the
 ## next one is entered through the opposite wall; a room that would overlap a live room moves further
 ## out along a longer corridor (ExitRules). Now and then a cleared room offers two ways to room n+1
-## (branch, BranchRules): room n+1 is prepared only when the group has chosen. Some combat rooms hide
-## a niche behind a cracked wall (SecretRules, SecretNiche); it is no room of its own.
+## (branch, BranchRules). Some combat rooms hide a niche behind a cracked wall (SecretRules,
+## SecretNiche); it is no room of its own.
 ## Streaming counts slots, not room numbers: after every boss room a campfire takes a slot of its
 ## own without a room number (D-103, RoomSequence slots), so N-1/N/N+1 include the campfire.
+## Nothing pops up (R5, KONZEPT_RAEUME_V2 §1.2/§4): every prepared room lies built and dark behind its
+## door (RoomVeil) and lights up when a player walks in; its exit door shows what waits behind it
+## (DoorSigns: mode symbol, light cone) and the corridor between gets a style (CorridorDressing). A
+## branch room builds both ways when it is entered (one more live room, MAX_LIVE_ROOMS_BRANCH); the
+## way not chosen fades out and leaves plain rock behind. A branch whose two ways cannot both be
+## placed next to the live rooms is not offered (_ways_fit).
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
 signal heal_countdown_changed(rooms_left: int)
+## Dungeon RNG state right before a slot (way = -1) or a branch way (way >= 0) is drawn; lets a
+## co-op client reproduce the same rooms (multiplayer session).
+signal slot_rng_captured(slot: int, way: int, state: int)
 
 const MAX_LIVE_ROOMS := 3
+## While a branch room is active both ways stand built behind its doors (R5): one more. TESTWERT
+const MAX_LIVE_ROOMS_BRANCH := 4
+## The way not taken fades out this long before it is freed (R5). TESTWERT
+const BRANCH_FADE_TIME := 0.9
+## Rock left where a faded way stood: below every room's tiles (-10) and rock ring (-11).
+const ROCK_FILL_Z := -12
 const HEAL_EVERY_COMPLETED_ROOMS := 5
 const HEAL_AMOUNT := 1.0
 const DEATH_SCREEN_DELAY := 1.4
@@ -73,6 +88,8 @@ var _previous_kind := -1
 var _variant_table: VariantTable = VariantTable.load_default()
 ## Variant of the room prepared last (&"" otherwise): never two in a row (D-101).
 var _previous_variant: StringName = &""
+## RNG state before each prepared slot / branch way (see slot_rng_captured).
+var _slot_rng_states: Dictionary[Vector2i, int] = {}
 var _combat_catalog: RoomCatalog = null
 var _run_ending := false
 ## Cycle (five rooms) of the last branch: at most one per cycle (D-105, BranchRules).
@@ -80,6 +97,28 @@ var _branch_cycle := -1
 ## Worst-case footprint of the next room per entrance wall (ExitRules.reach_footprint over the solo
 ## combat templates), for choosing turns that need no long corridor.
 var _combat_reach: Dictionary[int, ExitRules.Footprint] = {}
+## Branch (R5): the branch room whose ways stand built, the ways (index = exit index), the chain
+## state each way left behind (the chosen one is kept), ways fading out, rock left behind by slot.
+var _branch_room: RoomController = null
+var _branch_ways: Array[RoomController] = []
+var _way_states: Array[ChainState] = []
+var _fading_rooms: Array[RoomController] = []
+var _rock_fills: Dictionary[int, Array] = {}
+var _rock_root: Node2D = null
+## Seed of the run (optics that vary per run without drawing from the dungeon RNG).
+var _run_seed := 0
+## Size and entrance place of special templates (branch fit check), by scene path.
+var _layout_cache: Dictionary[String, Vector3i] = {}
+
+
+## What _prepare_slot reads and writes besides the RNG: kept per branch way, so the chosen way
+## continues the chain as if it had been the only one.
+class ChainState:
+	extends RefCounted
+	var previous_special := -1
+	var previous_kind := -1
+	var previous_variant: StringName = &""
+	var branch_cycle := -1
 
 @onready var room_container: Node2D = $RoomContainer
 @onready var upgrade_manager: UpgradeManager = $UpgradeManager
@@ -95,6 +134,7 @@ func _ready() -> void:
 		rng.seed = seed_value
 	else:
 		rng.randomize()
+	_run_seed = int(rng.seed)
 	context.manager = self
 	context.rng = rng
 	context.upgrade_manager = upgrade_manager
@@ -132,9 +172,20 @@ func get_rooms_until_heal() -> int:
 	return HEAL_EVERY_COMPLETED_ROOMS - _completed_rooms % HEAL_EVERY_COMPLETED_ROOMS
 
 
-## Live room with this room number (null if not prepared or already unloaded).
+## Live room with this room number (null if not prepared or already unloaded). Behind a branch
+## room: null until the group has chosen its way (both ways: get_branch_ways).
 func get_room(index: int) -> RoomController:
 	return _rooms.get(RoomSequence.get_slot_for_room(index))
+
+
+## Both ways of the active branch room, built and dark (index = exit index); empty otherwise.
+func get_branch_ways() -> Array[RoomController]:
+	return _branch_ways.duplicate()
+
+
+## Rooms that may live at once right now: one more while a branch shows both ways (R5).
+func get_live_room_limit() -> int:
+	return MAX_LIVE_ROOMS_BRANCH if not _branch_ways.is_empty() or not _fading_rooms.is_empty() else MAX_LIVE_ROOMS
 
 
 ## Live campfire behind boss room after_room (null if not prepared, unloaded or no boss room).
@@ -173,16 +224,22 @@ func end_run(reason: RunManager.EndReason) -> void:
 
 # --- Streaming ---
 
-## option: the way the group chose in a branch room (D-105) - it decides the special type or the
-## variant of this room (safe way: none); the usual draws still happen, so the stream stays in step.
-func _prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
-	if _rooms.has(slot):
+## option: the way of a branch room (D-105) - it decides the special type or the variant of this
+## room (safe way: none); the usual draws still happen, so the stream stays in step. via_exit >= 0:
+## one of the ways of a branch room, built behind that exit before the choice (R5, _branch_ways).
+func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> RoomController:
+	var is_way := via_exit >= 0
+	if _rooms.has(slot) and not is_way:
 		return _rooms[slot]
+	var way := via_exit if is_way else -1
+	_slot_rng_states[Vector2i(slot, way)] = context.rng.state
+	slot_rng_captured.emit(slot, way, context.rng.state)
 	var index := RoomSequence.get_room_for_slot(slot)
 	var room_type := RoomSequence.get_slot_type(slot)
 	if option != null:
 		room_type = option.get_room_type(room_type) as RoomSequence.RoomType
 	var previous: RoomController = _rooms.get(slot - 1)
+	var previous_exit := _exit_of(previous, via_exit)
 	var special := -1
 	var portal := false
 	if room_type == RoomSequence.RoomType.SPECIAL:
@@ -206,8 +263,8 @@ func _prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
 			# Variant rooms are fought as normal rooms (no arena, no chasm).
 			rolled_kind = RoomSequence.RoomKind.NORMAL
 	# A10: the room is entered through the wall opposite the previous room's exit.
-	var entrance_side := RoomTiles.opposite_side(previous.get_chosen_exit().x) if previous != null else RoomTiles.DoorSide.SOUTH
-	var room := _template_for(room_type, rolled_kind, special, index, entrance_side).instantiate() as RoomController
+	var entrance_side := RoomTiles.opposite_side(previous_exit.x) if previous != null else RoomTiles.DoorSide.SOUTH
+	var room := _template_for(room_type, rolled_kind, special, index, entrance_side, variant_pick.plan_mode).instantiate() as RoomController
 	var is_campfire := room_type == RoomSequence.RoomType.CAMPFIRE
 	room.name = ("Campfire%d" if is_campfire else "Room%d") % index
 	room.rolled_kind = rolled_kind
@@ -217,9 +274,13 @@ func _prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
 	var extra_dark := false if is_campfire else RoomSequence.roll_extra_dark(index, room_type, context.rng)
 	room.setup(index, room_type, special, portal, context, extra_dark)
 	# A10: doors, place, branch and secret niche, decided before the room is built.
-	var secret := _plan_links(room, previous, slot, entrance_side, variant_pick.has_variant() or elite_nest)
+	var secret := _plan_links(room, previous, previous_exit, slot, entrance_side, variant_pick.has_variant() or elite_nest,
+			ModeRegistry.allows_secret(variant_pick.variant_id))
 	room_container.add_child(room)
-	_rooms[slot] = room
+	if is_way:
+		_branch_ways.append(room)
+	else:
+		_rooms[slot] = room
 	# Enemy themes and the quiet room (A3) for normal combat rooms; always three RNG draws.
 	if RoomSequence.is_normal_combat(room_type):
 		var plan := EncounterVariation.roll(index, room_type, context.rng, room.room_kind)
@@ -234,12 +295,13 @@ func _prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
 		_previous_variant = RoomVariants.attach(room, variant_pick, context.rng)
 	if not secret.is_empty():
 		_attach_secret(room, secret["site"], secret["content"])
-	assert(room_container.get_child_count() <= MAX_LIVE_ROOMS, "More than three live rooms.")
+	assert(room_container.get_child_count() <= get_live_room_limit(), "Too many live rooms.")
 
-	if previous != null:
+	if previous != null and not is_way:
 		previous.set_next_room(room)
 		if is_campfire:
 			previous.make_way_for_campfire()
+	_dress_way(previous, room, previous_exit, option, via_exit)
 
 	room.player_entered.connect(_on_player_entered_room, CONNECT_DEFERRED)
 	room.completed.connect(_on_room_completed)
@@ -254,8 +316,10 @@ func _prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
 
 ## Entrance, place and exit(s) of a prepared room (not yet in the tree), the branch draw and the
 ## secret niche. Normal combat rooms draw 1 (exit) + BranchRules.DRAWS + SecretRules.DRAWS numbers
-## of the dungeon RNG, other rooms none. Returns {"site", "content"} of a niche or {}.
-func _plan_links(room: RoomController, previous: RoomController, slot: int, entrance_side: int, has_variant: bool) -> Dictionary:
+## of the dungeon RNG, other rooms none. previous_exit: the exit of the previous room this room joins.
+## allow_secret: false for modes that change the floor (Einsturz, R4): the draw happens, no niche.
+## Returns {"site", "content"} of a niche or {}.
+func _plan_links(room: RoomController, previous: RoomController, previous_exit: Vector2i, slot: int, entrance_side: int, has_variant: bool, allow_secret := true) -> Dictionary:
 	var tiles := room.get_node("Tiles") as RoomTiles
 	var index := room.room_index
 	var combat := RoomSequence.is_normal_combat(room.room_type)
@@ -270,7 +334,7 @@ func _plan_links(room: RoomController, previous: RoomController, slot: int, entr
 	var extra := 0
 	var previous_footprint: ExitRules.Footprint = null
 	if previous != null:
-		var exit := previous.get_chosen_exit()
+		var exit := previous_exit
 		var corridor_end := ExitRules.exit_corridor_end(get_room_origin(previous), previous.tiles.room_size, exit.x, exit.y)
 		extra = ExitRules.extra_needed(corridor_end, tiles.room_size, Vector2i(entrance_side, entrance_place), get_live_footprints(previous))
 		if extra < 0:
@@ -298,14 +362,15 @@ func _plan_links(room: RoomController, previous: RoomController, slot: int, entr
 	var branch := BranchRules.roll(index, room.room_type, next_type, has_variant, _branch_cycle, _previous_special, _special_table, _variant_table, context.rng)
 	if branch.is_branch():
 		var pair := BranchRules.pick_exit_pair(tiles, branch.options, sides, estimates)
-		if pair.size() == 2:
+		# Both ways are built before the choice (R5): only a branch whose two rooms fit is offered.
+		if pair.size() == 2 and _ways_fit(origin, tiles, pair, branch.options, index + 1, previous_footprint):
 			exits = pair
 			options = branch.options
 			_branch_cycle = BranchRules.get_cycle(index)
 	room.apply_door_plan(Vector2i(entrance_side, entrance_place), exits, extra, options)
 	# Secret niche (after the doors: their lanes stay free).
 	var pick := SecretRules.roll(index, room.room_type, int(room.room_kind), context.rng)
-	if not pick.has_secret:
+	if not pick.has_secret or not allow_secret:
 		return {}
 	# Behind the north wall, clear of the live rooms (the previous one lies behind another wall).
 	var sites: Array[SecretRules.Site] = []
@@ -378,13 +443,196 @@ static func get_room_footprint(room: RoomController) -> ExitRules.Footprint:
 			tiles.get_exit_doors(), tiles.niche_rect)
 
 
-## Footprints of the live rooms except one (its predecessor shares a corridor tile).
+## Footprints of the live rooms except one (its predecessor shares a corridor tile), the built ways
+## of a branch included.
 func get_live_footprints(except: RoomController = null) -> Array[ExitRules.Footprint]:
 	var footprints: Array[ExitRules.Footprint] = []
-	for room: RoomController in _rooms.values():
+	var live: Array[RoomController] = []
+	live.assign(_rooms.values())
+	live.append_array(_branch_ways)
+	for room in live:
 		if room != except and is_instance_valid(room):
 			footprints.append(get_room_footprint(room))
 	return footprints
+
+
+# --- Ways, veils and the branch (R5) ---
+
+## The exit of previous a room joins: exit via_exit of a branch room, else its chosen exit.
+static func _exit_of(previous: RoomController, via_exit: int) -> Vector2i:
+	if previous == null:
+		return Vector2i(RoomTiles.DoorSide.NORTH, 0)
+	if via_exit >= 0:
+		var exits := previous.tiles.get_exit_doors()
+		return exits[clampi(via_exit, 0, exits.size() - 1)]
+	return previous.get_chosen_exit()
+
+
+## A prepared room lies dark behind its door (RoomVeil, not the first room), the door of the room
+## before it shows the way (DoorSigns) and the corridor between gets its style (CorridorDressing).
+func _dress_way(previous: RoomController, room: RoomController, previous_exit: Vector2i, option: BranchOption, via_exit: int) -> void:
+	if room.slot_index > 1:
+		RoomVeil.attach(room)
+	if previous == null:
+		return
+	var doors := previous.get_exit_doors()
+	var door_index := via_exit if via_exit >= 0 else maxi(0, previous.get_chosen_branch())
+	if door_index < doors.size():
+		DoorSigns.show_way(doors[door_index], room, option)
+	var exit_tile := RoomTiles.door_tile_of(previous_exit.x, previous_exit.y, previous.tiles.room_size)
+	var other_door := get_room_origin(previous) + exit_tile - get_room_origin(room)
+	var biome := room.spawner.get_biome(room.room_index)
+	CorridorDressing.attach(room, other_door, _run_seed, room.room_index, biome.id if biome != null else &"")
+
+
+## A branch room was entered: both ways are built now, dark behind the shut doors (R5). Each way
+## starts from the same chain state; the state each one leaves is kept for the choice.
+## Dungeon RNG state before the slot (way -1) or branch way was drawn; -1 if never prepared.
+func get_slot_rng_state(slot: int, way := -1) -> int:
+	return _slot_rng_states.get(Vector2i(slot, way), -1)
+
+
+func _prepare_branch_ways(room: RoomController) -> void:
+	if _run_ending:
+		return
+	var base := _capture_chain()
+	var states: Array[ChainState] = []
+	_branch_room = room
+	for i in room.branch_options.size():
+		_restore_chain(base)
+		_prepare_slot(room.slot_index + 1, room.branch_options[i], i)
+		states.append(_capture_chain())
+	_way_states = states
+	_restore_chain(base)
+
+
+## The way not chosen fades out and is freed; plain rock stays where it stood.
+func _fade_out_way(way: RoomController) -> void:
+	if not is_instance_valid(way):
+		return
+	_fading_rooms.append(way)
+	way.mark_unloaded()
+	for node in way.find_children("*", "", true, false):
+		if node is LightSource:
+			(node as LightSource).visible = false
+	if _branch_room != null:
+		_leave_rock(way, _branch_room.slot_index)
+	var tween := way.create_tween()
+	tween.tween_property(way, "modulate:a", 0.0, BRANCH_FADE_TIME)
+	tween.tween_callback(_free_faded.bind(way))
+
+
+func _free_faded(way: RoomController) -> void:
+	if not _fading_rooms.has(way):
+		return
+	_fading_rooms.erase(way)
+	if is_instance_valid(way):
+		room_container.remove_child(way)
+		way.free()
+
+
+## Ways still fading go at once (before the next room is prepared, so it never has to avoid them).
+func _drop_fading_rooms() -> void:
+	for way in _fading_rooms.duplicate():
+		_free_faded(way)
+
+
+## Rock where a faded way stood, below every room: the dungeon never shows a hole there. Freed with
+## the branch room (owner_slot).
+func _leave_rock(way: RoomController, owner_slot: int) -> void:
+	var tiles := way.tiles
+	if tiles == null or tiles.tile_set == null:
+		return
+	if _rock_root == null:
+		_rock_root = Node2D.new()
+		_rock_root.name = "RockFills"
+		add_child(_rock_root)
+	var fill := TileMapLayer.new()
+	fill.name = "RockFill%d" % way.slot_index
+	fill.tile_set = tiles.tile_set
+	fill.material = tiles.material
+	fill.scale = tiles.scale
+	fill.z_index = ROCK_FILL_Z
+	fill.collision_enabled = false
+	fill.navigation_enabled = false
+	fill.occlusion_enabled = false
+	fill.position = way.position + tiles.position
+	var rect := tiles.get_backdrop_rect()
+	for y in range(rect.position.y, rect.end.y):
+		for x in range(rect.position.x, rect.end.x):
+			fill.set_cell(Vector2i(x, y), RoomTiles.SOURCE_ID, RoomTiles.WALL_TOP)
+	_rock_root.add_child(fill)
+	var fills: Array = _rock_fills.get(owner_slot, [])
+	fills.append(fill)
+	_rock_fills[owner_slot] = fills
+
+
+func _free_rock_fills(slot: int) -> void:
+	for fill: Node in _rock_fills.get(slot, []):
+		if is_instance_valid(fill):
+			fill.queue_free()
+	_rock_fills.erase(slot)
+
+
+func _capture_chain() -> ChainState:
+	var state := ChainState.new()
+	state.previous_special = _previous_special
+	state.previous_kind = _previous_kind
+	state.previous_variant = _previous_variant
+	state.branch_cycle = _branch_cycle
+	return state
+
+
+func _restore_chain(state: ChainState) -> void:
+	_previous_special = state.previous_special
+	_previous_kind = state.previous_kind
+	_previous_variant = state.previous_variant
+	_branch_cycle = state.branch_cycle
+
+
+## Can both ways of a branch be built at once (R5)? Each way room (worst case over the combat
+## templates, the exact template for a special room) is placed behind its exit with the shortest
+## entrance corridor that keeps it clear of the previous room and of the other way. No RNG.
+func _ways_fit(origin: Vector2i, tiles: RoomTiles, exits: Array[Vector2i], options: Array[BranchOption], next_index: int, previous_footprint: ExitRules.Footprint) -> bool:
+	var others: Array[ExitRules.Footprint] = []
+	if previous_footprint != null:
+		others.append(previous_footprint)
+	for i in mini(exits.size(), options.size()):
+		var exit := exits[i]
+		var reach := _way_reach(options[i], next_index, RoomTiles.opposite_side(exit.x))
+		if reach == null:
+			return false
+		var corridor_end := ExitRules.exit_corridor_end(origin, tiles.room_size, exit.x, exit.y)
+		var extra := ExitRules.extra_needed_reach(corridor_end, reach, exit.x, others)
+		if extra < 0:
+			return false
+		others.append(ExitRules.extend_reach(reach, corridor_end, exit.x, extra))
+	return true
+
+
+## Footprint of the room behind a branch way relative to its corridor end: the special room's own
+## template (no RNG: the first plan of the type and biome), else the combat worst case.
+func _way_reach(option: BranchOption, next_index: int, entrance_side: int) -> ExitRules.Footprint:
+	if option.kind != BranchOption.Kind.SPECIAL:
+		return _get_combat_reach(entrance_side)
+	var scene := _template_for(RoomSequence.RoomType.SPECIAL, RoomSequence.RoomKind.NORMAL, option.special_type, next_index, RoomTiles.DoorSide.SOUTH)
+	if scene == null:
+		return null
+	var layout := _scene_layout(scene)
+	var sizes: Array[Vector2i] = [Vector2i(layout.x, layout.y)]
+	var places: Array[int] = [layout.z]
+	return ExitRules.reach_footprint(sizes, entrance_side, places)
+
+
+## Room size (x, y) and south entrance place (z) of a template scene, cached by path.
+func _scene_layout(scene: PackedScene) -> Vector3i:
+	var key := scene.resource_path
+	if not _layout_cache.has(key):
+		var instance := scene.instantiate()
+		var tiles := instance.get_node_or_null("Tiles") as RoomTiles
+		_layout_cache[key] = Vector3i(tiles.room_size.x, tiles.room_size.y, tiles.entrance_x) if tiles != null else Vector3i(15, 9, 7)
+		instance.free()
+	return _layout_cache[key]
 
 
 ## Do two live rooms cover each other (tests, tools)? Neighbours share their corridor end only.
@@ -397,7 +645,7 @@ static func rooms_clash(first: RoomController, second: RoomController) -> bool:
 func _pick_for_way(option: BranchOption) -> VariantTable.Pick:
 	var pick := VariantTable.Pick.new()
 	if option.kind == BranchOption.Kind.UNKNOWN:
-		pick.variant_id = option.variant_id
+		pick = VariantTable.pick_for(option.variant_id)
 	return pick
 
 
@@ -460,14 +708,27 @@ func _on_branch_offered(_room: RoomController) -> void:
 	ui.show_banner(DungeonTexts.t(&"BRANCH_TITLE"), DungeonTexts.t(&"BRANCH_SUB"), BRANCH_BANNER_COLOR)
 
 
-## The group chose a way: room n+1 is prepared for it now (the third live room).
+## The group chose a way: its room stands built behind the door and becomes room n+1; the other way
+## fades out (R5). Without built ways (not entered yet) room n+1 is prepared for the way now.
 func _on_branch_chosen(room: RoomController, index: int) -> void:
 	if not is_instance_valid(room) or _run_ending or index < 0 or index >= room.branch_options.size():
 		return
-	_prepare_slot(room.slot_index + 1, room.branch_options[index])
+	if room != _branch_room or index >= _branch_ways.size():
+		_prepare_slot(room.slot_index + 1, room.branch_options[index])
+		return
+	var chosen := _branch_ways[index]
+	_restore_chain(_way_states[index])
+	_rooms[room.slot_index + 1] = chosen
+	for i in _branch_ways.size():
+		if i != index:
+			_fade_out_way(_branch_ways[i])
+	_branch_ways.clear()
+	_way_states.clear()
+	_branch_room = null
 
 
 func _unload_slot(slot: int) -> void:
+	_free_rock_fills(slot)
 	var room: RoomController = _rooms.get(slot)
 	if room == null:
 		return
@@ -480,7 +741,7 @@ func _unload_slot(slot: int) -> void:
 
 ## Combat rooms: a template of the rolled kind in a single-player size (S or M); kinds without a
 ## template fall back to a normal room (D-100, RoomCatalog.pick).
-func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1, room_index := 0, entrance_side := -1) -> PackedScene:
+func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1, room_index := 0, entrance_side := -1, plan_mode: StringName = &"") -> PackedScene:
 	match room_type:
 		RoomSequence.RoomType.SPECIAL:
 			# Some special types bring their own floor plan (trial room, A8).
@@ -500,7 +761,9 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 			return campfire_template if campfire_template != null else load(CAMPFIRE_TEMPLATE_PATH) as PackedScene
 	# A room entered from the west or east needs a door place there (A10; not the catacomb).
 	var side_filter := entrance_side if entrance_side != RoomTiles.DoorSide.SOUTH else -1
-	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng, &"", room_index, side_filter)
+	# R4: a minigame draws a plan made for it when one fits the room (else any combat plan).
+	var mode := RoomVariants.plan_mode_for(plan_mode, _combat_catalog, kind, room_index, side_filter)
+	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng, &"", room_index, side_filter, mode)
 	assert(template != null, "No combat room templates configured.")
 	return template
 
@@ -509,15 +772,23 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 func _on_player_entered_room(room: RoomController) -> void:
 	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending:
 		return
+	# A way of a branch before the choice: its door is shut, nobody gets in (R5).
+	if _branch_ways.has(room):
+		return
 	_active_slot = room.slot_index
 	# The campfire is no room (D-103): room number, scaling and heals stay where they are.
 	if room.room_index > 1 and not room.is_campfire():
 		RunManager.advance_room()
+	_drop_fading_rooms()
 	_unload_slot(room.slot_index - 2)
+	# The room lights up (R5; usually the corridor lifted the veil already).
+	RoomVeil.lift_room(room)
 	_apply_vision(room)
 	room.activate()
-	# A branch room prepares room n+1 when the group has chosen its way (D-105).
-	if not room.is_branch_room():
+	# A branch room builds both ways now, dark behind its doors (D-105, R5).
+	if room.is_branch_room():
+		_prepare_branch_ways(room)
+	else:
 		_prepare_slot(room.slot_index + 1)
 	if room.is_campfire():
 		_begin_campfire(room)
