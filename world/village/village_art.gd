@@ -68,6 +68,28 @@ static func has_art(art_name: String) -> bool:
 ## Frames for a villager or animal from art/characters/npcs/<name>_idle_<n>f.png and
 ## <name>_walk_<n>f.png (square frames, size from the strip height). Without the idle strip: a
 ## one-frame placeholder for simple animals (chicken), else null.
+## Sprite offset (art px, sprite centred) that puts the lowest opaque row of the first idle frame on
+## the node's feet line. Measured instead of assumed: not every figure stands on row 29 of its frame
+## (the chronicler ends on row 26 and would float otherwise).
+static func feet_offset_y(frames: SpriteFrames) -> float:
+	var animation := &"idle" if frames != null and frames.has_animation(&"idle") else &"default"
+	var texture := frames.get_frame_texture(animation, 0) if frames != null and frames.has_animation(animation) else null
+	if texture == null:
+		return -14.0
+	var image := texture.get_image()
+	var lowest := image.get_height() - 3
+	for y in range(image.get_height() - 1, -1, -1):
+		var found := false
+		for x in image.get_width():
+			if image.get_pixel(x, y).a > 0.5:
+				found = true
+				break
+		if found:
+			lowest = y
+			break
+	return -(lowest + 1 - image.get_height() * 0.5)
+
+
 static func get_character_frames(art_name: String) -> SpriteFrames:
 	var key := "npc:" + art_name
 	if _cache.has(key):

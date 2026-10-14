@@ -65,8 +65,8 @@ func _ready() -> void:
 	_sprite.scale = Vector2.ONE * art_scale
 	var frame := frames.get_frame_texture(&"idle", 0)
 	var frame_size := frame.get_size() if frame != null else Vector2(32, 32)
-	# Feet on the frame's bottom line (pivot (16, 30) in 32 px frames) at FEET_OFFSET.
-	_sprite.offset = Vector2(0, -frame_size.y * 0.5 + frame_size.y / 16.0)
+	# Feet (lowest opaque row of the art) at FEET_OFFSET.
+	_sprite.offset = Vector2(0, VillageArt.feet_offset_y(frames))
 	_sprite.position = FEET_OFFSET
 	add_child(_sprite)
 	_sprite.play(&"idle")

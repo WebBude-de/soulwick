@@ -56,6 +56,11 @@ func _ready() -> void:
 	_add_missing_signs()
 	# Sort buildings, decoration and NPCs by their base line against the player's feet.
 	SortLift.lift_props(_buildings)
+	# Building NPCs stand with their real feet line on the ground (not every art ends on row 29).
+	for prop in _buildings.get_children():
+		var npc := prop.get_node_or_null(^"Sprite") as AnimatedSprite2D
+		if npc != null and npc.sprite_frames != null and npc.sprite_frames.resource_path.contains("/npcs/"):
+			npc.offset.y = VillageArt.feet_offset_y(npc.sprite_frames)
 	# B3: scattered flowers, stones and bushes (fixed seed) and pollen/fireflies over the map.
 	_decor.populate(self)
 	_ambience.setup(Rect2(get_camera_limits()))

@@ -100,6 +100,17 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 
 ## Phase 2 – Räume (KONZEPT_RAEUME)
 
+> **Start Phase 2 (14.10.2026, Playtest):** Der Biomwechsel wirkt optisch wie ein harter Schnitt und die Türen sind zu schlicht. Deshalb laufen zuerst **A6 Lagerfeuer** (Übergangsraum), **D1 Türen** und **A2 Wegfindung** parallel; danach A3/A5.
+
+### D1 – Türen je Biom und Raumtyp
+
+**Ziel:** Türen erzählen, wohin es geht: eigener Rahmen und eigene Öffnen-Animation je Biom, ein großes Bosstor, Symbole über Spezialraum-Türen. Grafiken: [SPRITES_V4.md](SPRITES_V4.md) §4; bis dahin Platzhalter aus vorhandener Grafik (Einfärben, Fackeln, Partikel, Licht).
+
+- [ ] Rahmen + Türblatt je Biom (`door_frame_<biom>`, `door_<biom>_open_4f`), Bosstor (`door_frame_boss`, `door_boss_open_4f`), Spezialraum-Symbole (`door_special_symbols`).
+- [ ] Öffnen mit Staub/Funken, Ton und kurzem Licht-Aufblitzen; verschlossene Bossraum-Tür sichtbar bedrohlich (Glühen, Ketten).
+- [ ] Automatische Übernahme der Dateien aus SPRITES_V4 §4, Platzhalter bis dahin.
+- [ ] Tests: Türwahl je Biom/Raumtyp, Rückfall ohne Datei.
+
 ### A1 – Raumart-Fundament ✓ *(14.10.2026)*
 
 Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `combat_catalog.tres`, Erreichbarkeitsprüfung mit Dash über 1-Tile-Lücken, Tests `test_room_kind.gd`, `test_room_templates.gd`.
