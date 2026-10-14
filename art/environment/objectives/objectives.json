@@ -1,0 +1,121 @@
+{
+  "notes": [
+    "escort_path_4f: Leuchtmarken auf dem Geleit-Pfad, Alpha pulsiert; der Code legt sie auf die Pfadkacheln.",
+    "relic_*: 16×24, am Anker weapon_hand getragen; relic_altar 32×32 am Eingang, Code zeichnet die Reliquie bei (16,14) hinein.",
+    "soul_wisp: 16×16 schwebend (Light2D türkis klein); soul_wisp_fade läuft ab, wenn die 6 s um sind."
+  ],
+  "items": [
+    {
+      "name": "escort_path",
+      "file": "escort_path_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "relic_banner",
+      "file": "relic_banner.png",
+      "frame_size": [
+        16,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        23
+      ],
+      "note": "Krypta"
+    },
+    {
+      "name": "relic_lantern",
+      "file": "relic_lantern.png",
+      "frame_size": [
+        16,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        23
+      ],
+      "note": "Grotte / Schattenreich"
+    },
+    {
+      "name": "relic_skull",
+      "file": "relic_skull.png",
+      "frame_size": [
+        16,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        23
+      ],
+      "note": "Glutkammer"
+    },
+    {
+      "name": "relic_altar",
+      "file": "relic_altar.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        28
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_wisp",
+      "file": "soul_wisp_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        8,
+        14
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_wisp_fade",
+      "file": "soul_wisp_fade_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        8,
+        14
+      ],
+      "note": ""
+    }
+  ]
+}

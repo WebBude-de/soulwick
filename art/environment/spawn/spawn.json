@@ -1,0 +1,88 @@
+{
+  "notes": [
+    "Ablauf je Quelle: Frame 1-2 Warnung (1 s, Licht + Ton), Frame 3-4 Erscheinen, Frame 5 Gegner steht (Code spawnt den Gegner am Pivot), Frame 6 Ruhe. Quelle bleibt als Deko liegen (Frame 1 bzw. 6).",
+    "Arena-Quelle = enemy_gate_4f (vorhanden)."
+  ],
+  "items": [
+    {
+      "name": "spawn_grave",
+      "file": "spawn_grave_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        28
+      ],
+      "note": "Krypta: Grab, Hand, Skelett steigt"
+    },
+    {
+      "name": "spawn_sarcophagus",
+      "file": "spawn_sarcophagus_4f.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 4,
+      "fps": 5,
+      "loop": false,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": "Krypta (Elite/Boss): Deckel gleitet"
+    },
+    {
+      "name": "spawn_puddle",
+      "file": "spawn_puddle_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        24
+      ],
+      "note": "Grotte: Pfütze blubbert, Schleim springt"
+    },
+    {
+      "name": "spawn_rift",
+      "file": "spawn_rift_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        20
+      ],
+      "note": "Schattenreich: Bodenriss, Gestalt zieht sich hoch"
+    },
+    {
+      "name": "spawn_vent",
+      "file": "spawn_vent_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        24
+      ],
+      "note": "Glutkammer: Spalte glüht, Gegner steigt aus der Glut"
+    }
+  ]
+}

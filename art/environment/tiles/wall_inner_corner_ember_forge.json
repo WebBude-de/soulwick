@@ -1,0 +1,37 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 1,
+  "notes": [
+    "Innenecken der Krone (Kante nur als 3×3-Eckpixel): oben-links, oben-rechts, unten-links, unten-rechts. Für dicke Blöcke, wenn nur der diagonale Nachbar Boden ist."
+  ],
+  "tiles": {
+    "tl": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "tr": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "bl": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "br": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    }
+  }
+}

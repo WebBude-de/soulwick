@@ -116,6 +116,22 @@
         30
       ],
       "note": ""
+    },
+    {
+      "name": "player_tint_mask_fall",
+      "file": "player_tint_mask_fall_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Maske zu player_fall_4f, Frame für Frame deckungsgleich"
     }
   ]
 }

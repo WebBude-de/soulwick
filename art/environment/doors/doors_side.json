@@ -1,0 +1,71 @@
+{
+  "notes": [
+    "Westwand-Tür im waagerechten Gang, von oben gesehen; Ostwand spiegelt der Code. Frame 1 geschlossen, Frame 4 offen. Gang transparent; Fackel und Symbol setzt der Code."
+  ],
+  "items": [
+    {
+      "name": "door_side_crypt_open",
+      "file": "door_side_crypt_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_side_slime_grotto_open",
+      "file": "door_side_slime_grotto_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_side_shadow_realm_open",
+      "file": "door_side_shadow_realm_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_side_ember_forge_open",
+      "file": "door_side_ember_forge_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

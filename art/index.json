@@ -3251,6 +3251,21 @@
             16,
             30
           ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_fall",
+          "file": "art/characters/player/player_tint_mask_fall_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Maske zu player_fall_4f, Frame für Frame deckungsgleich"
         }
       ],
       "module": "player3",
@@ -5415,6 +5430,1082 @@
       ],
       "module": "trials5",
       "priority": 18
+    },
+    {
+      "id": "web/web",
+      "title": "Website-Sprites",
+      "dir": "art/web",
+      "notes": [
+        "Nur für die Website (apps/web/public/brand/sprites/web/). 16×16 Icons für Pixel-Chips, Ornamente kachelbar (divider 32×8 repeat-x)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "chip_pc",
+          "file": "art/web/chip_pc.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Plattform PC"
+        },
+        {
+          "kind": "image",
+          "name": "chip_mobile",
+          "file": "art/web/chip_mobile.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Plattform Mobil"
+        },
+        {
+          "kind": "image",
+          "name": "chip_crossplay",
+          "file": "art/web/chip_crossplay.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Crossplay"
+        },
+        {
+          "kind": "image",
+          "name": "chip_planned",
+          "file": "art/web/chip_planned.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Status „geplant“ (Uhr)"
+        },
+        {
+          "kind": "image",
+          "name": "chip_done",
+          "file": "art/web/chip_done.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Status „verfügbar“"
+        },
+        {
+          "kind": "image",
+          "name": "chip_lang",
+          "file": "art/web/chip_lang.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Sprachwahl"
+        },
+        {
+          "kind": "image",
+          "name": "chip_wishlist",
+          "file": "art/web/chip_wishlist.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Newsletter / Liste (kein Store-Logo)"
+        },
+        {
+          "kind": "image",
+          "name": "arrow_loop",
+          "file": "art/web/arrow_loop.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            8
+          ],
+          "note": "Pfeil im Kern-Loop"
+        },
+        {
+          "kind": "image",
+          "name": "spark",
+          "file": "art/web/spark.png",
+          "w": 8,
+          "h": 8,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            4
+          ],
+          "note": "Funken an Hover-Elementen"
+        },
+        {
+          "kind": "image",
+          "name": "divider",
+          "file": "art/web/divider.png",
+          "w": 32,
+          "h": 8,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Abschnittstrenner, repeat-x"
+        },
+        {
+          "kind": "image",
+          "name": "divider_gold",
+          "file": "art/web/divider_gold.png",
+          "w": 32,
+          "h": 8,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Trenner hervorgehoben"
+        },
+        {
+          "kind": "image",
+          "name": "cursor",
+          "file": "art/web/cursor.png",
+          "w": 12,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Pixel-Cursor (optional, nur Desktop)"
+        }
+      ],
+      "module": "web6",
+      "priority": 19
+    },
+    {
+      "id": "environment/tiles/wall_autotile_crypt",
+      "title": "Mauer-Autotile crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zeilen 1-4: Krone nach 4-Bit-Maske N=1 O=2 S=4 W=8 (Bit gesetzt = Nachbar ist Mauer → keine Kante). Tile 0 freistehend, Tile 15 umschlossen.",
+        "Zeile 5: Vorderseite links/Mitte/rechts/einzeln, mit heller Oberkante; unter jede Krone setzen, deren Süden Boden ist.",
+        "Farben = Außenwand des Bioms (dungeon_/biome_tileset)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_autotile_crypt",
+          "file": "art/environment/tiles/wall_autotile_crypt.png",
+          "w": 128,
+          "h": 160,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 5,
+          "tiles": [
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
+            "m6",
+            "m7",
+            "m8",
+            "m9",
+            "m10",
+            "m11",
+            "m12",
+            "m13",
+            "m14",
+            "m15",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_autotile_ember_forge",
+      "title": "Mauer-Autotile ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zeilen 1-4: Krone nach 4-Bit-Maske N=1 O=2 S=4 W=8 (Bit gesetzt = Nachbar ist Mauer → keine Kante). Tile 0 freistehend, Tile 15 umschlossen.",
+        "Zeile 5: Vorderseite links/Mitte/rechts/einzeln, mit heller Oberkante; unter jede Krone setzen, deren Süden Boden ist.",
+        "Farben = Außenwand des Bioms (dungeon_/biome_tileset)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_autotile_ember_forge",
+          "file": "art/environment/tiles/wall_autotile_ember_forge.png",
+          "w": 128,
+          "h": 160,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 5,
+          "tiles": [
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
+            "m6",
+            "m7",
+            "m8",
+            "m9",
+            "m10",
+            "m11",
+            "m12",
+            "m13",
+            "m14",
+            "m15",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_autotile_shadow_realm",
+      "title": "Mauer-Autotile shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zeilen 1-4: Krone nach 4-Bit-Maske N=1 O=2 S=4 W=8 (Bit gesetzt = Nachbar ist Mauer → keine Kante). Tile 0 freistehend, Tile 15 umschlossen.",
+        "Zeile 5: Vorderseite links/Mitte/rechts/einzeln, mit heller Oberkante; unter jede Krone setzen, deren Süden Boden ist.",
+        "Farben = Außenwand des Bioms (dungeon_/biome_tileset)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_autotile_shadow_realm",
+          "file": "art/environment/tiles/wall_autotile_shadow_realm.png",
+          "w": 128,
+          "h": 160,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 5,
+          "tiles": [
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
+            "m6",
+            "m7",
+            "m8",
+            "m9",
+            "m10",
+            "m11",
+            "m12",
+            "m13",
+            "m14",
+            "m15",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_autotile_slime_grotto",
+      "title": "Mauer-Autotile slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Zeilen 1-4: Krone nach 4-Bit-Maske N=1 O=2 S=4 W=8 (Bit gesetzt = Nachbar ist Mauer → keine Kante). Tile 0 freistehend, Tile 15 umschlossen.",
+        "Zeile 5: Vorderseite links/Mitte/rechts/einzeln, mit heller Oberkante; unter jede Krone setzen, deren Süden Boden ist.",
+        "Farben = Außenwand des Bioms (dungeon_/biome_tileset)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_autotile_slime_grotto",
+          "file": "art/environment/tiles/wall_autotile_slime_grotto.png",
+          "w": 128,
+          "h": 160,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 5,
+          "tiles": [
+            "m0",
+            "m1",
+            "m2",
+            "m3",
+            "m4",
+            "m5",
+            "m6",
+            "m7",
+            "m8",
+            "m9",
+            "m10",
+            "m11",
+            "m12",
+            "m13",
+            "m14",
+            "m15",
+            "front_left",
+            "front_mid",
+            "front_right",
+            "front_single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_inner_corner_crypt",
+      "title": "Innenecken crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Innenecken der Krone (Kante nur als 3×3-Eckpixel): oben-links, oben-rechts, unten-links, unten-rechts. Für dicke Blöcke, wenn nur der diagonale Nachbar Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_inner_corner_crypt",
+          "file": "art/environment/tiles/wall_inner_corner_crypt.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "tl",
+            "tr",
+            "bl",
+            "br"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_inner_corner_ember_forge",
+      "title": "Innenecken ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Innenecken der Krone (Kante nur als 3×3-Eckpixel): oben-links, oben-rechts, unten-links, unten-rechts. Für dicke Blöcke, wenn nur der diagonale Nachbar Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_inner_corner_ember_forge",
+          "file": "art/environment/tiles/wall_inner_corner_ember_forge.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "tl",
+            "tr",
+            "bl",
+            "br"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_inner_corner_shadow_realm",
+      "title": "Innenecken shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Innenecken der Krone (Kante nur als 3×3-Eckpixel): oben-links, oben-rechts, unten-links, unten-rechts. Für dicke Blöcke, wenn nur der diagonale Nachbar Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_inner_corner_shadow_realm",
+          "file": "art/environment/tiles/wall_inner_corner_shadow_realm.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "tl",
+            "tr",
+            "bl",
+            "br"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/tiles/wall_inner_corner_slime_grotto",
+      "title": "Innenecken slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Innenecken der Krone (Kante nur als 3×3-Eckpixel): oben-links, oben-rechts, unten-links, unten-rechts. Für dicke Blöcke, wenn nur der diagonale Nachbar Boden ist."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "wall_inner_corner_slime_grotto",
+          "file": "art/environment/tiles/wall_inner_corner_slime_grotto.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "tl",
+            "tr",
+            "bl",
+            "br"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 20
+    },
+    {
+      "id": "environment/doors/doors_side",
+      "title": "Seitentüren (V7)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "Westwand-Tür im waagerechten Gang, von oben gesehen; Ostwand spiegelt der Code. Frame 1 geschlossen, Frame 4 offen. Gang transparent; Fackel und Symbol setzt der Code."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "door_side_crypt_open",
+          "file": "art/environment/doors/door_side_crypt_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_slime_grotto_open",
+          "file": "art/environment/doors/door_side_slime_grotto_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_shadow_realm_open",
+          "file": "art/environment/doors/door_side_shadow_realm_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_ember_forge_open",
+          "file": "art/environment/doors/door_side_ember_forge_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 21
+    },
+    {
+      "id": "environment/tiles/abyss_cliff_crypt",
+      "title": "Abbruchkante crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Felswand unter der Nordkante eines Abgrunds (Boden liegt nördlich): links, Mitte, rechts, einzeln. Als zusätzliche Lage über die Abgrund-Teile legen."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_cliff_crypt",
+          "file": "art/environment/tiles/abyss_cliff_crypt.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "left",
+            "mid",
+            "right",
+            "single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 21
+    },
+    {
+      "id": "environment/tiles/abyss_cliff_ember_forge",
+      "title": "Abbruchkante ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Felswand unter der Nordkante eines Abgrunds (Boden liegt nördlich): links, Mitte, rechts, einzeln. Als zusätzliche Lage über die Abgrund-Teile legen."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_cliff_ember_forge",
+          "file": "art/environment/tiles/abyss_cliff_ember_forge.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "left",
+            "mid",
+            "right",
+            "single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 21
+    },
+    {
+      "id": "environment/tiles/abyss_cliff_shadow_realm",
+      "title": "Abbruchkante shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Felswand unter der Nordkante eines Abgrunds (Boden liegt nördlich): links, Mitte, rechts, einzeln. Als zusätzliche Lage über die Abgrund-Teile legen."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_cliff_shadow_realm",
+          "file": "art/environment/tiles/abyss_cliff_shadow_realm.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "left",
+            "mid",
+            "right",
+            "single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 21
+    },
+    {
+      "id": "environment/tiles/abyss_cliff_slime_grotto",
+      "title": "Abbruchkante slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Felswand unter der Nordkante eines Abgrunds (Boden liegt nördlich): links, Mitte, rechts, einzeln. Als zusätzliche Lage über die Abgrund-Teile legen."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_cliff_slime_grotto",
+          "file": "art/environment/tiles/abyss_cliff_slime_grotto.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "left",
+            "mid",
+            "right",
+            "single"
+          ]
+        }
+      ],
+      "module": "walls6",
+      "priority": 21
+    },
+    {
+      "id": "characters/npcs/lost_villager",
+      "title": "Verirrter Dorfbewohner (Geleit)",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "lantern": [
+          22,
+          20
+        ]
+      },
+      "notes": [
+        "Geleit-Figur: Kapuzenumhang, kleine Laterne (Light2D warm, Radius 3 Kacheln). Bleibt stehen, wenn Gegner nah sind (idle), läuft weiter neben dem Spieler (walk).",
+        "Varianten per Modulate (Umhang-Farbe) für mehrere Gerettete im Dorf."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/lost_villager_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/npcs/lost_villager_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "scared",
+          "file": "art/characters/npcs/lost_villager_scared_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true
+        }
+      ],
+      "module": "rooms8",
+      "priority": 22
+    },
+    {
+      "id": "environment/deco/deco_groups",
+      "title": "Deko-Gruppen & Einbauten (V8)",
+      "dir": "art/environment/deco",
+      "notes": [
+        "Deko mit Absicht: pillar_fallen (64×32) als eingestürzte Säule mit Geröllfächer; candles_cluster als Opferstelle; drip_4f (16×32) über einer Pfütze (tropfende Decke).",
+        "shallow_water_4f: halbtransparentes Boden-Overlay (verlangsamt), 4 Frames Glitzern.",
+        "wall_niche 32×48 sitzt bündig in einer Vorderseiten-Kachel + Krone darüber (x gleich, y −16); biomneutral, einfärben.",
+        "stairs_down: 3-4 Stufen für Gänge mit Höhenversatz (Code: Gang-Variante)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "pillar_fallen",
+          "file": "art/environment/deco/pillar_fallen.png",
+          "w": 64,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "candles_cluster",
+          "file": "art/environment/deco/candles_cluster.png",
+          "w": 32,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            22
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "drip",
+          "file": "art/environment/deco/drip_4f.png",
+          "w": 16,
+          "h": 32,
+          "frames": 4,
+          "fps": 5,
+          "loop": true,
+          "pivot": [
+            8,
+            31
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "shallow_water",
+          "file": "art/environment/deco/shallow_water_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "wall_niche",
+          "file": "art/environment/deco/wall_niche.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "stairs_down",
+          "file": "art/environment/deco/stairs_down.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "rooms8",
+      "priority": 22
+    },
+    {
+      "id": "environment/doors/door_modes",
+      "title": "Tür-Erkennung (V8)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "door_mode_symbols: 10 × 16×16 weiß/grau, einfärben: Arena, Geleit, Flamme hüten, Reliquie, Seelen, Risse, Jagd, Lichtfeuer, Einsturz, Elite-Nest. Über dem Torbogen bzw. der Seitentür zeigen.",
+        "door_glow: weißer Lichtkegel 48×32 unter dem Torbogen in den Raum, Modulate = Modusfarbe (Arena #e0463a, Geleit #ffd166, Flamme #6a4fc4, Reliquie #f2cf4a, Seelen #2fb391, Risse #5fcd62, Jagd #ff8a3c, Lichtfeuer #5a2a22 (fast dunkel), Einsturz #8c8f9a, Elite #a66ef0)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "door_mode_symbols",
+          "file": "art/environment/doors/door_mode_symbols.png",
+          "w": 160,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_glow",
+          "file": "art/environment/doors/door_glow.png",
+          "w": 48,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            0
+          ]
+        }
+      ],
+      "module": "rooms8",
+      "priority": 22
+    },
+    {
+      "id": "environment/objectives/objectives",
+      "title": "Minispiel-Objekte (V8)",
+      "dir": "art/environment/objectives",
+      "notes": [
+        "escort_path_4f: Leuchtmarken auf dem Geleit-Pfad, Alpha pulsiert; der Code legt sie auf die Pfadkacheln.",
+        "relic_*: 16×24, am Anker weapon_hand getragen; relic_altar 32×32 am Eingang, Code zeichnet die Reliquie bei (16,14) hinein.",
+        "soul_wisp: 16×16 schwebend (Light2D türkis klein); soul_wisp_fade läuft ab, wenn die 6 s um sind."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "escort_path",
+          "file": "art/environment/objectives/escort_path_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "relic_banner",
+          "file": "art/environment/objectives/relic_banner.png",
+          "w": 16,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            23
+          ],
+          "note": "Krypta"
+        },
+        {
+          "kind": "image",
+          "name": "relic_lantern",
+          "file": "art/environment/objectives/relic_lantern.png",
+          "w": 16,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            23
+          ],
+          "note": "Grotte / Schattenreich"
+        },
+        {
+          "kind": "image",
+          "name": "relic_skull",
+          "file": "art/environment/objectives/relic_skull.png",
+          "w": 16,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            23
+          ],
+          "note": "Glutkammer"
+        },
+        {
+          "kind": "image",
+          "name": "relic_altar",
+          "file": "art/environment/objectives/relic_altar.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            28
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "soul_wisp",
+          "file": "art/environment/objectives/soul_wisp_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            8,
+            14
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "soul_wisp_fade",
+          "file": "art/environment/objectives/soul_wisp_fade_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            8,
+            14
+          ]
+        }
+      ],
+      "module": "rooms8",
+      "priority": 22
+    },
+    {
+      "id": "environment/spawn/spawn",
+      "title": "Gegner-Quellen (V8)",
+      "dir": "art/environment/spawn",
+      "notes": [
+        "Ablauf je Quelle: Frame 1-2 Warnung (1 s, Licht + Ton), Frame 3-4 Erscheinen, Frame 5 Gegner steht (Code spawnt den Gegner am Pivot), Frame 6 Ruhe. Quelle bleibt als Deko liegen (Frame 1 bzw. 6).",
+        "Arena-Quelle = enemy_gate_4f (vorhanden)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "spawn_grave",
+          "file": "art/environment/spawn/spawn_grave_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            28
+          ],
+          "note": "Krypta: Grab, Hand, Skelett steigt"
+        },
+        {
+          "kind": "anim",
+          "name": "spawn_sarcophagus",
+          "file": "art/environment/spawn/spawn_sarcophagus_4f.png",
+          "w": 32,
+          "h": 40,
+          "frames": 4,
+          "fps": 5,
+          "loop": false,
+          "pivot": [
+            16,
+            38
+          ],
+          "note": "Krypta (Elite/Boss): Deckel gleitet"
+        },
+        {
+          "kind": "anim",
+          "name": "spawn_puddle",
+          "file": "art/environment/spawn/spawn_puddle_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            24
+          ],
+          "note": "Grotte: Pfütze blubbert, Schleim springt"
+        },
+        {
+          "kind": "anim",
+          "name": "spawn_rift",
+          "file": "art/environment/spawn/spawn_rift_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            20
+          ],
+          "note": "Schattenreich: Bodenriss, Gestalt zieht sich hoch"
+        },
+        {
+          "kind": "anim",
+          "name": "spawn_vent",
+          "file": "art/environment/spawn/spawn_vent_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            24
+          ],
+          "note": "Glutkammer: Spalte glüht, Gegner steigt aus der Glut"
+        }
+      ],
+      "module": "rooms8",
+      "priority": 22
     }
   ]
 }

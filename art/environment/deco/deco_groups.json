@@ -1,0 +1,106 @@
+{
+  "notes": [
+    "Deko mit Absicht: pillar_fallen (64×32) als eingestürzte Säule mit Geröllfächer; candles_cluster als Opferstelle; drip_4f (16×32) über einer Pfütze (tropfende Decke).",
+    "shallow_water_4f: halbtransparentes Boden-Overlay (verlangsamt), 4 Frames Glitzern.",
+    "wall_niche 32×48 sitzt bündig in einer Vorderseiten-Kachel + Krone darüber (x gleich, y −16); biomneutral, einfärben.",
+    "stairs_down: 3-4 Stufen für Gänge mit Höhenversatz (Code: Gang-Variante)."
+  ],
+  "items": [
+    {
+      "name": "pillar_fallen",
+      "file": "pillar_fallen.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "candles_cluster",
+      "file": "candles_cluster.png",
+      "frame_size": [
+        32,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        22
+      ],
+      "note": ""
+    },
+    {
+      "name": "drip",
+      "file": "drip_4f.png",
+      "frame_size": [
+        16,
+        32
+      ],
+      "frames": 4,
+      "fps": 5,
+      "loop": true,
+      "pivot": [
+        8,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "shallow_water",
+      "file": "shallow_water_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 3,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "wall_niche",
+      "file": "wall_niche.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "stairs_down",
+      "file": "stairs_down.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

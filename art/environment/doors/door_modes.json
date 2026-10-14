@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "door_mode_symbols: 10 × 16×16 weiß/grau, einfärben: Arena, Geleit, Flamme hüten, Reliquie, Seelen, Risse, Jagd, Lichtfeuer, Einsturz, Elite-Nest. Über dem Torbogen bzw. der Seitentür zeigen.",
+    "door_glow: weißer Lichtkegel 48×32 unter dem Torbogen in den Raum, Modulate = Modusfarbe (Arena #e0463a, Geleit #ffd166, Flamme #6a4fc4, Reliquie #f2cf4a, Seelen #2fb391, Risse #5fcd62, Jagd #ff8a3c, Lichtfeuer #5a2a22 (fast dunkel), Einsturz #8c8f9a, Elite #a66ef0)."
+  ],
+  "items": [
+    {
+      "name": "door_mode_symbols",
+      "file": "door_mode_symbols.png",
+      "frame_size": [
+        160,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_glow",
+      "file": "door_glow.png",
+      "frame_size": [
+        48,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}
