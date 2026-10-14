@@ -47,6 +47,11 @@ var _glow_strength := 0.0
 var _time := randf() * 10.0
 
 
+func _init() -> void:
+	# Frame, glow and sign sort with the player by the frame's floor line (see _make_sprite).
+	y_sort_enabled = true
+
+
 func setup(leaf: AnimatedSprite2D) -> void:
 	_leaf = leaf
 	if not _leaf.animation_finished.is_connected(_on_leaf_finished):
@@ -67,15 +72,15 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 		SpriteStrip.add_strip(frames, &"open", strip, style.leaf_size, style.leaf_fps, false)
 		_leaf.sprite_frames = frames
 	var frame_pos := -Vector2(style.leaf_offset) * PIXEL_SCALE
-	# Below the leaf: the frame's passage is dark, the leaf (partly transparent) lies on top
-	# (art/environment/doors/doors.json).
-	_frame = _make_sprite("Frame", DoorArt.get_frame(style), frame_pos, -1)
+	# The passage of the frame is transparent (DoorArt.open_passage); the leaf sits in it, and a
+	# player walking through is drawn behind the arch.
+	_frame = _make_sprite("Frame", DoorArt.get_frame(style), frame_pos, 0)
 	if style.is_boss():
 		# The boss gate is biome-neutral and tinted per biome (SPRITES_V4 §4), placeholder too.
 		_frame.modulate = style.tint
 	var glow_texture := DoorArt.get_glow(style)
 	if glow_texture != null:
-		_glow = _make_sprite("Glow", glow_texture, frame_pos, 2)
+		_glow = _make_sprite("Glow", glow_texture, frame_pos, 0)
 		var additive := CanvasItemMaterial.new()
 		additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		_glow.material = additive
@@ -106,7 +111,6 @@ func set_symbol(symbol_id: StringName) -> void:
 	_symbol.name = "Symbol"
 	_symbol.texture = texture
 	_symbol.scale = Vector2.ONE * PIXEL_SCALE
-	_symbol.z_index = 3
 	if DoorArt.has_symbol_file(symbol_id):
 		_symbol.modulate = SYMBOL_TINT
 	# Hangs on the arch top, centred over the door.
@@ -269,7 +273,6 @@ func _build_torches() -> void:
 		torch.strip = strip
 		torch.scale = Vector2.ONE * PIXEL_SCALE
 		torch.position = spots[i]
-		torch.z_index = 1
 		add_child(torch)
 		# Torches beside one door should not flicker in sync.
 		torch.frame = i * 2
@@ -293,7 +296,11 @@ func _make_sprite(node_name: String, texture: Texture2D, pos: Vector2, z: int) -
 	sprite.texture = texture
 	sprite.centered = false
 	sprite.scale = Vector2.ONE * PIXEL_SCALE
-	sprite.position = pos
+	# Sort point on the frame's floor line, lifted like every prop (SortLift): the node sits at the
+	# bottom, the texture is drawn upwards via offset, so the picture does not move.
+	var sort_y := texture.get_height() * PIXEL_SCALE - Player.FEET_OFFSET.y
+	sprite.position = pos + Vector2(0, sort_y)
+	sprite.offset = Vector2(0, -sort_y / PIXEL_SCALE)
 	sprite.z_index = z
 	add_child(sprite)
 	return sprite

@@ -45,6 +45,10 @@ const WEAPON_COLUMN_GAP := 6.0
 const OVERVIEW_SIZE := Vector2(440, 242)
 const DIALOG_WIDTH := 220.0
 const CHOICE_DIALOG_WIDTH := 250.0
+## Campfire dialog: width in mockup pixels; above CAMPFIRE_LIST_ROWS rows of upgrades it scrolls.
+const CAMPFIRE_DIALOG_WIDTH := 270.0
+const CAMPFIRE_LIST_ROWS := 4
+const CAMPFIRE_LIST_HEIGHT := 120.0
 const NUMBER_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
 
 var context: DungeonContext = null
@@ -744,6 +748,60 @@ func choose_option(title: String, text: String, details: Array, options: Array, 
 	if not footnote.is_empty():
 		UiDialog.add_footnote(modal, footnote)
 	return await modal.open(self)
+
+
+# --- Campfire (A6, D-103) ---
+
+## The one choice at the campfire: heal (index 0) or strengthen one of upgrades by a stack
+## (index 1 + position in upgrades). -1 = Esc, the player may come back. Pauses like the other
+## choice dialogs. 1 heals, 2–6 pick the first upgrades; Enter takes the highlighted default.
+func choose_campfire_rest(heal_amount: float, heal_possible: bool, upgrades: Array[UpgradeData], player: Player = null) -> int:
+	var modal := UiDialog.create(GameManager.PAUSE_UPGRADE_CHOICE, CAMPFIRE_DIALOG_WIDTH, "Rast am Lagerfeuer",
+			"Eine Wahl: Wunden versorgen oder ein Upgrade um eine Stufe stärken.", UiKit.COLOR_EFFECT)
+	modal.cancel_result = -1
+	if player != null:
+		var hp := "%s / %s" % [DamageNumber.format_amount(player.health.get_health()), DamageNumber.format_amount(player.health.get_max_health())]
+		UiDialog.add_rows(modal, [["Leben", hp, UiKit.COLOR_DANGER_SOFT]])
+	var heal_sub := "+%s HP" % DamageNumber.format_amount(heal_amount) if heal_possible else "Leben ist voll"
+	var heal_buttons := UiDialog.add_buttons(modal, [{"text": "Heilen", "sub": heal_sub, "result": 0, "default": heal_possible}])
+	heal_buttons[0].disabled = not heal_possible
+	if heal_possible:
+		modal.hotkeys[NUMBER_KEYS[0]] = modal.finish.bind(0)
+	if upgrades.is_empty():
+		UiDialog.add_footnote(modal, "Kein Upgrade zum Stärken (keines oder alle am Limit).")
+	else:
+		modal.content.add_child(UiKit.eyebrow("Oder ein Upgrade stärken", UiKit.COLOR_GOLD))
+		var grid := GridContainer.new()
+		grid.columns = 2
+		grid.add_theme_constant_override("h_separation", int(UiKit.px(4)))
+		grid.add_theme_constant_override("v_separation", int(UiKit.px(4)))
+		for i in upgrades.size():
+			var upgrade := upgrades[i]
+			var button := UiKit.dialog_button(upgrade.display_name, _campfire_stack_text(upgrade), modal.finish.bind(i + 1))
+			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			button.icon = upgrade.icon
+			button.add_theme_constant_override("icon_max_width", int(UiKit.px(12)))
+			grid.add_child(button)
+			if i + 1 < NUMBER_KEYS.size():
+				modal.hotkeys[NUMBER_KEYS[i + 1]] = modal.finish.bind(i + 1)
+		if upgrades.size() > CAMPFIRE_LIST_ROWS * 2:
+			var scroll := ScrollContainer.new()
+			scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+			scroll.custom_minimum_size.y = UiKit.px(CAMPFIRE_LIST_HEIGHT)
+			grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			scroll.add_child(grid)
+			modal.content.add_child(scroll)
+		else:
+			modal.content.add_child(grid)
+	modal.set_footer("Klicken oder 1–%d wählt · Esc später · Spiel pausiert" % mini(upgrades.size() + 1, NUMBER_KEYS.size()))
+	return await modal.open(self)
+
+
+func _campfire_stack_text(upgrade: UpgradeData) -> String:
+	var stacks := context.upgrade_manager.get_stacks(upgrade.id) if context != null else 0
+	if upgrade.is_limited():
+		return "%d / %d → %d / %d" % [stacks, upgrade.max_stacks, stacks + 1, upgrade.max_stacks]
+	return "Stufe %d → %d" % [stacks, stacks + 1]
 
 
 # --- Tab overview (screen 05) ---

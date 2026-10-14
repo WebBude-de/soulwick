@@ -1,15 +1,16 @@
 extends SpecialContent
 ## Extra upgrade: one free choice out of up to three available upgrades.
 
-const ALTAR_TEXTURE: Texture2D = preload("res://art/environment/props/upgrade_altar.png")
+## Animated altar (4 frames of 32x48, SPRITES_V4 delivery).
+const ALTAR_STRIP: Texture2D = preload("res://art/environment/props/upgrade_altar_4f.png")
 
 var _interactable: Interactable = null
-var _sprite: Sprite2D = null
+var _sprite: AnimatedProp = null
 
 
 func _on_setup() -> void:
 	add_light(170.0, Vector2(0, -40))
-	_sprite = add_sprite(ALTAR_TEXTURE, Vector2(16, 46))
+	_sprite = add_animated(ALTAR_STRIP, Vector2i(32, 48), 6.0, Vector2(16, 46))
 	add_blocker(Vector2(44, 24), Vector2(0, -10))
 	_interactable = add_interactable("Upgrade wählen", 56.0, Vector2(0, -24))
 	_interactable.interacted.connect(_on_interacted)

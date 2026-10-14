@@ -50,6 +50,14 @@ Biome (Tileset-Grundtöne)
 - Hauptmenü: Menüliste links auf abgedunkeltem Rand, Szene bleibt sichtbar; aktiver Eintrag `button_hover` + Gold-Cursor, gesperrte Einträge `#7a7396` mit Hinweis.
 - Positionen und Größen aller Screens: `docs/design/ui_spec.json`; Referenzbilder: `docs/design/screens/` (1× pixelgenau und 2×).
 
+## Animierte Props
+
+`fountain`, `weapon_pedestal`, `upgrade_altar` (Spezialräume), `well`, `pond` (Dorf) liegen statisch **und** als `_4f`-Schleife (4–6 fps) mit gleichen Maßen und Pivot. Code darf die `_4f`-Datei bevorzugen und auf die statische zurückfallen.
+
+## Türen (D1)
+
+Jede Tür = Rahmen (48×48, Boss 64×56, Pivot unten Mitte, über die Wand gelegt) + Türblatt 32×32 im Durchgang (Rahmen-x+8, y+16; Boss x+16, y+24). `*_open_4f`: Frame 1 geschlossen, Frame 4 offen. Der Durchgang im Rahmen soll **transparent** sein (das Spiel zeigt dahinter den Gang; dunkel gemalte Durchgänge macht der Code beim Laden transparent). `door_special_symbols.png` (6×16×16, weiß/grau, einfärben): Münze, Schwert, Tropfen, Stern, Sanduhr, Flamme.
+
 ## Koop-Einfärbung
 
 `player_tint_mask.png` (zu `player_walk_6f`) plus `_idle`, `_dash`, `_death`: weiß = Kleidung, schwarz = Rest. Vorschlag für Spielerfarben: P1 `#3690da`, P2 `#e0463a`, P3 `#5fcd62`, P4 `#f2cf4a`. `teammate_arrow` und `guild_emblems` sind weiß/grau und werden per Modulate eingefärbt.
@@ -61,6 +69,7 @@ art/
   characters/player|enemies/<typ>|bosses/<name>|npcs
   weapons  projectiles  effects
   environment/tiles  environment/props  environment/buildings
+  environment/village (Dorf-Deko B3)  environment/doors (Türen je Biom + Bosstor, D1)  environment/campfire (Lagerfeuer-Raum + Übergangs-Overlays, A6)
   ui  fonts
   ui/menu             (Hauptmenü-Hintergrund in Ebenen + menu.json mit Sprite- und Lichtpositionen)
   index.json          (alle Gruppen und Dateien, maschinenlesbar)

@@ -597,7 +597,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 - **Status:** VERBINDLICH · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
 - **Beschluss:** Nach jedem Boss (15, 30, 45 …) folgt ein **Lagerfeuer** als Zwischenraum, der nicht als Raum zählt (Raumnummer, Skalierung, Heilung alle fünf Räume unverändert). Übergangs-Tiles vom alten ins neue Biom, Musik klingt aus. Eine Wahl: heilen (+4 HP) oder ein stapelbares Upgrade um einen Stack stärken. Koop: jeder wählt für sich.
-- **Empfehlung Claude (14.10.2026), Bestätigung durch das Projektmitglied offen:** Am Lagerfeuer steht immer ein **Exit-Portal** (100 % Gold, wie D-006). So gibt es nach jedem Boss einen sicheren Ausstieg und die Entscheidung „Gold sichern oder tiefer“ bekommt einen festen Rhythmus. Die Raum-45-Wahl aus KONZEPT_RAEUME §6.3 entfällt (KONZEPT_ENDLOS: kein Ende bei Raum 45); das zufällige Portal in Spezialräumen (30 %) bleibt.
+- **Umgesetzt 14.10.2026 (A6), Bestätigung durch das Projektmitglied offen, abschaltbar über `DungeonManager.CAMPFIRE_EXIT_PORTAL`:** Das Portal nach dem Boss steht nicht mehr im Bossraum (ändert D-073), sondern am Lagerfeuer; der Bossraum zeigt das Banner „Ein Lagerfeuer wartet“. TESTWERTE: Heilen +4 HP, Dunkelheit 0,9. Empfehlung: Am Lagerfeuer steht immer ein **Exit-Portal** (100 % Gold, wie D-006). So gibt es nach jedem Boss einen sicheren Ausstieg und die Entscheidung „Gold sichern oder tiefer“ bekommt einen festen Rhythmus. Die Raum-45-Wahl aus KONZEPT_RAEUME §6.3 entfällt (KONZEPT_ENDLOS: kein Ende bei Raum 45); das zufällige Portal in Spezialräumen (30 %) bleibt.
 - **Ergänzt:** D-005.
 
 ### D-104 – Wagnis-Altar

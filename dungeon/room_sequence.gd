@@ -1,9 +1,16 @@
 class_name RoomSequence
 extends RefCounted
-## Pure rules of the room order (D-002 .. D-006, endless D-073, room kinds D-086). No nodes,
-## fully unit-testable.
+## Pure rules of the room order (D-002 .. D-006, endless D-073, room kinds D-086, campfire D-103).
+## No nodes, fully unit-testable.
+##
+## Room numbers vs. slots: every room instance of a run has a slot (its place in the stack of
+## instances). A campfire follows every boss room (D-103) but is no room: it takes a slot of its
+## own and keeps the number of the boss room before it, so room numbers, scaling, heals and the
+## five-room cycle stay exactly as without it. Slot 16 is the campfire after room 15, room 16 sits
+## in slot 17, and so on.
 
-enum RoomType { COMBAT, COMBAT_UPGRADE, SPECIAL, MINIBOSS, BOSS }
+## CAMPFIRE never comes from get_room_type(): it only exists between two room numbers (slots).
+enum RoomType { COMBAT, COMBAT_UPGRADE, SPECIAL, MINIBOSS, BOSS, CAMPFIRE }
 enum SpecialType { SHOP, WEAPON, FOUNTAIN, UPGRADE }
 
 enum Biome { CRYPT, SLIME_GROTTO, SHADOW_REALM, EMBER_FORGE }
@@ -29,6 +36,42 @@ static func get_room_type(room_index: int) -> RoomType:
 		5:
 			return RoomType.BOSS if room_index % BOSS_INTERVAL == 0 else RoomType.MINIBOSS
 	return RoomType.COMBAT
+
+
+# --- Slots: room numbers plus the campfires between the biomes (D-103) ---
+
+## Slots per boss interval: the rooms of one biome plus the campfire after its boss.
+static func get_slots_per_biome() -> int:
+	return BOSS_INTERVAL + 1
+
+
+## True for the slot right after a boss room (16, 32, 48, ...).
+static func is_campfire_slot(slot: int) -> bool:
+	return slot > 0 and slot % get_slots_per_biome() == 0
+
+
+## Room number shown and used for scaling. A campfire slot keeps the number of its boss room.
+static func get_room_for_slot(slot: int) -> int:
+	return slot - floori(float(slot) / get_slots_per_biome())
+
+
+## Slot of a room number (rooms 1-15 keep their number, room 16 is slot 17, ...).
+static func get_slot_for_room(room_index: int) -> int:
+	return room_index + floori(float(room_index - 1) / BOSS_INTERVAL)
+
+
+## Slot of the campfire behind a boss room (0 if room_index is no boss room).
+static func get_campfire_slot_after(room_index: int) -> int:
+	if room_index <= 0 or room_index % BOSS_INTERVAL != 0:
+		return 0
+	return get_slot_for_room(room_index) + 1
+
+
+## Room type of a slot: CAMPFIRE between the biomes, otherwise the type of its room number.
+static func get_slot_type(slot: int) -> RoomType:
+	if is_campfire_slot(slot):
+		return RoomType.CAMPFIRE
+	return get_room_type(get_room_for_slot(slot))
 
 
 static func is_normal_combat(room_type: RoomType) -> bool:
@@ -195,6 +238,8 @@ static func get_type_name(room_type: RoomType) -> String:
 			return "Miniboss"
 		RoomType.BOSS:
 			return "Boss"
+		RoomType.CAMPFIRE:
+			return "Lagerfeuer"
 	return "Kampf"
 
 

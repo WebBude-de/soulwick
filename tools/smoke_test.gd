@@ -1,6 +1,7 @@
 extends SceneTree
 ## Automated play-through (headless): village -> dungeon -> N rooms -> death -> village.
-## Checks M2/M4/M5 acceptance rules at runtime and prints PASS/FAIL lines.
+## Checks M2/M4/M5 acceptance rules at runtime and prints PASS/FAIL lines. After every boss room
+## it walks through the campfire (D-103) and checks that it does not count as a room.
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
@@ -16,6 +17,7 @@ var _rolled_early := {}
 var _rolled_deep := {}
 var _used_kinds := {}
 var _previous_kind := -1
+var _campfires_seen := 0
 
 
 func _init() -> void:
@@ -58,6 +60,8 @@ func _run() -> void:
 		_check(controller.get_player() == player, "room %d keeps the same player instance" % index)
 
 	_check(_max_live_rooms <= MAX_LIVE_ROOMS, "never more than 3 live rooms (max seen: %d)" % _max_live_rooms)
+	var bosses := floori(rooms_to_play / 15.0)
+	_check(_campfires_seen == bosses, "one campfire after each of the %d boss rooms (seen: %d)" % [bosses, _campfires_seen])
 	var gold_before: int = run_manager.get_run_gold()
 	var permanent_before: int = save_manager.get_permanent_gold()
 	print("run gold before death: ", gold_before)
@@ -96,7 +100,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	if room == null:
 		_fail("room %d was not prepared" % index)
 		return false
-	var type_name: String = ["COMBAT", "COMBAT_UPGRADE", "SPECIAL", "MINIBOSS", "BOSS"][room.room_type]
+	var type_name: String = ["COMBAT", "COMBAT_UPGRADE", "SPECIAL", "MINIBOSS", "BOSS", "CAMPFIRE"][room.room_type]
 	var expected_type := _expected_type(index)
 	_check(type_name == expected_type, "room %d type %s (expected %s)" % [index, type_name, expected_type])
 	if index > 1:
@@ -108,7 +112,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	await _frames(6)
 	_check(run_manager.get_current_room() == index, "RunManager room %d" % index)
 	_check(_dungeon.get_room(index - 2) == null, "room %d unloaded when entering %d" % [index - 2, index])
-	_check(_dungeon.get_room(index + 1) != null, "room %d prepared when entering %d" % [index + 1, index])
+	if type_name == "BOSS":
+		# Behind a boss room comes the campfire, room index + 1 only behind it (D-103).
+		_check(_dungeon.get_campfire(index) != null, "campfire prepared when entering boss room %d" % index)
+	else:
+		_check(_dungeon.get_room(index + 1) != null, "room %d prepared when entering %d" % [index + 1, index])
 
 	if type_name == "SPECIAL":
 		print("room %d: special %s, portal=%s" % [index, room.special_type, room.has_portal])
@@ -156,7 +164,58 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	await _frames(10)
 	var exit_door: Node = room._exit_door
 	_check(exit_door.is_open, "room %d exit opened after completion" % index)
+	if type_name == "BOSS" and exit_door.is_open:
+		return await _play_campfire(index, player, run_manager)
 	return exit_door.is_open
+
+
+## Campfire behind a boss room (D-103): no room number, no heal step, no enemies, one choice at
+## the fire, the exit portal (CAMPFIRE_EXIT_PORTAL), music interlude, then on to boss_index + 1.
+func _play_campfire(boss_index: int, player: Node, run_manager: Node) -> bool:
+	var campfire: Node = _dungeon.get_campfire(boss_index)
+	_check(campfire != null, "campfire prepared behind boss room %d" % boss_index)
+	if campfire == null:
+		return false
+	_campfires_seen += 1
+	var manager_constants: Dictionary = _dungeon.get_script().get_script_constant_map()
+	var with_portal: bool = manager_constants["CAMPFIRE_EXIT_PORTAL"]
+	_check(campfire.is_campfire(), "campfire %d has the campfire room type" % boss_index)
+	_check(campfire.room_index == boss_index, "campfire keeps the number of boss room %d" % boss_index)
+	_check(_dungeon.get_room(boss_index + 1) == null, "room %d waits until the campfire is entered" % (boss_index + 1))
+	_check(_dungeon.get_room(boss_index).has_portal != with_portal, "boss room %d: portal only without the campfire portal" % boss_index)
+	var heal_steps_before: int = _dungeon.get_rooms_until_heal()
+	var tiles: Node = campfire.get_node("Tiles")
+	# Walk in like the player: through the entrance, past the fire.
+	player.global_position = campfire.to_global(tiles.position + (Vector2(tiles.entrance_x, tiles.room_size.y - 3) + Vector2(0.5, 0.5)) * 64.0)
+	await _frames(6)
+	_check(run_manager.get_current_room() == boss_index, "campfire %d does not count as a room (RunManager %d)" % [boss_index, run_manager.get_current_room()])
+	_check(_dungeon.get_active_room_index() == boss_index, "campfire %d: active room number stays %d" % [boss_index, boss_index])
+	_check(_dungeon.get_room(boss_index - 1) == null, "room %d unloaded when entering the campfire" % (boss_index - 1))
+	_check(_dungeon.get_room(boss_index) != null, "boss room %d stays loaded behind the campfire" % boss_index)
+	_check(_dungeon.get_room(boss_index + 1) != null, "room %d prepared when entering the campfire" % (boss_index + 1))
+	_check(_dungeon.get_live_room_count() <= MAX_LIVE_ROOMS, "campfire %d: at most 3 live rooms" % boss_index)
+	_check(campfire.enemy_container.get_child_count() == 0 and not campfire.is_encounter_started(), "campfire %d: no enemies" % boss_index)
+	_check(campfire._exit_door.is_open, "campfire %d: exit open right away" % boss_index)
+	_check(campfire.has_portal == with_portal, "campfire %d: exit portal = %s" % [boss_index, with_portal])
+	_check(campfire.get_node("Tiles").has_biome_blend(), "campfire %d: floor blends into the next biome" % boss_index)
+	var music: Node = root.get_tree().get_first_node_in_group(&"music_player")
+	if music != null:
+		_check(music.is_in_interlude(), "campfire %d: music interlude running" % boss_index)
+		var ambient: String = load("res://components/audio/music_rules.gd").ambient_track(campfire.get_next_biome())
+		_check(music.get_current_ambient() == ambient, "campfire %d: ambient of the next biome (%s)" % [boss_index, music.get_current_ambient()])
+	# The one choice: heal (the test player is hurt a little first).
+	player.health.take_damage(10.0)
+	var hp_before: float = player.health.get_health()
+	var content: Node = campfire.get_campfire_content()
+	content._interactable.interact(player)
+	await _press_modal_button("Heilen")
+	await _frames(4)
+	_check(is_equal_approx(player.health.get_health(), hp_before + content.HEAL_AMOUNT), "campfire %d heals +%s HP (%s -> %s)" % [boss_index, content.HEAL_AMOUNT, hp_before, player.health.get_health()])
+	_check(content.has_rested(player) and not content._interactable.enabled, "campfire %d: one choice per player" % boss_index)
+	_check(_dungeon.get_rooms_until_heal() == heal_steps_before, "campfire %d leaves the heal countdown alone" % boss_index)
+	_check(_find_modal(root) == null, "campfire %d: no dialog left open" % boss_index)
+	print("campfire after room %d: portal=%s, next biome %s" % [boss_index, campfire.has_portal, campfire.get_next_biome().display_name])
+	return true
 
 
 ## Room kind rules (D-086): rooms 1-5 without abyss, no abyss twice in a row, fallback to arena

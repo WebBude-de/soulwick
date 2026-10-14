@@ -94,22 +94,31 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 ### C3 – Musik-Übergänge zwischen Biomen ✓ *(14.10.2026, Lagerfeuer-Anschluss mit A6)*
 
 - [x] Kein harter Schnitt beim Biomwechsel: nach dem Boss ausklingen, Geräuschkulisse zuerst, neue Musik langsam ein; Übergänge Dorf ↔ Dungeon und Champion-Räume prüfen. *(14.10.2026: Sieges- und Übergangs-Stinger je Boss/Biom, equal-power-Blenden, Szenen-Übergabe Hauptmenü ↔ Spiel; GUT 349/349, test_music_* 40/40, smoke_test 47 Räume 643 PASS, validate 0 failed; Probelauf mit Musik-Protokoll über die Biomwechsel 16/31/46)*
-- [ ] Später mit A6 verbinden: Das Lagerfeuer ist der musikalische Übergang. Haken steht: `MusicPlayer.begin_interlude(next_biome)` (Musik klingt aus, neue Geräuschkulisse setzt ein, der nächste Raum startet mit Stinger und Loop).
+- [x] *(14.10.2026, A6 ruft `begin_interlude` beim Betreten des Lagerfeuers)* Später mit A6 verbinden: Das Lagerfeuer ist der musikalische Übergang. Haken steht: `MusicPlayer.begin_interlude(next_biome)` (Musik klingt aus, neue Geräuschkulisse setzt ein, der nächste Raum startet mit Stinger und Loop).
 
 ---
 
 ## Phase 2 – Räume (KONZEPT_RAEUME)
 
-> **Start Phase 2 (14.10.2026, Playtest):** Der Biomwechsel wirkt optisch wie ein harter Schnitt und die Türen sind zu schlicht. Deshalb laufen zuerst **A6 Lagerfeuer** (Übergangsraum), **D1 Türen** und **A2 Wegfindung** parallel; danach A3/A5.
+> **Phase 2 in Wellen (14.10.2026, großes Raum-Update).** Mehrere Agenten parallel, jeder mit eigenem Dateibereich; gemeinsame Hotspots (`dungeon_manager.gd`, Zieh-Logik) verdrahtet der Integrator über Haken.
+>
+> | Welle | Pakete (parallel) | Eigener Dateibereich |
+> | --- | --- | --- |
+> | 1 ✓ | A6 Lagerfeuer · D1 Türen · A2 Wegfindung (läuft) | `dungeon/rooms/campfire/` · `dungeon/environment/doors/` · `enemies/`, Tilesets |
+> | 2 | **A3** Formen und Zutaten · **A5** Arena mit Wellen · **A8** Spezialräume · **A7** Kampf-Varianten + Wagnis-Altar (nach A2) | A3: Generator, `room_tiles.gd`, `room_controller.gd`, `room_sequence.gd`, `dungeon/rooms/combat/` · A5: `dungeon/spawning/` · A8: `dungeon/rooms/special/`, `dungeon/rooms/trials/` · A7: `dungeon/variants/`, `enemies/` |
+> | 3 | **A4** Abgrund und Brücken · **A9** Licht-Varianten | A4: `player/`, Physik-Ebene, Abgrund-Teile in Generator/`room_tiles.gd` · A9: `dungeon/variants/light/`, Licht-Abfrage |
+> | 4 | **A10** Wegführung (Ausgänge an allen Seiten, Abzweigungen, Geheimräume) | `dungeon_manager.gd` (Raumkette), Generator |
+>
+> Zieh-Regeln der neuen Inhalte (Varianten 20 %, gewichtete Spezialräume, Wagnis-Altar 12 %) liegen als eigene Tabellen (`.tres`) in den Paketen; der Integrator schließt sie in `room_sequence.gd`/`dungeon_manager.gd` an. Grafiken: [SPRITES_V5.md](SPRITES_V5.md).
 
 ### D1 – Türen je Biom und Raumtyp
 
 **Ziel:** Türen erzählen, wohin es geht: eigener Rahmen und eigene Öffnen-Animation je Biom, ein großes Bosstor, Symbole über Spezialraum-Türen. Grafiken: [SPRITES_V4.md](SPRITES_V4.md) §4; bis dahin Platzhalter aus vorhandener Grafik (Einfärben, Fackeln, Partikel, Licht).
 
-- [ ] Rahmen + Türblatt je Biom (`door_frame_<biom>`, `door_<biom>_open_4f`), Bosstor (`door_frame_boss`, `door_boss_open_4f`), Spezialraum-Symbole (`door_special_symbols`).
-- [ ] Öffnen mit Staub/Funken, Ton und kurzem Licht-Aufblitzen; verschlossene Bossraum-Tür sichtbar bedrohlich (Glühen, Ketten).
-- [ ] Automatische Übernahme der Dateien aus SPRITES_V4 §4, Platzhalter bis dahin.
-- [ ] Tests: Türwahl je Biom/Raumtyp, Rückfall ohne Datei.
+- [x] Rahmen + Türblatt je Biom (`door_frame_<biom>`, `door_<biom>_open_4f`), Bosstor (`door_frame_boss`, `door_boss_open_4f`), Spezialraum-Symbole (`door_special_symbols`). *(14.10.2026: `DoorStyle` wählt aus Biom und Zielraum, `Door.configure_for_room`; Fackeln/Glutschalen und ein Licht je Tür, Schild über Türen zu Spezialräumen und Miniboss; Anschluss in `RoomController`/`DungeonManager` durch den Integrator offen)*
+- [x] Öffnen mit Staub/Funken, Ton und kurzem Licht-Aufblitzen; verschlossene Bossraum-Tür sichtbar bedrohlich (Glühen, Ketten). *(14.10.2026: `DoorView` folgt `Door.state_changed`; Töne `door_open_stone/_vines/_rune/_gate`, `door_boss_unlock`, `door_boss_close`; rotes Pulsieren + Pulslicht am Bosstor, Runen-/Glut-Glimmen)*
+- [x] Automatische Übernahme der Dateien aus SPRITES_V4 §4, Platzhalter bis dahin. *(14.10.2026: `DoorArt`; gelieferte Grafiken sind eingebunden, gezeichnete Platzhalter nur als Rückfall)*
+- [x] Tests: Türwahl je Biom/Raumtyp, Rückfall ohne Datei. *(14.10.2026: `test_door_style` 17/17, `test_door_node` 12/12; GUT 460/460, validate 0 failed, smoke_test 20 Räume PASS)*
 
 ### A1 – Raumart-Fundament ✓ *(14.10.2026)*
 
@@ -149,12 +158,12 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 - [ ] Variante **Hinterhalt**: Raum wirkt leer, Gegner brechen beim Schließen der Tür aus den Wänden.
 - [ ] Arena-Formen (Rechteck M/L, Kreuz, Säulenhalle); Balance mit `balance_sim.gd` gegenprüfen.
 
-### A6 – Lagerfeuer (KONZEPT_RAEUME §6.3)
+### A6 – Lagerfeuer (KONZEPT_RAEUME §6.3) ✓ *(14.10.2026)*
 
-- [ ] Zwischenraum nach jedem Boss, zählt **nicht** als Raum (Raumnummer, Skalierung, Heilung unverändert).
-- [ ] Übergangs-Tiles vom alten ins neue Biom; Musik klingt aus, neue Geräuschkulisse setzt ein (mit C3).
-- [ ] Eine Wahl: heilen (+4 HP) **oder** ein stapelbares Upgrade um einen Stack stärken.
-- [ ] Exit-Portal am Lagerfeuer (Empfehlung D-103, Bestätigung offen); keine Raum-45-Wahl.
+- [x] Zwischenraum nach jedem Boss, zählt **nicht** als Raum (Raumnummer, Skalierung, Heilung unverändert). *(14.10.2026: eigener Platz im Raumstapel, `RoomSequence`-Slots; smoke_test 47 mit Lagerfeuer nach 15/30/45, GUT test_campfire 18/18)*
+- [x] Übergangs-Tiles vom alten ins neue Biom; Musik klingt aus, neue Geräuschkulisse setzt ein (mit C3). *(14.10.2026: Dither-Überblendung in Boden, Wänden und Fels, Übergangs-Overlays aus SPRITES_V4 §5, Fackeln/Licht/Partikel/Dunkelfarbe folgen; `begin_interlude` beim Betreten, kein zweites Blenden in Raum n+1)*
+- [x] Eine Wahl: heilen (+4 HP) **oder** ein stapelbares Upgrade um einen Stack stärken. *(14.10.2026: Dialog „Rast am Lagerfeuer“, je Spieler eine Wahl)*
+- [x] Exit-Portal am Lagerfeuer (Empfehlung D-103, Bestätigung offen); keine Raum-45-Wahl. *(14.10.2026: hinter `DungeonManager.CAMPFIRE_EXIT_PORTAL`, TESTWERT; aus = Portal wieder im Bossraum wie D-073; Bestätigung durch das Projektmitglied weiter offen)*
 
 ### A7 – Kampf-Varianten I und Wagnis-Altar (KONZEPT_RAEUME §4, §5)
 

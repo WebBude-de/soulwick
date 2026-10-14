@@ -1,7 +1,8 @@
 extends SpecialContent
 ## Weapon choice: up to two weapons the player does not own; taking one may replace a slot (D-022).
 
-const PEDESTAL_TEXTURE: Texture2D = preload("res://art/environment/props/weapon_pedestal.png")
+## Animated pedestal (4 frames of 32x32, SPRITES_V4 delivery).
+const PEDESTAL_STRIP: Texture2D = preload("res://art/environment/props/weapon_pedestal_4f.png")
 const MAX_WEAPONS := 2
 const PEDESTAL_SPACING := 150.0
 ## Weapon floats 10 art px above the pedestal (art note), plus a gentle bob.
@@ -33,15 +34,17 @@ func _process(_delta: float) -> void:
 
 
 func _add_pedestal(weapon: WeaponData, at: Vector2) -> void:
-	add_sprite(PEDESTAL_TEXTURE, Vector2(16, 30), at)
+	add_animated(PEDESTAL_STRIP, Vector2i(32, 32), 6.0, Vector2(16, 30), at)
 	add_blocker(Vector2(40, 20), at + Vector2(0, -8))
-	var weapon_sprite := add_sprite(weapon.sprite, Vector2(16, 16), at + Vector2(0, -WEAPON_HEIGHT))
+	# Same base line as the pedestal (drawn after it), floating WEAPON_HEIGHT above inside its holder.
+	var weapon_sprite := add_sprite(weapon.sprite, Vector2(16, 16), at)
+	weapon_sprite.position.y -= WEAPON_HEIGHT
 	weapon_sprite.rotation = -PI / 4.0
 	weapon_sprite.modulate = weapon.tint
 	weapon_sprite.scale *= weapon.sprite_scale
 	var interactable := add_interactable("%s nehmen" % weapon.display_name, 48.0, at + Vector2(0, -20))
 	interactable.interacted.connect(_on_pedestal_used.bind(weapon))
-	_pedestals.append({"sprite": weapon_sprite, "base_y": at.y - WEAPON_HEIGHT, "interactable": interactable, "weapon": weapon})
+	_pedestals.append({"sprite": weapon_sprite, "base_y": weapon_sprite.position.y, "interactable": interactable, "weapon": weapon})
 
 
 func _on_pedestal_used(player: Player, weapon: WeaponData) -> void:

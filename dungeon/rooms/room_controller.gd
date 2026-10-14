@@ -3,6 +3,8 @@ extends Node2D
 ## One room instance: doors, encounter state and completion (D-008).
 ## PREPARED (instantiated, nothing spawned) -> ACTIVE (player entered) -> CLEARED -> UNLOADED.
 ## The encounter starts on the first real entry only, exactly once; completion is reported once.
+## A campfire (D-103) is a room instance without a room number of its own: no encounter, no
+## completion signal, no EventBus room events; its floor blends from the old into the next biome.
 
 signal player_entered(room: RoomController)
 signal completed(room: RoomController)
@@ -27,6 +29,10 @@ const SPECIAL_SCENES := {
 	RoomSequence.SpecialType.FOUNTAIN: preload("res://dungeon/rooms/special/fountain_content.tscn"),
 	RoomSequence.SpecialType.UPGRADE: preload("res://dungeon/rooms/special/altar_content.tscn"),
 }
+## Campfire floor blend (TESTWERTE): rows above the entrance that stay fully in the old biome and
+## rows below the exit that are already fully in the new one; in between the dithered blend.
+const CAMPFIRE_OLD_ROWS := 1.5
+const CAMPFIRE_NEW_ROWS := 2.0
 
 ## Kind and size class of a combat template (D-086), written by tools/generate_room_templates.py
 ## and read by RoomCatalog. Without meaning for special, miniboss and boss rooms.
@@ -34,6 +40,9 @@ const SPECIAL_SCENES := {
 @export var room_size_class: RoomSequence.RoomSize = RoomSequence.RoomSize.S
 
 var room_index := 0
+## Place of this instance in the room stack (RoomSequence slots); differs from room_index after the
+## first campfire. 0 = not set (tests), then room_index is used.
+var slot_index := 0
 var room_type := RoomSequence.RoomType.COMBAT
 ## Kind the room sequence asked for (-1 for non-combat rooms); differs from room_kind when no
 ## template of that kind exists and the room fell back to an arena.
@@ -73,25 +82,36 @@ func setup(index: int, type: RoomSequence.RoomType, special: int, portal: bool, 
 
 
 func _ready() -> void:
+	if slot_index <= 0:
+		slot_index = room_index
+	# The template's own tileset: the crypt look, which has no biome tileset of its own.
+	var base_tileset := tiles.tile_set
 	var biome := spawner.get_biome(room_index)
 	if biome != null:
-		var biome_tileset := _load_biome_tileset(biome.id)
-		if biome_tileset != null:
-			# Dedicated biome art replaces the tinted crypt tiles.
-			tiles.use_tileset(biome_tileset)
+		_apply_biome_tiles(biome)
+		if is_campfire():
+			_apply_campfire_look(get_next_biome(), base_tileset)
 		else:
-			tiles.modulate = biome.tile_tint
-		_apply_biome_torches(biome.id)
+			_apply_biome_torches(biome.id)
 	# Crates and barrels sort by their base line against the characters' feet (UX1 finding).
 	for prop in get_node("Props").get_children():
 		if prop is Breakable:
 			SortLift.lift(prop)
 	_entrance_door = _create_door(get_entrance_tile())
 	_exit_door = _create_door(get_exit_tile())
+	# Doors in the biome's style (D1): the entrance shows this room, the exit the next slot (boss
+	# gate before a boss, flame sign before the campfire). A campfire's exit is already in the new biome.
+	var door_biome: StringName = biome.id if biome != null else &""
+	_entrance_door.configure_for_room(door_biome, room_type, special_type, true)
+	var next_biome := get_next_biome() if is_campfire() else null
+	_exit_door.configure_for_room(next_biome.id if next_biome != null else door_biome, RoomSequence.get_slot_type(slot_index + 1))
 	# Room 1 has nothing behind its entrance.
 	_entrance_door.set_open_instant(room_index > 1)
 	_exit_door.set_open_instant(false)
 	_setup_enter_trigger()
+	if is_campfire():
+		# Built right away: the fire already glows through the open door of the boss room.
+		_build_campfire_content()
 
 
 func get_entrance_tile() -> Vector2i:
@@ -120,6 +140,12 @@ func activate() -> void:
 		return
 	state = State.ACTIVE
 	_entrance_door.close()
+	if is_campfire():
+		# No room of its own (D-103): nothing to clear, no completion, the way on is open.
+		_completion_reported = true
+		state = State.CLEARED
+		open_exit()
+		return
 	EventBus.room_entered.emit(room_index)
 	if room_type == RoomSequence.RoomType.SPECIAL:
 		_build_special_content()
@@ -186,12 +212,40 @@ func spawn_exit_portal() -> void:
 
 func open_exit() -> void:
 	if not _exit_door.is_open:
+		# The configured door plays its own biome sound (DoorView).
 		_exit_door.open()
-		Sfx.play_at(self, &"door_open", _exit_door.global_position)
 
 
 func mark_unloaded() -> void:
 	state = State.UNLOADED
+
+
+## The room behind the exit door is known: its type and special sign (D1). The special type is only
+## rolled when the next room is prepared, while this exit door is still closed.
+func set_next_room(next: RoomController) -> void:
+	_exit_door.set_destination(next.room_type, next.special_type)
+
+
+func is_campfire() -> bool:
+	return room_type == RoomSequence.RoomType.CAMPFIRE
+
+
+## Biome of the room after this one: the new biome behind a campfire.
+func get_next_biome() -> BiomeData:
+	return spawner.get_biome(room_index + 1)
+
+
+## A campfire was placed north of this room: rooms are y-sorted, so this room's rock ring would
+## cover the campfire's blended rock beside it. The ring then ends at the room's north wall.
+func make_way_for_campfire() -> void:
+	tiles.set_backdrop_north_rows(0)
+
+
+func get_campfire_content() -> CampfireContent:
+	for child in get_children():
+		if child is CampfireContent:
+			return child
+	return null
 
 
 func _complete() -> void:
@@ -262,6 +316,28 @@ func _apply_biome_torches(biome_id: StringName) -> void:
 			torch.strip = strip
 
 
+## Dedicated biome art replaces the tinted crypt tiles.
+func _apply_biome_tiles(biome: BiomeData) -> void:
+	var biome_tileset := _load_biome_tileset(biome.id)
+	if biome_tileset != null:
+		tiles.use_tileset(biome_tileset)
+	else:
+		tiles.modulate = biome.tile_tint
+
+
+## Campfire: the next biome's tiles blend in from the entrance (south) to the exit (north). The
+## torches hang on the north wall, so they already burn in the next biome's colour. A biome
+## without its own tileset (crypt) blends in with the template's base tileset and its tint.
+func _apply_campfire_look(next_biome: BiomeData, base_tileset: TileSet) -> void:
+	if next_biome == null:
+		return
+	var next_tileset := _load_biome_tileset(next_biome.id)
+	var next_tint := Color.WHITE if next_tileset != null else next_biome.tile_tint
+	var from_row := float(tiles.room_size.y) - CAMPFIRE_OLD_ROWS
+	tiles.set_biome_blend(next_tileset if next_tileset != null else base_tileset, next_tint, from_row, CAMPFIRE_NEW_ROWS)
+	_apply_biome_torches(next_biome.id)
+
+
 static func _load_biome_tileset(biome_id: StringName) -> TileSet:
 	var path := BIOME_TILESET_PATH % biome_id
 	return load(path) as TileSet if ResourceLoader.exists(path) else null
@@ -294,6 +370,20 @@ func _on_body_entered(body: Node2D) -> void:
 		return
 	_entered = true
 	player_entered.emit(self)
+
+
+func _build_campfire_content() -> void:
+	var content := CampfireContent.new()
+	content.name = "CampfireContent"
+	content.y_sort_enabled = true
+	content.position = content_anchor.position
+	add_child(content)
+	content.setup(context, self)
+	if has_portal:
+		var portal := PORTAL_SCENE.instantiate() as SpecialContent
+		portal.position = portal_anchor.position
+		add_child(portal)
+		portal.setup(context, self)
 
 
 func _build_special_content() -> void:

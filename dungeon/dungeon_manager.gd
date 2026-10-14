@@ -4,6 +4,8 @@ extends Node2D
 ## Rooms are stacked northwards; each exit lines up with the next entrance. At most three room
 ## instances exist at any time (N-1, N, N+1): N-2 is freed immediately, before N+1 is created,
 ## so a fourth instance never exists, not even until the end of the frame (D-007).
+## Streaming counts slots, not room numbers: after every boss room a campfire takes a slot of its
+## own without a room number (D-103, RoomSequence slots), so N-1/N/N+1 include the campfire.
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
@@ -26,6 +28,13 @@ const CRYSTALS_PER_CHAMPION := 1
 const SHOW_ROOM_KIND_BANNER := false
 const INPUT_LOCK_BOSS_INTRO := &"boss_intro"
 const ROOM_KIND_BANNER_COLOR := Color(0.75, 0.8, 0.9)
+## Exit portal at every campfire instead of in the boss room (recommendation D-103, confirmation
+## by the team member still open). false = the portal appears in the boss room again (D-073).
+const CAMPFIRE_EXIT_PORTAL := true  # TESTWERT
+## Darkness at the campfire: calmer than a combat room, the fire is the main light (TESTWERT).
+const CAMPFIRE_DARKNESS := 0.9
+const CAMPFIRE_TEMPLATE_PATH := "res://dungeon/rooms/campfire/campfire_room.tscn"
+const CAMPFIRE_BANNER_COLOR := Color(1.0, 0.7, 0.4)
 
 ## Extra combat templates on top of the generated catalog (RoomCatalog.DEFAULT_PATH); duplicates
 ## are ignored. Kind and size come from the templates themselves (D-086).
@@ -33,14 +42,17 @@ const ROOM_KIND_BANNER_COLOR := Color(0.75, 0.8, 0.9)
 @export var special_template: PackedScene
 @export var miniboss_template: PackedScene
 @export var boss_template: PackedScene
+## Campfire between two biomes (D-103); empty = CAMPFIRE_TEMPLATE_PATH.
+@export var campfire_template: PackedScene
 @export var weapon_pool: Array[WeaponData] = []
 ## 0 = random run.
 @export var seed_value := 0
 
 var context := DungeonContext.new()
 
+## Live room instances by slot (RoomSequence.get_slot_for_room / campfire slots).
 var _rooms: Dictionary[int, RoomController] = {}
-var _active_index := 0
+var _active_slot := 0
 var _completed_rooms := 0
 var _previous_special := -1
 ## Kind of the room prepared last (-1 after a non-combat room): no abyss twice in a row (D-086).
@@ -75,9 +87,9 @@ func _ready() -> void:
 	RunManager.start_run()
 	GameManager.set_phase(GameManager.Phase.DUNGEON)
 	upgrade_manager.upgrade_acquired.connect(_on_upgrade_acquired)
-	var first := _prepare_room(1)
+	var first := _prepare_slot(1)
 	_player_spawn.global_position = first.get_player_start()
-	_prepare_room(2)
+	_prepare_slot(2)
 
 
 ## Called by the WorldController after it created the player for this world (D-041).
@@ -99,16 +111,32 @@ func get_rooms_until_heal() -> int:
 	return HEAL_EVERY_COMPLETED_ROOMS - _completed_rooms % HEAL_EVERY_COMPLETED_ROOMS
 
 
+## Live room with this room number (null if not prepared or already unloaded).
 func get_room(index: int) -> RoomController:
-	return _rooms.get(index)
+	return _rooms.get(RoomSequence.get_slot_for_room(index))
+
+
+## Live campfire behind boss room after_room (null if not prepared, unloaded or no boss room).
+func get_campfire(after_room: int) -> RoomController:
+	var slot := RoomSequence.get_campfire_slot_after(after_room)
+	return _rooms.get(slot) if slot > 0 else null
+
+
+func get_room_at_slot(slot: int) -> RoomController:
+	return _rooms.get(slot)
 
 
 func get_live_room_count() -> int:
 	return room_container.get_child_count()
 
 
+## Room number of the room the player is in; at a campfire the number of the boss room before it.
 func get_active_room_index() -> int:
-	return _active_index
+	return RoomSequence.get_room_for_slot(_active_slot)
+
+
+func get_active_slot() -> int:
+	return _active_slot
 
 
 func get_combat_catalog() -> RoomCatalog:
@@ -124,37 +152,46 @@ func end_run(reason: RunManager.EndReason) -> void:
 
 # --- Streaming ---
 
-func _prepare_room(index: int) -> RoomController:
-	if _rooms.has(index):
-		return _rooms[index]
-	var room_type := RoomSequence.get_room_type(index)
+func _prepare_slot(slot: int) -> RoomController:
+	if _rooms.has(slot):
+		return _rooms[slot]
+	var index := RoomSequence.get_room_for_slot(slot)
+	var room_type := RoomSequence.get_slot_type(slot)
 	var special := -1
 	var portal := false
 	if room_type == RoomSequence.RoomType.SPECIAL:
 		special = RoomSequence.roll_special_type(_previous_special, context.rng)
 		_previous_special = special
 		portal = RoomSequence.roll_portal(context.rng)
+	elif room_type == RoomSequence.RoomType.CAMPFIRE:
+		portal = CAMPFIRE_EXIT_PORTAL
 
 	var rolled_kind := -1
 	if RoomSequence.is_normal_combat(room_type):
 		rolled_kind = RoomSequence.roll_room_kind(index, _previous_kind, context.rng)
 	var room := _template_for(room_type, rolled_kind).instantiate() as RoomController
-	room.name = "Room%d" % index
+	var is_campfire := room_type == RoomSequence.RoomType.CAMPFIRE
+	room.name = ("Campfire%d" if is_campfire else "Room%d") % index
 	room.rolled_kind = rolled_kind
+	room.slot_index = slot
 	_previous_kind = int(room.room_kind) if rolled_kind >= 0 else -1
-	var extra_dark := RoomSequence.roll_extra_dark(index, room_type, context.rng)
+	# The campfire draws nothing from the dungeon RNG (no extra-dark roll, no kind, no template).
+	var extra_dark := false if is_campfire else RoomSequence.roll_extra_dark(index, room_type, context.rng)
 	room.setup(index, room_type, special, portal, context, extra_dark)
 	room_container.add_child(room)
-	_rooms[index] = room
+	_rooms[slot] = room
 	assert(room_container.get_child_count() <= MAX_LIVE_ROOMS, "More than three live rooms.")
 
-	var previous: RoomController = _rooms.get(index - 1)
+	var previous: RoomController = _rooms.get(slot - 1)
 	if previous != null:
+		previous.set_next_room(room)
 		var exit_tile := previous.get_exit_tile()
 		var entrance_tile := room.get_entrance_tile()
 		# The next room's lowest ring row (entrance + 1) overlaps the previous room's row -3.
 		var offset := Vector2(exit_tile.x - entrance_tile.x, -3 - (entrance_tile.y + 1)) * RoomTiles.TILE_WORLD
 		room.position = previous.position + offset
+		if is_campfire:
+			previous.make_way_for_campfire()
 
 	room.player_entered.connect(_on_player_entered_room, CONNECT_DEFERRED)
 	room.completed.connect(_on_room_completed)
@@ -163,11 +200,11 @@ func _prepare_room(index: int) -> RoomController:
 	return room
 
 
-func _unload_room(index: int) -> void:
-	var room: RoomController = _rooms.get(index)
+func _unload_slot(slot: int) -> void:
+	var room: RoomController = _rooms.get(slot)
 	if room == null:
 		return
-	_rooms.erase(index)
+	_rooms.erase(slot)
 	room.mark_unloaded()
 	room_container.remove_child(room)
 	# free(), not queue_free(): the instance must be gone before the next one is created.
@@ -184,6 +221,8 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 			return miniboss_template
 		RoomSequence.RoomType.BOSS:
 			return boss_template
+		RoomSequence.RoomType.CAMPFIRE:
+			return campfire_template if campfire_template != null else load(CAMPFIRE_TEMPLATE_PATH) as PackedScene
 	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng)
 	assert(template != null, "No combat room templates configured.")
 	return template
@@ -191,16 +230,25 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 
 # Deferred: runs outside physics callbacks, so freeing rooms is safe here.
 func _on_player_entered_room(room: RoomController) -> void:
-	if not is_instance_valid(room) or room.room_index <= _active_index or _run_ending:
+	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending:
 		return
-	_active_index = room.room_index
-	if room.room_index > 1:
+	_active_slot = room.slot_index
+	# The campfire is no room (D-103): room number, scaling and heals stay where they are.
+	if room.room_index > 1 and not room.is_campfire():
 		RunManager.advance_room()
-	_unload_room(room.room_index - 2)
+	_unload_slot(room.slot_index - 2)
 	_apply_vision(room)
 	room.activate()
-	_prepare_room(room.room_index + 1)
+	_prepare_slot(room.slot_index + 1)
+	if room.is_campfire():
+		_begin_campfire(room)
 	room_activated.emit(room)
+
+
+## Campfire entered: the boss music has faded, the next biome's ambient bed comes in (C3 hook);
+## the next room then starts with the biome entry (stinger, loop).
+func _begin_campfire(room: RoomController) -> void:
+	get_tree().call_group(MusicPlayer.GROUP, &"begin_interlude", room.get_next_biome())
 
 
 func _on_room_completed(room: RoomController) -> void:
@@ -224,9 +272,13 @@ func _on_room_completed(room: RoomController) -> void:
 	if room.room_type == RoomSequence.RoomType.COMBAT_UPGRADE:
 		await _offer_upgrade("Kampf gewonnen!")
 	elif room.room_type == RoomSequence.RoomType.BOSS:
-		# Checkpoint: after every boss an exit portal appears (D-073).
-		room.spawn_exit_portal()
-		ui.show_banner("Ein Portal ist erschienen", "Gold sichern oder tiefer hinab?", Color(0.6, 0.85, 1.0))
+		if CAMPFIRE_EXIT_PORTAL:
+			# The portal waits at the campfire behind the door (D-103).
+			ui.show_banner("Ein Lagerfeuer wartet", "Rast und Ausgang hinter der Tür", CAMPFIRE_BANNER_COLOR)
+		else:
+			# Checkpoint: after every boss an exit portal appears (D-073).
+			room.spawn_exit_portal()
+			ui.show_banner("Ein Portal ist erschienen", "Gold sichern oder tiefer hinab?", Color(0.6, 0.85, 1.0))
 	if is_instance_valid(room):
 		room.open_exit()
 
@@ -251,6 +303,9 @@ func _apply_vision(room: RoomController) -> void:
 		if room.room_type == RoomSequence.RoomType.SPECIAL:
 			# Special rooms are safe and lit (shop, weapons, fountain, altar).
 			overlay.set_vision(SPECIAL_ROOM_DARKNESS, VISION_RADIUS)
+		elif room.is_campfire():
+			# Calm and dim; the colour follows the player through the blend (CampfireContent).
+			overlay.set_vision(CAMPFIRE_DARKNESS, VISION_RADIUS)
 		else:
 			var radius := EXTRA_DARK_VISION_RADIUS if room.is_extra_dark else VISION_RADIUS
 			overlay.set_vision(DUNGEON_DARKNESS, radius * vision_factor, room.room_index == 1)
@@ -258,6 +313,11 @@ func _apply_vision(room: RoomController) -> void:
 
 
 func _announce_room(room: RoomController, biome: BiomeData) -> void:
+	if room.is_campfire():
+		var next := room.get_next_biome()
+		var subtitle := "Rast, bevor es weitergeht" if next == null else "Rast vor: %s" % next.display_name
+		ui.show_banner("Lagerfeuer", subtitle, CAMPFIRE_BANNER_COLOR)
+		return
 	var kind_text := get_room_kind_label(room) if SHOW_ROOM_KIND_BANNER else ""
 	var entering_biome := room.room_index > 1 and (room.room_index - 1) % RoomSequence.BOSS_INTERVAL == 0
 	if entering_biome and biome != null:

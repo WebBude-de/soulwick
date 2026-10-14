@@ -5,6 +5,8 @@ extends RefCounted
 ## placeholder is painted here pixel by pixel in the HANDOUT palette. Everything is cached.
 ## Visual only: randomness here is a fixed hash, so every door of a style looks the same.
 
+## Colour of the dark passage inside delivered frames (art/environment/doors/doors.json).
+const PASSAGE_COLOR := Color("#0b0a12")
 const OUTLINE := Color("1c1a2b")
 const VOID_TOP := Color("0c0a13")
 const VOID_MID := Color("15131f")
@@ -72,8 +74,35 @@ static func get_frame(style: DoorStyle) -> Texture2D:
 	var key := "frame_%s" % style.get_key()
 	if not _cache.has(key):
 		var file := _load_file(_art_path(style.get_frame_path()))
-		_cache[key] = file if file != null else ImageTexture.create_from_image(paint_frame(style))
+		_cache[key] = ImageTexture.create_from_image(open_passage(file.get_image())) if file != null \
+				else ImageTexture.create_from_image(paint_frame(style))
 	return _cache[key]
+
+
+## The delivered frames paint their passage in PASSAGE_COLOR; flood-filling it from the bottom
+## centre makes it transparent, so the corridor shows through the arch (the leaf closes it).
+static func open_passage(image: Image) -> Image:
+	if image == null:
+		return image
+	image.convert(Image.FORMAT_RGBA8)
+	var start := Vector2i(image.get_width() / 2, image.get_height() - 1)
+	if not _is_passage(image.get_pixelv(start)):
+		return image
+	var stack: Array[Vector2i] = [start]
+	var bounds := Rect2i(Vector2i.ZERO, image.get_size())
+	while not stack.is_empty():
+		var point: Vector2i = stack.pop_back()
+		if not bounds.has_point(point) or not _is_passage(image.get_pixelv(point)):
+			continue
+		image.set_pixelv(point, Color(0, 0, 0, 0))
+		for step: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			stack.append(point + step)
+	return image
+
+
+static func _is_passage(color: Color) -> bool:
+	return color.a > 0.5 and absf(color.r - PASSAGE_COLOR.r) + absf(color.g - PASSAGE_COLOR.g) \
+			+ absf(color.b - PASSAGE_COLOR.b) < 0.03
 
 
 ## Leaf strip, four frames of 32x32 (frame 1 closed, frame 4 open).
@@ -268,11 +297,10 @@ static func paint_frame(style: DoorStyle) -> Image:
 	var masks := _frame_masks(style)
 	var body: Dictionary = masks["body"]
 	var inner: Dictionary = masks["inner"]
-	var leaf: Rect2i = masks["leaf"]
-	# Dark passage in the whole opening, like the delivered frames (the leaf is drawn on top).
+	# Transparent passage like the opened delivered frames: the corridor shows through, the leaf
+	# closes it.
 	for p: Vector2i in inner:
-		var t := clampf(float(p.y - 6) / float(maxi(1, leaf.end.y - 6)), 0.0, 1.0)
-		image.set_pixelv(p, VOID_TOP.lerp(VOID_MID, t) if p.y < leaf.end.y - 5 else VOID_FLOOR)
+		image.set_pixelv(p, Color(0, 0, 0, 0))
 	if style.is_boss():
 		_paint_boss_body(image, style, body)
 	else:

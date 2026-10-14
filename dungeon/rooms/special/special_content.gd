@@ -10,6 +10,8 @@ var room: RoomController = null
 func setup(dungeon_context: DungeonContext, owner_room: RoomController) -> void:
 	context = dungeon_context
 	room = owner_room
+	# Each sprite sorts by its own base line against the player (not the whole content at once).
+	y_sort_enabled = true
 	_on_setup()
 
 
@@ -23,8 +25,7 @@ func add_sprite(texture: Texture2D, pivot: Vector2, offset_position := Vector2.Z
 	sprite.texture = texture
 	sprite.offset = SpriteStrip.pivot_offset(Vector2i(texture.get_size()), pivot)
 	sprite.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
-	sprite.position = offset_position
-	add_child(sprite)
+	_add_sorted(sprite, offset_position)
 	return sprite
 
 
@@ -35,9 +36,19 @@ func add_animated(texture: Texture2D, frame_size: Vector2i, fps: float, pivot: V
 	prop.pivot = pivot
 	prop.strip = texture
 	prop.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
-	prop.position = offset_position
-	add_child(prop)
+	_add_sorted(prop, offset_position)
 	return prop
+
+
+## Adds item with its base (pivot) at base_position, sorted against the characters' feet: a holder
+## lifted by SortLift carries the item, so the picture stays where it is.
+func _add_sorted(item: Node2D, base_position: Vector2) -> void:
+	var holder := Node2D.new()
+	holder.name = "%sHolder" % item.name if not String(item.name).is_empty() else "PropHolder"
+	holder.position = base_position
+	holder.add_child(item)
+	add_child(holder)
+	SortLift.lift(holder)
 
 
 ## Solid footprint so the player cannot walk through the object.

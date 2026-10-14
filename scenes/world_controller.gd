@@ -63,6 +63,10 @@ func load_world(scene: PackedScene) -> void:
 		vision.set_vision(VillageDaylight.darkness_for_hour(hour), VillageDaylight.VISION_RADIUS, true)
 	if _world.has_signal(&"dungeon_requested"):
 		_world.connect(&"dungeon_requested", enter_dungeon, CONNECT_DEFERRED)
+	if hud != null and _world.has_signal(&"room_activated"):
+		_world.connect(&"room_activated", func(room: RoomController) -> void:
+			var next := room.get_next_biome() if room.is_campfire() else null
+			hud.set_campfire(room.is_campfire(), next.display_name if next != null else ""))
 	if hud != null and _world.has_signal(&"heal_countdown_changed"):
 		_world.connect(&"heal_countdown_changed", hud.set_heal_countdown)
 	_spawn_player()

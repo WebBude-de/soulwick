@@ -46,6 +46,9 @@ var _player: Player = null
 var _dungeon_mode := false
 ## Rooms until the next regular heal; -1 = unknown (hidden). Set by the dungeon (set_heal_countdown).
 var _heal_countdown := -1
+## Campfire between two biomes (set by the dungeon via WorldController).
+var _campfire_active := false
+var _campfire_area := ""
 
 var _status_frame: PanelContainer
 var _hearts: HBoxContainer
@@ -322,10 +325,19 @@ func _on_gold_changed() -> void:
 	_village_crystals.text = str(SaveManager.get_permanent_crystals())
 
 
+## The campfire after a boss is not a room (A6): the detail line names it and the next area.
+func set_campfire(active: bool, next_area := "") -> void:
+	_campfire_area = next_area if active else ""
+	_campfire_active = active
+	_on_room_changed(RunManager.get_current_room())
+
+
 func _on_room_changed(room_index: int) -> void:
 	var room := maxi(1, room_index)
 	var cycle := floori(float(room - 1) / RoomSequence.CYCLE_LENGTH) + 1
 	var type_name := RoomSequence.get_type_name(RoomSequence.get_room_type(room))
+	if _campfire_active:
+		type_name = "Lagerfeuer" + (" · weiter: %s" % _campfire_area if not _campfire_area.is_empty() else "")
 	_room_label.text = "Raum %d" % room
 	var detail := "Zyklus %d · %s" % [cycle, type_name]
 	if _heal_countdown >= 0:

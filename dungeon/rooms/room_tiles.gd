@@ -8,6 +8,9 @@ extends TileMapLayer
 ## Extra tiles can still be painted by hand after the generated layout.
 ## Around the room a thick ring of solid rock is painted on a child layer ("Backdrop") drawn below
 ## all room tiles, so the screen never shows black void, even where neighbouring rooms overlap.
+## A room between two biomes (campfire, A6) gets a second look on top ("BiomeBlend" layers): the
+## same cells in the next biome's tileset, shown through a soft dithered mask from the entrance
+## (old biome) to the exit (new biome), see set_biome_blend().
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -32,6 +35,9 @@ const PILLAR := Vector2i(6, 2)
 const BACKDROP_MARGIN := Vector2i(14, 10)
 const BACKDROP_NAME := "Backdrop"
 const ROCK_SHADER: Shader = preload("res://components/visual/rock_fill.gdshader")
+const BLEND_SHADER: Shader = preload("res://dungeon/rooms/campfire/biome_blend.gdshader")
+const BLEND_NAME := "BiomeBlend"
+const BLEND_BACKDROP_NAME := "BiomeBlendBackdrop"
 ## Widest abyss gap (tiles) a dash crosses: dash reach 90 px vs. 64 px tiles (D-086).
 const MAX_DASH_GAP := 1
 
@@ -59,6 +65,15 @@ const MAX_DASH_GAP := 1
 
 var _paint_queued := false
 var _backdrop: TileMapLayer = null
+## Rows of rock above the room (BACKDROP_MARGIN.y by default). Rooms are y-sorted, so a room's rock
+## covers the rock of the room north of it; the room before a campfire trims it to 0, so the
+## campfire's own blended rock stays visible (DungeonManager).
+var _backdrop_north_rows := BACKDROP_MARGIN.y
+var _blend_layer: TileMapLayer = null
+var _blend_backdrop: TileMapLayer = null
+var _blend_material: ShaderMaterial = null
+## Tile rows (y, may be fractional) where the blend mask is 0 (old biome) and 1 (new biome).
+var _blend_rows := Vector2.ZERO
 
 
 func _ready() -> void:
@@ -167,7 +182,111 @@ static func flood_fill(walkable: Dictionary[Vector2i, bool], pits: Dictionary[Ve
 ## Tile rectangle covered by the rock backdrop (includes the room itself).
 func get_backdrop_rect() -> Rect2i:
 	var inner := _get_painted_rect()
-	return inner.grow_individual(BACKDROP_MARGIN.x, BACKDROP_MARGIN.y, BACKDROP_MARGIN.x, BACKDROP_MARGIN.y)
+	return inner.grow_individual(BACKDROP_MARGIN.x, _backdrop_north_rows, BACKDROP_MARGIN.x, BACKDROP_MARGIN.y)
+
+
+## Rows of rock above the room; repaints the backdrop if it changed.
+func set_backdrop_north_rows(rows: int) -> void:
+	rows = clampi(rows, 0, BACKDROP_MARGIN.y)
+	if rows == _backdrop_north_rows:
+		return
+	_backdrop_north_rows = rows
+	if _backdrop != null:
+		_paint_backdrop()
+
+
+func get_backdrop_north_rows() -> int:
+	return _backdrop_north_rows
+
+
+# --- Biome blend (room between two biomes, A6) ---
+
+## Shows a second biome look over this one: next_tileset tinted with next_tint appears through a
+## dithered mask that is 0 at tile row from_row and 1 at to_row (rows may be fractional; north =
+## smaller y). Collision and navigation stay on this layer, the blend layers only draw. A modulate
+## on this layer also tints the blend layers (children). Call after the room is in the tree;
+## follows later moves of the room.
+func set_biome_blend(next_tileset: TileSet, next_tint: Color, from_row: float, to_row: float) -> void:
+	_blend_rows = Vector2(from_row, to_row)
+	if _blend_material == null:
+		_blend_material = ShaderMaterial.new()
+		_blend_material.shader = BLEND_SHADER
+	_blend_layer = _make_blend_layer(_blend_layer, BLEND_NAME, 0)
+	_blend_backdrop = _make_blend_layer(_blend_backdrop, BLEND_BACKDROP_NAME, -1)
+	for layer: TileMapLayer in [_blend_layer, _blend_backdrop]:
+		layer.tile_set = next_tileset if next_tileset != null else tile_set
+		layer.modulate = next_tint
+	_copy_cells_to_blend()
+	set_notify_transform(true)
+	_update_blend_range()
+
+
+func has_biome_blend() -> bool:
+	return _blend_layer != null
+
+
+func get_blend_layer() -> TileMapLayer:
+	return _blend_layer
+
+
+## Blend rows (x = 0 / old biome, y = 1 / new biome), Vector2.ZERO without a blend.
+func get_blend_rows() -> Vector2:
+	return _blend_rows
+
+
+## Share of the new biome at a local y of the room (0..1), without the noise of the shader.
+## Same straight ramp as the mask in biome_blend.gdshader; used for light and particle colours.
+func get_blend_progress(local_y: float) -> float:
+	if not has_biome_blend():
+		return 0.0
+	var from_y := _blend_rows.x * TILE_WORLD
+	var to_y := _blend_rows.y * TILE_WORLD
+	if is_equal_approx(from_y, to_y):
+		return 1.0
+	return clampf((local_y - position.y - from_y) / (to_y - from_y), 0.0, 1.0)
+
+
+func _make_blend_layer(layer: TileMapLayer, layer_name: String, layer_z: int) -> TileMapLayer:
+	if layer != null:
+		return layer
+	layer = TileMapLayer.new()
+	layer.name = layer_name
+	layer.z_index = layer_z
+	# Drawing only: this layer already collides, carries the navigation and occludes.
+	layer.collision_enabled = false
+	layer.navigation_enabled = false
+	layer.occlusion_enabled = false
+	layer.material = _blend_material
+	# Added after the Backdrop, so at the same z it draws above the old biome's rock ring.
+	add_child(layer, false, Node.INTERNAL_MODE_FRONT)
+	return layer
+
+
+func _copy_cells_to_blend() -> void:
+	if _blend_layer == null:
+		return
+	_blend_layer.clear()
+	for cell in get_used_cells():
+		_blend_layer.set_cell(cell, SOURCE_ID, get_cell_atlas_coords(cell))
+	_blend_backdrop.clear()
+	if _backdrop != null:
+		for cell in _backdrop.get_used_cells():
+			_blend_backdrop.set_cell(cell, SOURCE_ID, _backdrop.get_cell_atlas_coords(cell))
+
+
+## The shader works in world space (TileMapLayer quadrants have their own transforms).
+func _update_blend_range() -> void:
+	if _blend_material == null:
+		return
+	var from_world := to_global(Vector2(0.0, _blend_rows.x * TILE_WORLD / scale.y))
+	var to_world := to_global(Vector2(0.0, _blend_rows.y * TILE_WORLD / scale.y))
+	_blend_material.set_shader_parameter(&"blend_from_y", from_world.y)
+	_blend_material.set_shader_parameter(&"blend_to_y", to_world.y)
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSFORM_CHANGED:
+		_update_blend_range()
 
 
 ## Swaps the tileset (biome art). All tilesets share the same atlas layout.
@@ -252,6 +371,8 @@ func _paint_backdrop() -> void:
 			var tile := Vector2i(x, y)
 			if not inner.has_point(tile):
 				_backdrop.set_cell(tile, SOURCE_ID, WALL_TOP)
+	if _blend_backdrop != null:
+		_copy_cells_to_blend()
 
 
 func _put_tile(tile: Vector2i, atlas: Vector2i) -> void:

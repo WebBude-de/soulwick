@@ -145,13 +145,18 @@ func test_open_effects_do_not_change_state() -> void:
 	assert_true(door.is_open, "opening twice is harmless")
 
 
-func test_leaf_is_drawn_over_the_frame() -> void:
-	# Delivered frames have a dark passage; the (partly transparent) leaf must lie on top.
+func test_frame_sorts_by_its_floor_line_with_a_transparent_passage() -> void:
+	# The arch must cover a player walking through, and the corridor shows through the passage.
 	var door := _door()
 	door.configure(&"slime_grotto")
 	var leaf := door.get_node("Sprite") as AnimatedSprite2D
 	var frame := door.view.get_frame_sprite()
-	assert_lt(frame.z_index + door.view.z_index, leaf.z_index)
+	assert_eq(frame.z_index, 0, "frame shares the player's z level")
+	assert_true(door.y_sort_enabled and door.view.y_sort_enabled, "door children y-sort with the room")
+	assert_gt(frame.global_position.y, leaf.global_position.y, "frame sorts below (after) the leaf")
+	var image := frame.texture.get_image()
+	var centre := Vector2i(image.get_width() / 2, image.get_height() - 2)
+	assert_lt(image.get_pixelv(centre).a, 0.1, "passage is transparent")
 
 
 func test_delivered_boss_gate_brings_its_own_torches() -> void:

@@ -7,7 +7,7 @@
 size = Vector2(64, 64)
 
 [node name="Door" type="StaticBody2D"]
-z_index = -5
+y_sort_enabled = true
 collision_mask = 0
 script = ExtResource("1_door")
 

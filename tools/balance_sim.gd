@@ -255,6 +255,14 @@ func _play_run(run: int) -> Dictionary:
 			break
 		if index >= int(opt.max_rooms):
 			break
+		# After a boss the campfire (A6, not a room) has to be entered before room n+1 exists.
+		var campfire: Node = dungeon.get_campfire(index)
+		if campfire != null:
+			player.global_position = campfire.get_player_start()
+			for i in 120:
+				await physics_frame
+				if dungeon.get_active_slot() == campfire.slot_index:
+					break
 		index += 1
 	summary.upgrades = _upgrade_count()
 	summary.gold = root.get_node("RunManager").get_run_gold()

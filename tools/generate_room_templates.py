@@ -9,6 +9,10 @@ listed in dungeon/rooms/combat/combat_catalog.tres (RoomCatalog). Every template
 it is written: spawn marker count per size, exit and all spawn markers reachable from the entrance
 (walking, plus dashing over gaps of at most one pit tile), no marker on blocked tiles, traps,
 props or right next to the entrance.
+
+The campfire template (D-103, ROADMAP_AUSBAU A6) sits between two biomes after every boss room.
+It has no enemies; the fire stands on ContentAnchor, the exit portal on PortalAnchor. Its floor
+blend and content are built at runtime (RoomController, CampfireContent).
 """
 from pathlib import Path
 
@@ -37,6 +41,13 @@ ENTRANCE_CLEARANCE = 2
 # Props standing on the floor (spawn markers must not share their tile).
 SOLID_PROPS = {"crate", "barrel"}
 CATALOG = ROOMS / "combat" / "combat_catalog.tres"
+# Campfire (A6): free tiles the fire, its seat and the bedroll take around ContentAnchor, as
+# offsets in tiles from the anchor tile. Spawn markers and the way through must avoid them.
+CAMPFIRE_SIZE = (13, 11)
+CAMPFIRE_DOOR_X = 6
+CAMPFIRE_ANCHOR = (6.5, 5.6)
+CAMPFIRE_PORTAL = (10.5, 2.6)
+CAMPFIRE_BLOCKED = [(-1, 0), (0, 0), (1, 0), (-2, 0)]
 
 
 def centre(tx, ty):
@@ -205,6 +216,22 @@ def variant(rel_path, root, size, entrance, exit_x, pillars, seed, spawns, conte
     return f"res://dungeon/rooms/{rel_path}" if room_kind is not None else None
 
 
+def campfire():
+    """Campfire between two biomes: no enemies, the fire in the middle, the portal top right.
+    The fire, the seat and the bedroll are runtime props; the layout check treats their tiles
+    as blocked, so the way from the entrance to the exit always leads around them."""
+    w, h = CAMPFIRE_SIZE
+    anchor = (int(CAMPFIRE_ANCHOR[0]), int(CAMPFIRE_ANCHOR[1]))
+    blocked = [(anchor[0] + dx, anchor[1] + dy) for dx, dy in CAMPFIRE_BLOCKED]
+    spawns = [(1, 1), (w - 2, 1), (1, h - 5), (w - 2, h - 5), (anchor[0], 2)]
+    check_layout("CampfireRoom", CAMPFIRE_SIZE, CAMPFIRE_DOOR_X, CAMPFIRE_DOOR_X, spawns, [], blocked=blocked)
+    portal_tile = (int(CAMPFIRE_PORTAL[0]), int(CAMPFIRE_PORTAL[1]))
+    assert portal_tile not in blocked, "CampfireRoom: portal on the fire"
+    variant("campfire/campfire_room.tscn", "CampfireRoom", CAMPFIRE_SIZE, CAMPFIRE_DOOR_X, CAMPFIRE_DOOR_X, [], 83,
+            spawns, CAMPFIRE_ANCHOR, CAMPFIRE_PORTAL,
+            [("torch", 3, 0), ("torch", 9, 0), ("crate", 0, 0), ("crate", w - 1, h - 1)])
+
+
 def catalog(paths):
     """combat_catalog.tres: every combat template, read by RoomCatalog.create()."""
     text = '[gd_resource type="Resource" script_class="RoomCatalog" format=3]\n\n'
@@ -245,6 +272,7 @@ def main():
             [(3, 2), (11, 2), (7, 3), (2, 7), (12, 7)], (7.5, 3.5), (12.5, 3),
             [("torch", 3, 0), ("torch", 5, 0), ("torch", 9, 0), ("torch", 11, 0), ("bones_1", 2, 9), ("bones_2", 12, 9),
              ("trap", 5, 7), ("trap", 9, 7), ("crate", 0, 0), ("barrel", 14, 0)])
+    campfire()
     variant("boss/boss_room.tscn", "BossRoom", (19, 13), 9, 9, [(3, 3), (15, 3), (3, 9), (15, 9)], 71,
             [(3, 2), (15, 2), (9, 3), (2, 10), (16, 10)], (9.5, 4), (16.5, 2.5),
             [("torch", 2, 0), ("torch", 6, 0), ("torch", 12, 0), ("torch", 16, 0),
