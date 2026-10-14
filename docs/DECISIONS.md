@@ -732,6 +732,34 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Zufall:** je normalem Kampfraum 8 zusätzliche Werte des Dungeon-RNG (Ausgang 1, Abzweigung 4, Nische 3).
 - **Offen (Projektmitglied):** längerer Gang statt „nach oben ausweichen“ ok? Elite-Nest 2 Kristalle richtig? Händler nur Mechanik-/Effekt-Upgrades? Abzweigung ohne Bestätigung im Einzelspieler? Abzweigung in etwa zwei Dritteln der Zyklen zu oft?
 
+### D-119 – Crossplay-Architektur: Host + eigener Relay, Steam → Android → iOS, Publisher WebBude
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (ROADMAP_CROSSPLAY CP0 Fragen 3 und 4, Publisher); Ausarbeitung Claude
+- **Kontext:** D-108 nennt das Zielbild Crossplay über Steam, Google Play und App Store, ließ aber Lobby/Relay (CP0 Frage 3) und die Plattform-Reihenfolge (Frage 4) offen. D-083 schloss Echtzeit-Spielverkehr über den Server aus; ROADMAP_MULTIPLAYER plante ENet, ein virtuelles LAN (Tailscale) und den Steam-Relay. Keiner dieser Wege bringt Handy und PC in einen Raum.
+- **Beschluss:**
+  - **Netzwerk:** Host-Modell wie Among Us (ein Spieler rechnet) plus **eigener Relay** `soulwick-relay` auf dem eigenen Server (CP0 Frage 3a). Der Relay vergibt Raumcodes, prüft das Spieler-Token und leitet Pakete weiter; Spiellogik gibt es nur im Spiel.
+  - **Transport in Phase 1:** WebSocket-Relay über eine eigene `MultiplayerPeerExtension` in GDScript (`online/relay_peer.gd`) auf Godots eingebautem `WebSocketPeer`; ohne GDExtension auf allen Zielplattformen, keine Portfreigaben. Spielpakete als Rahmen `{from, to, channel, mode, data}`.
+  - **Später, ohne Umbau der Spiellogik:** WebRTC-Direktverbindung (Relay bzw. TURN als Rückfall) und ein dedizierter Godot-Server (Export „Dedicated Server“) als Aufrüstungen; ENet bleibt nur optional für LAN und Entwicklung.
+  - **Steam ist Zusatz** (folgt aus 3a): Anmeldung, Freunde einladen und „Beitreten“ über Rich Presence mit dem Raumcode; die Verbindung läuft auch für Steam-Spieler über den Relay. Technische Ausgestaltung: Plattform P-017 (VORGESCHLAGEN).
+  - **Reihenfolge:** Steam → Android → iOS (CP0 Frage 4); iOS kommt später, weil kein Mac vorhanden ist (Cloud-Mac in der CI).
+  - **Publisher:** WebBude (Firmenkonten bei Steam, Google, später Apple).
+  - **Weiter OFFEN:** Geschäftsmodell (CP0 Frage 1), Regel für das Zusammenführen zweier Konten (nur Vorschlag), Touch-Schema (der Prototyp in CP2 entscheidet), Relay-Regionen (CP0 Frage 10).
+- **Gründe / verworfene Alternativen:** Steam-Lobbys und Steam-Relay verbinden nur Steam-Konten. Ein virtuelles LAN verlangt Zusatzsoftware bei jedem Spieler. ENet über UDP scheitert ohne Portfreigabe oder Hole-Punching an NAT, besonders im Mobilfunk. WebRTC hat weniger Latenz, braucht aber auf dem Desktop eine GDExtension und STUN/TURN-Betrieb; deshalb als spätere Aufrüstung. Ein dedizierter Server bedeutet mehr Betrieb und Kosten und ist nicht nötig, solange ein Spieler hostet. WebSocket ist in Godot auf allen Plattformen eingebaut, TLS übernimmt Traefik.
+- **Folgen:**
+  - **D-083** gilt mit Änderung: „Weiterleitung ja, Spiellogik nein“. Echtzeit-Pakete laufen über den Relay, gerechnet wird weiter nur beim Host.
+  - **D-108** ist teilweise entschieden (CP0 Fragen 3, 4 und Publisher); der Rest bleibt VORGESCHLAGEN bzw. OFFEN.
+  - **Überholt** und bei der nächsten Überarbeitung der Dateien anzupassen: ARCHITECTURE.md („Netzwerk-/Server-API: Nicht vorgesehen“, „kein Backend“), MULTIPLAYER.md §1 („kein Matchmaking“) und §4a Stufe 2 (virtuelles LAN), PRODUKT.md („Relay OFFEN“).
+  - Roadmaps: ROADMAP_MULTIPLAYER MP2–MP6 auf den Relay umgestellt (MP4 Test-Build über den Relay statt Tailscale, MP6 Steam als Zusatz); ROADMAP_CROSSPLAY CP0, CP3 (Relay), neu CP7 (Build-CI und Stores), Abschnitte „Lokal testen“ und „Dedizierter Server (später)“.
+  - Plattform: neuer Dienst `apps/relay` (P-016), Steam nur Zusatz (P-017), Domains `play.playsoulwick.com` und Umgebungen (P-018); Pakete P13–P17 in `soulwick-platform/docs/ROADMAP.md`, Konzept `soulwick-platform/docs/KONZEPT_ONLINE.md`.
+  - Datenschutz: Relay-Verbindungsdaten (IP, Spieler-ID, Zeitpunkt, keine Inhalte) und die Plattform-IDs in die Datenschutzerklärung (eRecht24).
+- **Ergänzt:** D-083, D-108. **Ersetzt:** keine.
+
+### D-120 – Räume v2: klare Modi, Minispiele, Abgrund-Raumart gestrichen
+
+- **Status:** VERBINDLICH (Gameplay) · Look folgt aus Claude Design · **Datum:** 2026-10-14 / Projektmitglied
+- **Beschluss:** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
+- **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/claude_design_antwort/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

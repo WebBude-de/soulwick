@@ -147,7 +147,7 @@ func get_leaf_path() -> String:
 	return ART_DIR + ("door_boss_open_4f.png" if is_boss() else "door_%s_open_4f.png" % biome_id)
 
 
-## Leaf of a door in the west or east wall, seen from above (A10, docs/SPRITES_V7_A10.md): four
+## Leaf of a door in the west or east wall, seen from above (A10, docs/SPRITES_V7.md): four
 ## frames of 32x32, drawn for a west wall door (the east one is mirrored).
 func get_side_leaf_path() -> String:
 	return ART_DIR + ("door_side_boss_open_4f.png" if is_boss() else "door_side_%s_open_4f.png" % biome_id)

@@ -7,3 +7,6 @@ __pycache__/
 
 # Personal editor settings (machine-specific paths)
 .vscode/
+
+# Szenen-Galerie: per tools/scene_gallery.gd neu erzeugbar, nur INDEX/AUSWAHL versionieren
+docs/design/szenen/*.png

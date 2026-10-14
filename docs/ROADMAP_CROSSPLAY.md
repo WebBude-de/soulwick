@@ -1,71 +1,74 @@
 # ROADMAP Crossplay – Steam, Google Play und App Store
 
-> **Stand:** 14.10.2026 · **Status:** Zielbild vom Projektmitglied genannt (D-108, **VORGESCHLAGEN**), **noch nichts gebaut, Details OFFEN**. Kommt als eigene Phase **nach** [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) (Phase 3, D-106). Nur die Entscheidungen **CP0** fallen **vor MP2**, weil sie Lobby (MP2), Steam (MP6) und Anmeldung (MP7) verändern können. Das Plattform-Repo bereitet parallel nur die Datenbank vor (`soulwick-platform/docs/ROADMAP.md` P11, P-014).
-> **Entscheidungen:** D-080 (Gruppenmodi), D-081 (getrennter Fortschritt), D-082 (Ranglisten), D-083 (Server, Host-Modell), D-084/D-085 (Koop-Regeln), D-093 (zwei Repos), **D-108** (Zielbild Crossplay) in [DECISIONS.md](DECISIONS.md). Plattform: `soulwick-platform/docs/PRD.md` §3.8, `ARCHITECTURE.md` §3 und §7, `DECISIONS.md` P-014.
+> **Stand:** 14.10.2026 · **Status:** Zielbild D-108; **Architektur entschieden** (D-119, VERBINDLICH, Projektmitglied 14.10.2026): Host-Modell plus **eigener Relay**, Reihenfolge **Steam → Android → iOS** (iOS später), Publisher **WebBude**. **Noch nichts gebaut.** OFFEN bleiben Geschäftsmodell, Konto-Zusammenführung, Touch-Schema und Relay-Regionen. Kommt als eigene Phase **nach** [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) (Phase 3, D-106); die restlichen Entscheidungen **CP0** fallen **vor MP2**. Der Relay (CP3) wird schon für MP2–MP4 gebraucht. Plattform-Repo: Datenbank fertig (P11, P-014), geplant P13–P17 (`soulwick-platform/docs/ROADMAP.md`), Konzept für Entwickler: `soulwick-platform/docs/KONZEPT_ONLINE.md`.
+> **Entscheidungen:** D-080 (Gruppenmodi), D-081 (getrennter Fortschritt), D-082 (Ranglisten), D-083 (Server, Host-Modell), D-084/D-085 (Koop-Regeln), D-093 (zwei Repos), **D-108** (Zielbild Crossplay), **D-119** (Crossplay-Architektur) in [DECISIONS.md](DECISIONS.md). Plattform: `soulwick-platform/docs/PRD.md` §3.8, `ARCHITECTURE.md` §1, §3 und §5, `DECISIONS.md` P-014, P-016 bis P-018.
 > **Anforderungen:** [PRD.md](PRD.md) Abschnitt 7.1 und 7.6 · **Technik:** [MULTIPLAYER.md](MULTIPLAYER.md) · **Abhaken** nur mit Nachweis (Tests, Datum). Jedes Paket ist für **einen Agenten** geschnitten; Spiel- und Plattform-Teile werden getrennt vergeben.
 
 ## Überblick
 
 ```text
-Steam (PC)              Google Play (Android)        App Store (iOS)
+Steam (PC)              Google Play (Android)        App Store (iOS, später)
    │ Steam-Ticket           │ Play Games Services         │ Game Center
    ▼                        ▼                             ▼
 ┌───────────────────────────────────────────────────────────────────┐
-│ Soulwick-Konto (players) ──── player_identities (1..n je Spieler) │  soulwick-api (Plattform-Repo)
+│ Soulwick-Konto (players) ──── player_identities (1..n je Spieler) │  soulwick-api (HTTPS)
 ├───────────────────────────────────────────────────────────────────┤
-│ Lobbys mit Raumcode, Relay (CP3, OFFEN) ──── soulwick-relay       │  eigener Container (ändert D-083)
+│ Relay: Räume mit Raumcode, Pakete weiterleiten (CP3, D-119)       │  soulwick-relay (WSS, Bun)
 └───────────────────────────────────────────────────────────────────┘
    Das Spiel bleibt im Host-Modell: ein Spieler rechnet, der Relay leitet nur Pakete weiter.
 ```
 
 | Paket | Ergebnis | Spiel? | Plattform? | Stores? |
 | --- | --- | --- | --- | --- |
-| **CP0** | **Entscheidungen** (vor MP2): Geschäftsmodell, Konto-Modell, Lobby/Relay, Reihenfolge, Touch, Altersfreigabe | – | – | – |
+| **CP0** | **Entscheidungen** (vor MP2): Geschäftsmodell, Konto-Modell, Lobby/Relay, Reihenfolge, Touch, Altersfreigabe; Fragen 3, 4 und Publisher entschieden (D-119) | – | – | – |
 | CP1 | Soulwick-Konto und Identitäten (Steam, Google Play Games, Game Center, Geräte-ID), Verknüpfungscode, Konto löschen in-App | Konto-UI | ja | – |
 | CP2 | Mobile-Build und Touch (Android/iOS-Export, virtueller Stick, Auto-Aim, UI-Skalierung, Leistung) | ja | – | Test-Builds |
-| CP3 | Lobby- und Relay-Server (Raumcodes, Container `soulwick-relay`, NAT-Traversal) | ja | ja | – |
+| CP3 | Relay `soulwick-relay` (Bun, WebSocket) mit Raumcodes; im Spiel `online/relay_peer.gd` | ja | ja (P13, P16, P17) | – |
 | CP4 | Stores (Steamworks, Google Play Console, App Store Connect; IARC/USK; Datenschutz-Labels; Screenshots/Trailer) | Export | Website-Badges | ja |
 | CP5 | Cross-Progression (Cloud-Save über die API, Konfliktregeln) | ja | ja | – |
 | CP6 | Geschäftsmodell und Käufe (OFFEN; Tabellen `purchases`/`entitlements` erst dann) | ja | ja | ja |
+| CP7 | Build-CI und Stores: GitLab-CI-Exporte, Upload zu Steam und Google Play, Signaturschlüssel, Store-Konten und -Pflichten | CI | Löschantrag-Seite (P15) | ja |
 
-**Reihenfolge:** CP0 vor MP2. CP1 braucht den Server (MP7) und kommt vor jedem Store-Release. CP2 darf als **Prototyp nach MP1** vorgezogen werden, weil die Frage „Touch ja/nein“ nur mit echtem Spielgefühl zu beantworten ist (Vorschlag). CP3 nur, wenn CP0 sich für einen eigenen Relay entscheidet. CP4 nach MP10 (Steam) und CP2 (Mobil). CP5 nach CP1. CP6 nach CP0 und frühestens mit CP4.
+**Reihenfolge:** CP0 vor MP2. **CP3 ist mit D-119 gesetzt:** Der Plattform-Teil (P13 Relay, P17 Relay auf Dokploy) darf jederzeit parallel laufen; der Spiel-Teil (`relay_peer.gd`) kommt nach MP1 und vor MP2, weil Schnelles Spiel und der Test-Build für Freunde (MP4) über den Relay laufen. CP1 braucht den Server (MP7) und kommt vor jedem Store-Release. CP2 darf als **Prototyp nach MP1** vorgezogen werden, weil die Frage „Touch ja/nein“ nur mit echtem Spielgefühl zu beantworten ist (Vorschlag). CP4 nach MP10 (Steam) und CP2 (Mobil). CP5 nach CP1. CP6 nach CP0 und frühestens mit CP4. CP7 beginnt mit dem Windows-Export für MP4 und wächst mit CP2 (Android) und CP4 (Stores). **Stores in der Reihenfolge Steam → Google Play → App Store** (D-119); iOS erst, wenn ein Cloud-Mac eingerichtet ist.
 
-**Warum eigenes Konto und eigener Relay (Empfehlung des Spiel-Orchestrators, Entscheidung in CP0):** Steam-Lobbys und Steam-Relay (MP6) funktionieren nur zwischen Steam-Konten. Ein Android- oder iOS-Spieler hat kein Steam, Google Play Games und Game Center kennen sich gegenseitig nicht. Crossplay braucht deshalb eine **plattformneutrale** Stelle, die alle kennen: ein Soulwick-Konto, an dem die Plattform-Identitäten hängen, und eine Lobby mit Raumcode, die über den eigenen Server läuft. Among Us macht es genauso (Raumcode + verknüpftes Konto). ENet (MP2) und Steam (MP6) bleiben für Entwicklung, LAN und reine PC-Gruppen bestehen; die Verbindungsart ist hinter `MultiplayerPeer` austauschbar ([MULTIPLAYER.md](MULTIPLAYER.md) §2).
+**Warum eigenes Konto und eigener Relay (Relay entschieden in D-119, Konto-Modell weiter CP0 Frage 2):** Steam-Lobbys und Steam-Relay (MP6) funktionieren nur zwischen Steam-Konten. Ein Android- oder iOS-Spieler hat kein Steam, Google Play Games und Game Center kennen sich gegenseitig nicht. Crossplay braucht deshalb eine **plattformneutrale** Stelle, die alle kennen: ein Soulwick-Konto, an dem die Plattform-Identitäten hängen, und eine Lobby mit Raumcode, die über den eigenen Server läuft. Among Us macht es genauso (Raumcode + verknüpftes Konto). ENet bleibt nur optional für LAN und Entwicklung; Steam (MP6) ist Zusatz für Anmeldung und Einladungen, die Verbindung läuft auch für Steam-Spieler über den Relay. Die Verbindungsart ist hinter `MultiplayerPeer` austauschbar ([MULTIPLAYER.md](MULTIPLAYER.md) §2), später auch gegen WebRTC oder einen dedizierten Server.
 
 ## CP0 – Entscheidungen (vor MP2)
 
-Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von Claude und ersetzt keine Entscheidung.
+Fragen 3 und 4 sowie der Publisher sind seit dem 14.10.2026 entschieden (Projektmitglied, D-119); alles andere ist OFFEN. Die Spalte „Empfehlung“ ist ein Vorschlag von Claude und ersetzt keine Entscheidung.
 
 | # | Frage | Optionen | Empfehlung (Vorschlag) | Wer entscheidet | Status |
 | --- | --- | --- | --- | --- | --- |
 | 1 | **Geschäftsmodell** | (a) mobil kostenlos, PC bezahlt (wie Among Us) · (b) überall kostenlos, Kosmetik später · (c) überall bezahlt | Keine ohne Zahlen. (a) ist am einfachsten (keine Käufe im Spiel), wirft aber die Fairness-Frage Käufer/Gratis-Spieler auf; (b) braucht Kosmetik-Content und Kaufabwicklung (CP6) | Projektmitglied mit dem Team (Rechte am Spiel, MP10) | **OFFEN** |
 | 2 | **Konto-Modell** | (a) eigenes Soulwick-Konto, Plattform-Identitäten verknüpft · (b) nur Plattform-Konten, keine Verknüpfung (kein Cross-Progression) · (c) E-Mail/Passwort-Konto | (a): ohne E-Mail, ohne Passwort; Identitäten reichen, Verknüpfung per Code | Projektmitglied | **OFFEN** |
-| 3 | **Lobby/Relay** | (a) eigener Lobby-/Relay-Server `soulwick-relay` mit Raumcodes · (b) Steam-Relay für PC plus eigener Relay nur für Mobil · (c) nur Steam (kein Crossplay) | (a): ein Weg für alle, Steam bleibt Zusatz für Einladungen; ändert D-083 | Projektmitglied (Betrieb, Kosten) mit dem Team | **OFFEN** |
-| 4 | **Plattform-Reihenfolge** | (a) Steam zuerst, Mobil später · (b) alle gleichzeitig | (a): MP10 ist ohnehin zuerst; Mobil erst nach dem CP2-Prototyp | Projektmitglied | **OFFEN** |
+| 3 | **Lobby/Relay** | (a) eigener Lobby-/Relay-Server `soulwick-relay` mit Raumcodes · (b) Steam-Relay für PC plus eigener Relay nur für Mobil · (c) nur Steam (kein Crossplay) | (a): ein Weg für alle, Steam bleibt Zusatz für Einladungen; ändert D-083 | Projektmitglied (Betrieb, Kosten) mit dem Team | **ENTSCHIEDEN** 14.10.2026 (Projektmitglied, D-119): (a) Host-Modell + eigener Relay; Transport in Phase 1 WebSocket-Relay (`online/relay_peer.gd`), WebRTC und dedizierter Server später |
+| 4 | **Plattform-Reihenfolge** | (a) Steam zuerst, Mobil später · (b) alle gleichzeitig | (a): MP10 ist ohnehin zuerst; Mobil erst nach dem CP2-Prototyp | Projektmitglied | **ENTSCHIEDEN** 14.10.2026 (Projektmitglied, D-119): Steam → Android → iOS; iOS später (kein Mac) |
 | 5 | **Touch-Steuerung** für ein maus-gezieltes Spiel | (a) virtueller Stick + Auto-Aim/Zielhilfe + Angriffsknopf · (b) zwei Sticks (Bewegen, Zielen) · (c) kein Mobil, nur Controller/PC | Prototyp in CP2 entscheidet; (a) als Startpunkt, Zielhilfe nur auf Mobil als TESTWERT | Projektmitglied nach dem Prototyp | **OFFEN** |
 | 6 | **Altersfreigabe** | IARC-Fragebogen (Google Play, App Store → USK/PEGI), Steam-Fragebogen | Pixel-Kampf ohne Blut: voraussichtlich ab 6 (USK 6 / PEGI 7, Schätzung, mit dem Fragebogen prüfen) | Team | **OFFEN** |
 | 7 | **Ranglisten** (D-082) je Plattform oder gemeinsam | (a) gemeinsam mit Plattform-Kennzeichen am Eintrag · (b) je Plattform getrennt | (a), passt zum Crossplay-Gedanken; Zielhilfe auf Mobil muss dann sichtbar sein | Team | **OFFEN** |
 | 8 | **Sign in with Apple** | nur Pflicht, wenn die iOS-App einen anderen Social-Login (z. B. Google) anbietet (App-Store-Regel 4.8) | Nur Game Center und Play Games als Plattform-Login, keinen Social-Login → kein Sign in with Apple nötig; mit dem Fragebogen in CP4 prüfen | Team (CP4) | **OFFEN** |
+| 9 | **Publisher** (wer veröffentlicht und führt die Store-Konten) | (a) WebBude · (b) Privatperson · (c) eigene Firma für Soulwick | – | Projektmitglied | **ENTSCHIEDEN** 14.10.2026 (Projektmitglied, D-119): WebBude, Firmenkonten bei Steam, Google, später Apple |
+| 10 | **Relay-Regionen** | (a) eine Instanz (EU) · (b) je Region eine Instanz, Raumcode mit Regions-Präfix | (a) zuerst, (b) erst bei messbarer Latenz außerhalb Europas | Projektmitglied (Kosten) | **OFFEN** |
 
-- [ ] Frage 1–8 beantworten; jede Antwort als D-Eintrag (VERBINDLICH oder bewusst „später“) in [DECISIONS.md](DECISIONS.md).
-- [ ] D-108 auf VERBINDLICH setzen oder anpassen; D-083 („kein Echtzeit-Spielverkehr über den Server“) bei Antwort 3a ändern.
-- [ ] [PRD.md](PRD.md) §7.6 (Steam) um die anderen Stores ergänzen, neuer Abschnitt §7.8 „Crossplay“; [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP2 (Raumcode statt nur IP?) und MP6 (Steam-Relay nur noch für PC-Gruppen?) anpassen.
-- [ ] Plattform: `soulwick-platform/docs/PRD.md` §3.8 von OFFEN auf die getroffenen Antworten bringen.
+- [ ] Fragen 1–10 beantworten; jede Antwort als D-Eintrag (VERBINDLICH oder bewusst „später“) in [DECISIONS.md](DECISIONS.md). Stand 14.10.2026: 3, 4 und 9 in D-119; 1, 2, 5–8 und 10 offen.
+- [ ] D-108 auf VERBINDLICH setzen oder anpassen (teilweise entschieden durch D-119); D-083 („kein Echtzeit-Spielverkehr über den Server“) wird laut D-119 zu „Weiterleitung ja, Spiellogik nein“, Verweis in D-083 selbst nachtragen.
+- [ ] [PRD.md](PRD.md) §7.6 (Steam) um die anderen Stores ergänzen, neuer Abschnitt §7.8 „Crossplay“; [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP2–MP6 auf den Relay umstellen (Doku umgestellt 14.10.2026: Raumcode statt IP, MP4 über den Relay, Steam als Zusatz).
+- [ ] Plattform: `soulwick-platform/docs/PRD.md` §3.8 von OFFEN auf die getroffenen Antworten bringen (für Fragen 3, 4 und 9 am 14.10.2026 geschehen; die übrigen folgen mit ihren Antworten).
 
 **Dateien:** `docs/DECISIONS.md`, `docs/PRD.md`, `docs/ROADMAP_MULTIPLAYER.md`, `docs/MULTIPLAYER.md`, `docs/ROADMAP_CROSSPLAY.md`; Plattform `docs/PRD.md`.
 
-**Fertig, wenn:** alle acht Fragen einen D-Eintrag haben und MP2 weiß, ob Lobbys über IP/Steam oder über Raumcodes auf dem eigenen Server laufen.
+**Fertig, wenn:** alle zehn Fragen einen D-Eintrag haben. Für MP2 ist geklärt: Lobbys laufen über Raumcodes auf dem eigenen Relay (D-119).
 
 ## CP1 – Soulwick-Konto und Identitäten
 
 **Ziel:** Ein Spieler hat ein Soulwick-Konto mit beliebig vielen Identitäten (`steam`, `device`, `google_play`, `game_center`) und kann Geräte verknüpfen, ohne E-Mail oder Passwort. Grundlage ist `player_identities` aus P11 (Plattform); hier kommen die Routen und die Spiel-Oberfläche dazu.
 
-**Plattform (`api-dev`):** `packages/contracts/src/auth.ts` (neu: `POST /auth/google-play`, `POST /auth/game-center`, `POST /me/link-code`, `POST /auth/link`, `DELETE /me/identities/:provider`), `apps/api/src/services/identities.ts`, `apps/api/src/routes/auth.ts`, `routes/me.ts`, `routes/admin/players.ts` (Identitäten anzeigen), Tests. **Spiel (`village-dev` oder `player-dev`, nach MP7):** `online/api_client.gd` (HTTP-Client aus MP7), `online/session.gd` (Konto und Token am lokalen Client, Node in `game.tscn`, kein neuer Autoload, D-044), `ui/options/account_panel.gd` (neu).
+**Plattform (`api-dev`, Pakete P14 und P15):** `packages/contracts/src/identity.ts` (neu: `POST /auth/google-play`, später `POST /auth/game-center`, `POST /me/link-code`, `POST /me/link`, `GET /me/identities`, `DELETE /me/identities/:provider`), `apps/api/src/services/identities.ts`, `apps/api/src/routes/auth.ts`, `routes/me.ts`, `routes/admin/players.ts` (Identitäten anzeigen), Tests. **Spiel (`village-dev` oder `player-dev`, nach MP7):** `online/api_client.gd` (HTTP-Client aus MP7), `online/session.gd` (Konto und Token am lokalen Client, Node in `game.tscn`, kein neuer Autoload, D-044), `ui/options/account_panel.gd` (neu).
 
 - [ ] Anmeldung je Provider: Steam-Ticket (MP7/MP10), Google Play Games Services v2 (Server-Auth-Code → serverseitig prüfen), Game Center (signierte Prüfung mit `publicKeyUrl`, `signature`, `salt`, `timestamp`), Geräte-ID nur in der Testphase. Jede Anmeldung findet oder erzeugt eine Identität; eine neue Identität ohne Konto erzeugt ein Konto.
-- [ ] **Verknüpfungscode wie Among Us:** Gerät A fordert `POST /me/link-code` an (6–8 Zeichen, 10 Minuten gültig, TESTWERT), Gerät B schickt ihn mit seiner Identität an `POST /auth/link`; die Identität von B hängt danach am Konto von A. Hängt die Identität von B bereits an einem anderen Konto mit Fortschritt, fragt das Spiel nach (Konto behalten oder wechseln), nie stilles Zusammenführen.
+- [ ] **Verknüpfungscode wie Among Us:** Gerät A fordert `POST /me/link-code` an (6 Zeichen, 10 Minuten gültig, TESTWERT), Gerät B löst ihn angemeldet mit seiner Identität über `POST /me/link` ein; die Identität von B hängt danach am Konto von A. Hängt die Identität von B bereits an einem anderen Konto mit Fortschritt, fragt das Spiel nach (Konto behalten oder wechseln), nie stilles Zusammenführen. Die Regel für das Zusammenführen zweier Konten ist **OFFEN** (Vorschlag in `soulwick-platform/docs/KONZEPT_ONLINE.md`: das ältere Konto gewinnt, die Gilde bleibt beim Zielkonto).
 - [ ] Identität entkoppeln (`DELETE /me/identities/:provider`), die letzte Identität darf nicht entkoppelt werden.
-- [ ] **Konto löschen in-App** (Store-Pflicht, App Store 5.1.1 (v), Google Play „Datenlöschung“): Knopf im Konto-Panel → Bestätigung → `DELETE /me`; löscht Konto, Identitäten, Mitgliedschaft; Run-Teilnahmen werden anonymisiert (bestehende Regel). Gesperrte Spieler weiter nach P-108.
+- [ ] **Konto löschen in-App** (Store-Pflicht, App Store 5.1.1 (v), Google Play „Datenlöschung“): Knopf im Konto-Panel → Bestätigung → `DELETE /me`; löscht Konto, Identitäten, Mitgliedschaft; Run-Teilnahmen werden anonymisiert (bestehende Regel). Gesperrte Spieler weiter nach P-108. Google Play verlangt zusätzlich eine **Web-Seite für den Löschantrag** (Plattform P15).
 - [ ] Spiel: Konto-Panel zeigt verknüpfte Plattformen, Verknüpfungscode (anzeigen/eingeben) und „Konto löschen“; Offline-Betrieb bleibt unverändert möglich.
 - [ ] Datenschutz: nur Provider-Nutzer-IDs speichern; Datenschutzerklärung im eRecht24-Projekt um Google Play Games und Game Center ergänzen (P-013, Push).
 
@@ -79,7 +82,7 @@ Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von 
 
 **Agent:** `player-dev` (Eingabe, HUD) mit Haken für den Integrator in `project.godot`. **Dateien:** `export_presets.cfg` (neu: Android, iOS), `player/player_input.gd` (Eingabe-Objekt aus MP1: neue Implementierung `TouchInput`), `ui/touch/` (neu: virtueller Stick, Knöpfe für Angriff, Dash, Waffe wechseln, Interaktion, Menü), `ui/hud/*` (Skalierung, sichere Bereiche), `tools/perf_check.gd` (neu, misst Bildrate und Zeichenaufrufe über N Räume); Haken: `project.godot` (Eingabe-Aktionen für Touch, `display/window/handheld`, Stretch-Modus), `player/player.gd` (Zielhilfe als Parameter).
 
-- [ ] Android-Export (SDK, Debug-Keystore, später Upload-Key) und iOS-Export (Xcode nötig: Mac leihen oder Cloud-Mac, siehe Risiken); Builds als `.apk`/`.aab` bzw. `.ipa`.
+- [ ] Android-Export (SDK, Debug-Keystore, später Upload-Key) als `.apk`/`.aab`; Renderer **Mobile** statt Forward+ für Android prüfen. iOS-Export (`.ipa`, Xcode nötig) erst **später** über einen Cloud-Mac (D-119, CP7).
 - [ ] Touch-Schema nach CP0 Frage 5: linker virtueller Stick bewegt; Angriff per Knopf oder Halten mit **Zielhilfe** (nächster Gegner im Lichtkreis, TESTWERT Winkel/Reichweite, nur auf Mobil aktiv); Dash-, Waffenwechsel-, Interaktions- und Menü-Knopf; Tab-Übersicht als Knopf. Optional zweiter Stick zum Zielen.
 - [ ] UI auf 480×270 bleibt; auf Handys (16:9 bis 20:9) ganzzahlig skaliert, Ränder mit Hintergrund gefüllt, HUD und Knöpfe außerhalb der Aussparungen (Safe Area), Berührungsflächen mindestens 48 px auf dem Gerät.
 - [ ] Leistung: Sicht-Shader, Nachbearbeitung und Partikel auf einem Mittelklasse-Android messen (`perf_check.gd`); Zielwert 60 fps, mindestens 50 fps (TESTWERT); Stufe „Mobil“ in den Optionen (weniger Partikel, einfachere Schatten); Bildrate auf 60 begrenzen (Akku).
@@ -89,27 +92,33 @@ Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von 
 
 **Koop-Check:** Eingaben nur über das Eingabe-Objekt (MP1); Zielhilfe als Eigenschaft des Spielers; keine neuen `get_first_node_in_group(&"player")`; kein `Engine.time_scale`.
 
-## CP3 – Lobby- und Relay-Server (`soulwick-relay`)
+## CP3 – Relay-Server (`soulwick-relay`) und Raumcodes
 
-**Ziel:** Spieler auf PC, Android und iOS treffen sich über einen **Raumcode**; der eigene Server vermittelt und leitet die Pakete weiter (Relay), damit niemand Ports freigeben muss. Das Spiel bleibt im **Host-Modell** (D-083): der Host rechnet, der Relay versteht die Pakete nicht. Nur bauen, wenn CP0 Frage 3 für (a) oder (b) ausfällt; dann ändert ein neuer D-Eintrag D-083 („kein Echtzeit-Spielverkehr über den Server“) in „Weiterleitung ja, Spiellogik nein“.
+**Ziel:** Spieler auf PC, Android und später iOS treffen sich über einen **Raumcode**; der eigene Relay leitet die Pakete weiter, niemand muss Ports freigeben. Das Spiel bleibt im **Host-Modell**: Der Host rechnet, der Relay versteht die Spielpakete nicht (D-119; D-083 gilt damit als „Weiterleitung ja, Spiellogik nein“). Protokoll, Abläufe und Betrieb im Detail: `soulwick-platform/docs/KONZEPT_ONLINE.md`.
 
-**Plattform (`api-dev` + Integrator für `infra/`):** `packages/contracts/src/lobby.ts` (neu), `apps/api/src/routes/lobbies.ts`, `apps/api/src/services/lobbies.ts` (Raumcodes, Spielversion, Plattform, Spielerliste), `apps/relay/` (neu, eigener Container `soulwick-relay`), `infra/docker-compose.yml`, `infra/DOKPLOY.md`. **Spiel (`player-dev`/Netzwerk-Agent):** `online/lobby_client.gd`, `online/relay_peer.gd` (dritte Verbindungsart neben ENet und Steam), Gildengebäude: „Raumcode erstellen“ / „Raumcode eingeben“ neben „Beitreten (IP)“.
+**Transport (D-119, entschieden):** eigene `MultiplayerPeerExtension` in GDScript (`online/relay_peer.gd`) über Godots eingebautes `WebSocketPeer`, verschlüsselt (WSS) über Traefik. Läuft ohne GDExtension auf Windows, Linux, macOS, Android und iOS; kein NAT-Problem, keine Portfreigaben. Später austauschbar, ohne die Spiellogik umzubauen: WebRTC-Direktverbindung (Relay bzw. TURN als Rückfall) und ein dedizierter Godot-Server (Abschnitt „Dedizierter Server (später)“).
 
-- [ ] Transport entscheiden (zu Beginn von CP3): (a) `WebSocketMultiplayerPeer` über den Relay (läuft auf allen Plattformen, TLS über Traefik, einfach), (b) `WebRTCMultiplayerPeer` mit Signalisierung über die API, STUN und TURN-Fallback (coturn-Container; weniger Latenz, mehr Betrieb), (c) ENet-UDP durch den Relay. Vorschlag: (a) zuerst, (b) nur bei messbaren Latenzproblemen.
-- [ ] Lobby in der API: `POST /lobbies` (Host, Spielversion, Plattform) → Code (6 Zeichen, ohne verwechselbare Zeichen), `GET /lobbies/:code`, `DELETE /lobbies/:code`; Ablauf nach 10 Minuten ohne Start (TESTWERT); höchstens 4 Spieler (D-084); gleiche Spielversion Pflicht (`KNOWN_GAME_VERSIONS`).
-- [ ] Relay: nimmt Verbindungen mit Spieler-Token und Lobby-Code an, leitet Pakete zwischen Host und Clients weiter, kennt keine Spielregeln; Grenzen je Verbindung (Pakete/s, Bytes/s, TESTWERT); zustandslos neu startbar; Logs und `/health`.
-- [ ] Spiel: Raumcode statt IP für Internet-Spiele; IP/LAN (MP2) und Steam-Einladung (MP6) bleiben; Fehlermeldungen (Code unbekannt, voll, andere Version, Relay nicht erreichbar) wie in MP2.
-- [ ] Betrieb: Container in Dokploy, Domain `relay.<domain>`, Kosten und Datenvolumen beobachten (D-083 Betrieb).
+**Plattform (Repo `soulwick-platform`):** P13 Relay (`api-dev` für den Vertrag, dann `relay-dev` oder `api-dev`), P16 Versionen und Umgebungen, P17 Relay auf Dokploy (Integrator). Dateien: `packages/contracts/src/lobby.ts` (neu, zuerst), `apps/relay/` (neu: Bun + WebSocket, Biome, `bun test`, Dockerfile auf `oven/bun`), interner API-Endpunkt für Gilden- und Sperrstatus. **Spiel (Netzwerk-Agent, z. B. `player-dev` nach MP1):** `online/relay_peer.gd` (Peer), `online/lobby_client.gd` (Raum erstellen, beitreten, Spielerliste, Steuer-Nachrichten), `online/api_client.gd` (HTTP-Client aus MP7, dafür vorgezogen), `online/session.gd` (Konto und Token am lokalen Client, Node in `game.tscn`, kein Autoload, D-044); Gildengebäude: „Raum erstellen“ und „Raumcode eingeben“.
 
-**Fertig, wenn:** ein PC-Host (Steam) und ein Android-Client über mobile Daten (nicht dasselbe WLAN) per Raumcode fünf Räume zusammen spielen; ein Neustart des Relay-Containers verliert keine Daten (es gibt keine).
+**Teil A (vor MP2/MP4):** Relay läuft, zwei PCs spielen über einen Raumcode. **Teil B (mit CP2):** Android-Client im selben Raum.
 
-**Koop-Check:** Verbindungsart hinter `MultiplayerPeer` austauschbar, keine Logikänderung; Lobby-Zustand liegt beim Host und im Server, nicht in Autoloads.
+- [ ] **Räume:** Code aus 6 Zeichen ohne verwechselbare Zeichen (kein `0`/`O`, `1`/`I`/`L`), Modus `quick` oder `guild`, ein Host, höchstens 4 Spieler (D-084). Läuft nach 10 Minuten ohne Start ab (TESTWERT), wird geschlossen, wenn der Host geht (D-085); kein Beitritt nach dem Start (D-085). Räume liegen nur im Speicher des Relays.
+- [ ] **Beitritt:** Spieler-JWT ist Pflicht, der Relay prüft es selbst (gemeinsames `TOKEN_SECRET` mit der API); bei `guild` fragt er die API nach Mitgliedschaft und Sperre. Nur gleiche `protocolVersion` kommt in einen Raum (Plattform P16).
+- [ ] **Protokoll:** Steuer-Nachrichten als JSON-Textrahmen (`hello`, `create`, `join`, `start`, `leave`, Spielerliste, Fehler); Spielpakete als **binärer Rahmen** `{from, to, channel, mode, data}`. `from` setzt der Relay (nie vom Absender übernommen), `to` = Peer-ID, 0 = alle, negativ = alle außer; `mode` = Godot-Übertragungsart (über WebSocket ist alles zuverlässig, das Feld bleibt für spätere WebRTC-Peers); `data` = Godot-Paket unverändert. Host hat Peer-ID 1, Clients bekommen vom Relay eindeutige IDs ≥ 2. Vertrag in `packages/contracts/src/lobby.ts`, Testvektoren für TypeScript und GDScript.
+- [ ] **Schutz:** Rate-Limit je IP und Spieler, Paketgröße und Bytes/s je Verbindung begrenzt (TESTWERTE), Herzschlag mit Zeitlimit; JSON-Logs ohne Paketinhalte; Metriken (Räume, Spieler, Bytes/s) und `/health`.
+- [ ] **Spiel:** Raumcode statt IP für Internet-Spiele. ENet über IP bleibt nur **optional** für LAN und Entwicklung hinter derselben Schnittstelle; eine Steam-Einladung (MP6) trägt nur den Raumcode. Fehlermeldungen: Code unbekannt, Raum voll, Run läuft schon, andere Version, gesperrt, kein Gildenmitglied, Relay nicht erreichbar.
+- [ ] **Tests:** `bun test` für Protokoll und Raum-Lebenszyklus im Relay; `tools/net_smoke.gd` (neu): Headless-Host und Headless-Client spielen über den lokalen Relay einige Räume; Relay-Optionen `--sim-latency` und `--sim-loss` für schlechtes Netz.
+- [ ] **Betrieb:** eigene Dokploy-Application, Domain `play.playsoulwick.com`, in `development` `play.dev.playsoulwick.com` (Vorschlag P-018); WebSocket über Traefik; eine Instanz zuerst, Regionen später (CP0 Frage 10, OFFEN); Datenvolumen beobachten (P17).
+
+**Fertig, wenn:** Teil A: zwei Windows-PCs an verschiedenen Orten per Raumcode fünf Räume zusammen spielen und `net_smoke.gd` sowie die Relay-Tests grün sind. Teil B: ein PC-Host (Steam-Build) und ein Android-Client über mobile Daten (nicht dasselbe WLAN) per Raumcode fünf Räume zusammen spielen. Ein Neustart des Relay-Containers verliert keine dauerhaften Daten (Räume sind flüchtig, laufende Runs enden wie bei einem Host-Abbruch).
+
+**Koop-Check:** Verbindungsart hinter `MultiplayerPeer` austauschbar (Relay, optional ENet, später WebRTC oder dedizierter Server), keine Spiellogik kennt den Transport; Raumzustand liegt im Relay und beim Host, Konto und Token in `online/session.gd`, nicht in Autoloads; die Spielwelt setzt keinen eigenen Spieler beim Host voraus ([MULTIPLAYER.md](MULTIPLAYER.md) §4a).
 
 ## CP4 – Stores
 
 **Ziel:** Soulwick in allen drei Stores als Testversion, später als Release. Steam ist in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP10 beschrieben; hier kommen Google Play und App Store dazu und die gemeinsamen Pflichten.
 
-**Wer:** Konten, Gebühren und Rechte: Projektmitglied mit dem Team (MP10: Rechte am Spiel, Lizenzen für den Verkauf). **Dateien:** `export_presets.cfg`, `art/store/` (neu, Briefing in einer späteren `SPRITES_V*.md`: Play-Icon 512×512, Feature-Grafik 1024×500, App-Store-Icon 1024×1024, Screenshots je Gerätegröße), Plattform `apps/web` (echte Store-Badges statt der Pixel-Chips, nur `web-dev`), eRecht24-Projekt (Datenschutzerklärung).
+**Wer:** Publisher ist **WebBude** (D-119): Firmenkonten, Gebühren und Rechte führt das Projektmitglied für WebBude mit dem Team (MP10: Rechte am Spiel, Lizenzen für den Verkauf). Konten, Kosten, Upload und Store-Pflichten im Einzelnen: CP7. **Dateien:** `export_presets.cfg`, `art/store/` (neu, Briefing in einer späteren `SPRITES_V*.md`: Play-Icon 512×512, Feature-Grafik 1024×500, App-Store-Icon 1024×1024, Screenshots je Gerätegröße), Plattform `apps/web` (echte Store-Badges statt der Pixel-Chips, nur `web-dev`), eRecht24-Projekt (Datenschutzerklärung).
 
 - [ ] **Steamworks:** siehe MP10 (Konto, Steam Direct, AppID, SteamPipe, Playtest, Store-Seite).
 - [ ] **Google Play Console:** Entwicklerkonto (einmalige Gebühr), App-Signatur, Testspuren intern → geschlossen → offen → Produktion; Formular „Datensicherheit“, IARC-Fragebogen, Ziel-API-Level, Anforderungen für neue persönliche Konten (Testerzahl und -dauer vor dem Release prüfen).
@@ -149,26 +158,67 @@ Nichts davon ist entschieden. Die Spalte „Empfehlung“ ist ein Vorschlag von 
 
 **Fertig, wenn:** ein D-Eintrag VERBINDLICH ist; bei (b) ein Sandbox-Kauf je Store serverseitig bestätigt wurde.
 
+## CP7 – Build-CI und Stores
+
+**Ziel:** Jeder Build entsteht reproduzierbar in der CI und landet ohne Handarbeit im passenden Testkanal (Steam-Beta-Branch, Play „Interner Test“); Konten, Kosten und Pflichten der Stores sind für den Publisher **WebBude** (D-119) geklärt. Reihenfolge wie D-119: Steam → Android → iOS (später).
+
+**Wer:** Integrator (CI und `export_presets.cfg` sind gemeinsame Dateien, CP2 baut die Mobil-Presets mit); Konten und Gebühren: Projektmitglied für WebBude. **Dateien:** `.gitlab-ci.yml` (neu), `export_presets.cfg` (Windows, Linux, Android, Dedicated Server; iOS später), `tools/ci/` (neu: Export-Skript, `steamcmd`-Build-Skripte, Play-Upload-Konfiguration), `online/build_config.gd` (neu, Vorschlag: API- und Relay-URL, Umgebung, `protocolVersion`, beim Export gesetzt).
+
+- [ ] **GitLab-CI:** Godot 4.7.2 headless mit Export-Vorlagen im Container; vorher `validate_project.gd` und GUT; Exporte für Windows, Linux, Android (`.aab` für den Store, `.apk` zum Testen) und **Dedicated Server** (Linux, headless; nur gebaut und aufbewahrt, nicht verteilt).
+- [ ] **Umgebungen:** Builds für `development` (Domains `api.dev.…`/`play.dev.…`, Steam-Beta-Branch, Play „Interner Test“) und `production`; API- und Relay-URL je Umgebung beim Export, Spielversion und `protocolVersion` im Build (passt zu Plattform P16).
+- [ ] **Steam:** Upload per `steamcmd` (SteamPipe) auf einen Beta-Branch; braucht die eigene AppID (MP10). Den Standard-Branch schaltet ein Mensch frei.
+- [ ] **Google Play:** Upload per Gradle Play Publisher oder fastlane in die Spur „Interner Test“; Play App Signing, eigener Upload-Schlüssel.
+- [ ] **Signaturschlüssel** (Android-Upload-Keystore, Steam-Build-Konto, Play-Dienstkonto) nur als geschützte, maskierte CI-Variablen; nie im Repo.
+- [ ] **iOS später:** Cloud-Mac (Codemagic oder GitHub-Actions-macOS), Apple-Zertifikate und Profile; erst nach Android.
+- [ ] **Konten und Kosten (WebBude):** Steam Direct 100 USD je App (30 Tage Wartezeit nach der Zahlung, Store-Seite mindestens 2 Wochen „Demnächst“ vor dem Release), Steuer- und Bankdaten bei Steam; Google Play 25 USD einmalig als **Organisationskonto** (D-U-N-S-Nummer nötig; erspart die Testpflicht neuer Privatkonten mit 12 Testern über 14 Tage); Apple Developer Program 99 USD/Jahr (später).
+- [ ] **Store-Pflichten** (zusammen mit CP4): Konto löschen in der App **und** als Web-Seite (Google; Plattform P15); Datenschutz-Angaben (Google „Datensicherheit“, Apple „App-Datenschutz“); IARC-Altersfreigabe; Melden und Filtern von Spieler- und Gildennamen (nutzergenerierte Inhalte); Zielgruppe in der Play Console **ab 13** angeben, sonst greifen die Familien-Richtlinien (USK 6 ist nur die Freigabe, nicht die Zielgruppe); Datenschutzerklärung (eRecht24) um Steam-, Google- und Apple-IDs und Relay-Verbindungsdaten ergänzen.
+
+**Fertig, wenn:** ein CI-Lauf auf `dev` ohne Handarbeit einen Windows-Build im Steam-Beta-Branch und einen Android-Build in der Play-Spur „Interner Test“ ablegt, keine Schlüsseldatei im Repo liegt, der Dedicated-Server-Export als Artefakt entsteht und das Projektmitglied die Konten- und Kostenliste für WebBude bestätigt hat.
+
+**Koop-Check:** keine Spiellogik betroffen; alle Plattform-Builds einer Version tragen dieselbe `protocolVersion`, sonst finden sie sich im Relay nicht.
+
+## Lokal testen (ohne Stores)
+
+Alles Folgende läuft auf einem Entwickler-PC; die Dienste kommen aus dem Plattform-Repo (`soulwick-platform/docs/KONZEPT_ONLINE.md` §5).
+
+| Was | Wie |
+| --- | --- |
+| Dienste | im Plattform-Repo `bun run services:up`, dann `bun dev` (API 8787, Relay 8790 als Vorschlag, Web, Admin) |
+| Vier Spieler auf einem PC | Godot-Editor *Debug → Ausführungsinstanzen anpassen*, vier Instanzen mit Argument `--player=1..4`; jede Instanz meldet sich per `/auth/dev` mit eigener Geräte-ID an und tritt per Raumcode bei |
+| Gilden | Testdaten aus `bun run db:seed:dev` (Gilde „Dochtwächter“), Dev-Anmeldung als Seed-Spieler |
+| Handy (Android) | Ein-Klick-Export per USB, `adb reverse tcp:8787 tcp:8787` und `adb reverse tcp:8790 tcp:8790`; das Handy erreicht `localhost` des PCs ohne HTTPS-Umweg (unverschlüsseltes HTTP/WS im Debug-Export erlauben, prüfen) |
+| Steam | Test-AppID 480 mit `steam_appid.txt`, Steam-Client offen; zwei Steam-Konten brauchen zwei Rechner |
+| Schlechtes Netz | Relay-Optionen `--sim-latency` und `--sim-loss`, unter Windows zusätzlich „clumsy“ |
+| Automatisch | `tools/net_smoke.gd`: Headless-Host und Headless-Client gegen den lokalen Relay (Smoke-Test); `bun test` für das Relay-Protokoll |
+| Echte Konten (Steam, Google) | nur in der Umgebung `development` mit Steam-Beta-Branch und Play „Interner Test“ |
+
+## Dedizierter Server (später)
+
+Godot exportiert einen **„Dedicated Server“**: Linux, headless, ohne Grafik und Audio, eine Binärdatei. Ein Docker-Image dafür schreibt man selbst (`debian:bookworm-slim` + Binärdatei). In Phase 1 ist er **nicht nötig**, weil der Host ein Spieler ist (D-119). Er wird ein eigenes Paket, sobald eines davon stört: Handy-Hosts (App im Hintergrund = Host weg = Run-Ende nach D-085), Cheats in Ranglisten oder häufige Host-Abbrüche. Hosting dann zuerst als Container-Pool auf dem eigenen VPS (Dokploy), bei Bedarf über einen Anbieter mit Regionen (Edgegap o. ä.). Voraussetzung im Code ist schon heute die Regel aus [MULTIPLAYER.md](MULTIPLAYER.md) §4a: Die Spielwelt setzt keinen eigenen Spieler beim Host voraus. Der Dedicated-Server-Export läuft ab CP7 in der CI mit, damit er nicht unbemerkt kaputtgeht.
+
 ## Koop-Check für Crossplay-Pakete
 
 Zusätzlich zu den fünf Fragen aus [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) („Koop-Check für jedes Paket“) beantwortet jeder Bericht mit „ja“:
 
 - [ ] Eingabequelle (Maus, Touch, Controller, Netz) ist eine Implementierung des Eingabe-Objekts aus MP1; Spiellogik fragt nie `Input` direkt.
-- [ ] Verbindungsart (ENet, Steam, Relay) ist hinter `MultiplayerPeer` austauschbar; keine Spiellogik kennt die Plattform.
+- [ ] Verbindungsart (Relay als Hauptweg, ENet optional für LAN, später WebRTC oder dedizierter Server) ist hinter `MultiplayerPeer` austauschbar; keine Spiellogik kennt die Plattform.
 - [ ] Konto, Token und Identitäten liegen am lokalen Client (`online/session.gd` in `game.tscn`), nicht in einem neuen Autoload (D-044); Zustand je Spieler am Spieler.
 - [ ] Plattform-SDKs (GodotSteam, Play Games, Game Center) nur über eine gemeinsame Schnittstelle `PlatformServices` mit Null-Implementierung für Editor und Headless, damit alle Tests ohne SDK laufen.
 
 ## Risiken
 
-- **iOS braucht einen Mac:** Godot exportiert für iOS nur mit Xcode (Signatur). Das Projektmitglied hat keinen Mac; Optionen: Mac leihen, Cloud-Mac, macOS-Runner in einer CI. Dazu die jährliche Apple-Gebühr.
+- **iOS braucht einen Mac:** Godot exportiert für iOS nur mit Xcode (Signatur). Das Projektmitglied hat keinen Mac; deshalb kommt iOS **später** (D-119), über einen Cloud-Mac in der CI (CP7). Dazu die jährliche Apple-Gebühr.
 - **Touch für ein maus-gezieltes Spiel:** Zielhilfe verändert die Balance und kann Crossplay unfair wirken lassen (PC zielt frei, Mobil mit Hilfe); Zielhilfe nur auf Mobil, eigene TESTWERTE, Plattform-Kennzeichen in Ranglisten (CP0 Frage 7).
 - **Leistung auf Handys:** Sicht-Shader, Nachbearbeitung und ×2,8 Gegner bei vier Spielern (D-084) auf schwachen Geräten.
-- **Eigener Relay = Betrieb:** Kosten, Datenvolumen, Latenz (EU-Server für Spieler in Übersee), Angriffsfläche; ändert D-083.
-- **Store-Prüfungen:** Konto löschen in-App, Datenschutz-Labels, Altersfreigabe, Testpflichten für neue Google-Play-Konten; Ablehnungen verschieben Releases.
-- **Rechte und Lizenzen** (MP10) gelten für alle Stores; Rechte im Team klären, bevor Geld fließt.
+- **Eigener Relay = Betrieb:** Kosten, Datenvolumen (Inklusivtraffic des VPS beobachten), Latenz (EU-Server für Spieler in Übersee, Regionen OFFEN), Angriffsfläche; Monitoring und eine Status-Anzeige im Spiel bei Server-Ausfall (Einzelspieler bleibt offline spielbar). D-083 ist durch D-119 geändert.
+- **Handy als Host:** Geht die App in den Hintergrund, ist der Host weg und der Run endet für alle (D-085). Handy-Spieler möglichst nicht hosten lassen oder vorher warnen; der dedizierte Server (später) löst das grundsätzlich.
+- **Versionsversatz zwischen Stores:** Steam, Google und Apple geben Updates zeitversetzt frei; Crossplay braucht dieselbe `protocolVersion`. Der Relay lässt nur gleiche Protokollversionen in einen Raum, das Hauptmenü sperrt Online-Funktionen mit Update-Hinweis, wenn `/health` eine höhere `minGameVersion` meldet (Plattform P16).
+- **Store-Prüfungen:** Konto löschen in-App **und** eine Web-URL für den Löschantrag (Google, Plattform P15), Datenschutz-Labels, Altersfreigabe, Testpflichten für neue Google-Play-Privatkonten (entfallen mit dem Organisationskonto, CP7); Ablehnungen verschieben Releases.
+- **Zielgruppe in der Play Console:** Wer „unter 13“ ankreuzt, unterliegt den Familien-Richtlinien (Werbung, Datenerhebung, Login); deshalb Zielgruppe **ab 13** angeben, unabhängig von der Altersfreigabe USK 6.
+- **Rechte und Lizenzen** (MP10) gelten für alle Stores: schriftlicher Vertrag mit dem Kollegen (Idee) und allen Mitwirkenden, dass WebBude Soulwick veröffentlichen und verkaufen darf; Lizenzen aller Grafiken, Schriften, Audio-Dateien und Addons prüfen. Klären, bevor Geld fließt oder eine Store-Seite öffentlich ist.
 - **Zwei Spielstand-Wahrheiten** (Steam Cloud und Soulwick-Cloud) führen zu Konflikten; nur eine wählen (CP5).
 - **Offenes Geschäftsmodell** blockiert Store-Einträge (Preis) und CP6; Entscheidung früh treffen, auch wenn „später“.
 - **Betrug:** Der Host rechnet (D-082 nimmt fälschbare Ranglisten in Kauf); Crossplay vergrößert den Kreis. Plausibilitätsprüfung und Markieren bleiben der Weg.
 - **Umfang:** Die ganze Phase kommt nach Phase 3. Nur CP0 (und optional der CP2-Prototyp) dürfen vorgezogen werden, damit MP2–MP7 nicht zweimal gebaut werden.
 
-**Weiterlesen:** [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [MULTIPLAYER.md](MULTIPLAYER.md) · [PRD.md](PRD.md) · [DECISIONS.md](DECISIONS.md) · `soulwick-platform/docs/ROADMAP.md` (P11) · `soulwick-platform/docs/PRD.md` §3.8
+**Weiterlesen:** [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [MULTIPLAYER.md](MULTIPLAYER.md) · [PRD.md](PRD.md) · [DECISIONS.md](DECISIONS.md) · `soulwick-platform/docs/KONZEPT_ONLINE.md` · `soulwick-platform/docs/ROADMAP.md` (P11, P13–P17) · `soulwick-platform/docs/PRD.md` §3.8
