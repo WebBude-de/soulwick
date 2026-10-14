@@ -9,8 +9,8 @@ extends Resource
 ## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100). The last four
 ## are the chasm shapes (A4): bridge hall, islands, walkway, ring around a hole.
 enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB, BRIDGE_HALL, ISLANDS, WALKWAY, RING_HOLE }
-## Wall of the room a door sits in. Today entrances are south and exits north (stacked rooms);
-## A10 adds exits east/west.
+## Wall of the room a door sits in (same order as RoomTiles.DoorSide). Entrances come from the
+## south, west or east, exits lead north, east or west (A10, KONZEPT_RAEUME §7.1).
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
 
 @export var id: StringName
@@ -20,8 +20,15 @@ enum DoorSide { NORTH, EAST, SOUTH, WEST }
 @export var size_class: RoomSequence.RoomSize = RoomSequence.RoomSize.S
 ## Floor size in tiles (RoomTiles.room_size).
 @export var room_size := Vector2i(15, 9)
+## The template's own entrance wall (its scene's entrance_x lies there).
 @export var entrance_side: DoorSide = DoorSide.SOUTH
+## Walls with an exit place.
 @export var exit_sides: Array[DoorSide] = [DoorSide.NORTH]
+## Walls the room may be entered through (south always; west/east where the template has a place).
+@export var entrance_sides: Array[DoorSide] = [DoorSide.SOUTH]
+## Every door place of the scene: x = DoorSide, y = place along the wall (same as its
+## RoomTiles.door_slots). North places beyond the first serve the second door of a branch (D-105).
+@export var door_slots: Array[Vector2i] = []
 ## Spawn marker tiles of the scene (same order as SpawnPoints/Spawn1..n).
 @export var spawn_tiles: Array[Vector2i] = []
 ## Markers in dead ends (catacomb ambush, KONZEPT_RAEUME §3.2); a subset of spawn_tiles.
@@ -45,6 +52,11 @@ func allows_biome(biome_id: StringName) -> bool:
 
 func has_chest() -> bool:
 	return chest_tile.x >= 0
+
+
+## May the room be entered through this wall? side < 0 = any (no filter).
+func allows_entrance(side: int) -> bool:
+	return side < 0 or entrance_sides.has(side)
 
 
 ## Template of a live room (by its scene), null for rooms outside the generated catalog.

@@ -14,9 +14,10 @@ static func file_name(slot: int) -> String:
 	return "slot_%d.cfg" % slot
 
 
-## Name shown for a slot without a stored name (e.g. the imported old save).
+## Name shown for a slot without a stored name (e.g. the imported old save), in the current
+## language ("Spielstand 2" / "Save 2", D-111).
 static func default_name(slot: int) -> String:
-	return "Spielstand %d" % slot
+	return Loc.t(&"SAVE_DEFAULT_NAME", [slot])
 
 
 ## Trims, drops control characters and cuts to NAME_MAX_LENGTH; empty -> default_name(slot).
@@ -93,7 +94,8 @@ static func format_play_time(seconds: float) -> String:
 	return "%d:%02d h" % [floori(minutes / 60.0), minutes % 60]
 
 
-## Local date "14.10.2026 · 03:03"; "heute · 03:03" / "gestern · 03:03" when close; 0 -> "–".
+## Local date "14.10.2026 · 03:03" (English "2026-10-14 · 03:03"); "heute · 03:03" / "gestern · 03:03"
+## ("today" / "yesterday") when close; 0 -> "–".
 static func format_last_played(unix_time: int, now := -1) -> String:
 	if unix_time <= 0:
 		return "–"
@@ -105,10 +107,12 @@ static func format_last_played(unix_time: int, now := -1) -> String:
 	var day := floori(float(unix_time + bias) / 86400.0)
 	var today := floori(float(now + bias) / 86400.0)
 	if day == today:
-		return "heute · " + clock
+		return Loc.t(&"SAVE_TODAY", [clock])
 	if day == today - 1:
-		return "gestern · " + clock
-	return "%02d.%02d.%d · %s" % [local["day"], local["month"], local["year"], clock]
+		return Loc.t(&"SAVE_YESTERDAY", [clock])
+	if Loc.current_language() == &"de":
+		return "%02d.%02d.%d · %s" % [local["day"], local["month"], local["year"], clock]
+	return "%d-%02d-%02d · %s" % [local["year"], local["month"], local["day"], clock]
 
 
 static func _non_negative_int(value: Variant) -> int:

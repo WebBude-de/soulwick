@@ -17,24 +17,25 @@ exit_x = 7
 floor_seed = 761
 pit_rects = Array[Rect2i]([Rect2i(4, 3, 7, 1), Rect2i(4, 4, 2, 1), Rect2i(9, 4, 2, 1), Rect2i(4, 5, 7, 1)])
 bridge_rects = Array[Rect2i]([Rect2i(4, 4, 2, 1)])
+door_slots = Array[Vector2i]([Vector2i(2, 7), Vector2i(0, 7), Vector2i(3, 4), Vector2i(1, 4), Vector2i(0, 2), Vector2i(0, 12)])
 
 [node name="Spawn1" parent="SpawnPoints"]
-position = Vector2(32, 32)
+position = Vector2(352, 32)
 
 [node name="Spawn2" parent="SpawnPoints"]
-position = Vector2(928, 32)
+position = Vector2(672, 32)
 
 [node name="Spawn3" parent="SpawnPoints"]
-position = Vector2(32, 480)
+position = Vector2(160, 544)
 
 [node name="Spawn4" parent="SpawnPoints"]
-position = Vector2(928, 480)
+position = Vector2(800, 544)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(416, 160)
+position = Vector2(416, 288)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(736, 224)
+position = Vector2(32, 32)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(480, 288)

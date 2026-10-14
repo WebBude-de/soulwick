@@ -711,6 +711,27 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Hindernisse und Navigation (Integrator):** Jede feste Requisite (Kiste, Fass, Schutt, Lichtsockel) nimmt ihrer Kachel die Navigation, bis sie zerbricht.
 - **Offen (Projektmitglied):** Bröckelboden-Sturz ganzes Herz oder ½ Herz wie andere Prüfungsfehler? Löcher auch in Arenen (heute ja)?
 
+### D-116 – Licht-Varianten: Ausgestaltung (A9)
+
+- **Status:** VERBINDLICH (Regeln D-101, D-109) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Licht-Abfrage (`LightQuery`):** Ein Punkt ist „im Licht“, wenn er im Kreis eines lebenden Spielers liegt (sichtbarer Radius − 75 px, Radius als Zustand am Spieler) oder im Kreis einer Lichtquelle mit `counts_as_light` (80 % ihres Radius: Lichtinseln, Laterne, Fackeln, Sockel, im Steinwächter-Raum die Wandfackeln). Blitze, Geschosse und Gegner-Glühen zählen nie. Der Lichtlauf nutzt denselben Kreistest.
+- **Ziehung:** Steinwächter (Krypta, Schattenreich), Laternenträger (alle Biome), Fackelraum (nur Schattenreich), gleich gewichtet mit den Varianten aus D-114.
+- **Steinwächter:** 2–4 (+1 je weiterem Spieler, MP5), 48 HP, Schaden 1, Tempo 140; im Licht erstarrt und verwundbar, im Dunkeln unverwundbar; Angriff nur Sprung-Stampfer (0,8 s Vorwarnung, Radius 64), Licht bricht das Ausholen ab, ein begonnener Sprung wird beendet; normale Gegner ×0,7; Raum geschafft = Bonus.
+- **Laternenträger:** Laterne liegt am Eingang (KONZEPT_RAEUME §4.4), Sockel vor dem Ausgang; Lichtkreis ×0,55; Träger ×0,75 Tempo, kein Angriff, Dash bleibt (Zustand `LanternCarry` am Spieler); Welle ×0,6 beim ersten Aufnehmen, 60 % der Gegner bevorzugen den Träger; Bonus nur bei Einsetzen in 40 s, danach kehrt die Laterne von selbst heim; der Ausgang öffnet erst mit Laterne im Sockel.
+- **Fackelraum:** 4–6 Fackeln (Treffer oder E), Lichtkreis ×0,5 bis ×1 je nach Anteil brennender Fackeln; Gegner im Fackellicht ×0,8 Schaden; alle Fackeln brennen = Bonus.
+- **Offen (Projektmitglied):** Laterne am Eingang statt bei einem Gegner? Heimkehr nach 40 s ohne Bonus? Sprung aus dem Dunkeln als Steinwächter-Bedrohung? Markierung für geschwächte Gegner im Fackellicht?
+
+### D-117 – Wegführung: Ausgestaltung (A10)
+
+- **Status:** VERBINDLICH (Regeln D-101, D-105, D-109, D-110) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude
+- **Ausgänge:** Nord 50 / Ost 25 / West 25, nie die Eingangswand; vor Spezial-, Miniboss-, Boss- und Lagerfeuerraum immer Nord. Eingang gegenüber dem vorigen Ausgang; Katakombe nur Süd/Nord. `entrance_x`/`exit_x` sind der Platz entlang der jeweiligen Wand.
+- **Überlappung:** Lebende Räume dürfen nur Fels auf Fels teilen; bei Kollision verlängert sich der Eingangsgang (höchstens 24 Kacheln, im Test 0–5). Abbiegungen, die einen längeren Gang bräuchten, entfallen schon bei der Ziehung.
+- **Abzweigungen:** ab Raum 6, höchstens 1 je Zyklus, 30 % der Kampfräume ohne Variante. Vor Platz 4 zwei verschiedene Spezialräume (Nordtüren), sonst Elite-Nest 60 % oder unbekannte Variante 40 % gegen den sicheren Weg (West/Ost). Raum n+1 entsteht bei der Wahl, die andere Tür wird versiegelt; Koop: alle vor einer Tür sofort, sonst nach 10 s Mehrheit, Gleichstand über den Dungeon-RNG.
+- **Elite-Nest:** 65 % 2–3 Elites, 35 % 1 Champion mit 1–2 Begleitern; Bonus-Truhe und 2 Kristalle für die Gruppe.
+- **Geheimnische:** 1/8 der Normal- und Abgrundräume ab Raum 6, nicht in Arenen; hinter einer rissigen Wand (Nordwand oder dicke Innenmauer), öffnet nur durch Explosionen und Flächentreffer. Inhalt Truhe 55 / 2 Kristalle 35 / wandernder Händler 10 (3 Mechanik- oder Effekt-Upgrades zum Shop-Preis).
+- **Zufall:** je normalem Kampfraum 8 zusätzliche Werte des Dungeon-RNG (Ausgang 1, Abzweigung 4, Nische 3).
+- **Offen (Projektmitglied):** längerer Gang statt „nach oben ausweichen“ ok? Elite-Nest 2 Kristalle richtig? Händler nur Mechanik-/Effekt-Upgrades? Abzweigung ohne Bestätigung im Einzelspieler? Abzweigung in etwa zwei Dritteln der Zyklen zu oft?
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

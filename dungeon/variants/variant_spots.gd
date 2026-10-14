@@ -129,9 +129,10 @@ static func far_tile(free: Dictionary[Vector2i, bool], origin: Vector2i, min_til
 
 
 ## Free floor tiles of the bottom row next to the entrance (wager altar): x = entrance +-1, +-2.
-static func altar_tile(free: Dictionary[Vector2i, bool], entrance_inside: Vector2i) -> Vector2i:
-	for dx in [1, -1, 2, -2]:
-		var tile := entrance_inside + Vector2i(dx, 0)
+## along: direction along the entrance wall (RIGHT for north/south doors, DOWN for west/east, A10).
+static func altar_tile(free: Dictionary[Vector2i, bool], entrance_inside: Vector2i, along := Vector2i.RIGHT) -> Vector2i:
+	for step in [1, -1, 2, -2]:
+		var tile: Vector2i = entrance_inside + along * step
 		if free.has(tile):
 			return tile
 	return INVALID

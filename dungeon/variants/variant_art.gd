@@ -1,7 +1,8 @@
 class_name VariantArt
 extends RefCounted
 ## Art of the combat variants and the wager altar (docs/SPRITES_V5.md §3, delivered in
-## art/environment/variants/, variants.json). Loads the file by name and draws a simple pixel
+## art/environment/variants/, variants.json), also of the light variants (A9: stone guardian,
+## soul lantern, lantern socket, unlit torch stand). Loads the file by name and draws a simple pixel
 ## placeholder with the same frame layout if it is missing. Placeholders use fixed shapes (pure
 ## optics, no dungeon RNG).
 
@@ -15,6 +16,14 @@ const ESCAPE_HOLE := "escape_hole_4f"
 const BONE_HEAP_RISE := "bone_heap_rise_6f"
 const WAGER_ALTAR := "wager_altar_4f"
 const WAGER_ICONS := "wager_icons"
+# Light variants (A9)
+const GUARDIAN_IDLE := "stone_guardian_idle_4f"
+const GUARDIAN_WALK := "stone_guardian_walk_6f"
+const GUARDIAN_FROZEN := "stone_guardian_frozen"
+const SOUL_LANTERN := "soul_lantern_4f"
+const LANTERN_SOCKET := "lantern_socket"
+const LANTERN_SOCKET_LIT := "lantern_socket_lit_4f"
+const TORCH_UNLIT := "torch_stand_unlit"
 
 ## name: [frame size, frames, fps, pivot] (variants.json).
 const SPECS := {
@@ -27,6 +36,13 @@ const SPECS := {
 	BONE_HEAP_RISE: [Vector2i(32, 32), 6, 6.0, Vector2(16, 30)],
 	WAGER_ALTAR: [Vector2i(32, 48), 4, 4.0, Vector2(16, 46)],
 	WAGER_ICONS: [Vector2i(16, 16), 6, 0.0, Vector2(8, 8)],
+	GUARDIAN_IDLE: [Vector2i(32, 48), 4, 3.0, Vector2(16, 46)],
+	GUARDIAN_WALK: [Vector2i(32, 48), 6, 6.0, Vector2(16, 46)],
+	GUARDIAN_FROZEN: [Vector2i(32, 48), 1, 0.0, Vector2(16, 46)],
+	SOUL_LANTERN: [Vector2i(16, 24), 4, 6.0, Vector2(8, 22)],
+	LANTERN_SOCKET: [Vector2i(32, 32), 1, 0.0, Vector2(16, 30)],
+	LANTERN_SOCKET_LIT: [Vector2i(32, 32), 4, 6.0, Vector2(16, 30)],
+	TORCH_UNLIT: [Vector2i(16, 40), 1, 0.0, Vector2(8, 39)],
 }
 const OUTLINE := Color("#1c1a2b")
 const SOUL := Color("#a66ef0")
@@ -36,6 +52,8 @@ const RIFT_COLOR := Color("#7ff0c8")
 const BONE := Color("#d8d0b8")
 const STONE := Color("#7d7799")
 const HOLE := Color("#100c1a")
+const EMBER := Color("#ffb347")
+const IRON := Color("#4a4458")
 
 static var _cache: Dictionary[String, Texture2D] = {}
 
@@ -133,6 +151,27 @@ static func make_bone_heap_frames() -> SpriteFrames:
 	return frames
 
 
+## Frames of a stone guardian (A9) for EnemyData.sprite_frames: "idle" and "walk" with glowing eyes
+## (active in the dark), "attack" (the leap's wind-up, eyes flare) and "frozen" (in the light).
+static func make_stone_guardian_frames() -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	add_animation(frames, &"idle", GUARDIAN_IDLE, true)
+	add_animation(frames, &"walk", GUARDIAN_WALK, true)
+	add_animation(frames, &"attack", GUARDIAN_IDLE, false, 8.0)
+	add_animation(frames, &"frozen", GUARDIAN_FROZEN, true, 1.0)
+	return frames
+
+
+## Frames of the lantern socket (A9): "empty" and "lit" (lantern set in, glowing).
+static func make_socket_frames() -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	add_animation(frames, &"empty", LANTERN_SOCKET, true, 1.0)
+	add_animation(frames, &"lit", LANTERN_SOCKET_LIT, true)
+	return frames
+
+
 ## Frames of a summoning rift: "idle" pulses, "death" closes it (Enemy plays "death" on dying).
 static func make_rift_frames() -> SpriteFrames:
 	var frames := SpriteFrames.new()
@@ -177,6 +216,31 @@ static func _placeholder(art_name: String) -> Image:
 			WAGER_ICONS:
 				var colors := [Color("#e0463a"), GOLD, Color("#6cb2ec"), SOUL, Color("#ff8a3c"), Color("#7ff0c8")]
 				_ellipse(image, origin + Vector2(8, 8), Vector2(5, 5), colors[frame % colors.size()])
+			GUARDIAN_IDLE, GUARDIAN_WALK, GUARDIAN_FROZEN:
+				var step := 1.0 if art_name == GUARDIAN_WALK and frame % 2 == 1 else 0.0
+				_box(image, origin, Vector2(9, 14), Vector2(14, 22), STONE)
+				_ellipse(image, origin + Vector2(16, 10), Vector2(6, 6), STONE.lightened(0.15))
+				_box(image, origin, Vector2(10, 36 - step), Vector2(5, 10), STONE.darkened(0.2))
+				_box(image, origin, Vector2(17, 36 + step), Vector2(5, 10), STONE.darkened(0.2))
+				_box(image, origin, Vector2(23, 12), Vector2(3, 26), STONE.lightened(0.3))
+				var eyes := STONE.darkened(0.4) if art_name == GUARDIAN_FROZEN else EMBER
+				_box(image, origin, Vector2(13, 9), Vector2(2, 2), eyes)
+				_box(image, origin, Vector2(17, 9), Vector2(2, 2), eyes)
+			SOUL_LANTERN:
+				_box(image, origin, Vector2(6, 1), Vector2(4, 3), IRON)
+				_box(image, origin, Vector2(3, 4), Vector2(10, 16), IRON)
+				_ellipse(image, origin + Vector2(8, 12), Vector2(3.5, 5.5 - 0.5 * sin(TAU * t)), SOUL_LIGHT)
+				_box(image, origin, Vector2(4, 20), Vector2(8, 2), IRON)
+			LANTERN_SOCKET, LANTERN_SOCKET_LIT:
+				_box(image, origin, Vector2(6, 20), Vector2(20, 10), STONE)
+				_box(image, origin, Vector2(10, 14), Vector2(12, 6), STONE.lightened(0.15))
+				if art_name == LANTERN_SOCKET_LIT:
+					_box(image, origin, Vector2(12, 2), Vector2(8, 12), IRON)
+					_ellipse(image, origin + Vector2(16, 8), Vector2(3, 4 - 0.5 * sin(TAU * t)), SOUL_LIGHT)
+			TORCH_UNLIT:
+				_box(image, origin, Vector2(7, 8), Vector2(2, 31), IRON)
+				_box(image, origin, Vector2(4, 4), Vector2(8, 5), IRON.lightened(0.2))
+				_box(image, origin, Vector2(4, 36), Vector2(8, 3), IRON)
 	_outline(image)
 	return image
 

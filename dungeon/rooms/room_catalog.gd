@@ -119,13 +119,13 @@ func get_size_of(scene: PackedScene) -> int:
 	return int(entry.size_class) if entry != null else -1
 
 
-func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName = &"", room_index := 0) -> bool:
-	return not _candidates(kind, sizes, biome_id, room_index).is_empty()
+func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> bool:
+	return not _candidates(kind, sizes, biome_id, room_index, entrance_side).is_empty()
 
 
 ## A template scene of the wanted kind, see pick_template().
-func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0) -> PackedScene:
-	var entry := pick_template(kind, sizes, rng, biome_id, room_index)
+func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> PackedScene:
+	var entry := pick_template(kind, sizes, rng, biome_id, room_index, entrance_side)
 	return entry.scene if entry != null else null
 
 
@@ -133,17 +133,21 @@ func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGener
 ## if given: RoomTemplate.min_room keeps the catacomb out of room 1), picked uniformly. Without such
 ## a template the room becomes a normal room (D-100), then any template of the allowed sizes, then
 ## any. Draws exactly one random number whenever a template exists; null only for an empty catalog.
-## room_index 0 = no room filter.
-func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0) -> RoomTemplate:
+## room_index 0 = no room filter. entrance_side (RoomTemplate.DoorSide, -1 = any): only templates
+## with a door place on that wall (A10: a room entered from the west needs a west door); this filter
+## holds through every fallback step except the very last one.
+func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> RoomTemplate:
 	_ensure_indexed()
 	var any_size: Array[RoomSequence.RoomSize] = []
-	var candidates := _candidates(kind, sizes, biome_id, room_index)
+	var candidates := _candidates(kind, sizes, biome_id, room_index, entrance_side)
 	if candidates.is_empty():
-		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome_id, room_index)
+		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome_id, room_index, entrance_side)
 	if candidates.is_empty():
-		candidates = _candidates(-1, sizes, biome_id, room_index)
+		candidates = _candidates(-1, sizes, biome_id, room_index, entrance_side)
 	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, biome_id, room_index)
+		candidates = _candidates(-1, any_size, biome_id, room_index, entrance_side)
+	if candidates.is_empty():
+		candidates = _candidates(-1, any_size, &"", 0, entrance_side)
 	if candidates.is_empty():
 		candidates = _candidates(-1, any_size, &"")
 	if candidates.is_empty():
@@ -174,8 +178,9 @@ static func read_template_info(scene: PackedScene) -> Vector2i:
 	return Vector2i(maxi(kind, RoomSequence.RoomKind.NORMAL), maxi(size, RoomSequence.RoomSize.S))
 
 
-# kind -1 = any kind, empty sizes = any size, empty biome = any biome, room 0 = any room.
-func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName, room_index := 0) -> Array[RoomTemplate]:
+# kind -1 = any kind, empty sizes = any size, empty biome = any biome, room 0 = any room,
+# entrance_side -1 = any wall.
+func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName, room_index := 0, entrance_side := -1) -> Array[RoomTemplate]:
 	_ensure_indexed()
 	var result: Array[RoomTemplate] = []
 	for entry in _entries:
@@ -183,7 +188,7 @@ func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: Strin
 			continue
 		if not sizes.is_empty() and not sizes.has(entry.size_class):
 			continue
-		if not entry.allows_biome(biome_id) or not entry.allows_room(room_index):
+		if not entry.allows_biome(biome_id) or not entry.allows_room(room_index) or not entry.allows_entrance(entrance_side):
 			continue
 		result.append(entry)
 	return result

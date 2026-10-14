@@ -52,6 +52,13 @@ static func create(id: StringName) -> CombatVariant:
 			return GravediggerVariant.new()
 		VariantRules.BOUNTY:
 			return BountyVariant.new()
+		# Light variants (A9, dungeon/variants/light/)
+		VariantRules.STONE_GUARDIAN:
+			return StoneGuardianVariant.new()
+		VariantRules.LANTERN:
+			return LanternVariant.new()
+		VariantRules.TORCH_ROOM:
+			return TorchRoomVariant.new()
 	return null
 
 

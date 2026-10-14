@@ -165,7 +165,7 @@ func _close_modals(node: Node) -> void:
 	for child in node.get_children():
 		if child.get_script() != null and child.get_script().get_global_name() == &"Modal":
 			for button in _buttons(child):
-				if button.text in ["Wählen", "Schließen"]:
+				if button.text in [DungeonTexts.t(&"MENU_CHOOSE"), DungeonTexts.t(&"MENU_CLOSE")]:
 					button.pressed.emit()
 					break
 			if child.cancel_allowed:

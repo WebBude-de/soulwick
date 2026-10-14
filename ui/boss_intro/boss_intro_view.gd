@@ -21,8 +21,9 @@ const SPEECH_HEIGHT := 24.0
 const STORY_SPEECH_HEIGHT := 30.0
 const HOLD_BAR_HEIGHT := 1.5
 ## Key hints (D-098 extension): tap pages, hold skips the whole story.
-const SHORT_HINT := "E / Klick: überspringen"
-const STORY_HINT := "E / Klick: weiter  ·  halten: überspringen"
+## Translation keys (D-111): the hint label gets the key, Godot translates it.
+const SHORT_HINT: StringName = &"BOSS_INTRO_SKIP_HINT"
+const STORY_HINT: StringName = &"BOSS_INTRO_STORY_HINT"
 const START_SHAKE := 3.0
 const ROAR_SHAKE := 9.0
 const PULSE_SCALE := 1.08

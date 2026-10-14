@@ -15,6 +15,11 @@ const KIND_BOSS := &"boss"
 ## Symbols over doors to special rooms, in the column order of door_special_symbols.png
 ## (SPRITES_V4 §4). "miniboss" is an optional seventh column (see DoorArt).
 const SYMBOLS: Array[StringName] = [&"shop", &"weapon", &"fountain", &"upgrade", &"trial", &"campfire", &"miniboss"]
+## Symbols over the two doors of a branch (A10, D-105), in the column order of
+## art/environment/rooms/door_branch_symbols.png: elite nest (crossed swords), safe way (heart),
+## unknown (question mark).
+const BRANCH_SYMBOLS: Array[StringName] = [&"elite_nest", &"safe", &"unknown"]
+const BRANCH_SYMBOLS_PATH := "res://art/environment/rooms/door_branch_symbols.png"
 
 const ART_DIR := "res://art/environment/doors/"
 
@@ -86,7 +91,7 @@ static func for_door(biome: StringName, door_kind: StringName = KIND_NORMAL, doo
 	var style := DoorStyle.new()
 	style.biome_id = biome if BIOMES.has(biome) else DEFAULT_BIOME
 	style.kind = KIND_BOSS if door_kind == KIND_BOSS else KIND_NORMAL
-	style.symbol = door_symbol if SYMBOLS.has(door_symbol) else &""
+	style.symbol = door_symbol if SYMBOLS.has(door_symbol) or BRANCH_SYMBOLS.has(door_symbol) else &""
 	style._apply_biome()
 	if style.kind == KIND_BOSS:
 		style._apply_boss()
@@ -114,9 +119,18 @@ static func _symbol_from_key(key: Variant) -> StringName:
 	return id if SYMBOLS.has(id) else &""
 
 
-## Column of a symbol in door_special_symbols.png, -1 for none.
+## Column of a symbol in door_special_symbols.png, -1 for none (and for branch symbols).
 static func symbol_index(symbol_id: StringName) -> int:
 	return SYMBOLS.find(symbol_id)
+
+
+## Column of a branch symbol in door_branch_symbols.png, -1 for none.
+static func branch_symbol_index(symbol_id: StringName) -> int:
+	return BRANCH_SYMBOLS.find(symbol_id)
+
+
+static func is_branch_symbol(symbol_id: StringName) -> bool:
+	return BRANCH_SYMBOLS.has(symbol_id)
 
 
 func is_boss() -> bool:
@@ -131,6 +145,12 @@ func get_frame_path() -> String:
 ## Four-frame leaf strip (frame 1 closed, frame 4 open).
 func get_leaf_path() -> String:
 	return ART_DIR + ("door_boss_open_4f.png" if is_boss() else "door_%s_open_4f.png" % biome_id)
+
+
+## Leaf of a door in the west or east wall, seen from above (A10, docs/SPRITES_V7_A10.md): four
+## frames of 32x32, drawn for a west wall door (the east one is mirrored).
+func get_side_leaf_path() -> String:
+	return ART_DIR + ("door_side_boss_open_4f.png" if is_boss() else "door_side_%s_open_4f.png" % biome_id)
 
 
 static func get_symbols_path() -> String:

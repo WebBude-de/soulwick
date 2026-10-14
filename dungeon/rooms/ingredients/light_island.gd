@@ -3,6 +3,7 @@ extends Node2D
 ## Free-standing light in a combat room (ingredient "Lichtinseln", KONZEPT_RAEUME §3.3): a crystal
 ## on a pedestal or an iron torch stand. Its LightSource cuts a circle into the darkness like a wall
 ## torch (VisionOverlay collects every LightSource, so it works for any number of players).
+## Its light counts for LightQuery (A9): stone guardians freeze in it like in a player's circle.
 ## The origin is the base line of the prop; the pedestal blocks like a crate.
 
 ## Light circle (TESTWERTE): a bit smaller than the player's own vision, bigger than a wall torch.
@@ -51,6 +52,8 @@ func _build(color: Color) -> void:
 	light.intensity = INTENSITY
 	light.flicker = CRYSTAL_FLICKER if crystal else TORCH_FLICKER
 	light.position = Vector2(0, -36 if crystal else -64)
+	light.counts_as_light = true
+	light.ground_offset = -light.position
 	add_child(light)
 	var body := StaticBody2D.new()
 	body.name = "Blocker"

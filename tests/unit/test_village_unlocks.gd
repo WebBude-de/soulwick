@@ -6,10 +6,14 @@ extends GutTest
 const TEST_PATH := "user://test_village_unlocks.cfg"
 const VILLAGE_SCENE := "res://world/village/village.tscn"
 
+var _old_locale: String
 var _old_path: String
 
 
 func before_all() -> void:
+	_old_locale = TranslationServer.get_locale()
+	# The expected texts are German; English is the default language (D-111).
+	Loc.apply(&"de")
 	_old_path = SaveManager.save_path
 
 
@@ -24,6 +28,7 @@ func after_each() -> void:
 
 
 func after_all() -> void:
+	TranslationServer.set_locale(_old_locale)
 	for suffix in ["", ".bak", ".v2.bak"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + suffix))
 	SaveManager.save_path = _old_path
@@ -118,7 +123,7 @@ func test_village_announces_new_unlocks_once() -> void:
 	SaveManager.add_stat(StatsTracker.DEATHS, 1)
 	SaveManager.add_stat(StatsTracker.BOSSES, 1)
 	var village := _village()
-	assert_eq(_notice_title(village.ui), MetaUnlocks.ANNOUNCE_TITLE)
+	assert_eq(_notice_title(village.ui), MetaUnlocks.get_announce_title())
 	assert_eq(_notice_lines(village.ui), ["Chronik", "Schmiede: Goldgier, Dash-Training und Arsenal"] as Array[String])
 	assert_false(village.has_lock_marker(VillageBuildings.CHRONICLE), "synced from the statistics on load")
 	assert_eq(SaveManager.load_game(), OK)
@@ -151,7 +156,7 @@ func test_forge_hides_locked_upgrades_with_a_hint() -> void:
 		texts.append((node as Label).text)
 	assert_has(texts, "Weitere Verbesserungen öffnen nach deinem ersten Boss.")
 	for id in [MetaProgression.GOLD_GREED, MetaProgression.DASH_TRAINING, MetaProgression.ARSENAL]:
-		assert_does_not_have(texts, MetaProgression.UPGRADES[id]["name"], "%s hidden while locked" % id)
+		assert_does_not_have(texts, MetaProgression.get_upgrade_name(id), "%s hidden while locked" % id)
 	modal.finish()
 
 
@@ -172,7 +177,7 @@ func test_trader_has_proviant_but_no_crystal_exchange() -> void:
 	for text in texts:
 		assert_false(text.contains("→"), "no exchange button: %s" % text)
 	for id in MetaProgression.BOOST_ORDER:
-		assert_has(texts, MetaProgression.BOOSTS[id]["name"], "Proviant %s offered" % id)
+		assert_has(texts, MetaProgression.get_boost_name(id), "Proviant %s offered" % id)
 	modal.finish()
 	assert_eq(SaveManager.get_permanent_crystals(), 10)
 	assert_eq(SaveManager.get_permanent_gold(), 500)

@@ -44,8 +44,6 @@ var ui: VillageUI = null
 var _intro_markers: Dictionary[StringName, Node2D] = {}
 ## building id -> its lock marker (only locked buildings).
 var _lock_markers: Dictionary[StringName, Node2D] = {}
-## building id -> door prompt of the open building ("Chronik betreten").
-var _open_prompts: Dictionary[StringName, String] = {}
 
 
 func _ready() -> void:
@@ -75,8 +73,8 @@ func _ready() -> void:
 		var door := building.get_node_or_null("Door") as Interactable
 		if door != null and building.has_meta(&"building_id"):
 			var building_id := StringName(building.get_meta(&"building_id"))
-			_open_prompts[building_id] = door.prompt
 			door.interacted.connect(_on_door_used.bind(building_id))
+	_apply_captions()
 	refresh_locks()
 	SaveManager.seen_changed.connect(_on_seen_changed)
 	ui.show_unlocks(announcements)
@@ -99,12 +97,38 @@ func refresh_locks() -> void:
 			door.prompt = "%s · %s" % [VillageBuildings.get_display_name(building_id), MetaUnlocks.get_building_lock_text(building_id)]
 			if not has_lock_marker(building_id):
 				_add_lock_marker(building as Node2D, building_id)
+			else:
+				(_lock_markers[building_id].get_node(^"LockText") as Label).text = MetaUnlocks.get_building_lock_text(building_id)
 			_remove_marker(_intro_markers, building_id)
 		else:
-			door.prompt = _open_prompts.get(building_id, door.prompt)
+			var prompt: String = VillageBuildings.get_prompt(building_id)
+			if not prompt.is_empty():
+				door.prompt = prompt
 			_remove_marker(_lock_markers, building_id)
 			if VillageBuildings.needs_intro(building_id) and not has_intro_marker(building_id):
 				_add_intro_marker(building as Node2D, building_id)
+
+
+## Building captions and the dungeon entrance in the current language (D-111): captions get the key
+## (Labels translate by themselves), door prompts the text (the player's prompt line composes it).
+func _apply_captions() -> void:
+	_entrance.prompt = Loc.t(VillageBuildings.DUNGEON_PROMPT)
+	var entrance_caption := _entrance.get_parent().get_node_or_null(^"Caption") as Label
+	if entrance_caption != null:
+		entrance_caption.text = VillageBuildings.DUNGEON_NAME
+	for building in _buildings.get_children():
+		var caption := building.get_node_or_null(^"Caption") as Label
+		if caption != null and building.has_meta(&"building_id"):
+			var building_id := StringName(building.get_meta(&"building_id"))
+			if VillageBuildings.has_building(building_id):
+				caption.text = VillageBuildings.get_name_key(building_id)
+
+
+## Language switch (options in the pause menu): prompts and lock texts are composed, rebuild them.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _buildings != null and is_node_ready():
+		_apply_captions()
+		refresh_locks()
 
 
 ## True while the building still shows its "not explained yet" marker (for tests and tools).

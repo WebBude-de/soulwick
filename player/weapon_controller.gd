@@ -370,7 +370,7 @@ func _owner_can_attack() -> bool:
 	var player := get_parent() as Player
 	if player == null:
 		return true
-	return player.is_alive() and not player.is_dashing() and not player.is_stunned()
+	return player.is_alive() and not player.is_dashing() and not player.is_stunned() and LanternCarry.can_attack(player)
 
 
 # --- Regular attacks ---

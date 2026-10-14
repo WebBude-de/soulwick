@@ -49,7 +49,9 @@ static func attach_to(target: RoomController, roll: float) -> WagerAltar:
 	if target == null or not is_instance_valid(target) or not target.has_room_kind() or of(target) != null:
 		return null
 	var free := VariantSpots.free_tiles(target)
-	var tile := VariantSpots.altar_tile(free, target.tiles.get_entrance_inside_tile())
+	var side := target.tiles.entrance_side
+	var along := Vector2i.DOWN if side == RoomTiles.DoorSide.WEST or side == RoomTiles.DoorSide.EAST else Vector2i.RIGHT
+	var tile := VariantSpots.altar_tile(free, target.tiles.get_entrance_inside_tile(), along)
 	if tile == VariantSpots.INVALID:
 		return null
 	var altar := WagerAltar.new()
@@ -206,7 +208,7 @@ func _on_accepted(_altar: WagerAltar, _player: Player) -> void:
 	_update_look()
 	_show_banner(DungeonTexts.t(&"WAGER_ACCEPTED"), WagerRules.get_condition_name(condition), COLOR)
 	if is_inside_tree():
-		Sfx.play_at(self, &"upgrade", global_position, -4.0)
+		Sfx.play_at(self, &"wager_accept", global_position, -4.0)
 		Burst.spawn(get_parent(), global_position + Vector2(0, -40), COLOR, 18, 130.0)
 
 
@@ -218,6 +220,8 @@ func _on_resolved(_altar: WagerAltar, won: bool) -> void:
 		_show_banner(DungeonTexts.t(&"WAGER_WON"), DungeonTexts.t(&"WAGER_WON_SUB", [crystals]), WON_COLOR)
 	else:
 		_show_banner(DungeonTexts.t(&"WAGER_LOST"), DungeonTexts.t(&"WAGER_LOST_SUB"), LOST_COLOR)
+	if is_inside_tree():
+		Sfx.play_ui(self, &"wager_won" if won else &"wager_lost", -6.0)
 	_release_players()
 	_restore_vision()
 

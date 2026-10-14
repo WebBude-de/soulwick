@@ -2,6 +2,8 @@ class_name VisionOverlay
 extends CanvasLayer
 ## Drives vision.gdshader: dungeon darkness with a light circle around the player and all
 ## LightSource nodes (D-067), blindness, red damage edge and the low-HP vignette.
+## Only draws: whether a point is lit for gameplay is LightQuery's decision; the overlay hands it the
+## bound player's current circle radius (state at the player).
 ## Also owns the PostProcess pass (layer 3) and forwards the bound player to it.
 
 const SHADER: Shader = preload("res://components/visual/vision.gdshader")
@@ -106,6 +108,9 @@ func _process(delta: float) -> void:
 	if _player != null and is_instance_valid(_player):
 		target_radius *= DarkZone.get_vision_factor_at(get_tree(), _player.global_position)
 	_radius = lerpf(_radius, target_radius, 1.0 - exp(-RADIUS_SMOOTHING * delta))
+	# The circle as drawn is the player's light for gameplay too (LightQuery, A9): state at the player.
+	if _player != null and is_instance_valid(_player):
+		LightQuery.set_player_radius(_player, _radius)
 	_darkness = move_toward(_darkness, _target_darkness, DARKNESS_SPEED * delta)
 	_hurt = maxf(0.0, _hurt - HURT_DECAY * delta)
 	var blend := 1.0 - exp(-DARK_COLOR_SPEED * 3.0 * delta)

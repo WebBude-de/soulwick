@@ -23,7 +23,8 @@ static func attach(room: RoomController, pick: VariantTable.Pick, rng: RandomNum
 	return VariantTable.NONE
 
 
-## Combat variant of a room (&"soul_flame", &"rifts", &"gravedigger", &"bounty"; &"" = none).
+## Combat variant of a room (&"soul_flame", &"rifts", &"gravedigger", &"bounty", A9: &"stone_guardian",
+## &"lantern", &"torch_room"; &"" = none).
 static func get_variant_id(room: Node) -> StringName:
 	var variant := CombatVariant.of(room)
 	return variant.variant_id if variant != null else VariantTable.NONE

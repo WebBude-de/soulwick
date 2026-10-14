@@ -332,6 +332,122 @@ def build_doors():
     return len(doors)
 
 
+# ---------------------------------------------------------------- room content (ROADMAP_AUSBAU phase 2)
+# Abyss fall (A4), combat variants (soul flame, rifts, gravedigger, bounty), wager altar and the
+# crumbling floor trial. Until the code switches to these names, the rooms play stand-in sounds
+# (dash, hit_enemy, blind, portal, teleport, slam, trap, upgrade). All pitches and lengths are TESTWERTE.
+
+def echo(samples, delay, feedback, count):
+    """Simple dark echo: count fading copies, each one more muffled (one-pole low-pass)."""
+    parts = [samples]
+    offsets = [0.0]
+    copy = samples
+    for i in range(count):
+        smoothed = []
+        last = 0.0
+        for v in copy:
+            last += 0.45 * (v - last)
+            smoothed.append(last * feedback)
+        copy = smoothed
+        parts.append(copy)
+        offsets.append(delay * (i + 1))
+    return mix(*parts, offsets=offsets)
+
+
+def clatter(dur, count, freqs, vol, accelerate=1.0):
+    """Dry bone clicks spread over dur; accelerate > 1 packs them closer towards the end."""
+    parts = []
+    offsets = []
+    for i in range(count):
+        t = (i / max(1, count - 1)) ** (1.0 / accelerate) * dur
+        f = random.choice(freqs) * random.uniform(0.92, 1.08)
+        parts.append(mix(noise(0.02, vol, 0.9, attack=0.001, release=0.015),
+                         tone(f, 0.026, "square", vol * 0.45, duty=0.25, slide_to=f * 0.7, attack=0.001, release=0.016)))
+        offsets.append(t)
+    return mix(*parts, offsets=offsets)
+
+
+def build_rooms():
+    # Own seed: every sound above stays byte-identical.
+    random.seed(17)
+    rooms = {}
+    # Abyss fall (ChasmRules.FALL_SOUND): a falling whistle over a rush of air that closes like a
+    # low-pass, echoing away into the dark. No impact - the player just vanishes.
+    whistle = mix(tone(980, 0.42, "sine", 0.4, slide_to=150, attack=0.01, release=0.22, vibrato_rate=7, vibrato_depth=0.02),
+                  tone(490, 0.42, "square", 0.07, duty=0.125, slide_to=75, attack=0.01, release=0.22))
+    rush = noise(0.46, 0.5, 0.55, attack=0.02, release=0.3, cutoff_to=0.03)
+    rooms["pit_fall"] = echo(mix(whistle, rush), 0.075, 0.38, 2)
+    # Soul flame hit: a short crackle with a flickering, sinking tone.
+    rooms["soul_flame_hit"] = mix(noise(0.09, 0.55, 0.65, attack=0.001, release=0.07),
+                                  tone(700, 0.13, "triangle", 0.4, slide_to=520, vibrato_rate=40, vibrato_depth=0.08, release=0.08),
+                                  offsets=[0.0, 0.01])
+    # Soul flame goes out: a soft thud, an airy hiss that closes down and a dying, wavering tone.
+    rooms["soul_flame_out"] = mix(tone(85, 0.25, "sine", 0.7, slide_to=40, release=0.18),
+                                  noise(0.85, 0.45, 0.55, attack=0.01, release=0.5, cutoff_to=0.02),
+                                  tone(560, 0.8, "triangle", 0.4, slide_to=110, vibrato_rate=11, vibrato_depth=0.06, release=0.45),
+                                  offsets=[0.0, 0.0, 0.03])
+    # Rift tears open: a ripping noise sweep, then a humming, shimmering wound.
+    rooms["rift_open"] = mix(noise(0.22, 0.7, 0.06, attack=0.005, release=0.08, cutoff_to=0.75),
+                             tone(72, 0.55, "saw", 0.3, slide_to=64, attack=0.03, release=0.3, vibrato_rate=9, vibrato_depth=0.06),
+                             tone(1250, 0.5, "square", 0.08, duty=0.125, vibrato_rate=17, vibrato_depth=0.05, attack=0.05, release=0.3),
+                             offsets=[0.0, 0.15, 0.18])
+    # Rift summons an enemy (wind-up, VariantRules.RIFT_WIND_UP 0.7 s): a rising warble and a pop.
+    rooms["rift_summon"] = mix(tone(170, 0.62, "triangle", 0.45, slide_to=760, vibrato_rate=13, vibrato_depth=0.07, attack=0.08, release=0.05),
+                               noise(0.6, 0.25, 0.08, attack=0.4, release=0.05, cutoff_to=0.4),
+                               mix(noise(0.05, 0.6, 0.7, attack=0.001, release=0.04),
+                                   tone(380, 0.08, "square", 0.25, duty=0.25, slide_to=190, release=0.05)),
+                               offsets=[0.0, 0.0, 0.62])
+    # Bone heap rattles back together (warning while it rises, RISE_ANIMATION_TIME 1 s).
+    rooms["bone_rattle"] = mix(clatter(0.9, 14, (520, 640, 760, 880), 0.55, accelerate=1.8),
+                               tone(140, 0.95, "triangle", 0.25, slide_to=260, attack=0.3, release=0.1))
+    # Bone heap stands up: a last clatter, a hollow rising tone and a low thump.
+    rooms["bone_rise"] = mix(clatter(0.12, 5, (600, 760, 900), 0.6),
+                             tone(200, 0.28, "triangle", 0.45, slide_to=380, release=0.15),
+                             tone(70, 0.2, "sine", 0.7, slide_to=42, release=0.14),
+                             noise(0.18, 0.3, 0.15, release=0.14),
+                             offsets=[0.0, 0.05, 0.12, 0.12])
+    # Bounty escape hole opens: earth rumble and a hollow gulp downwards.
+    rooms["bounty_hole"] = mix(noise(0.6, 0.6, 0.07, attack=0.03, release=0.35),
+                               tone(110, 0.55, "sine", 0.6, slide_to=50, attack=0.02, release=0.3),
+                               tone(420, 0.3, "triangle", 0.35, slide_to=150, release=0.15),
+                               offsets=[0.0, 0.0, 0.1])
+    # Bounty escapes into the hole: a quick downward whistle and a muffled plop.
+    rooms["bounty_escape"] = mix(tone(820, 0.26, "triangle", 0.4, slide_to=150, release=0.08),
+                                 mix(tone(95, 0.16, "sine", 0.6, slide_to=55, release=0.1), noise(0.1, 0.35, 0.12, release=0.08)),
+                                 offsets=[0.0, 0.24])
+    # Wager accepted: a pact - a low minor chord swelling under a cold bell.
+    pact = mix(*[tone(midi(n), 0.85, "triangle", 0.3, attack=0.12, release=0.45, vibrato_rate=5, vibrato_depth=0.01)
+                 for n in (45, 48, 52)],
+               tone(midi(57), 0.85, "square", 0.06, duty=0.125, attack=0.15, release=0.45))
+    bell = mix(tone(midi(81), 0.6, "sine", 0.45, release=0.55, decay_to=0.2),
+               tone(midi(81) * 2.76, 0.3, "sine", 0.12, release=0.28, decay_to=0.2))
+    rooms["wager_accept"] = mix(pact, bell, offsets=[0.0, 0.02])
+    # Wager won: a rising minor-to-major arpeggio ending on a bright shimmer.
+    rooms["wager_won"] = seq(*[tone(midi(n), 0.07, "square", 0.3, duty=0.25) for n in (69, 72, 76)],
+                             mix(tone(midi(81), 0.38, "square", 0.3, duty=0.25, release=0.28),
+                                 tone(midi(73), 0.38, "triangle", 0.4, release=0.28),
+                                 tone(midi(93), 0.3, "sine", 0.12, vibrato_rate=24, vibrato_depth=0.02, release=0.25)))
+    # Wager lost: two falling notes a tritone apart, then a dull, sinking tail.
+    rooms["wager_lost"] = seq(tone(midi(62), 0.12, "square", 0.35, duty=0.5, release=0.04),
+                              mix(tone(midi(56), 0.45, "square", 0.3, duty=0.5, slide_to=midi(53), release=0.3),
+                                  tone(midi(44), 0.45, "triangle", 0.45, release=0.3),
+                                  noise(0.3, 0.2, 0.08, release=0.25)),
+                              gap=0.02)
+    # Crumbling plate cracks under the feet (CrumbleCourse.step_on): a sharp, dry crack.
+    rooms["plate_crack"] = mix(noise(0.04, 0.8, 0.95, attack=0.001, release=0.03),
+                               noise(0.03, 0.45, 0.9, attack=0.001, release=0.02),
+                               tone(240, 0.06, "square", 0.22, duty=0.125, slide_to=170, attack=0.001, release=0.04),
+                               offsets=[0.0, 0.045, 0.0])
+    # Crumbling plate breaks away (CRUMBLE_DELAY over): crunching stone, debris falling into the dark.
+    rooms["plate_break"] = echo(mix(noise(0.3, 0.75, 0.35, attack=0.002, release=0.22, decay_to=0.3, cutoff_to=0.05),
+                                    tone(90, 0.24, "sine", 0.6, slide_to=45, release=0.16),
+                                    clatter(0.28, 6, (300, 380, 460), 0.35),
+                                    offsets=[0.0, 0.0, 0.05]), 0.08, 0.3, 1)
+    for name, samples in rooms.items():
+        write_wav(SFX_DIR / f"{name}.wav", samples, peak=0.8)
+    return len(rooms)
+
+
 if __name__ == "__main__":
     count = build_sfx()
     print(f"{count} sound effects written to {SFX_DIR}")
@@ -341,3 +457,5 @@ if __name__ == "__main__":
     print(f"{ui_count} menu sounds written to {SFX_DIR}")
     door_count = build_doors()
     print(f"{door_count} door sounds written to {SFX_DIR}")
+    room_count = build_rooms()
+    print(f"{room_count} room content sounds written to {SFX_DIR}")

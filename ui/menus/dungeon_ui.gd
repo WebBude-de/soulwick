@@ -752,11 +752,11 @@ func _upgrade_card(upgrade: UpgradeData, index: int, on_pick: Callable, stack_ga
 	eyebrow.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(eyebrow)
 	box.add_child(UiKit.pixel_icon(upgrade.icon, 32.0))
-	var name_label := UiKit.title(upgrade.display_name, UiKit.SIZE_VALUE, UiKit.COLOR_TEXT)
+	var name_label := UiKit.title(DataTexts.upgrade_name(upgrade), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT)
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.custom_minimum_size.x = UiKit.px(CARD_SIZE.x - 16.0)
 	box.add_child(name_label)
-	var description := UiKit.wrapped_text(upgrade.description, CARD_SIZE.x - 16.0)
+	var description := UiKit.wrapped_text(DataTexts.upgrade_description(upgrade), CARD_SIZE.x - 16.0)
 	description.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(description)
 	box.add_child(_filler())
@@ -868,7 +868,7 @@ func _shop_card(offer: ShopOffer, index: int, player: Player, modal: Modal) -> U
 	text.add_child(_fitted_label(offer.get_title(), SHOP_TEXT_WIDTH, UiKit.SIZE_CARD_NAME, title_color))
 	var description := offer.get_description()
 	if offer.kind == ShopOffer.Kind.WEAPON:
-		description = UiKit.weapon_stats_text(player.weapon_controller, offer.weapon)
+		description = DataTexts.weapon_stats_text(player.weapon_controller, offer.weapon)
 	text.add_child(UiKit.wrapped_text(description, SHOP_TEXT_WIDTH, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	box.add_child(_filler())
 	var footer := UiKit.hbox(int(UiKit.px(4)))
@@ -1033,7 +1033,7 @@ func _weapon_column(weapon: WeaponData, controller: WeaponController, role: Stri
 	var weapon_icon := UiKit.pixel_icon(weapon.icon, 16.0)
 	weapon_icon.modulate = weapon.tint
 	head.add_child(weapon_icon)
-	var name_label := UiKit.text_label(weapon.display_name, UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
+	var name_label := UiKit.text_label(DataTexts.weapon_name(weapon), UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
 	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(name_label)
 	box.add_child(head)
@@ -1138,7 +1138,7 @@ func choose_campfire_rest(heal_amount: float, heal_possible: bool, upgrades: Arr
 		for i in upgrades.size():
 			var upgrade := upgrades[i]
 			var key := str(i + 2) if i + 1 < NUMBER_KEYS.size() else ""
-			var button := UiDialog.option_button(upgrade.display_name, _campfire_stack_text(upgrade), key, modal.finish.bind(i + 1))
+			var button := UiDialog.option_button(DataTexts.upgrade_name(upgrade), _campfire_stack_text(upgrade), key, modal.finish.bind(i + 1))
 			button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			UiDialog.set_option_icon(button, upgrade.icon)
 			grid.add_child(button)
@@ -1210,7 +1210,7 @@ func _overview_upgrades() -> Control:
 		row.add_child(UiKit.pixel_icon(upgrade.icon, 16.0))
 		var names := UiKit.vbox(0)
 		names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		names.add_child(UiKit.text_label(upgrade.display_name, UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true))
+		names.add_child(UiKit.text_label(DataTexts.upgrade_name(upgrade), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true))
 		names.add_child(UiKit.eyebrow(UiKit.category_name(upgrade.category), UiKit.category_color(upgrade.category)))
 		row.add_child(names)
 		if upgrade.is_limited() and context.upgrade_manager.get_stacks(upgrade.id) >= upgrade.max_stacks:
@@ -1245,7 +1245,7 @@ func _overview_values() -> Control:
 		var weapon_icon := UiKit.pixel_icon(weapon.icon, 16.0)
 		weapon_icon.modulate = weapon.tint
 		head.add_child(weapon_icon)
-		head.add_child(UiKit.text_label(weapon.display_name, UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true))
+		head.add_child(UiKit.text_label(DataTexts.weapon_name(weapon), UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true))
 		head.add_child(UiKit.text_label(_t(&"OVERVIEW_SLOT_ACTIVE" if active else &"OVERVIEW_SLOT", [slot + 1]), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 		box.add_child(head)
 		for line in _weapon_breakdown(controller, weapon):

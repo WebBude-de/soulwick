@@ -2,7 +2,8 @@ class_name VillageBuildings
 extends RefCounted
 ## Facts about the enterable village buildings (D-078, D-087): display name, the one-sentence role
 ## (shown on first entry and permanently as dialog subtitle), a few short how-to lines for the
-## first-entry explanation, the NPC sprite of the building and the door sign. Also decides whether a
+## first-entry explanation, the door prompt, the NPC sprite of the building and the door sign.
+## All texts are translation keys (D-111); the getters return them in the current language. Also decides whether a
 ## building still has to explain itself; the "seen" flags are stored by SaveManager.
 ## Zuhause (MM1) is the player's own house: no NPC (the explanation shows the player's character),
 ## its door opens the wardrobe ("Umkleiden").
@@ -24,55 +25,50 @@ const INTRO_PREFIX := "intro_"
 ## existing decisions (payout D-039, crystals D-078, multiplayer D-078/D-081).
 const INFO := {
 	FORGE: {
-		"name": "Schmiede",
-		"role": "Dauerhaft stärker werden – kostet Gold.",
-		"hints": [
-			"Jede Verbesserung gilt ab dem nächsten Run – für immer.",
-			"Gold bringst du aus dem Dungeon mit: 100 % über ein Portal, 50 %, wenn du fällst.",
-		],
+		"name": &"VILLAGE_FORGE",
+		"role": &"VILLAGE_FORGE_ROLE",
+		"hints": [&"VILLAGE_FORGE_HINT_1", &"VILLAGE_FORGE_HINT_2"],
+		"prompt": &"VILLAGE_FORGE_ENTER",
 		"npc_frames": "res://art/characters/npcs/smith_frames.tres",
 		"sign": "res://art/ui/sign_forge.png",
 	},
 	TRADER: {
-		"name": "Handelsposten",
-		"role": "Proviant für den nächsten Run – kostet Seelenkristalle.",
-		"hints": [
-			"Proviant wirkt nur in einem Run und wird beim Start verbraucht.",
-			"Seelenkristalle erhältst du von Champions und Bossen.",
-		],
+		"name": &"VILLAGE_TRADER",
+		"role": &"VILLAGE_TRADER_ROLE",
+		"hints": [&"VILLAGE_TRADER_HINT_1", &"VILLAGE_TRADER_HINT_2"],
+		"prompt": &"VILLAGE_TRADER_ENTER",
 		"npc_frames": "res://art/characters/npcs/trader_frames.tres",
 		"sign": "res://art/ui/sign_trading.png",
 	},
 	CHRONICLE: {
-		"name": "Chronik",
-		"role": "Deine Rekorde und Statistiken.",
-		"hints": [
-			"Jeder Run zählt mit – auch wenn du fällst.",
-		],
+		"name": &"VILLAGE_CHRONICLE",
+		"role": &"VILLAGE_CHRONICLE_ROLE",
+		"hints": [&"VILLAGE_CHRONICLE_HINT_1"],
+		"prompt": &"VILLAGE_CHRONICLE_ENTER",
 		"npc_frames": "res://art/characters/npcs/chronicler_frames.tres",
 		"sign": "res://art/ui/sign_chronicle.png",
 	},
 	GUILD: {
-		"name": "Gilde",
-		"role": "Mit Freunden spielen.",
-		"hints": [
-			"Gemeinsam spielen ist noch in Vorbereitung.",
-		],
+		"name": &"VILLAGE_GUILD",
+		"role": &"VILLAGE_GUILD_ROLE",
+		"hints": [&"VILLAGE_GUILD_HINT_1"],
+		"prompt": &"VILLAGE_GUILD_ENTER",
 		"npc_frames": "res://art/characters/npcs/guild_master_frames.tres",
 		"sign": "res://art/ui/sign_guild.png",
 	},
 	# MM1: texts by Claude (not part of D-087); the sign is still missing (SPRITES_V3, placeholder).
 	HOME: {
-		"name": "Zuhause",
-		"role": "Dein Zuhause – hier ziehst du dich um.",
-		"hints": [
-			"Im Kleiderschrank wählst du die Farbe deiner Kleidung.",
-			"Sie gilt für diesen Spielstand und ist sofort zu sehen.",
-		],
+		"name": &"VILLAGE_HOME",
+		"role": &"VILLAGE_HOME_ROLE",
+		"hints": [&"VILLAGE_HOME_HINT_1", &"VILLAGE_HOME_HINT_2"],
+		"prompt": &"VILLAGE_HOME_ENTER",
 		"npc_frames": "",
 		"sign": "res://art/ui/sign_home.png",
 	},
 }
+## Dungeon entrance in the village (not a building with a dialog): caption and door prompt.
+const DUNGEON_NAME: StringName = &"VILLAGE_DUNGEON"
+const DUNGEON_PROMPT: StringName = &"VILLAGE_DUNGEON_ENTER"
 
 
 static func has_building(id: StringName) -> bool:
@@ -80,20 +76,30 @@ static func has_building(id: StringName) -> bool:
 
 
 static func get_display_name(id: StringName) -> String:
-	return INFO[id]["name"] if INFO.has(id) else String(id)
+	return Loc.t(INFO[id]["name"]) if INFO.has(id) else String(id)
 
 
 ## The one-sentence role from D-087 (empty for unknown ids).
 static func get_role(id: StringName) -> String:
-	return INFO[id]["role"] if INFO.has(id) else ""
+	return Loc.t(INFO[id]["role"]) if INFO.has(id) else ""
 
 
 static func get_hints(id: StringName) -> Array[String]:
 	var result: Array[String] = []
 	if INFO.has(id):
-		for hint: String in INFO[id]["hints"]:
-			result.append(hint)
+		for hint: StringName in INFO[id]["hints"]:
+			result.append(Loc.t(hint))
 	return result
+
+
+## Translation key of the building name (for Labels that translate by themselves, e.g. the caption).
+static func get_name_key(id: StringName) -> StringName:
+	return INFO[id]["name"] if INFO.has(id) else StringName(id)
+
+
+## Door prompt of the open building ("Schmiede betreten", Zuhause: "Umkleiden").
+static func get_prompt(id: StringName) -> String:
+	return Loc.t(INFO[id]["prompt"]) if INFO.has(id) else ""
 
 
 ## NPC of the building; null for Zuhause (no NPC) or missing art.

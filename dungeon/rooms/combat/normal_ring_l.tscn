@@ -16,45 +16,46 @@ entrance_x = 12
 exit_x = 12
 floor_seed = 832
 wall_rects = Array[Rect2i]([Rect2i(7, 4, 11, 7)])
+door_slots = Array[Vector2i]([Vector2i(2, 12), Vector2i(0, 12), Vector2i(3, 7), Vector2i(1, 7), Vector2i(0, 6), Vector2i(0, 19)])
 
 [node name="Spawn1" parent="SpawnPoints"]
-position = Vector2(32, 32)
+position = Vector2(672, 32)
 
 [node name="Spawn2" parent="SpawnPoints"]
-position = Vector2(1568, 32)
+position = Vector2(288, 928)
 
 [node name="Spawn3" parent="SpawnPoints"]
-position = Vector2(32, 864)
+position = Vector2(1312, 928)
 
 [node name="Spawn4" parent="SpawnPoints"]
-position = Vector2(1568, 864)
+position = Vector2(1184, 160)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(800, 160)
+position = Vector2(160, 32)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(352, 416)
+position = Vector2(1568, 32)
 
 [node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1248, 416)
+position = Vector2(416, 352)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(416, 800)
+position = Vector2(1184, 544)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1184, 800)
+position = Vector2(544, 736)
 
 [node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(416, 32)
+position = Vector2(288, 608)
 
 [node name="Spawn11" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1184, 32)
+position = Vector2(32, 800)
 
 [node name="Spawn12" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(32, 480)
+position = Vector2(1056, 800)
 
 [node name="Spawn13" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1568, 480)
+position = Vector2(1568, 800)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(800, 224)
@@ -75,10 +76,10 @@ position = Vector2(1216, -64)
 position = Vector2(1568, 952)
 
 [node name="Bones_24" parent="Props" instance=ExtResource("3_bones_2")]
-position = Vector2(32, 952)
+position = Vector2(32, 56)
 
 [node name="Bones_15" parent="Props" instance=ExtResource("2_bones_1")]
-position = Vector2(1568, 248)
+position = Vector2(32, 952)
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

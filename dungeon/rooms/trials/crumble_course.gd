@@ -74,6 +74,8 @@ func advance(delta: float) -> void:
 	var tiles := _get_tiles()
 	for tile in broken:
 		_show_frame(tile, FRAME_GONE)
+	if not broken.is_empty() and is_inside_tree():
+		Sfx.play_at(self, &"plate_break", to_global(RoomTiles.tile_center(broken[0])), -8.0)
 	for tile in regrown:
 		_show_frame(tile, FRAME_WAITING)
 	if tiles != null:
@@ -94,6 +96,8 @@ func step_on(player: Player, tile: Vector2i) -> void:
 			plates[tile] = Plate.CRACKING
 			_timers[tile] = CRUMBLE_DELAY
 			_show_frame(tile, FRAME_BREAKING_FIRST)
+			if is_inside_tree():
+				Sfx.play_at(self, &"plate_crack", to_global(RoomTiles.tile_center(tile)), -10.0)
 		return
 	if gap_tiles.has(tile) or player == null:
 		return

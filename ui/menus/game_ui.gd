@@ -27,6 +27,9 @@ var _pause_modal: Modal = null
 var _pause_buttons: Array[Button] = []
 var _pause_index := 0
 var _recap: RunRecap = null
+## Texts of the open pause menu: [node, key, args] (D-111). The language can change in the options
+## opened from it, so _notification() sets them again.
+var _pause_texts: Array = []
 
 
 func _ready() -> void:
@@ -73,24 +76,22 @@ func open_pause_menu() -> void:
 	modal.frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"normal", 10, 10))
 	modal.set_width(PAUSE_WIDTH)
 	modal.content.add_theme_constant_override("separation", int(UiKit.px(4)))
-	var title := UiKit.title("Pause", UiKit.SIZE_TITLE_LARGE)
+	var title := UiKit.title(Loc.t(&"GAME_UI_PAUSE"), UiKit.SIZE_TITLE_LARGE)
 	modal.content.add_child(title)
 	_pause_buttons.clear()
-	_add_pause_button(modal, UiKit.menu_button("Weiterspielen", "Esc", modal.finish.bind(&"resume")))
-	_add_pause_button(modal, UiKit.menu_button("Optionen", "Ton · Bild · Tasten", open_options))
+	_pause_texts.clear()
+	_pause_texts.append([title, &"GAME_UI_PAUSE", []])
+	_add_pause_button(modal, _pause_button(&"GAME_UI_RESUME", &"", [], modal.finish.bind(&"resume")))
+	_add_pause_button(modal, _pause_button(&"MENU_OPTIONS", &"MENU_OPTIONS_HINT", [], open_options))
 	if in_dungeon:
 		var payout := RunManager.calculate_payout(RunManager.get_run_gold(), RunManager.EndReason.ABORT)
-		_add_pause_button(modal, UiKit.menu_button("Run abbrechen", "50 %% Gold · %d" % payout, modal.finish.bind(&"abort"), true))
+		_add_pause_button(modal, _pause_button(&"GAME_UI_ABORT_RUN", &"GAME_UI_ABORT_RUN_HINT", [payout], modal.finish.bind(&"abort"), true))
 	else:
-		_add_pause_button(modal, UiKit.menu_button("Hauptmenü", "Fortschritt bleibt", modal.finish.bind(&"main_menu")))
-	_add_pause_button(modal, UiKit.menu_button("Spiel beenden", "Run geht verloren" if in_dungeon else "", modal.finish.bind(&"quit")))
-	var footer_parts: PackedStringArray = []
-	if in_dungeon:
-		footer_parts.append("Raum %d" % maxi(1, RunManager.get_current_room()))
-	footer_parts.append("Spiel pausiert")
-	footer_parts.append("↑↓ Enter · Esc fortsetzen")
-	var footer := UiKit.text_label(" · ".join(footer_parts), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+		_add_pause_button(modal, _pause_button(&"GAME_UI_MAIN_MENU", &"GAME_UI_MAIN_MENU_HINT", [], modal.finish.bind(&"main_menu")))
+	_add_pause_button(modal, _pause_button(&"GAME_UI_QUIT", &"GAME_UI_QUIT_HINT" if in_dungeon else &"", [], modal.finish.bind(&"quit")))
+	var footer := UiKit.text_label(_pause_footer_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_pause_texts.append([footer, &"", []])
 	modal.content.add_child(footer)
 	modal.input_handler = _on_pause_key
 	_select_pause_button(0, false)
@@ -98,6 +99,7 @@ func open_pause_menu() -> void:
 	var choice: Variant = await modal.open(self)
 	_pause_modal = null
 	_pause_buttons.clear()
+	_pause_texts.clear()
 	match choice:
 		&"abort":
 			if await _confirm_abort():
@@ -106,6 +108,41 @@ func open_pause_menu() -> void:
 			main_menu_requested.emit()
 		&"quit":
 			get_tree().quit()
+
+
+## Pause menu entry: caption key, hint key ("Esc" for resume; &"" = none) with format args.
+## The texts are resolved now (tools press buttons by their text) and again on a language change.
+func _pause_button(key: StringName, hint_key: StringName, hint_args: Array, on_pressed: Callable, danger := false) -> Button:
+	var hint := "Esc" if key == &"GAME_UI_RESUME" else (Loc.t(hint_key, hint_args) if hint_key != &"" else "")
+	var button := UiKit.menu_button(Loc.t(key), hint, on_pressed, danger)
+	_pause_texts.append([button, key, []])
+	if hint_key != &"" and button.get_child_count() > 0 and button.get_child(0) is Label:
+		_pause_texts.append([button.get_child(0), hint_key, hint_args])
+	return button
+
+
+func _pause_footer_text() -> String:
+	var footer_parts: PackedStringArray = []
+	if in_dungeon:
+		footer_parts.append(Loc.t(&"GAME_UI_ROOM", [maxi(1, RunManager.get_current_room())]))
+	footer_parts.append(Loc.t(&"MENU_PAUSED"))
+	footer_parts.append(Loc.t(&"GAME_UI_PAUSE_KEYS"))
+	return " · ".join(footer_parts)
+
+
+## Language switch from the options over the pause menu: set its texts again (D-111 §5).
+func _notification(what: int) -> void:
+	if what != NOTIFICATION_TRANSLATION_CHANGED:
+		return
+	for entry: Array in _pause_texts:
+		var node: Node = entry[0]
+		if not is_instance_valid(node):
+			continue
+		var text := _pause_footer_text() if entry[1] == &"" else Loc.t(entry[1], entry[2])
+		if node is Button:
+			(node as Button).text = text
+		elif node is Label:
+			(node as Label).text = text
 
 
 ## The shared options (OptionsView) over the hidden pause menu; Esc or "Zurück" returns to it.
@@ -119,7 +156,7 @@ func open_options() -> void:
 		UiSound.back(view)
 		modal.finish())
 	modal.content.add_child(view)
-	modal.set_footer("Spiel pausiert")
+	modal.set_footer(Loc.t(&"MENU_PAUSED"))
 	var pause := _pause_modal
 	if pause != null:
 		pause.visible = false
@@ -244,15 +281,15 @@ func _select_pause_button(index: int, by_key: bool) -> void:
 
 func _confirm_abort() -> bool:
 	var gold := RunManager.get_run_gold()
-	var modal := UiDialog.create(GameManager.PAUSE_CONFIRM, CONFIRM_WIDTH, "Run wirklich abbrechen?",
-		"Du behältst nur 50 % deines Run-Goldes (%d)." % gold)
+	var modal := UiDialog.create(GameManager.PAUSE_CONFIRM, CONFIRM_WIDTH, Loc.t(&"GAME_UI_ABORT_QUESTION"),
+		Loc.t(&"GAME_UI_ABORT_TEXT", [gold]))
 	modal.cancel_result = false
 	UiDialog.add_rows(modal, [
-		["Run-Gold", str(gold), UiKit.COLOR_GOLD],
-		["Gutschrift (50 %)", str(RunManager.calculate_payout(gold, RunManager.EndReason.ABORT)), UiKit.COLOR_SUCCESS],
+		[Loc.t(&"GAME_UI_RUN_GOLD"), str(gold), UiKit.COLOR_GOLD],
+		[DungeonTexts.t(&"RUNEND_PAYOUT", ["50 %"]), str(RunManager.calculate_payout(gold, RunManager.EndReason.ABORT)), UiKit.COLOR_SUCCESS],
 	])
 	UiDialog.add_buttons(modal, [
-		{"text": "Abbrechen", "sub": "", "result": true},
-		{"text": "Weiterspielen", "sub": "Esc", "result": false, "default": true},
+		{"text": Loc.t(&"GAME_UI_ABORT_CONFIRM"), "sub": "", "result": true},
+		{"text": Loc.t(&"GAME_UI_RESUME"), "sub": "Esc", "result": false, "default": true},
 	])
 	return await modal.open(self)

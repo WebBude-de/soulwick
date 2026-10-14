@@ -8,6 +8,7 @@ extends CanvasLayer
 ## sentence stays as dialog subtitle and the info button next to the title shows the explanation again.
 ## Locked forge upgrades (MetaUnlocks) are not shown; one line with a lock says when more open.
 ## Short non-blocking notices (show_notice): "Neu freigeschaltet" and "Öffnet nach …" at locked doors.
+## Texts come from localization/translations.csv (D-111) and are resolved when a dialog is built.
 
 const PAUSE_VILLAGE_DIALOG: StringName = &"village_dialog"
 const PAUSE_VILLAGE_INTRO: StringName = &"village_intro"
@@ -39,20 +40,20 @@ const BOOST_ICONS := {
 	MetaProgression.BOOST_UPGRADE: preload("res://art/ui/upgrade_magic_power.png"),
 	MetaProgression.BOOST_GOLD: preload("res://art/ui/gold_icon.png"),
 }
-const WEAPON_NAMES := MetaProgression.WEAPON_NAMES
+## Chronicle rows: stat id -> translation key of its caption (D-111).
 const STAT_ROWS := [
-	[StatsTracker.RUNS, "Runs gestartet"],
-	[StatsTracker.DEATHS, "Gefallen"],
-	[StatsTracker.EXITS, "Dungeon verlassen"],
-	[StatsTracker.DEEPEST_ROOM, "Tiefster Raum"],
-	[StatsTracker.ROOMS_CLEARED, "Räume geschafft"],
-	[StatsTracker.KILLS, "Besiegte Gegner"],
-	[StatsTracker.CHAMPIONS, "Besiegte Champions"],
-	[StatsTracker.BOSSES, "Besiegte Bosse"],
-	[StatsTracker.GOLD_EARNED, "Gold gesammelt"],
-	[StatsTracker.GOLD_BANKED, "Gold gesichert"],
-	[StatsTracker.BEST_RUN_GOLD, "Meistes Gold in einem Run"],
-	[StatsTracker.CRYSTALS_EARNED, "Seelenkristalle erhalten"],
+	[StatsTracker.RUNS, &"VILLAGE_UI_STAT_RUNS"],
+	[StatsTracker.DEATHS, &"VILLAGE_UI_STAT_DEATHS"],
+	[StatsTracker.EXITS, &"VILLAGE_UI_STAT_EXITS"],
+	[StatsTracker.DEEPEST_ROOM, &"VILLAGE_UI_STAT_DEEPEST_ROOM"],
+	[StatsTracker.ROOMS_CLEARED, &"VILLAGE_UI_STAT_ROOMS_CLEARED"],
+	[StatsTracker.KILLS, &"VILLAGE_UI_STAT_KILLS"],
+	[StatsTracker.CHAMPIONS, &"VILLAGE_UI_STAT_CHAMPIONS"],
+	[StatsTracker.BOSSES, &"VILLAGE_UI_STAT_BOSSES"],
+	[StatsTracker.GOLD_EARNED, &"VILLAGE_UI_STAT_GOLD_EARNED"],
+	[StatsTracker.GOLD_BANKED, &"VILLAGE_UI_STAT_GOLD_BANKED"],
+	[StatsTracker.BEST_RUN_GOLD, &"VILLAGE_UI_STAT_BEST_RUN_GOLD"],
+	[StatsTracker.CRYSTALS_EARNED, &"VILLAGE_UI_STAT_CRYSTALS_EARNED"],
 ]
 
 var _open_modal: Modal = null
@@ -120,10 +121,10 @@ func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
 	if weapons.size() > 1:
 		var row := UiKit.hbox(10)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		row.add_child(UiKit.label("Zweite Startwaffe:", 16))
+		row.add_child(UiKit.label(MetaProgression.get_upgrade_stat(MetaProgression.ARSENAL), 16))
 		var chosen := MetaProgression.get_second_weapon()
 		for weapon_id in weapons:
-			var pick := UiKit.button(WEAPON_NAMES.get(weapon_id, String(weapon_id)), func() -> void:
+			var pick := UiKit.button(MetaProgression.get_weapon_name(weapon_id), func() -> void:
 				MetaProgression.set_second_weapon(weapon_id)
 				refresh.call())
 			pick.disabled = weapon_id == chosen
@@ -132,17 +133,16 @@ func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
 
 
 func _forge_card(id: StringName, refresh: Callable) -> Control:
-	var info: Dictionary = MetaProgression.UPGRADES[id]
 	var level := MetaProgression.get_level(id)
 	var max_level := MetaProgression.get_max_level(id)
-	var box := _card(UPGRADE_ICONS.get(id), info["name"], info["summary"])
+	var box := _card(UPGRADE_ICONS.get(id), MetaProgression.get_upgrade_name(id), MetaProgression.get_upgrade_summary(id))
 	# Real values instead of "+1 je Stufe" (D-087): "Max-HP 6 → 7".
 	var step := UiKit.wrapped_label(MetaProgression.describe_level_step(id, level), CARD_WIDTH - 40.0, 16, UiKit.ACCENT_COLOR)
 	step.name = "StepLabel"
 	box.add_child(step)
-	var level_text := "Stufe %d/%d" % [level, max_level]
+	var level_text := Loc.t(&"VILLAGE_UI_LEVEL", [level, max_level])
 	if id == MetaProgression.ARSENAL and level > 0:
-		level_text += " · %s" % WEAPON_NAMES.get(MetaProgression.get_second_weapon(), "")
+		level_text += " · %s" % MetaProgression.get_weapon_name(MetaProgression.get_second_weapon())
 	box.add_child(UiKit.label(level_text, 14, UiKit.MUTED_COLOR))
 	var cost := MetaProgression.get_next_cost(id)
 	var buy := UiKit.button("Max." if cost < 0 else "%d Gold" % cost, func() -> void:
@@ -162,22 +162,22 @@ func open_trader() -> void:
 
 ## Proviant only: the crystal exchange was removed (D-087), crystals are spent here and nowhere else.
 func _build_trader(body: VBoxContainer, refresh: Callable) -> void:
-	body.add_child(_section_title("Proviant (nur für den nächsten Run)"))
+	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_PROVISIONS")))
 	var grid := _grid(3)
 	body.add_child(grid)
 	for id in MetaProgression.BOOST_ORDER:
-		var info: Dictionary = MetaProgression.BOOSTS[id]
-		var box := _card(BOOST_ICONS.get(id), info["name"], info["effect"])
+		var box := _card(BOOST_ICONS.get(id), MetaProgression.get_boost_name(id), MetaProgression.get_boost_effect(id))
 		var pending := SaveManager.has_pending_boost(id)
-		var price: int = info["price"]
-		var button := UiKit.button("Eingepackt" if pending else "%d Kristall%s" % [price, "" if price == 1 else "e"], func() -> void:
+		var price := MetaProgression.get_boost_price(id)
+		var price_text := Loc.t(&"VILLAGE_UI_PRICE_CRYSTAL" if price == 1 else &"VILLAGE_UI_PRICE_CRYSTALS", [price])
+		var button := UiKit.button(Loc.t(&"VILLAGE_UI_PACKED") if pending else price_text, func() -> void:
 			if MetaProgression.try_buy_boost(id):
 				Sfx.play_ui(self, &"coin")
 			refresh.call())
 		button.disabled = not MetaProgression.can_buy_boost(id)
 		box.add_child(button)
 		grid.add_child(box.get_parent())
-	body.add_child(UiKit.label("Seelenkristalle erhältst du von Champions und Bossen.", 14, UiKit.MUTED_COLOR))
+	body.add_child(UiKit.label(Loc.t(&"VILLAGE_TRADER_HINT_2"), 14, UiKit.MUTED_COLOR))
 
 
 # --- Chronik ---
@@ -191,11 +191,11 @@ func _build_chronicle(body: VBoxContainer, _refresh: Callable) -> void:
 	grid.add_theme_constant_override("h_separation", 40)
 	grid.add_theme_constant_override("v_separation", 6)
 	for row in STAT_ROWS:
-		grid.add_child(UiKit.label(row[1], 17))
+		grid.add_child(UiKit.label(Loc.t(row[1]), 17))
 		var value := UiKit.label(str(int(SaveManager.get_stat(row[0]))), 17, UiKit.ACCENT_COLOR)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		grid.add_child(value)
-	grid.add_child(UiKit.label("Spielzeit", 17))
+	grid.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_STAT_PLAY_TIME"), 17))
 	var time := UiKit.label(StatsTracker.format_play_time(float(SaveManager.get_stat(StatsTracker.PLAY_TIME))), 17, UiKit.ACCENT_COLOR)
 	time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	grid.add_child(time)
@@ -211,36 +211,36 @@ func open_guild() -> void:
 
 
 func _build_guild(body: VBoxContainer, _refresh: Callable) -> void:
-	var badge := UiKit.label("IN VORBEREITUNG", 18, Color(1.0, 0.55, 0.35))
+	var badge := UiKit.label(Loc.t(&"VILLAGE_UI_IN_PREPARATION"), 18, Color(1.0, 0.55, 0.35))
+	badge.uppercase = true
 	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(badge)
 	var actions := UiKit.hbox(10)
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	var create := UiKit.button("Lobby erstellen", func() -> void: pass)
+	var create := UiKit.button(Loc.t(&"VILLAGE_UI_LOBBY_CREATE"), func() -> void: pass)
 	create.disabled = true
-	create.tooltip_text = "In Vorbereitung"
+	create.tooltip_text = Loc.t(&"VILLAGE_UI_IN_PREPARATION")
 	actions.add_child(create)
 	var address := LineEdit.new()
-	address.placeholder_text = "IP-Adresse, z. B. 192.168.0.10"
+	address.placeholder_text = Loc.t(&"VILLAGE_UI_LOBBY_ADDRESS")
 	address.custom_minimum_size = Vector2(260, 0)
 	address.editable = false
 	actions.add_child(address)
-	var join := UiKit.button("Lobby beitreten (IP)", func() -> void: pass)
+	var join := UiKit.button(Loc.t(&"VILLAGE_UI_LOBBY_JOIN"), func() -> void: pass)
 	join.disabled = true
-	join.tooltip_text = "In Vorbereitung"
+	join.tooltip_text = Loc.t(&"VILLAGE_UI_IN_PREPARATION")
 	actions.add_child(join)
 	body.add_child(actions)
 
-	body.add_child(_section_title("Spieler in der Lobby"))
+	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_LOBBY_PLAYERS")))
 	var list := UiKit.vbox(4)
-	list.add_child(UiKit.label("1.  Du (Host)", 16))
+	list.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_LOBBY_HOST", [1]), 16))
 	for i in range(2, 5):
-		list.add_child(UiKit.label("%d.  – freier Platz –" % i, 16, UiKit.MUTED_COLOR))
+		list.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_LOBBY_FREE_SLOT", [i]), 16, UiKit.MUTED_COLOR))
 	var frame := UiKit.panel(&"dark")
 	frame.add_child(list)
 	body.add_child(frame)
-	body.add_child(UiKit.wrapped_label("Geplant: bis zu 4 Spieler im lokalen Netzwerk, ein Spieler ist Host. "
-		+ "Diese Funktionen sind noch nicht aktiv.", 560.0, 14, UiKit.MUTED_COLOR))
+	body.add_child(UiKit.wrapped_label(Loc.t(&"VILLAGE_UI_LOBBY_PLANNED"), 560.0, 14, UiKit.MUTED_COLOR))
 
 
 # --- Zuhause: wardrobe (MM1) ---
@@ -270,7 +270,7 @@ func _build_home(body: VBoxContainer, refresh: Callable) -> void:
 	var side := UiKit.vbox(10)
 	side.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(side)
-	side.add_child(UiKit.label("Kleiderschrank", 22, UiKit.ACCENT_COLOR))
+	side.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_WARDROBE"), 22, UiKit.ACCENT_COLOR))
 	side.add_child(UiKit.label("%s · %s" % [data.display_name, data.get_color_name(current)], 16, UiKit.MUTED_COLOR))
 	var swatches := _grid(3)
 	swatches.name = "Swatches"
@@ -305,7 +305,7 @@ func _build_home(body: VBoxContainer, refresh: Callable) -> void:
 		swatches.add_child(swatch)
 		if modal != null and i < 9:
 			modal.hotkeys[KEY_1 + i] = choose
-	side.add_child(UiKit.label("Gilt für diesen Spielstand · Tasten 1–%d" % mini(9, data.color_choices.size()), 14, UiKit.MUTED_COLOR))
+	side.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_WARDROBE_NOTE", [mini(9, data.color_choices.size())]), 14, UiKit.MUTED_COLOR))
 
 
 ## Puts on colour index of the active character and saves. Returns false if it was already worn.
@@ -345,7 +345,7 @@ func show_intro(building_id: StringName) -> void:
 		text.add_child(UiKit.wrapped_label("• " + hint, INTRO_TEXT_WIDTH, 15, UiKit.MUTED_COLOR))
 	row.add_child(text)
 	modal.content.add_child(row)
-	var confirm := UiKit.button("Verstanden", modal.finish)
+	var confirm := UiKit.button(Loc.t(&"VILLAGE_UI_UNDERSTOOD"), modal.finish)
 	confirm.name = "ConfirmButton"
 	confirm.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	modal.content.add_child(confirm)
@@ -387,7 +387,7 @@ func show_unlocks(lines: Array[String]) -> void:
 	if lines.is_empty():
 		return
 	Sfx.play_ui(self, &"upgrade")
-	show_notice(MetaUnlocks.ANNOUNCE_TITLE, lines)
+	show_notice(MetaUnlocks.get_announce_title(), lines)
 
 
 ## A locked building's door: name with a lock and "Öffnet nach …".
@@ -472,7 +472,7 @@ func _open(building_id: StringName, build: Callable) -> void:
 	modal.content.add_child(_currencies)
 	_body = UiKit.vbox(10)
 	modal.content.add_child(_body)
-	var close := UiKit.button("Schließen", modal.finish)
+	var close := UiKit.button(Loc.t(&"MENU_CLOSE"), modal.finish)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	modal.content.add_child(close)
 	_rebuild()
@@ -493,7 +493,7 @@ func _title_row(building_id: StringName) -> Control:
 	info.icon = UiKit.upscale(INFO_ICON, 2)
 	info.flat = true
 	info.focus_mode = Control.FOCUS_NONE
-	info.tooltip_text = "Erklärung zeigen"
+	info.tooltip_text = Loc.t(&"VILLAGE_UI_SHOW_INTRO")
 	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	info.pressed.connect(func() -> void:
 		Sfx.play_ui(info, &"ui_click")
@@ -525,7 +525,7 @@ func _fill_currencies(row: HBoxContainer) -> void:
 	spacer.custom_minimum_size = Vector2(24, 0)
 	row.add_child(spacer)
 	row.add_child(UiKit.icon(CRYSTAL_ICON, 24.0))
-	row.add_child(UiKit.label("%d Seelenkristalle" % SaveManager.get_permanent_crystals(), 20, Color(0.7, 0.85, 1.0)))
+	row.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_CRYSTALS", [SaveManager.get_permanent_crystals()]), 20, Color(0.7, 0.85, 1.0)))
 
 
 ## A dark card with icon, name and effect text; returns the inner VBox (card = get_parent()).

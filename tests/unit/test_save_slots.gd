@@ -58,6 +58,7 @@ volume_sfx=1.0
 ## A v2 save written before D-087 (no [seen]) and before slots.
 const OLD_V2_NO_SEEN := "[meta]\nversion=2\n[progress]\npermanent_gold=12\n[settings]\nvolume_music=0.3\n"
 
+var _old_locale: String
 var _old_save_path: String
 var _old_saves_dir: String
 var _old_settings_path: String
@@ -65,6 +66,9 @@ var _old_legacy_path: String
 
 
 func before_all() -> void:
+	_old_locale = TranslationServer.get_locale()
+	# The expected texts are German; English is the default language (D-111).
+	Loc.apply(&"de")
 	_old_save_path = SaveManager.save_path
 	_old_saves_dir = SaveManager.saves_dir
 	_old_settings_path = SaveManager.settings_path
@@ -78,6 +82,7 @@ func before_each() -> void:
 
 
 func after_all() -> void:
+	TranslationServer.set_locale(_old_locale)
 	_wipe()
 	SaveManager.saves_dir = _old_saves_dir
 	SaveManager.settings_path = _old_settings_path

@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"stone_guardian"
+display_name = "Steinwächter"
+attack_kind = 0
+tags = Array[StringName]([&"melee", &"heavy", &"stone"])
+min_room = 6
+hint = "Steinwächter: Im Dunkeln aus Stein und unverwundbar, im Licht erstarrt und verwundbar. Weiche seinem Sprung (gelber Kreis) aus."
+max_health = 48.0
+damage = 1.0
+move_speed = 140.0
+knockback_resistance = 1.0
+gold_drop = 4
+attack_range = 40.0
+attack_reach = 26.0
+attack_radius = 22.0
+telegraph_time = 0.6
+attack_active_time = 0.15
+attack_cooldown = 1.6
+knockback_strength = 120.0
+special = 2
+special_every = 1
+special_telegraph_time = 0.8
+blast_radius = 64.0
+sprite_origin = Vector2(16, 30)
+strike_frame = 2
+body_radius = 13.0
+tint = Color(1, 1, 1, 1)
+placeholder_color = Color(0.6, 0.58, 0.68, 1)
+light_radius = 0.0

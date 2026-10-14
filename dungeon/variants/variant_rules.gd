@@ -1,7 +1,8 @@
 class_name VariantRules
 extends RefCounted
 ## Pure rules and numbers of the combat variants (KONZEPT_RAEUME §4, D-101, D-109): soul flame,
-## summoning rifts, gravedigger (crypt) and bounty. No nodes, unit-testable. The variant nodes
+## summoning rifts, gravedigger (crypt) and bounty. The light variants (A9) keep their numbers in
+## LightVariantRules. No nodes, unit-testable. The variant nodes
 ## (CombatVariant and its subclasses) ask these functions and only add the effects.
 ## Co-op values (flame health, rift count, chests per player) are parameters prepared for MP5
 ## (D-109); with one player every factor is neutral.
@@ -10,8 +11,15 @@ const SOUL_FLAME := &"soul_flame"
 const RIFTS := &"rifts"
 const GRAVEDIGGER := &"gravedigger"
 const BOUNTY := &"bounty"
-## The variants of this round (A7). Later: stone_guardian, lantern, torch_room (A9), elite_nest (A10).
-const ALL: Array[StringName] = [SOUL_FLAME, RIFTS, GRAVEDIGGER, BOUNTY]
+## Light variants (A9, KONZEPT_RAEUME §4.3, §4.4, §4.7); their numbers live in LightVariantRules.
+const STONE_GUARDIAN := &"stone_guardian"
+const LANTERN := &"lantern"
+const TORCH_ROOM := &"torch_room"
+## The variants of A7. Later: elite_nest (A10, only through branches).
+const FIRST_ROUND: Array[StringName] = [SOUL_FLAME, RIFTS, GRAVEDIGGER, BOUNTY]
+const LIGHT: Array[StringName] = [STONE_GUARDIAN, LANTERN, TORCH_ROOM]
+## Every variant of the draw (A7 + A9).
+const ALL: Array[StringName] = [SOUL_FLAME, RIFTS, GRAVEDIGGER, BOUNTY, STONE_GUARDIAN, LANTERN, TORCH_ROOM]
 
 # --- Soul flame (§4.1) ---
 

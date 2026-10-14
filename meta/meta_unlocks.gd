@@ -32,14 +32,15 @@ const UPGRADE_EVENTS := {
 	&"arsenal": EVENT_FIRST_BOSS,
 }
 ## When an event happens, as the end of "Öffnet …" (lock label at the door, door prompt) and of
-## "Weitere Verbesserungen öffnen …" (forge).
+## "Weitere Verbesserungen öffnen …" (forge). Translation keys (D-111).
 const LOCK_CONDITIONS := {
-	EVENT_FIRST_RUN: "nach deinem ersten Run",
-	EVENT_FIRST_CRYSTAL: "mit deinem ersten Seelenkristall",
-	EVENT_FIRST_BOSS: "nach deinem ersten Boss",
+	EVENT_FIRST_RUN: &"UNLOCK_AFTER_FIRST_RUN",
+	EVENT_FIRST_CRYSTAL: &"UNLOCK_WITH_FIRST_CRYSTAL",
+	EVENT_FIRST_BOSS: &"UNLOCK_AFTER_FIRST_BOSS",
 }
-## Title of the village message when something opened.
-const ANNOUNCE_TITLE := "Neu freigeschaltet"
+## Title of the village message when something opened: translation key (a Label translates it by
+## itself), get_announce_title() gives the text.
+const ANNOUNCE_TITLE: StringName = &"UNLOCK_ANNOUNCE_TITLE"
 
 
 # --- Events ---
@@ -146,12 +147,17 @@ static func get_building_lock_text(building_id: StringName) -> String:
 
 ## "Öffnet nach deinem ersten Boss"; empty for unknown events.
 static func get_lock_text(event: StringName) -> String:
-	return "Öffnet %s" % LOCK_CONDITIONS[event] if LOCK_CONDITIONS.has(event) else ""
+	return Loc.t(&"UNLOCK_OPENS", [Loc.t(LOCK_CONDITIONS[event])]) if LOCK_CONDITIONS.has(event) else ""
 
 
 ## Forge line while upgrades are hidden: "Weitere Verbesserungen öffnen nach deinem ersten Boss."
 static func get_forge_lock_text(event: StringName) -> String:
-	return "Weitere Verbesserungen öffnen %s." % LOCK_CONDITIONS[event] if LOCK_CONDITIONS.has(event) else ""
+	return Loc.t(&"UNLOCK_FORGE_MORE", [Loc.t(LOCK_CONDITIONS[event])]) if LOCK_CONDITIONS.has(event) else ""
+
+
+## "Neu freigeschaltet" in the current language.
+static func get_announce_title() -> String:
+	return Loc.t(ANNOUNCE_TITLE)
 
 
 # --- Announcement (once per event and save) ---
@@ -169,7 +175,7 @@ static func describe_event(event: StringName) -> String:
 	var upgrades: Array[String] = []
 	for id in MetaProgression.UPGRADE_ORDER:
 		if UPGRADE_EVENTS.get(id, &"") == event:
-			upgrades.append(MetaProgression.UPGRADES[id]["name"])
+			upgrades.append(MetaProgression.get_upgrade_name(id))
 	var parts: Array[String] = []
 	if not buildings.is_empty():
 		parts.append(join_names(buildings))
@@ -192,4 +198,4 @@ static func take_announcements() -> Array[String]:
 static func join_names(names: Array[String]) -> String:
 	if names.size() <= 1:
 		return "" if names.is_empty() else names[0]
-	return "%s und %s" % [", ".join(names.slice(0, names.size() - 1)), names[-1]]
+	return Loc.t(&"UNLOCK_JOIN_AND", [", ".join(names.slice(0, names.size() - 1)), names[-1]])

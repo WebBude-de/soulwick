@@ -536,17 +536,17 @@ static func apply_prompt_style(target: Label) -> void:
 ## [["Schaden", "14.4"], ["Rate", "1.73/s"], ["Reichweite", "75 px"], [extra caption, extra value]].
 static func weapon_stat_rows(controller: WeaponController, weapon: WeaponData) -> Array[PackedStringArray]:
 	var rows: Array[PackedStringArray] = []
-	rows.append(PackedStringArray(["Schaden", DamageNumber.format_amount(DamageProcessor.round_damage(controller.get_effective_damage(weapon)))]))
-	rows.append(PackedStringArray(["Rate", "%.2f/s" % controller.get_effective_attack_rate(weapon)]))
+	rows.append(PackedStringArray([Loc.t(&"STAT_DAMAGE"), DamageNumber.format_amount(DamageProcessor.round_damage(controller.get_effective_damage(weapon)))]))
+	rows.append(PackedStringArray([Loc.t(&"STAT_RATE"), "%.2f/s" % controller.get_effective_attack_rate(weapon)]))
 	if weapon.attack_range > 0.0:
-		rows.append(PackedStringArray(["Reichweite", "%d px" % roundi(weapon.attack_range)]))
+		rows.append(PackedStringArray([Loc.t(&"STAT_RANGE"), "%d px" % roundi(weapon.attack_range)]))
 	match weapon.weapon_type:
 		WeaponData.WeaponType.SWORD, WeaponData.WeaponType.DAGGER:
-			rows.append(PackedStringArray(["Winkel", "%d°" % roundi(controller.get_effective_swing_angle(weapon))]))
+			rows.append(PackedStringArray([Loc.t(&"STAT_ANGLE"), "%d°" % roundi(controller.get_effective_swing_angle(weapon))]))
 		WeaponData.WeaponType.STAFF, WeaponData.WeaponType.HAMMER:
-			rows.append(PackedStringArray(["Fläche", "%d px" % roundi(controller.get_effective_aoe_radius(weapon))]))
+			rows.append(PackedStringArray([Loc.t(&"STAT_AREA"), "%d px" % roundi(controller.get_effective_aoe_radius(weapon))]))
 		WeaponData.WeaponType.BOW:
-			rows.append(PackedStringArray(["Pfeil", "%d px/s" % roundi(controller.get_effective_projectile_speed(weapon))]))
+			rows.append(PackedStringArray([Loc.t(&"STAT_ARROW"), "%d px/s" % roundi(controller.get_effective_projectile_speed(weapon))]))
 	return rows
 
 

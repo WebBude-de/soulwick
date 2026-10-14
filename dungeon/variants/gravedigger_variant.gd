@@ -178,13 +178,15 @@ func rise(heap: Enemy) -> bool:
 		set_bonus(false)
 	if is_inside_tree():
 		Burst.spawn(heap.get_parent(), heap.global_position, HEAP_COLOR, 16, 140.0)
-		Sfx.play_at(self, &"slam", heap.global_position, -8.0)
+		Sfx.play_at(self, &"bone_rise", heap.global_position, -8.0)
 		show_banner(DungeonTexts.t(&"VARIANT_GRAVEDIGGER_RISE"), "", LOST_COLOR)
 	return true
 
 
 func _begin_rise(heap: Enemy) -> void:
 	_rising[heap] = true
+	if is_inside_tree():
+		Sfx.play_at(self, &"bone_rattle", heap.global_position, -8.0)
 	# The heap stops thinking; the bones visibly grow back together (readable warning, 1 s).
 	heap.set_physics_process(false)
 	var sprite := heap.get_node_or_null("Sprite") as AnimatedSprite2D

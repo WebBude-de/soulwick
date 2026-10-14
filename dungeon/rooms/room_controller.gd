@@ -5,6 +5,9 @@ extends Node2D
 ## The encounter starts on the first real entry only, exactly once; completion is reported once.
 ## A campfire (D-103) is a room instance without a room number of its own: no encounter, no
 ## completion signal, no EventBus room events; its floor blends from the old into the next biome.
+## Doors (A10): the entrance and the exit(s) may sit in any wall (RoomTiles.entrance_side/exit_side);
+## the DungeonManager sets them with apply_door_plan() before the room enters the tree. A branch room
+## (D-105) has two exits; after the fight the group picks one (BranchChoice), the other is sealed.
 
 signal player_entered(room: RoomController)
 signal completed(room: RoomController)
@@ -13,6 +16,10 @@ signal wave_started(room: RoomController, wave: int, total: int)
 ## An arena fight begins (A5): on entry, for an ambush when the entrance door has closed. Hook
 ## for the arena/ambush banner and the first-time explanation (UX2, D-110; texts in WaveRules).
 signal arena_started(room: RoomController, ambush: bool)
+## Branch room (D-105): the doors wait for the group (after the fight) / a way was chosen. The
+## DungeonManager prepares room n+1 for the chosen way when branch_chosen comes.
+signal branch_offered(room: RoomController)
+signal branch_chosen(room: RoomController, index: int)
 
 enum State { PREPARED, ACTIVE, CLEARED, UNLOADED }
 
@@ -23,6 +30,11 @@ const BIOME_TORCHES := {
 	&"slime_grotto": "res://art/environment/props/torch_green_4f.png",
 	&"shadow_realm": "res://art/environment/props/torch_purple_4f.png",
 }
+## Template torches on the north wall give way to a door this close (columns): the branch doors
+## bring their own torches (D1, A10).
+const DOOR_TORCH_CLEARANCE := 2
+## Rows of three tiles in front of each door kept free of ingredients (like IngredientScatter's lanes).
+const DOOR_LANE_DEPTH := 3
 ## Fewest spawn markers the EnemySpawner accepts (D-086). The spawner takes all 5-14 markers of a
 ## template; more enemies than markers come as an extra wave (WaveRules).
 const SPAWNER_MARKER_COUNT := EnemySpawner.MIN_SPAWN_POINTS
@@ -79,7 +91,13 @@ var _wave_sizes: Array[int] = []
 var _wave_alive: Array[int] = []
 var _next_wave_queued := false
 var _entrance_door: Door = null
+## The exit the way leads through: the only one, or the chosen one of a branch room.
 var _exit_door: Door = null
+## Every exit door, in the order of RoomTiles.get_exit_doors() (two in a branch room).
+var _exit_doors: Array[Door] = []
+## The two ways of a branch room (BranchOption, same order as the exits); empty otherwise.
+var branch_options: Array[BranchOption] = []
+var _branch_choice: BranchChoice = null
 
 @onready var tiles: RoomTiles = $Tiles
 @onready var enemy_container: Node2D = $EnemyContainer
@@ -120,17 +138,34 @@ func _ready() -> void:
 	# edges (A2). Enemies only walk inside their room.
 	EnemyNavigation.isolate_room_navigation(tiles)
 	_block_prop_navigation()
-	_entrance_door = _create_door(get_entrance_tile())
-	_exit_door = _create_door(get_exit_tile())
+	_hide_torches_at_doors()
+	_entrance_door = _create_door(get_entrance_tile(), tiles.entrance_side)
+	for exit in tiles.get_exit_doors():
+		_exit_doors.append(_create_door(RoomTiles.door_tile_of(exit.x, exit.y, tiles.room_size), exit.x))
+	_exit_door = _exit_doors[0]
 	# Doors in the biome's style (D1): the entrance shows this room, the exit the next slot (boss
 	# gate before a boss, flame sign before the campfire). A campfire's exit is already in the new biome.
 	var door_biome: StringName = biome.id if biome != null else &""
 	_entrance_door.configure_for_room(door_biome, room_type, special_type, true)
 	var next_biome := get_next_biome() if is_campfire() else null
-	_exit_door.configure_for_room(next_biome.id if next_biome != null else door_biome, RoomSequence.get_slot_type(slot_index + 1))
+	var next_type := RoomSequence.get_slot_type(slot_index + 1)
+	for i in _exit_doors.size():
+		var door := _exit_doors[i]
+		if is_branch_room() and i < branch_options.size():
+			# Each way shows what waits behind it (D-105): its special sign or a branch sign.
+			var option := branch_options[i]
+			door.configure_for_room(door_biome, option.get_room_type(next_type), option.special_type)
+			if option.is_combat():
+				door.set_branch_symbol(option.get_symbol())
+		else:
+			door.configure_for_room(next_biome.id if next_biome != null else door_biome, next_type)
+		door.set_open_instant(false)
 	# Room 1 has nothing behind its entrance.
 	_entrance_door.set_open_instant(room_index > 1)
-	_exit_door.set_open_instant(false)
+	if is_branch_room():
+		_branch_choice = BranchChoice.create(self, tiles.get_exit_doors())
+		add_child(_branch_choice)
+		_branch_choice.decided.connect(_on_branch_decided)
 	_setup_enter_trigger()
 	_setup_waves()
 	if is_campfire():
@@ -138,17 +173,91 @@ func _ready() -> void:
 		_build_campfire_content()
 
 
+## Wall tile of the entrance door (any wall, A10).
 func get_entrance_tile() -> Vector2i:
-	return Vector2i(tiles.entrance_x, tiles.room_size.y)
+	return RoomTiles.door_tile_of(tiles.entrance_side, tiles.entrance_x, tiles.room_size)
 
 
+## Wall tile of the exit the way leads through (the chosen one in a branch room).
 func get_exit_tile() -> Vector2i:
-	return Vector2i(tiles.exit_x, -1)
+	var exit := get_chosen_exit()
+	return RoomTiles.door_tile_of(exit.x, exit.y, tiles.room_size)
+
+
+## Wall tiles of every exit door.
+func get_exit_tiles() -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	for exit in tiles.get_exit_doors():
+		result.append(RoomTiles.door_tile_of(exit.x, exit.y, tiles.room_size))
+	return result
+
+
+## The exit the next room joins: Vector2i(side, place). A branch room answers with its chosen way
+## (the first one before the choice).
+func get_chosen_exit() -> Vector2i:
+	var exits := tiles.get_exit_doors()
+	var index := _branch_choice.chosen if _branch_choice != null and _branch_choice.chosen >= 0 else 0
+	return exits[clampi(index, 0, exits.size() - 1)]
 
 
 ## Where a freshly spawned player starts in room 1: just inside the entrance.
 func get_player_start() -> Vector2:
-	return to_global(RoomTiles.tile_center(Vector2i(tiles.entrance_x, tiles.room_size.y - 2)))
+	var inward := -RoomTiles.SIDE_DIRECTIONS[tiles.entrance_side]
+	return to_global(RoomTiles.tile_center(tiles.get_entrance_inside_tile() + inward))
+
+
+## Doors of this room before it enters the tree (A10, DungeonManager): entrance as
+## Vector2i(side, place), exits likewise (two for a branch room, with their ways in options), the
+## extra entrance corridor. The ingredient scatter keeps every door lane free.
+func apply_door_plan(entrance: Vector2i, exits: Array[Vector2i], corridor_extra := 0, options: Array[BranchOption] = []) -> void:
+	var room_tiles := get_node("Tiles") as RoomTiles
+	room_tiles.entrance_side = entrance.x as RoomTiles.DoorSide
+	room_tiles.entrance_x = entrance.y
+	room_tiles.entrance_corridor_extra = corridor_extra
+	if not exits.is_empty():
+		room_tiles.exit_side = exits[0].x as RoomTiles.DoorSide
+		room_tiles.exit_x = exits[0].y
+	room_tiles.branch_exit = exits[1] if exits.size() > 1 else Vector2i(RoomTiles.NO_DOOR, 0)
+	branch_options.clear()
+	if exits.size() > 1 and options.size() == exits.size():
+		branch_options.assign(options)
+	var scatter := get_node_or_null("Ingredients") as IngredientScatter
+	if scatter == null:
+		return
+	var reserved: Array[Vector2i] = scatter.reserved_tiles.duplicate()
+	var doors: Array[Vector2i] = [entrance]
+	doors.append_array(exits)
+	for door in doors:
+		reserved.append_array(RoomTiles.door_lane_of(door.x, door.y, room_tiles.room_size, DOOR_LANE_DEPTH))
+	scatter.reserved_tiles = reserved
+
+
+func is_branch_room() -> bool:
+	return branch_options.size() >= 2
+
+
+func get_branch_choice() -> BranchChoice:
+	return _branch_choice
+
+
+## Index of the chosen way (-1 before the choice or without a branch).
+func get_chosen_branch() -> int:
+	return _branch_choice.chosen if _branch_choice != null else -1
+
+
+## The way of the chosen door (null before the choice or without a branch).
+func get_chosen_option() -> BranchOption:
+	var index := get_chosen_branch()
+	return branch_options[index] if index >= 0 and index < branch_options.size() else null
+
+
+## Decision for a way (tests, tools; players decide through BranchChoice).
+func choose_branch(index: int) -> bool:
+	return _branch_choice != null and _branch_choice.choose(index)
+
+
+func get_exit_doors() -> Array[Door]:
+	return _exit_doors.duplicate()
 
 
 func get_alive_enemy_count() -> int:
@@ -346,9 +455,27 @@ func spawn_exit_portal() -> void:
 
 
 func open_exit() -> void:
+	if _branch_choice != null and _branch_choice.chosen < 0:
+		# Branch room: the doors stay shut until the group walks up to one (D-105).
+		if not _branch_choice.is_offered:
+			_branch_choice.offer()
+			branch_offered.emit(self)
+		return
 	if not _exit_door.is_open:
 		# The configured door plays its own biome sound (DoorView).
 		_exit_door.open()
+
+
+## The group picked a way: that door becomes the exit, the other is sealed for good; the manager
+## prepares room n+1 for the way (branch_chosen), then the door opens.
+func _on_branch_decided(_choice: BranchChoice, index: int) -> void:
+	_exit_door = _exit_doors[index]
+	for i in _exit_doors.size():
+		if i != index:
+			_exit_doors[i].seal()
+	branch_chosen.emit(self, index)
+	if state == State.CLEARED:
+		open_exit()
 
 
 func mark_unloaded() -> void:
@@ -358,6 +485,9 @@ func mark_unloaded() -> void:
 ## The room behind the exit door is known: its type and special sign (D1). The special type is only
 ## rolled when the next room is prepared, while this exit door is still closed.
 func set_next_room(next: RoomController) -> void:
+	if is_branch_room():
+		# The chosen door already shows its way (sign of the branch, D-105).
+		return
 	_exit_door.set_destination(next.room_type, next.special_type)
 
 
@@ -499,7 +629,8 @@ func _build_arena_gates() -> void:
 		var node := prop as Node2D
 		if node != null and is_instance_valid(node):
 			props.append(to_local(node.global_position) if node.is_inside_tree() else node.position)
-	var doors: Array[Vector2i] = [get_entrance_tile(), get_exit_tile()]
+	var doors: Array[Vector2i] = [get_entrance_tile()]
+	doors.append_array(get_exit_tiles())
 	var gates := WallGates.find_gates(tiles.get_reachable_tiles(), tiles.room_size, doors, props)
 	_arena.setup(gates, is_ambush, _wave_rng)
 
@@ -550,17 +681,47 @@ static func _load_biome_tileset(biome_id: StringName) -> TileSet:
 	return load(path) as TileSet if ResourceLoader.exists(path) else null
 
 
-func _create_door(tile: Vector2i) -> Door:
+func _create_door(tile: Vector2i, side: int = RoomTiles.DoorSide.NORTH) -> Door:
 	var door := DOOR_SCENE.instantiate() as Door
 	door.position = RoomTiles.tile_to_local(tile)
+	door.set_side(side)
 	add_child(door)
 	return door
 
 
+## Template torches on the north wall right beside a north door of this run (a branch door or an
+## alternative exit place) give way: the door brings its own (D1).
+func _hide_torches_at_doors() -> void:
+	var columns: Array[int] = []
+	for exit in tiles.get_exit_doors():
+		if exit.x == RoomTiles.DoorSide.NORTH:
+			columns.append(exit.y)
+	if columns.is_empty():
+		return
+	for prop in get_node("Props").get_children():
+		var torch := prop as Node2D
+		if torch == null or not String(torch.name).begins_with("Torch"):
+			continue
+		var column := floori(torch.position.x / RoomTiles.TILE_WORLD)
+		for door_column in columns:
+			if absi(column - door_column) <= DOOR_TORCH_CLEARANCE:
+				torch.visible = false
+				torch.process_mode = Node.PROCESS_MODE_DISABLED
+
+
 func _setup_enter_trigger() -> void:
-	# Covers the floor except the row next to the entrance, so the door closes behind the player.
+	# Covers the floor except the strip next to the entrance, so the door closes behind the player.
 	var floor_rect := tiles.get_floor_rect()
-	var rect := Rect2(floor_rect.position, floor_rect.size - Vector2(0.0, RoomTiles.TILE_WORLD))
+	var rect := floor_rect
+	match tiles.entrance_side:
+		RoomTiles.DoorSide.NORTH:
+			rect = floor_rect.grow_individual(0.0, -RoomTiles.TILE_WORLD, 0.0, 0.0)
+		RoomTiles.DoorSide.WEST:
+			rect = floor_rect.grow_individual(-RoomTiles.TILE_WORLD, 0.0, 0.0, 0.0)
+		RoomTiles.DoorSide.EAST:
+			rect = floor_rect.grow_individual(0.0, 0.0, -RoomTiles.TILE_WORLD, 0.0)
+		_:
+			rect = floor_rect.grow_individual(0.0, 0.0, 0.0, -RoomTiles.TILE_WORLD)
 	var shape := RectangleShape2D.new()
 	shape.size = rect.size
 	var collision := CollisionShape2D.new()

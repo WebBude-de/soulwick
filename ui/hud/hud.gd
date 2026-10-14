@@ -27,10 +27,14 @@ const HEARTS_PER_ROW := 10
 const HEART_ROWS := 2
 ## Heart size on screen (16 mockup px, whole multiple of the 16 px art).
 const HEART_SIZE := 16.0 * UiKit.ART_SCALE
-const CONTROLS_HINT := "WASD bewegen · Maus zielen · LMB angreifen · Space Dash · RMB Spezial · Q Waffe · E benutzen · Tab Upgrades · Esc Pause"
+## Translation keys (D-111): the hint label gets the key as text, Godot translates it live.
+const CONTROLS_HINT: StringName = &"HUD_CONTROLS_HINT"
 ## After the first-run controls card (ControlsHint) the key line shrinks to this (UX1); all keys are
 ## in Esc → Optionen → Steuerung.
-const CONTROLS_HINT_SHORT := "Tab Upgrades · Esc Pause und Optionen"
+const CONTROLS_HINT_SHORT: StringName = &"HUD_CONTROLS_HINT_SHORT"
+## Room type -> key HUD_ROOM_TYPE_<RoomSequence.RoomType name>; unknown types fall back to
+## RoomSequence.get_type_name() (German).
+const ROOM_TYPE_KEY_PREFIX := "HUD_ROOM_TYPE_"
 
 # Layout in mockup pixels (ui_spec.json "hud").
 const STATUS_POSITION := Vector2(6, 6)
@@ -204,7 +208,7 @@ func _build_room(root: Control) -> void:
 	box.offset_right = -UiKit.px(EDGE_MARGIN)
 	box.offset_top = UiKit.px(EDGE_MARGIN - 2)
 	root.add_child(box)
-	_room_label = UiKit.text_label("Raum 1", UiKit.SIZE_VALUE, UiKit.COLOR_TEXT, true)
+	_room_label = UiKit.text_label(Loc.t(&"HUD_ROOM", [1]), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT, true)
 	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(_room_label)
 	_room_detail = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
@@ -375,19 +379,34 @@ func set_campfire(active: bool, next_area := "") -> void:
 func _on_room_changed(room_index: int) -> void:
 	var room := maxi(1, room_index)
 	var cycle := floori(float(room - 1) / RoomSequence.CYCLE_LENGTH) + 1
-	var type_name := RoomSequence.get_type_name(RoomSequence.get_room_type(room))
+	var type_name := room_type_name(RoomSequence.get_room_type(room))
 	if _campfire_active:
-		type_name = "Lagerfeuer" + (" · weiter: %s" % _campfire_area if not _campfire_area.is_empty() else "")
-	_room_label.text = "Raum %d" % room
-	var detail := "Zyklus %d · %s" % [cycle, type_name]
+		type_name = Loc.t(&"HUD_CAMPFIRE_NEXT", [_campfire_area]) if not _campfire_area.is_empty() else Loc.t(&"HUD_CAMPFIRE")
+	_room_label.text = Loc.t(&"HUD_ROOM", [room])
+	var detail := Loc.t(&"HUD_ROOM_DETAIL", [cycle, type_name])
 	if _heal_countdown >= 0:
-		detail += " · nächste Heilung in %d" % _heal_countdown
+		detail += " · " + Loc.t(&"HUD_NEXT_HEAL", [_heal_countdown])
 	_room_detail.text = detail
+
+
+## Translated room type ("Combat", "Special room" ...); RoomSequence's German name if there is no key.
+static func room_type_name(room_type: RoomSequence.RoomType) -> String:
+	var type_key := String(RoomSequence.RoomType.find_key(room_type)) if RoomSequence.RoomType.values().has(room_type) else ""
+	return DataTexts.text_or(StringName(ROOM_TYPE_KEY_PREFIX + type_key), RoomSequence.get_type_name(room_type))
+
+
+## Composed texts (room, record, weapon line) are rebuilt when the language changes (D-111 §5).
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and _room_label != null:
+		_on_room_changed(RunManager.get_current_room())
+		_refresh_chronicle()
+		if _player != null and is_instance_valid(_player):
+			_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
 
 
 func _refresh_chronicle() -> void:
 	_chronicle_timer = CHRONICLE_REFRESH
-	_chronicle_room.text = "Rekord Raum %d" % int(SaveManager.get_stat(StatsTracker.DEEPEST_ROOM))
+	_chronicle_room.text = Loc.t(&"HUD_RECORD", [int(SaveManager.get_stat(StatsTracker.DEEPEST_ROOM))])
 	_chronicle_kills.text = str(int(SaveManager.get_stat(StatsTracker.KILLS)))
 	_chronicle_time.text = StatsTracker.format_play_time(float(SaveManager.get_stat(StatsTracker.PLAY_TIME)))
 
@@ -421,19 +440,20 @@ func _on_weapons_changed() -> void:
 	_update_special_bars()
 
 
-## Name, effective values and key hints of the active weapon ("Q Bogen · RMB Wirbelschlag · Space Dash").
+## Name, effective values and key hints of the active weapon ("Q Bogen · RMB Wirbelschlag · Space Dash"),
+## names translated through DataTexts (D-111).
 func _refresh_weapon_text(controller: WeaponController, active_slot: int) -> void:
 	var weapon := controller.get_weapon(active_slot)
-	_weapon_name.text = weapon.display_name if weapon != null else "–"
-	_weapon_stats.text = UiKit.weapon_stats_text(controller, weapon) if weapon != null else ""
+	_weapon_name.text = DataTexts.weapon_name(weapon) if weapon != null else "–"
+	_weapon_stats.text = DataTexts.weapon_stats_text(controller, weapon) if weapon != null else ""
 	var hints: PackedStringArray = []
 	for slot in WeaponController.MAX_WEAPON_SLOTS:
 		var other := controller.get_weapon(slot)
 		if slot != active_slot and other != null:
-			hints.append("Q %s" % other.display_name)
+			hints.append(Loc.t(&"HUD_KEY_SWITCH", [DataTexts.weapon_name(other)]))
 	if weapon != null and weapon.special_name != "":
-		hints.append("RMB %s" % weapon.special_name)
-	hints.append("Space Dash")
+		hints.append(Loc.t(&"HUD_KEY_SPECIAL", [DataTexts.weapon_special_name(weapon)]))
+	hints.append(Loc.t(&"HUD_KEY_DASH"))
 	_weapon_hint.text = " · ".join(hints)
 
 

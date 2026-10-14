@@ -21,6 +21,8 @@ enum Effect {
 }
 
 @export var id: StringName
+## German display texts (fallback). Shown translated via DataTexts.upgrade_name()/upgrade_description()
+## (keys UPGRADE_<ID>_NAME and UPGRADE_<ID>_DESC in localization/translations.csv, D-111).
 @export var display_name := ""
 @export_multiline var description := ""
 @export var category := Category.ATTRIBUTE

@@ -19,6 +19,9 @@ func _init() -> void:
 
 func _run() -> void:
 	root.get_node("SaveManager").save_path = "user://combat_sim_save.cfg"
+	# Own settings: never read or write the real settings.cfg.
+	root.get_node("SaveManager").settings_path = "user://combat_sim_settings.cfg"
+	root.get_node("SaveManager").load_settings()
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
 	root.get_node("EventBus").enemy_damaged.connect(_on_enemy_damaged)

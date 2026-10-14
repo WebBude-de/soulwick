@@ -30,10 +30,14 @@ volume_music=0.6
 volume_sfx=0.9
 """
 
+var _old_locale: String
 var _old_path: String
 
 
 func before_all() -> void:
+	_old_locale = TranslationServer.get_locale()
+	# The expected texts are German; English is the default language (D-111).
+	Loc.apply(&"de")
 	_old_path = SaveManager.save_path
 
 
@@ -45,6 +49,7 @@ func before_each() -> void:
 
 
 func after_all() -> void:
+	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
 	for version in [1, 2]:

@@ -32,6 +32,8 @@ const TILE := 64.0
 
 var style: DoorStyle = null
 var is_entrance := false
+## Wall of the door (RoomTiles.DoorSide); set by Door before apply_style.
+var side: int = 0
 ## Sounds are played only when true (Door.configure was called), see Door.is_configured.
 var sounds_enabled := false
 
@@ -71,6 +73,9 @@ func apply_style(new_style: DoorStyle, entrance: bool) -> void:
 			frames.remove_frame(&"closed", frames.get_frame_count(&"closed") - 1)
 		SpriteStrip.add_strip(frames, &"open", strip, style.leaf_size, style.leaf_fps, false)
 		_leaf.sprite_frames = frames
+	if _is_side():
+		_apply_side_style()
+		return
 	var frame_pos := -Vector2(style.leaf_offset) * PIXEL_SCALE
 	# The passage of the frame is transparent (DoorArt.open_passage); the leaf sits in it, and a
 	# player walking through is drawn behind the arch. Entrance doors sit in the low south wall: an
@@ -115,16 +120,79 @@ func set_symbol(symbol_id: StringName) -> void:
 	_symbol.name = "Symbol"
 	_symbol.texture = texture
 	_symbol.scale = Vector2.ONE * PIXEL_SCALE
-	if DoorArt.has_symbol_file(symbol_id):
+	# Delivered special signs are grey and tinted; the branch signs come in their own colours.
+	if DoorArt.has_symbol_file(symbol_id) and not DoorStyle.is_branch_symbol(symbol_id):
 		_symbol.modulate = SYMBOL_TINT
-	# Hangs on the arch top, centred over the door.
-	var frame_top := -float(style.leaf_offset.y) * PIXEL_SCALE
-	_symbol.position = Vector2(TILE * 0.5, frame_top + 6.0 * PIXEL_SCALE)
+	if _is_side():
+		# Over the brick front above the corridor, on the wall top.
+		_symbol.position = Vector2(TILE * 0.5, -TILE - 4.0)
+	else:
+		# Hangs on the arch top, centred over the door.
+		var frame_top := -float(style.leaf_offset.y) * PIXEL_SCALE
+		_symbol.position = Vector2(TILE * 0.5, frame_top + 6.0 * PIXEL_SCALE)
+	_symbol.z_index = 1
 	add_child(_symbol)
 
 
 func get_symbol_sprite() -> Sprite2D:
 	return _symbol
+
+
+## The way behind this branch door was not taken (D-105): the sign fades, the torch goes out.
+func show_sealed() -> void:
+	show_state(false)
+	if _symbol != null:
+		var tween := _symbol.create_tween() if _symbol.is_inside_tree() else null
+		if tween != null:
+			tween.tween_property(_symbol, "modulate:a", 0.25, 0.6)
+		else:
+			_symbol.modulate.a = 0.25
+	for torch in _torches:
+		torch.visible = false
+	if _torch_light != null:
+		_torch_light.intensity = 0.0
+
+
+func _is_side() -> bool:
+	return side == RoomTiles.DoorSide.WEST or side == RoomTiles.DoorSide.EAST
+
+
+## West/east wall door (A10): the leaf seen from above in the corridor (mirrored for the east wall),
+## a torch on the brick front above the corridor, the sign over it. Entrance doors: leaf only.
+func _apply_side_style() -> void:
+	if _leaf != null:
+		var strip := DoorArt.get_side_leaf_strip(style)
+		# Square frames as tall as the strip (32x32; the boss leaf is turned to its height).
+		var frame_size := Vector2i(strip.get_height(), strip.get_height())
+		var frames := SpriteStrip.make_frames(strip, frame_size, 1.0, false, &"closed")
+		while frames.get_frame_count(&"closed") > 1:
+			frames.remove_frame(&"closed", frames.get_frame_count(&"closed") - 1)
+		SpriteStrip.add_strip(frames, &"open", strip, frame_size, style.leaf_fps, false)
+		_leaf.sprite_frames = frames
+		_leaf.flip_h = side == RoomTiles.DoorSide.EAST
+	if is_entrance:
+		return
+	var strip_path := style.torch_strip_path
+	if not strip_path.is_empty() and ResourceLoader.exists(strip_path):
+		var torch := AnimatedProp.new()
+		torch.name = "Torch0"
+		torch.frame_size = Vector2i(32, 32)
+		torch.fps = 8.0
+		torch.pivot = Vector2(16, 31) if style.torch_mode == DoorStyle.TORCH_BRAZIER else Vector2(16, 18)
+		torch.strip = load(strip_path) as Texture2D
+		torch.scale = Vector2.ONE * PIXEL_SCALE
+		torch.position = Vector2(TILE * 0.5, -TILE + 28.0)
+		add_child(torch)
+		_torches.append(torch)
+	_add_torch_light()
+	_torch_light.position = Vector2(TILE * 0.5, -TILE * 0.5)
+	set_symbol(style.symbol)
+	if style.glow_mode == DoorStyle.GLOW_THREAT:
+		_threat_light = LightSource.new()
+		_threat_light.name = "ThreatLight"
+		_threat_light.radius = THREAT_LIGHT_RADIUS
+		_threat_light.position = Vector2(TILE * 0.5, TILE * 0.5)
+		add_child(_threat_light)
 
 
 func get_frame_sprite() -> Sprite2D:

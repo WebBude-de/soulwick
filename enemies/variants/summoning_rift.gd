@@ -95,7 +95,7 @@ func _begin_summon() -> void:
 	_telegraph_circle.color = SUMMON_COLOR
 	_telegraph_circle.visible = true
 	SpriteFx.flash(_sprite, Color(0.6, 1.0, 0.9), VariantRules.RIFT_WIND_UP)
-	Sfx.play_at(self, &"teleport", global_position, -8.0)
+	Sfx.play_at(self, &"rift_summon", global_position, -8.0)
 
 
 func _finish_summon() -> void:

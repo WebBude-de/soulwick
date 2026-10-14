@@ -27,6 +27,8 @@ const CAMPFIRE: StringName = &"campfire"
 const SHOP: StringName = &"shop"
 const WEAPON: StringName = &"weapon"
 const FOUNTAIN: StringName = &"fountain"
+## A secret niche opened behind a cracked wall (A10): no room of its own, named when it opens.
+const SECRET: StringName = &"secret"
 ## SaveManager seen id of the first-time card: "room_intro_<genre>" (D-110).
 const SEEN_PREFIX := "room_intro_"
 
@@ -60,7 +62,9 @@ const TABLE: Dictionary[StringName, Dictionary] = {
 	&"gravedigger": {"key": "ROOM_GRAVEDIGGER", "group": Group.COMBAT, "color": Color("#b8b09a"), "icon": SKULL_ICON, "tint": false},
 	&"bounty": {"key": "ROOM_BOUNTY", "group": Group.COMBAT, "color": Color("#f2cf4a"), "icon": CROWN_ICON, "tint": false},
 	&"torch_room": {"key": "ROOM_TORCH_ROOM", "group": Group.COMBAT, "color": Color("#ff8a3c"), "icon": "", "tint": false},
-	&"elite_nest": {"key": "ROOM_ELITE_NEST", "group": Group.COMBAT, "color": Color("#e0b84a"), "icon": "", "tint": false},
+	&"elite_nest": {"key": "ROOM_ELITE_NEST", "group": Group.COMBAT, "color": Color("#e0b84a"), "icon": "door:elite_nest", "tint": false},
+	# Way-finding (A10): the secret niche, named when its wall breaks.
+	SECRET: {"key": "ROOM_SECRET", "group": Group.COMBAT, "color": Color("#c9b8ff"), "icon": "", "tint": false},
 }
 
 const TRIAL_GENRES := {

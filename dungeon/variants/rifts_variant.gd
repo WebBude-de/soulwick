@@ -91,7 +91,7 @@ func _open_rift(tile: Vector2i, first_delay: float) -> SummoningRift:
 	rifts.append(rift)
 	if is_inside_tree():
 		Burst.spawn(room.enemy_container, rift.global_position + Vector2(0, -40), rift.rift_color, 18, 150.0)
-		Sfx.play_at(self, &"portal", rift.global_position, -6.0)
+		Sfx.play_at(self, &"rift_open", rift.global_position, -6.0)
 	return rift
 
 

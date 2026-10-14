@@ -13,6 +13,9 @@ var is_open := false
 var style: DoorStyle = DoorStyle.for_door(DoorStyle.DEFAULT_BIOME)
 ## Entrance doors sit in the south wall: frame and leaf only, no torches and no sign.
 var is_entrance := false
+## Wall the door stands in (RoomTiles.DoorSide, A10): north and south doors face the camera, west and
+## east doors are seen from above (DoorView draws them as narrow leaves with a torch above).
+var side: int = RoomTiles.DoorSide.NORTH
 ## Becomes true with configure(). Only configured doors play their own sounds: before D1 is
 ## wired in, RoomController still plays "door_open" itself.
 var is_configured := false
@@ -24,6 +27,7 @@ var is_configured := false
 
 func _ready() -> void:
 	view.setup(_sprite)
+	view.side = side
 	view.apply_style(style, is_entrance)
 	view.sounds_enabled = is_configured
 	state_changed.connect(view.on_state_changed)
@@ -55,6 +59,34 @@ func set_destination(target_room_type: int, target_special: int = -1) -> void:
 
 func get_style() -> DoorStyle:
 	return style
+
+
+## Wall of the door (RoomTiles.DoorSide). Call before the door enters the tree or call configure()
+## again afterwards.
+func set_side(value: int) -> void:
+	side = value
+	if is_node_ready():
+		view.side = value
+		view.apply_style(style, is_entrance)
+		view.show_state(is_open)
+
+
+func is_side_door() -> bool:
+	return side == RoomTiles.DoorSide.WEST or side == RoomTiles.DoorSide.EAST
+
+
+## Shows a branch symbol over a door that is no entrance (D-105), &"" removes it.
+func set_branch_symbol(symbol_id: StringName) -> void:
+	style.symbol = symbol_id if DoorStyle.is_branch_symbol(symbol_id) else &""
+	if is_node_ready():
+		view.set_symbol(style.symbol)
+
+
+## A branch door that was not chosen: it stays shut for good and dims (decision of the room).
+func seal() -> void:
+	_apply(false, true)
+	if is_node_ready():
+		view.show_sealed()
 
 
 func open() -> void:

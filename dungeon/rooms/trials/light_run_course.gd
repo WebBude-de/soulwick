@@ -76,8 +76,9 @@ func advance(delta: float) -> void:
 
 
 ## The light decision of this trial: inside the circle of a burning torch or a permanent light.
+## Shared circle test (LightQuery, A9); the players' own circles do not count here on purpose.
 func is_lit(point: Vector2) -> bool:
-	return TrialRules.is_point_lit(point, get_lit_points(), LIT_RADIUS)
+	return LightQuery.is_in_circles(point, LightQuery.circles_from_points(get_lit_points(), LIT_RADIUS))
 
 
 func get_lit_points() -> PackedVector2Array:

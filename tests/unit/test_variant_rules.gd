@@ -27,7 +27,7 @@ func _rng(seed_value: int) -> RandomNumberGenerator:
 
 # --- Draw table ---
 
-func test_default_table_lists_the_four_variants_of_this_round() -> void:
+func test_default_table_lists_every_variant() -> void:
 	var table := VariantTable.load_default()
 	assert_not_null(table)
 	assert_eq(table.from_room, 6)
@@ -35,9 +35,14 @@ func test_default_table_lists_the_four_variants_of_this_round() -> void:
 	assert_almost_eq(table.wager_chance, 0.12, 0.0001, "D-104")
 	for id in VariantRules.ALL:
 		assert_true(table.variant_ids.has(id), "%s in the table" % id)
-	assert_eq(table.get_allowed(RoomSequence.Biome.CRYPT).size(), 4)
+	# A7 + A9: crypt 4 + stone guardian + lantern, shadow realm 3 + stone guardian + lantern + torch
+	# room, the other biomes 3 + lantern.
+	assert_eq(table.get_allowed(RoomSequence.Biome.CRYPT).size(), 6)
+	assert_eq(table.get_allowed(RoomSequence.Biome.SHADOW_REALM).size(), 6)
 	assert_false(table.get_allowed(RoomSequence.Biome.SLIME_GROTTO).has(VariantRules.GRAVEDIGGER), "gravedigger: crypt only")
-	assert_eq(table.get_allowed(RoomSequence.Biome.EMBER_FORGE).size(), 3)
+	assert_eq(table.get_allowed(RoomSequence.Biome.EMBER_FORGE).size(), 4)
+	for id in table.variant_ids:
+		assert_eq(table.get_weight(id), 1.0, "%s weighs like the others" % id)
 
 
 func test_rooms_one_to_five_and_other_room_types_get_nothing() -> void:
@@ -114,7 +119,7 @@ func test_gravedigger_only_in_the_crypt_and_all_four_appear() -> void:
 			crypt_counts[pick.variant_id] = crypt_counts.get(pick.variant_id, 0) + 1
 		var deeper := table.roll(16 + i % 14, RoomSequence.RoomType.COMBAT, &"", rng)  # slime grotto
 		assert_ne(deeper.variant_id, VariantRules.GRAVEDIGGER, "gravedigger only in the crypt")
-	for id in VariantRules.ALL:
+	for id in table.get_allowed(RoomSequence.Biome.CRYPT):
 		assert_gt(crypt_counts.get(id, 0), 100, "%s appears in the crypt" % id)
 
 

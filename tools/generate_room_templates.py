@@ -21,7 +21,7 @@ dungeon/rooms/combat/combat_catalog.tres (RoomCatalog).
 
 Every combat template is checked before it is written: spawn marker count per size, every floor
 tile, the exit and all spawn markers reachable from the entrance (walking, plus dashing over gaps
-of at most one pit tile), no marker on blocked tiles, props or right next to the entrance, no
+of at most one pit tile), no marker on blocked tiles, props or right next to an entrance, no
 template torch right beside the exit door (the doors bring their own, D1), and for the catacomb at
 most two dead ends, at most two branchings between entrance and exit and the chest in the deepest
 dead end. Chasm templates (A4) come from tile maps (CHASM_MAPS) and are checked further: every
@@ -29,6 +29,15 @@ floor and bridge tile reachable on foot (enemies cannot dash; a dash over a one-
 shortcut), at least one such shortcut, no pit in the door lanes, markers and props on solid floor
 only (never on a bridge). Catacomb templates appear from room 2, chasm templates from room 6
 (RoomTemplate.min_room).
+
+Doors on every side (A10, KONZEPT_RAEUME §7.1): besides the south entrance and the north exit each
+combat template gets door places on the west and east wall (rooms are entered and left through
+them) and up to two more north places for the second door of a branch room (D-105). A place needs
+two tiles of plain floor straight in from the door and no abyss in its three-tile lane; west/east
+places sit as close to the middle of the wall as possible. Spawn markers keep their distance from
+every place a room can be entered through. The catacomb has no corridor at its side walls, so it
+keeps its south entrance and north exit only. The places are written to the scene
+(RoomTiles.door_slots) and to the RoomTemplate (entrance_sides, exit_sides, door_slots).
 
 The campfire template (D-103, ROADMAP_AUSBAU A6) sits between two biomes after every boss room.
 It has no enemies; the fire stands on ContentAnchor, the exit portal on PortalAnchor. Its floor
@@ -59,8 +68,14 @@ KINDS = {"normal": 0, "arena": 1, "chasm": 2}
 SIZES = {"S": 0, "M": 1, "L": 2}
 SHAPES = {"rectangle": 0, "l_shape": 1, "cross": 2, "ring": 3, "two_chambers": 4, "pillar_hall": 5, "catacomb": 6,
           "bridge_hall": 7, "islands": 8, "walkway": 9, "ring_hole": 10}
-# RoomTemplate.DoorSide.
-SIDE_NORTH, SIDE_SOUTH = 0, 2
+# RoomTemplate.DoorSide / RoomTiles.DoorSide.
+SIDE_NORTH, SIDE_EAST, SIDE_SOUTH, SIDE_WEST = 0, 1, 2, 3
+# Inward direction from a door of each side.
+INWARD = {SIDE_NORTH: (0, 1), SIDE_EAST: (-1, 0), SIDE_SOUTH: (0, -1), SIDE_WEST: (1, 0)}
+# Tiles of plain floor straight in from a door place (A10).
+DOOR_PLACE_DEPTH = 2
+# Second north door of a branch room: at least this many tiles from the other north places.
+BRANCH_DOOR_SPACING = 5
 # IngredientSet.Kind.
 COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES, PITS = range(7)
 ALL_INGREDIENTS = [COVER, TRAPS, WALLS, CHOKEPOINTS, LIGHT, EXPLOSIVES, PITS]
@@ -164,6 +179,46 @@ def flood_fill(walkable, pits, start, max_gap):
                 reached.add((nx, ny))
                 open_tiles.append((nx, ny))
     return reached
+
+
+def inside_tile(side, place, size):
+    """Floor tile right inside a door (RoomTiles.inside_tile_of)."""
+    w, h = size
+    return {SIDE_NORTH: (place, 0), SIDE_EAST: (w - 1, place), SIDE_SOUTH: (place, h - 1), SIDE_WEST: (0, place)}[side]
+
+
+def door_lane(side, place, size, depth):
+    """depth rows of three tiles straight in from a door (RoomTiles.door_lane_of)."""
+    ix, iy = INWARD[side]
+    ax, ay = abs(iy), abs(ix)
+    x0, y0 = inside_tile(side, place, size)
+    return [(x0 + ix * d + ax * a, y0 + iy * d + ay * a) for d in range(depth) for a in (-1, 0, 1)]
+
+
+def find_door_slots(size, entrance, exit_x, plain_floor, abyss):
+    """Door places of a combat template (A10): the template's own south entrance and north exit, the
+    west and east place nearest to the middle of the wall, and for branch rooms up to two more north
+    places at least BRANCH_DOOR_SPACING tiles from the other north places. plain_floor: reachable
+    floor without walls, pits and bridges; abyss: pit and bridge tiles (never in a door lane)."""
+    w, h = size
+
+    def usable(side, place):
+        ix, iy = INWARD[side]
+        x0, y0 = inside_tile(side, place, size)
+        core = [(x0 + ix * d, y0 + iy * d) for d in range(DOOR_PLACE_DEPTH)]
+        return all(t in plain_floor for t in core) and not (set(door_lane(side, place, size, PIT_FREE_DOOR_ROWS)) & abyss)
+
+    slots = [(SIDE_SOUTH, entrance), (SIDE_NORTH, exit_x)]
+    for side in (SIDE_WEST, SIDE_EAST):
+        rows = [y for y in range(h) if usable(side, y)]
+        if rows:
+            slots.append((side, min(rows, key=lambda y: (abs(y - (h - 1) / 2), -y))))
+    north = [x for x in range(1, w - 1) if usable(SIDE_NORTH, x)]
+    for target in (w / 4, 3 * w / 4):
+        options = [x for x in north if all(abs(x - p) >= BRANCH_DOOR_SPACING for s_, p in slots if s_ == SIDE_NORTH)]
+        if options:
+            slots.append((SIDE_NORTH, min(options, key=lambda x: (abs(x - target), x))))
+    return slots
 
 
 def pillar_mass(pillars, size):
@@ -737,14 +792,17 @@ def chebyshev(a, b):
     return max(abs(a[0] - b[0]), abs(a[1] - b[1]))
 
 
-def pick_spawns(floor, start, exit_tile, count, seeds, excluded):
-    """Farthest-point sampling over reachable floor: markers spread over the room, away from the
-    entrance; seeds (ambush spots) come first. Deterministic."""
+def pick_spawns(floor, start, exit_tile, count, seeds, excluded, entrances=(), exits=()):
+    """Farthest-point sampling over reachable floor: markers spread over the room, away from every
+    entrance (south and the side places, A10); seeds (ambush spots) come first. Deterministic."""
     picked = list(seeds)
+    starts = [start] + [t for t in entrances if t != start]
+    ends = [exit_tile] + [t for t in exits if t != exit_tile]
     candidates = [t for t in floor if t not in excluded and t not in picked
-                  and chebyshev(t, start) > ENTRANCE_CLEARANCE and chebyshev(t, exit_tile) > EXIT_CLEARANCE]
+                  and all(chebyshev(t, s_) > ENTRANCE_CLEARANCE for s_ in starts)
+                  and all(chebyshev(t, e) > EXIT_CLEARANCE for e in ends)]
     while len(picked) < count and candidates:
-        anchors = picked + [start]
+        anchors = picked + starts
         best = max(candidates, key=lambda t: (min((t[0] - a[0]) ** 2 + (t[1] - a[1]) ** 2 for a in anchors), -t[1], -t[0]))
         picked.append(best)
         candidates.remove(best)
@@ -867,6 +925,14 @@ def combat_template(kind, shape, size_class):
         lanes |= {(exit_x + dx, dy) for dx in (-1, 0, 1) for dy in range(PIT_FREE_DOOR_ROWS)}
         assert not (lanes & (pits | bridges)), f"{name}: abyss in a door lane: {sorted(lanes & (pits | bridges))[:4]}"
 
+    abyss = pits | bridges
+    plain_floor = {t for t in reached if 0 <= t[0] < w and 0 <= t[1] < h and t not in abyss}
+    slots = find_door_slots(size, entrance, exit_x, plain_floor, abyss)
+    for side, place in slots:
+        assert inside_tile(side, place, size) in reached, f"{name}: door place {(side, place)} not reachable"
+    side_entrances = [inside_tile(s_, p, size) for s_, p in slots if s_ in (SIDE_WEST, SIDE_EAST)]
+    other_exits = [inside_tile(s_, p, size) for s_, p in slots if s_ != SIDE_SOUTH]
+
     chest, ambush, reserved = None, [], []
     if shape == "catacomb":
         dead_ends = catacomb_rules(name, size, walkable, start, exit_tile)
@@ -880,7 +946,7 @@ def combat_template(kind, shape, size_class):
                 ambush += corridor[0:3:2]
         reserved = [chest] + [n for n in neighbours(chest, walkable)]
     count = (ARENA_SPAWN_COUNT if kind == "arena" else SPAWN_COUNT)[size_class]
-    spawns = pick_spawns(floor, start, exit_tile, count, ambush, set(reserved))
+    spawns = pick_spawns(floor, start, exit_tile, count, ambush, set(reserved), side_entrances, other_exits)
     assert MIN_SPAWNS[size_class] <= len(spawns) <= MAX_SPAWNS, \
         f"{name}: size {size_class} needs {MIN_SPAWNS[size_class]}-{MAX_SPAWNS} spawn markers (D-086), has {len(spawns)}"
 
@@ -891,8 +957,7 @@ def combat_template(kind, shape, size_class):
         props.append(("torch", x, 0))
     seed = zlib.crc32(stem.encode()) % 997 + 1
     bones_count = BONES_COUNT[size_class] + (2 if shape == "catacomb" else 0)
-    lanes = {(entrance + dx, h - 1 - dy) for dx in (-1, 0, 1) for dy in range(3)}
-    lanes |= {(exit_x + dx, dy) for dx in (-1, 0, 1) for dy in range(3)}
+    lanes = {t for s_, p in slots for t in door_lane(s_, p, size, 3)}
     for tile, bone in pick_bones(floor, walkable - bridges, bones_count, seed, set(spawns) | set(reserved) | lanes):
         props.append(("bone_pile" if shape == "catacomb" and bone == "bones_1" else bone, tile[0], tile[1]))
     flipped = set()
@@ -904,6 +969,8 @@ def combat_template(kind, shape, size_class):
     if chest is not None:
         props.append(("chest", chest[0], chest[1]))
     check_layout(name, size, entrance, exit_x, spawns, props, blocked=blocked, pits=pits)
+    for spawn in spawns:
+        assert all(chebyshev(spawn, t) > ENTRANCE_CLEARANCE for t in side_entrances), f"{name}: spawn {spawn} at a side entrance"
     for kind_, x, y in props:
         assert (x, y) not in pits and (x, y) not in bridges, f"{name}: {kind_} over the abyss at {(x, y)}"
 
@@ -914,14 +981,14 @@ def combat_template(kind, shape, size_class):
     bridge_rects = to_rects(bridges) if bridges else []
     _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x, seed, pillars, to_rects(walls) if walls else [],
                         spawns, set(ambush), content, portal, props, allowed_ingredients(kind, shape), reserved, flipped,
-                        pit_rects, bridge_rects)
+                        pit_rects, bridge_rects, slots)
     min_room = CHASM_FROM_ROOM if kind == "chasm" else MIN_ROOM.get(shape, 1)
-    _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room)
+    _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room, slots)
     return stem
 
 
 def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x, seed, pillars, wall_rects, spawns,
-                        ambush, content, portal, props, allowed, reserved, flipped=(), pit_rects=(), bridge_rects=()):
+                        ambush, content, portal, props, allowed, reserved, flipped=(), pit_rects=(), bridge_rects=(), slots=()):
     used = sorted({p[0] for p in props})
     ids = {k: f"{i + 2}_{k}" for i, k in enumerate(used)}
     scatter_id = f"{len(used) + 2}_scatter"
@@ -941,6 +1008,8 @@ def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x
         text += "pit_rects = Array[Rect2i]([" + ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in pit_rects) + "])\n"
     if bridge_rects:
         text += "bridge_rects = Array[Rect2i]([" + ", ".join(f"Rect2i({x}, {y}, {w}, {h})" for x, y, w, h in bridge_rects) + "])\n"
+    if slots:
+        text += f"door_slots = {vec_list(slots)}\n"
     for i, (x, y) in enumerate(spawns):
         # Spawn1..5 exist in room_base; further markers are new nodes. Ambush markers sit in dead ends.
         node_type = ' type="Marker2D"' if i >= BASE_SPAWNS else ""
@@ -960,7 +1029,7 @@ def _write_combat_scene(rel_path, root, kind, size_class, size, entrance, exit_x
     write(ROOMS / rel_path, text, combat=True)
 
 
-def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room=1):
+def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spawns, ambush, chest, min_room=1, slots=()):
     text = '[gd_resource type="Resource" script_class="RoomTemplate" format=3]\n\n'
     text += f'[ext_resource type="Script" path="{TEMPLATE_SCRIPT}" id="1_template"]\n'
     text += f'[ext_resource type="PackedScene" path="res://dungeon/rooms/{rel_path}" id="2_scene"]\n\n'
@@ -968,7 +1037,12 @@ def _write_template_resource(stem, rel_path, kind, shape, size_class, size, spaw
     text += f'id = &"{stem}"\nscene = ExtResource("2_scene")\n'
     text += f"room_kind = {KINDS[kind]}\nshape = {SHAPES[shape]}\nsize_class = {SIZES[size_class]}\n"
     text += f"room_size = Vector2i({size[0]}, {size[1]})\n"
-    text += f"entrance_side = {SIDE_SOUTH}\nexit_sides = Array[int]([{SIDE_NORTH}])\n"
+    exit_sides = [side for side in (SIDE_NORTH, SIDE_EAST, SIDE_WEST) if any(s_ == side for s_, _ in slots)] or [SIDE_NORTH]
+    entrance_sides = [side for side in (SIDE_SOUTH, SIDE_EAST, SIDE_WEST) if any(s_ == side for s_, _ in slots)] or [SIDE_SOUTH]
+    text += f"entrance_side = {SIDE_SOUTH}\nexit_sides = Array[int]([{', '.join(str(x) for x in exit_sides)}])\n"
+    text += f"entrance_sides = Array[int]([{', '.join(str(x) for x in entrance_sides)}])\n"
+    if slots:
+        text += f"door_slots = {vec_list(slots)}\n"
     text += f"spawn_tiles = {vec_list(spawns)}\n"
     if ambush:
         text += f"ambush_tiles = {vec_list(ambush)}\n"

@@ -157,9 +157,9 @@ func test_hud_switches_between_dungeon_and_village() -> void:
 	assert_true(hud._room_box.visible)
 	assert_false(hud._currency_frame.visible)
 	hud.set_heal_countdown(3)
-	assert_string_contains(hud._room_detail.text, "nächste Heilung in 3")
+	assert_string_contains(hud._room_detail.text, Loc.t(&"HUD_NEXT_HEAL", [3]))
 	hud.set_heal_countdown(-1)
-	assert_false(hud._room_detail.text.contains("Heilung"))
+	assert_false(hud._room_detail.text.contains(Loc.t(&"HUD_NEXT_HEAL", [3])))
 
 
 func test_hud_hearts_are_reused_and_capped() -> void:

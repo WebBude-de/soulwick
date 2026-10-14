@@ -146,7 +146,7 @@ func _on_hit_received(result: DamageResult, _damage: DamageData) -> void:
 	DamageNumber.spawn_for_result(get_parent(), global_position + Vector2(0, -60), result)
 	SpriteFx.flash(_sprite, Color(1.0, 0.5, 0.5), 0.12)
 	Burst.spawn(get_parent(), global_position + Vector2(0, -30), COLOR, 6, 90.0)
-	Sfx.play_at(self, &"hit_enemy", global_position, -6.0)
+	Sfx.play_at(self, &"soul_flame_hit", global_position, -6.0)
 
 
 func _on_died() -> void:
@@ -161,5 +161,5 @@ func _on_died() -> void:
 	extinguished.emit(self)
 	if is_inside_tree():
 		Burst.spawn(get_parent(), global_position + Vector2(0, -30), COLOR, 26, 160.0, 0.7)
-		Sfx.play_at(self, &"blind", global_position)
+		Sfx.play_at(self, &"soul_flame_out", global_position)
 		CameraShake.shake(self, 4.0)

@@ -5,10 +5,16 @@ Aufruf (im Repo-Root):
     python tools/i18n_check.py ui/options ui/main_menu       # Ordner pruefen, Exit 1 bei Funden
     python tools/i18n_check.py --summary .                   # nur Anzahl je Ordner (Backlog)
     python tools/i18n_check.py --tres village                # auch *.tres (Datenressourcen) mitzaehlen
+    python tools/i18n_check.py --dungeon-texts               # DungeonTexts-Schluessel ohne Englisch melden
+    python tools/i18n_check.py --dungeon-texts --export      # ... und fehlende Zeilen fuer die CSV ausgeben
 
 Zusaetzlich prueft es localization/translations.csv (leere Zellen, doppelte Schluessel, gleiche
 Platzhalter in en und de); Fehler dort fuehren ebenfalls zu Exit 1 (--no-csv schaltet das ab).
 Erkennung: Umlaute/ss oder ein eindeutig deutsches Wort aus GERMAN_WORDS in einem String-Literal.
+In *.tres zaehlen Anzeigefelder nicht, deren Schluessel nach Namenskonvention in der CSV steht
+(UpgradeData: UPGRADE_<ID>_NAME/_DESC, WeaponData: WEAPON_<ID>_NAME/_SPECIAL/_SPECIAL_DESC, DataTexts).
+--dungeon-texts vergleicht die Tabelle DungeonTexts.DE (ui/menus/dungeon_texts.gd) mit der CSV:
+Schluessel ohne CSV-Zeile oder ohne Englisch und abweichendes Deutsch (Exit 1 bei Funden).
 Uebersprungen werden Kommentare, &"StringName", ^"NodePath", Pfade, Bezeichner, Schluessel
 (GROSS_SCHREIBUNG) und reine Format-/Zahlenstrings. addons/ und .godot/ werden nie durchsucht.
 """
@@ -26,6 +32,15 @@ PLACEHOLDER_RE = re.compile(r"%[sdf]|%\d*\.\d+f|\{\w+\}")
 KEY_RE = re.compile(r"^[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)+$")
 IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9_./:%\-\[\]*+#]*$")
 TSCN_PROPERTY_RE = re.compile(r'^\s*([A-Za-z_]+)\s*=\s*"((?:[^"\\]|\\.)*)"')
+DUNGEON_TEXTS_PATH = "ui/menus/dungeon_texts.gd"
+DUNGEON_TEXTS_ENTRY_RE = re.compile(r'^\s*&"([A-Z0-9_]+)":\s*"((?:[^"\\]|\\.)*)",?\s*$')
+TRES_CLASS_RE = re.compile(r'script_class="(\w+)"')
+TRES_ID_RE = re.compile(r'^id\s*=\s*&?"(\w+)"')
+# Datenklasse -> (Schluessel-Praefix, Feld -> Schluessel-Endung); Gegenstueck: localization/data_texts.gd
+TRES_KEY_FIELDS = {
+    "UpgradeData": ("UPGRADE", {"display_name": "NAME", "description": "DESC"}),
+    "WeaponData": ("WEAPON", {"display_name": "NAME", "special_name": "SPECIAL", "special_description": "SPECIAL_DESC"}),
+}
 TSCN_TEXT_PROPERTIES = {"text", "tooltip_text", "placeholder_text", "title", "dialog_text", "hint_tooltip", "ok_button_text", "cancel_button_text"}
 
 # Eindeutig deutsche Woerter (keine englischen Homonyme wie die/an/am/bald/hat/gold/held/was/gut/tag).
@@ -137,10 +152,15 @@ def suggest_key(path, text):
     return "%s_%s" % (domain, slug)
 
 
-def scan_gd(path, rel):
+def scan_gd(path, rel, translated_keys=frozenset()):
     findings = []
     with io.open(path, encoding="utf-8", errors="replace") as handle:
         for number, line in enumerate(handle, 1):
+            # DungeonTexts.DE is the German source table: entries with English in the CSV are done.
+            if rel == DUNGEON_TEXTS_PATH:
+                entry = DUNGEON_TEXTS_ENTRY_RE.match(line)
+                if entry and entry.group(1) in translated_keys:
+                    continue
             for prefix, text in gd_string_literals(line):
                 if prefix in ("&", "^"):
                     continue
@@ -163,17 +183,30 @@ def scan_tscn(path, rel):
     return findings
 
 
-def scan_tres(path, rel):
+def scan_tres(path, rel, csv_keys=frozenset()):
     findings = []
     with io.open(path, encoding="utf-8", errors="replace") as handle:
-        for number, line in enumerate(handle, 1):
-            match = TSCN_PROPERTY_RE.match(line)
-            if match and is_candidate(match.group(2)):
-                findings.append((rel, number, match.group(2)))
-            elif "PackedStringArray(" in line or "Array[String](" in line:
-                for text in re.findall(r'"((?:[^"\\]|\\.)*)"', line):
-                    if is_candidate(text):
-                        findings.append((rel, number, text))
+        lines = handle.readlines()
+    # Anzeigefelder mit Schluessel nach Namenskonvention (DataTexts) gelten als uebersetzt.
+    covered = {}
+    class_match = TRES_CLASS_RE.search(lines[0]) if lines else None
+    if class_match and class_match.group(1) in TRES_KEY_FIELDS:
+        prefix, fields = TRES_KEY_FIELDS[class_match.group(1)]
+        for line in lines:
+            id_match = TRES_ID_RE.match(line)
+            if id_match:
+                for field, suffix in fields.items():
+                    covered[field] = "%s_%s_%s" % (prefix, id_match.group(1).upper(), suffix)
+    for number, line in enumerate(lines, 1):
+        match = TSCN_PROPERTY_RE.match(line)
+        if match and covered.get(match.group(1)) in csv_keys:
+            continue
+        if match and is_candidate(match.group(2)):
+            findings.append((rel, number, match.group(2)))
+        elif "PackedStringArray(" in line or "Array[String](" in line:
+            for text in re.findall(r'"((?:[^"\\]|\\.)*)"', line):
+                if is_candidate(text):
+                    findings.append((rel, number, text))
     return findings
 
 
@@ -187,6 +220,63 @@ def walk(root, folder, include_tres):
         for name in sorted(filenames):
             if name.endswith((".gd", ".tscn")) or (include_tres and name.endswith(".tres")):
                 yield os.path.join(dirpath, name)
+
+
+def read_csv(root, csv_path):
+    """{key: {locale: text}} der Uebersetzungstabelle (leer, wenn sie fehlt)."""
+    full = os.path.join(root, csv_path)
+    if not os.path.isfile(full):
+        return {}
+    with io.open(full, encoding="utf-8", newline="") as handle:
+        rows = list(csv.reader(handle))
+    if not rows:
+        return {}
+    header = [cell.strip() for cell in rows[0]]
+    table = {}
+    for row in rows[1:]:
+        if row and row[0].strip():
+            table[row[0].strip()] = {header[i]: row[i] for i in range(1, min(len(header), len(row)))}
+    return table
+
+
+def read_dungeon_texts(root):
+    """[(key, deutscher Text)] aus DungeonTexts.DE, Reihenfolge wie in der Datei."""
+    entries = []
+    full = os.path.join(root, DUNGEON_TEXTS_PATH)
+    if not os.path.isfile(full):
+        return entries
+    with io.open(full, encoding="utf-8") as handle:
+        for line in handle:
+            match = DUNGEON_TEXTS_ENTRY_RE.match(line)
+            if match:
+                entries.append((match.group(1), match.group(2).replace('\\"', '"')))
+    return entries
+
+
+def csv_line(key, en, de):
+    return '%s,"%s","%s"' % (key, en.replace('"', '""'), de.replace('"', '""'))
+
+
+def check_dungeon_texts(root, csv_path, export):
+    """Meldet DungeonTexts-Schluessel ohne Englisch in der CSV und Deutsch, das von DE abweicht."""
+    table = read_csv(root, csv_path)
+    entries = read_dungeon_texts(root)
+    missing = [(key, de) for key, de in entries if not table.get(key, {}).get("en", "").strip()]
+    changed = [(key, de) for key, de in entries
+               if table.get(key, {}).get("en", "").strip() and table[key].get("de", "") != de]
+    print("DungeonTexts: %d Schluessel, %d ohne Englisch, %d mit abweichendem Deutsch"
+          % (len(entries), len(missing), len(changed)))
+    for key, _de in missing:
+        print("  ohne Englisch: %s" % key)
+    for key, de in changed:
+        print('  Deutsch weicht ab: %s (DungeonTexts "%s", CSV "%s")' % (key, de, table[key].get("de", "")))
+    if export and (missing or changed):
+        print("# Zeilen fuer %s: Englisch eintragen; vorhandene Zeilen desselben Schluessels ersetzen." % csv_path)
+        for key, de in missing:
+            print(csv_line(key, table.get(key, {}).get("en", ""), de))
+        for key, de in changed:
+            print(csv_line(key, table[key].get("en", ""), de))
+    return 1 if missing or changed else 0
 
 
 def check_csv(root, csv_path):
@@ -228,6 +318,10 @@ def main():
     parser.add_argument("--summary", action="store_true", help="nur Anzahl je Ordner ausgeben")
     parser.add_argument("--tres", action="store_true", help="auch *.tres durchsuchen")
     parser.add_argument("--no-csv", action="store_true", help="translations.csv nicht pruefen")
+    parser.add_argument("--dungeon-texts", action="store_true",
+                        help="nur DungeonTexts.DE gegen die CSV pruefen (Schluessel ohne Englisch)")
+    parser.add_argument("--export", action="store_true",
+                        help="mit --dungeon-texts: fehlende/abweichende Zeilen im CSV-Format ausgeben")
     parser.add_argument("--csv", default="localization/translations.csv")
     parser.add_argument("--root", default=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     args = parser.parse_args()
@@ -235,16 +329,21 @@ def main():
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
     root = os.path.abspath(args.root)
+    if args.dungeon_texts:
+        return check_dungeon_texts(root, args.csv, args.export)
+    table = read_csv(root, args.csv)
+    csv_keys = frozenset(table) if args.tres else frozenset()
+    translated_keys = frozenset(key for key, texts in table.items() if texts.get("en", "").strip())
     findings = []
     for folder in args.folders:
         for path in walk(root, folder, args.tres):
             rel = os.path.relpath(path, root).replace("\\", "/")
             if path.endswith(".gd"):
-                findings.extend(scan_gd(path, rel))
+                findings.extend(scan_gd(path, rel, translated_keys))
             elif path.endswith(".tscn"):
                 findings.extend(scan_tscn(path, rel))
             else:
-                findings.extend(scan_tres(path, rel))
+                findings.extend(scan_tres(path, rel, csv_keys))
 
     per_folder = {}
     for rel, _number, _text in findings:

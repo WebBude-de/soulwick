@@ -5,10 +5,14 @@ extends GutTest
 
 const TEST_SAVE_PATH := "user://test_ux_run_end.cfg"
 
+var _old_locale: String
 var _old_save_path: String
 
 
 func before_all() -> void:
+	_old_locale = TranslationServer.get_locale()
+	# The expected texts are German; English is the default language (D-111).
+	Loc.apply(&"de")
 	_old_save_path = SaveManager.save_path
 	SaveManager.save_path = TEST_SAVE_PATH
 	SaveManager.load_game()
@@ -19,6 +23,7 @@ func after_each() -> void:
 
 
 func after_all() -> void:
+	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
 	SaveManager.save_path = _old_save_path
 	SaveManager.load_game()

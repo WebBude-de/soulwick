@@ -63,7 +63,7 @@ func _on_spotted(_flight: BountyFlight) -> void:
 	add_child(_hole)
 	show_banner(DungeonTexts.t(&"VARIANT_BOUNTY_SPOTTED"), DungeonTexts.t(&"VARIANT_BOUNTY_SPOTTED_SUB", [roundi(VariantRules.BOUNTY_CATCH_TIME)]), BONUS_COLOR)
 	if is_inside_tree():
-		Sfx.play_at(self, &"trap", flight.hole_position, -6.0)
+		Sfx.play_at(self, &"bounty_hole", flight.hole_position, -6.0)
 
 
 ## The hole opens frame by frame with the remaining time.
@@ -90,6 +90,7 @@ func _on_escaped(_flight: BountyFlight) -> void:
 	show_banner(DungeonTexts.t(&"VARIANT_BOUNTY_ESCAPED"), DungeonTexts.t(&"VARIANT_BOUNTY_ESCAPED_SUB"), LOST_COLOR)
 	if is_inside_tree() and flight != null:
 		Burst.spawn(self, flight.hole_position, Color(0.2, 0.15, 0.3), 14, 90.0)
+		Sfx.play_at(self, &"bounty_escape", flight.hole_position, -6.0)
 
 
 func _on_bounty_died(enemy: Enemy) -> void:

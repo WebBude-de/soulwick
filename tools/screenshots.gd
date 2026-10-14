@@ -23,6 +23,7 @@ func _run() -> void:
 	var save_manager := root.get_node("SaveManager")
 	_wipe(STORAGE_ROOT)
 	save_manager.set_storage_root(STORAGE_ROOT)
+	save_manager.set_option(&"language", "de")
 	save_manager.create_slot(1, "Lena", &"hero")
 	save_manager.add_permanent_gold(240)
 	save_manager.add_permanent_crystals(3)

@@ -16,36 +16,37 @@ entrance_x = 9
 exit_x = 9
 floor_seed = 640
 pillar_tiles = Array[Vector2i]([Vector2i(4, 3), Vector2i(14, 3), Vector2i(4, 7), Vector2i(14, 7), Vector2i(9, 5)])
+door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 9), Vector2i(3, 5), Vector2i(1, 5), Vector2i(0, 4), Vector2i(0, 14)])
 
 [node name="Spawn1" parent="SpawnPoints"]
-position = Vector2(32, 32)
+position = Vector2(480, 32)
 
 [node name="Spawn2" parent="SpawnPoints"]
-position = Vector2(1184, 32)
+position = Vector2(800, 288)
 
 [node name="Spawn3" parent="SpawnPoints"]
-position = Vector2(32, 608)
+position = Vector2(224, 672)
 
 [node name="Spawn4" parent="SpawnPoints"]
-position = Vector2(1184, 608)
+position = Vector2(992, 672)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(544, 160)
+position = Vector2(1056, 32)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(864, 352)
+position = Vector2(96, 32)
 
 [node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(864, 32)
+position = Vector2(416, 352)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(224, 288)
+position = Vector2(736, 32)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(352, 544)
+position = Vector2(288, 160)
 
 [node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1120, 288)
+position = Vector2(800, 544)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 288)
@@ -60,10 +61,10 @@ position = Vector2(320, -64)
 position = Vector2(832, -64)
 
 [node name="Bones_12" parent="Props" instance=ExtResource("2_bones_1")]
-position = Vector2(32, 696)
+position = Vector2(1184, 696)
 
 [node name="Bones_23" parent="Props" instance=ExtResource("3_bones_2")]
-position = Vector2(1184, 696)
+position = Vector2(1184, 56)
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

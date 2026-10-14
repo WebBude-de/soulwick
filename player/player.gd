@@ -121,8 +121,8 @@ func _physics_process(delta: float) -> void:
 
 	if Input.is_action_just_pressed(&"switch_weapon"):
 		weapon_controller.switch_weapon()
-	# No attacks while dashing (D-016).
-	if not is_dashing() and Input.is_action_pressed(&"attack"):
+	# No attacks while dashing (D-016) or while carrying the soul lantern (A9).
+	if not is_dashing() and Input.is_action_pressed(&"attack") and LanternCarry.can_attack(self):
 		weapon_controller.request_attack()
 
 	_update_interaction()

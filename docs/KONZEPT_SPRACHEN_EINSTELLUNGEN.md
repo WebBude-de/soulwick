@@ -7,20 +7,23 @@
 - Zwei Sprachen im Spiel (und auf der Website): `en` (Standard) und `de`. Option `language` ∈ {`auto`, `en`, `de`}, Standard `auto`: Systemsprache Deutsch → `de`, alles andere → `en`.
 - Alle Spieltexte laufen über **Übersetzungsschlüssel** in `localization/translations.csv`; Godot erzeugt daraus je Sprache eine `.translation`-Datei, die `Loc.install()` zur Laufzeit registriert. `project.godot` bleibt unverändert (kein neuer Autoload, D-044).
 - In UX3 umgestellt: Hauptmenü (`ui/main_menu/**`) und Optionen (`ui/options/**`). Der Rest folgt in Runde zwei (Backlog in §9, Dungeon-Dialoge in UX2).
+- **Runde zwei (14.10.2026, §11):** Englisch für alle `DungeonTexts`-Schlüssel, HUD, Pausenmenü/Run-Ende, Run-Rückblick, Boss-Intro, Dorf (Gebäude, Türen, Dialoge), Meta (Schmiede, Proviant, Freischaltungen, Spielstand-Namen) und die Anzeigenamen von Upgrades und Waffen (`DataTexts`).
 - Die Optionen sind ausgebaut (Sprache, Gesamtlautstärke, Fenstermodus, VSync, Spielgefühl-Schalter, Zurücksetzen) und in drei Reiter gegliedert, damit sie auch im Pausenmenü auf den 480×270-Bildschirm passen.
 
 ## 2. Bausteine
 
 | Datei | Aufgabe |
 | --- | --- |
-| `localization/translations.csv` | Quelle der Wahrheit, Spalten `keys,en,de`, UTF-8 ohne BOM, Werte in Anführungszeichen, `\n` für Zeilenumbrüche. **101 Schlüssel** (14.10.2026). |
+| `localization/translations.csv` | Quelle der Wahrheit, Spalten `keys,en,de`, UTF-8 ohne BOM, Werte in Anführungszeichen, `\n` für Zeilenumbrüche. **502 Schlüssel** (14.10.2026, Runde zwei; UX3: 101). |
+| `localization/data_texts.gd` (`class_name DataTexts`) | Anzeigetexte von Datenressourcen nach Namenskonvention (`UPGRADE_<ID>_NAME/_DESC`, `WEAPON_<ID>_NAME/_SPECIAL/_SPECIAL_DESC`), Rückfall auf das deutsche Feld der `.tres`; übersetzte Waffenwerte-Zeile (`weapon_stats_text`). |
 | `localization/translations.en.translation`, `translations.de.translation` | Von `godot --headless --path . --import` aus der CSV erzeugt, liegen neben der CSV, werden mit exportiert. Nach jeder CSV-Änderung neu importieren (Test `test_i18n` prüft, dass beide übereinstimmen). |
 | `localization/loc.gd` (`class_name Loc`) | `install()` registriert beide Übersetzungen einmalig (Rückfall: liest die CSV direkt, falls die `.translation` fehlen). `apply(option)` setzt das Locale. `resolve(option, systemsprache)` ist die Regel aus §1 (Systemsprache als Parameter → testbar). `t(key, args)` übersetzt überall, auch außerhalb des Szenenbaums. `current_language()` liefert `en`/`de`. |
 | `ui/options/game_options.gd` | Liest/schreibt alle Optionen über `SaveManager.get_option/set_option` (`settings.cfg [options]`, global, nicht je Spielstand) und wendet sie sofort an. `apply_all()` läuft beim Start (`scenes/main.gd`, `scenes/world_controller.gd`) und ruft `Loc.apply()` zuerst. |
 | `ui/options/options_view.gd` | Die gemeinsame Optionsansicht (Hauptmenü-Panel und Pausenmenü), drei Reiter, Tastenmodell wie bisher. |
 | `ui/options/controls_info.gd` | Tastenübersicht: Beschriftungen und Tastennamen als Schlüssel (`CONTROLS_*`, `KEY_*`), werden beim Aufruf übersetzt. |
-| `tools/i18n_check.py` | Findet verbliebene deutsche Texte in `*.gd`/`*.tscn` (optional `*.tres`), schlägt Schlüssel vor, prüft die CSV. Exit 1 bei Funden. |
+| `tools/i18n_check.py` | Findet verbliebene deutsche Texte in `*.gd`/`*.tscn` (optional `*.tres`), schlägt Schlüssel vor, prüft die CSV. Exit 1 bei Funden. `--dungeon-texts [--export]` meldet `DungeonTexts`-Schlüssel ohne Englisch (bzw. mit abweichendem Deutsch) und gibt die fehlenden CSV-Zeilen aus. Übersetzte `DungeonTexts`-Einträge und `.tres`-Felder mit Konventionsschlüssel zählen nicht als Fund. |
 | `tests/unit/test_i18n.gd`, `tests/unit/test_ux_options.gd` | Vollständigkeit der CSV, Schlüssel im Code, Sprachregel, Live-Umschalten, alle Optionen. |
+| `tests/unit/test_i18n_round2.gd` | Runde zwei: jeder `DungeonTexts`-Schlüssel hat Englisch und gleiches Deutsch, `DungeonTexts.t()` folgt der Sprache, Schlüssel aus HUD/Dorf/Meta/Pause existieren, `DataTexts`-Konvention, Live-Umschalten von HUD, Pausenmenü und Dorf. |
 
 **Ablauf beim Start:** `main.gd._ready()` → `GameOptions.apply_all()` → `Loc.apply(option)` registriert die Übersetzungen und setzt das Locale, bevor das erste Menü gebaut wird. `MainMenu._ready()` ruft `GameOptions.apply_language()` zusätzlich auf (Sicherheit, falls ein Host `apply_all()` nicht aufruft); `OptionsView._init()` ruft `Loc.install()`.
 
@@ -38,7 +41,19 @@
 | `CONTROLS_` | Tastenübersicht (Beschriftung, `_NOTE` = Hinweis rechts) | `CONTROLS_DASH`, `CONTROLS_DASH_NOTE` |
 | `KEY_` | Tastennamen | `KEY_SPACE`, `KEY_DELETE`, `KEY_MOUSE_LEFT`, `KEY_MOUSE_BUTTON` (`%d`) |
 
-Vorschlag für Runde zwei (Präfixe, die `tools/i18n_check.py` vorschlägt): `HUD_`, `GAME_UI_` (Pausenmenü, Run-Ende), `DUNGEON_UI_` (Upgrade-Wahl, Händler, Lagerfeuer …, in UX2 ggf. `DIALOG_`), `VILLAGE_UI_`/`VILLAGE_`, `DUNGEON_` (Raum-Banner), `BOSS_INTRO_`, `HINT_`, `ENEMY_`/`UPGRADE_`/`WEAPON_` für Datennamen aus `.tres`.
+Runde zwei (umgesetzt, §11):
+
+| Präfix | Bereich |
+| --- | --- |
+| `HUD_` | HUD: Raum, Zyklus, Raumart (`HUD_ROOM_TYPE_<RoomType>`), Heilung, Rekord, Tastenzeilen |
+| `GAME_UI_` | Pausenmenü und Rückfrage „Run abbrechen“ (Run-Ende nutzt `RUNEND_*` aus `DungeonTexts`) |
+| `VILLAGE_` / `VILLAGE_UI_` | Gebäude (Name, Rolle, Hinweise, Türtext) / Dialoge im Dorf (Chronik-Zeilen, Gilde, Kleiderschrank …) |
+| `FORGE_`, `BOOST_`, `META_`, `UNLOCK_`, `SAVE_` | Schmiede, Proviant, Startbanner und Boni, Freischaltungen, Spielstand-Namen und Datum |
+| `RECAP_`, `BOSS_INTRO_` | Todesursachen ohne Gegner, Hinweise im Boss-Intro |
+| `UPGRADE_<ID>_`, `WEAPON_<ID>_` | Datennamen der `.tres` per Konvention (`DataTexts`), `WEAPON_STATS*` für die Werte-Zeile |
+| `MENU_`, `STATE_`, `ROOM_`, `VARIANT_`, `WAGER_`, `RUNEND_` … | Tabelle `DungeonTexts` (UX2): Deutsch in `ui/menus/dungeon_texts.gd`, Englisch nur in der CSV |
+
+Ursprünglicher Vorschlag für Runde zwei (Präfixe, die `tools/i18n_check.py` vorschlägt): `HUD_`, `GAME_UI_` (Pausenmenü, Run-Ende), `DUNGEON_UI_` (Upgrade-Wahl, Händler, Lagerfeuer …, in UX2 ggf. `DIALOG_`), `VILLAGE_UI_`/`VILLAGE_`, `DUNGEON_` (Raum-Banner), `BOSS_INTRO_`, `HINT_`, `ENEMY_`/`UPGRADE_`/`WEAPON_` für Datennamen aus `.tres`.
 
 Regeln: Platzhalter `%s`/`%d` in beiden Sprachen gleich oft und in gleicher Reihenfolge (Test und Werkzeug prüfen das). Eigennamen (`English`, `Deutsch`, `Esc`, `Enter`, `F11`, `VSync`) bleiben Klartext. Eyebrows werden nicht in der CSV großgeschrieben, sondern über `Label.uppercase = true` (so bleibt ein Schlüssel wie `MENU_SLOTS` für Titel und Eyebrow nutzbar).
 
@@ -111,6 +126,8 @@ Kein Haken nötig für: `scenes/main.gd`/`world_controller.gd` (rufen `apply_all
 
 ## 9. Backlog Runde zwei: verbliebene deutsche Texte
 
+> **Stand nach Runde zwei (14.10.2026, §11):** `python tools/i18n_check.py --summary .` 443 → 237 Funde (das Werkzeug zählt übersetzte `DungeonTexts`-Einträge nicht mehr; nach alter Zählung 371). In `ui/hud`, `world`, `meta`, `ui/boss_intro`, `game_ui.gd`, `village_ui.gd`, `run_recap.gd`, `localization` 90 → 0; `--tres` für `upgrades` und `weapons/data` 25 → 0. Offen: `dungeon` 59, `ui/menus/dungeon_ui.gd` 6, `ui/hints` 5, `ui` 3 (`ui_kit.gd`), `enemies` 6 (+50 `.tres`), `player` 6, `economy` 2, `characters` 4 (`.tres`), neue `DungeonTexts`-Schlüssel ohne Englisch (`--dungeon-texts`). Die Tabelle unten ist der Stand vor Runde zwei.
+
 `python tools/i18n_check.py --summary --no-csv .` (14.10.2026; `*.gd` + `*.tscn`, ohne `addons/`):
 
 | Ordner | Funde | Hinweis |
@@ -141,3 +158,28 @@ Empfohlene Reihenfolge: (1) `ui/menus/game_ui.gd` + `ui/hud` (sichtbar in jedem 
 - Randlos auf Mehrbildschirm-Systemen: nimmt den Bildschirm, auf dem das Fenster liegt. Reicht das, oder soll der Bildschirm wählbar werden?
 - Tasten ändern (Rebinding) ist als „später“ angezeigt; eigenes Paket nach UX2?
 - Website (playsoulwick.com) nutzt dieselben Sprachen; eine gemeinsame Wortliste (Glossar) für Spiel und Website wäre sinnvoll, Ort: `soulwick-platform/docs/`.
+
+## 11. Runde zwei (14.10.2026)
+
+**Umfang:** Englisch für alle 206 `DungeonTexts`-Schlüssel (Dungeon-Dialoge, Raum-Genres, Erklärkarten, Varianten, Wagnis, Abgrund) und 195 neue Schlüssel für HUD, Pausenmenü, Run-Rückblick, Boss-Intro, Dorf und Meta sowie die Anzeigetexte der 15 Upgrades und 5 Waffen. CSV: 101 → 502 Schlüssel.
+
+**Wie es gelöst ist:**
+
+| Bereich | Weg vom Text zur Anzeige |
+| --- | --- |
+| `DungeonTexts` (UX2) | Deutsch bleibt die Tabelle `DE` in `ui/menus/dungeon_texts.gd`, die CSV trägt Englisch **und** eine Kopie des Deutschen. `DungeonTexts.t()` nimmt den TranslationServer-Text (Englisch bzw. Deutsch aus der CSV) und fällt ohne CSV-Zeile auf `DE` zurück. Neue Schlüssel ohne Englisch zeigen also weiter Deutsch. |
+| HUD (`ui/hud/hud.gd`) | Tastenzeile als Schlüssel (`Label` übersetzt selbst), Raum/Zyklus/Heilung/Rekord/Waffenzeile über `Loc.t()`, neu gesetzt bei `NOTIFICATION_TRANSLATION_CHANGED`. Raumart über eigene Schlüssel `HUD_ROOM_TYPE_<RoomSequence.RoomType>`; fehlt einer (neue Raumart), gilt `RoomSequence.get_type_name()` (Deutsch). |
+| Pausenmenü (`ui/menus/game_ui.gd`) | Texte werden beim Öffnen aufgelöst (Werkzeuge drücken Knöpfe über den Text) und bei einem Sprachwechsel aus den Optionen neu gesetzt (`_pause_texts`). Run-Ende nutzt weiter `RUNEND_*`. Nebenbei behoben: „Du behältst nur 50 % … (%d)“ zeigte wegen des unmaskierten `%` den Platzhalter statt der Zahl. |
+| Dorf (`world/village/*`, `ui/menus/village_ui.gd`) | `VillageBuildings.INFO` hält Schlüssel (Name, Rolle, Hinweise, Türtext), Getter liefern Text. `Village` setzt Gebäudeschilder (Schlüssel) und Türtexte (Text, weil `player.gd` „E %s“ zusammensetzt) beim Laden und bei Sprachwechsel; `village.tscn` bleibt unverändert (Generator). Dialoge lösen Texte beim Aufbau auf. |
+| Meta (`meta/*`) | `MetaProgression.UPGRADES/BOOSTS` und `MetaUnlocks.LOCK_CONDITIONS` halten Schlüssel; Text über `get_upgrade_name/summary/effect/stat()`, `get_boost_name/effect()`, `get_weapon_name()`, `get_run_banner_title()`, `MetaUnlocks.get_announce_title()`. `RUN_BANNER_TITLE` und `ANNOUNCE_TITLE` sind jetzt Schlüssel (in einem `Label` übersetzt Godot selbst). `format_number()` schreibt im Englischen einen Punkt („1.35“), im Deutschen ein Komma. `SaveSlots.default_name()` → „Save 2“ / „Spielstand 2“; Datum Englisch ISO („2026-10-14 · 03:03“), „today“/„yesterday“. |
+| Upgrades und Waffen (`.tres`) | Die Ressourcen behalten ihre deutschen Felder (Rückfall, Logik, Werkzeuge, Tests). `DataTexts.upgrade_name/upgrade_description/weapon_name/weapon_special_name/weapon_special_description()` holen den Text nach Konvention (`UPGRADE_<ID>_NAME` …). Angeschlossen in HUD und Glücksamulett-Banner; Dungeon-Dialoge, Händler und Waffenraum siehe Haken. |
+
+**Tests, die deutsche Texte vergleichen**, setzen in `before_all` `Loc.apply(&"de")` und stellen in `after_all` das alte Locale her (`test_meta_values`, `test_meta_unlocks`, `test_village_unlocks`, `test_village_home`, `test_village_intro`, `test_save_slots`, `test_save_seen`, `test_ux_run_end`). `Loc.apply()` schreibt anders als `GameOptions.set_language()` keine `settings.cfg`.
+
+**Fehlendes Englisch für neue `DungeonTexts`-Schlüssel ergänzen:**
+
+1. `python tools/i18n_check.py --dungeon-texts --export` listet Schlüssel ohne Englisch (und solche, deren Deutsch in `DE` geändert wurde) und gibt fertige CSV-Zeilen `KEY,"","Deutsch"` aus.
+2. Englisch eintragen, Zeilen an `localization/translations.csv` anhängen (geänderte Zeilen ersetzen).
+3. `godot --headless --path . --import`, danach `python tools/i18n_check.py --dungeon-texts` (Exit 0) und GUT (`test_i18n_round2.test_every_dungeon_text_has_english` ist rot, solange Englisch fehlt).
+
+**Haken (Dateien anderer Agenten):** siehe Bericht Runde zwei und ROADMAP_AUSBAU UX3; die wichtigsten: Werkzeuge (`smoke_test`, `balance_sim`, `screenshots`) setzen die Sprache nur per `TranslationServer.set_locale("de")`, `WorldController` überschreibt sie danach mit der gespeicherten Option. Steht in der echten `settings.cfg` `language="en"`, suchen die Werkzeuge deutsche Knöpfe in einem englischen Spiel. Abhilfe je Werkzeug nach dem Umbiegen des Spielstands: `save_manager.settings_path = "user://<werkzeug>_settings.cfg"`, `save_manager.load_settings()`, `save_manager.set_option(&"language", "de")` (`screenshots.gd` hat schon `set_storage_root`, dort nur `set_option`).

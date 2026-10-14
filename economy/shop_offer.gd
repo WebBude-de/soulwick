@@ -15,23 +15,23 @@ var sold := false
 func get_title() -> String:
 	match kind:
 		Kind.UPGRADE:
-			return upgrade.display_name
+			return DataTexts.upgrade_name(upgrade)
 		Kind.WEAPON:
-			return weapon.display_name
+			return DataTexts.weapon_name(weapon)
 		Kind.HEAL:
-			return "Heiltrank"
-	return "Schildrune"
+			return Loc.t(&"SHOP_HEAL_NAME")
+	return Loc.t(&"SHOP_SHIELD_NAME")
 
 
 func get_description() -> String:
 	match kind:
 		Kind.UPGRADE:
-			return upgrade.description
+			return DataTexts.upgrade_description(upgrade)
 		Kind.WEAPON:
-			return "Neue Waffe"
+			return Loc.t(&"SHOP_NEW_WEAPON")
 		Kind.HEAL:
-			return "+%s HP" % DamageNumber.format_amount(amount)
-	return "+%s Schild" % DamageNumber.format_amount(amount)
+			return Loc.t(&"SHOP_HEAL_DESC", [DamageNumber.format_amount(amount)])
+	return Loc.t(&"SHOP_SHIELD_DESC", [DamageNumber.format_amount(amount)])
 
 
 func get_icon() -> Texture2D:

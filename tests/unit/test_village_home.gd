@@ -6,11 +6,15 @@ extends GutTest
 const TEST_PATH := "user://test_village_home.cfg"
 const VILLAGE_SCENE := "res://world/village/village.tscn"
 
+var _old_locale: String
 var _old_path: String
 var _ui: VillageUI = null
 
 
 func before_all() -> void:
+	_old_locale = TranslationServer.get_locale()
+	# The expected texts are German; English is the default language (D-111).
+	Loc.apply(&"de")
 	_old_path = SaveManager.save_path
 
 
@@ -27,6 +31,7 @@ func after_each() -> void:
 
 
 func after_all() -> void:
+	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
 	for version in [1, 2]:

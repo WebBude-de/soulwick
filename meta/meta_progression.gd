@@ -16,21 +16,23 @@ const ARSENAL: StringName = &"arsenal"
 const UPGRADE_ORDER: Array[StringName] = [VITALITY, START_SHIELD, SHARPNESS, GOLD_GREED, DASH_TRAINING, ARSENAL]
 ## id -> display name, description per level, one-line summary and the label of the value it
 ## changes (forge cards, D-087), gold cost of each level (index = level - 1).
+## The texts are translation keys (D-111); read them translated with get_upgrade_name(),
+## get_upgrade_summary(), get_upgrade_effect() and get_upgrade_stat().
 ## TESTWERT: levels and costs from the D-087 table (28 -> 20 levels). Changing the number of levels
 ## needs a save migration (SaveManager.migrate, D-059).
 const UPGRADES := {
-	VITALITY: {"name": "Vitalität", "effect": "+1 Max-HP je Stufe", "summary": "Mehr Leben zu Beginn jedes Runs.",
-		"stat": "Max-HP", "costs": [40, 80, 140, 220, 320]},
-	START_SHIELD: {"name": "Startschild", "effect": "+3 Schild beim Start je Stufe", "summary": "Schild zu Beginn jedes Runs.",
-		"stat": "Schild", "costs": [40, 90, 160]},
-	SHARPNESS: {"name": "Schärfe", "effect": "+10 % Schaden je Stufe", "summary": "Mehr Schaden mit allen Waffen.",
-		"stat": "Schaden", "costs": [70, 150, 260, 400]},
-	GOLD_GREED: {"name": "Goldgier", "effect": "+15 % Gold-Drops je Stufe", "summary": "Gegner lassen mehr Gold fallen.",
-		"stat": "Gold", "costs": [60, 140, 250]},
-	DASH_TRAINING: {"name": "Dash-Training", "effect": "−0,15 s Dash-Abklingzeit je Stufe", "summary": "Du kannst öfter ausweichen.",
-		"stat": "Dash-Abklingzeit", "costs": [60, 140, 260]},
-	ARSENAL: {"name": "Arsenal", "effect": "Stufe 1: Bogen als zweite Startwaffe · Stufe 2: Stab wählbar",
-		"summary": "Eine zweite Waffe zum Start.", "stat": "Zweite Startwaffe:", "costs": [80, 160]},
+	VITALITY: {"name": &"FORGE_VITALITY_NAME", "effect": &"FORGE_VITALITY_EFFECT", "summary": &"FORGE_VITALITY_SUMMARY",
+		"stat": &"FORGE_VITALITY_STAT", "costs": [40, 80, 140, 220, 320]},
+	START_SHIELD: {"name": &"FORGE_START_SHIELD_NAME", "effect": &"FORGE_START_SHIELD_EFFECT", "summary": &"FORGE_START_SHIELD_SUMMARY",
+		"stat": &"FORGE_START_SHIELD_STAT", "costs": [40, 90, 160]},
+	SHARPNESS: {"name": &"FORGE_SHARPNESS_NAME", "effect": &"FORGE_SHARPNESS_EFFECT", "summary": &"FORGE_SHARPNESS_SUMMARY",
+		"stat": &"FORGE_SHARPNESS_STAT", "costs": [70, 150, 260, 400]},
+	GOLD_GREED: {"name": &"FORGE_GOLD_GREED_NAME", "effect": &"FORGE_GOLD_GREED_EFFECT", "summary": &"FORGE_GOLD_GREED_SUMMARY",
+		"stat": &"FORGE_GOLD_GREED_STAT", "costs": [60, 140, 250]},
+	DASH_TRAINING: {"name": &"FORGE_DASH_TRAINING_NAME", "effect": &"FORGE_DASH_TRAINING_EFFECT", "summary": &"FORGE_DASH_TRAINING_SUMMARY",
+		"stat": &"FORGE_DASH_TRAINING_STAT", "costs": [60, 140, 260]},
+	ARSENAL: {"name": &"FORGE_ARSENAL_NAME", "effect": &"FORGE_ARSENAL_EFFECT", "summary": &"FORGE_ARSENAL_SUMMARY",
+		"stat": &"FORGE_ARSENAL_STAT", "costs": [80, 160]},
 }
 ## TESTWERT (D-087): effect per level.
 const HEALTH_PER_LEVEL := 1.0
@@ -43,8 +45,8 @@ const MIN_DASH_COOLDOWN := 0.3
 ## HealthComponent.max_health and Player.dash_cooldown; test_meta_values checks they still match.
 const BASE_MAX_HEALTH := 6.0
 const BASE_DASH_COOLDOWN := 1.5
-## Arsenal value text per level (0..2).
-const ARSENAL_LEVEL_TEXTS: Array[String] = ["keine", "Bogen", "Bogen oder Stab"]
+## Arsenal value text per level (0..2), translation keys.
+const ARSENAL_LEVEL_TEXTS: Array[StringName] = [&"FORGE_ARSENAL_NONE", &"FORGE_ARSENAL_BOW", &"FORGE_ARSENAL_BOW_OR_STAFF"]
 
 # --- Arsenal start weapons ---
 const WEAPON_BOW: StringName = &"bow"
@@ -53,24 +55,69 @@ const WEAPON_PATHS := {
 	WEAPON_BOW: "res://weapons/data/bow.tres",
 	WEAPON_STAFF: "res://weapons/data/staff.tres",
 }
-const WEAPON_NAMES := {WEAPON_BOW: "Bogen", WEAPON_STAFF: "Stab"}
+## Start weapon id -> translation key of its short name (get_weapon_name()).
+const WEAPON_NAMES := {WEAPON_BOW: &"META_WEAPON_BOW", WEAPON_STAFF: &"META_WEAPON_STAFF"}
 
 # --- Run-start banner (D-087) ---
-const RUN_BANNER_TITLE := "Aus dem Dorf"
+## Translation key; a Label translates it by itself, get_run_banner_title() gives the text.
+const RUN_BANNER_TITLE: StringName = &"META_RUN_BANNER_TITLE"
 
 # --- Trader (Proviant only; no crystal exchange since D-087) ---
 const BOOST_POTION: StringName = &"potion"
 const BOOST_UPGRADE: StringName = &"upgrade"
 const BOOST_GOLD: StringName = &"gold"
 const BOOST_ORDER: Array[StringName] = [BOOST_POTION, BOOST_UPGRADE, BOOST_GOLD]
-## Proviant for the next run only; price in Seelenkristalle.
+## Proviant for the next run only; price in Seelenkristalle. Texts are translation keys
+## (get_boost_name(), get_boost_effect()).
 const BOOSTS := {
-	BOOST_POTION: {"name": "Heiltrank-Proviant", "effect": "+2 Max-HP im nächsten Run", "price": 1},
-	BOOST_UPGRADE: {"name": "Glücksamulett", "effect": "Start mit 1 zufälligen Upgrade", "price": 2},
-	BOOST_GOLD: {"name": "Goldbeutel", "effect": "+25 % Gold im nächsten Run", "price": 2},
+	BOOST_POTION: {"name": &"BOOST_POTION_NAME", "effect": &"BOOST_POTION_EFFECT", "price": 1},
+	BOOST_UPGRADE: {"name": &"BOOST_UPGRADE_NAME", "effect": &"BOOST_UPGRADE_EFFECT", "price": 2},
+	BOOST_GOLD: {"name": &"BOOST_GOLD_NAME", "effect": &"BOOST_GOLD_EFFECT", "price": 2},
 }
 const BOOST_POTION_HEALTH := 2.0
 const BOOST_GOLD_BONUS := 0.25
+
+
+# --- Texts in the current language (D-111) ---
+
+static func get_upgrade_name(id: StringName) -> String:
+	return _info_text(UPGRADES, id, "name")
+
+
+static func get_upgrade_summary(id: StringName) -> String:
+	return _info_text(UPGRADES, id, "summary")
+
+
+static func get_upgrade_effect(id: StringName) -> String:
+	return _info_text(UPGRADES, id, "effect")
+
+
+## Label of the value an upgrade changes ("Max-HP", "Schaden", "Zweite Startwaffe:").
+static func get_upgrade_stat(id: StringName) -> String:
+	return _info_text(UPGRADES, id, "stat")
+
+
+static func get_boost_name(id: StringName) -> String:
+	return _info_text(BOOSTS, id, "name")
+
+
+static func get_boost_effect(id: StringName) -> String:
+	return _info_text(BOOSTS, id, "effect")
+
+
+## Short name of an Arsenal start weapon ("Bogen", "Stab"); the id for unknown weapons.
+static func get_weapon_name(id: StringName) -> String:
+	return Loc.t(WEAPON_NAMES[id]) if WEAPON_NAMES.has(id) else String(id)
+
+
+static func get_run_banner_title() -> String:
+	return Loc.t(RUN_BANNER_TITLE)
+
+
+static func _info_text(table: Dictionary, id: StringName, field: String) -> String:
+	if not table.has(id):
+		return ""
+	return Loc.t(StringName(table[id][field]))
 
 
 # --- Forge rules ---
@@ -203,7 +250,7 @@ static func format_value_at_level(id: StringName, level: int) -> String:
 		DASH_TRAINING:
 			return "%s s" % format_number(value)
 		ARSENAL:
-			return ARSENAL_LEVEL_TEXTS[clampi(int(value), 0, ARSENAL_LEVEL_TEXTS.size() - 1)]
+			return Loc.t(ARSENAL_LEVEL_TEXTS[clampi(int(value), 0, ARSENAL_LEVEL_TEXTS.size() - 1)])
 	return format_number(value)
 
 
@@ -213,7 +260,7 @@ static func describe_level_step(id: StringName, level: int) -> String:
 	if not UPGRADES.has(id):
 		return ""
 	level = clampi(level, 0, get_max_level(id))
-	var stat: String = UPGRADES[id]["stat"]
+	var stat := get_upgrade_stat(id)
 	var current := format_value_at_level(id, level)
 	if level >= get_max_level(id):
 		return "%s %s (max.)" % [stat, current]
@@ -225,10 +272,12 @@ static func describe_next_level(id: StringName) -> String:
 	return describe_level_step(id, get_level(id))
 
 
-## German number without trailing zeros: 1.35 -> "1,35", 1.5 -> "1,5", 7.0 -> "7".
+## Number without trailing zeros in the current language: German 1.35 -> "1,35", 1.5 -> "1,5",
+## 7.0 -> "7"; English keeps the point ("1.35").
 static func format_number(value: float) -> String:
 	var text := "%.2f" % value
-	return text.rstrip("0").rstrip(".").replace(".", ",")
+	text = text.rstrip("0").rstrip(".")
+	return text.replace(".", ",") if Loc.current_language() == &"de" else text
 
 
 # --- Run-start banner (D-087) ---
@@ -243,19 +292,19 @@ static func describe_forge_bonuses(levels: Dictionary, second_weapon: StringName
 			continue
 		match id:
 			VITALITY:
-				parts.append("+%s Max-HP" % format_number(level * HEALTH_PER_LEVEL))
+				parts.append(Loc.t(&"META_BONUS_MAX_HP", [format_number(level * HEALTH_PER_LEVEL)]))
 			START_SHIELD:
-				parts.append("+%s Schild" % format_number(level * SHIELD_PER_LEVEL))
+				parts.append(Loc.t(&"META_BONUS_SHIELD", [format_number(level * SHIELD_PER_LEVEL)]))
 			SHARPNESS:
-				parts.append("+%d %% Schaden" % roundi(level * DAMAGE_PER_LEVEL * 100.0))
+				parts.append(Loc.t(&"META_BONUS_DAMAGE", [roundi(level * DAMAGE_PER_LEVEL * 100.0)]))
 			GOLD_GREED:
-				parts.append("+%d %% Gold" % roundi(level * GOLD_PER_LEVEL * 100.0))
+				parts.append(Loc.t(&"META_BONUS_GOLD", [roundi(level * GOLD_PER_LEVEL * 100.0)]))
 			DASH_TRAINING:
 				var reduction := BASE_DASH_COOLDOWN - get_value_at_level(DASH_TRAINING, level)
-				parts.append("−%s s Dash" % format_number(reduction))
+				parts.append(Loc.t(&"META_BONUS_DASH", [format_number(reduction)]))
 			ARSENAL:
 				if WEAPON_NAMES.has(second_weapon):
-					parts.append(WEAPON_NAMES[second_weapon])
+					parts.append(get_weapon_name(second_weapon))
 	return parts
 
 
@@ -269,7 +318,7 @@ static func get_forge_bonus_parts() -> Array[String]:
 
 ## Banner text for the run start: all forge bonuses plus the Proviant lines apply_to_run()
 ## returned, e.g. "+2 Max-HP · +20 % Schaden · Bogen · Heiltrank: +2 Max-HP". Empty if nothing
-## applies (then no banner). Show it with RUN_BANNER_TITLE as the title.
+## applies (then no banner). Show it with get_run_banner_title() as the title.
 static func get_run_start_summary(applied_boosts: Array[String]) -> String:
 	var parts := get_forge_bonus_parts()
 	parts.append_array(applied_boosts)
@@ -282,7 +331,7 @@ static func get_run_start_banner_line(applied_boosts: Array[String]) -> String:
 	parts.append_array(applied_boosts)
 	if parts.is_empty():
 		return ""
-	return "%s: %s" % [RUN_BANNER_TITLE, ", ".join(parts)]
+	return "%s: %s" % [get_run_banner_title(), ", ".join(parts)]
 
 
 # --- Trader rules (Proviant) ---
@@ -311,7 +360,8 @@ static func try_buy_boost(id: StringName) -> bool:
 
 ## Applies all permanent upgrades and this run's Proviant boosts to a freshly spawned dungeon
 ## player. Call once per run after the player is bound to the context (DungeonManager.
-## on_player_spawned). Returns short German lines describing what was applied (for a banner).
+## on_player_spawned). Returns short lines in the current language describing what was applied
+## (for a banner).
 static func apply_to_run(player: Player, context: DungeonContext) -> Array[String]:
 	var applied: Array[String] = []
 	if player == null:
@@ -319,7 +369,7 @@ static func apply_to_run(player: Player, context: DungeonContext) -> Array[Strin
 	var bonus_health := get_bonus_max_health()
 	if RunManager.has_run_boost(BOOST_POTION):
 		bonus_health += BOOST_POTION_HEALTH
-		applied.append("Heiltrank: +%d Max-HP" % int(BOOST_POTION_HEALTH))
+		applied.append(Loc.t(&"META_APPLIED_POTION", [int(BOOST_POTION_HEALTH)]))
 	if bonus_health > 0.0:
 		player.health.reset(player.health.get_max_health() + bonus_health)
 	var shield := get_start_shield()
@@ -337,9 +387,9 @@ static func apply_to_run(player: Player, context: DungeonContext) -> Array[Strin
 		var rng := context.rng if context.rng != null else RandomNumberGenerator.new()
 		var offer := context.upgrade_manager.roll_offer(context.get_owned_weapons(), rng, 1)
 		if not offer.is_empty() and context.upgrade_manager.acquire_upgrade(offer[0]):
-			applied.append("Glücksamulett: %s" % offer[0].display_name)
+			applied.append(Loc.t(&"META_APPLIED_UPGRADE", [DataTexts.upgrade_name(offer[0])]))
 	if RunManager.has_run_boost(BOOST_GOLD):
-		applied.append("Goldbeutel: +%d %% Gold" % roundi(BOOST_GOLD_BONUS * 100.0))
+		applied.append(Loc.t(&"META_APPLIED_GOLD", [roundi(BOOST_GOLD_BONUS * 100.0)]))
 	return applied
 
 

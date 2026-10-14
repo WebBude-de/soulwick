@@ -16,6 +16,8 @@ extends SceneTree
 ##   seed=0            0 = random
 ##   out=<path>        CSV with one row per room (default user://balance_sim_<policy>.csv)
 ##   quiet=1           only print run summaries
+##   branch=first      first | safe | nest  (way of a branch room, D-105: the first door, the safe
+##                     way or the elite nest / unknown variant when offered)
 ## Runtime experiments (shared files stay untouched, values are changed in memory only):
 ##   set.hp_growth=1.22      enemy HP factor per 5-room block (replaces EnemyScaling value)
 ##   set.dmg_growth=1.16     enemy damage factor per block
@@ -47,7 +49,7 @@ const DIRECTIONS := 16
 
 var opt := {
 	"runs": 3, "policy": "sword", "pick": "greedy", "max_rooms": 150, "skill": 0.8,
-	"reaction": 0.22, "seed": 0, "out": "", "quiet": 0, "debug": 0,
+	"reaction": 0.22, "seed": 0, "out": "", "quiet": 0, "debug": 0, "branch": "first",
 }
 var ovr := {}
 var res_overrides: Array = []
@@ -109,6 +111,10 @@ func _run() -> void:
 	save_manager.save_path = save_path
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
 	save_manager.load_game()
+	# Own settings in German: the real settings.cfg may say English and would win at world start.
+	save_manager.settings_path = "user://balance_sim_settings.cfg"
+	save_manager.load_settings()
+	save_manager.set_option(&"language", "de")
 
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
@@ -313,12 +319,28 @@ func _after_clear(room: Node) -> void:
 		await physics_frame
 		if _handle_pause():
 			continue
+		# Branch room (A10, D-105): the doors wait until the group walks up to one; the bot decides
+		# through the room's decision hook instead of walking there.
+		if room.has_method(&"is_branch_room") and room.is_branch_room() and room.get_chosen_branch() < 0 \
+				and room.get_branch_choice() != null and room.get_branch_choice().is_offered:
+			room.choose_branch(_pick_branch(room))
 		_bot_step(room)
 		if not player.is_alive():
 			return
 		if _time > until + 30.0:
 			push_error("balance_sim: room %d exit never opened" % room.room_index)
 			return
+
+
+## Way of a branch room by option branch: the first door, the safe way or the risky one.
+func _pick_branch(room: Node) -> int:
+	var options: Array = room.branch_options
+	var wanted := String(opt.branch)
+	for i in options.size():
+		var safe: bool = int(options[i].kind) == 0
+		if (wanted == "safe" and safe) or (wanted == "nest" and not safe):
+			return i
+	return 0
 
 
 func _use_special(room: Node) -> void:

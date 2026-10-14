@@ -8,12 +8,13 @@ extends Node
 ## Multiplayer later: one recap per local view; kills are counted for the whole group today.
 
 const UNKNOWN_CAUSE := ""
-## Damage tags of traps without a source node -> German name (dungeon/environment/traps).
+## Damage tags of traps without a source node -> translation key of their name (D-111;
+## dungeon/environment/traps).
 const TRAP_CAUSES: Array[Array] = [
-	[&"fire", "Lavaspalt"],
-	[&"poison", "Giftlache"],
-	[&"trap", "Stachelfalle"],
-	[&"pit", "Abgrund"],
+	[&"fire", &"RECAP_CAUSE_FIRE"],
+	[&"poison", &"RECAP_CAUSE_POISON"],
+	[&"trap", &"RECAP_CAUSE_TRAP"],
+	[&"pit", &"RECAP_CAUSE_PIT"],
 ]
 
 var kills := 0
@@ -21,7 +22,7 @@ var rooms_cleared := 0
 var upgrades := 0
 ## Unpaused run time in seconds (dialogs and the pause menu do not count).
 var play_time := 0.0
-## German name of what dealt the last health damage ("" = unknown).
+## Name of what dealt the last health damage ("" = unknown), in the language of that moment.
 var last_hit_by := UNKNOWN_CAUSE
 ## Deepest room of the save before this run (for "Neuer Rekord!").
 var record_before := 0
@@ -81,7 +82,7 @@ func get_stats() -> Dictionary:
 	}
 
 
-## German name of what dealt damage: the enemy (with elite prefix) or the trap kind.
+## Name of what dealt damage: the enemy (with elite prefix) or the trap kind (current language).
 static func describe_hit(damage: DamageData) -> String:
 	if damage == null:
 		return UNKNOWN_CAUSE
@@ -91,7 +92,7 @@ static func describe_hit(damage: DamageData) -> String:
 		return enemy.get_display_name()
 	for entry in TRAP_CAUSES:
 		if damage.tags.has(entry[0]):
-			return entry[1]
+			return Loc.t(entry[1])
 	return UNKNOWN_CAUSE
 
 

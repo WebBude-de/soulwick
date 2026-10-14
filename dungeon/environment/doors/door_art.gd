@@ -27,6 +27,8 @@ const LEAF_FRAMES := 4
 ## Placeholder sign behind the UI icon: 20x20 art px.
 const PLAQUE_SIZE := Vector2i(20, 20)
 const SYMBOL_SIZE := Vector2i(16, 16)
+## Width in art px of the placeholder leaf of a west/east door (A10).
+const SIDE_LEAF_WIDTH := 12
 ## UI icons shown on the placeholder sign until door_special_symbols.png exists.
 const SYMBOL_ICONS := {
 	&"shop": "res://art/ui/gold_icon.png",
@@ -35,6 +37,8 @@ const SYMBOL_ICONS := {
 	&"upgrade": "res://art/ui/upgrade_magic_power.png",
 	&"trial": "res://art/ui/clock_icon.png",
 	&"miniboss": "res://art/ui/skull_icon.png",
+	&"elite_nest": "res://art/ui/skull_icon.png",
+	&"safe": "res://art/ui/heart_full.png",
 }
 ## The campfire sign shows the flame of the first torch frame.
 const CAMPFIRE_ICON := "res://art/environment/props/torch_4f.png"
@@ -64,6 +68,10 @@ static func has_leaf_file(style: DoorStyle) -> bool:
 
 
 static func has_symbol_file(symbol_id: StringName) -> bool:
+	if DoorStyle.is_branch_symbol(symbol_id):
+		var branch_sheet := _load_file(DoorStyle.BRANCH_SYMBOLS_PATH)
+		var column := DoorStyle.branch_symbol_index(symbol_id)
+		return branch_sheet != null and branch_sheet.get_width() >= (column + 1) * SYMBOL_SIZE.x
 	var sheet := _load_file(_art_path(DoorStyle.get_symbols_path()))
 	var index := DoorStyle.symbol_index(symbol_id)
 	return sheet != null and index >= 0 and sheet.get_width() >= (index + 1) * SYMBOL_SIZE.x
@@ -105,6 +113,34 @@ static func _is_passage(color: Color) -> bool:
 			+ absf(color.b - PASSAGE_COLOR.b) < 0.03
 
 
+## Leaf of a west/east wall door (A10): delivered file or a placeholder made from the front leaf,
+## turned and narrowed (four frames of 32x32, drawn for the west wall).
+static func get_side_leaf_strip(style: DoorStyle) -> Texture2D:
+	var key := "side_leaf_%s" % style.get_key()
+	if not _cache.has(key):
+		var file := _load_file(_art_path(style.get_side_leaf_path()))
+		_cache[key] = file if file != null else ImageTexture.create_from_image(paint_side_leaf_strip(style))
+	return _cache[key]
+
+
+## Placeholder side leaf: every frame of the front leaf turned a quarter and squeezed into a
+## narrow slab in the middle of the tile, so it reads as a door seen from above.
+static func paint_side_leaf_strip(style: DoorStyle) -> Image:
+	var front := get_leaf_strip(style).get_image()
+	if front.is_compressed():
+		front.decompress()
+	front.convert(Image.FORMAT_RGBA8)
+	var size := style.leaf_size
+	var frames := maxi(1, front.get_width() / maxi(1, size.x))
+	var strip := _new_image(Vector2i(size.y * frames, size.y))
+	for f in frames:
+		var frame := front.get_region(Rect2i(f * size.x, 0, size.x, size.y))
+		frame.rotate_90(CLOCKWISE)
+		frame.resize(SIDE_LEAF_WIDTH, size.y, Image.INTERPOLATE_NEAREST)
+		strip.blit_rect(frame, Rect2i(Vector2i.ZERO, frame.get_size()), Vector2i(f * size.y + (size.y - SIDE_LEAF_WIDTH) / 2, 0))
+	return strip
+
+
 ## Leaf strip, four frames of 32x32 (frame 1 closed, frame 4 open).
 static func get_leaf_strip(style: DoorStyle) -> Texture2D:
 	var key := "leaf_%s" % style.get_key()
@@ -132,6 +168,8 @@ static func get_glow(style: DoorStyle) -> Texture2D:
 ## Sign over a door to a special room: a column of door_special_symbols.png, else a placeholder
 ## sign with the matching UI icon. null for no symbol.
 static func get_symbol(symbol_id: StringName) -> Texture2D:
+	if DoorStyle.is_branch_symbol(symbol_id):
+		return _get_branch_symbol(symbol_id)
 	if DoorStyle.symbol_index(symbol_id) < 0:
 		return null
 	var key := "symbol_%s" % symbol_id
@@ -140,6 +178,20 @@ static func get_symbol(symbol_id: StringName) -> Texture2D:
 			var atlas := AtlasTexture.new()
 			atlas.atlas = _load_file(_art_path(DoorStyle.get_symbols_path()))
 			atlas.region = Rect2(DoorStyle.symbol_index(symbol_id) * SYMBOL_SIZE.x, 0, SYMBOL_SIZE.x, SYMBOL_SIZE.y)
+			_cache[key] = atlas
+		else:
+			_cache[key] = ImageTexture.create_from_image(paint_symbol(symbol_id))
+	return _cache[key]
+
+
+## Branch sign (A10): a column of door_branch_symbols.png (SPRITES_V5 §6), else a placeholder sign.
+static func _get_branch_symbol(symbol_id: StringName) -> Texture2D:
+	var key := "branch_symbol_%s" % symbol_id
+	if not _cache.has(key):
+		if has_symbol_file(symbol_id):
+			var atlas := AtlasTexture.new()
+			atlas.atlas = _load_file(DoorStyle.BRANCH_SYMBOLS_PATH)
+			atlas.region = Rect2(DoorStyle.branch_symbol_index(symbol_id) * SYMBOL_SIZE.x, 0, SYMBOL_SIZE.x, SYMBOL_SIZE.y)
 			_cache[key] = atlas
 		else:
 			_cache[key] = ImageTexture.create_from_image(paint_symbol(symbol_id))

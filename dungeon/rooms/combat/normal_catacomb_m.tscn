@@ -17,6 +17,7 @@ entrance_x = 9
 exit_x = 5
 floor_seed = 896
 wall_rects = Array[Rect2i]([Rect2i(0, 0, 5, 2), Rect2i(6, 0, 13, 2), Rect2i(0, 2, 2, 7), Rect2i(6, 2, 4, 1), Rect2i(17, 2, 2, 7), Rect2i(3, 3, 13, 2), Rect2i(7, 5, 5, 1), Rect2i(3, 6, 9, 2), Rect2i(13, 6, 3, 2), Rect2i(0, 9, 9, 2), Rect2i(10, 9, 9, 2)])
+door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 5)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(800, 160)

@@ -6,11 +6,19 @@ extends SceneTree
 ## after the ingredient scatter; the shapes and ingredients seen are printed at the end.
 ## Abysses (A4): rooms with pits keep exit and markers reachable on foot, no enemy and no gold over
 ## an abyss, the player never falls while standing on the walk-in tile.
+## Way-finding (A10): rooms are entered through the south, west or east wall and never overlap a
+## live room other than their neighbour; branch rooms prepare room n+1 only after the choice (the
+## test walks up to a door, the elite nest when offered) and seal the other door; a cracked wall is
+## blown up with a barrel blast and its niche (chest, crystals or merchant) is used. Branches and
+## secrets are made more frequent for the test (BranchRules/SecretRules.chance_override).
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const SAVE_PATH := "user://smoke_test_save.cfg"
 const MAX_LIVE_ROOMS := 3
+## Test aid: more branches and secret niches than in the game, so a run of 20+ rooms sees them.
+const BRANCH_CHANCE := 0.7
+const SECRET_CHANCE := 0.45
 
 var _failures: Array[String] = []
 var _max_live_rooms := 0
@@ -28,6 +36,11 @@ var _ingredients_seen := {}
 ## Abysses (A4): chasm rooms and rooms with holes played.
 var _chasm_rooms := 0
 var _hole_rooms := 0
+## Way-finding (A10): entrance walls seen, branches taken, secret niches opened.
+var _entrance_sides := {}
+var _branches_taken: Array[String] = []
+var _secrets_opened: Array[String] = []
+var _longest_corridor := 0
 
 
 func _init() -> void:
@@ -45,10 +58,19 @@ func _run() -> void:
 	save_manager.save_path = SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 	save_manager.load_game()
+	# Own settings in German: the buttons are found by their German texts, whatever the real
+	# language is (the tools run with their own settings.cfg).
+	save_manager.settings_path = "user://smoke_test_settings.cfg"
+	save_manager.load_settings()
+	save_manager.set_option(&"language", "de")
 	process_frame.connect(_watch)
+	load("res://dungeon/rooms/branches/branch_rules.gd").chance_override = BRANCH_CHANCE
+	load("res://dungeon/rooms/secrets/secret_rules.gd").chance_override = SECRET_CHANCE
 
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
+	# The game applies the saved language on start; the buttons are found by their German texts.
+	TranslationServer.set_locale("de")
 	var controller := current_scene.get_node("WorldController")
 	_check(controller.get_world().get_script().get_global_name() == &"Village", "starts in the village")
 	var village_player: Node = controller.get_player()
@@ -72,6 +94,10 @@ func _run() -> void:
 		_check(controller.get_player() == player, "room %d keeps the same player instance" % index)
 
 	_check(_max_live_rooms <= MAX_LIVE_ROOMS, "never more than 3 live rooms (max seen: %d)" % _max_live_rooms)
+	if rooms_to_play >= 20:
+		_check(_entrance_sides.size() >= 2, "rooms entered through side walls too (%s)" % _entrance_sides)
+		_check(not _branches_taken.is_empty(), "at least one branch taken (%d)" % _branches_taken.size())
+		_check(not _secrets_opened.is_empty(), "at least one secret niche opened (%d)" % _secrets_opened.size())
 	var bosses := floori(rooms_to_play / 15.0)
 	_check(_campfires_seen == bosses, "one campfire after each of the %d boss rooms (seen: %d)" % [bosses, _campfires_seen])
 	var gold_before: int = run_manager.get_run_gold()
@@ -125,9 +151,18 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	await _frames(6)
 	_check(run_manager.get_current_room() == index, "RunManager room %d" % index)
 	_check(_dungeon.get_room(index - 2) == null, "room %d unloaded when entering %d" % [index - 2, index])
+	var tiles_of_room: Node = room.get_node("Tiles")
+	_entrance_sides[tiles_of_room.entrance_side] = _entrance_sides.get(tiles_of_room.entrance_side, 0) + 1
+	_longest_corridor = maxi(_longest_corridor, tiles_of_room.entrance_corridor_extra)
+	_check_no_overlap(index)
+	var is_branch: bool = room.is_branch_room()
 	if type_name == "BOSS":
 		# Behind a boss room comes the campfire, room index + 1 only behind it (D-103).
 		_check(_dungeon.get_campfire(index) != null, "campfire prepared when entering boss room %d" % index)
+	elif is_branch:
+		# Branch (D-105): room n+1 waits for the choice; the doors show what lies behind them.
+		_check(_dungeon.get_room(index + 1) == null, "branch room %d: room %d waits for the choice" % [index, index + 1])
+		_check(room.get_exit_doors().size() == 2, "branch room %d has two exits" % index)
 	else:
 		_check(_dungeon.get_room(index + 1) != null, "room %d prepared when entering %d" % [index + 1, index])
 
@@ -157,7 +192,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		else:
 			_check(enemies.size() >= 2, "room %d champion comes with an escort (%d)" % [index, enemies.size()])
 		var kind_label: String = _describe_room(room)
-		print("room %d: %s%s, %d enemies" % [index, type_name, (" [%s]" % kind_label) if not kind_label.is_empty() else "", enemies.size()])
+		print("room %d: %s%s, %d enemies, doors %s" % [index, type_name, (" [%s]" % kind_label) if not kind_label.is_empty() else "", enemies.size(), _describe_doors(room)])
 		# Combat variants (A7): fast-forward the soul flame raid so the room may close.
 		var variant: Node = room.get_node_or_null("CombatVariant")
 		if variant != null:
@@ -182,17 +217,142 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		await _frames(2)
 		var alive: Array = room.enemy_container.get_children().filter(func(n): return _is_enemy(n) and not n.is_dead())
 		_check(alive.is_empty(), "room %d: no respawn after clear" % index)
+		# The upgrade dialog pauses the game; the blast needs running physics.
+		await _resolve_modals()
+		await _use_secret(index, room, player)
 
 	if not type_name.begins_with("COMBAT"):
 		_previous_kind = -1
 	# Room 3 of each cycle: upgrade choice after the fight.
 	await _resolve_modals()
 	await _frames(10)
+	if is_branch:
+		await _take_branch(index, room, player)
 	var exit_door: Node = room._exit_door
 	_check(exit_door.is_open, "room %d exit opened after completion" % index)
 	if type_name == "BOSS" and exit_door.is_open:
 		return await _play_campfire(index, player, run_manager)
 	return exit_door.is_open
+
+
+## Live rooms never overlap (A10): neighbours share at most their corridor row or column, rooms two
+## slots apart may share rock of their outer rings, nothing else (ExitRules.Footprint).
+func _check_no_overlap(index: int) -> void:
+	var rooms: Array = _dungeon.room_container.get_children()
+	for a in rooms.size():
+		for b in range(a + 1, rooms.size()):
+			var first: Node = rooms[a]
+			var second: Node = rooms[b]
+			var cut: Rect2i = _dungeon.get_room_rect(first).intersection(_dungeon.get_room_rect(second))
+			if absi(first.slot_index - second.slot_index) == 1:
+				_check(cut.size.x <= 1 or cut.size.y <= 1, "room %d: neighbours %s/%s only share their corridor line (%s)" % [index, first.name, second.name, cut])
+			else:
+				# Rock may lie on rock (outer rings); never on a floor, a wall or a corridor.
+				_check(not _dungeon.rooms_clash(first, second), "room %d: %s and %s do not overlap (%s %s / %s %s)" % [index, first.name, second.name,
+						_dungeon.get_room_rect(first), _describe_doors(first), _dungeon.get_room_rect(second), _describe_doors(second)])
+
+
+## "S3 -> N7 (+0)": entrance wall and place, exits, extra corridor tiles (test output).
+func _describe_doors(room: Node) -> String:
+	var tiles: Node = room.get_node("Tiles")
+	var names := ["N", "E", "S", "W"]
+	var exits: Array[String] = []
+	for exit: Vector2i in tiles.get_exit_doors():
+		exits.append("%s%d" % [names[exit.x], exit.y])
+	return "%s%d -> %s (+%d)" % [names[tiles.entrance_side], tiles.entrance_x, "/".join(exits), tiles.entrance_corridor_extra]
+
+
+## Branch room (D-105): the doors stay shut after the fight; walking up to one decides for the group.
+## The elite nest is taken whenever it is offered. Room n+1 then exists with that way's content,
+## the other door is sealed, the chosen one opens.
+func _take_branch(index: int, room: Node, player: Node) -> void:
+	var options: Array = room.branch_options
+	_check(room.get_branch_choice().is_offered, "branch room %d: the doors wait for the choice" % index)
+	_check(not room._exit_door.is_open, "branch room %d: no door opens before the choice" % index)
+	var pick := 0
+	for i in options.size():
+		if options[i].kind == 1:
+			pick = i
+	var exit: Vector2i = room.get_node("Tiles").get_exit_doors()[pick]
+	var tiles: Node = room.get_node("Tiles")
+	var inside: Vector2i = tiles.inside_tile_of(exit.x, exit.y, tiles.room_size)
+	player.global_position = room.to_global((Vector2(inside) + Vector2(0.5, 0.5)) * 64.0)
+	await _frames(8)
+	_check(room.get_chosen_branch() == pick, "branch room %d: walking up to door %d chooses it (got %d)" % [index, pick, room.get_chosen_branch()])
+	var next: Node = _dungeon.get_room(index + 1)
+	_check(next != null, "branch room %d: room %d prepared after the choice" % [index, index + 1])
+	_check(_dungeon.get_live_room_count() <= MAX_LIVE_ROOMS, "branch room %d: at most 3 live rooms" % index)
+	var other: Node = room.get_exit_doors()[1 - pick]
+	_check(not other.is_open, "branch room %d: the other door stays sealed" % index)
+	var option: Object = options[pick]
+	_branches_taken.append("%d: %s" % [index, option.describe()])
+	if next == null:
+		return
+	match int(option.kind):
+		1:
+			_check(next.get_variant_id() == &"elite_nest", "room %d: elite nest behind the swords" % (index + 1))
+		2:
+			_check(next.get_variant_id() == option.variant_id or next.get_variant_id() == &"", "room %d: the hidden variant %s" % [index + 1, option.variant_id])
+		3:
+			_check(next.special_type == option.special_type, "room %d: special type %d of the chosen way" % [index + 1, option.special_type])
+		_:
+			_check(next.get_variant_id() == &"" and not next.has_wager_altar(), "room %d: the safe way is a plain fight" % (index + 1))
+	# The player leaves the zone; the chosen door must be open for the walk on.
+	player.global_position = room.to_global(_walk_in_point(room))
+	await _frames(4)
+
+
+## A cracked wall (A10): a barrel blast in front of it opens the niche; its content is used.
+func _use_secret(index: int, room: Node, player: Node) -> void:
+	var niche: Node = room.get_node_or_null("SecretNiche")
+	if niche == null:
+		return
+	var tiles: Node = room.get_node("Tiles")
+	var site: Object = niche.site
+	if niche.is_open:
+		# A bomber's death or a barrel in the fight broke it already (as intended).
+		print("room %d: cracked wall broken during the fight" % index)
+	else:
+		_check(not tiles.get_reachable_tiles().has(site.get_content_tile()), "room %d: the niche is sealed before the blast" % index)
+		# A sword hit only taps it.
+		var tap: RefCounted = load("res://components/combat/damage_data.gd").new()
+		tap.amount = 5.0
+		tap.source = player
+		tap.tags.assign([&"melee"])
+		niche.get_hurtbox().receive_hit(tap)
+		_check(not niche.is_open, "room %d: a sword does not break the cracked wall" % index)
+	var blast: Node = load("res://dungeon/rooms/ingredients/barrel_blast.gd").create(96.0, 0.0, 0.0, 0.0)
+	room.add_child(blast)
+	blast.global_position = room.to_global((Vector2(site.approach) + Vector2(0.5, 0.2)) * 64.0)
+	await _frames(6)
+	_check(niche.is_open, "room %d: the barrel blast breaks the cracked wall" % index)
+	if not niche.is_open:
+		return
+	_check(tiles.get_reachable_tiles().has(site.get_content_tile()), "room %d: the niche is reachable after the blast" % index)
+	var content: Node = niche.content
+	_check(content != null, "room %d: something waits in the niche" % index)
+	if content == null:
+		return
+	var kind_name: String = ["chest", "crystals", "merchant"][niche.content_kind]
+	_secrets_opened.append("%d: %s" % [index, kind_name])
+	match int(niche.content_kind):
+		1:
+			var before: int = root.get_node("RunManager").get_run_crystals()
+			content.collect(player)
+			_check(root.get_node("RunManager").get_run_crystals() > before, "room %d: niche crystals taken" % index)
+		2:
+			_check(content.offers.size() > 0, "room %d: the merchant has goods (%d)" % [index, content.offers.size()])
+			for child in content.get_children():
+				if child.get_script() != null and child.get_script().get_global_name() == &"Interactable":
+					child.interact(player)
+			await _frames(6)
+			await _resolve_modals()
+		_:
+			await _frames(4)
+			content.get_interactable().interact(player)
+			await _frames(4)
+			await _resolve_modals()
+			_check(content.is_open, "room %d: the niche chest opened" % index)
 
 
 ## Campfire behind a boss room (D-103): no room number, no heal step, no enemies, one choice at
@@ -299,6 +459,9 @@ func _print_kind_distribution() -> void:
 	print("shapes played (kind · shape · size): %s" % _format_counts(_shapes_seen))
 	print("ingredients scattered: %s" % _format_counts(_ingredients_seen))
 	print("abyss: %d chasm rooms, %d rooms with holes" % [_chasm_rooms, _hole_rooms])
+	print("entrance walls (0 N, 1 E, 2 S, 3 W): %s, longest extra corridor %d" % [_format_counts(_entrance_sides), _longest_corridor])
+	print("branches taken: %s" % ", ".join(_branches_taken))
+	print("secret niches opened: %s" % ", ".join(_secrets_opened))
 
 
 ## Rooms with pits (A4): exit and markers reachable on foot (enemies do not dash), no enemy spawned

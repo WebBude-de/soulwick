@@ -25,6 +25,9 @@ const NONE := &""
 @export var variant_weights: Array[float] = []
 ## Biome a variant is bound to (RoomSequence.Biome value), -1 = every biome; parallel to variant_ids.
 @export var variant_biomes: Array[int] = []
+## Several biomes for one variant (A9: stone guardians in crypt and shadow realm): bit mask of
+## 1 << RoomSequence.Biome, parallel to variant_ids. 0 or missing = variant_biomes decides.
+@export var variant_biome_masks: Array[int] = []
 
 
 ## Result of one draw.
@@ -80,14 +83,31 @@ func choose_variant(biome: int, roll: float) -> StringName:
 	return ids[ids.size() - 1]
 
 
-## Variants with a positive weight that may appear in the biome (gravedigger: crypt only).
+## Variants with a positive weight that may appear in the biome (gravedigger: crypt only, torch
+## room: shadow realm only, stone guardians: crypt and shadow realm).
 func get_allowed(biome: int) -> Array[StringName]:
 	var allowed: Array[StringName] = []
 	for i in variant_ids.size():
-		var bound := variant_biomes[i] if i < variant_biomes.size() else -1
-		if (bound < 0 or bound == biome) and get_weight(variant_ids[i]) > 0.0:
+		if is_allowed_in(i, biome) and get_weight(variant_ids[i]) > 0.0:
 			allowed.append(variant_ids[i])
 	return allowed
+
+
+## Biome filter of the variant at index i: its mask if it has one, else its single biome (-1 = all).
+func is_allowed_in(index: int, biome: int) -> bool:
+	var mask := variant_biome_masks[index] if index < variant_biome_masks.size() else 0
+	if mask > 0:
+		return biome >= 0 and (mask & (1 << biome)) != 0
+	var bound := variant_biomes[index] if index < variant_biomes.size() else -1
+	return bound < 0 or bound == biome
+
+
+## Bit mask for variant_biome_masks from a list of RoomSequence.Biome values.
+static func biome_mask(biomes: Array[int]) -> int:
+	var mask := 0
+	for biome in biomes:
+		mask |= 1 << biome
+	return mask
 
 
 func get_weight(variant_id: StringName) -> float:

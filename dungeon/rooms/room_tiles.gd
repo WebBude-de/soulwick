@@ -3,8 +3,18 @@ class_name RoomTiles
 extends TileMapLayer
 ## Paints a rectangular dungeon room from a few parameters, in the editor and at runtime.
 ## Tile (0, 0) is the top-left floor tile. The north wall occupies rows -2 (top) and -1 (front),
-## the south wall row room_size.y. Exits lead north through rows -1..-3, entrances come from the
-## south through rows h..h+1, so stacked rooms line up seamlessly (see DungeonManager).
+## the south wall row room_size.y. Doors (A10, KONZEPT_RAEUME §7.1) sit in any wall: entrance_side /
+## exit_side name the wall, entrance_x / exit_x the place along it (x on the north and south wall,
+## y on the west and east wall). A door corridor runs from the door tile out to the edge of the
+## painted ring: north rows -1..-3, south rows h..h+1, west columns -1..-2, east columns w..w+1; the
+## entrance corridor can be longer (entrance_corridor_extra), so a room placed further away still
+## joins. The last corridor tile of an exit and of the next room's entrance are the same world tile
+## (see DungeonManager / ExitRules). A branch room (D-105) has a second exit (branch_exit).
+## door_slots lists the places a template allows doors at (generator); without it only the
+## template's own entrance (south) and exit (north) are allowed.
+## A secret niche (A10, niche_rect) lies behind a wall front: in the rock ring behind the north
+## wall (row -3, with a bump of rock painted above it) or cut into a thick inner wall;
+## open_wall_tiles() turns the crown and the front in front of it into floor when the wall breaks.
 ## Extra tiles can still be painted by hand after the generated layout.
 ## Around the room a thick ring of solid rock is painted on a child layer ("Backdrop") drawn below
 ## all room tiles, so the screen never shows black void, even where neighbouring rooms overlap.
@@ -76,21 +86,62 @@ const MIST_MAX := 8
 const MIST_FPS := 3.0
 const MIST_ALPHA := 0.55
 
+## Wall a door sits in; same order as RoomTemplate.DoorSide.
+enum DoorSide { NORTH, EAST, SOUTH, WEST }
+## Outward direction of each side (from the floor through the door).
+const SIDE_DIRECTIONS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
+## No second exit (branch_exit.x).
+const NO_DOOR := -1
+## Longest extra entrance corridor (tiles) a room may get to keep clear of other rooms. TESTWERT
+const MAX_CORRIDOR_EXTRA := 24
+
 ## Emitted after pits were added or removed at runtime (crumbling floor, holes): the changed tiles.
 signal pits_changed(tiles: Array[Vector2i])
+## Emitted after wall tiles were opened at runtime (secret wall, A10): the opened tiles.
+signal walls_opened(tiles: Array[Vector2i])
 
 @export var room_size := Vector2i(15, 9):
 	set(value):
 		room_size = value
 		_pits_dirty = true
 		_queue_paint()
+## Place of the entrance along its wall (x on north/south, y on west/east).
 @export var entrance_x := 7:
 	set(value):
 		entrance_x = value
 		_queue_paint()
+## Place of the (main) exit along its wall (x on north/south, y on west/east).
 @export var exit_x := 7:
 	set(value):
 		exit_x = value
+		_queue_paint()
+## Wall of the entrance (DoorSide); the previous room's exit lies on the opposite side.
+@export var entrance_side: DoorSide = DoorSide.SOUTH:
+	set(value):
+		entrance_side = value
+		_queue_paint()
+@export var exit_side: DoorSide = DoorSide.NORTH:
+	set(value):
+		exit_side = value
+		_queue_paint()
+## Second exit of a branch room: x = DoorSide (NO_DOOR = none), y = place along that wall.
+@export var branch_exit := Vector2i(NO_DOOR, 0):
+	set(value):
+		branch_exit = value
+		_queue_paint()
+## Places a template allows doors at: x = DoorSide, y = place along the wall (generator, A10). Empty =
+## only the template's entrance_x (south) and exit_x (north).
+@export var door_slots: Array[Vector2i] = []
+## Floor tiles of a secret niche (A10): behind the north wall (row -3, in the rock ring) or cut into
+## a thick inner wall; size zero = none.
+@export var niche_rect := Rect2i():
+	set(value):
+		niche_rect = value
+		_queue_paint()
+## Extra entrance corridor tiles beyond the painted ring (room placed further out, A10).
+@export var entrance_corridor_extra := 0:
+	set(value):
+		entrance_corridor_extra = clampi(value, 0, MAX_CORRIDOR_EXTRA)
 		_queue_paint()
 ## Pillars: the crown tile; the front on the tile below belongs to it (two tiles solid).
 @export var pillar_tiles: Array[Vector2i] = []:
@@ -147,6 +198,10 @@ var _pits_dirty := true
 var _floor_cells: Dictionary[Vector2i, Vector2i] = {}
 var _abyss_under: TileMapLayer = null
 var _mist: Node2D = null
+## Wall tiles opened at runtime (secret wall, A10): no longer part of the wall mass.
+var _opened_walls: Dictionary[Vector2i, bool] = {}
+## Ring tiles outside the floor turned into floor at runtime (the opening of a secret niche).
+var _extra_floor: Dictionary[Vector2i, bool] = {}
 
 
 func _ready() -> void:
@@ -174,13 +229,118 @@ static func local_to_tile(local: Vector2) -> Vector2i:
 	return Vector2i((local / TILE_WORLD).floor())
 
 
-## Floor tile just inside the entrance / exit door.
+## Floor tile just inside the entrance / (main) exit door.
 func get_entrance_inside_tile() -> Vector2i:
-	return Vector2i(entrance_x, room_size.y - 1)
+	return inside_tile_of(entrance_side, entrance_x, room_size)
 
 
 func get_exit_inside_tile() -> Vector2i:
-	return Vector2i(exit_x, 0)
+	return inside_tile_of(exit_side, exit_x, room_size)
+
+
+# --- Doors on every side (A10) ---
+
+## Wall tile a door node stands on: (x, -1) north, (w, y) east, (x, h) south, (-1, y) west.
+static func door_tile_of(side: int, place: int, size: Vector2i) -> Vector2i:
+	match side:
+		DoorSide.EAST:
+			return Vector2i(size.x, place)
+		DoorSide.SOUTH:
+			return Vector2i(place, size.y)
+		DoorSide.WEST:
+			return Vector2i(-1, place)
+	return Vector2i(place, -1)
+
+
+## Floor tile right inside a door.
+static func inside_tile_of(side: int, place: int, size: Vector2i) -> Vector2i:
+	return door_tile_of(side, place, size) - SIDE_DIRECTIONS[side]
+
+
+static func opposite_side(side: int) -> int:
+	return (side + 2) % 4
+
+
+## Corridor tiles of a door through the painted ring (north 3, other sides 2) plus extra tiles.
+static func corridor_length(side: int) -> int:
+	return 3 if side == DoorSide.NORTH else 2
+
+
+static func corridor_tiles_of(side: int, place: int, size: Vector2i, extra := 0) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var tile := door_tile_of(side, place, size)
+	for i in corridor_length(side) + maxi(0, extra):
+		tiles.append(tile + SIDE_DIRECTIONS[side] * i)
+	return tiles
+
+
+## Last corridor tile of a door: where two rooms join (same world tile in both rooms).
+static func corridor_end_of(side: int, place: int, size: Vector2i, extra := 0) -> Vector2i:
+	return door_tile_of(side, place, size) + SIDE_DIRECTIONS[side] * (corridor_length(side) - 1 + maxi(0, extra))
+
+
+## Lane of a door: depth rows of three tiles inside the room, straight in from the door.
+static func door_lane_of(side: int, place: int, size: Vector2i, depth: int) -> Array[Vector2i]:
+	var lane: Array[Vector2i] = []
+	var inward := -SIDE_DIRECTIONS[side]
+	var across := Vector2i(absi(inward.y), absi(inward.x))
+	var inside := inside_tile_of(side, place, size)
+	for d in depth:
+		for a in [-1, 0, 1]:
+			lane.append(inside + inward * d + across * a)
+	return lane
+
+
+## Entrance as Vector2i(side, place).
+func get_entrance_door() -> Vector2i:
+	return Vector2i(entrance_side, entrance_x)
+
+
+## Every exit as Vector2i(side, place): the main exit first, then the branch exit (if any).
+func get_exit_doors() -> Array[Vector2i]:
+	var doors: Array[Vector2i] = [Vector2i(exit_side, exit_x)]
+	if has_branch_exit():
+		doors.append(branch_exit)
+	return doors
+
+
+func has_branch_exit() -> bool:
+	return branch_exit.x != NO_DOOR
+
+
+func get_exit_inside_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for door in get_exit_doors():
+		tiles.append(inside_tile_of(door.x, door.y, room_size))
+	return tiles
+
+
+## Corridor tiles of the entrance (with entrance_corridor_extra) and of every exit.
+func get_door_corridor_tiles() -> Array[Vector2i]:
+	var tiles := corridor_tiles_of(entrance_side, entrance_x, room_size, entrance_corridor_extra)
+	for door in get_exit_doors():
+		tiles.append_array(corridor_tiles_of(door.x, door.y, room_size))
+	return tiles
+
+
+## Door places the template allows on a side (sorted); without door_slots the template's own
+## entrance (south) and exit (north) place.
+func get_door_slots(side: int) -> Array[int]:
+	var places: Array[int] = []
+	for slot in door_slots:
+		if slot.x == side and not places.has(slot.y):
+			places.append(slot.y)
+	if door_slots.is_empty():
+		if side == DoorSide.NORTH:
+			places.append(exit_x)
+		elif side == DoorSide.SOUTH:
+			places.append(entrance_x)
+	places.sort()
+	return places
+
+
+func allows_door(side: int) -> bool:
+	return not get_door_slots(side).is_empty()
 
 
 # --- Walkability (D-086). Pure layout data from the exported parameters, no painted cells needed,
@@ -211,6 +371,11 @@ func get_wall_mass() -> Dictionary[Vector2i, bool]:
 		for tile: Vector2i in [pillar, pillar + Vector2i.DOWN]:
 			if floor_rect.has_point(tile):
 				mass[tile] = true
+	for tile in _opened_walls:
+		mass.erase(tile)
+	for y in range(niche_rect.position.y, niche_rect.end.y):
+		for x in range(niche_rect.position.x, niche_rect.end.x):
+			mass.erase(Vector2i(x, y))
 	return mass
 
 
@@ -223,6 +388,62 @@ func add_wall_rects(rects: Array[Rect2i]) -> void:
 	combined.append_array(rects)
 	wall_rects = combined
 	paint()
+
+
+## Opens wall tiles at runtime (a secret wall breaks, A10): they become floor. Only the cells around
+## them are repainted, so the floor pattern of the rest of the room stays as it is; collision and
+## navigation follow with the cells.
+func open_wall_tiles(tiles: Array[Vector2i]) -> void:
+	var mass := get_wall_mass()
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	var opened: Array[Vector2i] = []
+	for tile in tiles:
+		if mass.has(tile):
+			_opened_walls[tile] = true
+			opened.append(tile)
+		elif not floor_rect.has_point(tile) and not _extra_floor.has(tile) and is_painted(tile):
+			# The ring around the floor (the north wall in front of a secret niche).
+			_extra_floor[tile] = true
+			opened.append(tile)
+	if opened.is_empty():
+		return
+	_pits_dirty = true
+	if get_used_cells().is_empty() or tile_set == null or not tile_set.has_source(SOURCE_WALL):
+		if is_inside_tree():
+			paint()
+	else:
+		# Pieces look two tiles around them (front below a crown, crown masks of the neighbours).
+		var area: Dictionary[Vector2i, bool] = {}
+		for tile in opened:
+			for dy in range(-2, 3):
+				for dx in range(-2, 3):
+					area[tile + Vector2i(dx, dy)] = true
+		_repaint_cells(area)
+	walls_opened.emit(opened)
+
+
+func get_opened_wall_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	tiles.assign(_opened_walls.keys())
+	tiles.append_array(_extra_floor.keys())
+	return tiles
+
+
+func has_niche() -> bool:
+	return niche_rect.size != Vector2i.ZERO
+
+
+## Floor tiles outside the floor rectangle that are no corridor: the secret niche and what opened
+## in front of it.
+func get_extra_floor_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for y in range(niche_rect.position.y, niche_rect.end.y):
+		for x in range(niche_rect.position.x, niche_rect.end.x):
+			tiles.append(Vector2i(x, y))
+	for tile in _extra_floor:
+		if not tiles.has(tile):
+			tiles.append(tile)
+	return tiles
 
 
 ## Takes the navigation off a floor tile while a solid prop stands on it (or gives it back).
@@ -377,16 +598,16 @@ static func _tile_order(a: Vector2i, b: Vector2i) -> bool:
 	return a.y < b.y or (a.y == b.y and a.x < b.x)
 
 
-## Floor of the room plus both door corridors, without blocked and pit tiles.
+## Floor of the room plus every door corridor, without blocked and pit tiles.
 func get_walkable_tiles() -> Dictionary[Vector2i, bool]:
 	var walkable: Dictionary[Vector2i, bool] = {}
 	for y in room_size.y:
 		for x in room_size.x:
 			walkable[Vector2i(x, y)] = true
-	for y in [-1, -2, -3]:
-		walkable[Vector2i(exit_x, y)] = true
-	for y in [room_size.y, room_size.y + 1]:
-		walkable[Vector2i(entrance_x, y)] = true
+	for tile in get_door_corridor_tiles():
+		walkable[tile] = true
+	for tile in get_extra_floor_tiles():
+		walkable[tile] = true
 	for tile in get_blocked_tiles():
 		walkable.erase(tile)
 	for tile in get_pit_tiles():
@@ -580,10 +801,10 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 	for y in room_size.y:
 		for x in room_size.x:
 			floor_mask[Vector2i(x, y)] = true
-	for y in [-1, -2, -3]:
-		floor_mask[Vector2i(exit_x, y)] = true
-	for y in [room_size.y, room_size.y + 1]:
-		floor_mask[Vector2i(entrance_x, y)] = true
+	for tile in get_door_corridor_tiles():
+		floor_mask[tile] = true
+	for tile in get_extra_floor_tiles():
+		floor_mask[tile] = true
 	for tile: Vector2i in get_wall_mass():
 		floor_mask.erase(tile)
 	return floor_mask
@@ -594,9 +815,12 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 	var floor_mask := get_floor_mask()
 	var rect := _get_painted_rect()
+	var parts := get_painted_parts()
 	for y in range(rect.position.y, rect.end.y):
 		for x in range(rect.position.x, rect.end.x):
 			var tile := Vector2i(x, y)
+			if parts.size() > 1 and not _in_any(parts, tile):
+				continue
 			if floor_mask.has(tile):
 				# Drawn for every floor tile, pit or not, so the floor pattern never depends on pits.
 				_floor_cells[tile] = _random_floor(rng)
@@ -634,19 +858,18 @@ func _paint_legacy(rng: RandomNumberGenerator) -> void:
 	_put_tile(Vector2i(-1, h), INNER_NE)
 	_put_tile(Vector2i(w, h), INNER_NW)
 
-	# Exit passage to the north.
-	for y in [-1, -2, -3]:
-		_put_tile(Vector2i(exit_x, y), _random_floor(rng))
-	for y in [-2, -3]:
-		_put_tile(Vector2i(exit_x - 1, y), WALL_E)
-		_put_tile(Vector2i(exit_x + 1, y), WALL_W)
-	# Entrance passage from the south.
-	for y in [h, h + 1]:
-		_put_tile(Vector2i(entrance_x, y), _random_floor(rng))
-	_put_tile(Vector2i(entrance_x - 1, h), OUTER_NE)
-	_put_tile(Vector2i(entrance_x + 1, h), OUTER_NW)
-	_put_tile(Vector2i(entrance_x - 1, h + 1), WALL_E)
-	_put_tile(Vector2i(entrance_x + 1, h + 1), WALL_W)
+	# Door passages (north exit and south entrance get their old side walls).
+	for tile in get_door_corridor_tiles():
+		_put_tile(tile, _random_floor(rng))
+	if exit_side == DoorSide.NORTH:
+		for y in [-2, -3]:
+			_put_tile(Vector2i(exit_x - 1, y), WALL_E)
+			_put_tile(Vector2i(exit_x + 1, y), WALL_W)
+	if entrance_side == DoorSide.SOUTH:
+		_put_tile(Vector2i(entrance_x - 1, h), OUTER_NE)
+		_put_tile(Vector2i(entrance_x + 1, h), OUTER_NW)
+		_put_tile(Vector2i(entrance_x - 1, h + 1), WALL_E)
+		_put_tile(Vector2i(entrance_x + 1, h + 1), WALL_W)
 	for tile: Vector2i in get_wall_mass():
 		_put_tile(tile, PILLAR)
 	for tile in get_pit_tiles():
@@ -655,9 +878,103 @@ func _paint_legacy(rng: RandomNumberGenerator) -> void:
 		set_cell(tile, SOURCE_BRIDGE, BRIDGE_H)
 
 
-## Tiles painted by paint() on this layer: floor plus the wall ring.
+## Bounding rectangle of the tiles paint() draws on this layer: floor plus the wall ring and, with a
+## longer entrance corridor, its strip, with a secret niche its bump (see get_painted_parts).
 func _get_painted_rect() -> Rect2i:
-	return Rect2i(-2, -3, room_size.x + 4, room_size.y + 5)
+	var bounds := get_painted_rect_of(room_size, entrance_side, entrance_corridor_extra)
+	return bounds.merge(get_niche_bump()) if has_niche() else bounds
+
+
+func get_painted_rect() -> Rect2i:
+	return _get_painted_rect()
+
+
+## Painted parts of this room: ring, corridor strip (get_painted_rects_of) and the niche bump.
+func get_painted_parts() -> Array[Rect2i]:
+	var parts := get_painted_rects_of(room_size, entrance_side, entrance_corridor_extra, entrance_x)
+	if has_niche():
+		parts.append(get_niche_bump())
+	return parts
+
+
+## Rock around a secret niche that reaches out of the ring (one tile on every side of it).
+func get_niche_bump() -> Rect2i:
+	return niche_rect.grow(1) if has_niche() else Rect2i()
+
+
+## Is this tile drawn by the room (ring, corridor strip, niche bump)? Elsewhere the backdrop shows.
+func is_painted(tile: Vector2i) -> bool:
+	return _in_any(get_painted_parts(), tile)
+
+
+static func _in_any(rects: Array[Rect2i], tile: Vector2i) -> bool:
+	for rect in rects:
+		if rect.has_point(tile):
+			return true
+	return false
+
+
+## Bounding rectangle of get_painted_rects_of (tiles, room-local).
+static func get_painted_rect_of(size: Vector2i, entrance: int = DoorSide.SOUTH, extra := 0) -> Rect2i:
+	var rect := Rect2i(-2, -3, size.x + 4, size.y + 5)
+	if extra <= 0:
+		return rect
+	match entrance:
+		DoorSide.NORTH:
+			return rect.grow_individual(0, extra, 0, 0)
+		DoorSide.EAST:
+			return rect.grow_individual(0, 0, extra, 0)
+		DoorSide.WEST:
+			return rect.grow_individual(extra, 0, 0, 0)
+	return rect.grow_individual(0, 0, 0, extra)
+
+
+## What a room paints (tiles, room-local): the ring rectangle and, for extra entrance corridor tiles,
+## a strip three tiles wide along them (the corridor and its walls); the rest of that gap is left to
+## the backdrop, so a long corridor never covers a neighbouring room (A10).
+static func get_painted_rects_of(size: Vector2i, entrance: int = DoorSide.SOUTH, extra := 0, place := 0) -> Array[Rect2i]:
+	var rects: Array[Rect2i] = [Rect2i(-2, -3, size.x + 4, size.y + 5)]
+	if extra > 0:
+		var tiles := corridor_tiles_of(entrance, place, size, extra)
+		var strip := tile_bounds(tiles.slice(tiles.size() - extra))
+		var across := Vector2i(1, 0) if entrance == DoorSide.NORTH or entrance == DoorSide.SOUTH else Vector2i(0, 1)
+		rects.append(strip.grow_individual(across.x, across.y, across.x, across.y))
+	return rects
+
+
+## Smallest rectangle around the tiles (tiles included).
+static func tile_bounds(tiles: Array[Vector2i]) -> Rect2i:
+	if tiles.is_empty():
+		return Rect2i()
+	var low := tiles[0]
+	var high := tiles[0]
+	for tile in tiles:
+		low = Vector2i(mini(low.x, tile.x), mini(low.y, tile.y))
+		high = Vector2i(maxi(high.x, tile.x), maxi(high.y, tile.y))
+	return Rect2i(low, high - low + Vector2i.ONE)
+
+
+## Repaints single cells from the current floor mask (runtime changes such as opened walls).
+## The second brick pattern is picked from the tile position instead of the paint RNG.
+func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
+	var floor_mask := get_floor_mask()
+	for tile: Vector2i in area:
+		if not is_painted(tile):
+			continue
+		if floor_mask.has(tile):
+			if not _floor_cells.has(tile):
+				var rng := RandomNumberGenerator.new()
+				rng.seed = absi(hash(tile)) + floor_seed
+				_floor_cells[tile] = _random_floor(rng)
+			_paint_floor_cell(tile)
+			continue
+		var piece := WallAutotile.cell_for_floor(tile, floor_mask)
+		if piece == WallAutotile.ROCK:
+			_put_tile(tile, WALL_TOP)
+		elif piece == WallAutotile.front_coords(WallAutotile.Front.MIDDLE) and absi(hash(tile)) % 100 < int(FRONT_ALT_CHANCE * 100.0):
+			set_cell(tile, SOURCE_WALL, WallAutotile.front_coords(WallAutotile.Front.MIDDLE_ALT))
+		else:
+			set_cell(tile, SOURCE_WALL, piece)
 
 
 ## Solid rock around the room on a child layer below every room's tiles (also below neighbours,
@@ -674,12 +991,12 @@ func _paint_backdrop() -> void:
 		add_child(_backdrop, false, Node.INTERNAL_MODE_FRONT)
 	_backdrop.tile_set = tile_set
 	_backdrop.clear()
-	var inner := _get_painted_rect()
 	var outer := get_backdrop_rect()
+	var painted := get_painted_parts()
 	for y in range(outer.position.y, outer.end.y):
 		for x in range(outer.position.x, outer.end.x):
 			var tile := Vector2i(x, y)
-			if not inner.has_point(tile):
+			if not _in_any(painted, tile):
 				_backdrop.set_cell(tile, SOURCE_ID, WALL_TOP)
 	if _blend_backdrop != null:
 		_copy_cells_to_blend()
