@@ -1,0 +1,137 @@
+{
+  "notes": [
+    "Pivot jeweils unten Mitte (Fußpunkt).",
+    "exit_portal: Interaktion mit E, 30 % der Spezialräume.",
+    "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen."
+  ],
+  "items": [
+    {
+      "name": "exit_portal",
+      "file": "exit_portal_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "fountain",
+      "file": "fountain.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": "Brunnen: einmalig +3 HP"
+    },
+    {
+      "name": "shop_counter",
+      "file": "shop_counter.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        30
+      ],
+      "note": "Händler steht dahinter (y kleiner)"
+    },
+    {
+      "name": "merchant_idle",
+      "file": "merchant_idle_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "weapon_pedestal",
+      "file": "weapon_pedestal.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "upgrade_altar",
+      "file": "upgrade_altar.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "gold_coin",
+      "file": "gold_coin_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": "Drop am Boden, dreht sich"
+    },
+    {
+      "name": "dungeon_entrance",
+      "file": "dungeon_entrance.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        62
+      ],
+      "note": "Im Dorf; E zum Betreten"
+    }
+  ]
+}

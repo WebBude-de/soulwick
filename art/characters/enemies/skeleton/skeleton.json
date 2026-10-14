@@ -1,0 +1,48 @@
+{
+  "name": "skeleton",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Attack: Frame 1-2 Schwert erhoben (Ankündigung), Frame 3 Hieb nach rechts, Trefferfenster Frame 3.",
+    "Death endet als Knochenhaufen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "skeleton_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "skeleton_walk_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "skeleton_attack_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "skeleton_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

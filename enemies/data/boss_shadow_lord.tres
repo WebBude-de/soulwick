@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/archer/archer_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://art/projectiles/magic_orb_4f.png" id="3_arrow"]
+[ext_resource type="Resource" path="res://enemies/data/shadow.tres" id="4_minion"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"boss_shadow_lord"
+display_name = "Schattenlord"
+hint = "Schattenlord: Teleportiert sich, seine Geschosse blenden und er ruft Schattenwesen. Erst die Diener, dann er!"
+attack_kind = 1
+tags = Array[StringName]([&"ranged", &"boss", &"shadow"])
+is_boss = true
+max_health = 340.0
+damage = 1.5
+move_speed = 95.0
+knockback_resistance = 0.9
+gold_drop = 60
+attack_range = 380.0
+telegraph_time = 0.7
+attack_cooldown = 0.9
+preferred_min_distance = 200.0
+reposition_time = 0.8
+projectile_speed = 300.0
+projectile_radius = 7.0
+projectile_texture = ExtResource("3_arrow")
+projectile_frame_size = Vector2i(16, 16)
+projectile_pivot = Vector2(8, 8)
+projectile_count = 3
+volley_every = 3
+volley_count = 16
+volley_range = 500.0
+special = 3
+special_every = 2
+special_telegraph_time = 0.6
+summon_data = ExtResource("4_minion")
+summon_every = 5
+summon_count = 2
+blind_duration = 2.5
+sprite_origin = Vector2(16, 22)
+strike_frame = 3
+sprite_scale = 2.2
+tint = Color(0.45, 0.3, 0.75, 1)
+body_radius = 12.0
+placeholder_color = Color(0.6, 0.35, 1, 1)
+light_radius = 120.0
+sprite_frames = ExtResource("2_frames")
+enrage_special_repeats = 1
+enrage_spiral = true
+enrage_eruptions = 3
+enrage_text = "Die Schatten verschlingen alles!"
+intro_story = PackedStringArray("Auch ich trug einst eine Flamme wie du.", "Ich blies sie aus. Endlich Stille.", "Jeder Docht brennt nieder, auch deiner.", "Was bleibt, ist Kristall – für mich.")
+intro_lines = PackedStringArray("Pssst … da bist du ja wieder.|Ich habe gewartet.", "Dein Licht flackert schon.|Ich sehe es.", "Du kehrst immer zurück.|Ich auch.", "Wie oft noch, kleiner Docht?|Das Dunkel hat Zeit.")
+intro_type_speed = 0.85
+intro_voice = &"shadow_lord"
+intro_voice_variants = 6
+intro_voice_db = -2.0
+intro_color = Color(0.65098, 0.431373, 0.941176, 1)
+intro_shake = 2.0
+intro_wave = 18.0

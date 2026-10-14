@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="BiomeData" format=3]
+
+[ext_resource type="Script" path="res://dungeon/biome_data.gd" id="1_biome"]
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://enemies/data/slime.tres" id="3_slime"]
+[ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="4_skeleton"]
+[ext_resource type="Resource" path="res://enemies/data/archer.tres" id="5_archer"]
+[ext_resource type="Resource" path="res://enemies/data/shadow.tres" id="6_shadow"]
+[ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="7_bomber"]
+
+[resource]
+script = ExtResource("1_biome")
+id = &"crypt"
+display_name = "Krypta"
+tile_tint = Color(1, 1, 1, 1)
+darkness_color = Color(0.012, 0.008, 0.025, 1)
+vision_factor = 1.0
+enemies = Array[ExtResource("2_enemy")]([ExtResource("3_slime"), ExtResource("4_skeleton"), ExtResource("5_archer"), ExtResource("6_shadow"), ExtResource("7_bomber")])
+weights = Array[float]([0.45, 0.32, 0.15, 0.04, 0.04])
+music_track = "dungeon_crypt"
+boss_music_track = "boss_bone_king"
+ambient_track = "ambient_crypt"
+transition_track = "transition_crypt"
+victory_track = "victory_bone_king"

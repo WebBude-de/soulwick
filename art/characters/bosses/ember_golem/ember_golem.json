@@ -1,0 +1,72 @@
+{
+  "name": "ember_golem",
+  "frame_size": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    62
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "slam": [
+      54,
+      60
+    ]
+  },
+  "notes": [
+    "Attack: Faustschlag wie Golem (Trefferfenster Frame 3).",
+    "attack2 Stampfer: Frame 1-2 beide Fäuste hoch, Frame 3 Aufschlag = Schockwelle + Funken (Code: lava_crack am Boden spawnen), Frame 4 Nachglühen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "ember_golem_idle_4f.png",
+      "frames": 4,
+      "fps": 3,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "ember_golem_walk_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "ember_golem_attack_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "attack2",
+      "file": "ember_golem_attack2_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "ember_golem_death_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    }
+  ],
+  "extras": [
+    {
+      "name": "portrait",
+      "file": "ember_golem_portrait.png",
+      "size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "note": "Boss-Leiste"
+    }
+  ]
+}

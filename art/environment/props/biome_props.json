@@ -1,0 +1,121 @@
+{
+  "notes": [
+    "Fackeln auf wall_front setzen (Raster 32).",
+    "brazier Pivot unten Mitte; Light2D orange.",
+    "Deko: Pivot unten Mitte."
+  ],
+  "items": [
+    {
+      "name": "torch_green",
+      "file": "torch_green_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schleimgrotte"
+    },
+    {
+      "name": "torch_purple",
+      "file": "torch_purple_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schattenreich"
+    },
+    {
+      "name": "brazier",
+      "file": "brazier_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Glutkammer"
+    },
+    {
+      "name": "crystal_cluster",
+      "file": "crystal_cluster.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Schleimgrotte"
+    },
+    {
+      "name": "mushrooms",
+      "file": "mushrooms.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Schleimgrotte"
+    },
+    {
+      "name": "chains",
+      "file": "chains.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schattenreich, an wall_front"
+    },
+    {
+      "name": "anvil_broken",
+      "file": "anvil_broken.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Glutkammer"
+    }
+  ]
+}

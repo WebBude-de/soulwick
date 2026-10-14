@@ -1,0 +1,27 @@
+{
+  "name": "smith",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Steht vor der Schmiede."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "smith_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    }
+  ],
+  "extras": []
+}

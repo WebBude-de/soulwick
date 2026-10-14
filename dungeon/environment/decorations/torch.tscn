@@ -1,0 +1,19 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://components/visual/animated_prop.gd" id="1_prop"]
+[ext_resource type="Texture2D" path="res://art/environment/props/torch_4f.png" id="2_torch"]
+[ext_resource type="Script" path="res://components/visual/light_source.gd" id="3_light"]
+
+[node name="Torch" type="AnimatedSprite2D"]
+z_index = -4
+scale = Vector2(2, 2)
+script = ExtResource("1_prop")
+strip = ExtResource("2_torch")
+pivot = Vector2(0, 0)
+
+[node name="Light" type="Node2D" parent="."]
+position = Vector2(16, 12)
+script = ExtResource("3_light")
+radius = 180.0
+intensity = 0.9
+flicker = 0.08

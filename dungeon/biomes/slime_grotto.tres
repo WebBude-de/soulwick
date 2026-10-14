@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="BiomeData" format=3]
+
+[ext_resource type="Script" path="res://dungeon/biome_data.gd" id="1_biome"]
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://enemies/data/slime.tres" id="3_slime"]
+[ext_resource type="Resource" path="res://enemies/data/splitter_slime.tres" id="4_splitter_slime"]
+[ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="5_bomber"]
+[ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="6_skeleton"]
+[ext_resource type="Resource" path="res://enemies/data/archer.tres" id="7_archer"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/traps/toxic_puddle.tscn" id="8_hazard"]
+
+[resource]
+script = ExtResource("1_biome")
+id = &"slime_grotto"
+display_name = "Schleimgrotte"
+tile_tint = Color(0.72, 1, 0.75, 1)
+darkness_color = Color(0.005, 0.03, 0.015, 1)
+vision_factor = 1.0
+enemies = Array[ExtResource("2_enemy")]([ExtResource("3_slime"), ExtResource("4_splitter_slime"), ExtResource("5_bomber"), ExtResource("6_skeleton"), ExtResource("7_archer")])
+weights = Array[float]([0.25, 0.3, 0.15, 0.12, 0.18])
+hazard_scene = ExtResource("8_hazard")
+hazard_count = Vector2i(1, 3)
+boss_hazard_count = 2
+music_track = "dungeon_slime_grotto"
+boss_music_track = "boss_slime_queen"
+ambient_track = "ambient_slime_grotto"
+transition_track = "transition_slime_grotto"
+victory_track = "victory_slime_queen"

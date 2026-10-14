@@ -1,0 +1,157 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 8,
+  "rows": 3,
+  "notes": [
+    "Layout identisch zu dungeon_tileset.png (8×3, gleiche Reihenfolge)."
+  ],
+  "tiles": {
+    "floor_1": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "floor_2": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "floor_3": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "floor_4": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    },
+    "wall_top": {
+      "x": 128,
+      "y": 0,
+      "col": 4,
+      "row": 0
+    },
+    "wall_front": {
+      "x": 160,
+      "y": 0,
+      "col": 5,
+      "row": 0
+    },
+    "wall_front_2": {
+      "x": 192,
+      "y": 0,
+      "col": 6,
+      "row": 0
+    },
+    "wall_front_top": {
+      "x": 224,
+      "y": 0,
+      "col": 7,
+      "row": 0
+    },
+    "wall_n": {
+      "x": 0,
+      "y": 32,
+      "col": 0,
+      "row": 1
+    },
+    "wall_e": {
+      "x": 32,
+      "y": 32,
+      "col": 1,
+      "row": 1
+    },
+    "wall_s": {
+      "x": 64,
+      "y": 32,
+      "col": 2,
+      "row": 1
+    },
+    "wall_w": {
+      "x": 96,
+      "y": 32,
+      "col": 3,
+      "row": 1
+    },
+    "wall_outer_ne": {
+      "x": 128,
+      "y": 32,
+      "col": 4,
+      "row": 1
+    },
+    "wall_outer_nw": {
+      "x": 160,
+      "y": 32,
+      "col": 5,
+      "row": 1
+    },
+    "wall_outer_se": {
+      "x": 192,
+      "y": 32,
+      "col": 6,
+      "row": 1
+    },
+    "wall_outer_sw": {
+      "x": 224,
+      "y": 32,
+      "col": 7,
+      "row": 1
+    },
+    "wall_inner_ne": {
+      "x": 0,
+      "y": 64,
+      "col": 0,
+      "row": 2
+    },
+    "wall_inner_nw": {
+      "x": 32,
+      "y": 64,
+      "col": 1,
+      "row": 2
+    },
+    "wall_inner_se": {
+      "x": 64,
+      "y": 64,
+      "col": 2,
+      "row": 2
+    },
+    "wall_inner_sw": {
+      "x": 96,
+      "y": 64,
+      "col": 3,
+      "row": 2
+    },
+    "wall_ns": {
+      "x": 128,
+      "y": 64,
+      "col": 4,
+      "row": 2
+    },
+    "wall_ew": {
+      "x": 160,
+      "y": 64,
+      "col": 5,
+      "row": 2
+    },
+    "wall_pillar": {
+      "x": 192,
+      "y": 64,
+      "col": 6,
+      "row": 2
+    },
+    "void": {
+      "x": 224,
+      "y": 64,
+      "col": 7,
+      "row": 2
+    }
+  }
+}

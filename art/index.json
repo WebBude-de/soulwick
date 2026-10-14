@@ -1,0 +1,3680 @@
+{
+  "groups": [
+    {
+      "id": "characters/enemies/archer/archer",
+      "title": "Archer",
+      "dir": "art/characters/enemies/archer",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "arrow_spawn": [
+          22,
+          19
+        ]
+      },
+      "notes": [
+        "Attack: Frame 1-3 Bogen spannen (Ankündigung), Frame 4 = Schuss; enemy_arrow bei arrow_spawn erzeugen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/archer/archer_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/archer/archer_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/archer/archer_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/archer/archer_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "archer",
+      "priority": 1
+    },
+    {
+      "id": "characters/enemies/skeleton/skeleton",
+      "title": "Skeleton",
+      "dir": "art/characters/enemies/skeleton",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Attack: Frame 1-2 Schwert erhoben (Ankündigung), Frame 3 Hieb nach rechts, Trefferfenster Frame 3.",
+        "Death endet als Knochenhaufen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/skeleton/skeleton_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/skeleton/skeleton_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/skeleton/skeleton_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/skeleton/skeleton_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "skeleton",
+      "priority": 1
+    },
+    {
+      "id": "characters/enemies/slime/slime",
+      "title": "Slime",
+      "dir": "art/characters/enemies/slime",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Walk = Hüpfen; horizontale Bewegung macht der Code.",
+        "Attack: Frame 1-2 Ausholen (Ankündigung), Frame 3 Vorschnellen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/slime/slime_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 5,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/slime/slime_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/slime/slime_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/slime/slime_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "slime",
+      "priority": 1
+    },
+    {
+      "id": "characters/player/player",
+      "title": "Spieler",
+      "dir": "art/characters/player",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "weapon_hand": [
+          19,
+          19
+        ]
+      },
+      "notes": [
+        "Waffe ist ein eigenes Sprite, Drehpunkt an weapon_hand.",
+        "Letzter Death-Frame halbtransparent, danach Node ausblenden."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/player/player_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/player/player_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "dash",
+          "file": "art/characters/player/player_dash_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 12,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/player/player_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "player",
+      "priority": 1
+    },
+    {
+      "id": "effects/effects",
+      "title": "Effekte",
+      "dir": "art/effects",
+      "notes": [
+        "Keine Konturen, additive Optik; auf dunklem Boden gedacht."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "sword_swing",
+          "file": "art/effects/sword_swing_4f.png",
+          "w": 48,
+          "h": 48,
+          "frames": 4,
+          "fps": 16,
+          "loop": false,
+          "pivot": [
+            12,
+            24
+          ],
+          "note": "Pivot = Spielerposition; zur Maus drehen. Sichel ~100°, Radius 25 px"
+        },
+        {
+          "kind": "anim",
+          "name": "explosion",
+          "file": "art/effects/explosion_6f.png",
+          "w": 96,
+          "h": 96,
+          "frames": 6,
+          "fps": 12,
+          "loop": false,
+          "pivot": [
+            48,
+            48
+          ],
+          "note": "Stab-Einschlag; AOE-Radius 45 px ≈ Frame 3"
+        },
+        {
+          "kind": "anim",
+          "name": "hit_spark",
+          "file": "art/effects/hit_spark_3f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 3,
+          "fps": 15,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ],
+          "note": "Am Trefferpunkt"
+        },
+        {
+          "kind": "anim",
+          "name": "dash_dust",
+          "file": "art/effects/dash_dust_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 12,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Am Startpunkt des Dash, Fußhöhe"
+        }
+      ],
+      "module": "combat",
+      "priority": 1
+    },
+    {
+      "id": "projectiles/projectiles",
+      "title": "Projektile",
+      "dir": "art/projectiles",
+      "notes": [
+        "Alle fliegen nach rechts; Node zur Flugrichtung drehen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "arrow",
+          "file": "art/projectiles/arrow.png",
+          "w": 16,
+          "h": 5,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            2
+          ],
+          "note": "Spielerpfeil"
+        },
+        {
+          "kind": "image",
+          "name": "enemy_arrow",
+          "file": "art/projectiles/enemy_arrow.png",
+          "w": 16,
+          "h": 5,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            2
+          ],
+          "note": "Archer-Pfeil, rote Befiederung"
+        },
+        {
+          "kind": "anim",
+          "name": "magic_orb",
+          "file": "art/projectiles/magic_orb_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 10,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ],
+          "note": "AOE-Treffer beim Einschlag → explosion"
+        }
+      ],
+      "module": "combat",
+      "priority": 1
+    },
+    {
+      "id": "weapons/weapons",
+      "title": "Waffen",
+      "dir": "art/weapons",
+      "notes": [
+        "Alle zeigen nach rechts; Drehpunkt = pivot (Griff). Sprite an weapon_hand des Spielers hängen und zur Maus drehen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "sword",
+          "file": "art/weapons/sword.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            16
+          ],
+          "note": "Griffmitte; Klinge reicht bis x=29"
+        },
+        {
+          "kind": "image",
+          "name": "bow",
+          "file": "art/weapons/bow.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            17,
+            16
+          ],
+          "note": "Griff; Sehne links, Pfeil fliegt nach rechts"
+        },
+        {
+          "kind": "image",
+          "name": "staff",
+          "file": "art/weapons/staff.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ],
+          "note": "Griff; Kristall bei (26,16) = Spawnpunkt der Magiekugel"
+        }
+      ],
+      "module": "combat",
+      "priority": 1
+    },
+    {
+      "id": "environment/props/dungeon_props",
+      "title": "Dungeon-Props",
+      "dir": "art/environment/props",
+      "notes": [
+        "Türen und Fackel sitzen auf dem 32er-Raster (Tür über einer wall_front-Kachel).",
+        "Deko: Pivot unten Mitte (16,31).",
+        "Fackel: Lichtkegel per Light2D, nicht im Sprite."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "door_closed",
+          "file": "art/environment/props/door_closed.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Auf wall_front legen"
+        },
+        {
+          "kind": "image",
+          "name": "door_open",
+          "file": "art/environment/props/door_open.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Endzustand von door_open_4f"
+        },
+        {
+          "kind": "anim",
+          "name": "door_open",
+          "file": "art/environment/props/door_open_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Öffnen; letzter Frame = door_open.png"
+        },
+        {
+          "kind": "anim",
+          "name": "torch",
+          "file": "art/environment/props/torch_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "An wall_front; Flamme flackert"
+        },
+        {
+          "kind": "image",
+          "name": "crate",
+          "file": "art/environment/props/crate.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "barrel",
+          "file": "art/environment/props/barrel.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "bones_1",
+          "file": "art/environment/props/bones_1.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Schädel + Knochen"
+        },
+        {
+          "kind": "image",
+          "name": "bones_2",
+          "file": "art/environment/props/bones_2.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Gekreuzte Knochen"
+        }
+      ],
+      "module": "dungeon",
+      "priority": 2
+    },
+    {
+      "id": "environment/tiles/dungeon_tileset",
+      "title": "Dungeon-Tileset",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_<n|e|s|w>: Wandoberseite mit heller Kante zum Boden auf dieser Seite.",
+        "wall_outer_<ne|nw|se|sw>: Boden an zwei vollen Seiten (vorspringende Ecke).",
+        "wall_inner_<ne|nw|se|sw>: Boden nur diagonal in dieser Richtung (Raumecke, verbindet zwei gerade Kanten).",
+        "wall_front: sichtbare Wandhöhe, unter eine wall_s-Kante setzen."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "dungeon_tileset",
+          "file": "art/environment/tiles/dungeon_tileset.png",
+          "w": 256,
+          "h": 96,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 3,
+          "tiles": [
+            "floor_1",
+            "floor_2",
+            "floor_3",
+            "floor_4",
+            "wall_top",
+            "wall_front",
+            "wall_front_2",
+            "wall_front_top",
+            "wall_n",
+            "wall_e",
+            "wall_s",
+            "wall_w",
+            "wall_outer_ne",
+            "wall_outer_nw",
+            "wall_outer_se",
+            "wall_outer_sw",
+            "wall_inner_ne",
+            "wall_inner_nw",
+            "wall_inner_se",
+            "wall_inner_sw",
+            "wall_ns",
+            "wall_ew",
+            "wall_pillar",
+            "void"
+          ]
+        }
+      ],
+      "module": "dungeon",
+      "priority": 2
+    },
+    {
+      "id": "environment/buildings/buildings",
+      "title": "Dorf-Gebäude",
+      "dir": "art/environment/buildings",
+      "notes": [
+        "Pivot unten Mitte; Kollision = Wandfläche unter dem Dach."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "house_1",
+          "file": "art/environment/buildings/house_1.png",
+          "w": 64,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            62
+          ],
+          "note": "Wohnhaus, 64×64"
+        },
+        {
+          "kind": "image",
+          "name": "house_2",
+          "file": "art/environment/buildings/house_2.png",
+          "w": 80,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            40,
+            62
+          ],
+          "note": "Hof, 80×64, Kamin"
+        },
+        {
+          "kind": "image",
+          "name": "house_3",
+          "file": "art/environment/buildings/house_3.png",
+          "w": 96,
+          "h": 80,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            78
+          ],
+          "note": "Schmiede/Laden, 96×80, Schild"
+        },
+        {
+          "kind": "image",
+          "name": "tree",
+          "file": "art/environment/buildings/tree.png",
+          "w": 48,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            62
+          ],
+          "note": "Baum 48×64"
+        }
+      ],
+      "module": "village",
+      "priority": 3
+    },
+    {
+      "id": "environment/props/special_props",
+      "title": "Spezialraum-Props",
+      "dir": "art/environment/props",
+      "notes": [
+        "Pivot jeweils unten Mitte (Fußpunkt).",
+        "exit_portal: Interaktion mit E, 30 % der Spezialräume.",
+        "Waffenpodest: Waffensprite per Code 10 px über dem Podest anzeigen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "exit_portal",
+          "file": "art/environment/props/exit_portal_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "fountain",
+          "file": "art/environment/props/fountain.png",
+          "w": 32,
+          "h": 40,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            38
+          ],
+          "note": "Brunnen: einmalig +3 HP"
+        },
+        {
+          "kind": "image",
+          "name": "shop_counter",
+          "file": "art/environment/props/shop_counter.png",
+          "w": 64,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            30
+          ],
+          "note": "Händler steht dahinter (y kleiner)"
+        },
+        {
+          "kind": "anim",
+          "name": "merchant_idle",
+          "file": "art/environment/props/merchant_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "weapon_pedestal",
+          "file": "art/environment/props/weapon_pedestal.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_altar",
+          "file": "art/environment/props/upgrade_altar.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            46
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "gold_coin",
+          "file": "art/environment/props/gold_coin_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ],
+          "note": "Drop am Boden, dreht sich"
+        },
+        {
+          "kind": "image",
+          "name": "dungeon_entrance",
+          "file": "art/environment/props/dungeon_entrance.png",
+          "w": 64,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            62
+          ],
+          "note": "Im Dorf; E zum Betreten"
+        }
+      ],
+      "module": "village",
+      "priority": 3
+    },
+    {
+      "id": "environment/tiles/village_tileset",
+      "title": "Dorf-Tileset",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "path_<n|e|s|w>: Weg mit Grasrand an dieser Seite; path_ns/path_ew für schmale Wege."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "village_tileset",
+          "file": "art/environment/tiles/village_tileset.png",
+          "w": 256,
+          "h": 96,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 3,
+          "tiles": [
+            "grass_1",
+            "grass_2",
+            "grass_3",
+            "grass_flowers",
+            "path",
+            "path_n",
+            "path_e",
+            "path_s",
+            "path_w",
+            "path_ns",
+            "path_ew",
+            "path_ne",
+            "path_nw",
+            "path_se",
+            "path_sw",
+            "fence_h",
+            "fence_v",
+            "bush",
+            "stump"
+          ]
+        }
+      ],
+      "module": "village",
+      "priority": 3
+    },
+    {
+      "id": "ui/hearts",
+      "title": "Herzen",
+      "dir": "art/ui",
+      "notes": [
+        "1 Herz = 2 HP; Viertelschritte. HUD-Abstand 18 px empfohlen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "heart_full",
+          "file": "art/ui/heart_full.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "heart_3q",
+          "file": "art/ui/heart_3q.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "heart_half",
+          "file": "art/ui/heart_half.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "heart_1q",
+          "file": "art/ui/heart_1q.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "heart_empty",
+          "file": "art/ui/heart_empty.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "ui",
+      "priority": 4
+    },
+    {
+      "id": "ui/icons",
+      "title": "HUD-Icons",
+      "dir": "art/ui",
+      "notes": [
+        "16×16, auf dunklem Panel gedacht."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "shield_icon",
+          "file": "art/ui/shield_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "gold_icon",
+          "file": "art/ui/gold_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_sword",
+          "file": "art/ui/icon_sword.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_bow",
+          "file": "art/ui/icon_bow.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_staff",
+          "file": "art/ui/icon_staff.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "ui",
+      "priority": 4
+    },
+    {
+      "id": "ui/panels",
+      "title": "Panels (9-Slice)",
+      "dir": "art/ui",
+      "notes": [
+        "NinePatchRect: Ränder 6 px.",
+        "panel_gold = ausgewählt/hervorgehoben, button_hover = Fokus."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "panel",
+          "file": "art/ui/panel.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Menüs, Shop, Tooltips"
+        },
+        {
+          "kind": "image",
+          "name": "panel_gold",
+          "file": "art/ui/panel_gold.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Ausgewählte Karte"
+        },
+        {
+          "kind": "image",
+          "name": "panel_dark",
+          "file": "art/ui/panel_dark.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "HUD-Hintergrund"
+        },
+        {
+          "kind": "image",
+          "name": "button",
+          "file": "art/ui/button.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "button_hover",
+          "file": "art/ui/button_hover.png",
+          "w": 32,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "ui",
+      "priority": 4
+    },
+    {
+      "id": "ui/upgrades",
+      "title": "Upgrade-Icons",
+      "dir": "art/ui",
+      "notes": [
+        "Reihenfolge wie im PRD (Attribut, Mechanik, Effekt)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "upgrade_strong_attack",
+          "file": "art/ui/upgrade_strong_attack.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Verstärkter Angriff"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_strength_training",
+          "file": "art/ui/upgrade_strength_training.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Krafttraining"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_fast_attack",
+          "file": "art/ui/upgrade_fast_attack.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schneller Angriff"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_precise_arrows",
+          "file": "art/ui/upgrade_precise_arrows.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Präzise Pfeile"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_magic_power",
+          "file": "art/ui/upgrade_magic_power.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Magische Verstärkung"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_fast_projectiles",
+          "file": "art/ui/upgrade_fast_projectiles.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schnelle Geschosse"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_shield_boost",
+          "file": "art/ui/upgrade_shield_boost.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schildverstärkung"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_pierce",
+          "file": "art/ui/upgrade_pierce.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Durchschlag"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_wall_bounce",
+          "file": "art/ui/upgrade_wall_bounce.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Wandabprall"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_double_shot",
+          "file": "art/ui/upgrade_double_shot.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Doppelschuss"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_wide_swing",
+          "file": "art/ui/upgrade_wide_swing.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Größerer Schwung"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_big_explosion",
+          "file": "art/ui/upgrade_big_explosion.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Größere Explosion"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_explosive_hit",
+          "file": "art/ui/upgrade_explosive_hit.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Explosiver Treffer"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_heal_on_kill",
+          "file": "art/ui/upgrade_heal_on_kill.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Heilung bei Tötung"
+        },
+        {
+          "kind": "image",
+          "name": "upgrade_shield_on_kill",
+          "file": "art/ui/upgrade_shield_on_kill.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schild bei Tötung"
+        }
+      ],
+      "module": "ui",
+      "priority": 4
+    },
+    {
+      "id": "environment/props/hazards",
+      "title": "Fallen & Bodengefahren",
+      "dir": "art/environment/props",
+      "notes": [
+        "spike_trap: Frame 0 eingefahren, 1 Warnung (~0,4 s halten), 2 ausgefahren = Schaden.",
+        "Pfütze und Lavariss liegen als Bodenlayer über dem Tile (transparenter Rand)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "spike_trap",
+          "file": "art/environment/props/spike_trap_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "toxic_puddle",
+          "file": "art/environment/props/toxic_puddle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "verlangsamt / vergiftet"
+        },
+        {
+          "kind": "anim",
+          "name": "lava_crack",
+          "file": "art/environment/props/lava_crack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schaden pro Tick"
+        }
+      ],
+      "module": "hazards",
+      "priority": 5
+    },
+    {
+      "id": "ui/badges",
+      "title": "Gegner-Kennzeichen",
+      "dir": "art/ui",
+      "notes": [
+        "12×12, zentriert über dem Gegner, ca. 4 px über dem Kopf."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "badge_swift",
+          "file": "art/ui/badge_swift.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_armored",
+          "file": "art/ui/badge_armored.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_volatile",
+          "file": "art/ui/badge_volatile.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_stun",
+          "file": "art/ui/badge_stun.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_blind",
+          "file": "art/ui/badge_blind.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_summoner",
+          "file": "art/ui/badge_summoner.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_explode",
+          "file": "art/ui/badge_explode.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "badge_champion",
+          "file": "art/ui/badge_champion.png",
+          "w": 12,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            12
+          ]
+        }
+      ],
+      "module": "hazards",
+      "priority": 5
+    },
+    {
+      "id": "characters/bosses/bone_king/bone_king",
+      "title": "Knochenkönig",
+      "dir": "art/characters/bosses/bone_king",
+      "pivot": [
+        32,
+        62
+      ],
+      "anchors": {
+        "weapon_hand": [
+          44,
+          40
+        ]
+      },
+      "notes": [
+        "Attack: Frame 1-2 Krummschwert hoch (Ankündigung), Frame 3 Hieb nach rechts (Trefferfenster), Frame 4 Nachschwung.",
+        "attack2 Schildstoß: Frame 1-2 Schild vor und Anlauf (Code: Ansturm ab Frame 3), Treffer = Betäubung (badge_stun)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/bosses/bone_king/bone_king_idle_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/bosses/bone_king/bone_king_walk_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/bosses/bone_king/bone_king_attack_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 7,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "attack2",
+          "file": "art/characters/bosses/bone_king/bone_king_attack2_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 7,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/bosses/bone_king/bone_king_death_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 7,
+          "loop": false
+        },
+        {
+          "kind": "image",
+          "name": "portrait",
+          "file": "art/characters/bosses/bone_king/bone_king_portrait.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "note": "Boss-Leiste"
+        }
+      ],
+      "module": "bosses",
+      "priority": 6
+    },
+    {
+      "id": "characters/bosses/ember_golem/ember_golem",
+      "title": "Glutgolem",
+      "dir": "art/characters/bosses/ember_golem",
+      "pivot": [
+        32,
+        62
+      ],
+      "anchors": {
+        "slam": [
+          54,
+          60
+        ]
+      },
+      "notes": [
+        "Attack: Faustschlag wie Golem (Trefferfenster Frame 3).",
+        "attack2 Stampfer: Frame 1-2 beide Fäuste hoch, Frame 3 Aufschlag = Schockwelle + Funken (Code: lava_crack am Boden spawnen), Frame 4 Nachglühen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/bosses/ember_golem/ember_golem_idle_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/bosses/ember_golem/ember_golem_walk_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/bosses/ember_golem/ember_golem_attack_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "attack2",
+          "file": "art/characters/bosses/ember_golem/ember_golem_attack2_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/bosses/ember_golem/ember_golem_death_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "image",
+          "name": "portrait",
+          "file": "art/characters/bosses/ember_golem/ember_golem_portrait.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "note": "Boss-Leiste"
+        }
+      ],
+      "module": "bosses",
+      "priority": 6
+    },
+    {
+      "id": "characters/bosses/shadow_lord/shadow_lord",
+      "title": "Schattenlord",
+      "dir": "art/characters/bosses/shadow_lord",
+      "pivot": [
+        32,
+        62
+      ],
+      "anchors": {
+        "cast": [
+          50,
+          31
+        ]
+      },
+      "notes": [
+        "Schwebt; Pivot trotzdem unten Mitte.",
+        "Attack: Frame 1-2 Kugeln laden, Frame 3 Blitz = Geschosse bei anchor cast, Frame 4 Abklingen.",
+        "attack2 Teleport: Frame 1 Funkeln, Frame 2 verblassen, Frame 3 fast unsichtbar (Code: Position wechseln), Frame 4 erscheinen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_idle_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_walk_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_attack_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "attack2",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_attack2_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_death_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "image",
+          "name": "portrait",
+          "file": "art/characters/bosses/shadow_lord/shadow_lord_portrait.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "note": "Boss-Leiste"
+        }
+      ],
+      "module": "bosses",
+      "priority": 6
+    },
+    {
+      "id": "characters/bosses/slime_queen/slime_queen",
+      "title": "Schleimkönigin",
+      "dir": "art/characters/bosses/slime_queen",
+      "pivot": [
+        32,
+        62
+      ],
+      "anchors": {},
+      "notes": [
+        "attack2 Sprung: Frame 1 Anlauf (Quetschen), Frame 2 Absprung, Frame 3 in der Luft (Code: Schatten am Ziel), Frame 4 Landung = AOE-Schaden.",
+        "Death: beim Zerfließen mini_slimes spawnen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/bosses/slime_queen/slime_queen_idle_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/bosses/slime_queen/slime_queen_walk_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 7,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/bosses/slime_queen/slime_queen_attack_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 7,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "attack2",
+          "file": "art/characters/bosses/slime_queen/slime_queen_attack2_4f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/bosses/slime_queen/slime_queen_death_6f.png",
+          "w": 64,
+          "h": 64,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "image",
+          "name": "portrait",
+          "file": "art/characters/bosses/slime_queen/slime_queen_portrait.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "note": "Boss-Leiste"
+        }
+      ],
+      "module": "bosses",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/bomber/bomber",
+      "title": "Bomber",
+      "dir": "art/characters/enemies/bomber",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "bomb": [
+          10,
+          23
+        ]
+      },
+      "notes": [
+        "Attack = Zündung: Lunte sprüht, Körper bläht sich auf; nach Frame 4 explosion-Effekt am Pivot spawnen.",
+        "Death ohne Explosion (bei Tötung vor der Zündung)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/bomber/bomber_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/bomber/bomber_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/bomber/bomber_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/bomber/bomber_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/golem/golem",
+      "title": "Golem",
+      "dir": "art/characters/enemies/golem",
+      "pivot": [
+        24,
+        46
+      ],
+      "anchors": {
+        "slam": [
+          40,
+          44
+        ]
+      },
+      "notes": [
+        "48×48, Pivot (24,46). Langsam, viel HP.",
+        "Attack: Frame 1-2 Faust hoch (Ankündigung), Frame 3 Aufschlag = Schaden im Radius um anchor slam, Frame 4 Staub."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/golem/golem_idle_4f.png",
+          "w": 48,
+          "h": 48,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/golem/golem_walk_6f.png",
+          "w": 48,
+          "h": 48,
+          "frames": 6,
+          "fps": 6,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/golem/golem_attack_4f.png",
+          "w": 48,
+          "h": 48,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/golem/golem_death_6f.png",
+          "w": 48,
+          "h": 48,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/mini_slime/mini_slime",
+      "title": "Mini-Schleim",
+      "dir": "art/characters/enemies/mini_slime",
+      "pivot": [
+        8,
+        15
+      ],
+      "anchors": {},
+      "notes": [
+        "16×16, Pivot (8,15). Schnell, wenig HP."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/mini_slime/mini_slime_idle_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 6,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/mini_slime/mini_slime_walk_6f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/mini_slime/mini_slime_attack_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 10,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/mini_slime/mini_slime_death_6f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 6,
+          "fps": 10,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/necromancer/necromancer",
+      "title": "Nekromant",
+      "dir": "art/characters/enemies/necromancer",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "cast": [
+          30,
+          12
+        ]
+      },
+      "notes": [
+        "Attack: Frame 1-2 Stab heben (Ankündigung), Frame 3 Zauber = Geschoss bei anchor cast, Frame 4 Nachhall.",
+        "summon: Arme hoch, Skelette spawnen bei Frame 3.",
+        "Hält Abstand, flieht vor dem Spieler."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/necromancer/necromancer_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/necromancer/necromancer_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/necromancer/necromancer_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "summon",
+          "file": "art/characters/enemies/necromancer/necromancer_summon_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/necromancer/necromancer_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/shadow/shadow",
+      "title": "Schattenwesen",
+      "dir": "art/characters/enemies/shadow",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Halbtransparent (Alpha 0,85), Augen voll deckend; schwebt 3 px über dem Boden.",
+        "Attack: Frame 1-2 Ausholen, Frame 3 Krallenhieb = Treffer + Blendung, Frame 4 Nachschwung."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/shadow/shadow_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/shadow/shadow_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/shadow/shadow_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/shadow/shadow_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "characters/enemies/splitter_slime/splitter_slime",
+      "title": "Splitterschleim",
+      "dir": "art/characters/enemies/splitter_slime",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Death zeigt die Teilung: ab Frame 3 zwei Hälften, die auseinanderrutschen; danach 2× mini_slime bei (−6, 0) und (+6, 0) spawnen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/splitter_slime/splitter_slime_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 5,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/splitter_slime/splitter_slime_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/splitter_slime/splitter_slime_attack_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/splitter_slime/splitter_slime_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "enemies2",
+      "priority": 6
+    },
+    {
+      "id": "environment/props/biome_props",
+      "title": "Biom-Deko & Lichtquellen",
+      "dir": "art/environment/props",
+      "notes": [
+        "Fackeln auf wall_front setzen (Raster 32).",
+        "brazier Pivot unten Mitte; Light2D orange.",
+        "Deko: Pivot unten Mitte."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "torch_green",
+          "file": "art/environment/props/torch_green_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schleimgrotte"
+        },
+        {
+          "kind": "anim",
+          "name": "torch_purple",
+          "file": "art/environment/props/torch_purple_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schattenreich"
+        },
+        {
+          "kind": "anim",
+          "name": "brazier",
+          "file": "art/environment/props/brazier_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Glutkammer"
+        },
+        {
+          "kind": "image",
+          "name": "crystal_cluster",
+          "file": "art/environment/props/crystal_cluster.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Schleimgrotte"
+        },
+        {
+          "kind": "image",
+          "name": "mushrooms",
+          "file": "art/environment/props/mushrooms.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Schleimgrotte"
+        },
+        {
+          "kind": "image",
+          "name": "chains",
+          "file": "art/environment/props/chains.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Schattenreich, an wall_front"
+        },
+        {
+          "kind": "image",
+          "name": "anvil_broken",
+          "file": "art/environment/props/anvil_broken.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            31
+          ],
+          "note": "Glutkammer"
+        }
+      ],
+      "module": "hazards",
+      "priority": 7
+    },
+    {
+      "id": "environment/tiles/ember_forge_tileset",
+      "title": "Tileset Glutkammer",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout identisch zu dungeon_tileset.png (8×3, gleiche Reihenfolge)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "ember_forge_tileset",
+          "file": "art/environment/tiles/ember_forge_tileset.png",
+          "w": 256,
+          "h": 96,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 3,
+          "tiles": [
+            "floor_1",
+            "floor_2",
+            "floor_3",
+            "floor_4",
+            "wall_top",
+            "wall_front",
+            "wall_front_2",
+            "wall_front_top",
+            "wall_n",
+            "wall_e",
+            "wall_s",
+            "wall_w",
+            "wall_outer_ne",
+            "wall_outer_nw",
+            "wall_outer_se",
+            "wall_outer_sw",
+            "wall_inner_ne",
+            "wall_inner_nw",
+            "wall_inner_se",
+            "wall_inner_sw",
+            "wall_ns",
+            "wall_ew",
+            "wall_pillar",
+            "void"
+          ]
+        }
+      ],
+      "module": "biomes",
+      "priority": 7
+    },
+    {
+      "id": "environment/tiles/shadow_realm_tileset",
+      "title": "Tileset Schattenreich",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout identisch zu dungeon_tileset.png (8×3, gleiche Reihenfolge)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "shadow_realm_tileset",
+          "file": "art/environment/tiles/shadow_realm_tileset.png",
+          "w": 256,
+          "h": 96,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 3,
+          "tiles": [
+            "floor_1",
+            "floor_2",
+            "floor_3",
+            "floor_4",
+            "wall_top",
+            "wall_front",
+            "wall_front_2",
+            "wall_front_top",
+            "wall_n",
+            "wall_e",
+            "wall_s",
+            "wall_w",
+            "wall_outer_ne",
+            "wall_outer_nw",
+            "wall_outer_se",
+            "wall_outer_sw",
+            "wall_inner_ne",
+            "wall_inner_nw",
+            "wall_inner_se",
+            "wall_inner_sw",
+            "wall_ns",
+            "wall_ew",
+            "wall_pillar",
+            "void"
+          ]
+        }
+      ],
+      "module": "biomes",
+      "priority": 7
+    },
+    {
+      "id": "environment/tiles/slime_grotto_tileset",
+      "title": "Tileset Schleimgrotte",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout identisch zu dungeon_tileset.png (8×3, gleiche Reihenfolge)."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "slime_grotto_tileset",
+          "file": "art/environment/tiles/slime_grotto_tileset.png",
+          "w": 256,
+          "h": 96,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 3,
+          "tiles": [
+            "floor_1",
+            "floor_2",
+            "floor_3",
+            "floor_4",
+            "wall_top",
+            "wall_front",
+            "wall_front_2",
+            "wall_front_top",
+            "wall_n",
+            "wall_e",
+            "wall_s",
+            "wall_w",
+            "wall_outer_ne",
+            "wall_outer_nw",
+            "wall_outer_se",
+            "wall_outer_sw",
+            "wall_inner_ne",
+            "wall_inner_nw",
+            "wall_inner_se",
+            "wall_inner_sw",
+            "wall_ns",
+            "wall_ew",
+            "wall_pillar",
+            "void"
+          ]
+        }
+      ],
+      "module": "biomes",
+      "priority": 7
+    },
+    {
+      "id": "characters/npcs/chronicler",
+      "title": "Chronist",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/chronicler_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        }
+      ],
+      "module": "village2",
+      "priority": 8
+    },
+    {
+      "id": "characters/npcs/guild_master",
+      "title": "Gildenmeisterin",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/guild_master_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        }
+      ],
+      "module": "village2",
+      "priority": 8
+    },
+    {
+      "id": "characters/npcs/smith",
+      "title": "Schmied",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [
+        "Steht vor der Schmiede."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/smith_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        }
+      ],
+      "module": "village2",
+      "priority": 8
+    },
+    {
+      "id": "characters/npcs/trader",
+      "title": "Händlerin",
+      "dir": "art/characters/npcs",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {},
+      "notes": [],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/npcs/trader_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        }
+      ],
+      "module": "village2",
+      "priority": 8
+    },
+    {
+      "id": "environment/buildings/village_v2",
+      "title": "Dorf-Gebäude V2",
+      "dir": "art/environment/buildings",
+      "notes": [
+        "Türen 16×30 px, unten mittig (Gildenhaus: Doppeltür 32 px). Kollision = Wandfläche, Dach darf überlappen.",
+        "Pivot = Türmitte unten."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "forge",
+          "file": "art/environment/buildings/forge.png",
+          "w": 96,
+          "h": 96,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            93
+          ],
+          "note": "Schmiede, Esse glüht (Light2D orange)"
+        },
+        {
+          "kind": "image",
+          "name": "trading_post",
+          "file": "art/environment/buildings/trading_post.png",
+          "w": 96,
+          "h": 80,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            30,
+            77
+          ],
+          "note": "Handelshaus, Tür links, Theke rechts"
+        },
+        {
+          "kind": "image",
+          "name": "chronicle_hall",
+          "file": "art/environment/buildings/chronicle_hall.png",
+          "w": 80,
+          "h": 96,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            52,
+            93
+          ],
+          "note": "Chronik mit Turm"
+        },
+        {
+          "kind": "image",
+          "name": "guild_hall",
+          "file": "art/environment/buildings/guild_hall.png",
+          "w": 112,
+          "h": 96,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            56,
+            93
+          ],
+          "note": "Gildenhaus, Doppeltür"
+        },
+        {
+          "kind": "image",
+          "name": "home",
+          "file": "art/environment/buildings/home.png",
+          "w": 80,
+          "h": 80,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            40,
+            77
+          ],
+          "note": "Spielerhaus, Lagerkiste rechts"
+        },
+        {
+          "kind": "image",
+          "name": "well",
+          "file": "art/environment/buildings/well.png",
+          "w": 32,
+          "h": 40,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            38
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "market_stall",
+          "file": "art/environment/buildings/market_stall.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            44
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "lamp_post",
+          "file": "art/environment/buildings/lamp_post_4f.png",
+          "w": 16,
+          "h": 48,
+          "frames": 4,
+          "fps": 5,
+          "loop": true,
+          "pivot": [
+            8,
+            47
+          ],
+          "note": "Light2D warm"
+        }
+      ],
+      "module": "village2",
+      "priority": 8
+    },
+    {
+      "id": "ui/meta_icons",
+      "title": "Meta-Upgrades & Chronik-Icons",
+      "dir": "art/ui",
+      "notes": [
+        "16×16, auf dunklem Panel."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "meta_vitality",
+          "file": "art/ui/meta_vitality.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Mehr Max-HP"
+        },
+        {
+          "kind": "image",
+          "name": "meta_shield",
+          "file": "art/ui/meta_shield.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Startschild"
+        },
+        {
+          "kind": "image",
+          "name": "meta_sharpness",
+          "file": "art/ui/meta_sharpness.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Mehr Schaden"
+        },
+        {
+          "kind": "image",
+          "name": "meta_greed",
+          "file": "art/ui/meta_greed.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Mehr Gold"
+        },
+        {
+          "kind": "image",
+          "name": "meta_dash",
+          "file": "art/ui/meta_dash.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Dash-Abklingzeit"
+        },
+        {
+          "kind": "image",
+          "name": "meta_arsenal",
+          "file": "art/ui/meta_arsenal.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Zweite Startwaffe"
+        },
+        {
+          "kind": "image",
+          "name": "crystal_icon",
+          "file": "art/ui/crystal_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Seelenkristall"
+        },
+        {
+          "kind": "image",
+          "name": "trophy_icon",
+          "file": "art/ui/trophy_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Rekord"
+        },
+        {
+          "kind": "image",
+          "name": "skull_icon",
+          "file": "art/ui/skull_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Kills"
+        },
+        {
+          "kind": "image",
+          "name": "clock_icon",
+          "file": "art/ui/clock_icon.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ],
+          "note": "Spielzeit"
+        }
+      ],
+      "module": "ui2",
+      "priority": 8
+    },
+    {
+      "id": "effects/effects_v3",
+      "title": "Effekte V3",
+      "dir": "art/effects",
+      "notes": [
+        "Pivot = Bildmitte = Spielerposition bzw. Aufschlagpunkt."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "hammer_slam",
+          "file": "art/effects/hammer_slam_6f.png",
+          "w": 96,
+          "h": 96,
+          "frames": 6,
+          "fps": 12,
+          "loop": false,
+          "pivot": [
+            48,
+            48
+          ],
+          "note": "Aufschlag: Staubring, Risse, Splitter"
+        },
+        {
+          "kind": "anim",
+          "name": "spin_slash",
+          "file": "art/effects/spin_slash_4f.png",
+          "w": 96,
+          "h": 96,
+          "frames": 4,
+          "fps": 14,
+          "loop": false,
+          "pivot": [
+            48,
+            48
+          ],
+          "note": "360°-Wirbel, Radius 36"
+        },
+        {
+          "kind": "anim",
+          "name": "nova_ring",
+          "file": "art/effects/nova_ring_6f.png",
+          "w": 128,
+          "h": 128,
+          "frames": 6,
+          "fps": 12,
+          "loop": false,
+          "pivot": [
+            64,
+            64
+          ],
+          "note": "Arkane Nova, Radius bis 62"
+        },
+        {
+          "kind": "anim",
+          "name": "quake_ring",
+          "file": "art/effects/quake_ring_6f.png",
+          "w": 128,
+          "h": 128,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            64,
+            64
+          ],
+          "note": "Bodenwelle mit Rissen"
+        },
+        {
+          "kind": "anim",
+          "name": "muzzle_puff",
+          "file": "art/effects/muzzle_puff_3f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 3,
+          "fps": 15,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ],
+          "note": "Abschuss-Wölkchen"
+        }
+      ],
+      "module": "weapons3",
+      "priority": 9
+    },
+    {
+      "id": "projectiles/projectiles_v3",
+      "title": "Projektile V3",
+      "dir": "art/projectiles",
+      "notes": [],
+      "items": [
+        {
+          "kind": "image",
+          "name": "throwing_knife",
+          "file": "art/projectiles/throwing_knife.png",
+          "w": 16,
+          "h": 5,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            2
+          ],
+          "note": "Dolch-Spezialangriff, fliegt nach rechts"
+        }
+      ],
+      "module": "weapons3",
+      "priority": 9
+    },
+    {
+      "id": "ui/icons_v3",
+      "title": "Waffen-Icons V3",
+      "dir": "art/ui",
+      "notes": [],
+      "items": [
+        {
+          "kind": "image",
+          "name": "icon_dagger",
+          "file": "art/ui/icon_dagger.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_hammer",
+          "file": "art/ui/icon_hammer.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "weapons3",
+      "priority": 9
+    },
+    {
+      "id": "weapons/weapons_v3",
+      "title": "Waffen V3",
+      "dir": "art/weapons",
+      "notes": [
+        "Griff links, Spitze rechts; Drehpunkt = pivot."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "dagger",
+          "file": "art/weapons/dagger.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            16
+          ],
+          "note": "Zwei gekreuzte Dolche"
+        },
+        {
+          "kind": "image",
+          "name": "hammer",
+          "file": "art/weapons/hammer.png",
+          "w": 48,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ],
+          "note": "48×32, Kopf rechts"
+        }
+      ],
+      "module": "weapons3",
+      "priority": 9
+    },
+    {
+      "id": "characters/player/player_extra",
+      "title": "Spieler V3",
+      "dir": "art/characters/player",
+      "notes": [
+        "fall: Figur schrumpft zur Mitte (16,24) und verblasst; danach Node ausblenden.",
+        "down: liegend, 2 Frames Atmen (2 fps). revive: Aufstehen, endet im Idle-Frame.",
+        "tint_mask: weiß = Kleidung (Tunika, Hose, Gürtel), schwarz = Rest, transparent außen. Gleiche Frames wie player_walk_6f; weitere Masken für idle/dash/death liegen daneben."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "player_fall",
+          "file": "art/characters/player/player_fall_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_down",
+          "file": "art/characters/player/player_down_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 2,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_revive",
+          "file": "art/characters/player/player_revive_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask",
+          "file": "art/characters/player/player_tint_mask.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Maske zu player_walk_6f"
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_idle",
+          "file": "art/characters/player/player_tint_mask_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_dash",
+          "file": "art/characters/player/player_tint_mask_dash_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 12,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_death",
+          "file": "art/characters/player/player_tint_mask_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        }
+      ],
+      "module": "player3",
+      "priority": 10
+    },
+    {
+      "id": "environment/props/abyss_props",
+      "title": "Abgrund-Deko",
+      "dir": "art/environment/props",
+      "notes": [
+        "Langsam (3 fps), über depth-Tiles, additiv wirkt am besten."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "abyss_mist",
+          "file": "art/environment/props/abyss_mist_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/abyss_tiles",
+      "title": "Abgrund-Tiles",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "edge_<seite>: Abgrund-Tile, das an dieser Seite an Boden grenzt. edge_n zeigt die Abbruchkante (Bodenplatte oben), die anderen eine helle Bodenkante.",
+        "outer_*: Boden an zwei Seiten, inner_*: Boden nur diagonal.",
+        "Neutral kühl gehalten; Biom-Tönung per Modulate."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles",
+          "file": "art/environment/tiles/abyss_tiles.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "depth",
+            "edge_n",
+            "edge_e",
+            "edge_s",
+            "edge_w",
+            "outer_ne",
+            "outer_nw",
+            "outer_se",
+            "outer_sw",
+            "inner_ne",
+            "inner_nw",
+            "inner_se",
+            "inner_sw",
+            "depth_2",
+            "depth_3",
+            "depth_glow"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/bridge_tiles",
+      "title": "Brücken-Tiles",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Transparent, über Abgrund legen. bridge_end_e / bridge_end_s = gespiegelt per Code."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "bridge_tiles",
+          "file": "art/environment/tiles/bridge_tiles.png",
+          "w": 128,
+          "h": 32,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 1,
+          "tiles": [
+            "bridge_h",
+            "bridge_v",
+            "bridge_end_w",
+            "bridge_end_n"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/inner_wall_tiles",
+      "title": "Innenmauer · crypt",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "cap_* = Mauerkrone (Oberseite) mit heller Kante zum Boden; face = Vorderseite unter einer waagerechten Krone; single = freistehend; cross = Kreuzung."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "inner_wall_tiles",
+          "file": "art/environment/tiles/inner_wall_tiles.png",
+          "w": 128,
+          "h": 64,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 2,
+          "tiles": [
+            "cap_h",
+            "face",
+            "end_w",
+            "end_e",
+            "single",
+            "cross",
+            "cap_v",
+            "end_n"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/inner_wall_tiles_ember_forge",
+      "title": "Innenmauer · ember_forge",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "cap_* = Mauerkrone (Oberseite) mit heller Kante zum Boden; face = Vorderseite unter einer waagerechten Krone; single = freistehend; cross = Kreuzung."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "inner_wall_tiles_ember_forge",
+          "file": "art/environment/tiles/inner_wall_tiles_ember_forge.png",
+          "w": 128,
+          "h": 64,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 2,
+          "tiles": [
+            "cap_h",
+            "face",
+            "end_w",
+            "end_e",
+            "single",
+            "cross",
+            "cap_v",
+            "end_n"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/inner_wall_tiles_shadow_realm",
+      "title": "Innenmauer · shadow_realm",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "cap_* = Mauerkrone (Oberseite) mit heller Kante zum Boden; face = Vorderseite unter einer waagerechten Krone; single = freistehend; cross = Kreuzung."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "inner_wall_tiles_shadow_realm",
+          "file": "art/environment/tiles/inner_wall_tiles_shadow_realm.png",
+          "w": 128,
+          "h": 64,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 2,
+          "tiles": [
+            "cap_h",
+            "face",
+            "end_w",
+            "end_e",
+            "single",
+            "cross",
+            "cap_v",
+            "end_n"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "environment/tiles/inner_wall_tiles_slime_grotto",
+      "title": "Innenmauer · slime_grotto",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "cap_* = Mauerkrone (Oberseite) mit heller Kante zum Boden; face = Vorderseite unter einer waagerechten Krone; single = freistehend; cross = Kreuzung."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "inner_wall_tiles_slime_grotto",
+          "file": "art/environment/tiles/inner_wall_tiles_slime_grotto.png",
+          "w": 128,
+          "h": 64,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 2,
+          "tiles": [
+            "cap_h",
+            "face",
+            "end_w",
+            "end_e",
+            "single",
+            "cross",
+            "cap_v",
+            "end_n"
+          ]
+        }
+      ],
+      "module": "rooms3",
+      "priority": 10
+    },
+    {
+      "id": "ui/village_ui",
+      "title": "Dorf-UI",
+      "dir": "art/ui",
+      "notes": [
+        "Schilder 24×16 über den Türen (Kette oben), Icons 16×16."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "icon_lock",
+          "file": "art/ui/icon_lock.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_info",
+          "file": "art/ui/icon_info.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "sign_forge",
+          "file": "art/ui/sign_forge.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "sign_trading",
+          "file": "art/ui/sign_trading.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "sign_chronicle",
+          "file": "art/ui/sign_chronicle.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "sign_guild",
+          "file": "art/ui/sign_guild.png",
+          "w": 24,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            0
+          ]
+        }
+      ],
+      "module": "ui3",
+      "priority": 11
+    },
+    {
+      "id": "ui/coop_ui",
+      "title": "Koop & Gilden",
+      "dir": "art/ui",
+      "notes": [
+        "teammate_arrow und guild_emblems sind weiß/grau und werden per Modulate eingefärbt.",
+        "nameplate: 9-Slice, Rand 3 px."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "icon_revive",
+          "file": "art/ui/icon_revive.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "teammate_arrow",
+          "file": "art/ui/teammate_arrow.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ],
+          "note": "zeigt nach rechts, drehen"
+        },
+        {
+          "kind": "image",
+          "name": "nameplate",
+          "file": "art/ui/nameplate.png",
+          "w": 48,
+          "h": 12,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_host",
+          "file": "art/ui/icon_host.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_good",
+          "file": "art/ui/icon_ping_good.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_mid",
+          "file": "art/ui/icon_ping_mid.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_bad",
+          "file": "art/ui/icon_ping_bad.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "guild_emblems",
+          "file": "art/ui/guild_emblems.png",
+          "w": 24,
+          "h": 24,
+          "frames": 8,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ],
+          "note": "8 Wappen à 24×24: Schwert, Schädel, Flamme, Mond, Krone, Schlange, Turm, Auge"
+        },
+        {
+          "kind": "image",
+          "name": "icon_leaderboard",
+          "file": "art/ui/icon_leaderboard.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_treasury",
+          "file": "art/ui/icon_treasury.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "ui3",
+      "priority": 12
+    }
+  ]
+}

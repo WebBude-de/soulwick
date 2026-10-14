@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://weapons/weapon_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/weapons/staff.png" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://art/ui/icon_staff.png" id="3_icon"]
+[ext_resource type="Texture2D" path="res://art/projectiles/magic_orb_4f.png" id="4_projectile"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"staff"
+display_name = "Magierstab"
+weapon_type = 2
+tags = Array[StringName]([&"ranged", &"projectile", &"magic", &"aoe", &"staff"])
+base_damage = 8.0
+attack_rate = 0.8
+attack_range = 450.0
+projectile_speed = 300.0
+aoe_radius = 45.0
+knockback_strength = 110.0
+projectile_radius = 10.0
+special_name = "Arkane Nova"
+special_description = "Magischer Ring um dich, stößt Gegner weg."
+special_cooldown = 6.0
+special_damage_multiplier = 1.6
+special_knockback_multiplier = 2.8
+sprite = ExtResource("2_sprite")
+sprite_pivot = Vector2(8, 16)
+icon = ExtResource("3_icon")
+projectile_texture = ExtResource("4_projectile")
+projectile_frame_size = Vector2i(16, 16)
+projectile_pivot = Vector2(8, 8)
+projectile_fps = 10.0
+projectile_color = Color(0.75, 0.45, 1, 1)

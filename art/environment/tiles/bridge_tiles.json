@@ -1,0 +1,37 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 1,
+  "notes": [
+    "Transparent, über Abgrund legen. bridge_end_e / bridge_end_s = gespiegelt per Code."
+  ],
+  "tiles": {
+    "bridge_h": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "bridge_v": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "bridge_end_w": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "bridge_end_n": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    }
+  }
+}

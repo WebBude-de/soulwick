@@ -1,0 +1,355 @@
+class_name Player
+extends CharacterBody2D
+## Player body: WASD movement, 360° mouse aim, dash, hit I-frames and E interaction (PRD 4.3).
+## HP/shield/weapons live in child components. Node origin = body centre; feet are below it.
+
+signal died
+signal blinded(duration: float)
+## Emitted when an effective hit stuns the player (screen tilt, post-process wobble).
+signal stunned(duration: float)
+
+const INVULNERABLE_DASH: StringName = &"dash"
+const INVULNERABLE_HIT: StringName = &"hit"
+const HIT_FLASH_COLOR := Color(1.0, 0.35, 0.35)
+const HIT_FLASH_DURATION := 0.15
+const INVULNERABLE_ALPHA := 0.5
+const DASH_DUST_TEXTURE: Texture2D = preload("res://art/effects/dash_dust_4f.png")
+## Body sprite: 32 px frames, the body centre sits at (16, 22), the hand at (19, 19).
+const SPRITE_FRAME := Vector2i(32, 32)
+const SPRITE_ORIGIN := Vector2(16, 22)
+const HAND_OFFSET := Vector2(3, -3)
+const FEET_OFFSET := Vector2(0, 16)
+## Visual swing of the held sword, matches WeaponController.SWING_ACTIVE_TIME.
+const WEAPON_SWING_TIME := 0.12
+## How long a slammed weapon stays down on the aim direction after the impact.
+const SLAM_HOLD_TIME := 0.15
+## How fast the recoil kick of the held weapon settles, in px/s.
+const WEAPON_KICK_RECOVERY := 60.0
+const STUN_STAR_COUNT := 3
+const STUN_STAR_RADIUS := 14.0
+const STUN_STAR_HEIGHT := -40.0
+const STATUS_TEXT_COLOR := Color(1.0, 0.9, 0.4)
+## Drop shadow under the feet (half width in world px).
+const SHADOW_RADIUS := 14.0
+
+## PLATZHALTER: player move speed is not specified in the GDD.
+@export var move_speed := 180.0
+@export_group("Dash (TESTWERTE)")
+@export var dash_duration := 0.2
+@export var dash_speed := 450.0
+@export var dash_cooldown := 1.5
+@export_group("Hit I-frames")
+## Started by every effective hit on shield or HP (D-017).
+@export var hit_invulnerability_time := 0.5
+
+var _dash_time_left := 0.0
+var _dash_cooldown_left := 0.0
+var _dash_direction := Vector2.RIGHT
+var _hit_invulnerability_left := 0.0
+var _aim := Vector2.RIGHT
+var _weapon_swing_left := 0.0
+var _weapon_swing_arc := 0.0
+var _weapon_swing_time := WEAPON_SWING_TIME
+var _weapon_swing_one_sided := false
+var _weapon_kick := 0.0
+var _focused_interactable: Interactable = null
+var _stun_left := 0.0
+var _input_locks: Dictionary[StringName, bool] = {}
+var _stun_stars: Node2D = null
+
+@onready var health: HealthComponent = $HealthComponent
+@onready var shield: ShieldComponent = $ShieldComponent
+@onready var hurtbox: Hurtbox = $Hurtbox
+@onready var weapon_controller: WeaponController = $WeaponController
+@onready var _sprite: AnimatedSprite2D = $Sprite
+@onready var _weapon_pivot: Node2D = $WeaponPivot
+@onready var _weapon_sprite: Sprite2D = $WeaponPivot/WeaponSprite
+@onready var _interaction_area: Area2D = $InteractionArea
+@onready var _prompt_label: Label = $PromptLabel
+@onready var _camera: CameraRig = $Camera2D
+
+
+func _ready() -> void:
+	add_to_group(&"player")
+	_sprite.offset = SpriteStrip.pivot_offset(SPRITE_FRAME, SPRITE_ORIGIN)
+	_sprite.play(&"idle")
+	SpriteFx.apply(_sprite)
+	# Character and clothing colour of the active save slot (MM1); the wardrobe updates it live.
+	CharacterCatalog.apply_active(_sprite)
+	SaveManager.profile_changed.connect(func() -> void: CharacterCatalog.apply_active(_sprite))
+	_build_stun_stars()
+	DropShadow.attach(self, SHADOW_RADIUS, FEET_OFFSET.y)
+	_camera.add_child(AmbientParticles.new())
+	hurtbox.hit_received.connect(_on_hit_received)
+	health.died.connect(_on_died)
+	weapon_controller.weapon_changed.connect(_on_weapon_changed.unbind(2))
+	weapon_controller.active_slot_changed.connect(_on_weapon_changed.unbind(1))
+	weapon_controller.swing_started.connect(_on_swing_started)
+	weapon_controller.slam_swing_started.connect(_on_slam_swing_started)
+	weapon_controller.weapon_kick.connect(func(strength: float) -> void: _weapon_kick = maxf(_weapon_kick, strength))
+	_prompt_label.visible = false
+	UiKit.apply_prompt_style(_prompt_label)
+	_on_weapon_changed()
+
+
+func _physics_process(delta: float) -> void:
+	_tick_timers(delta)
+
+	_aim = get_aim_direction()
+	weapon_controller.aim_direction = _aim
+
+	if is_stunned() or is_input_locked():
+		velocity = Vector2.ZERO
+		move_and_slide()
+		_prompt_label.visible = false
+		_update_visuals(Vector2.ZERO)
+		return
+
+	var move_input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	if Input.is_action_just_pressed(&"dash") and can_dash():
+		_start_dash(move_input, _aim)
+	velocity = _dash_direction * dash_speed if is_dashing() else move_input * move_speed
+	move_and_slide()
+
+	if Input.is_action_just_pressed(&"switch_weapon"):
+		weapon_controller.switch_weapon()
+	# No attacks while dashing (D-016).
+	if not is_dashing() and Input.is_action_pressed(&"attack"):
+		weapon_controller.request_attack()
+
+	_update_interaction()
+	_update_visuals(move_input)
+
+
+func get_aim_direction() -> Vector2:
+	var to_mouse := get_global_mouse_position() - weapon_controller.global_position
+	if to_mouse.length_squared() < 4.0:
+		return _aim
+	return to_mouse.normalized()
+
+
+func is_alive() -> bool:
+	return not health.is_dead()
+
+
+func is_dashing() -> bool:
+	return _dash_time_left > 0.0
+
+
+func can_dash() -> bool:
+	return not is_dashing() and _dash_cooldown_left <= 0.0
+
+
+func get_dash_cooldown_left() -> float:
+	return _dash_cooldown_left
+
+
+func get_feet_position() -> Vector2:
+	return global_position + FEET_OFFSET
+
+
+func is_stunned() -> bool:
+	return _stun_left > 0.0
+
+
+## Per-player input lock with named reasons (e.g. the boss intro), no global pause (D-088): the
+## player stands still, cannot attack, dash or interact, but can still aim.
+func set_input_locked(reason: StringName, locked: bool) -> void:
+	if locked:
+		_input_locks[reason] = true
+		weapon_controller.cancel_attack()
+		_weapon_swing_left = 0.0
+	else:
+		_input_locks.erase(reason)
+
+
+func is_input_locked() -> bool:
+	return not _input_locks.is_empty()
+
+
+## No movement, attacks, dash or interaction while stunned (D-066).
+func stun(duration: float) -> void:
+	if health.is_dead() or duration <= 0.0:
+		return
+	_stun_left = maxf(_stun_left, duration)
+	weapon_controller.cancel_attack()
+	_weapon_swing_left = 0.0
+	_stun_stars.visible = true
+	_camera.stun_sway(duration)
+	stunned.emit(duration)
+	Sfx.play_at(self, &"stun", global_position)
+	DamageNumber.spawn_text(get_parent(), global_position + Vector2(0, -56), "Betäubt!", STATUS_TEXT_COLOR)
+
+
+func blind(duration: float) -> void:
+	if health.is_dead() or duration <= 0.0:
+		return
+	blinded.emit(duration)
+	Sfx.play_at(self, &"blind", global_position)
+	DamageNumber.spawn_text(get_parent(), global_position + Vector2(0, -56), "Geblendet!", Color(0.75, 0.6, 1.0))
+
+
+## Dash goes in movement direction, or in aim direction without movement input.
+func _start_dash(move_input: Vector2, aim: Vector2) -> void:
+	_dash_direction = move_input.normalized() if move_input != Vector2.ZERO else aim
+	_dash_time_left = dash_duration
+	_dash_cooldown_left = dash_cooldown
+	weapon_controller.cancel_attack()
+	_weapon_swing_left = 0.0
+	hurtbox.set_invulnerable(INVULNERABLE_DASH, true)
+	Sfx.play_at(self, &"dash", global_position)
+	var dust_scale := Vector2.ONE * SpriteStrip.PIXEL_SCALE
+	SpriteStrip.spawn_effect(get_parent(), get_feet_position(), DASH_DUST_TEXTURE, Vector2i(32, 32), 12.0, Vector2(16, 30), dust_scale)
+
+
+func _tick_timers(delta: float) -> void:
+	_dash_cooldown_left = maxf(0.0, _dash_cooldown_left - delta)
+	if _dash_time_left > 0.0:
+		_dash_time_left -= delta
+		if _dash_time_left <= 0.0:
+			hurtbox.set_invulnerable(INVULNERABLE_DASH, false)
+	if _hit_invulnerability_left > 0.0:
+		_hit_invulnerability_left -= delta
+		if _hit_invulnerability_left <= 0.0:
+			hurtbox.set_invulnerable(INVULNERABLE_HIT, false)
+	_weapon_swing_left = maxf(0.0, _weapon_swing_left - delta)
+	_weapon_kick = move_toward(_weapon_kick, 0.0, WEAPON_KICK_RECOVERY * delta)
+	if _stun_left > 0.0:
+		_stun_left -= delta
+		_stun_stars.rotation += delta * 6.0
+		if _stun_left <= 0.0:
+			_stun_stars.visible = false
+
+
+func _update_visuals(move_input: Vector2) -> void:
+	var facing_left := _aim.x < 0.0
+	_sprite.flip_h = facing_left
+	if is_dashing():
+		_play(&"dash")
+	elif move_input != Vector2.ZERO:
+		_play(&"walk")
+	else:
+		_play(&"idle")
+	_sprite.modulate.a = INVULNERABLE_ALPHA if _hit_invulnerability_left > 0.0 else 1.0
+
+	var hand := HAND_OFFSET * SpriteStrip.PIXEL_SCALE
+	_weapon_pivot.position = Vector2(-hand.x if facing_left else hand.x, hand.y)
+	_weapon_pivot.position -= _aim * _weapon_kick
+	var swing := 0.0
+	if _weapon_swing_left > 0.0:
+		if _weapon_swing_one_sided:
+			# Raised behind, accelerating down onto the aim direction, then resting there.
+			var progress := clampf(1.0 - (_weapon_swing_left - SLAM_HOLD_TIME) / maxf(0.01, _weapon_swing_time), 0.0, 1.0)
+			swing = lerpf(-_weapon_swing_arc * 0.5, 0.0, ease(progress, 2.0))
+		else:
+			var progress := 1.0 - _weapon_swing_left / maxf(0.01, _weapon_swing_time)
+			swing = lerpf(-_weapon_swing_arc * 0.5, _weapon_swing_arc * 0.5, progress)
+		if facing_left:
+			swing = -swing
+	_weapon_pivot.rotation = _aim.angle() + swing
+	_weapon_sprite.flip_v = facing_left
+	# Draw the weapon behind the body while aiming up. Child order instead of z_index, so the weapon
+	# y-sorts with the player and never pokes through houses or lamps the player stands behind.
+	var weapon_behind := _aim.y < -0.3
+	if weapon_behind != (_weapon_pivot.get_index() < _sprite.get_index()):
+		move_child(_weapon_pivot, _sprite.get_index() if weapon_behind else _sprite.get_index() + 1)
+
+
+func _play(animation: StringName) -> void:
+	if _sprite.animation != animation:
+		_sprite.play(animation)
+
+
+func _update_interaction() -> void:
+	var closest: Interactable = null
+	var closest_distance := INF
+	for area in _interaction_area.get_overlapping_areas():
+		var interactable := area as Interactable
+		if interactable == null or not interactable.is_available():
+			continue
+		var distance := global_position.distance_squared_to(interactable.global_position)
+		if distance < closest_distance:
+			closest = interactable
+			closest_distance = distance
+	_focused_interactable = closest
+	_prompt_label.visible = closest != null
+	if closest != null:
+		var prompt_text := "E %s" % closest.prompt
+		if _prompt_label.text != prompt_text:
+			_prompt_label.text = prompt_text
+			# The panel hugs the text, centered above the head.
+			_prompt_label.reset_size()
+			_prompt_label.position.x = -_prompt_label.size.x * 0.5
+		if Input.is_action_just_pressed(&"interact"):
+			closest.interact(self)
+
+
+func _build_stun_stars() -> void:
+	_stun_stars = Node2D.new()
+	_stun_stars.position = Vector2(0, STUN_STAR_HEIGHT)
+	_stun_stars.z_index = 40
+	_stun_stars.visible = false
+	add_child(_stun_stars)
+	for i in STUN_STAR_COUNT:
+		var star := PlaceholderShape.new()
+		star.radius = 3.5
+		star.color = Color(1.0, 0.92, 0.3)
+		star.position = Vector2.from_angle(TAU * i / STUN_STAR_COUNT) * Vector2(STUN_STAR_RADIUS, STUN_STAR_RADIUS * 0.45)
+		_stun_stars.add_child(star)
+
+
+func _on_weapon_changed() -> void:
+	var weapon := weapon_controller.get_active_weapon()
+	_weapon_sprite.visible = weapon != null and weapon.sprite != null
+	if weapon == null or weapon.sprite == null:
+		return
+	_weapon_sprite.texture = weapon.sprite
+	_weapon_sprite.offset = SpriteStrip.pivot_offset(Vector2i(weapon.sprite.get_size()), weapon.sprite_pivot)
+	# Placeholder recolouring/scaling until dedicated weapon art exists.
+	_weapon_sprite.modulate = weapon.tint
+	_weapon_sprite.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE * weapon.sprite_scale
+
+
+func _on_swing_started(arc: float, duration: float) -> void:
+	_weapon_swing_one_sided = false
+	_weapon_swing_arc = arc
+	_weapon_swing_time = duration
+	_weapon_swing_left = duration
+
+
+func _on_slam_swing_started(arc: float, wind_up: float) -> void:
+	_weapon_swing_one_sided = true
+	_weapon_swing_arc = arc
+	_weapon_swing_time = wind_up
+	_weapon_swing_left = wind_up + SLAM_HOLD_TIME
+
+
+func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
+	# Set synchronously, so a second hit in the same frame is already blocked (serial handling, D-017).
+	if result.is_effective() and not health.is_dead():
+		_hit_invulnerability_left = hit_invulnerability_time
+		hurtbox.set_invulnerable(INVULNERABLE_HIT, true)
+		CameraShake.shake(self, 7.0)
+		HitStop.trigger(self, 0.08)
+		Sfx.play_at(self, &"hit_player", global_position)
+		# Status effects only come with effective hits (D-017).
+		stun(damage.stun_duration)
+		blind(damage.blind_duration)
+	SpriteFx.flash(_sprite, HIT_FLASH_COLOR, HIT_FLASH_DURATION)
+
+
+func _on_died() -> void:
+	set_physics_process(false)
+	velocity = Vector2.ZERO
+	weapon_controller.cancel_attack()
+	weapon_controller.set_physics_process(false)
+	_weapon_pivot.visible = false
+	_prompt_label.visible = false
+	_stun_stars.visible = false
+	_sprite.modulate.a = 1.0
+	_sprite.play(&"death")
+	Sfx.play_at(self, &"player_death", global_position)
+	CameraShake.shake(self, 10.0)
+	# Dramatic slow motion before the run end screen.
+	HitStop.trigger(self, 0.9, 0.3)
+	died.emit()

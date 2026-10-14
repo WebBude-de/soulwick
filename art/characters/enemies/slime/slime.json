@@ -1,0 +1,48 @@
+{
+  "name": "slime",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Walk = Hüpfen; horizontale Bewegung macht der Code.",
+    "Attack: Frame 1-2 Ausholen (Ankündigung), Frame 3 Vorschnellen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "slime_idle_4f.png",
+      "frames": 4,
+      "fps": 5,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "slime_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "slime_attack_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "slime_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

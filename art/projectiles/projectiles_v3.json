@@ -1,0 +1,21 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "throwing_knife",
+      "file": "throwing_knife.png",
+      "frame_size": [
+        16,
+        5
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        2
+      ],
+      "note": "Dolch-Spezialangriff, fliegt nach rechts"
+    }
+  ]
+}

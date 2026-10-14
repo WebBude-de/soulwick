@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="Texture2D" path="res://art/environment/props/bones_1.png" id="1_tex"]
+
+[node name="Bones" type="Sprite2D"]
+z_index = -9
+scale = Vector2(2, 2)
+texture = ExtResource("1_tex")
+offset = Vector2(0, -15)

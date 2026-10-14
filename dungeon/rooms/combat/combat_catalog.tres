@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="RoomCatalog" format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/room_catalog.gd" id="1_catalog"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_hall.tscn" id="2_template"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_pillars.tscn" id="3_template"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_wide.tscn" id="4_template"]
+
+[resource]
+script = ExtResource("1_catalog")
+templates = Array[PackedScene]([ExtResource("2_template"), ExtResource("3_template"), ExtResource("4_template")])

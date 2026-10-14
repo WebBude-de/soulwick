@@ -1,0 +1,26 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://player/weapon_controller.gd" id="1_controller"]
+[ext_resource type="Script" path="res://weapons/melee/melee_hitbox.gd" id="2_hitbox"]
+[ext_resource type="Resource" path="res://weapons/data/sword.tres" id="3_sword"]
+[ext_resource type="Script" path="res://weapons/effects/weapon_fx.gd" id="4_fx"]
+
+[node name="WeaponController" type="Node2D"]
+script = ExtResource("1_controller")
+starting_weapon = ExtResource("3_sword")
+
+[node name="SwingHitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 16
+monitorable = false
+script = ExtResource("2_hitbox")
+
+[node name="CollisionPolygon2D" type="CollisionPolygon2D" parent="SwingHitbox"]
+polygon = PackedVector2Array(0, 0, 75, -40, 75, 40)
+
+[node name="SwingEffect" type="AnimatedSprite2D" parent="SwingHitbox"]
+visible = false
+z_index = 4
+
+[node name="WeaponFx" type="Node2D" parent="."]
+script = ExtResource("4_fx")

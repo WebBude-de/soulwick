@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_explosive_hit.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"explosive_hit"
+display_name = "Explosiver Treffer"
+description = "Treffer lösen eine Explosion mit 50 % des Schadens aus. (max. 1)"
+category = 2
+effect = 10
+value = 0.5
+max_stacks = 1
+applicable_tags = Array[StringName]([])
+icon = ExtResource("2_icon")

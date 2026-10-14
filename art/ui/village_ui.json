@@ -1,0 +1,103 @@
+{
+  "notes": [
+    "Schilder 24×16 über den Türen (Kette oben), Icons 16×16."
+  ],
+  "items": [
+    {
+      "name": "icon_lock",
+      "file": "icon_lock.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_info",
+      "file": "icon_info.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "sign_forge",
+      "file": "sign_forge.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "sign_trading",
+      "file": "sign_trading.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "sign_chronicle",
+      "file": "sign_chronicle.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "sign_guild",
+      "file": "sign_guild.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

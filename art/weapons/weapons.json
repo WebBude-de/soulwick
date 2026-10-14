@@ -1,0 +1,55 @@
+{
+  "notes": [
+    "Alle zeigen nach rechts; Drehpunkt = pivot (Griff). Sprite an weapon_hand des Spielers hängen und zur Maus drehen."
+  ],
+  "items": [
+    {
+      "name": "sword",
+      "file": "sword.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        16
+      ],
+      "note": "Griffmitte; Klinge reicht bis x=29"
+    },
+    {
+      "name": "bow",
+      "file": "bow.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        17,
+        16
+      ],
+      "note": "Griff; Sehne links, Pfeil fliegt nach rechts"
+    },
+    {
+      "name": "staff",
+      "file": "staff.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": "Griff; Kristall bei (26,16) = Spawnpunkt der Magiekugel"
+    }
+  ]
+}

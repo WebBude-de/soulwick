@@ -1,0 +1,67 @@
+{
+  "name": "slime_queen",
+  "frame_size": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    62
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "attack2 Sprung: Frame 1 Anlauf (Quetschen), Frame 2 Absprung, Frame 3 in der Luft (Code: Schatten am Ziel), Frame 4 Landung = AOE-Schaden.",
+    "Death: beim Zerfließen mini_slimes spawnen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "slime_queen_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "slime_queen_walk_6f.png",
+      "frames": 6,
+      "fps": 7,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "slime_queen_attack_4f.png",
+      "frames": 4,
+      "fps": 7,
+      "loop": false
+    },
+    {
+      "name": "attack2",
+      "file": "slime_queen_attack2_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "slime_queen_death_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    }
+  ],
+  "extras": [
+    {
+      "name": "portrait",
+      "file": "slime_queen_portrait.png",
+      "size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "note": "Boss-Leiste"
+    }
+  ]
+}

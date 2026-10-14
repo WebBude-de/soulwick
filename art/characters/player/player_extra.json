@@ -1,0 +1,121 @@
+{
+  "notes": [
+    "fall: Figur schrumpft zur Mitte (16,24) und verblasst; danach Node ausblenden.",
+    "down: liegend, 2 Frames Atmen (2 fps). revive: Aufstehen, endet im Idle-Frame.",
+    "tint_mask: weiß = Kleidung (Tunika, Hose, Gürtel), schwarz = Rest, transparent außen. Gleiche Frames wie player_walk_6f; weitere Masken für idle/dash/death liegen daneben."
+  ],
+  "items": [
+    {
+      "name": "player_fall",
+      "file": "player_fall_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_down",
+      "file": "player_down_2f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 2,
+      "fps": 2,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_revive",
+      "file": "player_revive_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_tint_mask",
+      "file": "player_tint_mask.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Maske zu player_walk_6f"
+    },
+    {
+      "name": "player_tint_mask_idle",
+      "file": "player_tint_mask_idle_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_tint_mask_dash",
+      "file": "player_tint_mask_dash_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_tint_mask_death",
+      "file": "player_tint_mask_death_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    }
+  ]
+}

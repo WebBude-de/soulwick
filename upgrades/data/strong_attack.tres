@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_strong_attack.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"strong_attack"
+display_name = "Verstärkter Angriff"
+description = "+10 % Schaden für alle Angriffe."
+category = 0
+effect = 0
+value = 0.1
+max_stacks = 0
+applicable_tags = Array[StringName]([])
+icon = ExtResource("2_icon")

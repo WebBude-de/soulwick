@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="BiomeData" format=3]
+
+[ext_resource type="Script" path="res://dungeon/biome_data.gd" id="1_biome"]
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="2_enemy"]
+[ext_resource type="Resource" path="res://enemies/data/golem.tres" id="3_golem"]
+[ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="4_bomber"]
+[ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="5_skeleton"]
+[ext_resource type="Resource" path="res://enemies/data/archer.tres" id="6_archer"]
+[ext_resource type="Resource" path="res://enemies/data/necromancer.tres" id="7_necromancer"]
+[ext_resource type="Resource" path="res://enemies/data/splitter_slime.tres" id="8_splitter_slime"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/traps/lava_crack.tscn" id="9_hazard"]
+
+[resource]
+script = ExtResource("1_biome")
+id = &"ember_forge"
+display_name = "Glutkammer"
+tile_tint = Color(1, 0.75, 0.62, 1)
+darkness_color = Color(0.04, 0.008, 0.0, 1)
+vision_factor = 1.0
+enemies = Array[ExtResource("2_enemy")]([ExtResource("3_golem"), ExtResource("4_bomber"), ExtResource("5_skeleton"), ExtResource("6_archer"), ExtResource("7_necromancer"), ExtResource("8_splitter_slime")])
+weights = Array[float]([0.2, 0.25, 0.22, 0.18, 0.08, 0.07])
+hazard_scene = ExtResource("9_hazard")
+hazard_count = Vector2i(2, 4)
+boss_hazard_count = 4
+music_track = "dungeon_ember_forge"
+boss_music_track = "boss_ember_golem"
+ambient_track = "ambient_ember_forge"
+transition_track = "transition_ember_forge"
+victory_track = "victory_ember_golem"

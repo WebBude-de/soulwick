@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/slime/slime_frames.tres" id="2_frames"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"bomber"
+display_name = "Bomber"
+attack_kind = 0
+tags = Array[StringName]([&"melee", &"explosive"])
+max_health = 12.0
+damage = 1.5
+move_speed = 135.0
+gold_drop = 3
+attack_range = 60.0
+attack_cooldown = 1.0
+special = 4
+special_every = 1
+special_telegraph_time = 0.9
+blast_radius = 78.0
+sprite_origin = Vector2(16, 24)
+strike_frame = 2
+tint = Color(1, 0.55, 0.25, 1)
+body_radius = 12.0
+placeholder_color = Color(1, 0.5, 0.15, 1)
+light_radius = 45.0
+min_room = 6
+hint = "Bomber: Rennt auf dich zu und explodiert. Halte Abstand, wenn er blinkt!"
+sprite_frames = ExtResource("2_frames")

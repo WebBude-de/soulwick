@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_base.gd" id="1_enemy"]
+[ext_resource type="Script" path="res://components/visual/placeholder_shape.gd" id="2_shape"]
+[ext_resource type="Script" path="res://components/health/health_component.gd" id="3_health"]
+[ext_resource type="Script" path="res://components/hurtbox/hurtbox.gd" id="4_hurtbox"]
+[ext_resource type="Script" path="res://components/hitbox/hitbox.gd" id="5_hitbox"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+resource_local_to_scene = true
+radius = 9.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+resource_local_to_scene = true
+radius = 12.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_attack"]
+resource_local_to_scene = true
+radius = 18.0
+
+[node name="Enemy" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 7
+motion_mode = 1
+script = ExtResource("1_enemy")
+
+[node name="TelegraphCircle" type="Node2D" parent="."]
+visible = false
+z_index = -1
+script = ExtResource("2_shape")
+radius = 18.0
+color = Color(1, 0.15, 0.1, 0.3)
+outline_color = Color(1, 0.2, 0.1, 0.9)
+
+[node name="TelegraphLine" type="Line2D" parent="."]
+visible = false
+z_index = -1
+points = PackedVector2Array(0, 0, 100, 0)
+width = 2.0
+default_color = Color(1, 0.2, 0.1, 0.7)
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+scale = Vector2(2, 2)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("3_health")
+
+[node name="Hurtbox" type="Area2D" parent="." node_paths=PackedStringArray("health")]
+collision_layer = 16
+collision_mask = 0
+monitoring = false
+script = ExtResource("4_hurtbox")
+health = NodePath("../HealthComponent")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="AttackHitbox" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 8
+monitorable = false
+script = ExtResource("5_hitbox")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="AttackHitbox"]
+shape = SubResource("CircleShape2D_attack")
+
+[node name="HealthBar" type="ProgressBar" parent="."]
+z_index = 20
+offset_left = -16.0
+offset_top = -40.0
+offset_right = 16.0
+offset_bottom = -35.0
+mouse_filter = 2
+max_value = 1.0
+value = 1.0
+show_percentage = false

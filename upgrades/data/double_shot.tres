@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_double_shot.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"double_shot"
+display_name = "Doppelschuss"
+description = "+1 Projektil pro Angriff. (max. 1)"
+category = 1
+effect = 7
+value = 1.0
+max_stacks = 1
+applicable_tags = Array[StringName]([&"projectile"])
+icon = ExtResource("2_icon")

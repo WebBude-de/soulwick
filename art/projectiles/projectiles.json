@@ -1,0 +1,55 @@
+{
+  "notes": [
+    "Alle fliegen nach rechts; Node zur Flugrichtung drehen."
+  ],
+  "items": [
+    {
+      "name": "arrow",
+      "file": "arrow.png",
+      "frame_size": [
+        16,
+        5
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        2
+      ],
+      "note": "Spielerpfeil"
+    },
+    {
+      "name": "enemy_arrow",
+      "file": "enemy_arrow.png",
+      "frame_size": [
+        16,
+        5
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        2
+      ],
+      "note": "Archer-Pfeil, rote Befiederung"
+    },
+    {
+      "name": "magic_orb",
+      "file": "magic_orb_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": true,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": "AOE-Treffer beim Einschlag → explosion"
+    }
+  ]
+}

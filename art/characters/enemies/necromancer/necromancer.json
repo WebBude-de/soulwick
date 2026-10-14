@@ -1,0 +1,62 @@
+{
+  "name": "necromancer",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "cast": [
+      30,
+      12
+    ]
+  },
+  "notes": [
+    "Attack: Frame 1-2 Stab heben (Ankündigung), Frame 3 Zauber = Geschoss bei anchor cast, Frame 4 Nachhall.",
+    "summon: Arme hoch, Skelette spawnen bei Frame 3.",
+    "Hält Abstand, flieht vor dem Spieler."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "necromancer_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "necromancer_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "necromancer_attack_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "summon",
+      "file": "necromancer_summon_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "necromancer_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

@@ -1,0 +1,136 @@
+{
+  "notes": [
+    "Türen 16×30 px, unten mittig (Gildenhaus: Doppeltür 32 px). Kollision = Wandfläche, Dach darf überlappen.",
+    "Pivot = Türmitte unten."
+  ],
+  "items": [
+    {
+      "name": "forge",
+      "file": "forge.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        48,
+        93
+      ],
+      "note": "Schmiede, Esse glüht (Light2D orange)"
+    },
+    {
+      "name": "trading_post",
+      "file": "trading_post.png",
+      "frame_size": [
+        96,
+        80
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        30,
+        77
+      ],
+      "note": "Handelshaus, Tür links, Theke rechts"
+    },
+    {
+      "name": "chronicle_hall",
+      "file": "chronicle_hall.png",
+      "frame_size": [
+        80,
+        96
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        52,
+        93
+      ],
+      "note": "Chronik mit Turm"
+    },
+    {
+      "name": "guild_hall",
+      "file": "guild_hall.png",
+      "frame_size": [
+        112,
+        96
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        56,
+        93
+      ],
+      "note": "Gildenhaus, Doppeltür"
+    },
+    {
+      "name": "home",
+      "file": "home.png",
+      "frame_size": [
+        80,
+        80
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        40,
+        77
+      ],
+      "note": "Spielerhaus, Lagerkiste rechts"
+    },
+    {
+      "name": "well",
+      "file": "well.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        38
+      ],
+      "note": ""
+    },
+    {
+      "name": "market_stall",
+      "file": "market_stall.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        44
+      ],
+      "note": ""
+    },
+    {
+      "name": "lamp_post",
+      "file": "lamp_post_4f.png",
+      "frame_size": [
+        16,
+        48
+      ],
+      "frames": 4,
+      "fps": 5,
+      "loop": true,
+      "pivot": [
+        8,
+        47
+      ],
+      "note": "Light2D warm"
+    }
+  ]
+}

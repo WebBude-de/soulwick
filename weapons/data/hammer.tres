@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3]
+
+[ext_resource type="Script" path="res://weapons/weapon_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/weapons/hammer.png" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://art/ui/icon_hammer.png" id="3_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"hammer"
+display_name = "Kriegshammer"
+weapon_type = 4
+tags = Array[StringName]([&"melee", &"aoe", &"hammer"])
+base_damage = 20.0
+attack_rate = 0.65
+attack_range = 55.0
+aoe_radius = 55.0
+knockback_strength = 260.0
+windup_time = 0.18
+special_name = "Erdbeben"
+special_description = "Drei Schockwellen rollen in Zielrichtung."
+special_cooldown = 6.0
+special_damage_multiplier = 0.8
+special_knockback_multiplier = 1.4
+sprite = ExtResource("2_sprite")
+sprite_pivot = Vector2(8, 16)
+icon = ExtResource("3_icon")
+effect_color = Color(1, 0.8, 0.5, 1)

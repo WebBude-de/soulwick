@@ -1,0 +1,57 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_1.tscn" id="2_bones_1"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_2.tscn" id="3_bones_2"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
+
+[node name="BossRoom" instance=ExtResource("1_base")]
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(19, 13)
+entrance_x = 9
+exit_x = 9
+floor_seed = 71
+pillar_tiles = Array[Vector2i]([Vector2i(3, 3), Vector2i(15, 3), Vector2i(3, 9), Vector2i(15, 9)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(224, 160)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(992, 160)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(608, 224)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(160, 672)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(1056, 672)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(608, 256)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(1056, 160)
+
+[node name="Torch0" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(128, -64)
+
+[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(384, -64)
+
+[node name="Torch2" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(768, -64)
+
+[node name="Torch3" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(1024, -64)
+
+[node name="Bones_14" parent="Props" instance=ExtResource("2_bones_1")]
+position = Vector2(96, 760)
+
+[node name="Bones_25" parent="Props" instance=ExtResource("3_bones_2")]
+position = Vector2(1120, 760)
+
+[node name="Bones_16" parent="Props" instance=ExtResource("2_bones_1")]
+position = Vector2(608, 760)

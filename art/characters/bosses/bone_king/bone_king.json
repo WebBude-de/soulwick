@@ -1,0 +1,72 @@
+{
+  "name": "bone_king",
+  "frame_size": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    62
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "weapon_hand": [
+      44,
+      40
+    ]
+  },
+  "notes": [
+    "Attack: Frame 1-2 Krummschwert hoch (Ankündigung), Frame 3 Hieb nach rechts (Trefferfenster), Frame 4 Nachschwung.",
+    "attack2 Schildstoß: Frame 1-2 Schild vor und Anlauf (Code: Ansturm ab Frame 3), Treffer = Betäubung (badge_stun)."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "bone_king_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "bone_king_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "bone_king_attack_4f.png",
+      "frames": 4,
+      "fps": 7,
+      "loop": false
+    },
+    {
+      "name": "attack2",
+      "file": "bone_king_attack2_4f.png",
+      "frames": 4,
+      "fps": 7,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "bone_king_death_6f.png",
+      "frames": 6,
+      "fps": 7,
+      "loop": false
+    }
+  ],
+  "extras": [
+    {
+      "name": "portrait",
+      "file": "bone_king_portrait.png",
+      "size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "note": "Boss-Leiste"
+    }
+  ]
+}

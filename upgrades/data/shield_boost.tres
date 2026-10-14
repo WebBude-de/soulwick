@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_shield_boost.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"shield_boost"
+display_name = "Schildverstärkung"
+description = "Sofort +4 Schild."
+category = 0
+effect = 4
+value = 4.0
+max_stacks = 0
+applicable_tags = Array[StringName]([])
+icon = ExtResource("2_icon")

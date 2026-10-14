@@ -1,0 +1,168 @@
+{
+  "notes": [
+    "teammate_arrow und guild_emblems sind weiß/grau und werden per Modulate eingefärbt.",
+    "nameplate: 9-Slice, Rand 3 px."
+  ],
+  "items": [
+    {
+      "name": "icon_revive",
+      "file": "icon_revive.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "teammate_arrow",
+      "file": "teammate_arrow.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": "zeigt nach rechts, drehen"
+    },
+    {
+      "name": "nameplate",
+      "file": "nameplate.png",
+      "frame_size": [
+        48,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_host",
+      "file": "icon_host.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_ping_good",
+      "file": "icon_ping_good.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_ping_mid",
+      "file": "icon_ping_mid.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_ping_bad",
+      "file": "icon_ping_bad.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "guild_emblems",
+      "file": "guild_emblems.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 8,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": "8 Wappen à 24×24: Schwert, Schädel, Flamme, Mond, Krone, Schlange, Turm, Auge"
+    },
+    {
+      "name": "icon_leaderboard",
+      "file": "icon_leaderboard.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_treasury",
+      "file": "icon_treasury.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

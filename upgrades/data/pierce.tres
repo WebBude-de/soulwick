@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_pierce.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"pierce"
+display_name = "Durchschlag"
+description = "Pfeile treffen +1 weiteren Gegner. (max. 3)"
+category = 1
+effect = 5
+value = 1.0
+max_stacks = 3
+applicable_tags = Array[StringName]([&"arrow"])
+icon = ExtResource("2_icon")

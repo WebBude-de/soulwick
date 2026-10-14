@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "Langsam (3 fps), über depth-Tiles, additiv wirkt am besten."
+  ],
+  "items": [
+    {
+      "name": "abyss_mist",
+      "file": "abyss_mist_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 3,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

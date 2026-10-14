@@ -1,0 +1,88 @@
+{
+  "notes": [
+    "NinePatchRect: Ränder 6 px.",
+    "panel_gold = ausgewählt/hervorgehoben, button_hover = Fokus."
+  ],
+  "items": [
+    {
+      "name": "panel",
+      "file": "panel.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Menüs, Shop, Tooltips"
+    },
+    {
+      "name": "panel_gold",
+      "file": "panel_gold.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Ausgewählte Karte"
+    },
+    {
+      "name": "panel_dark",
+      "file": "panel_dark.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "HUD-Hintergrund"
+    },
+    {
+      "name": "button",
+      "file": "button.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "button_hover",
+      "file": "button_hover.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 4,
+  "notes": [
+    "edge_<seite>: Abgrund-Tile, das an dieser Seite an Boden grenzt. edge_n zeigt die Abbruchkante (Bodenplatte oben), die anderen eine helle Bodenkante.",
+    "outer_*: Boden an zwei Seiten, inner_*: Boden nur diagonal.",
+    "Neutral kühl gehalten; Biom-Tönung per Modulate."
+  ],
+  "tiles": {
+    "depth": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "edge_n": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "edge_e": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "edge_s": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    },
+    "edge_w": {
+      "x": 0,
+      "y": 32,
+      "col": 0,
+      "row": 1
+    },
+    "outer_ne": {
+      "x": 32,
+      "y": 32,
+      "col": 1,
+      "row": 1
+    },
+    "outer_nw": {
+      "x": 64,
+      "y": 32,
+      "col": 2,
+      "row": 1
+    },
+    "outer_se": {
+      "x": 96,
+      "y": 32,
+      "col": 3,
+      "row": 1
+    },
+    "outer_sw": {
+      "x": 0,
+      "y": 64,
+      "col": 0,
+      "row": 2
+    },
+    "inner_ne": {
+      "x": 32,
+      "y": 64,
+      "col": 1,
+      "row": 2
+    },
+    "inner_nw": {
+      "x": 64,
+      "y": 64,
+      "col": 2,
+      "row": 2
+    },
+    "inner_se": {
+      "x": 96,
+      "y": 64,
+      "col": 3,
+      "row": 2
+    },
+    "inner_sw": {
+      "x": 0,
+      "y": 96,
+      "col": 0,
+      "row": 3
+    },
+    "depth_2": {
+      "x": 32,
+      "y": 96,
+      "col": 1,
+      "row": 3
+    },
+    "depth_3": {
+      "x": 64,
+      "y": 96,
+      "col": 2,
+      "row": 3
+    },
+    "depth_glow": {
+      "x": 96,
+      "y": 96,
+      "col": 3,
+      "row": 3
+    }
+  }
+}

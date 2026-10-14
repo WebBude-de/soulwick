@@ -1,0 +1,92 @@
+class_name SpecialContent
+extends Node2D
+## Base for the content of special rooms (D-005): shop, weapon choice, fountain, upgrade altar, portal.
+## All offers are optional; nothing blocks the exit. Children are built in code from art/ sprites.
+
+var context: DungeonContext = null
+var room: RoomController = null
+
+
+func setup(dungeon_context: DungeonContext, owner_room: RoomController) -> void:
+	context = dungeon_context
+	room = owner_room
+	_on_setup()
+
+
+## Override: build sprites, blockers and interactables.
+func _on_setup() -> void:
+	pass
+
+
+func add_sprite(texture: Texture2D, pivot: Vector2, offset_position := Vector2.ZERO) -> Sprite2D:
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.offset = SpriteStrip.pivot_offset(Vector2i(texture.get_size()), pivot)
+	sprite.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
+	sprite.position = offset_position
+	add_child(sprite)
+	return sprite
+
+
+func add_animated(texture: Texture2D, frame_size: Vector2i, fps: float, pivot: Vector2, offset_position := Vector2.ZERO) -> AnimatedProp:
+	var prop := AnimatedProp.new()
+	prop.frame_size = frame_size
+	prop.fps = fps
+	prop.pivot = pivot
+	prop.strip = texture
+	prop.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
+	prop.position = offset_position
+	add_child(prop)
+	return prop
+
+
+## Solid footprint so the player cannot walk through the object.
+func add_blocker(size: Vector2, center := Vector2.ZERO) -> StaticBody2D:
+	var body := StaticBody2D.new()
+	body.collision_layer = PhysicsLayers.WORLD
+	body.collision_mask = 0
+	var shape := RectangleShape2D.new()
+	shape.size = size
+	var collision := CollisionShape2D.new()
+	collision.shape = shape
+	collision.position = center
+	body.add_child(collision)
+	add_child(body)
+	return body
+
+
+func add_interactable(prompt: String, radius := 40.0, center := Vector2.ZERO) -> Interactable:
+	var interactable := Interactable.new()
+	interactable.prompt = prompt
+	var shape := CircleShape2D.new()
+	shape.radius = radius
+	var collision := CollisionShape2D.new()
+	collision.shape = shape
+	interactable.add_child(collision)
+	interactable.position = center
+	add_child(interactable)
+	return interactable
+
+
+func add_light(radius: float, offset_position := Vector2.ZERO) -> LightSource:
+	var light := LightSource.new()
+	light.radius = radius
+	light.flicker = 0.04
+	light.position = offset_position
+	add_child(light)
+	return light
+
+
+func add_caption(text: String, offset_position: Vector2) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 4)
+	label.size = Vector2(220, 24)
+	label.position = offset_position - Vector2(110, 12)
+	label.z_index = 30
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(label)
+	return label

@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/slime/slime_frames.tres" id="2_frames"]
+[ext_resource type="Resource" path="res://enemies/data/mini_slime.tres" id="4_minion"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"splitter_slime"
+display_name = "Splitterschleim"
+attack_kind = 0
+tags = Array[StringName]([&"melee"])
+min_room = 16
+hint = "Splitterschleim: Teilt sich beim Tod in zwei flinke Mini-Schleime."
+max_health = 26.0
+damage = 1.0
+move_speed = 75.0
+gold_drop = 3
+attack_range = 42.0
+attack_reach = 26.0
+attack_radius = 20.0
+telegraph_time = 0.55
+attack_active_time = 0.15
+attack_cooldown = 1.1
+knockback_strength = 60.0
+death_spawn = ExtResource("4_minion")
+death_spawn_count = 2
+sprite_origin = Vector2(16, 24)
+strike_frame = 2
+sprite_scale = 1.15
+tint = Color(0.45, 1, 0.45, 1)
+body_radius = 13.0
+placeholder_color = Color(0.45, 1, 0.4, 1)
+sprite_frames = ExtResource("2_frames")

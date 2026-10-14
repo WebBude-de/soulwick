@@ -1,0 +1,73 @@
+{
+  "name": "shadow_lord",
+  "frame_size": [
+    64,
+    64
+  ],
+  "pivot": [
+    32,
+    62
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "cast": [
+      50,
+      31
+    ]
+  },
+  "notes": [
+    "Schwebt; Pivot trotzdem unten Mitte.",
+    "Attack: Frame 1-2 Kugeln laden, Frame 3 Blitz = Geschosse bei anchor cast, Frame 4 Abklingen.",
+    "attack2 Teleport: Frame 1 Funkeln, Frame 2 verblassen, Frame 3 fast unsichtbar (Code: Position wechseln), Frame 4 erscheinen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "shadow_lord_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "shadow_lord_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "shadow_lord_attack_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "attack2",
+      "file": "shadow_lord_attack2_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "shadow_lord_death_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    }
+  ],
+  "extras": [
+    {
+      "name": "portrait",
+      "file": "shadow_lord_portrait.png",
+      "size": [
+        48,
+        48
+      ],
+      "frames": 1,
+      "note": "Boss-Leiste"
+    }
+  ]
+}

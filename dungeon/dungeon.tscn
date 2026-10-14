@@ -1,0 +1,65 @@
+[gd_scene format=3]
+
+[ext_resource type="Resource" path="res://weapons/data/dagger.tres" id="90_dagger"]
+[ext_resource type="Resource" path="res://weapons/data/hammer.tres" id="91_hammer"]
+[ext_resource type="Script" path="res://dungeon/dungeon_manager.gd" id="1_dungeon_manager"]
+[ext_resource type="Script" path="res://upgrades/upgrade_manager.gd" id="2_upgrade_manager"]
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="3_upgrade_data"]
+[ext_resource type="Script" path="res://upgrades/effects/upgrade_effects.gd" id="4_upgrade_effects"]
+[ext_resource type="Script" path="res://economy/economy_system.gd" id="5_economy_system"]
+[ext_resource type="Script" path="res://ui/menus/dungeon_ui.gd" id="6_dungeon_ui"]
+[ext_resource type="Script" path="res://weapons/weapon_data.gd" id="7_weapon_data"]
+[ext_resource type="Resource" path="res://economy/data/economy_config.tres" id="8_economy_config"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_hall.tscn" id="9_combat_hall"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_pillars.tscn" id="10_combat_pillars"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/combat_wide.tscn" id="11_combat_wide"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/special/special_room.tscn" id="12_special_room"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/boss/miniboss_room.tscn" id="13_miniboss_room"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/boss/boss_room.tscn" id="14_boss_room"]
+[ext_resource type="Resource" path="res://weapons/data/sword.tres" id="15_sword"]
+[ext_resource type="Resource" path="res://weapons/data/bow.tres" id="16_bow"]
+[ext_resource type="Resource" path="res://weapons/data/staff.tres" id="17_staff"]
+[ext_resource type="Resource" path="res://upgrades/data/strong_attack.tres" id="18_strong_attack"]
+[ext_resource type="Resource" path="res://upgrades/data/strength_training.tres" id="19_strength_training"]
+[ext_resource type="Resource" path="res://upgrades/data/fast_attack.tres" id="20_fast_attack"]
+[ext_resource type="Resource" path="res://upgrades/data/precise_arrows.tres" id="21_precise_arrows"]
+[ext_resource type="Resource" path="res://upgrades/data/magic_power.tres" id="22_magic_power"]
+[ext_resource type="Resource" path="res://upgrades/data/fast_projectiles.tres" id="23_fast_projectiles"]
+[ext_resource type="Resource" path="res://upgrades/data/shield_boost.tres" id="24_shield_boost"]
+[ext_resource type="Resource" path="res://upgrades/data/pierce.tres" id="25_pierce"]
+[ext_resource type="Resource" path="res://upgrades/data/wall_bounce.tres" id="26_wall_bounce"]
+[ext_resource type="Resource" path="res://upgrades/data/double_shot.tres" id="27_double_shot"]
+[ext_resource type="Resource" path="res://upgrades/data/wide_swing.tres" id="28_wide_swing"]
+[ext_resource type="Resource" path="res://upgrades/data/big_explosion.tres" id="29_big_explosion"]
+[ext_resource type="Resource" path="res://upgrades/data/explosive_hit.tres" id="30_explosive_hit"]
+[ext_resource type="Resource" path="res://upgrades/data/heal_on_kill.tres" id="31_heal_on_kill"]
+[ext_resource type="Resource" path="res://upgrades/data/shield_on_kill.tres" id="32_shield_on_kill"]
+
+[node name="Dungeon" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_dungeon_manager")
+combat_templates = Array[PackedScene]([ExtResource("9_combat_hall"), ExtResource("10_combat_pillars"), ExtResource("11_combat_wide")])
+special_template = ExtResource("12_special_room")
+miniboss_template = ExtResource("13_miniboss_room")
+boss_template = ExtResource("14_boss_room")
+weapon_pool = Array[ExtResource("7_weapon_data")]([ExtResource("15_sword"), ExtResource("16_bow"), ExtResource("17_staff"), ExtResource("90_dagger"), ExtResource("91_hammer")])
+
+[node name="RoomContainer" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+
+[node name="UpgradeManager" type="Node" parent="."]
+script = ExtResource("2_upgrade_manager")
+upgrade_pool = Array[ExtResource("3_upgrade_data")]([ExtResource("18_strong_attack"), ExtResource("19_strength_training"), ExtResource("20_fast_attack"), ExtResource("21_precise_arrows"), ExtResource("22_magic_power"), ExtResource("23_fast_projectiles"), ExtResource("24_shield_boost"), ExtResource("25_pierce"), ExtResource("26_wall_bounce"), ExtResource("27_double_shot"), ExtResource("28_wide_swing"), ExtResource("29_big_explosion"), ExtResource("30_explosive_hit"), ExtResource("31_heal_on_kill"), ExtResource("32_shield_on_kill")])
+
+[node name="UpgradeEffects" type="Node2D" parent="." node_paths=PackedStringArray("upgrade_manager")]
+script = ExtResource("4_upgrade_effects")
+upgrade_manager = NodePath("../UpgradeManager")
+
+[node name="EconomySystem" type="Node" parent="."]
+script = ExtResource("5_economy_system")
+config = ExtResource("8_economy_config")
+
+[node name="DungeonUI" type="CanvasLayer" parent="."]
+script = ExtResource("6_dungeon_ui")

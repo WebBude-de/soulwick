@@ -1,0 +1,38 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scenes/world_controller.gd" id="1_world"]
+[ext_resource type="PackedScene" path="res://ui/hud/hud.tscn" id="2_hud"]
+[ext_resource type="Script" path="res://ui/menus/game_ui.gd" id="3_game_ui"]
+[ext_resource type="PackedScene" path="res://world/village/village.tscn" id="4_village"]
+[ext_resource type="PackedScene" path="res://dungeon/dungeon.tscn" id="5_dungeon"]
+[ext_resource type="Script" path="res://ui/effects/vision_overlay.gd" id="6_vision"]
+[ext_resource type="Script" path="res://components/audio/music_player.gd" id="7_music"]
+[ext_resource type="Script" path="res://meta/stats_tracker.gd" id="8_stats"]
+
+[node name="Game" type="Node"]
+
+[node name="WorldRoot" type="Node2D" parent="."]
+
+[node name="VisionOverlay" type="CanvasLayer" parent="."]
+script = ExtResource("6_vision")
+
+[node name="Hud" parent="." instance=ExtResource("2_hud")]
+
+[node name="GameUI" type="CanvasLayer" parent="."]
+script = ExtResource("3_game_ui")
+
+[node name="StatsTracker" type="Node" parent="."]
+script = ExtResource("8_stats")
+
+[node name="MusicPlayer" type="Node" parent="."]
+script = ExtResource("7_music")
+follow_game = true
+
+[node name="WorldController" type="Node" parent="." node_paths=PackedStringArray("world_root", "hud", "game_ui", "vision")]
+script = ExtResource("1_world")
+world_root = NodePath("../WorldRoot")
+hud = NodePath("../Hud")
+game_ui = NodePath("../GameUI")
+vision = NodePath("../VisionOverlay")
+village_scene = ExtResource("4_village")
+dungeon_scene = ExtResource("5_dungeon")

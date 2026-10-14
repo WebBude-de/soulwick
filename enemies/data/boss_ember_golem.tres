@@ -1,0 +1,64 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/skeleton/skeleton_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://art/projectiles/magic_orb_4f.png" id="3_orb"]
+[ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="4_minion"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"boss_ember_golem"
+display_name = "Glutgolem"
+hint = "Glutgolem: Stampft auf dich nieder, schießt Feuerringe und ruft Bomber. Meide die Warnkreise!"
+attack_kind = 0
+tags = Array[StringName]([&"melee", &"boss", &"heavy"])
+is_boss = true
+max_health = 380.0
+damage = 2.0
+move_speed = 70.0
+knockback_resistance = 0.95
+gold_drop = 70
+attack_range = 90.0
+attack_reach = 52.0
+attack_radius = 48.0
+telegraph_time = 0.8
+attack_active_time = 0.2
+attack_cooldown = 0.9
+knockback_strength = 220.0
+projectile_speed = 260.0
+projectile_radius = 8.0
+projectile_texture = ExtResource("3_orb")
+projectile_frame_size = Vector2i(16, 16)
+projectile_pivot = Vector2(8, 8)
+volley_every = 3
+volley_count = 14
+volley_range = 480.0
+special = 2
+special_every = 2
+special_telegraph_time = 0.9
+blast_radius = 110.0
+summon_data = ExtResource("4_minion")
+summon_every = 4
+summon_count = 2
+sprite_origin = Vector2(16, 22)
+strike_frame = 2
+sprite_scale = 2.6
+tint = Color(1, 0.55, 0.3, 1)
+body_radius = 12.0
+placeholder_color = Color(1, 0.5, 0.2, 1)
+light_radius = 160.0
+sprite_frames = ExtResource("2_frames")
+enrage_special_repeats = 1
+enrage_spiral = true
+enrage_landing_ring = 12
+enrage_eruptions = 4
+enrage_text = "Die Glut bricht hervor!"
+intro_story = PackedStringArray("Geformt aus der letzten Glut.", "Ich hüte den Herd des Ersten Lichts.", "Das Licht ging. Die Glut blieb.", "Wer Licht bringt … verbrennt.")
+intro_lines = PackedStringArray("Du. Wieder.|Ich vergesse nicht.", "Wieder Licht.|Wieder Asche.", "Du kamst zurück.|Du brennst wieder.", "Herd ruft.|Du brennst.")
+intro_type_speed = 0.7
+intro_voice = &"ember_golem"
+intro_voice_variants = 6
+intro_voice_db = -1.0
+intro_color = Color(1, 0.541176, 0.235294, 1)
+intro_shake = 5.0
+intro_wave = 0.0

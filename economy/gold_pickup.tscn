@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://economy/gold_pickup.gd" id="1_pickup"]
+[ext_resource type="Script" path="res://components/visual/animated_prop.gd" id="2_prop"]
+[ext_resource type="Texture2D" path="res://art/environment/props/gold_coin_4f.png" id="3_coin"]
+[ext_resource type="Script" path="res://components/visual/light_source.gd" id="4_light"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_pickup"]
+radius = 12.0
+
+[node name="GoldPickup" type="Area2D"]
+z_index = 3
+script = ExtResource("1_pickup")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_pickup")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+scale = Vector2(1.5, 1.5)
+script = ExtResource("2_prop")
+strip = ExtResource("3_coin")
+frame_size = Vector2i(16, 16)
+pivot = Vector2(8, 8)
+
+[node name="Glow" type="Node2D" parent="."]
+script = ExtResource("4_light")
+radius = 40.0
+intensity = 0.7

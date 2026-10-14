@@ -1,0 +1,135 @@
+{
+  "notes": [
+    "12×12, zentriert über dem Gegner, ca. 4 px über dem Kopf."
+  ],
+  "items": [
+    {
+      "name": "badge_swift",
+      "file": "badge_swift.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_armored",
+      "file": "badge_armored.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_volatile",
+      "file": "badge_volatile.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_stun",
+      "file": "badge_stun.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_blind",
+      "file": "badge_blind.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_summoner",
+      "file": "badge_summoner.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_explode",
+      "file": "badge_explode.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "badge_champion",
+      "file": "badge_champion.png",
+      "frame_size": [
+        12,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        12
+      ],
+      "note": ""
+    }
+  ]
+}

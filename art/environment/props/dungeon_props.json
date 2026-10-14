@@ -1,0 +1,137 @@
+{
+  "notes": [
+    "Türen und Fackel sitzen auf dem 32er-Raster (Tür über einer wall_front-Kachel).",
+    "Deko: Pivot unten Mitte (16,31).",
+    "Fackel: Lichtkegel per Light2D, nicht im Sprite."
+  ],
+  "items": [
+    {
+      "name": "door_closed",
+      "file": "door_closed.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Auf wall_front legen"
+    },
+    {
+      "name": "door_open",
+      "file": "door_open.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Endzustand von door_open_4f"
+    },
+    {
+      "name": "door_open",
+      "file": "door_open_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Öffnen; letzter Frame = door_open.png"
+    },
+    {
+      "name": "torch",
+      "file": "torch_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "An wall_front; Flamme flackert"
+    },
+    {
+      "name": "crate",
+      "file": "crate.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "barrel",
+      "file": "barrel.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "bones_1",
+      "file": "bones_1.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Schädel + Knochen"
+    },
+    {
+      "name": "bones_2",
+      "file": "bones_2.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": "Gekreuzte Knochen"
+    }
+  ]
+}

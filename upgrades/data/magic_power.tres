@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="UpgradeData" format=3]
+
+[ext_resource type="Script" path="res://upgrades/upgrade_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/ui/upgrade_magic_power.png" id="2_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"magic_power"
+display_name = "Magische Verstärkung"
+description = "+20 % Magieschaden."
+category = 0
+effect = 0
+value = 0.2
+max_stacks = 0
+applicable_tags = Array[StringName]([&"magic"])
+icon = ExtResource("2_icon")

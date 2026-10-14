@@ -1,0 +1,1223 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://world/village/village.gd" id="1_village"]
+[ext_resource type="Script" path="res://world/village/village_tiles.gd" id="2_tiles"]
+[ext_resource type="TileSet" path="res://world/village/village_tileset.tres" id="3_tileset"]
+[ext_resource type="Script" path="res://components/interaction/interactable.gd" id="4_interactable"]
+[ext_resource type="Texture2D" path="res://art/environment/props/dungeon_entrance.png" id="5_entrance"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/tree.png" id="6_tree"]
+[ext_resource type="Script" path="res://components/visual/animated_prop.gd" id="7_prop"]
+[ext_resource type="Script" path="res://world/village/village_decor.gd" id="8_res"]
+[ext_resource type="Script" path="res://world/village/village_ambience.gd" id="9_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/forge.png" id="10_res"]
+[ext_resource type="Script" path="res://world/village/chimney_smoke.gd" id="11_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_forge.png" id="12_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/chronicle_hall.png" id="13_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_chronicle.png" id="14_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/home.png" id="15_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/trading_post.png" id="16_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_trading.png" id="17_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/guild_hall.png" id="18_res"]
+[ext_resource type="Texture2D" path="res://art/ui/sign_guild.png" id="19_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_2.png" id="20_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_1.png" id="21_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/house_3.png" id="22_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/smith_frames.tres" id="23_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/chronicler_frames.tres" id="24_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/trader_frames.tres" id="25_res"]
+[ext_resource type="SpriteFrames" path="res://art/characters/npcs/guild_master_frames.tres" id="26_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/fountain.png" id="27_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/well.png" id="28_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/market_stall.png" id="29_res"]
+[ext_resource type="Texture2D" path="res://art/environment/buildings/lamp_post_4f.png" id="30_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/barrel.png" id="31_res"]
+[ext_resource type="Texture2D" path="res://art/environment/props/crate.png" id="32_res"]
+[ext_resource type="Script" path="res://world/village/village_prop.gd" id="33_res"]
+[ext_resource type="Script" path="res://world/village/villager.gd" id="34_res"]
+
+[sub_resource type="RectangleShape2D" id="Rect_entrance"]
+size = Vector2(104, 40)
+
+[sub_resource type="CircleShape2D" id="Circle_entrance"]
+radius = 56
+
+[sub_resource type="CircleShape2D" id="Circle_door"]
+radius = 32
+
+[sub_resource type="RectangleShape2D" id="Rect_Forge"]
+size = Vector2(180, 148.8)
+
+[sub_resource type="RectangleShape2D" id="Rect_Chronicle"]
+size = Vector2(148, 148.8)
+
+[sub_resource type="RectangleShape2D" id="Rect_Home"]
+size = Vector2(148, 124)
+
+[sub_resource type="RectangleShape2D" id="Rect_TradingPost"]
+size = Vector2(180, 124)
+
+[sub_resource type="RectangleShape2D" id="Rect_Guild"]
+size = Vector2(212, 148.8)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseNW"]
+size = Vector2(148, 99.2)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseN"]
+size = Vector2(116, 99.2)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseNE"]
+size = Vector2(180, 124)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseSW"]
+size = Vector2(116, 99.2)
+
+[sub_resource type="RectangleShape2D" id="Rect_HouseS"]
+size = Vector2(148, 99.2)
+
+[sub_resource type="CircleShape2D" id="Circle_npc"]
+radius = 12
+
+[sub_resource type="CircleShape2D" id="Circle_Fountain"]
+radius = 20
+
+[sub_resource type="CircleShape2D" id="Circle_Well"]
+radius = 22
+
+[sub_resource type="CircleShape2D" id="Circle_MarketStall"]
+radius = 40
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp1"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp2"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp3"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp4"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp5"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Lamp6"]
+radius = 8
+
+[sub_resource type="CircleShape2D" id="Circle_Barrel1"]
+radius = 11
+
+[sub_resource type="CircleShape2D" id="Circle_Barrel2"]
+radius = 11
+
+[sub_resource type="CircleShape2D" id="Circle_Barrel3"]
+radius = 11
+
+[sub_resource type="CircleShape2D" id="Circle_Barrel4"]
+radius = 11
+
+[sub_resource type="CircleShape2D" id="Circle_Crate1"]
+radius = 12
+
+[sub_resource type="CircleShape2D" id="Circle_Crate2"]
+radius = 12
+
+[sub_resource type="CircleShape2D" id="Circle_Crate3"]
+radius = 12
+
+[sub_resource type="CircleShape2D" id="Circle_trunk"]
+radius = 14
+
+[node name="Village" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_village")
+
+[node name="Ground" type="TileMapLayer" parent="."]
+z_index = -10
+scale = Vector2(2, 2)
+tile_set = ExtResource("3_tileset")
+script = ExtResource("2_tiles")
+map_size = Vector2i(30, 19)
+path_rects = Array[Rect2i]([Rect2i(2, 7, 26, 2), Rect2i(2, 15, 26, 2), Rect2i(14, 5, 2, 13), Rect2i(12, 9, 6, 3)])
+bush_tiles = Array[Vector2i]([Vector2i(3, 17), Vector2i(26, 17), Vector2i(20, 17)])
+stump_tiles = Array[Vector2i]([Vector2i(8, 17)])
+
+[node name="Buildings" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Decor" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("8_res")
+
+[node name="Villagers" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="Ambience" type="CPUParticles2D" parent="."]
+script = ExtResource("9_res")
+
+[node name="DungeonEntrance" type="StaticBody2D" parent="Buildings"]
+position = Vector2(960, 320)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/DungeonEntrance"]
+scale = Vector2(2, 2)
+texture = ExtResource("5_entrance")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/DungeonEntrance"]
+position = Vector2(0, -24)
+shape = SubResource("Rect_entrance")
+
+[node name="Interactable" type="Area2D" parent="Buildings/DungeonEntrance"]
+position = Vector2(0, 10)
+script = ExtResource("4_interactable")
+prompt = "Dungeon betreten"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/DungeonEntrance/Interactable"]
+shape = SubResource("Circle_entrance")
+
+[node name="Caption" type="Label" parent="Buildings/DungeonEntrance"]
+offset_left = -120.0
+offset_top = -170
+offset_right = 120.0
+offset_bottom = -144
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 20
+text = "Dungeon"
+horizontal_alignment = 1
+
+[node name="Forge" type="StaticBody2D" parent="Buildings"]
+position = Vector2(486.4, 448)
+collision_mask = 0
+metadata/building_id = "forge"
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Forge"]
+scale = Vector2(2, 2)
+texture = ExtResource("10_res")
+offset = Vector2(0, -45)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Forge"]
+position = Vector2(0, -78.4)
+shape = SubResource("Rect_Forge")
+
+[node name="Smoke" type="CPUParticles2D" parent="Buildings/Forge"]
+position = Vector2(60, -186)
+script = ExtResource("11_res")
+
+[node name="Sign" type="Sprite2D" parent="Buildings/Forge"]
+position = Vector2(0, -94)
+scale = Vector2(2, 2)
+texture = ExtResource("12_res")
+centered = false
+offset = Vector2(-12, 0)
+
+[node name="Door" type="Area2D" parent="Buildings/Forge"]
+position = Vector2(0, 22)
+script = ExtResource("4_interactable")
+prompt = "Schmiede betreten"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Forge/Door"]
+shape = SubResource("Circle_door")
+
+[node name="Caption" type="Label" parent="Buildings/Forge"]
+offset_left = -120.0
+offset_top = -216
+offset_right = 120.0
+offset_bottom = -190
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Schmiede"
+horizontal_alignment = 1
+
+[node name="Chronicle" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1254.4, 448)
+collision_mask = 0
+metadata/building_id = "chronicle"
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Chronicle"]
+scale = Vector2(2, 2)
+texture = ExtResource("13_res")
+offset = Vector2(-12, -45)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Chronicle"]
+position = Vector2(-24, -78.4)
+shape = SubResource("Rect_Chronicle")
+
+[node name="Sign" type="Sprite2D" parent="Buildings/Chronicle"]
+position = Vector2(0, -94)
+scale = Vector2(2, 2)
+texture = ExtResource("14_res")
+centered = false
+offset = Vector2(-12, 0)
+
+[node name="Door" type="Area2D" parent="Buildings/Chronicle"]
+position = Vector2(0, 22)
+script = ExtResource("4_interactable")
+prompt = "Chronik betreten"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Chronicle/Door"]
+shape = SubResource("Circle_door")
+
+[node name="Caption" type="Label" parent="Buildings/Chronicle"]
+offset_left = -120.0
+offset_top = -216
+offset_right = 120.0
+offset_bottom = -190
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Chronik"
+horizontal_alignment = 1
+
+[node name="Home" type="StaticBody2D" parent="Buildings"]
+position = Vector2(742.4, 960)
+collision_mask = 0
+metadata/building_id = "home"
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Home"]
+scale = Vector2(2, 2)
+texture = ExtResource("15_res")
+offset = Vector2(0, -37)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Home"]
+position = Vector2(0, -66)
+shape = SubResource("Rect_Home")
+
+[node name="Smoke" type="CPUParticles2D" parent="Buildings/Home"]
+position = Vector2(44, -152)
+script = ExtResource("11_res")
+
+[node name="Door" type="Area2D" parent="Buildings/Home"]
+position = Vector2(0, 22)
+script = ExtResource("4_interactable")
+prompt = "Umkleiden"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Home/Door"]
+shape = SubResource("Circle_door")
+
+[node name="Caption" type="Label" parent="Buildings/Home"]
+offset_left = -120.0
+offset_top = -184
+offset_right = 120.0
+offset_bottom = -158
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Zuhause"
+horizontal_alignment = 1
+
+[node name="TradingPost" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1152, 960)
+collision_mask = 0
+metadata/building_id = "trader"
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/TradingPost"]
+scale = Vector2(2, 2)
+texture = ExtResource("16_res")
+offset = Vector2(18, -37)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/TradingPost"]
+position = Vector2(36, -66)
+shape = SubResource("Rect_TradingPost")
+
+[node name="Sign" type="Sprite2D" parent="Buildings/TradingPost"]
+position = Vector2(0, -94)
+scale = Vector2(2, 2)
+texture = ExtResource("17_res")
+centered = false
+offset = Vector2(-12, 0)
+
+[node name="Door" type="Area2D" parent="Buildings/TradingPost"]
+position = Vector2(0, 22)
+script = ExtResource("4_interactable")
+prompt = "Handelsposten betreten"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/TradingPost/Door"]
+shape = SubResource("Circle_door")
+
+[node name="Caption" type="Label" parent="Buildings/TradingPost"]
+offset_left = -120.0
+offset_top = -184
+offset_right = 120.0
+offset_bottom = -158
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Handelsposten"
+horizontal_alignment = 1
+
+[node name="Guild" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1523.2, 960)
+collision_mask = 0
+metadata/building_id = "guild"
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Guild"]
+scale = Vector2(2, 2)
+texture = ExtResource("18_res")
+offset = Vector2(0, -45)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Guild"]
+position = Vector2(0, -78.4)
+shape = SubResource("Rect_Guild")
+
+[node name="Sign" type="Sprite2D" parent="Buildings/Guild"]
+position = Vector2(0, -94)
+scale = Vector2(2, 2)
+texture = ExtResource("19_res")
+centered = false
+offset = Vector2(-12, 0)
+
+[node name="Door" type="Area2D" parent="Buildings/Guild"]
+position = Vector2(0, 22)
+script = ExtResource("4_interactable")
+prompt = "Gilde betreten"
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Guild/Door"]
+shape = SubResource("Circle_door")
+
+[node name="Caption" type="Label" parent="Buildings/Guild"]
+offset_left = -120.0
+offset_top = -216
+offset_right = 120.0
+offset_bottom = -190
+theme_override_colors/font_color = Color(1, 0.82, 0.35, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+theme_override_font_sizes/font_size = 18
+text = "Gilde"
+horizontal_alignment = 1
+
+[node name="HouseNW" type="StaticBody2D" parent="Buildings"]
+position = Vector2(230.4, 448)
+collision_mask = 0
+metadata/neighbour_house = true
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/HouseNW"]
+scale = Vector2(2, 2)
+texture = ExtResource("20_res")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseNW"]
+position = Vector2(0, -53.6)
+shape = SubResource("Rect_HouseNW")
+
+[node name="Smoke" type="CPUParticles2D" parent="Buildings/HouseNW"]
+position = Vector2(50, -124)
+script = ExtResource("11_res")
+
+[node name="HouseN" type="StaticBody2D" parent="Buildings"]
+position = Vector2(742.4, 448)
+collision_mask = 0
+metadata/neighbour_house = true
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/HouseN"]
+scale = Vector2(2, 2)
+texture = ExtResource("21_res")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseN"]
+position = Vector2(0, -53.6)
+shape = SubResource("Rect_HouseN")
+
+[node name="HouseNE" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1561.6, 448)
+collision_mask = 0
+metadata/neighbour_house = true
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/HouseNE"]
+scale = Vector2(2, 2)
+texture = ExtResource("22_res")
+offset = Vector2(0, -38)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseNE"]
+position = Vector2(0, -66)
+shape = SubResource("Rect_HouseNE")
+
+[node name="Smoke" type="CPUParticles2D" parent="Buildings/HouseNE"]
+position = Vector2(66, -156)
+script = ExtResource("11_res")
+
+[node name="HouseSW" type="StaticBody2D" parent="Buildings"]
+position = Vector2(230.4, 960)
+collision_mask = 0
+metadata/neighbour_house = true
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/HouseSW"]
+scale = Vector2(2, 2)
+texture = ExtResource("21_res")
+offset = Vector2(0, -30)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseSW"]
+position = Vector2(-0, -53.6)
+shape = SubResource("Rect_HouseSW")
+
+[node name="HouseS" type="StaticBody2D" parent="Buildings"]
+position = Vector2(480, 960)
+collision_mask = 0
+metadata/neighbour_house = true
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/HouseS"]
+scale = Vector2(2, 2)
+texture = ExtResource("20_res")
+offset = Vector2(0, -30)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/HouseS"]
+position = Vector2(-0, -53.6)
+shape = SubResource("Rect_HouseS")
+
+[node name="Smoke" type="CPUParticles2D" parent="Buildings/HouseS"]
+position = Vector2(-50, -124)
+script = ExtResource("11_res")
+
+[node name="Smith" type="StaticBody2D" parent="Buildings"]
+position = Vector2(624, 444.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Smith"]
+scale = Vector2(2, 2)
+sprite_frames = ExtResource("23_res")
+animation = &"idle"
+autoplay = "idle"
+offset = Vector2(0, -14)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Smith"]
+position = Vector2(0, -6)
+shape = SubResource("Circle_npc")
+
+[node name="Chronicler" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1344, 444.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Chronicler"]
+scale = Vector2(2, 2)
+sprite_frames = ExtResource("24_res")
+animation = &"idle"
+autoplay = "idle"
+offset = Vector2(0, -14)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Chronicler"]
+position = Vector2(0, -6)
+shape = SubResource("Circle_npc")
+
+[node name="Trader" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1318.4, 956.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Trader"]
+scale = Vector2(2, 2)
+sprite_frames = ExtResource("25_res")
+animation = &"idle"
+autoplay = "idle"
+offset = Vector2(0, -14)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Trader"]
+position = Vector2(0, -6)
+shape = SubResource("Circle_npc")
+
+[node name="GuildMaster" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1664, 956.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/GuildMaster"]
+scale = Vector2(2, 2)
+sprite_frames = ExtResource("26_res")
+animation = &"idle"
+autoplay = "idle"
+offset = Vector2(0, -14)
+flip_h = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/GuildMaster"]
+position = Vector2(0, -6)
+shape = SubResource("Circle_npc")
+
+[node name="Fountain" type="StaticBody2D" parent="Buildings"]
+position = Vector2(960, 678.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Fountain"]
+scale = Vector2(2, 2)
+texture = ExtResource("27_res")
+offset = Vector2(0, -18)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Fountain"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Fountain")
+
+[node name="Well" type="StaticBody2D" parent="Buildings"]
+position = Vector2(588.8, 723.2)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Well"]
+scale = Vector2(2, 2)
+texture = ExtResource("28_res")
+offset = Vector2(0, -18)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Well"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Well")
+
+[node name="MarketStall" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1344, 729.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/MarketStall"]
+scale = Vector2(2, 2)
+texture = ExtResource("29_res")
+offset = Vector2(0, -20)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/MarketStall"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_MarketStall")
+
+[node name="Lamp1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(857.6, 444.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp1"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp1"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp1")
+
+[node name="Lamp2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1062.4, 444.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp2"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp2"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp2")
+
+[node name="Lamp3" type="StaticBody2D" parent="Buildings"]
+position = Vector2(857.6, 956.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp3"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp3"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp3")
+
+[node name="Lamp4" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1062.4, 956.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp4"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp4"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp4")
+
+[node name="Lamp5" type="StaticBody2D" parent="Buildings"]
+position = Vector2(742.4, 764.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp5"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp5"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp5")
+
+[node name="Lamp6" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1177.6, 764.8)
+collision_mask = 0
+
+[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/Lamp6"]
+scale = Vector2(2, 2)
+script = ExtResource("7_prop")
+strip = ExtResource("30_res")
+frame_size = Vector2i(16, 48)
+fps = 5.0
+pivot = Vector2(8, 47)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Lamp6"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Lamp6")
+
+[node name="Barrel1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(355.2, 441.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Barrel1"]
+scale = Vector2(2, 2)
+texture = ExtResource("31_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel1"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Barrel1")
+
+[node name="Barrel2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1443.2, 732.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Barrel2"]
+scale = Vector2(2, 2)
+texture = ExtResource("31_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel2"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Barrel2")
+
+[node name="Barrel3" type="StaticBody2D" parent="Buildings"]
+position = Vector2(630.4, 950.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Barrel3"]
+scale = Vector2(2, 2)
+texture = ExtResource("31_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel3"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Barrel3")
+
+[node name="Barrel4" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1689.6, 441.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Barrel4"]
+scale = Vector2(2, 2)
+texture = ExtResource("31_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel4"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Barrel4")
+
+[node name="Crate1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1363.2, 940.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Crate1"]
+scale = Vector2(2, 2)
+texture = ExtResource("32_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate1"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Crate1")
+
+[node name="Crate2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1491.2, 736)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Crate2"]
+scale = Vector2(2, 2)
+texture = ExtResource("32_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate2"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Crate2")
+
+[node name="Crate3" type="StaticBody2D" parent="Buildings"]
+position = Vector2(345.6, 950.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Crate3"]
+scale = Vector2(2, 2)
+texture = ExtResource("32_res")
+offset = Vector2(0, -15)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate3"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_Crate3")
+
+[node name="FenceW1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(224, 624)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(288, 624)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW3" type="StaticBody2D" parent="Buildings"]
+position = Vector2(416, 624)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW4" type="StaticBody2D" parent="Buildings"]
+position = Vector2(224, 780.8)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW5" type="StaticBody2D" parent="Buildings"]
+position = Vector2(288, 780.8)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW6" type="StaticBody2D" parent="Buildings"]
+position = Vector2(352, 780.8)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="FenceW7" type="StaticBody2D" parent="Buildings"]
+position = Vector2(416, 780.8)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "garden_fence"
+solid_size = Vector2(60, 12)
+
+[node name="Bench" type="StaticBody2D" parent="Buildings"]
+position = Vector2(704, 627.2)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "bench"
+solid_size = Vector2(56, 14)
+
+[node name="Signpost" type="StaticBody2D" parent="Buildings"]
+position = Vector2(857.6, 1123.2)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "signpost"
+solid_size = Vector2(12, 10)
+
+[node name="Cart" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1760, 950.4)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "cart"
+solid_size = Vector2(80, 24)
+
+[node name="HayBale1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(275.2, 723.2)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "hay_bale"
+solid_size = Vector2(44, 18)
+
+[node name="HayBale2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(345.6, 742.4)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "hay_bale"
+solid_size = Vector2(44, 18)
+flip = true
+
+[node name="Pond" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1625.6, 736)
+collision_mask = 0
+script = ExtResource("33_res")
+art_name = "pond"
+solid_size = Vector2(110, 44)
+
+[node name="Tree0" type="StaticBody2D" parent="Buildings"]
+position = Vector2(83.2, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree0"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree0"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree1" type="StaticBody2D" parent="Buildings"]
+position = Vector2(275.2, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree1"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree1"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree2" type="StaticBody2D" parent="Buildings"]
+position = Vector2(614.4, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree2"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree2"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree3" type="StaticBody2D" parent="Buildings"]
+position = Vector2(780.8, 230.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree3"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree3"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree4" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1126.4, 230.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree4"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree4"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree5" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1369.6, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree5"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree5"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree6" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1664, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree6"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree6"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree7" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1817.6, 217.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree7"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree7"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree8" type="StaticBody2D" parent="Buildings"]
+position = Vector2(179.2, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree8"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree8"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree9" type="StaticBody2D" parent="Buildings"]
+position = Vector2(486.4, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree9"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree9"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree10" type="StaticBody2D" parent="Buildings"]
+position = Vector2(691.2, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree10"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree10"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree11" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1254.4, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree11"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree11"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree12" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1510.4, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree12"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree12"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree13" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1740.8, 140.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree13"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree13"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree14" type="StaticBody2D" parent="Buildings"]
+position = Vector2(64, 422.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree14"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree14"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree15" type="StaticBody2D" parent="Buildings"]
+position = Vector2(70.4, 780.8)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree15"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree15"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree16" type="StaticBody2D" parent="Buildings"]
+position = Vector2(153.6, 761.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree16"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree16"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree17" type="StaticBody2D" parent="Buildings"]
+position = Vector2(70.4, 934.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree17"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree17"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree18" type="StaticBody2D" parent="Buildings"]
+position = Vector2(64, 1145.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree18"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree18"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree19" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1830.4, 422.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree19"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree19"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree20" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1824, 678.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree20"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree20"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree21" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1830.4, 934.4)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree21"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree21"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Tree22" type="StaticBody2D" parent="Buildings"]
+position = Vector2(1849.6, 1145.6)
+collision_mask = 0
+
+[node name="Sprite" type="Sprite2D" parent="Buildings/Tree22"]
+scale = Vector2(2, 2)
+texture = ExtResource("6_tree")
+offset = Vector2(0, -30)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Tree22"]
+position = Vector2(0, -8)
+shape = SubResource("Circle_trunk")
+
+[node name="Villager1" type="Node2D" parent="Villagers"]
+position = Vector2(192, 524.8)
+script = ExtResource("34_res")
+route = PackedVector2Array(192, 524.8, 601.6, 534.4, 832, 524.8, 1100.8, 534.4, 1715.2, 524.8)
+loop = false
+speed = 30
+art_name = "villager_1"
+fallback_frames = ExtResource("26_res")
+tint = Color(1, 0.9, 0.8, 1)
+
+[node name="Villager2" type="Node2D" parent="Villagers"]
+position = Vector2(204.8, 1043.2)
+script = ExtResource("34_res")
+route = PackedVector2Array(204.8, 1043.2, 576, 1036.8, 998.4, 1049.6, 1344, 1040, 1715.2, 1043.2)
+loop = false
+speed = 26
+art_name = "villager_2"
+fallback_frames = ExtResource("23_res")
+tint = Color(0.82, 0.9, 1, 1)
+
+[node name="Villager3" type="Node2D" parent="Villagers"]
+position = Vector2(780.8, 608)
+script = ExtResource("34_res")
+route = PackedVector2Array(780.8, 608, 806.4, 736, 1113.6, 742.4, 1139.2, 608)
+loop = true
+speed = 22
+art_name = "villager_3"
+fallback_frames = ExtResource("24_res")
+tint = Color(1, 0.86, 0.95, 1)
+
+[node name="Chicken1" type="Node2D" parent="Villagers"]
+position = Vector2(230.4, 678.4)
+script = ExtResource("34_res")
+route = PackedVector2Array(230.4, 678.4, 307.2, 656, 396.8, 697.6, 320, 755.2)
+loop = true
+speed = 18
+pause_max = 5.0
+art_name = "chicken"
+optional = true
+
+[node name="Chicken2" type="Node2D" parent="Villagers"]
+position = Vector2(384, 748.8)
+script = ExtResource("34_res")
+route = PackedVector2Array(384, 748.8, 256, 761.6, 217.6, 672)
+loop = true
+speed = 16
+pause_max = 5.0
+art_name = "chicken"
+optional = true
+
+[node name="Cat" type="Node2D" parent="Villagers"]
+position = Vector2(576, 1116.8)
+script = ExtResource("34_res")
+route = PackedVector2Array(576, 1116.8, 793.6, 1126.4)
+loop = false
+speed = 22
+pause_max = 5.0
+art_name = "cat"
+optional = true
+
+[node name="PlayerSpawn" type="Marker2D" parent="."]
+position = Vector2(960, 1113.6)

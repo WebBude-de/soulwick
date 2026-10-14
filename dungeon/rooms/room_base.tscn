@@ -1,0 +1,75 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/room_controller.gd" id="1_room"]
+[ext_resource type="Script" path="res://dungeon/rooms/room_tiles.gd" id="2_tiles"]
+[ext_resource type="TileSet" path="res://dungeon/environment/dungeon_tileset.tres" id="3_tileset"]
+[ext_resource type="Script" path="res://dungeon/spawning/enemy_spawner.gd" id="4_spawner"]
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="5_enemy_data"]
+[ext_resource type="Resource" path="res://enemies/data/slime.tres" id="6_slime"]
+[ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="7_skeleton"]
+[ext_resource type="Resource" path="res://enemies/data/archer.tres" id="8_archer"]
+[ext_resource type="Resource" path="res://enemies/data/boss_bone_king.tres" id="9_boss"]
+[ext_resource type="Resource" path="res://enemies/data/boss_slime_queen.tres" id="10_boss2"]
+[ext_resource type="Resource" path="res://enemies/data/boss_shadow_lord.tres" id="11_boss3"]
+[ext_resource type="Resource" path="res://enemies/data/shadow.tres" id="12_shadow"]
+[ext_resource type="Resource" path="res://enemies/data/bomber.tres" id="13_bomber"]
+[ext_resource type="Resource" path="res://enemies/data/boss_ember_golem.tres" id="14_boss4"]
+[ext_resource type="Script" path="res://dungeon/biome_data.gd" id="15_biome"]
+[ext_resource type="Resource" path="res://dungeon/biomes/crypt.tres" id="16_crypt"]
+[ext_resource type="Resource" path="res://dungeon/biomes/slime_grotto.tres" id="17_grotto"]
+[ext_resource type="Resource" path="res://dungeon/biomes/shadow_realm.tres" id="18_shadow"]
+[ext_resource type="Resource" path="res://dungeon/biomes/ember_forge.tres" id="19_ember"]
+
+[node name="Room" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_room")
+
+[node name="Tiles" type="TileMapLayer" parent="."]
+z_index = -10
+scale = Vector2(2, 2)
+tile_set = ExtResource("3_tileset")
+script = ExtResource("2_tiles")
+room_size = Vector2i(15, 9)
+entrance_x = 7
+exit_x = 7
+
+[node name="Props" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="SpawnPoints" type="Node2D" parent="."]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(224, 160)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(736, 160)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(480, 224)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(160, 352)
+
+[node name="Spawn5" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(800, 352)
+
+[node name="EnemyContainer" type="Node2D" parent="."]
+y_sort_enabled = true
+
+[node name="ContentAnchor" type="Marker2D" parent="."]
+position = Vector2(480, 224)
+
+[node name="PortalAnchor" type="Marker2D" parent="."]
+position = Vector2(736, 192)
+
+[node name="EnterTrigger" type="Area2D" parent="."]
+monitorable = false
+
+[node name="EnemySpawner" type="Node" parent="."]
+script = ExtResource("4_spawner")
+enemy_types = Array[ExtResource("5_enemy_data")]([ExtResource("6_slime"), ExtResource("7_skeleton"), ExtResource("8_archer")])
+spawn_weights = Array[float]([0.5, 0.35, 0.15])
+extra_types = Array[ExtResource("5_enemy_data")]([ExtResource("12_shadow"), ExtResource("13_bomber")])
+bosses = Array[ExtResource("5_enemy_data")]([ExtResource("9_boss"), ExtResource("10_boss2"), ExtResource("11_boss3"), ExtResource("14_boss4")])
+escort_minion = ExtResource("6_slime")
+biomes = Array[ExtResource("15_biome")]([ExtResource("16_crypt"), ExtResource("17_grotto"), ExtResource("18_shadow"), ExtResource("19_ember")])

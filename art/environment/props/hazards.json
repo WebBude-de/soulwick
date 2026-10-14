@@ -1,0 +1,56 @@
+{
+  "notes": [
+    "spike_trap: Frame 0 eingefahren, 1 Warnung (~0,4 s halten), 2 ausgefahren = Schaden.",
+    "Pfütze und Lavariss liegen als Bodenlayer über dem Tile (transparenter Rand)."
+  ],
+  "items": [
+    {
+      "name": "spike_trap",
+      "file": "spike_trap_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "toxic_puddle",
+      "file": "toxic_puddle_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "verlangsamt / vergiftet"
+    },
+    {
+      "name": "lava_crack",
+      "file": "lava_crack_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schaden pro Tick"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+# Godot editor/import cache (TECHSTACK §3: never versioned)
+.godot/
+
+# Python cache of the generator tools (tools/generate_*.py)
+__pycache__/
+*.pyc
+
+# Personal editor settings (machine-specific paths)
+.vscode/

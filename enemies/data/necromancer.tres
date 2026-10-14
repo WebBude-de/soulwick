@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/archer/archer_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://art/projectiles/magic_orb_4f.png" id="3_orb"]
+[ext_resource type="Resource" path="res://enemies/data/skeleton.tres" id="4_minion"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"necromancer"
+display_name = "Nekromant"
+attack_kind = 1
+tags = Array[StringName]([&"ranged", &"magic"])
+min_room = 31
+hint = "Nekromant: Ruft Skelette herbei. Erledige ihn zuerst!"
+max_health = 30.0
+damage = 1.0
+move_speed = 75.0
+gold_drop = 5
+attack_range = 340.0
+telegraph_time = 0.75
+attack_cooldown = 1.5
+preferred_min_distance = 220.0
+reposition_time = 1.2
+projectile_speed = 230.0
+projectile_radius = 7.0
+projectile_texture = ExtResource("3_orb")
+projectile_frame_size = Vector2i(16, 16)
+projectile_pivot = Vector2(8, 8)
+summon_data = ExtResource("4_minion")
+summon_every = 3
+summon_count = 2
+sprite_origin = Vector2(16, 22)
+strike_frame = 3
+tint = Color(0.45, 0.95, 0.55, 1)
+body_radius = 12.0
+placeholder_color = Color(0.4, 1, 0.55, 1)
+light_radius = 50.0
+sprite_frames = ExtResource("2_frames")

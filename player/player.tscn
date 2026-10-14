@@ -1,0 +1,85 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://player/player.gd" id="1_player"]
+[ext_resource type="Script" path="res://components/health/health_component.gd" id="2_health"]
+[ext_resource type="Script" path="res://components/shield/shield_component.gd" id="3_shield"]
+[ext_resource type="Script" path="res://components/hurtbox/hurtbox.gd" id="4_hurtbox"]
+[ext_resource type="PackedScene" path="res://player/weapon_controller.tscn" id="5_weapons"]
+[ext_resource type="SpriteFrames" path="res://art/characters/player/player_frames.tres" id="6_frames"]
+[ext_resource type="Script" path="res://components/visual/camera_rig.gd" id="7_camera"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 9.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_hurtbox"]
+radius = 13.0
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_interaction"]
+radius = 44.0
+
+[node name="Player" type="CharacterBody2D"]
+collision_layer = 2
+collision_mask = 5
+motion_mode = 1
+script = ExtResource("1_player")
+
+[node name="Sprite" type="AnimatedSprite2D" parent="."]
+scale = Vector2(2, 2)
+sprite_frames = ExtResource("6_frames")
+animation = &"idle"
+
+[node name="WeaponPivot" type="Node2D" parent="."]
+position = Vector2(6, -6)
+
+[node name="WeaponSprite" type="Sprite2D" parent="WeaponPivot"]
+scale = Vector2(2, 2)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 8)
+shape = SubResource("CircleShape2D_body")
+
+[node name="HealthComponent" type="Node" parent="."]
+script = ExtResource("2_health")
+
+[node name="ShieldComponent" type="Node" parent="."]
+script = ExtResource("3_shield")
+
+[node name="Hurtbox" type="Area2D" parent="." node_paths=PackedStringArray("health", "shield")]
+collision_layer = 8
+collision_mask = 0
+monitoring = false
+script = ExtResource("4_hurtbox")
+health = NodePath("../HealthComponent")
+shield = NodePath("../ShieldComponent")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Hurtbox"]
+shape = SubResource("CircleShape2D_hurtbox")
+
+[node name="WeaponController" parent="." instance=ExtResource("5_weapons")]
+position = Vector2(0, -4)
+
+[node name="InteractionArea" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 32
+monitorable = false
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="InteractionArea"]
+shape = SubResource("CircleShape2D_interaction")
+
+[node name="PromptLabel" type="Label" parent="."]
+z_index = 50
+offset_left = -120.0
+offset_top = -72.0
+offset_right = 120.0
+offset_bottom = -48.0
+mouse_filter = 2
+theme_override_colors/font_color = Color(1, 0.92, 0.6, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 5
+text = "[E] Benutzen"
+horizontal_alignment = 1
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position_smoothing_enabled = true
+script = ExtResource("7_camera")
+position_smoothing_speed = 7.0

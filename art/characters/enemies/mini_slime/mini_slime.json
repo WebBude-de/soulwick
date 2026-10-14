@@ -1,0 +1,48 @@
+{
+  "name": "mini_slime",
+  "frame_size": [
+    16,
+    16
+  ],
+  "pivot": [
+    8,
+    15
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "16×16, Pivot (8,15). Schnell, wenig HP."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "mini_slime_idle_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "mini_slime_walk_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "mini_slime_attack_4f.png",
+      "frames": 4,
+      "fps": 10,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "mini_slime_death_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

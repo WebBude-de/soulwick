@@ -1,0 +1,54 @@
+{
+  "name": "bomber",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "bomb": [
+      10,
+      23
+    ]
+  },
+  "notes": [
+    "Attack = Zündung: Lunte sprüht, Körper bläht sich auf; nach Frame 4 explosion-Effekt am Pivot spawnen.",
+    "Death ohne Explosion (bei Tötung vor der Zündung)."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "bomber_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "bomber_walk_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "bomber_attack_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "bomber_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

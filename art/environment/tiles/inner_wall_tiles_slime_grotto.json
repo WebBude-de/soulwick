@@ -1,0 +1,61 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 2,
+  "notes": [
+    "cap_* = Mauerkrone (Oberseite) mit heller Kante zum Boden; face = Vorderseite unter einer waagerechten Krone; single = freistehend; cross = Kreuzung."
+  ],
+  "tiles": {
+    "cap_h": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "face": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "end_w": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "end_e": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    },
+    "single": {
+      "x": 0,
+      "y": 32,
+      "col": 0,
+      "row": 1
+    },
+    "cross": {
+      "x": 32,
+      "y": 32,
+      "col": 1,
+      "row": 1
+    },
+    "cap_v": {
+      "x": 64,
+      "y": 32,
+      "col": 2,
+      "row": 1
+    },
+    "end_n": {
+      "x": 96,
+      "y": 32,
+      "col": 3,
+      "row": 1
+    }
+  }
+}

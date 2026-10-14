@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "Griff links, Spitze rechts; Drehpunkt = pivot."
+  ],
+  "items": [
+    {
+      "name": "dagger",
+      "file": "dagger.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        6,
+        16
+      ],
+      "note": "Zwei gekreuzte Dolche"
+    },
+    {
+      "name": "hammer",
+      "file": "hammer.png",
+      "frame_size": [
+        48,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": "48×32, Kopf rechts"
+    }
+  ]
+}

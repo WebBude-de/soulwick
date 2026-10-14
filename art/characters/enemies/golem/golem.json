@@ -1,0 +1,54 @@
+{
+  "name": "golem",
+  "frame_size": [
+    48,
+    48
+  ],
+  "pivot": [
+    24,
+    46
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "slam": [
+      40,
+      44
+    ]
+  },
+  "notes": [
+    "48×48, Pivot (24,46). Langsam, viel HP.",
+    "Attack: Frame 1-2 Faust hoch (Ankündigung), Frame 3 Aufschlag = Schaden im Radius um anchor slam, Frame 4 Staub."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "golem_idle_4f.png",
+      "frames": 4,
+      "fps": 3,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "golem_walk_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "golem_attack_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "golem_death_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

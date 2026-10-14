@@ -1,0 +1,247 @@
+{
+  "notes": [
+    "Reihenfolge wie im PRD (Attribut, Mechanik, Effekt)."
+  ],
+  "items": [
+    {
+      "name": "upgrade_strong_attack",
+      "file": "upgrade_strong_attack.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Verstärkter Angriff"
+    },
+    {
+      "name": "upgrade_strength_training",
+      "file": "upgrade_strength_training.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Krafttraining"
+    },
+    {
+      "name": "upgrade_fast_attack",
+      "file": "upgrade_fast_attack.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schneller Angriff"
+    },
+    {
+      "name": "upgrade_precise_arrows",
+      "file": "upgrade_precise_arrows.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Präzise Pfeile"
+    },
+    {
+      "name": "upgrade_magic_power",
+      "file": "upgrade_magic_power.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Magische Verstärkung"
+    },
+    {
+      "name": "upgrade_fast_projectiles",
+      "file": "upgrade_fast_projectiles.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schnelle Geschosse"
+    },
+    {
+      "name": "upgrade_shield_boost",
+      "file": "upgrade_shield_boost.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schildverstärkung"
+    },
+    {
+      "name": "upgrade_pierce",
+      "file": "upgrade_pierce.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Durchschlag"
+    },
+    {
+      "name": "upgrade_wall_bounce",
+      "file": "upgrade_wall_bounce.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Wandabprall"
+    },
+    {
+      "name": "upgrade_double_shot",
+      "file": "upgrade_double_shot.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Doppelschuss"
+    },
+    {
+      "name": "upgrade_wide_swing",
+      "file": "upgrade_wide_swing.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Größerer Schwung"
+    },
+    {
+      "name": "upgrade_big_explosion",
+      "file": "upgrade_big_explosion.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Größere Explosion"
+    },
+    {
+      "name": "upgrade_explosive_hit",
+      "file": "upgrade_explosive_hit.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Explosiver Treffer"
+    },
+    {
+      "name": "upgrade_heal_on_kill",
+      "file": "upgrade_heal_on_kill.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Heilung bei Tötung"
+    },
+    {
+      "name": "upgrade_shield_on_kill",
+      "file": "upgrade_shield_on_kill.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Schild bei Tötung"
+    }
+  ]
+}

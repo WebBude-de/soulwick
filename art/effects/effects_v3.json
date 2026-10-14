@@ -1,0 +1,87 @@
+{
+  "notes": [
+    "Pivot = Bildmitte = Spielerposition bzw. Aufschlagpunkt."
+  ],
+  "items": [
+    {
+      "name": "hammer_slam",
+      "file": "hammer_slam_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        48,
+        48
+      ],
+      "note": "Aufschlag: Staubring, Risse, Splitter"
+    },
+    {
+      "name": "spin_slash",
+      "file": "spin_slash_4f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 4,
+      "fps": 14,
+      "loop": false,
+      "pivot": [
+        48,
+        48
+      ],
+      "note": "360°-Wirbel, Radius 36"
+    },
+    {
+      "name": "nova_ring",
+      "file": "nova_ring_6f.png",
+      "frame_size": [
+        128,
+        128
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        64,
+        64
+      ],
+      "note": "Arkane Nova, Radius bis 62"
+    },
+    {
+      "name": "quake_ring",
+      "file": "quake_ring_6f.png",
+      "frame_size": [
+        128,
+        128
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        64,
+        64
+      ],
+      "note": "Bodenwelle mit Rissen"
+    },
+    {
+      "name": "muzzle_puff",
+      "file": "muzzle_puff_3f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 3,
+      "fps": 15,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": "Abschuss-Wölkchen"
+    }
+  ]
+}

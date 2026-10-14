@@ -1,0 +1,53 @@
+{
+  "name": "player",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "weapon_hand": [
+      19,
+      19
+    ]
+  },
+  "notes": [
+    "Waffe ist ein eigenes Sprite, Drehpunkt an weapon_hand.",
+    "Letzter Death-Frame halbtransparent, danach Node ausblenden."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "player_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "player_walk_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "dash",
+      "file": "player_dash_3f.png",
+      "frames": 3,
+      "fps": 12,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "player_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

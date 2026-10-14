@@ -1,0 +1,34 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/skeleton/skeleton_frames.tres" id="2_frames"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"skeleton"
+display_name = "Skelett"
+attack_kind = 0
+tags = Array[StringName]([&"melee"])
+max_health = 28.0
+damage = 1.0
+move_speed = 120.0
+gold_drop = 3
+attack_range = 42.0
+attack_reach = 28.0
+attack_radius = 20.0
+telegraph_time = 0.45
+attack_active_time = 0.12
+attack_cooldown = 1.0
+knockback_strength = 60.0
+special = 1
+special_every = 3
+special_telegraph_time = 0.85
+charge_speed = 430.0
+charge_time = 0.4
+stun_duration = 0.8
+sprite_origin = Vector2(16, 22)
+strike_frame = 2
+body_radius = 12.0
+placeholder_color = Color(0.9, 0.88, 0.8, 1)
+hint = "Skelett: Achte auf die gelbe Linie – sein Schildstoß betäubt dich. Weiche mit Dash aus!"
+sprite_frames = ExtResource("2_frames")

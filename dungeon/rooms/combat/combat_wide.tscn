@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/bones_1.tscn" id="3_bones_1"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/crate.tscn" id="4_crate"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="5_torch"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/traps/spike_trap.tscn" id="6_trap"]
+
+[node name="CombatWide" instance=ExtResource("1_base")]
+room_kind = 0
+room_size_class = 1
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(19, 8)
+entrance_x = 4
+exit_x = 14
+floor_seed = 37
+pillar_tiles = Array[Vector2i]([Vector2i(9, 3), Vector2i(9, 4)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(160, 96)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(480, 160)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(800, 96)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(1056, 224)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(864, 352)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(352, 160)
+
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(672, 416)
+
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1120, 96)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(608, 224)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(992, 192)
+
+[node name="Torch0" parent="Props" instance=ExtResource("5_torch")]
+position = Vector2(64, -64)
+
+[node name="Torch1" parent="Props" instance=ExtResource("5_torch")]
+position = Vector2(448, -64)
+
+[node name="Torch2" parent="Props" instance=ExtResource("5_torch")]
+position = Vector2(1088, -64)
+
+[node name="Bones_13" parent="Props" instance=ExtResource("3_bones_1")]
+position = Vector2(1056, 440)
+
+[node name="Crate4" parent="Props" instance=ExtResource("4_crate")]
+position = Vector2(32, 440)
+
+[node name="Barrel5" parent="Props" instance=ExtResource("2_barrel")]
+position = Vector2(1184, 56)
+
+[node name="Trap6" parent="Props" instance=ExtResource("6_trap")]
+position = Vector2(416, 352)
+
+[node name="Trap7" parent="Props" instance=ExtResource("6_trap")]
+position = Vector2(800, 224)
+
+[node name="Trap8" parent="Props" instance=ExtResource("6_trap")]
+position = Vector2(992, 416)
+
+[node name="Barrel9" parent="Props" instance=ExtResource("2_barrel")]
+position = Vector2(32, 56)

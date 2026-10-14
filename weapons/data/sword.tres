@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="WeaponData" format=3 uid="uid://s3muwocbmqi0"]
+
+[ext_resource type="Script" uid="uid://jisr80xy0sfs" path="res://weapons/weapon_data.gd" id="1_data"]
+[ext_resource type="Texture2D" path="res://art/weapons/sword.png" id="2_sprite"]
+[ext_resource type="Texture2D" path="res://art/ui/icon_sword.png" id="3_icon"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"sword"
+display_name = "Schwert"
+tags = Array[StringName]([&"melee", &"sword", &"swing"])
+base_damage = 14.0
+attack_rate = 1.5
+attack_range = 75.0
+swing_angle_degrees = 100.0
+knockback_strength = 140.0
+combo_length = 3
+combo_damage_multiplier = 1.75
+combo_angle_multiplier = 1.4
+combo_range_multiplier = 1.15
+combo_knockback_multiplier = 2.0
+special_name = "Wirbelschlag"
+special_description = "360°-Hieb mit starkem Rückstoß."
+special_cooldown = 5.0
+special_damage_multiplier = 1.5
+special_knockback_multiplier = 2.2
+sprite = ExtResource("2_sprite")
+sprite_pivot = Vector2(6, 16)
+icon = ExtResource("3_icon")
+effect_color = Color(1, 0.95, 0.85, 1)

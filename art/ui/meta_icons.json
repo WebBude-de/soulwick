@@ -1,0 +1,167 @@
+{
+  "notes": [
+    "16×16, auf dunklem Panel."
+  ],
+  "items": [
+    {
+      "name": "meta_vitality",
+      "file": "meta_vitality.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Mehr Max-HP"
+    },
+    {
+      "name": "meta_shield",
+      "file": "meta_shield.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Startschild"
+    },
+    {
+      "name": "meta_sharpness",
+      "file": "meta_sharpness.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Mehr Schaden"
+    },
+    {
+      "name": "meta_greed",
+      "file": "meta_greed.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Mehr Gold"
+    },
+    {
+      "name": "meta_dash",
+      "file": "meta_dash.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Dash-Abklingzeit"
+    },
+    {
+      "name": "meta_arsenal",
+      "file": "meta_arsenal.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Zweite Startwaffe"
+    },
+    {
+      "name": "crystal_icon",
+      "file": "crystal_icon.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Seelenkristall"
+    },
+    {
+      "name": "trophy_icon",
+      "file": "trophy_icon.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Rekord"
+    },
+    {
+      "name": "skull_icon",
+      "file": "skull_icon.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Kills"
+    },
+    {
+      "name": "clock_icon",
+      "file": "clock_icon.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Spielzeit"
+    }
+  ]
+}

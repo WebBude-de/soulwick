@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/skeleton/skeleton_frames.tres" id="2_frames"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"golem"
+display_name = "Golem"
+attack_kind = 0
+tags = Array[StringName]([&"melee", &"heavy"])
+min_room = 31
+hint = "Golem: Langsam, aber zäh. Sein Sprung-Stampfer trifft alles im gelben Kreis."
+max_health = 90.0
+damage = 2.0
+move_speed = 55.0
+knockback_resistance = 0.9
+gold_drop = 6
+attack_range = 64.0
+attack_reach = 40.0
+attack_radius = 34.0
+telegraph_time = 0.8
+attack_active_time = 0.18
+attack_cooldown = 1.4
+knockback_strength = 200.0
+special = 2
+special_every = 3
+special_telegraph_time = 1.0
+blast_radius = 90.0
+sprite_origin = Vector2(16, 22)
+strike_frame = 2
+sprite_scale = 1.6
+tint = Color(0.62, 0.56, 0.5, 1)
+body_radius = 12.0
+placeholder_color = Color(0.7, 0.62, 0.55, 1)
+sprite_frames = ExtResource("2_frames")

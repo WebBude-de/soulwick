@@ -1,0 +1,71 @@
+{
+  "notes": [
+    "Pivot unten Mitte; Kollision = Wandfläche unter dem Dach."
+  ],
+  "items": [
+    {
+      "name": "house_1",
+      "file": "house_1.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        62
+      ],
+      "note": "Wohnhaus, 64×64"
+    },
+    {
+      "name": "house_2",
+      "file": "house_2.png",
+      "frame_size": [
+        80,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        40,
+        62
+      ],
+      "note": "Hof, 80×64, Kamin"
+    },
+    {
+      "name": "house_3",
+      "file": "house_3.png",
+      "frame_size": [
+        96,
+        80
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        48,
+        78
+      ],
+      "note": "Schmiede/Laden, 96×80, Schild"
+    },
+    {
+      "name": "tree",
+      "file": "tree.png",
+      "frame_size": [
+        48,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        24,
+        62
+      ],
+      "note": "Baum 48×64"
+    }
+  ]
+}

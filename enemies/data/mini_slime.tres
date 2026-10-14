@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://enemies/enemy_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/enemies/slime/slime_frames.tres" id="2_frames"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"mini_slime"
+display_name = "Mini-Schleim"
+attack_kind = 0
+tags = Array[StringName]([&"melee"])
+max_health = 6.0
+damage = 0.5
+move_speed = 115.0
+gold_drop = 1
+attack_range = 30.0
+attack_reach = 18.0
+attack_radius = 14.0
+telegraph_time = 0.45
+attack_active_time = 0.12
+attack_cooldown = 0.9
+sprite_origin = Vector2(16, 24)
+strike_frame = 2
+sprite_scale = 0.6
+tint = Color(0.55, 1, 0.5, 1)
+body_radius = 9.0
+placeholder_color = Color(0.5, 1, 0.45, 1)
+sprite_frames = ExtResource("2_frames")

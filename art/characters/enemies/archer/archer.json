@@ -1,0 +1,52 @@
+{
+  "name": "archer",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "arrow_spawn": [
+      22,
+      19
+    ]
+  },
+  "notes": [
+    "Attack: Frame 1-3 Bogen spannen (Ankündigung), Frame 4 = Schuss; enemy_arrow bei arrow_spawn erzeugen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "archer_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "archer_walk_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "archer_attack_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "archer_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

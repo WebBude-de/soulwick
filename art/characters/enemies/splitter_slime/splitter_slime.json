@@ -1,0 +1,48 @@
+{
+  "name": "splitter_slime",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Death zeigt die Teilung: ab Frame 3 zwei Hälften, die auseinanderrutschen; danach 2× mini_slime bei (−6, 0) und (+6, 0) spawnen."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "splitter_slime_idle_4f.png",
+      "frames": 4,
+      "fps": 5,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "splitter_slime_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "splitter_slime_attack_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "splitter_slime_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

@@ -1,0 +1,49 @@
+{
+  "name": "shadow",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Halbtransparent (Alpha 0,85), Augen voll deckend; schwebt 3 px über dem Boden.",
+    "Attack: Frame 1-2 Ausholen, Frame 3 Krallenhieb = Treffer + Blendung, Frame 4 Nachschwung."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "shadow_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "shadow_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "shadow_attack_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "shadow_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ],
+  "extras": []
+}

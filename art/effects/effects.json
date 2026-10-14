@@ -1,0 +1,71 @@
+{
+  "notes": [
+    "Keine Konturen, additive Optik; auf dunklem Boden gedacht."
+  ],
+  "items": [
+    {
+      "name": "sword_swing",
+      "file": "sword_swing_4f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 4,
+      "fps": 16,
+      "loop": false,
+      "pivot": [
+        12,
+        24
+      ],
+      "note": "Pivot = Spielerposition; zur Maus drehen. Sichel ~100°, Radius 25 px"
+    },
+    {
+      "name": "explosion",
+      "file": "explosion_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        48,
+        48
+      ],
+      "note": "Stab-Einschlag; AOE-Radius 45 px ≈ Frame 3"
+    },
+    {
+      "name": "hit_spark",
+      "file": "hit_spark_3f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 3,
+      "fps": 15,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": "Am Trefferpunkt"
+    },
+    {
+      "name": "dash_dust",
+      "file": "dash_dust_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Am Startpunkt des Dash, Fußhöhe"
+    }
+  ]
+}
