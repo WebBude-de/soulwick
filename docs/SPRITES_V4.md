@@ -68,7 +68,7 @@ Heute gibt es nur eine schlichte Holztür (`art/environment/props/door_closed.pn
 | `door_ember_forge_open_4f.png` | 32×32, 4 F. | Metallgitter (Fallgatter), das nach oben fährt, Funken |
 | `door_frame_boss.png` | 64×56 | Großes Tor zum Bossraum: zwei Säulen mit Fackelhaltern, Schädelkrone über dem Bogen, Ketten (biomneutral, wird je Biom eingefärbt) |
 | `door_boss_open_4f.png` | 32×32, 4 F. | Doppelflügeltür mit Ketten, die zerspringen und aufschwingen |
-| `door_special_symbols.png` | 16×16 je Symbol, 6×1 (96×16) | Kleine Schilder über Spezialraum-Türen: Münze (Shop), Schwert (Waffe), Tropfen (Brunnen), Stern (Upgrade), Sanduhr (Prüfung), Flamme (Lagerfeuer); weiß/grau, wird eingefärbt |
+| `door_special_symbols.png` | 16×16 je Symbol, **7×1 (112×16)** | Kleine Schilder über Spezialraum-Türen: Münze (Shop), Schwert (Waffe), Tropfen (Brunnen), Stern (Upgrade), Sanduhr (Prüfung), Flamme (Lagerfeuer), **neu als 7. Spalte: Schädel (Miniboss)**. Die gelieferte 6er-Fassung funktioniert weiter; mit 7 Spalten übernimmt der Code den Schädel automatisch. |
 
 ## 5. Lagerfeuer-Raum (`art/environment/campfire/`, ROADMAP_AUSBAU A6, D-103)
 

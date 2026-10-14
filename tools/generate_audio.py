@@ -266,6 +266,72 @@ def build_ui():
     return len(ui)
 
 
+# ---------------------------------------------------------------- doors (ROADMAP_AUSBAU D1)
+# One opening sound per biome door plus the boss gate (unlock and slam shut). Names come from
+# DoorStyle.open_sound / close_sound. "door_open" above stays the generic fallback.
+# All pitches and lengths are TESTWERTE.
+
+def ratchet(dur, step, freqs, vol):
+    """Fast metallic clicks (portcullis chain running over a gear)."""
+    clicks = []
+    count = int(dur / step)
+    for i in range(count):
+        f = freqs[i % len(freqs)]
+        clicks.append(mix(tone(f, 0.018, "square", vol, duty=0.125, attack=0.001, release=0.012),
+                          noise(0.015, vol * 0.6, 0.9, attack=0.001, release=0.01)))
+    return seq(*clicks, gap=step - 0.018)
+
+
+def build_doors():
+    # Own seed: the sound effects, babble and UI sounds above stay byte-identical.
+    random.seed(13)
+    doors = {}
+    # Crypt: heavy stone and wood grinding open, a dull thud at the end.
+    doors["door_open_stone"] = mix(
+        noise(0.6, 0.55, 0.05, attack=0.04, release=0.25, cutoff_to=0.03),
+        tone(118, 0.5, "saw", 0.16, slide_to=88, attack=0.03, release=0.2, vibrato_rate=11, vibrato_depth=0.03),
+        mix(tone(72, 0.22, "sine", 0.7, slide_to=44, release=0.15), noise(0.12, 0.35, 0.2, release=0.1)),
+        offsets=[0.0, 0.0, 0.48])
+    # Slime grotto: rustling vines and a wet squelch.
+    rustle = seq(*[noise(0.07, 0.45, 0.35 + 0.1 * (i % 2), attack=0.005, release=0.05) for i in range(6)], gap=0.025)
+    doors["door_open_vines"] = mix(
+        rustle,
+        tone(320, 0.32, "sine", 0.4, slide_to=120, release=0.15, vibrato_rate=14, vibrato_depth=0.08),
+        tone(midi(67), 0.08, "triangle", 0.3, slide_to=midi(74), release=0.05),
+        offsets=[0.0, 0.08, 0.45])
+    # Shadow realm: runes go out one by one (falling notes), airy shimmer.
+    runes = seq(*[tone(midi(n), 0.09, "triangle", 0.35, release=0.07) for n in (81, 78, 74, 69, 66)], gap=0.01)
+    doors["door_open_rune"] = mix(
+        runes,
+        tone(1250, 0.6, "sine", 0.18, slide_to=520, release=0.3, vibrato_rate=9, vibrato_depth=0.03),
+        noise(0.65, 0.22, 0.12, attack=0.1, release=0.35),
+        offsets=[0.0, 0.0, 0.05])
+    # Ember forge: portcullis rattles up, ends with an iron clank.
+    doors["door_open_gate"] = mix(
+        ratchet(0.48, 0.035, (1500, 1250, 1380), 0.3),
+        tone(85, 0.5, "saw", 0.18, slide_to=105, release=0.15),
+        noise(0.5, 0.18, 0.5, release=0.2, cutoff_to=0.2),
+        mix(tone(620, 0.16, "square", 0.25, duty=0.25, slide_to=540, release=0.12), noise(0.08, 0.5, 0.7, release=0.06)),
+        offsets=[0.0, 0.0, 0.0, 0.5])
+    # Boss gate: two chains snap, then the wings grind open with a deep, ominous rumble.
+    snap = mix(noise(0.06, 0.8, 0.95, attack=0.001, release=0.05),
+               tone(1900, 0.08, "square", 0.3, duty=0.125, slide_to=850, attack=0.001, release=0.05))
+    doors["door_boss_unlock"] = mix(
+        snap, snap,
+        tone(68, 1.1, "saw", 0.45, slide_to=50, attack=0.08, release=0.45, vibrato_rate=6, vibrato_depth=0.05),
+        noise(1.1, 0.4, 0.06, attack=0.12, release=0.5),
+        tone(midi(38), 1.0, "triangle", 0.35, attack=0.15, release=0.5),
+        offsets=[0.0, 0.14, 0.22, 0.22, 0.3])
+    # Boss gate slams shut behind the player.
+    doors["door_boss_close"] = mix(
+        noise(0.5, 0.9, 0.12, release=0.4, decay_to=0.3),
+        tone(62, 0.45, "sine", 0.9, slide_to=32, release=0.3),
+        tone(480, 0.12, "square", 0.18, duty=0.25, slide_to=380, release=0.08))
+    for name, samples in doors.items():
+        write_wav(SFX_DIR / f"{name}.wav", samples, peak=0.8)
+    return len(doors)
+
+
 if __name__ == "__main__":
     count = build_sfx()
     print(f"{count} sound effects written to {SFX_DIR}")
@@ -273,3 +339,5 @@ if __name__ == "__main__":
     print(f"{babble} boss babble syllables written to {SFX_DIR}")
     ui_count = build_ui()
     print(f"{ui_count} menu sounds written to {SFX_DIR}")
+    door_count = build_doors()
+    print(f"{door_count} door sounds written to {SFX_DIR}")
