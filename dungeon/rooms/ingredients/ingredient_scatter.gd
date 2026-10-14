@@ -17,6 +17,11 @@ extends Node2D
 ##
 ## Randomness: one number of the dungeon RNG (context.rng) seeds the room's own generator, so the
 ## number of draws on the dungeon RNG does not depend on the ingredients (reproducible runs, Koop).
+##
+## Since the room plans (R1, D-120) no template scatters any more: the generator writes allowed = []
+## (no random props, decoration comes in groups from the plan). The node stays in every combat
+## template and keeps its one draw, so the dungeon RNG stream does not change; the planner itself is
+## kept for later use (tests still check it as a pure function).
 
 signal scattered(scatter: IngredientScatter)
 

@@ -4,8 +4,10 @@ extends Node
 ## Extensions (D-069): from room 6 a spawn may be replaced by a shadow or bomber and may become an
 ## elite. Bosses depend on the boss room (D-065). Does not know the room order itself.
 ## Normal combat rooms spawn wave by wave (RoomController): roll_enemy_count() per wave, then
-## spawn_enemies() at markers or wall gates (A5). A template has 5-14 markers (D-086); more enemies
-## than markers come as an extra wave (WaveRules.plan_wave_sizes).
+## spawn_enemies() at the places SpawnSources picked (R2: graves, puddles, rifts, vents, arena gates,
+## sarcophagi; the enemies come out of them after a warning). A template has 5-14 markers (D-086),
+## which also serve as sources while a room plan has none; more enemies than one push of sources
+## brings come as an extra wave (WaveRules.plan_wave_sizes).
 
 const ENEMY_SCENE: PackedScene = preload("res://enemies/enemy_base.tscn")
 ## Fewest spawn markers of a combat or miniboss template (D-086, was exactly five in D-009).

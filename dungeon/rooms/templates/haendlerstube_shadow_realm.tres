@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="RoomTemplate" format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/templates/room_template.gd" id="1_template"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/rest/haendlerstube_shadow_realm.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_template")
+id = &"haendlerstube_shadow_realm"
+scene = ExtResource("2_scene")
+room_kind = 0
+shape = 11
+size_class = 0
+room_size = Vector2i(11, 6)
+entrance_side = 2
+exit_sides = Array[int]([0])
+entrance_sides = Array[int]([2])
+door_slots = Array[Vector2i]([Vector2i(2, 5), Vector2i(0, 4)])
+spawn_tiles = Array[Vector2i]([Vector2i(0, 0), Vector2i(10, 0), Vector2i(0, 5), Vector2i(10, 5), Vector2i(6, 0)])
+allowed_biomes = Array[StringName]([&"shadow_realm"])
+plan_id = &"haendlerstube"
+mode = &"rest"
+role = &"rest"
+weight = 1
+special_types = Array[int]([0])

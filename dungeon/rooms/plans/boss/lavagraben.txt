@@ -1,0 +1,23 @@
+# Bossraum der Glutkammer (01_raumarten.md): ein Lavagraben quer durch den Saal mit zwei breiten
+# Bruecken und Wegen an beiden Raendern; Lavaspalten als Quellen, Feuerschalen.
+name: Lavagraben
+role: boss
+mode: boss
+biomes: ember_forge
+size: 25x15
+---
+#########################
+#########################
+###T##n#####N#####n##T###
+##.....................##
+##.v........0........v.##
+##.....................##
+##....B...........B....##
+##..~~~==~~~~~~~==~~~..##
+##..~~~==~~~~~~~==~~~..##
+##.....................##
+##.v.......r.r.......v.##
+##.....................##
+##..........@..........##
+############S############
+#########################

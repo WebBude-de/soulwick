@@ -1,9 +1,12 @@
 class_name VisionOverlay
 extends CanvasLayer
 ## Drives vision.gdshader: dungeon darkness with a light circle around the player and all
-## LightSource nodes (D-067), blindness, red damage edge and the low-HP vignette.
+## LightSource nodes (D-067), coloured light (R6), blindness, red damage edge and the low-HP vignette.
 ## Only draws: whether a point is lit for gameplay is LightQuery's decision; the overlay hands it the
-## bound player's current circle radius (state at the player).
+## bound player's current LOGICAL circle radius (state at the player), never the drawn one.
+## R6: the drawn look follows a LightingProfile (ambient cap, drawn radius scale). The logical values
+## from set_vision stay the gameplay truth; the profile only lifts the unlit environment and widens
+## the drawn circles, except in rooms that are dark on purpose (LightingProfile.deep()).
 ## Also owns the PostProcess pass (layer 3) and forwards the bound player to it.
 
 const SHADER: Shader = preload("res://components/visual/vision.gdshader")
@@ -19,8 +22,16 @@ const DARK_COLOR_SPEED := 1.5
 const DARK_GRAIN := 0.018
 ## The darkness raster is locked to the world on blocks of this many screen px.
 const PIXEL_SIZE := 4.0
+## Coloured light (R6, TESTWERTE): tint of what a light touches and faint haze in the dark.
+const LIGHT_TINT := 0.45
+const LIGHT_HAZE := 0.08
+## Lit areas a little brighter than the plain scene (R6, TESTWERT).
+const LIGHT_BOOST := 0.15
+## Coloured light fades in with the darkness (none in daylight): glow = clamp(darkness * this).
+const GLOW_PER_DARKNESS := 2.5
 
 var _material: ShaderMaterial
+var _rect: ColorRect
 var _player: Player = null
 var _darkness := 0.0
 var _target_darkness := 0.0
@@ -31,22 +42,30 @@ var _hurt := 0.0
 var _dark_color := DEFAULT_DARK_COLOR
 var _target_dark_color := DEFAULT_DARK_COLOR
 var _post_process: PostProcess = null
+## Look of the current room (R6) and its smoothed values.
+var _profile: LightingProfile = LightingProfile.for_biome(&"")
+var _ambient := 1.0
+var _player_scale := 1.0
+var _source_scale := 1.0
+var _softness_scale := 1.0
+var _visual_darkness := 0.0
 
 
 func _ready() -> void:
 	add_to_group(GROUP)
 	layer = 2
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	var rect := ColorRect.new()
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_rect = ColorRect.new()
+	_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_material = ShaderMaterial.new()
 	_material.shader = SHADER
-	rect.material = _material
-	add_child(rect)
+	_rect.material = _material
+	add_child(_rect)
 	_post_process = PostProcess.new()
 	_post_process.name = "PostProcess"
 	add_child(_post_process)
+	_snap_profile()
 
 
 func bind_player(player: Player) -> void:
@@ -55,15 +74,21 @@ func bind_player(player: Player) -> void:
 	player.hurtbox.hit_received.connect(_on_player_hit)
 	player.blinded.connect(blind)
 	_post_process.bind_player(player)
+	# The dungeon announces every room it activates; its look follows (R6). Effects only listen.
+	var world := player.get_parent()
+	if world != null and world.has_signal(&"room_activated") and not world.is_connected(&"room_activated", _on_room_activated):
+		world.connect(&"room_activated", _on_room_activated)
 
 
-## darkness 0 = bright (village), 1 = only lights visible. radius in world px.
+## darkness 0 = bright (village), 1 = only lights visible. radius in world px. These are the logical
+## (gameplay) values; what is drawn follows the LightingProfile (R6).
 func set_vision(darkness: float, radius: float, instant := false) -> void:
 	_target_darkness = darkness
 	_base_radius = radius
 	if instant:
 		_darkness = darkness
 		_radius = radius
+		_snap_profile()
 
 
 ## Colour of the darkness, e.g. BiomeData.darkness_color. Blends over ~0.7 s unless instant.
@@ -73,14 +98,28 @@ func set_dark_color(color: Color, instant := false) -> void:
 		_dark_color = _target_dark_color
 
 
-## Applies a biome's darkness colour and ambient particles (dust, spores, wisps, embers).
+## Applies a biome's darkness colour, ambient particles (dust, spores, wisps, embers) and its
+## default look (LightingProfile.for_biome) until a room sets its own.
 func set_biome(biome: BiomeData, instant := false) -> void:
 	if biome == null:
 		set_dark_color(DEFAULT_DARK_COLOR, instant)
 		AmbientParticles.set_biome_for(self, &"")
+		set_lighting(LightingProfile.for_biome(&""), instant)
 		return
 	set_dark_color(biome.darkness_color, instant)
 	AmbientParticles.set_biome_for(self, biome.id)
+	set_lighting(LightingProfile.for_biome(biome.id), instant)
+
+
+## Look of the current room (R6): ambient cap and drawn circle sizes. Blends unless instant.
+func set_lighting(profile: LightingProfile, instant := false) -> void:
+	_profile = profile if profile != null else LightingProfile.for_biome(&"")
+	if instant:
+		_snap_profile()
+
+
+func get_lighting() -> LightingProfile:
+	return _effective_profile()
 
 
 func get_dark_color() -> Color:
@@ -95,38 +134,57 @@ func blind(duration: float) -> void:
 	_blind_left = maxf(_blind_left, duration)
 
 
+## The logical (gameplay) radius of the player's circle, as LightQuery sees it.
 func get_current_radius() -> float:
 	return _radius
+
+
+## The radius of the player's circle as drawn (R6: wider than the logical one outside deep rooms).
+func get_visual_radius() -> float:
+	return _radius * _player_scale
+
+
+## The darkness of the unlit environment as drawn (after the ambient cap).
+func get_visual_darkness() -> float:
+	return _visual_darkness
 
 
 func _process(delta: float) -> void:
 	var running := not get_tree().paused
 	if running:
 		_blind_left = maxf(0.0, _blind_left - delta)
-	var target_radius := minf(_base_radius, BLIND_RADIUS) if _blind_left > 0.0 else _base_radius
+	var blinded := _blind_left > 0.0
+	var target_radius := minf(_base_radius, BLIND_RADIUS) if blinded else _base_radius
 	# Dark zones of a room (A3 ingredient) narrow the circle while the player stands in them.
 	if _player != null and is_instance_valid(_player):
 		target_radius *= DarkZone.get_vision_factor_at(get_tree(), _player.global_position)
 	_radius = lerpf(_radius, target_radius, 1.0 - exp(-RADIUS_SMOOTHING * delta))
-	# The circle as drawn is the player's light for gameplay too (LightQuery, A9): state at the player.
+	# The logical circle is the player's light for gameplay (LightQuery, A9): state at the player.
 	if _player != null and is_instance_valid(_player):
 		LightQuery.set_player_radius(_player, _radius)
 	_darkness = move_toward(_darkness, _target_darkness, DARKNESS_SPEED * delta)
+	_update_profile(delta, blinded)
+	_visual_darkness = LightingProfile.visual_darkness(_darkness, _ambient)
 	_hurt = maxf(0.0, _hurt - HURT_DECAY * delta)
 	var blend := 1.0 - exp(-DARK_COLOR_SPEED * 3.0 * delta)
 	_dark_color = _dark_color.lerp(_target_dark_color, blend)
-	_post_process.grain = DARK_GRAIN * clampf((_darkness - 0.5) * 2.0, 0.0, 1.0)
+	_post_process.grain = DARK_GRAIN * clampf((_visual_darkness - 0.5) * 2.0, 0.0, 1.0)
 
 	var screen := get_viewport().get_visible_rect().size
 	var canvas := get_viewport().get_canvas_transform()
 	var zoom := canvas.get_scale().x
+	var drawn_radius := get_visual_radius()
 	_material.set_shader_parameter(&"screen_size", screen)
-	_material.set_shader_parameter(&"darkness", _darkness)
-	_material.set_shader_parameter(&"vision_radius", _radius * zoom)
-	_material.set_shader_parameter(&"softness", 150.0 * zoom)
+	_material.set_shader_parameter(&"darkness", _visual_darkness)
+	_material.set_shader_parameter(&"vision_radius", drawn_radius * zoom)
+	_material.set_shader_parameter(&"softness", LightingProfile.SOFTNESS_PX * _player_scale * _softness_scale * zoom)
 	_material.set_shader_parameter(&"hurt", _hurt)
 	_material.set_shader_parameter(&"dark_color", _dark_color)
 	_material.set_shader_parameter(&"pixel_size", PIXEL_SIZE)
+	_material.set_shader_parameter(&"tint_strength", LIGHT_TINT)
+	_material.set_shader_parameter(&"haze_strength", LIGHT_HAZE)
+	_material.set_shader_parameter(&"light_boost", LIGHT_BOOST)
+	_material.set_shader_parameter(&"glow_amount", clampf(_visual_darkness * GLOW_PER_DARKNESS, 0.0, 1.0))
 	# Lock the dither raster to the world, so it scrolls with the floor instead of shimmering.
 	var origin := canvas.origin
 	_material.set_shader_parameter(&"grid_offset", Vector2(fposmod(origin.x, PIXEL_SIZE * 4.0), fposmod(origin.y, PIXEL_SIZE * 4.0)))
@@ -137,28 +195,70 @@ func _process(delta: float) -> void:
 		var hp := _player.health.get_health()
 		low_hp = 1.0 if hp <= 1.0 else (0.55 if hp <= 2.0 else 0.0)
 	_material.set_shader_parameter(&"low_hp", low_hp)
+	# The pass reads the whole screen: skip it while it would change nothing (village by day).
+	_rect.visible = _visual_darkness > 0.001 or _hurt > 0.0 or low_hp > 0.0
 	_update_lights(canvas, zoom, screen)
+
+
+## The profile that applies right now: outside the dungeon (village, menu) nothing is lifted.
+func _effective_profile() -> LightingProfile:
+	if GameManager.get_phase() != GameManager.Phase.DUNGEON:
+		return LightingProfile.neutral()
+	return _profile
+
+
+func _update_profile(delta: float, blinded: bool) -> void:
+	var profile := _effective_profile()
+	var target_ambient := profile.ambient
+	var target_scale := profile.player_radius_scale
+	if blinded:
+		# Blindness takes the lifted environment and the wide circle away (optics only).
+		target_ambient = maxf(target_ambient, LightingProfile.BLIND_AMBIENT)
+		target_scale = 1.0
+	_ambient = move_toward(_ambient, target_ambient, DARKNESS_SPEED * delta)
+	var k := 1.0 - exp(-RADIUS_SMOOTHING * delta)
+	_player_scale = lerpf(_player_scale, target_scale, k)
+	_source_scale = lerpf(_source_scale, profile.source_radius_scale, k)
+	_softness_scale = lerpf(_softness_scale, profile.softness_scale, k)
+
+
+func _snap_profile() -> void:
+	var profile := _effective_profile()
+	_ambient = profile.ambient
+	_player_scale = profile.player_radius_scale
+	_source_scale = profile.source_radius_scale
+	_softness_scale = profile.softness_scale
+	_visual_darkness = LightingProfile.visual_darkness(_darkness, _ambient)
 
 
 func _update_lights(canvas: Transform2D, zoom: float, screen: Vector2) -> void:
 	var packed := PackedVector4Array()
-	if _darkness > 0.0:
+	var colors := PackedVector4Array()
+	if _visual_darkness > 0.0:
 		for node in get_tree().get_nodes_in_group(LightSource.GROUP):
 			var light := node as LightSource
 			if light == null or not light.is_lit():
 				continue
 			var pos := canvas * light.global_position
-			var r := light.get_current_radius() * zoom
+			var r := light.get_current_radius() * zoom * _source_scale
 			if pos.x < -r or pos.y < -r or pos.x > screen.x + r or pos.y > screen.y + r:
 				continue
 			packed.append(Vector4(pos.x, pos.y, r, light.intensity))
+			var color := light.get_draw_color()
+			colors.append(Vector4(color.r, color.g, color.b, LightPalette.tint_strength(color)))
 			if packed.size() >= MAX_LIGHTS:
 				break
 	var count := packed.size()
 	while packed.size() < MAX_LIGHTS:
 		packed.append(Vector4.ZERO)
+		colors.append(Vector4.ZERO)
 	_material.set_shader_parameter(&"lights", packed)
+	_material.set_shader_parameter(&"light_colors", colors)
 	_material.set_shader_parameter(&"light_count", count)
+
+
+func _on_room_activated(room: Node) -> void:
+	set_lighting(LightingProfile.for_room(room), int(room.get(&"room_index")) <= 1)
 
 
 func _on_player_hit(result: DamageResult, _damage: DamageData) -> void:

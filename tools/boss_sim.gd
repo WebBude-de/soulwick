@@ -74,6 +74,7 @@ func _run() -> void:
 	await _check_u_wall(room, player)
 	await _check_slime_pack(room, player)
 	await _check_flanking(room, player)
+	await _check_spawn_sources(room, player)
 
 	# Elites: every kind spawns, glows, shows its badge and the volatile one explodes on death.
 	for kind in [1, 2, 3]:
@@ -343,6 +344,72 @@ func _check_flanking(room: Node, player: Node) -> void:
 		if is_instance_valid(skeleton) and not skeleton.is_dead():
 			skeleton.health.take_damage(INF)
 	player.hurtbox.set_invulnerable(&"flank_check", false)
+	await _frames(60)
+
+
+## Enemy sources (R2): a push comes out of several (never all) sources away from the player, after
+## the warning; hidden enemies cannot be hit, once out they fight. A champion rises from its source.
+func _check_spawn_sources(room: Node, player: Node) -> void:
+	var rules: GDScript = load("res://dungeon/spawning/spawn_source_rules.gd")
+	var sources: Node = load("res://dungeon/spawning/spawn_sources.gd").setup(room)
+	_check(sources != null, "room 1 has enemy sources")
+	if sources == null:
+		return
+	player.hurtbox.set_invulnerable(&"source_check", true)
+	player.health.reset(99999.0)
+	var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
+	player.global_position = center
+	await _frames(5)
+	var pool: Array = sources.get_pool()
+	var enemies: Array = sources.spawn_wave(room.spawner, 4, room.enemy_container, room.context, room.get_arena())
+	var used: Array = sources.get_last_sources()
+	print("Spawn sources: %d sources, push of %d out of %d" % [pool.size(), enemies.size(), used.size()])
+	_check(enemies.size() == 4, "a push of four enemies spawns")
+	_check(used.size() >= mini(2, pool.size()) and (pool.size() <= 2 or used.size() < pool.size()), "several sources, never all of three or more")
+	var hidden := true
+	var far := true
+	for enemy in enemies:
+		hidden = hidden and enemy.is_hidden_in_source() and enemy.hurtbox.is_invulnerable()
+		far = far and enemy.global_position.distance_to(player.global_position) >= rules.MIN_PLAYER_DISTANCE - 2.0 * rules.QUEUE_SPREAD
+	_check(hidden, "enemies wait hidden and invulnerable in their sources")
+	_check(far, "no enemy comes out next to the player")
+	await _frames(3)
+	_check(used[0].is_active(), "the first source warns")
+	var out_after := -1.0
+	var fighting := false
+	for i in 60 * 8:
+		await physics_frame
+		var all_out := true
+		for enemy in enemies:
+			if is_instance_valid(enemy) and not enemy.is_dead() and enemy.is_in_intro():
+				all_out = false
+		if all_out and out_after < 0.0:
+			out_after = i / 60.0
+		if out_after >= 0.0:
+			for enemy in enemies:
+				if is_instance_valid(enemy) and not enemy.is_dead() and enemy._state in [2, 3, 4, 5, 9]:
+					fighting = true
+		if fighting:
+			break
+	print("Spawn sources: all out after %.2f s, fighting %s" % [out_after, fighting])
+	_check(out_after >= rules.WARN_TIME, "nobody comes out before the warning is over")
+	_check(out_after >= 0.0 and out_after <= rules.release_time(used.size(), ceili(4.0 / used.size())) + 0.2, "everyone is out in time")
+	_check(fighting, "enemies attack once they are out")
+	for enemy in enemies:
+		if is_instance_valid(enemy) and not enemy.is_dead():
+			enemy.health.take_damage(INF)
+	await _frames(60)
+	# Champion: rises from a big source where it stands, passive until it is out.
+	var champion := _spawn(load("res://enemies/data/skeleton.tres"), room, player, 10, true)
+	champion.position = room.to_local(center + Vector2(0, -260))
+	room.enemy_container.add_child(champion)
+	# Typed like the room passes it (Array[Enemy]); built dynamically, this script knows no classes.
+	sources.release_encounter(Array([champion], TYPE_OBJECT, &"CharacterBody2D", load("res://enemies/enemy_base.gd")))
+	_check(champion.is_hidden_in_source(), "the champion waits in its source")
+	await _frames(roundi((rules.WARN_TIME + rules.EMERGE_TIME) * 60.0) + 20)
+	_check(not champion.is_in_intro() and champion.visible, "the champion is out and fights")
+	champion.health.take_damage(INF)
+	player.hurtbox.set_invulnerable(&"source_check", false)
 	await _frames(60)
 
 

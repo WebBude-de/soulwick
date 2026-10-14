@@ -194,10 +194,10 @@ func test_banners_queue_instead_of_overwriting() -> void:
 	ui.show_banner("Neu im Dorf", "Goldgier")
 	assert_eq(ui.get_banner_queue_size(), 1, "the second banner waits")
 	var first := ui.get_banner()
-	assert_eq((first.get_child(0) as Label).text, "Boss besiegt!")
+	assert_eq((first.find_child("Title", true, false) as Label).text, "Boss besiegt!")
 	await wait_seconds(DungeonUI.BANNER_MIN_TIME + 0.2)
 	assert_eq(ui.get_banner_queue_size(), 0)
-	assert_eq((ui.get_banner().get_child(0) as Label).text, "Neu im Dorf")
+	assert_eq((ui.get_banner().find_child("Title", true, false) as Label).text, "Neu im Dorf")
 
 
 func test_genre_banner_replaces_the_plain_banner_of_the_same_room() -> void:

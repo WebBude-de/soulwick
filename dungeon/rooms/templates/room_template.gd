@@ -5,13 +5,28 @@ extends Resource
 ## scene (dungeon/rooms/templates/<id>.tres) and listed in combat_catalog.tres (RoomCatalog).
 ## The scene stays the source of the layout; this resource only describes it, so the catalog can
 ## choose without instantiating rooms. Kind and size are also set on the scene's RoomController.
+## Since R1 (D-120) every template comes from a hand-made floor plan (dungeon/rooms/plans/*.txt):
+## plan_id names it, mode says which game mode the plan was built for (only "clear" and "arena"
+## plans are drawn for plain fights, the mode plans wait for their mode, R4), role tells combat
+## rooms from boss, miniboss, rest and campfire rooms (RoomCatalog.load_plans()), weight scales the
+## draw among the candidates.
 
-## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100). The last four
-## are the chasm shapes (A4): bridge hall, islands, walkway, ring around a hole.
-enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB, BRIDGE_HALL, ISLANDS, WALKWAY, RING_HOLE }
+## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100). BRIDGE_HALL ..
+## RING_HOLE are the old chasm shapes (A4); PLAN = built from a hand-made plan (R1, every template now).
+enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB, BRIDGE_HALL, ISLANDS, WALKWAY, RING_HOLE, PLAN }
 ## Wall of the room a door sits in (same order as RoomTiles.DoorSide). Entrances come from the
 ## south, west or east, exits lead north, east or west (A10, KONZEPT_RAEUME §7.1).
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
+
+## Plan modes (KONZEPT_RAEUME_V2 §2). Plain fights draw MODE_CLEAR (normal kind) and MODE_ARENA.
+const MODE_CLEAR := &"clear"
+const MODE_ARENA := &"arena"
+## Roles of a plan template (RoomCatalog.load_plans for everything except combat).
+const ROLE_COMBAT := &"combat"
+const ROLE_BOSS := &"boss"
+const ROLE_MINIBOSS := &"miniboss"
+const ROLE_REST := &"rest"
+const ROLE_CAMPFIRE := &"campfire"
 
 @export var id: StringName
 @export var scene: PackedScene
@@ -40,10 +55,34 @@ enum DoorSide { NORTH, EAST, SOUTH, WEST }
 ## First room number this template may appear in (catacomb from room 2, chasm from room 6; the
 ## first room of a run stays a plain one). RoomCatalog.pick filters by it when given a room.
 @export var min_room := 1
+## Plan file the template was built from (dungeon/rooms/plans/, R1); empty for old templates.
+@export var plan_id: StringName = &""
+## Game mode the plan was built for (MODE_CLEAR, MODE_ARENA, &"escort", &"flame", &"relic",
+## &"souls", &"rifts", &"hunt", &"beacon", &"collapse", &"boss", &"rest", &"campfire").
+@export var mode: StringName = MODE_CLEAR
+## ROLE_COMBAT, ROLE_BOSS, ROLE_MINIBOSS, ROLE_REST or ROLE_CAMPFIRE.
+@export var role: StringName = ROLE_COMBAT
+## Relative weight among the candidates of one draw (plan header "weight"). TESTWERT per plan.
+@export var weight := 1.0
+## Rest rooms: RoomSequence.SpecialType values the plan is made for (shop, weapon, fountain, altar).
+@export var special_types: Array[int] = []
+## A mirrored copy of the plan (generator option "mirror").
+@export var mirrored := false
 
 
 func allows_room(room_index: int) -> bool:
 	return room_index <= 0 or room_index >= min_room
+
+
+## Drawn for a plain fight (normal or arena kind, no special mode)?
+func is_plain_fight() -> bool:
+	return role == ROLE_COMBAT and (mode == MODE_CLEAR or mode == MODE_ARENA or mode == &"")
+
+
+func allows_mode(wanted: StringName) -> bool:
+	if wanted == &"":
+		return is_plain_fight()
+	return mode == wanted
 
 
 func allows_biome(biome_id: StringName) -> bool:
@@ -100,4 +139,6 @@ static func get_shape_name(value: int) -> String:
 			return "Steg"
 		Shape.RING_HOLE:
 			return "Ring um ein Loch"
+		Shape.PLAN:
+			return "Plan"
 	return "Rechteck"

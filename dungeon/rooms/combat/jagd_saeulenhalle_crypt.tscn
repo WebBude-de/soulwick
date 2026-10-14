@@ -1,0 +1,145 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/crate.tscn" id="3_crate"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="5_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="6_scatter"]
+
+[node name="JagdSaeulenhalleCrypt" instance=ExtResource("1_base")]
+room_kind = 0
+room_size_class = 0
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(21, 8)
+entrance_x = 10
+exit_x = 10
+floor_seed = 947
+wall_rects = Array[Rect2i]([Rect2i(2, 1, 2, 2), Rect2i(8, 1, 2, 2), Rect2i(14, 1, 2, 2), Rect2i(2, 5, 2, 2), Rect2i(8, 5, 2, 2), Rect2i(14, 5, 2, 2)])
+moss_tiles = Array[Vector2i]([Vector2i(19, 6), Vector2i(19, 7), Vector2i(20, 6), Vector2i(20, 7)])
+door_slots = Array[Vector2i]([Vector2i(2, 10), Vector2i(0, 10), Vector2i(0, 18), Vector2i(3, 4), Vector2i(1, 4)])
+front_fixtures = Array[Vector2i]([Vector2i(0, -1), Vector2i(4, -1), Vector2i(16, -1), Vector2i(20, -1)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(480, 32)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(928, 32)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(352, 352)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(992, 480)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(160, 32)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(736, 224)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(672, 224)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(1056, 160)
+
+[node name="PlayerStart" type="Marker2D" parent="."]
+position = Vector2(288, 480)
+
+[node name="Objectives" type="Node2D" parent="."]
+
+[node name="Crowned1" type="Marker2D" parent="Objectives"]
+position = Vector2(1184, 160)
+metadata/objective_kind = &"crowned"
+metadata/tile = Vector2i(18, 2)
+
+[node name="Guard1" type="Marker2D" parent="Objectives"]
+position = Vector2(480, 288)
+metadata/objective_kind = &"guard"
+metadata/tile = Vector2i(7, 4)
+metadata/enemy = &"skeleton"
+
+[node name="EscapeHole1" type="Marker2D" parent="Objectives"]
+position = Vector2(1120, 288)
+metadata/objective_kind = &"escape_hole"
+metadata/tile = Vector2i(17, 4)
+
+[node name="Guard2" type="Marker2D" parent="Objectives"]
+position = Vector2(928, 480)
+metadata/objective_kind = &"guard"
+metadata/tile = Vector2i(14, 7)
+metadata/enemy = &"skeleton"
+
+[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(0, -64)
+
+[node name="Torch2" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(256, -64)
+
+[node name="Torch3" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(1024, -64)
+
+[node name="Torch4" parent="Props" instance=ExtResource("4_torch")]
+position = Vector2(1280, -64)
+
+[node name="Bones1" type="Node2D" parent="Props"]
+position = Vector2(1299, 39)
+script = ExtResource("5_deco")
+item = &"bone_pile"
+flip = true
+
+[node name="Bones2" type="Node2D" parent="Props"]
+position = Vector2(1272, 50)
+script = ExtResource("5_deco")
+item = &"bones_2"
+flip = true
+
+[node name="Cobweb1" type="Node2D" parent="Props"]
+position = Vector2(1344, 0)
+script = ExtResource("5_deco")
+item = &"cobweb"
+flip = true
+
+[node name="Puddle1" type="Node2D" parent="Props"]
+position = Vector2(1312, 486)
+script = ExtResource("5_deco")
+item = &"puddle"
+tint = Color(0.75, 0.82, 1, 1)
+
+[node name="Drip1" type="Node2D" parent="Props"]
+position = Vector2(1310, 484)
+script = ExtResource("5_deco")
+item = &"drip"
+
+[node name="RubbleBit1" type="Node2D" parent="Props"]
+position = Vector2(42, 486)
+script = ExtResource("5_deco")
+item = &"rubble_1"
+
+[node name="RubbleBit2" type="Node2D" parent="Props"]
+position = Vector2(73, 495)
+script = ExtResource("5_deco")
+item = &"rubble_2"
+
+[node name="Bit1" type="Node2D" parent="Props"]
+position = Vector2(64, 475)
+script = ExtResource("5_deco")
+item = &"bones_1"
+
+[node name="Crate1" parent="Props" instance=ExtResource("3_crate")]
+position = Vector2(32, 56)
+
+[node name="Barrel1" parent="Props" instance=ExtResource("2_barrel")]
+position = Vector2(98, 58)
+
+[node name="Bedroll1" type="Node2D" parent="Props"]
+position = Vector2(148, 52)
+script = ExtResource("5_deco")
+item = &"bedroll"
+
+[node name="Ingredients" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("6_scatter")
+allowed = Array[int]([])

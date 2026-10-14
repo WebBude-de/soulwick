@@ -139,7 +139,7 @@ func test_long_banner_subtitle_wraps() -> void:
 	ui.auto_enemy_hints = false
 	ui.show_banner("Aus dem Dorf", "+2 Max-HP · +20 % Schaden · Bogen · Heiltrank: +2 Max-HP · Schildrune: +3 Schild · noch mehr Text")
 	var box := ui._banner_root.get_child(ui._banner_root.get_child_count() - 1)
-	var subtitle := box.get_child(1) as Label
+	var subtitle := box.find_child("Subtitle", true, false) as Label
 	assert_eq(subtitle.autowrap_mode, TextServer.AUTOWRAP_WORD_SMART)
 	assert_eq(subtitle.custom_minimum_size.x, UiKit.px(DungeonUI.BANNER_SUBTITLE_WIDTH))
 

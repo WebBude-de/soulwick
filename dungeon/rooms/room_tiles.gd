@@ -33,7 +33,13 @@ extends TileMapLayer
 ## in the floor mask (walls get their edge towards it), is drawn with the biome's abyss pieces
 ## (AbyssAutotile), carries no navigation and is solid on the pit physics layer only: enemies are
 ## blocked, the player falls (PlayerFall), projectiles fly over it. A bridge cell shows the bridge
-## art on this layer and the abyss below it on a child layer ("AbyssUnder").
+## art on this layer and the abyss below it on a child layer ("AbyssUnder"). The north edge of every
+## abyss (floor or wall right above the pit) gets the biome's rock face (abyss_cliff_<biome>, R1).
+## Room plans (R1, D-120, tools/generate_room_templates.py) add: shallow water (water_rects, floor
+## with a slowing overlay, ShallowWater), moss tiles around drips, the places of the cracked secret
+## wall (secret_cracks, plan cell 'q') and the wall fronts holding a fixture (front_fixtures: torch,
+## niche, gate, rift - nothing else goes there). A secret niche is drawn as plain rock until its
+## wall breaks, so it never shows as a box in the rock.
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -85,6 +91,11 @@ const MIST_EVERY := 5
 const MIST_MAX := 8
 const MIST_FPS := 3.0
 const MIST_ALPHA := 0.55
+## Rock face under the north edge of an abyss (SPRITES_V7, 4 x 1: left, middle, right, single).
+const CLIFF_ART_PATH := "res://art/environment/tiles/abyss_cliff_%s.png"
+const CLIFF_NAME := "AbyssCliffs"
+## Mossy floor piece (FLOOR_TILES[3]) for moss_tiles.
+const MOSS_FLOOR := Vector2i(3, 0)
 
 ## Wall a door sits in; same order as RoomTemplate.DoorSide.
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
@@ -138,6 +149,22 @@ signal walls_opened(tiles: Array[Vector2i])
 	set(value):
 		niche_rect = value
 		_queue_paint()
+## Shallow water / mud in floor tiles (plan cell 'w', R1): walkable, slows players (ShallowWater).
+@export var water_rects: Array[Rect2i] = []:
+	set(value):
+		water_rects = value
+		_queue_paint()
+## Floor tiles always painted with the mossy floor piece (around drips, R1 deco groups).
+@export var moss_tiles: Array[Vector2i] = []:
+	set(value):
+		moss_tiles = value
+		_queue_paint()
+## Wall fronts (room tiles) a cracked secret wall may sit in (plan cell 'q'); empty = any fitting
+## front (SecretRules.find_sites).
+@export var secret_cracks: Array[Vector2i] = []
+## Wall fronts (room tiles) that hold a fixture of the plan (torch, niche, gate, rift, chains): no
+## cracked wall goes there.
+@export var front_fixtures: Array[Vector2i] = []
 ## Extra entrance corridor tiles beyond the painted ring (room placed further out, A10).
 @export var entrance_corridor_extra := 0:
 	set(value):
@@ -202,6 +229,10 @@ var _mist: Node2D = null
 var _opened_walls: Dictionary[Vector2i, bool] = {}
 ## Ring tiles outside the floor turned into floor at runtime (the opening of a secret niche).
 var _extra_floor: Dictionary[Vector2i, bool] = {}
+## The secret niche is drawn as rock until its wall breaks (R1).
+var _niche_open := false
+var _water: ShallowWater = null
+var _cliffs: Node2D = null
 
 
 func _ready() -> void:
@@ -407,6 +438,15 @@ func open_wall_tiles(tiles: Array[Vector2i]) -> void:
 			opened.append(tile)
 	if opened.is_empty():
 		return
+	# The opening reaches the niche: from now on it is floor, not rock (R1).
+	if has_niche() and not _niche_open:
+		var around := niche_rect.grow(1)
+		for tile in opened:
+			if around.has_point(tile):
+				_niche_open = true
+		if _niche_open:
+			for tile in get_niche_tiles():
+				opened.append(tile)
 	_pits_dirty = true
 	if get_used_cells().is_empty() or tile_set == null or not tile_set.has_source(SOURCE_WALL):
 		if is_inside_tree():
@@ -431,6 +471,45 @@ func get_opened_wall_tiles() -> Array[Vector2i]:
 
 func has_niche() -> bool:
 	return niche_rect.size != Vector2i.ZERO
+
+
+## Is the secret niche open (its wall broken)? Until then it is drawn as rock.
+func is_niche_open() -> bool:
+	return _niche_open
+
+
+func get_niche_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for y in range(niche_rect.position.y, niche_rect.end.y):
+		for x in range(niche_rect.position.x, niche_rect.end.x):
+			tiles.append(Vector2i(x, y))
+	return tiles
+
+
+## Floor tiles of the plan's shallow water (inside the floor, no walls, no pits).
+func get_water_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	var floor_rect := Rect2i(Vector2i.ZERO, room_size)
+	var mass := get_wall_mass()
+	for rect in water_rects:
+		var clipped := rect.intersection(floor_rect)
+		for y in range(clipped.position.y, clipped.end.y):
+			for x in range(clipped.position.x, clipped.end.x):
+				var tile := Vector2i(x, y)
+				if not mass.has(tile) and not tiles.has(tile) and not is_pit(tile):
+					tiles.append(tile)
+	return tiles
+
+
+func is_water(tile: Vector2i) -> bool:
+	for rect in water_rects:
+		if rect.has_point(tile):
+			return not get_wall_mass().has(tile) and not is_pit(tile)
+	return false
+
+
+func get_water() -> ShallowWater:
+	return _water
 
 
 ## Floor tiles outside the floor rectangle that are no corridor: the secret niche and what opened
@@ -563,6 +642,7 @@ func _apply_pit_change(changed: Array[Vector2i]) -> void:
 			if floor_mask.has(tile):
 				_paint_floor_cell(tile)
 		_paint_mist()
+		_paint_cliffs()
 	pits_changed.emit(changed)
 
 
@@ -771,6 +851,10 @@ func use_tileset(new_tileset: TileSet) -> void:
 		_backdrop.tile_set = new_tileset
 	if _abyss_under != null:
 		_abyss_under.tile_set = new_tileset
+	# The rock faces and the water take the biome's colours.
+	if is_inside_tree():
+		_paint_cliffs()
+		_paint_water()
 
 
 func get_backdrop() -> TileMapLayer:
@@ -792,6 +876,8 @@ func paint() -> void:
 		_paint_legacy(rng)
 	_paint_backdrop()
 	_paint_mist()
+	_paint_cliffs()
+	_paint_water()
 
 
 ## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
@@ -807,6 +893,10 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 		floor_mask[tile] = true
 	for tile: Vector2i in get_wall_mass():
 		floor_mask.erase(tile)
+	if has_niche() and not _niche_open:
+		# A closed niche is rock like the wall around it (no box in the rock, R1).
+		for tile in get_niche_tiles():
+			floor_mask.erase(tile)
 	return floor_mask
 
 
@@ -824,6 +914,8 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 			if floor_mask.has(tile):
 				# Drawn for every floor tile, pit or not, so the floor pattern never depends on pits.
 				_floor_cells[tile] = _random_floor(rng)
+				if moss_tiles.has(tile):
+					_floor_cells[tile] = MOSS_FLOOR
 				_paint_floor_cell(tile)
 				continue
 			var piece := WallAutotile.cell_for_floor(tile, floor_mask)
@@ -1118,6 +1210,67 @@ func _paint_mist() -> void:
 		mist.position = (Vector2(tile) + Vector2(0.5, 0.5)) * art_tile
 		_mist.add_child(mist)
 		mist.frame = rng.randi_range(0, 3)
+
+
+## Rock face of the biome under the north edge of every abyss (abyss_cliff_<biome>, 4 x 1 pieces):
+## on each pit tile whose north neighbour is no abyss. Optics only, on a child node in the layer's
+## space; bridges keep their planks on top. Repainted when pits change (collapse, holes).
+func _paint_cliffs() -> void:
+	if _cliffs != null:
+		for child in _cliffs.get_children():
+			child.queue_free()
+	if Engine.is_editor_hint() or tile_set == null or not has_pits():
+		return
+	var path := CLIFF_ART_PATH % WallAutotile.biome_of(tile_set)
+	if not ResourceLoader.exists(path):
+		path = CLIFF_ART_PATH % "crypt"
+	if not ResourceLoader.exists(path):
+		return
+	var texture := load(path) as Texture2D
+	if _cliffs == null:
+		_cliffs = Node2D.new()
+		_cliffs.name = CLIFF_NAME
+		add_child(_cliffs, false, Node.INTERNAL_MODE_BACK)
+	var art_tile := float(tile_set.tile_size.x)
+	for tile in get_pit_tiles():
+		if not _has_cliff(tile):
+			continue
+		var left := _has_cliff(tile + Vector2i.LEFT)
+		var right := _has_cliff(tile + Vector2i.RIGHT)
+		var piece := 3
+		if left and right:
+			piece = 1
+		elif right:
+			piece = 0
+		elif left:
+			piece = 2
+		var sprite := Sprite2D.new()
+		sprite.texture = texture
+		sprite.region_enabled = true
+		sprite.region_rect = Rect2(piece * art_tile, 0, art_tile, art_tile)
+		sprite.centered = false
+		sprite.position = Vector2(tile) * art_tile
+		_cliffs.add_child(sprite)
+
+
+## A pit tile with solid ground or a wall right north of it (no other pit, no bridge).
+func _has_cliff(tile: Vector2i) -> bool:
+	return is_pit(tile) and not _is_abyss(tile + Vector2i.UP)
+
+
+## Shallow water overlay and its slow area (ShallowWater), runtime only.
+func _paint_water() -> void:
+	if _water != null:
+		_water.queue_free()
+		_water = null
+	if Engine.is_editor_hint() or water_rects.is_empty() or tile_set == null:
+		return
+	var tiles := get_water_tiles()
+	if tiles.is_empty():
+		return
+	_water = ShallowWater.new()
+	add_child(_water, false, Node.INTERNAL_MODE_BACK)
+	_water.build(tiles, float(tile_set.tile_size.x), WallAutotile.biome_of(tile_set))
 
 
 func _put_tile(tile: Vector2i, atlas: Vector2i) -> void:

@@ -1,0 +1,23 @@
+[gd_resource type="Resource" script_class="RoomTemplate" format=3]
+
+[ext_resource type="Script" path="res://dungeon/rooms/templates/room_template.gd" id="1_template"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/combat/geleit_pfad_slime_grotto.tscn" id="2_scene"]
+
+[resource]
+script = ExtResource("1_template")
+id = &"geleit_pfad_slime_grotto"
+scene = ExtResource("2_scene")
+room_kind = 0
+shape = 11
+size_class = 0
+room_size = Vector2i(21, 8)
+entrance_side = 2
+exit_sides = Array[int]([0, 1, 3])
+entrance_sides = Array[int]([2, 1, 3])
+door_slots = Array[Vector2i]([Vector2i(2, 2), Vector2i(0, 19), Vector2i(0, 5), Vector2i(0, 13), Vector2i(3, 4), Vector2i(1, 4)])
+spawn_tiles = Array[Vector2i]([Vector2i(9, 0), Vector2i(15, 2), Vector2i(15, 7), Vector2i(9, 6), Vector2i(3, 0), Vector2i(5, 4)])
+allowed_biomes = Array[StringName]([&"slime_grotto"])
+plan_id = &"geleit_pfad"
+mode = &"escort"
+role = &"combat"
+weight = 1

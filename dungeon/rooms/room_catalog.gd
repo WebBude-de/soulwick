@@ -6,8 +6,18 @@ extends Resource
 ## shows up in the game without touching dungeon.tscn. Extra scenes without a RoomTemplate (the
 ## DungeonManager export, tests) are described from their RoomController properties instead, read
 ## from the scene state without instantiating the room.
+## Room plans (R1, D-120): every template is built from a plan (dungeon/rooms/plans/). A plan is
+## made for some biomes (RoomTemplate.allowed_biomes); without an explicit biome the room number
+## decides it (biome_id_for_room), so a crypt room never gets a grotto plan. Mode plans (escort,
+## flame, ...) are only drawn when their mode is asked for (R4); plain fights draw "clear" and
+## "arena" plans. The weight of a plan scales its share. Boss, miniboss, rest and campfire plans
+## live in a second catalog (PLANS_PATH, load_plans) with the helpers pick_plan()/find_boss_scene().
 
 const DEFAULT_PATH := "res://dungeon/rooms/combat/combat_catalog.tres"
+## Boss, miniboss, rest and campfire plans (generator, RoomTemplate.role).
+const PLANS_PATH := "res://dungeon/rooms/plan_catalog.tres"
+## BiomeData.id per RoomSequence.Biome.
+const BIOME_IDS: Array[StringName] = [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
 const KIND_PROPERTY := &"room_kind"
 const SIZE_PROPERTY := &"room_size_class"
 
@@ -17,6 +27,7 @@ const SIZE_PROPERTY := &"room_size_class"
 @export var templates: Array[PackedScene] = []
 
 static var _default: RoomCatalog = null
+static var _plans: RoomCatalog = null
 
 var _entries: Array[RoomTemplate] = []
 var _indexed := false
@@ -41,12 +52,59 @@ static func load_default() -> RoomCatalog:
 	return _default
 
 
-## RoomTemplate of a live room (by its scene path) in the generated catalog, null if unknown.
-static func find_template_of(room: Node) -> RoomTemplate:
-	var catalog := load_default()
-	if catalog == null or room == null:
+## The generated catalog of boss, miniboss, rest and campfire plans, loaded once (null if missing).
+static func load_plans() -> RoomCatalog:
+	if _plans == null and ResourceLoader.exists(PLANS_PATH):
+		_plans = load(PLANS_PATH) as RoomCatalog
+	return _plans
+
+
+## Biome id of a room number (RoomSequence.get_biome); &"" for room 0 (no filter).
+static func biome_id_for_room(room_index: int) -> StringName:
+	if room_index <= 0:
+		return &""
+	return BIOME_IDS[int(RoomSequence.get_biome(room_index))]
+
+
+## A plan of role (RoomTemplate.ROLE_*) for the biome, for rest rooms also for special_type (-1 =
+## any). rng null = the first fitting plan (no draw); otherwise one draw, weighted. Plans of other
+## biomes only when the biome has none. null without any plan of the role.
+static func pick_plan(role: StringName, biome_id: StringName, special_type := -1, rng: RandomNumberGenerator = null) -> RoomTemplate:
+	var catalog := load_plans()
+	if catalog == null:
 		return null
-	return catalog.find_by_path(room.scene_file_path)
+	var fitting: Array[RoomTemplate] = []
+	var any_biome: Array[RoomTemplate] = []
+	for entry in catalog.get_entries():
+		if entry.role != role or (special_type >= 0 and not entry.special_types.is_empty() and not entry.special_types.has(special_type)):
+			continue
+		any_biome.append(entry)
+		if entry.allows_biome(biome_id):
+			fitting.append(entry)
+	if fitting.is_empty():
+		fitting = any_biome
+	if fitting.is_empty():
+		return null
+	if rng == null:
+		return fitting[0]
+	return _pick_weighted(fitting, rng)
+
+
+## Boss room of a biome (R1: one floor plan per biome, 01_raumarten.md); null = none generated.
+static func find_boss_scene(biome_id: StringName) -> PackedScene:
+	var entry := pick_plan(RoomTemplate.ROLE_BOSS, biome_id)
+	return entry.scene if entry != null else null
+
+
+## RoomTemplate of a live room (by its scene path) in the generated catalogs, null if unknown.
+static func find_template_of(room: Node) -> RoomTemplate:
+	if room == null:
+		return null
+	var catalog := load_default()
+	var entry: RoomTemplate = catalog.find_by_path(room.scene_file_path) if catalog != null else null
+	if entry == null and load_plans() != null:
+		entry = load_plans().find_by_path(room.scene_file_path)
+	return entry
 
 
 func add_entry(entry: RoomTemplate) -> void:
@@ -119,13 +177,13 @@ func get_size_of(scene: PackedScene) -> int:
 	return int(entry.size_class) if entry != null else -1
 
 
-func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> bool:
-	return not _candidates(kind, sizes, biome_id, room_index, entrance_side).is_empty()
+func has_kind(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName = &"", room_index := 0, entrance_side := -1, mode: StringName = &"") -> bool:
+	return not _candidates(kind, sizes, _biome_or_room(biome_id, room_index), room_index, entrance_side, mode).is_empty()
 
 
 ## A template scene of the wanted kind, see pick_template().
-func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> PackedScene:
-	var entry := pick_template(kind, sizes, rng, biome_id, room_index, entrance_side)
+func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1, mode: StringName = &"") -> PackedScene:
+	var entry := pick_template(kind, sizes, rng, biome_id, room_index, entrance_side, mode)
 	return entry.scene if entry != null else null
 
 
@@ -135,24 +193,48 @@ func pick(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGener
 ## any. Draws exactly one random number whenever a template exists; null only for an empty catalog.
 ## room_index 0 = no room filter. entrance_side (RoomTemplate.DoorSide, -1 = any): only templates
 ## with a door place on that wall (A10: a room entered from the west needs a west door); this filter
-## holds through every fallback step except the very last one.
-func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1) -> RoomTemplate:
+## holds through every fallback step except the very last one. biome_id &"" = the biome of
+## room_index (R1). mode &"" = a plain fight (clear and arena plans); a mode (&"escort", ...) asks
+## for the plans of that mode (R4). Candidates are weighted by RoomTemplate.weight (one draw).
+func pick_template(kind: int, sizes: Array[RoomSequence.RoomSize], rng: RandomNumberGenerator, biome_id: StringName = &"", room_index := 0, entrance_side := -1, mode: StringName = &"") -> RoomTemplate:
 	_ensure_indexed()
 	var any_size: Array[RoomSequence.RoomSize] = []
-	var candidates := _candidates(kind, sizes, biome_id, room_index, entrance_side)
+	var biome := _biome_or_room(biome_id, room_index)
+	var candidates := _candidates(kind, sizes, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
-		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome_id, room_index, entrance_side)
+		candidates = _candidates(RoomSequence.RoomKind.NORMAL, sizes, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
-		candidates = _candidates(-1, sizes, biome_id, room_index, entrance_side)
+		candidates = _candidates(-1, sizes, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, biome_id, room_index, entrance_side)
+		candidates = _candidates(-1, any_size, biome, room_index, entrance_side, mode)
 	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, &"", 0, entrance_side)
+		candidates = _candidates(-1, any_size, &"", 0, entrance_side, mode)
 	if candidates.is_empty():
-		candidates = _candidates(-1, any_size, &"")
+		candidates = _candidates(-1, any_size, &"", 0, -1, mode)
+	if candidates.is_empty():
+		candidates = _candidates(-1, any_size, &"", 0, -1, &"*")
 	if candidates.is_empty():
 		return null
-	return candidates[rng.randi_range(0, candidates.size() - 1)]
+	return _pick_weighted(candidates, rng)
+
+
+## One draw over the candidates, weighted by RoomTemplate.weight (all zero = uniform).
+static func _pick_weighted(candidates: Array[RoomTemplate], rng: RandomNumberGenerator) -> RoomTemplate:
+	var total := 0.0
+	for entry in candidates:
+		total += maxf(entry.weight, 0.0)
+	if total <= 0.0:
+		return candidates[rng.randi_range(0, candidates.size() - 1)]
+	var roll := rng.randf() * total
+	for entry in candidates:
+		roll -= maxf(entry.weight, 0.0)
+		if roll < 0.0:
+			return entry
+	return candidates[candidates.size() - 1]
+
+
+static func _biome_or_room(biome_id: StringName, room_index: int) -> StringName:
+	return biome_id if biome_id != &"" else biome_id_for_room(room_index)
 
 
 ## Vector2i(kind, size) stored in a template scene, following inherited scenes down to room_base.
@@ -179,12 +261,14 @@ static func read_template_info(scene: PackedScene) -> Vector2i:
 
 
 # kind -1 = any kind, empty sizes = any size, empty biome = any biome, room 0 = any room,
-# entrance_side -1 = any wall.
-func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName, room_index := 0, entrance_side := -1) -> Array[RoomTemplate]:
+# entrance_side -1 = any wall, mode &"" = plain fights, &"*" = any mode.
+func _candidates(kind: int, sizes: Array[RoomSequence.RoomSize], biome_id: StringName, room_index := 0, entrance_side := -1, mode: StringName = &"") -> Array[RoomTemplate]:
 	_ensure_indexed()
 	var result: Array[RoomTemplate] = []
 	for entry in _entries:
 		if kind >= 0 and int(entry.room_kind) != kind:
+			continue
+		if mode != &"*" and not entry.allows_mode(mode):
 			continue
 		if not sizes.is_empty() and not sizes.has(entry.size_class):
 			continue

@@ -1,0 +1,21 @@
+# Claude Design 04 (Flamme hueten): die Flamme auf ihrem Podest zwischen zwei Mauerstuempfen, drei
+# Lichtkristalle, Bodenrisse in den vier Ecken.
+name: Flammenschrein
+role: combat
+mode: flame
+biomes: all
+size: 21x13
+---
+#####################
+#####################
+###T#######N#####T###
+##.................##
+##.i.....C.......i.##
+##....##.....##....##
+##....##..f..##....##
+##.................##
+##.......@.........##
+##.i.............i.##
+##...C.......C.....##
+#########S###########
+#####################

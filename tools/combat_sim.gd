@@ -11,6 +11,8 @@ var _failures: Array[String] = []
 ## Hits per weapon id: {id: {"normal": n, "special": n, "finisher": n}}.
 var _hits: Dictionary = {}
 var _specials_used: Dictionary = {}
+## Damage events per enemy instance id (source check, R2).
+var _damaged: Dictionary = {}
 
 
 func _init() -> void:
@@ -105,6 +107,9 @@ func _run() -> void:
 		if is_instance_valid(dummy):
 			dummy.queue_free()
 
+	# 5) Enemy sources (R2): an enemy still in its source cannot be hit, once out it can.
+	await _check_source_emergence(room2, player, sword)
+
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://combat_sim_save.cfg"))
 	if _failures.is_empty():
 		print("COMBAT SIM PASSED")
@@ -175,7 +180,9 @@ func _spawn_dummies(room: Node, center: Vector2) -> Array:
 	return dummies
 
 
-func _on_enemy_damaged(_enemy, _result, damage) -> void:
+func _on_enemy_damaged(enemy, _result, damage) -> void:
+	if is_instance_valid(enemy) and damage.amount > 0.0:
+		_damaged[enemy.get_instance_id()] = int(_damaged.get(enemy.get_instance_id(), 0)) + 1
 	for id in WEAPON_IDS:
 		if not damage.tags.has(id):
 			continue
@@ -184,6 +191,37 @@ func _on_enemy_damaged(_enemy, _result, damage) -> void:
 		hits[kind] = int(hits.get(kind, 0)) + 1
 		if damage.tags.has(&"finisher"):
 			hits["finisher"] = int(hits.get("finisher", 0)) + 1
+
+
+## A grave at the player's feet brings a sturdy slime: sword swings during the warning and the
+## emergence do nothing (hidden, invulnerable), after it the same swings hurt.
+func _check_source_emergence(room: Node, player: Node, sword: Resource) -> void:
+	var rules: GDScript = load("res://dungeon/spawning/spawn_source_rules.gd")
+	var source: Node2D = load("res://dungeon/environment/spawn/spawn_source.gd").create_floor(0, room.to_local(player.global_position + Vector2(60, 0)))
+	room.add_child(source)
+	var enemy: Node = load("res://enemies/enemy_base.tscn").instantiate()
+	enemy.data = load("res://enemies/data/slime.tres")
+	room.enemy_container.add_child(enemy)
+	enemy.health.reset(100000.0)
+	await _frames(2)
+	source.bring(enemy, room, rules.WARN_TIME, 0)
+	source.play(0.0, 1)
+	_equip_active(player.weapon_controller, sword, 1)
+	var id: int = enemy.get_instance_id()
+	_damaged.erase(id)
+	var hidden_frames := roundi((rules.WARN_TIME + rules.EMERGE_TIME) * 60.0) - 6
+	for i in hidden_frames:
+		_engage(player, enemy)
+		await physics_frame
+	_check(int(_damaged.get(id, 0)) == 0, "no hits on an enemy still in its source")
+	await _frames(20)
+	for i in 60 * 2:
+		_engage(player, enemy)
+		await physics_frame
+	_check(int(_damaged.get(id, 0)) > 0, "hits once it is out (%d)" % int(_damaged.get(id, 0)))
+	if is_instance_valid(enemy):
+		enemy.queue_free()
+	source.queue_free()
 
 
 func _alive(room: Node) -> Array:

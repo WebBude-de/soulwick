@@ -6,6 +6,9 @@ extends Node2D
 ## Decision and effects are separate (D-088): break_open() decides once, opens the room's tiles and
 ## emits opened; the break animation and the content follow. carve() runs before the room enters
 ## the tree (walls into the floor plan, tiles kept free of ingredients), attach() after it.
+## Look (R1): the cracked front sits flush in the brick front, the niche behind it is drawn as rock
+## until the wall breaks (RoomTiles), and the break animation (crypt colours) is recoloured into the
+## biome's wall colours (WallArt), so no purple crypt edge shows up in the ember forge.
 
 signal opened(niche: SecretNiche)
 ## A hit that was no explosion (a sword on the wall): dust and, once per save, a hint.
@@ -158,6 +161,11 @@ func _build_dust() -> void:
 	add_child(_dust)
 
 
+## The break animation in the biome's wall colours (R1, "Bruchkante in Biomfarbe").
+static func get_break_art(biome_id: StringName) -> Texture2D:
+	return WallArt.recolor_texture(BREAK_ART, biome_id)
+
+
 func _play_break() -> void:
 	if _crack != null:
 		_crack.visible = false
@@ -166,10 +174,12 @@ func _play_break() -> void:
 	if not is_inside_tree():
 		return
 	var base := RoomTiles.tile_to_local(site.crack) + Vector2(RoomTiles.TILE_WORLD * 0.5, RoomTiles.TILE_WORLD)
-	var sprite := SpriteStrip.spawn_effect(self, to_global(base), BREAK_ART, BREAK_FRAME, BREAK_FPS, BREAK_PIVOT, Vector2.ONE * SpriteStrip.PIXEL_SCALE)
-	sprite.z_index = WALL_Z
 	var biome := room.spawner.get_biome(room.room_index) if room != null else null
-	sprite.modulate = BIOME_TINTS.get(biome.id if biome != null else &"crypt", Color.WHITE)
+	var biome_id: StringName = biome.id if biome != null else &"crypt"
+	var sprite := SpriteStrip.spawn_effect(self, to_global(base), get_break_art(biome_id), BREAK_FRAME, BREAK_FPS, BREAK_PIVOT, Vector2.ONE * SpriteStrip.PIXEL_SCALE)
+	sprite.z_index = WALL_Z
+	if not WallArt.has_biome_colors(biome_id):
+		sprite.modulate = BIOME_TINTS.get(biome_id, Color.WHITE)
 	var centre := get_crack_position()
 	Burst.spawn(self, centre, DUST_COLOR, 24, 180.0, 0.6, 5.0)
 	LightSource.flash(self, centre, 200.0, 0.5)

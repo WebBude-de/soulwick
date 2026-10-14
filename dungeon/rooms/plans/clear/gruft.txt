@@ -1,0 +1,21 @@
+# Gruft (S): kleine Kammer mit zwei Pfeilern, Opferstelle und Schutt; Quellen in drei Ecken.
+name: Gruft
+role: combat
+mode: clear
+biomes: all
+size: 19x13
+mirror: yes
+---
+###################
+###################
+###T#####N#####T###
+##...............##
+##.G..##.....##..##
+##....##.....##..##
+##...............##
+##...r.......K...##
+##...............##
+##.G...........G.##
+##.......@.......##
+#########S#########
+###################

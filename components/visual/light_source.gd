@@ -4,6 +4,8 @@ extends Node2D
 ## pickups, elites). VisionOverlay collects all nodes of the group every frame.
 ## Lights that matter for gameplay (torches, crystals, lanterns - not flashes, projectiles or enemy
 ## glows) set counts_as_light: LightQuery then treats their circle as "lit" (A9, KONZEPT_RAEUME §4.3).
+## The colour of the light (R6: warm = safe, cold = goal, red = danger) is pure optics: set color, or
+## leave it transparent and LightPalette derives it from the owner once.
 
 const GROUP := &"light_sources"
 ## Lights that count for LightQuery ("is this point in the light?").
@@ -25,14 +27,23 @@ const DEFAULT_LIT_SHARE := 0.8
 ## From the light to the floor point under it: a torch flame hangs above its stand, the lit circle
 ## on the floor is centred at the stand's foot.
 @export var ground_offset := Vector2.ZERO
+## Colour of the light as drawn (LightPalette.WARM, COLD, DANGER ...). Transparent = derived from the
+## owner (LightPalette.resolve). Optics only.
+@export var color := Color(0, 0, 0, 0):
+	set(value):
+		color = value
+		_draw_color_resolved = false
 
 var _seed := randf() * 100.0
+var _draw_color := LightPalette.NEUTRAL
+var _draw_color_resolved := false
 
 
 ## Short light flash that fades out and frees itself (explosions).
 static func flash(parent: Node, global_pos: Vector2, flash_radius: float, duration := 0.35) -> void:
 	var light := LightSource.new()
 	light.radius = flash_radius
+	light.color = LightPalette.NEUTRAL
 	light.intensity *= GameOptions.get_flash_strength()
 	parent.add_child(light)
 	light.global_position = global_pos
@@ -51,6 +62,14 @@ func get_current_radius() -> float:
 		return radius
 	var t := Time.get_ticks_msec() / 1000.0 + _seed
 	return radius * (1.0 + flicker * (0.6 * sin(t * 9.0) + 0.4 * sin(t * 23.0)))
+
+
+## Colour the VisionOverlay draws this light in (cached; the owner does not change).
+func get_draw_color() -> Color:
+	if not _draw_color_resolved:
+		_draw_color = LightPalette.resolve(self)
+		_draw_color_resolved = true
+	return _draw_color
 
 
 func is_lit() -> bool:

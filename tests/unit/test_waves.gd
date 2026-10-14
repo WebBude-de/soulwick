@@ -104,14 +104,12 @@ func test_overflow_becomes_an_extra_wave() -> void:
 	assert_eq(WaveRules.plan_wave_sizes([4, 4] as Array[int], 0), [] as Array[int], "no spawn places, nothing planned")
 
 
-func test_ambush_share_matches_the_chance() -> void:
+func test_no_ambush_any_more() -> void:
+	# D-120: enemies come out of visible sources (R2); the roll still draws one number.
+	assert_eq(WaveRules.AMBUSH_CHANCE, 0.0)
 	var rng := _rng(21)
-	var hits := 0
-	var draws := 4000
-	for i in draws:
-		if WaveRules.roll_ambush(rng):
-			hits += 1
-	assert_almost_eq(hits / float(draws), WaveRules.AMBUSH_CHANCE, 0.025)
+	for i in 400:
+		assert_false(WaveRules.roll_ambush(rng))
 
 
 # --- Wall gates ---
@@ -178,8 +176,8 @@ func test_pick_falls_back_to_far_walls_when_players_crowd_the_gates() -> void:
 func test_fixed_gates_are_spread_and_apart() -> void:
 	var size := Vector2i(19, 11)
 	var gates := WallGates.find_gates(_room_floor(size), size, [] as Array[Vector2i], [] as Array[Vector2])
-	var placed := WallGates.place(gates, ArenaWaves.GATE_COUNT, WaveRules.MIN_SIDES, _rng(4))
-	assert_eq(placed.size(), ArenaWaves.GATE_COUNT)
+	var placed := WallGates.place(gates, SpawnSourceRules.ARENA_GATE_COUNT, WaveRules.MIN_SIDES, _rng(4))
+	assert_eq(placed.size(), SpawnSourceRules.ARENA_GATE_COUNT)
 	assert_gte(WallGates.count_sides(placed), WaveRules.MIN_SIDES)
 	for i in placed.size():
 		for j in range(i + 1, placed.size()):

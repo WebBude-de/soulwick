@@ -1,0 +1,24 @@
+# Kampfgrube des Champions: vier Pfeiler als Deckung, Nischen neben der Nordtuer, Graeber in den
+# Ecken (die Begleiter steigen dort auf). Bleibt die Vorlage miniboss_room.tscn (dungeon.tscn).
+name: Kampfgrube
+role: miniboss
+mode: miniboss
+biomes: all
+size: 21x15
+scene: boss/miniboss_room.tscn
+---
+#####################
+#####################
+####T###n#N#n###T####
+##.................##
+##.G.............G.##
+##...##.......##...##
+##...##.......##...##
+##........K........##
+##.................##
+##...##.......##...##
+##...##.......##...##
+##.G.............G.##
+##........@........##
+##########S##########
+#####################

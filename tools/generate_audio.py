@@ -448,6 +448,183 @@ def build_rooms():
     return len(rooms)
 
 
+# ---------------------------------------------------------------- room kinds v2 (ROADMAP_AUSBAU R9)
+# Sounds from docs/design/claude_design_antwort/09_audio.md: enemy sources (warning while the source
+# glows ~1 s), the intro pattern (door, banner, countdown), wave gong, souls, collapse, escort,
+# relic, braziers, slime hops, stone guardians, lantern and torch. Only new names: every file above
+# stays byte-identical (own seed). All pitches and lengths are TESTWERTE.
+
+def lp_coef(hz):
+    """One-pole low-pass coefficient for a cutoff in Hz (for noise(cutoff=...))."""
+    return 1.0 - math.exp(-TAU * hz / SR)
+
+
+def band_noise(dur, low_hz, high_hz, vol=0.5, attack=0.002, release=0.05, decay_to=1.0):
+    """Rough band-pass noise: low-passed at high_hz minus low-passed at low_hz."""
+    n = max(1, int(dur * SR))
+    out = [0.0] * n
+    a_hi = lp_coef(high_hz)
+    a_lo = lp_coef(low_hz)
+    hi = lo = 0.0
+    for i in range(n):
+        x = random.uniform(-1.0, 1.0)
+        hi += a_hi * (x - hi)
+        lo += a_lo * (x - lo)
+        out[i] = (hi - lo) * 2.0 * vol * envelope(i, n, attack, release, decay_to)
+    return out
+
+
+def tremolo(samples, rate, depth, phase=0.0):
+    return [v * (1.0 - depth * (0.5 + 0.5 * math.sin(TAU * (rate * i / SR + phase)))) for i, v in enumerate(samples)]
+
+
+def bell(freq, dur, vol, ratios=(1.0, 2.76, 5.4), weights=(1.0, 0.35, 0.12)):
+    """Struck metal or glass: a sine with inharmonic partials, each decaying faster than the last."""
+    parts = [tone(freq * r, dur / (1.0 + k * 0.8), "sine", vol * w, attack=0.002, release=dur * 0.6 / (1.0 + k), decay_to=0.15)
+             for k, (r, w) in enumerate(zip(ratios, weights))]
+    return mix(*parts)
+
+
+def chord(notes, dur, kind="triangle", vol=0.3, attack=0.02, release=None):
+    release = dur * 0.6 if release is None else release
+    return mix(*[tone(midi(n), dur, kind, vol, attack=attack, release=release) for n in notes])
+
+
+def crackle(dur, count, vol, cutoff=0.8):
+    """Fire crackle: short random noise pops."""
+    parts = []
+    offsets = []
+    for _ in range(count):
+        parts.append(noise(random.uniform(0.006, 0.016), vol * random.uniform(0.4, 1.0), cutoff, attack=0.0005, release=0.005))
+        offsets.append(random.uniform(0.0, dur))
+    return mix(*parts, offsets=offsets)
+
+
+def build_room_kinds():
+    # Own seed: every sound above stays byte-identical.
+    random.seed(19)
+    fx = {}
+    # --- enemy sources (R2): played with the 1 s warning glow, the enemy appears at the end.
+    # Grave: earth crunches open (low noise ~300 Hz), bones clatter in it.
+    fx["spawn_grave"] = mix(noise(0.55, 0.7, lp_coef(300), attack=0.05, release=0.25, decay_to=0.5),
+                            tremolo(noise(0.5, 0.35, lp_coef(900), attack=0.08, release=0.2), 13, 0.7),
+                            clatter(0.4, 7, (520, 660, 820), 0.45, accelerate=1.5),
+                            tone(70, 0.3, "sine", 0.5, slide_to=45, release=0.2),
+                            offsets=[0.0, 0.05, 0.3, 0.55])
+    # Puddle: three bubbles rising 150 -> 250 Hz, then a wet plop.
+    bubbles = [tone(f, 0.11, "sine", 0.55, slide_to=f * 1.6, attack=0.01, release=0.04) for f in (150, 190, 250)]
+    fx["spawn_puddle"] = mix(*bubbles,
+                             noise(0.08, 0.45, lp_coef(800), release=0.06),
+                             tone(110, 0.14, "sine", 0.5, slide_to=60, release=0.08),
+                             offsets=[0.0, 0.17, 0.32, 0.5, 0.5])
+    # Floor rift: a rising sine 100 -> 400 Hz under a whisper (band noise with slow tremolo).
+    fx["spawn_rift"] = mix(tone(100, 0.85, "sine", 0.55, slide_to=400, attack=0.12, release=0.12, vibrato_rate=6, vibrato_depth=0.03),
+                           tremolo(band_noise(0.85, 700, 1600, 0.45, attack=0.15, release=0.2), 5.5, 0.8),
+                           tone(400, 0.12, "triangle", 0.3, slide_to=520, release=0.08),
+                           offsets=[0.0, 0.0, 0.82])
+    # Lava vent: hissing steam over a sub drone, ends in a short burst.
+    fx["spawn_vent"] = mix(noise(0.8, 0.45, 0.9, attack=0.15, release=0.2),
+                           tone(48, 0.85, "sine", 0.7, slide_to=58, attack=0.2, release=0.25),
+                           tone(96, 0.85, "saw", 0.12, slide_to=110, attack=0.2, release=0.25),
+                           mix(noise(0.18, 0.7, 0.5, release=0.14), crackle(0.2, 8, 0.6)),
+                           offsets=[0.0, 0.0, 0.0, 0.72])
+    # Wall gate: chain pulled over a gear, metal rattling, the gate grinds up and stops with a clank.
+    fx["spawn_gate"] = mix(ratchet(0.7, 0.045, (1400, 1180, 1300, 1050), 0.32),
+                           tone(80, 0.75, "saw", 0.2, slide_to=100, attack=0.05, release=0.2, vibrato_rate=9, vibrato_depth=0.04),
+                           noise(0.75, 0.2, lp_coef(1500), attack=0.05, release=0.2),
+                           mix(tone(560, 0.14, "square", 0.22, duty=0.25, slide_to=480, release=0.1), noise(0.06, 0.5, 0.7, release=0.05)),
+                           offsets=[0.0, 0.0, 0.0, 0.74])
+    # Sarcophagus: the stone lid grinds aside and drops with a dull thud and dust.
+    grind = tremolo(noise(0.6, 0.6, lp_coef(450), attack=0.06, release=0.1), 17, 0.6)
+    fx["spawn_sarcophagus"] = mix(grind,
+                                  tone(62, 0.6, "saw", 0.18, slide_to=55, attack=0.06, release=0.1, vibrato_rate=17, vibrato_depth=0.05),
+                                  tone(58, 0.3, "sine", 0.85, slide_to=34, release=0.22),
+                                  noise(0.4, 0.3, lp_coef(2500), attack=0.01, release=0.35, decay_to=0.2),
+                                  offsets=[0.0, 0.0, 0.62, 0.64])
+    # --- intro pattern (R3): door shuts with a hall, banner chord (minor = fight, major = calm), 3-2-1, go.
+    fx["intro_door"] = echo(mix(noise(0.22, 0.85, lp_coef(1400), release=0.18, decay_to=0.3),
+                                tone(68, 0.3, "sine", 0.9, slide_to=38, release=0.22),
+                                tone(420, 0.08, "square", 0.15, duty=0.25, slide_to=330, release=0.06)), 0.11, 0.42, 3)
+    fx["intro_banner_combat"] = mix(chord((57, 60, 64), 0.55, "triangle", 0.32, attack=0.01),
+                                    chord((45,), 0.55, "square", 0.12, attack=0.01),
+                                    tone(midi(69), 0.3, "square", 0.08, duty=0.125, release=0.2))
+    fx["intro_banner_calm"] = mix(chord((60, 64, 67), 0.6, "triangle", 0.3, attack=0.03),
+                                  tone(midi(72), 0.5, "sine", 0.2, attack=0.05, release=0.35, vibrato_rate=5, vibrato_depth=0.01))
+    fx["countdown_tick"] = tone(800, 0.04, "square", 0.4, duty=0.5, attack=0.001, release=0.015)
+    fx["countdown_go"] = mix(tone(1200, 0.16, "square", 0.38, duty=0.5, attack=0.001, release=0.08),
+                             tone(600, 0.16, "triangle", 0.3, attack=0.001, release=0.08))
+    # --- progress
+    # Wave done: gong (220 Hz with inharmonic partials, ~1.2 s decay).
+    fx["wave_gong"] = mix(bell(220, 1.4, 0.7, ratios=(1.0, 2.0, 2.76, 4.1), weights=(1.0, 0.4, 0.3, 0.12)),
+                          tone(110, 0.9, "sine", 0.3, release=0.7, decay_to=0.2),
+                          noise(0.05, 0.25, 0.4, release=0.04))
+    # Soul collected: glass ping going up.
+    fx["soul_collect"] = mix(bell(midi(84), 0.35, 0.45), bell(midi(88), 0.35, 0.4), bell(midi(91), 0.45, 0.4),
+                             offsets=[0.0, 0.05, 0.1])
+    # Soul fades unseen: a soft, airy shimmer sinking away.
+    fx["soul_fade"] = mix(tone(midi(88), 0.55, "sine", 0.35, slide_to=midi(76), attack=0.02, release=0.4, vibrato_rate=11, vibrato_depth=0.02),
+                          band_noise(0.55, 1500, 4000, 0.25, attack=0.05, release=0.4))
+    # --- collapse: three dry cracks, then stone sliding down (falling low-pass) with a sub.
+    fx["collapse_crack"] = mix(*[mix(noise(0.03, 0.85, 0.95, attack=0.0005, release=0.02),
+                                     tone(f, 0.04, "square", 0.2, duty=0.125, slide_to=f * 0.7, attack=0.0005, release=0.03))
+                                 for f in (260, 210, 300)],
+                               offsets=[0.0, 0.07, 0.16])
+    fx["collapse_fall"] = mix(noise(0.45, 0.8, lp_coef(1800), attack=0.005, release=0.25, decay_to=0.25, cutoff_to=lp_coef(250)),
+                              tone(64, 0.4, "sine", 0.8, slide_to=36, release=0.28),
+                              clatter(0.35, 6, (280, 340, 420), 0.35),
+                              offsets=[0.0, 0.03, 0.12])
+    # --- escort: a short call for help, no word ("hm-hmm!" rising, a little worried vibrato).
+    call_a = mix(tone(520, 0.12, "triangle", 0.5, slide_to=640, attack=0.01, release=0.04, vibrato_rate=9, vibrato_depth=0.02),
+                 tone(1040, 0.12, "square", 0.08, duty=0.25, slide_to=1280, attack=0.01, release=0.04))
+    call_b = mix(tone(600, 0.22, "triangle", 0.55, slide_to=760, attack=0.01, release=0.1, vibrato_rate=12, vibrato_depth=0.035),
+                 tone(1200, 0.22, "square", 0.08, duty=0.25, slide_to=1520, attack=0.01, release=0.1))
+    fx["escort_help"] = seq(call_a, call_b, gap=0.05)
+    # --- relic: golden arpeggio over a warm hum; placing it: a deep thunk and a swelling major chord.
+    fx["relic_pickup"] = mix(seq(*[tone(midi(n), 0.06, "square", 0.25, duty=0.25) for n in (76, 79, 83)],
+                                 tone(midi(88), 0.3, "square", 0.25, duty=0.25, release=0.22)),
+                             tone(midi(52), 0.5, "triangle", 0.35, attack=0.04, release=0.3, vibrato_rate=5, vibrato_depth=0.01))
+    fx["relic_place"] = mix(tone(70, 0.28, "sine", 0.85, slide_to=42, release=0.2),
+                            noise(0.1, 0.4, lp_coef(1200), release=0.08),
+                            chord((64, 68, 71, 76), 0.9, "triangle", 0.22, attack=0.15, release=0.5),
+                            bell(midi(88), 0.6, 0.25),
+                            offsets=[0.0, 0.0, 0.12, 0.2])
+    # --- fire: brazier catches with a whoosh (opening low-pass) and crackles; torch is shorter.
+    whoosh = noise(0.32, 0.6, lp_coef(400), attack=0.04, release=0.12, cutoff_to=lp_coef(3500))
+    fx["brazier_light"] = mix(whoosh,
+                              tone(90, 0.35, "sine", 0.45, slide_to=140, attack=0.03, release=0.2),
+                              crackle(0.45, 14, 0.55),
+                              offsets=[0.0, 0.0, 0.2])
+    fx["torch_ignite"] = mix(noise(0.18, 0.55, lp_coef(700), attack=0.02, release=0.08, cutoff_to=lp_coef(4500)),
+                             crackle(0.25, 8, 0.5),
+                             offsets=[0.0, 0.12])
+    # --- slimes: hop blip 180 -> 90 Hz and a wet landing (low-passed noise 800 Hz).
+    fx["slime_hop"] = tone(180, 0.12, "sine", 0.6, slide_to=90, attack=0.004, release=0.05)
+    fx["slime_land"] = mix(noise(0.06, 0.7, lp_coef(800), attack=0.001, release=0.045),
+                           tone(95, 0.07, "sine", 0.45, slide_to=60, release=0.04))
+    # --- stone guardians: grinding while they move in the dark, a clank when they freeze in light.
+    fx["stone_grind"] = mix(tremolo(noise(0.45, 0.7, lp_coef(350), attack=0.05, release=0.12), 21, 0.65),
+                            tone(55, 0.45, "saw", 0.16, vibrato_rate=21, vibrato_depth=0.06, attack=0.05, release=0.12))
+    fx["stone_clank"] = mix(tone(85, 0.18, "sine", 0.8, slide_to=55, release=0.12),
+                            noise(0.05, 0.7, lp_coef(3000), attack=0.0005, release=0.04),
+                            bell(310, 0.35, 0.22, ratios=(1.0, 2.4, 3.9), weights=(1.0, 0.4, 0.2)))
+    # --- lantern: glass clink and a warm rising note; into the socket: click and a calm chord.
+    fx["lantern_pickup"] = mix(bell(midi(84), 0.3, 0.3),
+                               tone(midi(64), 0.4, "triangle", 0.35, slide_to=midi(67), attack=0.02, release=0.25),
+                               crackle(0.25, 5, 0.3),
+                               offsets=[0.0, 0.03, 0.05])
+    fx["lantern_socket"] = mix(mix(noise(0.03, 0.7, 0.9, attack=0.0005, release=0.02),
+                                   tone(900, 0.05, "square", 0.25, duty=0.125, slide_to=700, release=0.03)),
+                               chord((60, 67, 72), 0.7, "triangle", 0.25, attack=0.12, release=0.4),
+                               tone(midi(84), 0.6, "sine", 0.15, attack=0.15, release=0.4, vibrato_rate=5, vibrato_depth=0.01),
+                               offsets=[0.0, 0.06, 0.1])
+    # Short, frequent sounds a little quieter than the effects (they repeat a lot).
+    peaks = {"countdown_tick": 0.4, "countdown_go": 0.55, "slime_hop": 0.4, "slime_land": 0.55, "soul_collect": 0.7,
+             "soul_fade": 0.6, "stone_grind": 0.65, "spawn_puddle": 0.7, "spawn_rift": 0.7}
+    for name, samples in fx.items():
+        write_wav(SFX_DIR / f"{name}.wav", samples, peak=peaks.get(name, 0.8))
+    return len(fx)
+
+
 if __name__ == "__main__":
     count = build_sfx()
     print(f"{count} sound effects written to {SFX_DIR}")
@@ -459,3 +636,5 @@ if __name__ == "__main__":
     print(f"{door_count} door sounds written to {SFX_DIR}")
     room_count = build_rooms()
     print(f"{room_count} room content sounds written to {SFX_DIR}")
+    kind_count = build_room_kinds()
+    print(f"{kind_count} room kind sounds (R9) written to {SFX_DIR}")

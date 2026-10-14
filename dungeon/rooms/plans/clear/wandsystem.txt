@@ -1,0 +1,21 @@
+# Claude Design 14 (Wandsystem-Demo): dicke Mauer, 2x2-Pfeiler, Stumpf an der Suedwand, Nische und
+# rissige Wand buendig in der Vorderseite, Seitentueren im Gang. Abweichung: der Eingang S liegt
+# zwei Spalten weiter rechts (im Entwurf stand der Mauerstumpf direkt vor der Treppe).
+name: Wandsystem
+role: combat
+mode: clear
+biomes: crypt, ember_forge
+size: 19x11
+mirror: yes
+---
+###################
+###################
+###T##n##q##N######
+##...............##
+##..####.........##
+W...####....##...##
+##..####....##...##
+##..........##....E
+##.....##........##
+##########S########
+###################

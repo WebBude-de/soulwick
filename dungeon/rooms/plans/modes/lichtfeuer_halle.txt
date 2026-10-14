@@ -1,0 +1,22 @@
+# Claude Design 09 (Lichtfeuer): fast schwarze Halle mit einem brennenden und fuenf kalten
+# Fackelstaendern, Steinwaechter im Dunkeln, zwei Mauerstuempfe werfen Schatten. Keine Wandfackeln.
+name: Dunkle Feuerhalle
+role: combat
+mode: beacon
+biomes: all
+size: 23x13
+auto_deco: no
+---
+#######################
+#######################
+###########N###########
+##.u.............u...##
+##...................##
+##.....M......M......##
+##......##...##......##
+##......##...##......##
+##.........u.........##
+##..M................##
+##.u....t..@.....u...##
+###########S###########
+#######################

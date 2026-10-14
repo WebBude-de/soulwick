@@ -1,0 +1,23 @@
+# Bossraum des Schattenreichs (01_raumarten.md): ein Kreis aus sechs Pfeilern um die Mitte, ein
+# Lichtkristall im Zentrum, Bodenrisse an den Raendern.
+name: Saeulenkreis
+role: boss
+mode: boss
+biomes: shadow_realm
+size: 25x15
+---
+#########################
+#########################
+###T##n#####N#####n##T###
+##.....................##
+##.i........0........i.##
+##......##.....##......##
+##......##.....##......##
+##...##.....C.....##...##
+##...##...........##...##
+##.i.................i.##
+##......##.....##......##
+##......##.....##......##
+##..........@..........##
+############S############
+#########################

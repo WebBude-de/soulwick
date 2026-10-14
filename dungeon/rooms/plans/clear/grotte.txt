@@ -1,0 +1,24 @@
+# Grotte (M): unregelmaessiger Rand aus Felsnasen, ein Becken mit seichtem Wasser, Tropfstelle am
+# Beckenrand, ein Felsklotz, Pfuetzen als Quellen.
+name: Grotte
+role: combat
+mode: clear
+biomes: slime_grotto, shadow_realm
+size: 25x15
+mirror: yes
+---
+#########################
+#########################
+#####T####N#####T########
+####..............#######
+###...p............######
+##...................####
+##..www........##...p..##
+##..www.d......##......##
+##.....................##
+###.........P..........##
+###..p.................##
+####...................##
+#####......@...........##
+###########S#############
+#########################

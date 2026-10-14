@@ -40,7 +40,8 @@ const WAGER_ICONS := "res://art/environment/variants/wager_icons.png"
 ## key: prefix of the DungeonTexts keys (<key>_TITLE, <key>_SUB, <key>_INTRO); icon: a file, a door
 ## symbol (DoorStyle.SYMBOLS, "door:<id>") or ""; tint: colour the (grey) symbol in the genre colour.
 const TABLE: Dictionary[StringName, Dictionary] = {
-	ARENA: {"key": "ROOM_ARENA", "group": Group.COMBAT, "color": Color("#ff8a3c"), "icon": WAVE_ICON, "tint": true},
+	# Arena: crossed swords in red like its door (07_ui.md, RoomObjective.MODES).
+	ARENA: {"key": "ROOM_ARENA", "group": Group.COMBAT, "color": Color("#e0463a"), "icon": "mode:arena", "tint": true},
 	AMBUSH: {"key": "ROOM_AMBUSH", "group": Group.COMBAT, "color": Color("#e0463a"), "icon": WAVE_ICON, "tint": true},
 	CATACOMB: {"key": "ROOM_CATACOMB", "group": Group.COMBAT, "color": Color("#b8b09a"), "icon": SKULL_ICON, "tint": false},
 	CHASM: {"key": "ROOM_CHASM", "group": Group.COMBAT, "color": Color("#6cb2ec"), "icon": "", "tint": false},
@@ -65,6 +66,17 @@ const TABLE: Dictionary[StringName, Dictionary] = {
 	&"elite_nest": {"key": "ROOM_ELITE_NEST", "group": Group.COMBAT, "color": Color("#e0b84a"), "icon": "door:elite_nest", "tint": false},
 	# Way-finding (A10): the secret niche, named when its wall breaks.
 	SECRET: {"key": "ROOM_SECRET", "group": Group.COMBAT, "color": Color("#c9b8ff"), "icon": "", "tint": false},
+	# Room modes v2 (KONZEPT_RAEUME_V2 §2, R3): announced by their RoomIntro, not by show_room_genre;
+	# the entries carry the first-time card. Ids and colours as RoomObjective.MODES (Lichtfeuer lifted
+	# for the dark card). "Risse schließen" (RoomObjective.RIFTS) uses the entry &"rifts" above until
+	# R4b turns the variant into the mode.
+	&"escort": {"key": "MODE_ESCORT", "group": Group.COMBAT, "color": Color("#ffd166"), "icon": "mode:escort", "tint": true},
+	&"flame": {"key": "MODE_FLAME", "group": Group.COMBAT, "color": Color("#8f78e0"), "icon": "mode:flame", "tint": true},
+	&"relic": {"key": "MODE_RELIC", "group": Group.COMBAT, "color": Color("#f2cf4a"), "icon": "mode:relic", "tint": true},
+	&"souls": {"key": "MODE_SOULS", "group": Group.COMBAT, "color": Color("#2fb391"), "icon": "mode:souls", "tint": true},
+	&"hunt": {"key": "MODE_HUNT", "group": Group.COMBAT, "color": Color("#ff8a3c"), "icon": "mode:hunt", "tint": true},
+	&"lightfire": {"key": "MODE_LIGHTFIRE", "group": Group.COMBAT, "color": Color("#a48a85"), "icon": "mode:lightfire", "tint": true},
+	&"collapse": {"key": "MODE_COLLAPSE", "group": Group.COMBAT, "color": Color("#8c8f9a"), "icon": "mode:collapse", "tint": true},
 }
 
 const TRIAL_GENRES := {
@@ -220,6 +232,8 @@ static func get_icon(genre: StringName) -> Texture2D:
 		return null
 	if spec.begins_with("door:"):
 		return DoorArt.get_symbol(StringName(spec.trim_prefix("door:")))
+	if spec.begins_with("mode:"):
+		return RoomObjective.get_mode_icon(StringName(spec.trim_prefix("mode:")))
 	if spec.begins_with("wager:"):
 		if not ResourceLoader.exists(WAGER_ICONS):
 			return null

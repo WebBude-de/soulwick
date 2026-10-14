@@ -8,13 +8,18 @@ extends Node2D
 ## Doors (A10): the entrance and the exit(s) may sit in any wall (RoomTiles.entrance_side/exit_side);
 ## the DungeonManager sets them with apply_door_plan() before the room enters the tree. A branch room
 ## (D-105) has two exits; after the fight the group picks one (BranchChoice), the other is sealed.
+## Templates come from room plans (R1, D-120, tools/generate_room_templates.py): besides the spawn
+## markers a plan room carries Sources (where enemies come from: graves, puddles, rifts, vents,
+## gates; R2 builds them), Objectives (mode objects for R4, light props it built itself) and a
+## PlayerStart marker; get_sources() / get_objectives() hand them out. Props of the plan with a
+## metadata min_room (explosive barrels) leave rooms before that number.
 
 signal player_entered(room: RoomController)
 signal completed(room: RoomController)
 signal encounter_started(room: RoomController, enemies: Array[Enemy])
 signal wave_started(room: RoomController, wave: int, total: int)
-## An arena fight begins (A5): on entry, for an ambush when the entrance door has closed. Hook
-## for the arena/ambush banner and the first-time explanation (UX2, D-110; texts in WaveRules).
+## An arena fight begins (A5) on entry. Hook for the arena banner and the first-time explanation
+## (UX2, D-110; texts in WaveRules). ambush is always false since D-120 (no ambush any more).
 signal arena_started(room: RoomController, ambush: bool)
 ## Branch room (D-105): the doors wait for the group (after the fight) / a way was chosen. The
 ## DungeonManager prepares room n+1 for the chosen way when branch_chosen comes.
@@ -50,6 +55,12 @@ const SPECIAL_SCENES := {
 ## rows below the exit that are already fully in the new one; in between the dithered blend.
 const CAMPFIRE_OLD_ROWS := 1.5
 const CAMPFIRE_NEW_ROWS := 2.0
+## Marker containers of a plan room (R1 contract): metadata of every Marker2D in them, see
+## tools/generate_room_templates.py.
+const SOURCES_NODE := "Sources"
+const OBJECTIVES_NODE := "Objectives"
+const PLAYER_START_NODE := "PlayerStart"
+const META_MIN_ROOM := &"min_room"
 
 ## Kind and size class of a combat template (D-086), written by tools/generate_room_templates.py
 ## and read by RoomCatalog. Without meaning for special, miniboss and boss rooms.
@@ -76,15 +87,14 @@ var _alive_enemies := 0
 var _entered := false
 var _waves_total := 1
 var _waves_spawned := 0
-## Arena (A5): waves come out of the walls, the next one at <= 1 enemy left (WaveRules).
+## Arena (A5): waves come out of wall gates, every wave other gates (WaveRules, SpawnSources).
 var is_arena := false
+## No ambush any more (D-120). Kept until the cleanup, tools still set/read them; without effect.
 var is_ambush := false
-## -1 = roll the ambush (dungeon RNG), 0/1 = force it (tests, tools, later room data).
 var forced_ambush := -1
-var _arena: ArenaWaves = null
-## Arena gates and wave picks draw from this RNG, seeded once from the dungeon RNG in _ready, so
-## the dungeon stream is used the same way however the players move.
-var _wave_rng: RandomNumberGenerator = null
+## Enemy sources of this room (R2): every enemy comes out of one - graves, puddles, rifts, vents,
+## arena gates, sarcophagi for elites and champions. Null for rooms without an encounter and bosses.
+var _sources: SpawnSources = null
 ## Enemy count per wave, planned when the encounter starts (overflow included, D-086).
 var _wave_sizes: Array[int] = []
 ## Living enemies per wave (index = wave number, summons count to their summoner's wave).
@@ -130,6 +140,8 @@ func _ready() -> void:
 			_apply_campfire_look(get_next_biome(), base_tileset)
 		else:
 			_apply_biome_torches(biome.id)
+	# Plan props that belong to deeper rooms only (explosive barrels) go before anything uses them.
+	_remove_early_props()
 	# Crates and barrels sort by their base line against the characters' feet (UX1 finding).
 	for prop in get_node("Props").get_children():
 		if prop is Breakable:
@@ -168,6 +180,7 @@ func _ready() -> void:
 		_branch_choice.decided.connect(_on_branch_decided)
 	_setup_enter_trigger()
 	_setup_waves()
+	_sources = SpawnSources.setup(self)
 	if is_campfire():
 		# Built right away: the fire already glows through the open door of the boss room.
 		_build_campfire_content()
@@ -283,12 +296,9 @@ func activate() -> void:
 	if room_type == RoomSequence.RoomType.SPECIAL:
 		_build_special_content()
 		_complete()
-	elif is_ambush and not _encounter_started:
-		# The door has just closed and sprung the ambush (_on_entrance_door_changed). Should it
-		# not have reported, the fight still starts: a room must never stay locked without enemies.
-		start_encounter()
-	elif not is_ambush:
-		start_encounter()
+	else:
+		# Intro pattern (R3): door, camera, banner, 3-2-1 before the fight; at once without an intro.
+		RoomIntro.after_intro(self, start_encounter)
 
 
 func start_encounter() -> void:
@@ -298,14 +308,15 @@ func start_encounter() -> void:
 	_waves_spawned = 1
 	var enemies: Array[Enemy] = []
 	if RoomSequence.is_normal_combat(room_type):
-		# Entered within the frame the room was built: the gates must exist before the first wave.
-		_build_arena_gates()
 		_wave_sizes = _plan_wave_sizes()
 		_waves_total = maxi(1, _wave_sizes.size())
-		enemies = _spawn_wave(1, ArenaWaves.AMBUSH_DELAY if is_ambush else 0.0)
+		enemies = _spawn_wave(1)
 	else:
 		_waves_total = 1
 		enemies = spawner.spawn_encounter(room_index, room_type, _get_markers(), content_anchor.position, enemy_container, context, get_arena())
+		if _sources != null:
+			# The champion rises from a sarcophagus, its escort from the room's sources (R2).
+			_sources.release_encounter(enemies)
 		for enemy in enemies:
 			_track_enemy(enemy, 1)
 	if enemies.is_empty():
@@ -313,7 +324,7 @@ func start_encounter() -> void:
 		push_error("Room %d: encounter could not be spawned, exit stays closed." % room_index)
 		return
 	if is_arena:
-		arena_started.emit(self, is_ambush)
+		arena_started.emit(self, false)
 	encounter_started.emit(self, enemies)
 
 
@@ -325,7 +336,12 @@ func check_completion() -> void:
 	if _waves_spawned < _waves_total:
 		if not _next_wave_queued and WaveRules.should_start_next_wave(get_wave_alive(_waves_spawned), is_arena):
 			_next_wave_queued = true
-			_spawn_next_wave.call_deferred()
+			# Short breather with "Welle n/N" between arena waves (R3).
+			var pause := ArenaObjective.get_wave_pause(self)
+			if pause > 0.0:
+				get_tree().create_timer(pause, false).timeout.connect(_spawn_next_wave)
+			else:
+				_spawn_next_wave.call_deferred()
 		return
 	if _alive_enemies > 0:
 		return
@@ -371,8 +387,9 @@ func track_enemy(enemy: Enemy) -> void:
 	_track_enemy(enemy, 0)
 
 
-func get_arena_waves() -> ArenaWaves:
-	return _arena
+## Enemy sources of this room (R2); null for rooms without an encounter and boss rooms.
+func get_spawn_sources() -> SpawnSources:
+	return _sources
 
 
 ## Is this room fought as an arena (waves out of the walls)? Known once the room is prepared.
@@ -380,9 +397,9 @@ func is_arena_room() -> bool:
 	return is_arena
 
 
-## Is this arena an ambush (looks empty, breaks open when the door closes)?
+## No ambush any more (D-120); kept for the UI until the cleanup.
 func is_ambush_room() -> bool:
-	return is_arena and is_ambush
+	return false
 
 
 func _spawn_next_wave() -> void:
@@ -402,7 +419,7 @@ func _plan_wave_sizes() -> Array[int]:
 	var rolled: Array[int] = []
 	for i in WaveRules.get_wave_count(room_index, is_arena):
 		rolled.append(_roll_wave_size())
-	var capacity: int = _arena.get_capacity() if _arena != null else get_spawn_markers().size()
+	var capacity: int = _sources.get_capacity() if _sources != null else get_spawn_markers().size()
 	return WaveRules.plan_wave_sizes(rolled, capacity)
 
 
@@ -414,18 +431,14 @@ func _roll_wave_size() -> int:
 	return WaveRules.get_wave_size(spawner.roll_enemy_count(room_index, context.rng), is_arena, smallest, fixed_count)
 
 
-## Spawns wave (1-based) of a normal combat room: out of the walls in an arena, at the markers
-## otherwise. Waves past the plan (tools raise _waves_total) roll their count on the spot.
-func _spawn_wave(wave: int, delay := 0.0) -> Array[Enemy]:
+## Spawns wave (1-based) of a normal combat room: out of the room's sources (R2: a few at a time,
+## mostly behind the players; an arena only out of its gates), at the bare markers only if a room
+## has no sources. Waves past the plan (tools raise _waves_total) roll their count on the spot.
+func _spawn_wave(wave: int) -> Array[Enemy]:
 	var size: int = _wave_sizes[wave - 1] if wave <= _wave_sizes.size() else _roll_wave_size()
 	var enemies: Array[Enemy] = []
-	if _arena != null and _arena.get_capacity() > 0:
-		var gates := _arena.choose_gates(size, wave, WaveRules.get_player_positions(self))
-		var positions: Array[Vector2] = []
-		for gate in gates:
-			positions.append(gate.get_floor_position())
-		enemies = spawner.spawn_enemies(room_index, positions, enemy_container, context, get_arena())
-		_arena.release(enemies, gates, delay)
+	if _sources != null and _sources.get_capacity() > 0:
+		enemies = _sources.spawn_wave(spawner, size, enemy_container, context, get_arena())
 	else:
 		var markers := _get_markers()
 		if markers.size() < EnemySpawner.MIN_SPAWN_POINTS:
@@ -567,37 +580,87 @@ func _get_markers() -> Array[Marker2D]:
 	return get_spawn_markers()
 
 
-## Arena rooms (A5): the ambush is rolled and the wave RNG seeded from the dungeon RNG right now,
-## while the room is prepared (two draws, fixed order). The gates follow one frame later, after
-## anything that still changes the floor while the room is built (ingredient scatter, A3).
+## Arena rooms (A5): fought in waves out of wall gates (SpawnSources builds the gates).
 func _setup_waves() -> void:
 	is_arena = WaveRules.is_arena(room_type, room_kind, room_index)
-	if not is_arena:
-		return
-	var dungeon_rng: RandomNumberGenerator = context.rng if context != null else null
-	is_ambush = forced_ambush == 1 if forced_ambush >= 0 else (dungeon_rng != null and WaveRules.roll_ambush(dungeon_rng))
-	_wave_rng = RandomNumberGenerator.new()
-	_wave_rng.seed = dungeon_rng.randi() if dungeon_rng != null else room_index
-	_arena = ArenaWaves.new()
-	add_child(_arena)
-	if is_ambush:
-		_entrance_door.state_changed.connect(_on_entrance_door_changed)
-	_build_arena_gates.call_deferred()
 
 
 ## Solid props of the template and the ingredient scatter (built in its _ready, before ours) take
-## the navigation off their tile until they break or go.
+## the navigation off their tile until they break or go. Plan decoration (DecoProp) names its tiles
+## itself (a fallen pillar covers two).
 func _block_prop_navigation() -> void:
 	var prop_nodes: Array[Node] = get_node("Props").get_children()
 	for child in get_children():
 		if child.has_method(&"get_built_nodes"):
 			prop_nodes.append_array(child.call(&"get_built_nodes"))
 	for prop in prop_nodes:
-		if not is_instance_valid(prop) or not is_solid_prop(prop):
+		if not is_instance_valid(prop) or prop.is_queued_for_deletion():
 			continue
-		var tile := tiles.local_to_map(tiles.to_local((prop as Node2D).global_position))
-		tiles.set_navigation_blocked(tile, true)
-		prop.tree_exiting.connect(_on_prop_removed.bind(tile), CONNECT_ONE_SHOT)
+		var blocked: Array[Vector2i] = []
+		if prop is DecoProp:
+			blocked = (prop as DecoProp).get_blocked_tiles()
+		elif is_solid_prop(prop):
+			blocked.append(tiles.local_to_map(tiles.to_local((prop as Node2D).global_position)))
+		for tile in blocked:
+			tiles.set_navigation_blocked(tile, true)
+		if not blocked.is_empty():
+			prop.tree_exiting.connect(_on_prop_removed.bind(blocked), CONNECT_ONE_SHOT)
+
+
+## Props with metadata min_room above this room's number are removed (R1: explosive barrels of a
+## plan from room EXPLOSIVES_FROM_ROOM on, like the old ingredient rule).
+func _remove_early_props() -> void:
+	if room_index <= 0:
+		return
+	for prop in get_node("Props").get_children():
+		if prop.has_meta(META_MIN_ROOM) and room_index < int(prop.get_meta(META_MIN_ROOM)):
+			prop.get_parent().remove_child(prop)
+			prop.queue_free()
+
+
+# --- Plan markers (R1 contract) ---
+
+## Enemy sources of the plan (Marker2D with metadata source_kind, tile, floor_tile, wall_side).
+func get_sources() -> Array[Marker2D]:
+	return _markers_in(SOURCES_NODE)
+
+
+## Sources of one kind (&"grave", &"sarcophagus", &"puddle", &"rift", &"vent", &"gate", &"rift_wall").
+func get_sources_of(kind: StringName) -> Array[Marker2D]:
+	var result: Array[Marker2D] = []
+	for marker in get_sources():
+		if StringName(marker.get_meta(&"source_kind", &"")) == kind:
+			result.append(marker)
+	return result
+
+
+## Mode objects of the plan (Marker2D with metadata objective_kind, tile, enemy, built).
+func get_objectives() -> Array[Marker2D]:
+	return _markers_in(OBJECTIVES_NODE)
+
+
+func get_objectives_of(kind: StringName) -> Array[Marker2D]:
+	var result: Array[Marker2D] = []
+	for marker in get_objectives():
+		if StringName(marker.get_meta(&"objective_kind", &"")) == kind:
+			result.append(marker)
+	return result
+
+
+## Room-local start of the player from the plan ('@'); null for rooms without plan.
+func get_player_start_marker() -> Marker2D:
+	return get_node_or_null(PLAYER_START_NODE) as Marker2D
+
+
+func _markers_in(node_name: String) -> Array[Marker2D]:
+	var result: Array[Marker2D] = []
+	var container := get_node_or_null(node_name)
+	if container == null:
+		return result
+	for child in container.get_children():
+		if child is Marker2D:
+			result.append(child)
+	return result
 
 
 ## A prop that blocks walking: a body itself (crate, barrel, rubble) or one carried as a direct child
@@ -611,35 +674,10 @@ static func is_solid_prop(prop: Node) -> bool:
 	return false
 
 
-func _on_prop_removed(tile: Vector2i) -> void:
+func _on_prop_removed(blocked: Array[Vector2i]) -> void:
 	if is_instance_valid(tiles) and not tiles.is_queued_for_deletion():
-		tiles.set_navigation_blocked(tile, false)
-
-
-func _build_arena_gates() -> void:
-	if _arena == null or not is_instance_valid(_arena) or _arena.is_built():
-		return
-	# Template props plus whatever the ingredient scatter built (traps, cover, light pedestals).
-	var prop_nodes: Array[Node] = get_node("Props").get_children()
-	for child in get_children():
-		if child.has_method(&"get_built_nodes"):
-			prop_nodes.append_array(child.call(&"get_built_nodes"))
-	var props: Array[Vector2] = []
-	for prop in prop_nodes:
-		var node := prop as Node2D
-		if node != null and is_instance_valid(node):
-			props.append(to_local(node.global_position) if node.is_inside_tree() else node.position)
-	var doors: Array[Vector2i] = [get_entrance_tile()]
-	doors.append_array(get_exit_tiles())
-	var gates := WallGates.find_gates(tiles.get_reachable_tiles(), tiles.room_size, doors, props)
-	_arena.setup(gates, is_ambush, _wave_rng)
-
-
-## Ambush: the fight starts when the entrance door closes behind the players (KONZEPT_RAEUME 3.1).
-func _on_entrance_door_changed(open: bool, instant: bool) -> void:
-	if open or instant or state != State.ACTIVE:
-		return
-	start_encounter()
+		for tile in blocked:
+			tiles.set_navigation_blocked(tile, false)
 
 
 ## Torches matching the biome (art/environment/props/torch_<colour>_4f.png).

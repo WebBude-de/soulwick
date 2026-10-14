@@ -30,8 +30,9 @@ const BIOME_GLOW_COLORS := {
 }
 ## Floor overlays of the next biome over the old floor (SPRITES_V4 §5, TESTWERTE): chance per floor
 ## tile = OVERLAY_DENSITY * blend progress, so they get denser towards the new biome; none where
-## the floor is still fully old or already fully new.
-const OVERLAY_DENSITY := 0.55
+## the floor is still fully old or already fully new. Never two side by side (R1: patches, no
+## raster of decals in the smaller campfire plan).
+const OVERLAY_DENSITY := 0.5
 const OVERLAY_BAND := Vector2(0.05, 0.95)
 ## Ambient particles switch to the next biome from this blend progress on.
 const PARTICLE_SWITCH_AT := 0.5
@@ -280,6 +281,13 @@ static func get_overlay_tiles(tiles: RoomTiles, rng: RandomNumberGenerator) -> A
 		for x in tiles.room_size.x:
 			# One draw per tile keeps the pattern stable whatever the band is.
 			var roll := rng.randf()
-			if progress >= OVERLAY_BAND.x and progress <= OVERLAY_BAND.y and roll < OVERLAY_DENSITY * progress:
+			if progress >= OVERLAY_BAND.x and progress <= OVERLAY_BAND.y and roll < OVERLAY_DENSITY * progress 					and not _has_neighbour(result, Vector2i(x, y)):
 				result.append(Vector2i(x, y))
 	return result
+
+
+static func _has_neighbour(tiles: Array[Vector2i], tile: Vector2i) -> bool:
+	for other in tiles:
+		if absi(other.x - tile.x) <= 1 and absi(other.y - tile.y) <= 1:
+			return true
+	return false

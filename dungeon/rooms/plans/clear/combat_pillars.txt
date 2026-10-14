@@ -1,0 +1,25 @@
+# Pfeilerkammer (S): versetzte 2x2-Pfeiler statt eines strengen Rasters, Nischen in der Nordwand.
+# Behaelt den alten Dateinamen combat_pillars.tscn (dungeon.tscn).
+name: Pfeilerkammer
+role: combat
+mode: clear
+biomes: all
+size: 19x14
+weight: 0.7
+mirror: yes
+scene: combat/combat_pillars.tscn
+---
+###################
+###################
+###T##n###N###n#T##
+##...............##
+##..##.....##....##
+##..##.....##..G.##
+##.G.............##
+##.......##......##
+##.......##...k..##
+##..##.........P.##
+##..##....@..G...##
+##...............##
+##########S########
+###################

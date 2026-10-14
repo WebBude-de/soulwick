@@ -1,0 +1,23 @@
+# Galerie der Nischen (M): kurze Mauerzungen teilen die Nordseite in Alkoven, jeder mit Nische oder
+# Fackel; Pfeiler und gestuerzte Saeule im Saal davor.
+name: Galerie der Nischen
+role: combat
+mode: clear
+biomes: all
+size: 25x14
+mirror: yes
+---
+#########################
+#########################
+####n###T####N#####n##T##
+##....#....#....#......##
+##..G.#....#...G#......##
+##....#....#....#....r.##
+##.....................##
+##..k..........P.......##
+##.....................##
+##.....##........##....##
+##.G...##........##..G.##
+##..........@..........##
+############S############
+#########################

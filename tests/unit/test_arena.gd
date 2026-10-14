@@ -1,10 +1,10 @@
 extends GutTest
-## Arena rooms in the tree (A5): gates in the walls, waves at <= 1 enemy left, enemies stepping
-## out of the walls away from the players, the ambush starting with the closing door, overflow
-## waves in normal rooms and completion only after the last wave.
+## Arena rooms in the tree (A5): wave plan, the next wave once the running one is cleared, overflow
+## waves in normal rooms and completion only after the last wave. Where enemies come out (gates,
+## other gates every wave, distance to the players) is tested with the sources (R2,
+## test_spawn_source_room, test_spawn_source_flow); there is no ambush any more (D-120).
 
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
-const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")
 
 var _old_save_path: String
@@ -68,25 +68,9 @@ func _kill(enemy: Enemy) -> void:
 	enemy.health.take_damage(INF)
 
 
-func test_plain_arena_shows_gates_on_two_walls_before_the_fight() -> void:
-	var room := _room()
-	await wait_frames(2)
-	assert_true(room.is_arena)
-	assert_false(room.is_ambush)
-	var arena := room.get_arena_waves()
-	assert_not_null(arena)
-	var gates := arena.get_fixed_gates()
-	assert_eq(gates.size(), ArenaWaves.GATE_COUNT)
-	assert_gte(WallGates.count_sides(gates), 2)
-	for gate in gates:
-		assert_not_null(arena.get_view(gate), "every gate is visible")
-	assert_false(room.is_encounter_started())
-
-
 func test_rooms_one_to_five_and_normal_kinds_are_no_arena() -> void:
 	assert_false(_room(true, 0, 4).is_arena, "rooms 1-5 are normal (D-100)")
 	assert_false(_room(false, 0, 8).is_arena)
-	assert_null(_room(false, 0, 8).get_arena_waves())
 
 
 func test_arena_plans_two_waves_and_three_deeper() -> void:
@@ -137,90 +121,24 @@ func test_room_counts_as_cleared_only_after_the_last_wave() -> void:
 	assert_eq(room.state, RoomController.State.CLEARED)
 
 
-func test_enemies_wait_in_the_wall_and_step_out() -> void:
-	var room := _room(true, 0, 12, _fixed_count(2))
-	room.activate()
-	var enemies := _living(room)
-	var gates := room.get_arena_waves().get_last_gates()
-	assert_eq(gates.size(), 2)
-	for i in enemies.size():
-		assert_false(enemies[i].visible, "hidden in the wall")
-		assert_true(enemies[i].is_in_intro(), "passive and invulnerable while coming out")
-		assert_almost_eq(enemies[i].position.distance_to(gates[i].get_wall_position()), 0.0, 0.5)
-	await wait_seconds(ArenaWaves.get_release_time(2) + 0.2)
-	for i in enemies.size():
-		assert_true(enemies[i].visible)
-		assert_false(enemies[i].is_in_intro(), "fights once out")
-
-
-func test_gates_keep_the_distance_to_every_player() -> void:
-	var first: Player = add_child_autofree(PLAYER_SCENE.instantiate())
-	var second: Player = add_child_autofree(PLAYER_SCENE.instantiate())
-	var room := _room(true, 0, 12, _fixed_count(4))
-	await wait_frames(2)
-	# One player at the west wall, one at the north wall.
-	first.global_position = room.to_global(Vector2(40, 288))
-	second.global_position = room.to_global(Vector2(480, 40))
-	room.activate()
-	var gates := room.get_arena_waves().get_last_gates()
-	assert_eq(gates.size(), 4)
-	assert_gte(WallGates.count_sides(gates), 2, "from at least two walls")
-	for gate in gates:
-		var spot := room.to_global(gate.get_floor_position())
-		assert_gte(spot.distance_to(first.global_position), WaveRules.MIN_PLAYER_DISTANCE)
-		assert_gte(spot.distance_to(second.global_position), WaveRules.MIN_PLAYER_DISTANCE)
-
-
-func test_ambush_looks_empty_and_starts_when_the_door_closes() -> void:
-	var room := _room(true, 1, 12, _fixed_count(3))
-	await wait_frames(2)
-	assert_true(room.is_ambush_room())
-	assert_true(room.is_arena_room())
-	assert_eq(room.get_arena_waves().get_fixed_gates().size(), 0, "no gates: the room looks empty")
-	assert_eq(room.get_arena_waves().get_child_count(), 0)
-	watch_signals(room)
-	# The door closing while the room is merely prepared springs nothing.
-	room._entrance_door.close()
-	assert_false(room.is_encounter_started())
-	assert_signal_not_emitted(room, "arena_started")
-	room._entrance_door.open()
-	room.activate()
-	assert_true(room.is_encounter_started(), "the closing entrance door springs the ambush")
-	assert_signal_emitted_with_parameters(room, "arena_started", [room, true])
-	assert_false(room._entrance_door.is_open)
-	var gates := room.get_arena_waves().get_last_gates()
-	assert_gte(WallGates.count_sides(gates), WaveRules.AMBUSH_MIN_SIDES, "from (almost) every wall")
-	for enemy in _living(room):
-		assert_false(enemy.visible)
-	await wait_seconds(ArenaWaves.get_release_time(1, ArenaWaves.AMBUSH_DELAY) + 0.2)
-	for enemy in _living(room):
-		assert_true(enemy.visible)
-	for gate in gates:
-		assert_true(room.get_arena_waves().get_view(gate).is_broken, "the wall broke open")
-
-
-func test_ambush_waits_for_the_door_and_not_for_activation() -> void:
-	var room := _room(true, 1, 12, _fixed_count(2))
-	await wait_frames(1)
-	room.state = RoomController.State.ACTIVE
-	assert_false(room.is_encounter_started())
-	room._entrance_door.close()
-	assert_true(room.is_encounter_started())
-
-
 func test_overflow_becomes_an_extra_wave_in_a_normal_room() -> void:
-	var room := _room(false, 0, 8, _fixed_count(8))
+	var room := _room(false, 0, 8, _fixed_count(1))
 	var markers := room.get_spawn_markers().size()
 	assert_eq(room._get_markers().size(), markers, "all markers go to the spawner")
+	# Places of one wave: the spawn markers, or with sources (R2) what one push of them brings.
+	var sources := SpawnSources.of(room)
+	var capacity := sources.get_capacity() if sources != null else markers
+	var count := capacity + 2
+	room.set_encounter_group(_fixed_count(count))
 	watch_signals(room)
 	room.activate()
-	assert_eq(room.get_wave_sizes(), RoomSequence.split_into_waves(8, markers))
-	assert_eq(_living(room).size(), mini(8, markers))
+	assert_eq(room.get_wave_sizes(), RoomSequence.split_into_waves(count, capacity))
+	assert_eq(_living(room).size(), mini(count, capacity))
 	for enemy in _living(room):
 		_kill(enemy)
 	await wait_frames(2)
 	assert_eq(room.get_wave_progress().x, 2, "the rest comes as an extra wave")
-	assert_eq(_living(room).size(), 8 - markers)
+	assert_eq(_living(room).size(), count - capacity)
 	assert_signal_not_emitted(room, "completed")
 	for enemy in _living(room):
 		_kill(enemy)

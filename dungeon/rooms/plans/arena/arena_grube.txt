@@ -1,0 +1,23 @@
+# Arena mit Grube (M): eine Grube in der Mitte mit einer schmalen Bruecke, Gegner lassen sich
+# hineinstossen; vier Tore in der Nordwand, Feuerschalen an den Seiten.
+name: Arena mit Grube
+role: combat
+kind: arena
+mode: arena
+biomes: all
+size: 25x14
+---
+#########################
+#########################
+####g####g##N##g####g####
+##.....................##
+##..B...............B..##
+##.....................##
+##.......~~~=~~~.......##
+##...r...~~~=~~~...r...##
+##.......~~~=~~~.......##
+##.....................##
+##..B.......@.......B..##
+##.....................##
+############S############
+#########################

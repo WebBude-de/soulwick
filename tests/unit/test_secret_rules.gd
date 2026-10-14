@@ -1,5 +1,5 @@
 extends GutTest
-## Secret niches (A10, KONZEPT_RAEUME §7.3, D-109): the draw (from room 6, normal and chasm rooms,
+## Secret niches (A10, KONZEPT_RAEUME §7.3, D-109, R1): the draw (from room 6, normal and chasm rooms,
 ## fixed RNG draws, content weights), only explosions break a cracked wall, the niche places of every
 ## template keep the room whole, and a niche in the tree: sealed, tapped by a sword, opened by a
 ## barrel blast, its content (chest, crystals, wandering merchant with the shop's prices).
@@ -99,13 +99,17 @@ func test_niche_geometry() -> void:
 	assert_eq(inner.get_rect(), Rect2i(2, 0, 3, 1))
 
 
-## Every template that may get a niche has a place for it (north wall or a thick inner wall); the
-## niche is sealed until the wall opens, the floor plan stays as it is.
+## Nearly every plan that may get a niche has a place for it (north wall or a thick inner wall; a
+## plan without one simply never gets a niche); the niche is sealed until the wall opens, the floor
+## plan stays as it is.
 func test_every_template_has_a_sealed_niche_place() -> void:
 	var catalog := RoomCatalog.create()
+	var without: Array[StringName] = []
+	var total := 0
 	for entry in catalog.get_entries():
-		if entry.room_kind == RoomSequence.RoomKind.ARENA:
+		if entry.room_kind == RoomSequence.RoomKind.ARENA or not entry.is_plain_fight():
 			continue
+		total += 1
 		var room := entry.scene.instantiate() as RoomController
 		autofree(room)
 		var tiles := room.get_node("Tiles") as RoomTiles
@@ -113,12 +117,13 @@ func test_every_template_has_a_sealed_niche_place() -> void:
 		for marker in IngredientScatter.get_marker_tiles(room):
 			forbidden[marker] = true
 		var sites := SecretRules.find_sites(tiles, forbidden)
-		assert_false(sites.is_empty(), "%s: a place for a niche" % entry.id)
 		if sites.is_empty():
+			without.append(entry.id)
 			continue
 		var before := tiles.get_reachable_tiles()
 		for candidate in sites:
-			if candidate.is_in_north_wall():
+			assert_false(SecretRules._beside_fixture(candidate.crack, tiles.front_fixtures), "%s: no crack beside a niche, gate or torch" % entry.id)
+			if candidate.is_in_north_wall() and tiles.secret_cracks.is_empty():
 				assert_gte(absi(candidate.crack.x - tiles.exit_x), SecretRules.DOOR_CLEARANCE, "%s: away from the exit door" % entry.id)
 		var site := sites[sites.size() / 2]
 		SecretNiche.carve(room, site)
@@ -131,6 +136,8 @@ func test_every_template_has_a_sealed_niche_place() -> void:
 		assert_true(tiles.is_painted(site.get_content_tile() + Vector2i.UP), "%s: rock above the niche" % entry.id)
 		tiles.open_wall_tiles(site.opening)
 		assert_true(tiles.get_reachable_tiles().has(site.get_content_tile()), "%s: open after the break" % entry.id)
+	gut.p("plans without a niche place: %s" % [without])
+	assert_lte(without.size(), total / 4, "most plans can hide a niche (%d of %d without)" % [without.size(), total])
 
 
 # --- In the tree ---

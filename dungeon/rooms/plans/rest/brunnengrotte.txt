@@ -1,0 +1,20 @@
+# Brunnengrotte (01_raumarten.md, Ruhe): der Brunnen Q in einer Grotte mit seichtem Wasser,
+# Tropfstelle und Kristall; der Brunnen selbst entsteht am ContentAnchor (FountainContent).
+name: Brunnengrotte
+role: rest
+mode: rest
+special: fountain
+biomes: all
+size: 17x11
+---
+#################
+#################
+####T###N####T###
+###............##
+##..ww......d..##
+##..ww..Q......##
+##............C##
+##.............##
+##......@......##
+########S########
+#################

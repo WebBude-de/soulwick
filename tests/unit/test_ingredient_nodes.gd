@@ -102,13 +102,14 @@ func test_chain_reaction_breaks_the_neighbour() -> void:
 
 
 func test_chest_opens_once_after_the_fight() -> void:
-	var room := preload("res://dungeon/rooms/combat/normal_catacomb_m.tscn").instantiate() as RoomController
+	# A plan with a chest guarded by traps (R1, katakombengang).
+	var room := preload("res://dungeon/rooms/combat/katakombengang_crypt.tscn").instantiate() as RoomController
 	add_child_autofree(room)
 	var chest: TreasureChest = null
 	for prop in room.get_node("Props").get_children():
 		if prop is TreasureChest:
 			chest = prop
-	assert_not_null(chest, "catacomb has its chest")
+	assert_not_null(chest, "the catacomb passage has its chest")
 	assert_true(chest.is_locked(), "locked while the room is not cleared")
 	watch_signals(chest)
 	chest.get_interactable().interact(null)

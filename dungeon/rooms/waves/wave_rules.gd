@@ -23,8 +23,9 @@ const ARENA_WAVE_SIZE_FACTOR := 1.0
 ## Arena: the next wave starts when at most this many enemies of the running wave are left.
 ## TESTWERT (D-118: 1 -> 0, playtest: the next wave only once the running one is cleared)
 const NEXT_WAVE_AT_REMAINING := 0
-## Share of arenas that are an ambush (room looks empty, enemies break out when the door closes). TESTWERT
-const AMBUSH_CHANCE := 0.25
+## Share of arenas that are an ambush. 0 since D-120 (Raeume v2: no ambush any more; enemies come out
+## of visible sources, R2). Kept with the roll until the cleanup removes the ambush texts and tools.
+const AMBUSH_CHANCE := 0.0
 ## No enemy steps out of a wall closer than this to any player (KONZEPT_RAEUME 3.1). TESTWERT
 const MIN_PLAYER_DISTANCE := 96.0
 ## Enemies of one wave come from at least this many walls; an ambush from (almost) all. TESTWERTE
@@ -70,7 +71,7 @@ static func should_start_next_wave(alive_in_wave: int, arena: bool) -> bool:
 	return alive_in_wave <= (NEXT_WAVE_AT_REMAINING if arena else 0)
 
 
-## Ambush or plain arena. Always draws exactly one random number of the dungeon RNG.
+## Ambush or plain arena (always plain since D-120). Draws exactly one random number of the RNG.
 static func roll_ambush(rng: RandomNumberGenerator) -> bool:
 	return rng.randf() < AMBUSH_CHANCE
 

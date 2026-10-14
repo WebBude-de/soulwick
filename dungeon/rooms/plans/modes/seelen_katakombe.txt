@@ -1,0 +1,25 @@
+# Claude Design 06 (Seelen sammeln): Katakomben-Raster aus 4x2-Bloecken mit Ein-Kachel-Gassen,
+# Risse an zwei Kreuzungen, Seelen an festen Plaetzen. Abweichung: die Nordtuer sitzt ueber einer
+# Gasse (im Entwurf ueber einem Block).
+name: Katakombe der Seelen
+role: combat
+mode: souls
+biomes: all
+size: 25x15
+auto_deco: no
+---
+#########################
+#########################
+###T#####T#####T######N##
+##.*...................##
+##.####.####.####.####.##
+##.####.####.####.####.##
+##.*.....i.....*.......##
+##.####.####.####.####.##
+##.####.####.####.####.##
+##.......*.....i...*...##
+##.####.####.####.####.##
+##.####.####.####.####.##
+##.*....@..............##
+############S############
+#########################

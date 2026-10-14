@@ -1,0 +1,22 @@
+# Claude Design 08 (Jagd): Saeulenhalle mit 2x2-Pfeilern als Sichtblocker, Fluchtloch hinten rechts,
+# Wachen zwischen den Pfeilern. Abweichung: die Fackeln halten vier Spalten Abstand zur Nordtuer
+# (sie bringt ihre eigenen mit) und keine Fackel sitzt in der Ecke.
+name: Jagd durch die Saeulenhalle
+role: combat
+mode: hunt
+biomes: all
+size: 25x13
+---
+#########################
+#########################
+##T###T#####N#####T###T##
+##.....................##
+##..##....##....##.....##
+##..##....##....##..9..##
+##.....................##
+##.......3.........e...##
+##..##....##....##.....##
+##..##....##....##.....##
+##....@.........3......##
+############S############
+#########################

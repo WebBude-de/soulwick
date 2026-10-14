@@ -1,0 +1,21 @@
+# Claude Design 17: Mauerreste mit Schutt am Ende, gestuerzte Saeule, Opferstelle. Ergaenzt: zwei
+# Graeber hinter dem Spieler (Quellen).
+name: Ruinenhof
+role: combat
+mode: clear
+biomes: crypt, ember_forge, slime_grotto
+size: 23x13
+---
+#######################
+#######################
+###T####n###N####T#####
+##...................##
+##..###r.......r###..##
+##..###.........###..##
+##...................##
+##......P....K.......##
+##.G...............G.##
+##..r##.........##r..##
+##...##....@....##...##
+###########S###########
+#######################

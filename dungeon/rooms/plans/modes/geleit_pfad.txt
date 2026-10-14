@@ -1,0 +1,22 @@
+# Claude Design 03 (Geleit): Eingang unten links, Ausgang oben rechts, der Weg als S-Kurve um
+# Wasserbecken (verlangsamt) und zwei Mauern; Pfuetzen als Quellen flankieren den Weg. Die Figur
+# (1) und der Pfad gehoeren R4.
+name: Geleitpfad
+role: combat
+mode: escort
+biomes: all
+size: 25x13
+---
+#########################
+#########################
+##T######T#######T###N###
+##.........p...........##
+##..ww......##.........##
+##..ww......##...p.....##
+##......1...##.........##
+##..........##..wwww...##
+##...p..........wwww...##
+##.......##............##
+##..@....##......p.....##
+####S####################
+#########################

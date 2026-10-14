@@ -485,11 +485,17 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 		RoomSequence.RoomType.SPECIAL:
 			# Some special types bring their own floor plan (trial room, A8).
 			var own := SpecialTable.get_template_for(special)
+			if own == null:
+				# R1: rest plan of the special type in the room's biome (first plan, no RNG draw).
+				var rest := RoomCatalog.pick_plan(RoomTemplate.ROLE_REST, RoomCatalog.biome_id_for_room(room_index), special)
+				own = rest.scene if rest != null else null
 			return own if own != null else special_template
 		RoomSequence.RoomType.MINIBOSS:
-			return miniboss_template
+			var miniboss := RoomCatalog.pick_plan(RoomTemplate.ROLE_MINIBOSS, RoomCatalog.biome_id_for_room(room_index))
+			return miniboss.scene if miniboss != null else miniboss_template
 		RoomSequence.RoomType.BOSS:
-			return boss_template
+			var boss := RoomCatalog.find_boss_scene(RoomCatalog.biome_id_for_room(room_index))
+			return boss if boss != null else boss_template
 		RoomSequence.RoomType.CAMPFIRE:
 			return campfire_template if campfire_template != null else load(CAMPFIRE_TEMPLATE_PATH) as PackedScene
 	# A room entered from the west or east needs a door place there (A10; not the catacomb).
@@ -670,9 +676,8 @@ func _on_content_unlocked(id: StringName) -> void:
 	SaveManager.mark_seen(MetaUnlocks.get_announce_key(id))
 
 
-func _on_wave_started(_room: RoomController, wave: int, total: int) -> void:
-	ui.show_banner("Welle %d/%d" % [wave, total], "Sie kommen …", Color(1.0, 0.5, 0.4))
-	Sfx.play_ui(self, &"boss_roar", -10.0)
+func _on_wave_started(_room: RoomController, _wave: int, _total: int) -> void:
+	# Banner "Welle n/N" and gong come from ArenaObjective (R3); here only the shake.
 	CameraShake.shake(self, 4.0)
 
 

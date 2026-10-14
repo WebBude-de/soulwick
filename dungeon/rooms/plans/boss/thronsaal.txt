@@ -1,0 +1,26 @@
+# Claude Design 13: Thronsaal des Knochenkoenigs. Boss vor dem Tor, Sarkophage an den Waenden
+# (Phase 2 oeffnet sie), Feuerschalen, zwei Mauerstuempfe als Deckung gegen den Schildstoss, eine
+# gestuerzte Saeule. Bleibt die Vorlage boss_room.tscn (dungeon.tscn), solange der Integrator den
+# Bossraum noch nicht je Biom waehlt.
+name: Thronsaal
+role: boss
+mode: boss
+biomes: crypt
+size: 25x15
+scene: boss/boss_room.tscn
+---
+#########################
+#########################
+###T##n#####N#####n##T###
+##.....................##
+##.s.......0.........s.##
+##.....................##
+##..##.............##..##
+##..##.............##..##
+##.s...B.........B...s.##
+##.....................##
+##..P..................##
+##.....................##
+##..........@..........##
+############S############
+#########################

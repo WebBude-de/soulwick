@@ -13,17 +13,39 @@ extends CanvasLayer
 ## first-encounter hint cards for new enemy types, elite kinds and champions (EnemyHints) and the
 ## first-run controls card (ControlsHint, once per save, UX1). Only one teaching card is on screen at
 ## a time: the controls card steps aside while an enemy or room card shows.
+## Room modes (R3, KONZEPT_RAEUME_V2 §1.3/§1.4): the intro of a room (RoomIntro: goal banner, 3-2-1,
+## first-time card, sounds) and the task bar at the top centre (ObjectiveBar for the room's
+## RoomObjective; the boss bar replaces it). Both are found through node_added, so a mode only adds
+## its RoomObjective / RoomIntro under its room. The arena is started here (show_room_genre).
+## Banners (07_ui.md): dark plaque with a stripe in the mode colour; banners and world captions
+## (WorldCaption, only near a player) never share the screen; banners of a room left behind and
+## banners that waited too long are dropped.
 ## Layout follows docs/design screens 02-06, 10 and 11; sizes are mockup pixels (UiKit.px).
 
 const BANNER_TIME := 2.2
 ## A newer banner waits until the current one was readable this long (real seconds, TESTWERT).
 const BANNER_MIN_TIME := 1.2
-## Room genre banner: top in mockup pixels and time on screen (TESTWERT).
-const GENRE_BANNER_TOP := 38.0
+## A banner that waited longer than this in the queue is dropped (real seconds, TESTWERT).
+const BANNER_STALE_TIME := 8.0
+## Banner top in mockup pixels, below the task bar (it moves further down under a taller bar), and
+## time of a genre banner on screen (TESTWERT).
+const GENRE_BANNER_TOP := 24.0
 const GENRE_BANNER_TIME := 2.8
 const GENRE_ICON_SIZE := 16.0
-## Banner subtitles wrap at this width (mockup pixels).
+## Intro banner (07_ui_intro_arena.png): bigger symbol; it stays while the intro runs and this long
+## after "go" (TESTWERTE). An intro that never ends lets go of the banner after INTRO_HOLD_MAX.
+const INTRO_ICON_SIZE := 24.0
+const INTRO_BANNER_AFTER := 1.0
+const INTRO_BANNER_AFTER_RUNNING := 3.0
+const INTRO_HOLD_MAX := 15.0
+## Colour stripe on the left of every banner (07_ui.md: 4-6 px of the mode colour).
+const BANNER_STRIPE_WIDTH := 3.0
+## Task bar and boss bar top (mockup pixels).
+const TOP_BAR_Y := 4.0
+## Banner subtitles wrap at this width (mockup pixels); the intro's rule line earlier, so the goal
+## banner stays a compact plaque in the middle (07_ui_intro_arena.png).
 const BANNER_SUBTITLE_WIDTH := 280.0
+const INTRO_SUBTITLE_WIDTH := 190.0
 ## Boss HP bar (ui_spec hud.boss_bar.bar), mockup pixels.
 const BOSS_BAR_SIZE := Vector2(180, 7)
 const BOSS_BAR_WIDTH := 180.0
@@ -80,6 +102,13 @@ var _banner_queue: Array[Dictionary] = []
 var _banner_box: Control = null
 var _banner_entry: Dictionary = {}
 var _banner_since_ms := 0
+## The banner on screen stays until its intro is over (intro banner).
+var _banner_hold := false
+## The banner on screen gives way at once (an intro banner came in).
+var _banner_cut := false
+var _objective_bar: ObjectiveBar = null
+var _countdown: IntroCountdown = null
+var _intro: RoomIntro = null
 var _boss_bar_root: Control = null
 var _boss_bar: ProgressBar = null
 var _boss_fill: StyleBoxFlat = null
@@ -107,15 +136,26 @@ func _ready() -> void:
 	layer = 20
 	_build_banner()
 	_build_boss_bar()
+	_build_objective_bar()
 	_build_hint_root()
 	get_tree().node_added.connect(_on_node_added)
 	# Deferred: the dungeon starts the run after its children are ready.
 	start_controls_hint.call_deferred()
 
 
-func _process(_delta: float) -> void:
-	if not _banner_queue.is_empty() and _banner_slot_free():
-		_display_banner(_banner_queue.pop_front())
+func _process(delta: float) -> void:
+	_pump_banners()
+	WorldCaption.update_all(get_tree(), get_banner() != null, _player_positions(), delta)
+
+
+## Living players' positions (coop: all of them, D-088).
+func _player_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player != null and is_instance_valid(player) and player.is_alive():
+			positions.append(player.global_position)
+	return positions
 
 
 ## Shows the first-run controls card if this save has not seen it yet. Returns the card or null.
@@ -153,97 +193,159 @@ func get_banner_queue_size() -> int:
 	return _banner_queue.size()
 
 
+## Entry: title, subtitle, color; optional kind (&"plain", &"genre", &"intro", &"wave"), genre,
+## eyebrow, icon (Texture2D), tint (colour the icon), time (seconds on screen), priority (goes first
+## and cuts the banner on screen short), intro (RoomIntro: stays until it is over), keep (never
+## dropped as stale). Stamped with the room it belongs to.
 func _queue_banner(entry: Dictionary) -> void:
-	var genre := entry.has("genre")
-	if genre:
+	entry["room"] = entry.get("room", _current_room())
+	entry["queued_ms"] = Time.get_ticks_msec()
+	if entry.has("genre"):
 		# The old plain banner of the same room (e.g. "Lagerfeuer") gives way to the genre banner.
 		for i in range(_banner_queue.size() - 1, -1, -1):
 			if not _banner_queue[i].has("genre") and _banner_queue[i]["title"] == entry["title"]:
 				_banner_queue.remove_at(i)
 		if get_banner() != null and not _banner_entry.has("genre") and _banner_entry.get("title", "") == entry["title"]:
-			_banner_since_ms = 0
-	elif not _banner_queue.is_empty() and _banner_queue.back()["title"] == entry["title"]:
+			_banner_cut = true
+	elif not entry.has("kind"):
+		# Plain banners: the same title right behind or on screen is not shown twice (e.g. the old
+		# wave banner of DungeonManager after the arena's own; the other way round the arena's
+		# wave banner cuts the plain one short, it is a priority banner).
+		if not _banner_queue.is_empty() and _banner_queue.back()["title"] == entry["title"]:
+			return
+		if get_banner() != null and _banner_entry.get("title", "") == entry["title"]:
+			return
+	if entry.get("priority", false):
+		_banner_queue.push_front(entry)
+		if get_banner() != null and not _banner_hold:
+			_banner_cut = true
+	else:
+		_banner_queue.append(entry)
+	_pump_banners()
+
+
+func _pump_banners() -> void:
+	if _banner_queue.is_empty():
 		return
-	_banner_queue.append(entry)
-	if _banner_slot_free():
+	_drop_stale_banners()
+	if not _banner_queue.is_empty() and _banner_slot_free():
 		_display_banner(_banner_queue.pop_front())
 
 
+## Banners of a room the players already left, or that waited too long, are no news any more.
+func _drop_stale_banners() -> void:
+	var room := _current_room()
+	var now := Time.get_ticks_msec()
+	for i in range(_banner_queue.size() - 1, -1, -1):
+		var entry := _banner_queue[i]
+		if entry.get("keep", false) or entry.has("intro"):
+			continue
+		var old_room := int(entry.get("room", room)) < room
+		if old_room or now - int(entry.get("queued_ms", now)) > int(BANNER_STALE_TIME * 1000.0):
+			_banner_queue.remove_at(i)
+
+
 func _banner_slot_free() -> bool:
-	if get_banner() == null:
+	if get_banner() == null or _banner_cut:
 		return true
-	return Time.get_ticks_msec() - _banner_since_ms >= int(BANNER_MIN_TIME * 1000.0)
+	var shown := Time.get_ticks_msec() - _banner_since_ms
+	if _banner_hold:
+		return shown >= int(INTRO_HOLD_MAX * 1000.0)
+	if int(_banner_entry.get("room", 0)) < _current_room():
+		# A banner of the room behind gives way to the news of this one at once.
+		return true
+	return shown >= int(BANNER_MIN_TIME * 1000.0)
+
+
+static func _current_room() -> int:
+	return maxi(1, RunManager.get_current_room())
 
 
 func _display_banner(entry: Dictionary) -> void:
 	for child in _banner_root.get_children():
 		child.queue_free()
-	var box := _build_genre_banner(entry) if entry.has("genre") else _build_plain_banner(entry)
+	var box := _build_banner_plaque(entry)
 	_banner_root.add_child(box)
 	_banner_box = box
 	_banner_entry = entry
 	_banner_since_ms = Time.get_ticks_msec()
-	if entry.has("genre"):
-		var top := box.position.y
-		box.position.y = top - UiKit.px(8)
-		box.modulate.a = 0.0
-		var slide := box.create_tween().set_ignore_time_scale(true)
-		slide.set_parallel(true)
-		slide.tween_property(box, "modulate:a", 1.0, 0.25)
-		slide.tween_property(box, "position:y", top, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		slide.chain().tween_interval(GENRE_BANNER_TIME)
-		slide.chain().tween_property(box, "modulate:a", 0.0, 0.5)
-		slide.chain().tween_callback(box.queue_free)
-		return
-	box.pivot_offset = Vector2(box.size.x * 0.5, UiKit.px(11))
+	_banner_cut = false
+	var intro := entry.get("intro") as RoomIntro if is_instance_valid(entry.get("intro")) else null
+	_banner_hold = intro != null and not intro.is_released()
+	var top := _banner_top()
+	box.position.y = top - UiKit.px(8)
 	box.modulate.a = 0.0
-	box.scale = Vector2(1.4, 1.4)
+	var slide := box.create_tween().set_ignore_time_scale(true)
+	slide.set_parallel(true)
+	slide.tween_property(box, "modulate:a", 1.0, 0.25)
+	slide.tween_property(box, "position:y", top, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if _banner_hold:
+		return
+	var default_time := GENRE_BANNER_TIME if entry.has("genre") else BANNER_TIME
+	if intro != null:
+		default_time = INTRO_BANNER_AFTER_RUNNING if intro.fight_was_running else INTRO_BANNER_AFTER
+	_fade_banner_later(box, float(entry.get("time", default_time)))
+
+
+func _fade_banner_later(box: Control, seconds: float) -> void:
 	var tween := box.create_tween().set_ignore_time_scale(true)
-	tween.set_parallel(true)
-	tween.tween_property(box, "modulate:a", 1.0, 0.25)
-	tween.tween_property(box, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.chain().tween_interval(BANNER_TIME)
-	tween.chain().tween_property(box, "modulate:a", 0.0, 0.5)
-	tween.chain().tween_callback(box.queue_free)
+	tween.tween_interval(seconds)
+	tween.tween_property(box, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(box.queue_free)
 
 
-func _build_plain_banner(entry: Dictionary) -> Control:
-	var title: String = entry["title"]
-	var subtitle: String = entry.get("subtitle", "")
-	var box := UiKit.vbox(0)
-	box.alignment = BoxContainer.ALIGNMENT_CENTER
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	box.position.y = UiKit.px(45)
-	box.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	box.add_child(UiKit.title(title, 16, entry.get("color", UiKit.ACCENT_COLOR)))
-	if not subtitle.is_empty():
-		# Long subtitles (e.g. the run start summary) wrap at a fixed width instead of running off screen.
-		var sub := UiKit.text_label(subtitle, UiKit.SIZE_KEY_HINT, UiKit.COLOR_MUTED)
-		sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var single_line := UiKit.get_font().get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.font_px(UiKit.SIZE_KEY_HINT)).x
-		if single_line > UiKit.px(BANNER_SUBTITLE_WIDTH):
-			sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			sub.custom_minimum_size.x = UiKit.px(BANNER_SUBTITLE_WIDTH)
-		box.add_child(sub)
-	return box
+## The intro banner on screen lets go: it stays a moment after "go", then fades.
+func _release_banner_hold(intro: RoomIntro) -> void:
+	if not _banner_hold or _banner_entry.get("intro") != intro:
+		return
+	_banner_hold = false
+	var box := get_banner()
+	if box == null:
+		return
+	_banner_since_ms = Time.get_ticks_msec() - int(BANNER_MIN_TIME * 1000.0)
+	var after := INTRO_BANNER_AFTER_RUNNING if intro.fight_was_running else INTRO_BANNER_AFTER
+	_fade_banner_later(box, after)
+	# The next banner may come once this one is gone.
+	_banner_since_ms += int(after * 1000.0)
 
 
-## Room genre banner (D-110): a dark plaque with symbol, eyebrow ("RAUM 7 · KAMPFRAUM"), name and
-## one line. The plaque keeps it readable over world captions such as "Lagerfeuer".
-func _build_genre_banner(entry: Dictionary) -> Control:
-	var genre: StringName = entry["genre"]
+## Banner top: below the task bar or the boss bar when one is up.
+func _banner_top() -> float:
+	var top := UiKit.px(GENRE_BANNER_TOP)
+	for bar: Control in [_objective_bar, _boss_bar_root]:
+		if bar != null and bar.visible:
+			top = maxf(top, bar.position.y + bar.get_combined_minimum_size().y + UiKit.px(3))
+	return top
+
+
+## The banner plaque of every kind (07_ui.md): panel_dark, a stripe in the colour on the left,
+## optional symbol, eyebrow, title and one line. Names: "Banner", "GenreBanner", "IntroBanner",
+## "WaveBanner"; children "Title" and "Subtitle".
+func _build_banner_plaque(entry: Dictionary) -> Control:
+	var kind: StringName = entry.get("kind", &"genre" if entry.has("genre") else &"plain")
 	var color: Color = entry.get("color", UiKit.COLOR_GOLD)
 	var plaque := UiKit.panel(&"dark")
-	plaque.name = "GenreBanner"
-	plaque.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 4, 10))
+	plaque.name = {&"genre": "GenreBanner", &"intro": "IntroBanner", &"wave": "WaveBanner"}.get(kind, "Banner")
+	var style := UiKit.padded_style(&"dark", 4, 8).duplicate() as StyleBoxTexture
+	style.content_margin_left = UiKit.px(3)
+	plaque.add_theme_stylebox_override("panel", style)
 	plaque.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var row := UiKit.hbox(int(UiKit.px(6)))
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	plaque.add_child(row)
-	var icon_texture := RoomGenre.get_icon(genre)
+	var stripe := ColorRect.new()
+	stripe.name = "Stripe"
+	stripe.color = color
+	stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stripe.custom_minimum_size.x = UiKit.px(BANNER_STRIPE_WIDTH)
+	row.add_child(stripe)
+	var icon_texture: Texture2D = entry.get("icon")
+	if icon_texture == null and entry.has("genre"):
+		icon_texture = RoomGenre.get_icon(entry["genre"])
+		entry["tint"] = RoomGenre.is_icon_tinted(entry["genre"])
 	if icon_texture != null:
-		var icon := UiKit.pixel_icon(icon_texture, GENRE_ICON_SIZE)
-		if RoomGenre.is_icon_tinted(genre):
+		var icon := UiKit.pixel_icon(icon_texture, INTRO_ICON_SIZE if kind == &"intro" else GENRE_ICON_SIZE)
+		icon.name = "Icon"
+		if entry.get("tint", false):
 			icon.modulate = color
 		row.add_child(icon)
 	var text := UiKit.vbox(0)
@@ -251,16 +353,30 @@ func _build_genre_banner(entry: Dictionary) -> Control:
 	row.add_child(text)
 	var eyebrow: String = entry.get("eyebrow", "")
 	if not eyebrow.is_empty():
-		text.add_child(UiKit.eyebrow(eyebrow, UiKit.COLOR_MUTED))
-	var title := UiKit.text_label(entry["title"], UiKit.SIZE_TITLE, color, true)
+		text.add_child(UiKit.eyebrow(eyebrow, color if kind == &"intro" else UiKit.COLOR_MUTED))
+	var title_color := UiKit.COLOR_GOLD if kind == &"intro" else color
+	var title := UiKit.text_label(entry["title"], UiKit.SIZE_TITLE_LARGE if kind == &"intro" else UiKit.SIZE_TITLE, title_color, true)
 	title.name = "Title"
 	text.add_child(title)
 	var subtitle: String = entry.get("subtitle", "")
 	if not subtitle.is_empty():
-		text.add_child(UiKit.text_label(subtitle, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+		# Long subtitles (the run start summary, rule lines) wrap at a fixed width.
+		var sub := UiKit.text_label(subtitle, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		sub.name = "Subtitle"
+		var wrap_width := INTRO_SUBTITLE_WIDTH if kind == &"intro" else BANNER_SUBTITLE_WIDTH
+		var single_line := UiKit.get_font().get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.font_px(UiKit.SIZE_BODY)).x
+		if single_line > UiKit.px(wrap_width):
+			sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			sub.custom_minimum_size.x = UiKit.px(wrap_width)
+		text.add_child(sub)
+	if entry.get("skip_hint", false):
+		var hint := UiKit.hbox(int(UiKit.px(3)))
+		hint.name = "SkipHint"
+		hint.add_child(UiChip.key(ControlsInfo.key_text(ControlsInfo.INTERACT)))
+		hint.add_child(UiKit.text_label(_t(&"INTRO_SKIP"), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED))
+		text.add_child(hint)
 	plaque.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	plaque.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	plaque.position.y = UiKit.px(GENRE_BANNER_TOP)
 	return plaque
 
 
@@ -268,10 +384,13 @@ func _build_genre_banner(entry: Dictionary) -> Control:
 
 ## Hook for DungeonManager._announce_room: banner with name and symbol for rooms with gameplay of
 ## their own; the first time per save also the explanation card. Normal combat rooms stay unnamed.
-## An ambush arena is named when it springs (on_arena_started, connected here). Returns the genre
-## (RoomGenre.NONE = nothing shown). A room is announced once.
+## An arena starts its intro here (R3: door shuts, camera on the gates, "Überlebe N Wellen", 3-2-1,
+## task bar). An ambush arena is named when it springs (on_arena_started, connected here). Returns
+## the genre (RoomGenre.NONE = nothing shown). A room is announced once.
 ## A special room builds its content (pact altar or not, kind of trial) only in activate(), right
 ## after the announcement: it is named one call later, so the hook may sit before or after activate.
+## Room modes (RoomObjective.MODES) are named one frame later too, and only when the mode did not
+## bring its own RoomIntro / RoomObjective (R4).
 func show_room_genre(room: RoomController) -> StringName:
 	if room == null or not is_instance_valid(room):
 		return RoomGenre.NONE
@@ -279,6 +398,13 @@ func show_room_genre(room: RoomController) -> StringName:
 	if room.room_type == RoomSequence.RoomType.SPECIAL and room.state == RoomController.State.PREPARED:
 		_announce_room_genre.call_deferred(room)
 		return RoomGenre.of_room(room)
+	var genre := RoomGenre.of_room(room)
+	if genre == RoomGenre.ARENA and not _announced_rooms.has(room.get_instance_id()):
+		start_arena_intro(room)
+		return genre
+	if RoomObjective.has_mode(genre):
+		_announce_room_genre.call_deferred(room)
+		return genre
 	return _announce_room_genre(room)
 
 
@@ -289,6 +415,9 @@ func _announce_room_genre(room: RoomController) -> StringName:
 	if genre == RoomGenre.NONE or _announced_rooms.has(room.get_instance_id()):
 		return genre
 	_announced_rooms[room.get_instance_id()] = genre
+	if RoomIntro.get_intro(room) != null or RoomObjective.of_room(room) != null:
+		# The mode introduces itself (goal banner, card, task bar).
+		return genre
 	show_genre(genre, room)
 	return genre
 
@@ -310,11 +439,54 @@ func show_genre(genre: StringName, room: RoomController = null) -> void:
 		_queue_room_intro(genre)
 
 
+## The arena of room (R3): goal in the task bar and the intro (RoomIntro: door, camera on the
+## gates, banner "Überlebe N Wellen", 3-2-1). The fight waits for the intro when RoomController
+## asks RoomIntro.after_intro; without that hook the intro only names the goal.
+func start_arena_intro(room: RoomController) -> RoomIntro:
+	if room == null or not is_instance_valid(room):
+		return null
+	_announced_rooms[room.get_instance_id()] = RoomGenre.ARENA
+	var objective := ArenaObjective.attach_to(room)
+	return RoomIntro.start(room, objective, arena_focus(room))
+
+
+## Where the arena intro's camera looks: halfway from the room centre to the gate farthest from the
+## players (global; the room centre when the gates are not built yet). Gates come from the room's
+## SpawnSources (R2) or, before that is wired, from the old ArenaWaves (looked up by name, it goes
+## away with R2).
+func arena_focus(room: RoomController) -> Vector2:
+	var center := room.get_arena().get_center()
+	var spots: Array[Vector2] = []
+	var sources := SpawnSources.of(room)
+	if sources != null:
+		for source in sources.get_sources():
+			if is_instance_valid(source):
+				spots.append(source.global_position)
+	elif room.has_method(&"get_arena_waves"):
+		var waves: Object = room.call(&"get_arena_waves")
+		if waves != null and waves.has_method(&"get_fixed_gates"):
+			for gate: Object in waves.call(&"get_fixed_gates"):
+				spots.append(room.to_global(gate.call(&"get_floor_position")))
+	if spots.is_empty():
+		return center
+	var players := _player_positions()
+	var from: Vector2 = players[0] if not players.is_empty() else center
+	var best := center
+	var best_distance := -1.0
+	for spot in spots:
+		var distance := spot.distance_to(from)
+		if distance > best_distance:
+			best_distance = distance
+			best = spot
+	return center.lerp(best, 0.5)
+
+
 ## RoomController.arena_started: an ambush is named now ("Hinterhalt!"); a plain arena only if its
-## entry was not announced (show_room_genre does that on entry).
+## entry was not announced (show_room_genre does that on entry). Both get the task bar.
 func on_arena_started(room: RoomController, ambush: bool) -> void:
 	if room == null or not is_instance_valid(room):
 		return
+	ArenaObjective.attach_to(room)
 	var id := room.get_instance_id()
 	var genre := RoomGenre.AMBUSH if ambush else RoomGenre.ARENA
 	if _announced_rooms.get(id, RoomGenre.NONE) == genre:
@@ -333,14 +505,136 @@ func _watch_arena(room: RoomController) -> void:
 		room.arena_started.connect(on_arena_started)
 
 
-func _queue_room_intro(genre: StringName) -> void:
+## urgent: the card of a starting intro; an enemy card on screen steps back and comes after it.
+func _queue_room_intro(genre: StringName, urgent := false) -> void:
 	for entry in _hint_queue:
 		if entry.get("genre", RoomGenre.NONE) == genre:
 			return
+	if urgent and _hint_card != null and is_instance_valid(_hint_card) and not _hint_card is RoomIntroCard:
+		var waiting := _hint_entry
+		_hint_card.queue_free()
+		_hint_card = null
+		_hint_queue.push_front(waiting)
 	# Explanations of the room go before enemy cards that are still waiting.
 	_hint_queue.push_front({"kind": &"room", "genre": genre})
 	if _hint_card == null:
 		_show_next_hint()
+
+
+# --- Room intro and task bar (R3) ---
+
+## Task bar of the current room goal (hidden when none), for tests and tools.
+func get_objective_bar() -> ObjectiveBar:
+	return _objective_bar
+
+
+func get_countdown() -> IntroCountdown:
+	return _countdown
+
+
+## The intro DungeonUI follows right now (null if none).
+func get_intro() -> RoomIntro:
+	return _intro if is_instance_valid(_intro) and not _intro.is_queued_for_deletion() else null
+
+
+func _bind_objective(objective: RoomObjective) -> void:
+	if objective == null or not is_instance_valid(objective) or objective.is_finished():
+		return
+	if _objective_bar.objective == objective:
+		return
+	_objective_bar.bind(objective)
+	_objective_bar.visible = true
+	if objective is ArenaObjective:
+		var arena := objective as ArenaObjective
+		if not arena.wave_cleared.is_connected(_on_wave_cleared):
+			arena.wave_cleared.connect(_on_wave_cleared.bind(arena))
+	get_tree().call_group(Hud.GROUP, &"set_room_mode", objective.get_title())
+	_update_top_bars()
+
+
+func _on_objective_bar_done() -> void:
+	# Also called while the world unloads: then there is no tree any more.
+	if not is_inside_tree():
+		return
+	get_tree().call_group(Hud.GROUP, &"set_room_mode", "")
+	_update_top_bars()
+
+
+## The boss bar replaces the task bar (07_ui.md).
+func _update_top_bars() -> void:
+	_objective_bar.visible = _objective_bar.is_active() and not _boss_bar_root.visible
+
+
+func _bind_intro(intro: RoomIntro) -> void:
+	if intro == null or not is_instance_valid(intro) or intro.is_released():
+		return
+	_intro = intro
+	intro.phase_changed.connect(_on_intro_phase.bind(intro))
+	intro.countdown_tick.connect(_on_intro_tick.bind(intro))
+	intro.finished.connect(_on_intro_finished.bind(intro))
+	var objective := intro.objective
+	if objective != null and is_instance_valid(objective):
+		_bind_objective(objective)
+		if intro.full and RoomGenre.should_explain(objective.genre):
+			# First time: the card from the start, it fades with "go".
+			_queue_room_intro(objective.genre, true)
+	_on_intro_phase(intro.phase, intro)
+
+
+func _on_intro_phase(phase: RoomIntro.Phase, intro: RoomIntro) -> void:
+	var objective := intro.objective
+	match phase:
+		RoomIntro.Phase.DOOR:
+			Sfx.play_ui(self, &"intro_door")
+		RoomIntro.Phase.BANNER:
+			if objective == null or not is_instance_valid(objective):
+				return
+			var index := int(intro.room.get(&"room_index")) if is_instance_valid(intro.room) and intro.room.get(&"room_index") != null else _current_room()
+			_queue_banner({
+				"kind": &"intro",
+				"title": objective.get_goal(),
+				"subtitle": objective.get_rule(),
+				"eyebrow": _t(&"INTRO_EYEBROW", [index, objective.get_title()]),
+				"color": objective.get_ui_color(),
+				"icon": objective.get_icon(),
+				"tint": true,
+				"priority": true,
+				"intro": intro,
+				"skip_hint": intro.full and not intro.is_released(),
+			})
+			Sfx.play_ui(self, &"intro_banner_calm" if RoomObjective.is_calm_mode(objective.mode_id) else &"intro_banner_combat")
+
+
+func _on_intro_tick(number: int, intro: RoomIntro) -> void:
+	var color := intro.objective.get_ui_color() if is_instance_valid(intro.objective) else UiKit.COLOR_DANGER
+	_countdown.show_number(number, color)
+	Sfx.play_ui(self, &"countdown_go" if number <= 0 else &"countdown_tick")
+	if number <= 0:
+		# The explanation card of this intro fades with "go".
+		var card := get_room_intro_card()
+		if card != null and is_instance_valid(intro.objective) and card.genre == intro.objective.genre:
+			card.finish()
+
+
+func _on_intro_finished(_skipped: bool, intro: RoomIntro) -> void:
+	_release_banner_hold(intro)
+	if _intro == intro:
+		_intro = null
+
+
+## Arena: the running wave is down (2 s pause with "Welle 2/3" and a gong, 07_ui.md).
+func _on_wave_cleared(next_wave: int, total: int, arena: ArenaObjective) -> void:
+	_queue_banner({
+		"kind": &"wave",
+		"title": _t(&"WAVE_BANNER_TITLE", [next_wave, total]),
+		"subtitle": _t(&"WAVE_BANNER_SUB"),
+		"color": arena.get_ui_color(),
+		"icon": arena.get_icon(),
+		"tint": true,
+		"time": ArenaObjective.WAVE_PAUSE,
+		"priority": true,
+	})
+	Sfx.play_ui(self, &"wave_gong")
 
 
 # --- Teaching cards (enemy hints, room explanations) ---
@@ -373,9 +667,17 @@ func _queue_hint_once(entry: Dictionary) -> void:
 
 
 func _on_node_added(node: Node) -> void:
-	if auto_enemy_hints and node is Enemy:
-		# Deferred: elite, champion data and scaling are applied by then.
-		notice_enemy.call_deferred(node)
+	if node is Enemy:
+		if auto_enemy_hints:
+			# Deferred: elite, champion data and scaling are applied by then.
+			notice_enemy.call_deferred(node)
+	elif node is RoomObjective:
+		# Deferred: the mode fills in its goal right after adding it.
+		_bind_objective.call_deferred(node)
+	elif node is RoomIntro:
+		_bind_intro.call_deferred(node)
+	else:
+		WorldCaption.adopt(node)
 
 
 ## Next teaching card, one at a time. The controls card waits hidden while it shows.
@@ -469,6 +771,7 @@ func show_boss_bar(enemy: Enemy) -> void:
 	enemy.phase_changed.connect(_on_boss_phase_changed)
 	enemy.died.connect(_on_boss_died)
 	_boss_bar_root.visible = true
+	_update_top_bars()
 
 
 func hide_boss_bar() -> void:
@@ -476,6 +779,7 @@ func hide_boss_bar() -> void:
 	if _boss != null and is_instance_valid(_boss):
 		_disconnect_boss(_boss)
 	_boss = null
+	_update_top_bars()
 
 
 func _boss_color_for(enemy: Enemy, champion: bool) -> Color:
@@ -552,6 +856,26 @@ func _build_hint_root() -> void:
 	add_child(_hint_root)
 
 
+## Task bar at the top centre and the intro countdown (R3).
+func _build_objective_bar() -> void:
+	var root := Control.new()
+	root.name = "ObjectiveRoot"
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root.theme = UiKit.get_theme()
+	add_child(root)
+	_countdown = IntroCountdown.new()
+	root.add_child(_countdown)
+	_objective_bar = ObjectiveBar.new()
+	_objective_bar.add_to_group(Hud.TOP_CENTER_GROUP)
+	_objective_bar.visible = false
+	root.add_child(_objective_bar)
+	_objective_bar.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	_objective_bar.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_objective_bar.position.y = UiKit.px(TOP_BAR_Y)
+	_objective_bar.done.connect(_on_objective_bar_done)
+
+
 func _build_boss_bar() -> void:
 	var frame := UiKit.panel(&"dark")
 	frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 4, 6))
@@ -559,7 +883,8 @@ func _build_boss_bar() -> void:
 	frame.theme = UiKit.get_theme()
 	frame.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	frame.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	frame.position.y = UiKit.px(4)
+	frame.position.y = UiKit.px(TOP_BAR_Y)
+	frame.add_to_group(Hud.TOP_CENTER_GROUP)
 	add_child(frame)
 	var row := UiKit.hbox(int(UiKit.px(8)))
 	frame.add_child(row)

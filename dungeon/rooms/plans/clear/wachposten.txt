@@ -1,0 +1,21 @@
+# Wachposten (S): eine Quermauer mit breitem Durchlass teilt den Raum, im Durchlass steht der
+# Wachposten (Fackelstaender, Schutt, Knochen); Fackeln buendig in der Quermauer.
+name: Wachposten
+role: combat
+mode: clear
+biomes: all
+size: 19x13
+---
+###################
+###################
+###n#####N#####n###
+##...............##
+##..G.........G..##
+##...............##
+#######.....#######
+####T##..Z..##T####
+##...............##
+##.G...........G.##
+##.......@.......##
+#########S#########
+###################

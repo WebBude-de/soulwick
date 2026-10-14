@@ -1,0 +1,23 @@
+# Claude Design 16: zwei Kammern, eine Engstelle unten, Wasser verlangsamt die linke Kammer,
+# Tropfstelle neben dem Durchgang. Abweichungen: die Nordtuer sitzt in der rechten Kammer (im Entwurf
+# stand sie auf der Trennmauer), der Mauerarm rechts ist zwei Reihen hoch (Krone + Vorderseite).
+name: Zwei Kammern
+role: combat
+mode: clear
+biomes: slime_grotto, shadow_realm, crypt
+size: 25x13
+mirror: yes
+---
+#########################
+#########################
+##T#######T#####N#####T##
+##..........##.........##
+##.p........##....p....##
+##..........##.........##
+##..ww......########...##
+##..ww......########...##
+##..........##.........##
+##..........##.........##
+##....@........d.......##
+######S##################
+#########################

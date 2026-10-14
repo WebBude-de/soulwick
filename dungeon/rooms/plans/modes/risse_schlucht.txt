@@ -1,0 +1,21 @@
+# Claude Design 07 (Risse schliessen): drei Beschwoerungsrisse in den Waenden (zwei in der Nordwand,
+# einer in einer Innenmauer), Lavaspalten als Begleitquellen, Schutt als Deckung.
+name: Rissige Schlucht
+role: combat
+mode: rifts
+biomes: all
+size: 23x13
+---
+#######################
+#######################
+##T####!####N####!##T##
+##...................##
+##.v.............v...##
+##......##...##......##
+##......#!...##......##
+##...................##
+##..r.....v......r...##
+##.........@.........##
+##...................##
+###########S###########
+#######################

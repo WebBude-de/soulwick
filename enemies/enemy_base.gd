@@ -34,6 +34,10 @@ signal death_wait_over
 enum State { IDLE, CHASE, TELEGRAPH, ATTACK, CHARGE, LEAP, RECOVER, DEAD, ROAR, HOP }
 enum Action { NORMAL, VOLLEY, SPECIAL, SUMMON }
 enum Elite { NONE, SWIFT, ARMORED, VOLATILE }
+## How an enemy comes out of its spawn source (R2, begin_emerge): grows out of the ground at its
+## feet (grave, rift, vent, sarcophagus), hops out of a puddle, or steps out of a wall (the source
+## moves it).
+enum Emerge { RISE, JUMP, STEP }
 
 const ENEMY_SCENE_PATH := "res://enemies/enemy_base.tscn"
 const GOLD_PICKUP_SCENE: PackedScene = preload("res://economy/gold_pickup.tscn")
@@ -77,6 +81,9 @@ const FALLBACK_SUMMON_EVERY := 4
 const FALLBACK_SUMMON_COUNT := 2
 const ROAR_INVULNERABILITY := &"roar"
 const INTRO_INVULNERABILITY := &"intro"
+## Spawn sources (R2): extra hold on top of the planned emergence, so a lost tween can never keep
+## an enemy passive for long.
+const EMERGE_HOLD_MARGIN := 0.5
 ## Seconds between two target choices (nearest living player, EnemyTargeting). TESTWERT
 const TARGET_INTERVAL := 0.5
 ## Obstacle avoidance: look this far ahead, then keep a found detour for a moment.
@@ -153,6 +160,11 @@ var _hop_marker: PlaceholderShape = null
 var _hop_tween: Tween = null
 var _hop_blocked_left := 0.0
 var _base_layer := 0
+## Coming out of a spawn source (R2): hidden, then rising; passive and invulnerable throughout.
+var _emerging := false
+var _emerge_tween: Tween = null
+var _rise_tween: Tween = null
+var _emerge_modulate := Color.WHITE
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var hurtbox: Hurtbox = $Hurtbox
@@ -304,6 +316,8 @@ func begin_intro(max_duration: float) -> void:
 func end_intro() -> void:
 	if not _in_intro:
 		return
+	if _emerging:
+		_finish_emerge_look()
 	_in_intro = false
 	_intro_time_left = 0.0
 	hurtbox.set_invulnerable(INTRO_INVULNERABILITY, false)
@@ -334,6 +348,94 @@ func _process_intro(delta: float) -> void:
 	velocity = Vector2.ZERO
 	_knockback_velocity = Vector2.ZERO
 	_update_animation(delta)
+
+
+# --- Coming out of a spawn source (R2, SpawnSource) ---
+
+## Holds the enemy hidden, passive and invulnerable for wait seconds while its source warns, then
+## lets it come out over rise_time seconds (style: Emerge) and fight. Hidden means no body
+## collision and no hurtbox, so nothing bumps into or shoots at an enemy that is not there yet.
+## Built on the intro hold (begin_intro): ends by itself after the planned time plus a margin, with
+## end_intro() and with death; intro_ended tells when it fights.
+func begin_emerge(wait: float, rise_time: float, style := Emerge.RISE) -> void:
+	if _state == State.DEAD or not is_node_ready():
+		return
+	_abort_emerge()
+	begin_intro(maxf(0.0, wait) + maxf(0.0, rise_time) + EMERGE_HOLD_MARGIN)
+	_emerging = true
+	_emerge_modulate = _sprite.modulate
+	visible = false
+	collision_layer = 0
+	hurtbox.set_deferred("monitorable", false)
+	_emerge_tween = create_tween()
+	_emerge_tween.tween_interval(maxf(0.0, wait))
+	_emerge_tween.tween_callback(_start_rise.bind(maxf(0.05, rise_time), style))
+	_emerge_tween.tween_interval(maxf(0.05, rise_time))
+	_emerge_tween.tween_callback(end_intro)
+
+
+## Hidden or coming out of a source right now.
+func is_emerging() -> bool:
+	return _emerging
+
+
+## Hidden in its source, not yet coming out (tests, tools).
+func is_hidden_in_source() -> bool:
+	return _emerging and not visible
+
+
+## The enemy shows itself: it grows out of the ground at its feet, hops out of a puddle or (STEP)
+## is moved out of the wall by its source. Still passive and invulnerable.
+func _start_rise(rise_time: float, style: Emerge) -> void:
+	if _state == State.DEAD or not _emerging:
+		return
+	visible = true
+	hurtbox.set_deferred("monitorable", true)
+	var full := Vector2.ONE * _sprite_scale
+	var dark := Color(_emerge_modulate.r * 0.25, _emerge_modulate.g * 0.25, _emerge_modulate.b * 0.3, _emerge_modulate.a)
+	var tween := create_tween().set_parallel()
+	_rise_tween = tween
+	match style:
+		Emerge.RISE:
+			_sprite.scale = Vector2(full.x * 1.15, full.y * 0.08)
+			_sprite.modulate = dark
+			tween.tween_property(_sprite, "scale", full, rise_time).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tween.tween_property(_sprite, "modulate", _emerge_modulate, rise_time * 0.8)
+			Burst.spawn(get_parent(), global_position, Color(0.45, 0.4, 0.35), 8, 70.0, 0.5, 3.0)
+		Emerge.JUMP:
+			_sprite.scale = full * 0.4
+			_sprite.position.y = 6.0
+			tween.tween_property(_sprite, "scale", full, rise_time * 0.6)
+			tween.tween_property(_sprite, "position:y", -22.0, rise_time * 0.45).set_ease(Tween.EASE_OUT)
+			tween.chain().tween_property(_sprite, "position:y", 0.0, rise_time * 0.4).set_ease(Tween.EASE_IN)
+			Burst.spawn(get_parent(), global_position, data.placeholder_color, 8, 90.0, 0.4, 3.0)
+		_:
+			tween.kill()
+
+
+## Back to the normal look and body (end of the emergence or its safety timeout).
+func _finish_emerge_look() -> void:
+	_abort_emerge()
+	if _state != State.DEAD:
+		collision_layer = _base_layer
+		hurtbox.set_deferred("monitorable", true)
+
+
+## Stops a running emergence: visible, normal sprite. Body and hurtbox are left to the caller
+## (death switches them off).
+func _abort_emerge() -> void:
+	for tween: Tween in [_emerge_tween, _rise_tween]:
+		if tween != null and tween.is_valid():
+			tween.kill()
+	_emerge_tween = null
+	_rise_tween = null
+	if not _emerging:
+		return
+	_emerging = false
+	visible = true
+	_sprite.scale = Vector2.ONE * _sprite_scale
+	_sprite.position.y = 0.0
+	_sprite.modulate = _emerge_modulate
 
 
 ## Badges shown above the enemy (empty for bosses, see get_ability_badges).
@@ -1357,6 +1459,8 @@ func _on_died() -> void:
 	_health_bar.visible = false
 	if _badges != null:
 		_badges.visible = false
+	if _elite_label != null:
+		_elite_label.visible = false
 	if _shadow != null:
 		_shadow.fade_out(DEATH_DISSOLVE_TIME)
 	_sprite.position.y = 0.0

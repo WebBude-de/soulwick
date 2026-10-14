@@ -1,8 +1,8 @@
 class_name WallBreach
 extends Node2D
-## Look and sound of one opening in an arena wall (A5): a gate (enemy_gate_4f, plain arena) or a
-## breach (wall_breach_6f, ambush and fallback). Effects only: ArenaWaves decides when, this node
-## shows it. The delivered art (SPRITES_V5 §2, pivots from art/environment/rooms/arena.json) is
+## Look and sound of one opening in a wall (A5, R2): a gate (enemy_gate_4f, arena gates) or a
+## breach (wall_breach_6f, wall rifts). Effects only: SpawnSource (R2, before ArenaWaves) decides
+## when, this node shows it. The delivered art (SPRITES_V5 §2, pivots from art/environment/rooms/arena.json) is
 ## drawn for the north wall face and turned towards the room on the other walls; without the files
 ## the drawn version (cracks, hole, grate) is the fallback. Dust, stone chips, light and sound come
 ## on top.
@@ -26,6 +26,9 @@ const GLOW_INTENSITY := 0.55
 const FLASH_RADIUS := 150.0
 const FLASH_TIME := 0.4
 const GATE_CLOSE_DELAY := 0.6
+## Gate warning (rattle): the grate jumps this far up and down every RATTLE_STEP seconds.
+const RATTLE_OPENING := 0.2
+const RATTLE_STEP := 0.1
 const STONE_COLOR := Color("6b6275")
 const STONE_LIGHT := Color("8d8498")
 const DUST_COLOR := Color("a39a8a")
@@ -91,6 +94,22 @@ func telegraph(duration: float) -> void:
 		Sfx.play_at(self, &"door_open_gate", global_position, -6.0)
 		tween.tween_property(self, "opening", 1.0, maxf(0.05, duration))
 	Burst.spawn(self, to_global(_hole_centre), DUST_COLOR, 6, 50.0, 0.6, 3.0)
+
+
+## Gate warning of a spawn source (R2): the grate rattles in place and light shines through it for
+## duration seconds; it only goes up with lift(). The source plays the sound.
+func rattle(duration: float) -> void:
+	_set_glow(true)
+	var steps := maxi(2, roundi(duration / RATTLE_STEP))
+	var tween := create_tween()
+	for i in steps:
+		tween.tween_property(self, "opening", RATTLE_OPENING if i % 2 == 0 else 0.0, duration / steps)
+
+
+## The grate goes up quickly: an enemy steps out (R2).
+func lift(duration: float) -> void:
+	var tween := create_tween()
+	tween.tween_property(self, "opening", 1.0, maxf(0.05, duration))
 
 
 ## An enemy comes through. The first one breaks the wall: stones, dust, flash, sound, shake.

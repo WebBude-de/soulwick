@@ -1,0 +1,22 @@
+# Altar-Apsis (01_raumarten.md, Ruhe): der Altar U steht in einer Apsis der Nordseite zwischen zwei
+# Opferstellen, Fackeln in den Mauervorspruengen; Upgrade- und Pakt-Altar (AltarContent) entstehen am
+# ContentAnchor. Die Apsis ist drei Reihen tief, der Altar steht an ihrem Rand in der Sichtachse
+# zwischen Eingang und Nordtuer.
+name: Altar-Apsis
+role: rest
+mode: rest
+special: altar
+biomes: all
+size: 17x11
+---
+#################
+#################
+########N########
+#####.......#####
+#####.......#####
+###T#...U...#T###
+##..K.......K..##
+##.............##
+##......@......##
+########S########
+#################

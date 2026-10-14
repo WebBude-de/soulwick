@@ -7,10 +7,11 @@ extends SceneTree
 ## Writes <out>/NNN_<name>.png (running number over the phases taken) and a manifest with category
 ## and details per picture (user://scene_gallery_manifest.tsv) for the index.
 ##
-## Usage: godot --path . -s tools/scene_gallery.gd -- [out_dir] [phases]
+## Usage: godot --path . -s tools/scene_gallery.gd -- [out_dir] [phases] [filter]
 ##   out_dir: default docs/design/szenen; relative paths start at the project folder
 ##   phases:  comma list of menu,village,run,branch,templates,special,variants,arena,doors,ui
 ##            (default: all of them in this order)
+##   filter:  templates phase only: template ids containing this text (R1 plan templates)
 ##
 ## Test storage only (SaveManager.set_storage_root), German texts, randomness only through fixed
 ## dungeon seeds. Real rooms come from seeded runs; every template, biome, special room and variant
@@ -35,6 +36,8 @@ const STAGE_STEP := 64 * 80
 ## Room numbers per biome for staged rooms (cycle place 2 = normal combat room, no new-biome banner).
 const BIOME_ROOMS: Array[int] = [7, 22, 37, 52]
 const BIOME_SLUGS: Array[String] = ["krypta", "schleimgrotte", "schattenreich", "glutkammer"]
+## BiomeData ids in the same order (plan templates are made per biome, R1).
+const BIOME_IDS: Array[StringName] = [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
 const SIDE_NAMES: Array[String] = ["Nord", "Ost", "Süd", "West"]
 const SIDE_SLUGS: Array[String] = ["nord", "ost", "sued", "west"]
 const UI_LAYERS: Array[StringName] = [&"Hud", &"GameUI", &"DungeonUI", &"VillageUI", &"BossIntroView"]
@@ -457,36 +460,51 @@ func _phase_branch() -> void:
 		print("no branch room found")
 
 
-# --- Phase: every combat template ---
+# --- Phase: every room template (plans, R1) ---
 
+## Every template of both catalogs (combat, then boss, miniboss, rest, campfire) in its own biome.
+## Optional filter in the third argument: only template ids containing one of its comma separated
+## parts (e.g. "grabhalle,stube"). Rest rooms are entered, so their content (shop, altar) shows.
 func _phase_templates() -> void:
 	await _ensure_stage()
-	var catalog: Object = load("res://dungeon/rooms/room_catalog.gd").load_default()
-	var template_script: GDScript = load("res://dungeon/rooms/templates/room_template.gd")
+	var catalog_script: GDScript = load("res://dungeon/rooms/room_catalog.gd")
 	var entries: Array = []
 	var seen := {}
-	for entry in catalog.get_entries():
-		if entry == null or entry.scene == null or seen.has(entry.id):
+	var args := OS.get_cmdline_user_args()
+	var only: PackedStringArray = args[2].split(",", false) if args.size() > 2 else PackedStringArray()
+	for catalog: Object in [catalog_script.load_default(), catalog_script.load_plans()]:
+		if catalog == null:
 			continue
-		seen[entry.id] = true
-		entries.append(entry)
-	entries.sort_custom(func(a, b) -> bool:
-		return int(a.room_kind) * 1000 + int(a.shape) * 10 + int(a.size_class) < int(b.room_kind) * 1000 + int(b.shape) * 10 + int(b.size_class))
+		for entry in catalog.get_entries():
+			if entry == null or entry.scene == null or seen.has(entry.id):
+				continue
+			var wanted := only.is_empty()
+			for part in only:
+				wanted = wanted or String(entry.id).contains(part)
+			if not wanted:
+				continue
+			seen[entry.id] = true
+			entries.append(entry)
 	var kind_slugs := ["kampfraum", "arena", "abgrund"]
 	var size_names := ["S", "M", "L"]
-	for i in entries.size():
-		var entry: Resource = entries[i]
-		var biome := i % 4
+	var role_types := {&"combat": COMBAT, &"boss": BOSS, &"miniboss": MINIBOSS, &"rest": SPECIAL, &"campfire": CAMPFIRE}
+	for entry: Resource in entries:
+		var biome := maxi(0, BIOME_IDS.find(entry.allowed_biomes[0] if not entry.allowed_biomes.is_empty() else &"crypt"))
 		var index := BIOME_ROOMS[biome]
-		var room := _stage(entry.scene, index, COMBAT)
+		var room_type: int = role_types.get(entry.role, COMBAT)
+		var special: int = entry.special_types[0] if not entry.special_types.is_empty() else -1
+		var room := _stage(entry.scene, index, room_type, {"special": special})
 		await _frames(12)
-		var shape_name: String = template_script.get_shape_name(entry.shape)
-		var slug := "%s_%s_%s_%s" % [kind_slugs[int(entry.room_kind)], _slug(shape_name), size_names[int(entry.size_class)].to_lower(), BIOME_SLUGS[biome]]
-		if String(entry.id).begins_with("combat_"):
-			slug += "_alt"
-		var details := "Vorlage %s (%s, %s, Größe %s, %dx%d Kacheln): %s" % [entry.id, kind_slugs[int(entry.room_kind)], shape_name,
+		if room_type == SPECIAL:
+			await _enter_staged(room)
+			await _seconds(1.0)
+		var kind: String = kind_slugs[int(entry.room_kind)] if entry.role == &"combat" else String(entry.role)
+		var slug := "%s_%s_%s" % [kind, entry.id, BIOME_SLUGS[biome]]
+		var details := "Plan %s -> Vorlage %s (%s, Modus %s, Größe %s, %dx%d Kacheln): %s" % [entry.plan_id, entry.id, kind, entry.mode,
 				size_names[int(entry.size_class)], entry.room_size.x, entry.room_size.y, _describe(room)]
-		await _room_overview(room, slug, "Kampfraum-Vorlage", details, 1)
+		await _room_overview(room, slug, "Raum-Vorlage", details, 1)
+		if room_type == SPECIAL:
+			_restore_vision(room)
 		_unstage(room)
 		await _frames(4)
 
@@ -592,15 +610,15 @@ func _phase_variants() -> void:
 	await _ensure_stage()
 	# [variant id, slug, room number, templates to try]
 	var list := [
-		[&"soul_flame", "seelenflamme", 22, ["normal_rectangle_m", "normal_ring_m"]],
-		[&"rifts", "beschwoerungsrisse", 37, ["normal_cross_m", "normal_rectangle_m"]],
-		[&"gravedigger", "totengraeber", 7, ["normal_pillar_hall_m", "normal_rectangle_m"]],
-		[&"bounty", "kopfgeld", 52, ["normal_ring_m", "normal_rectangle_m"]],
-		[&"stone_guardian", "steinwaechter", 38, ["normal_two_chambers_m", "normal_rectangle_m"]],
-		[&"lantern", "laternentraeger", 8, ["normal_l_shape_m", "normal_rectangle_m"]],
-		[&"torch_room", "fackelraum", 36, ["normal_rectangle_m", "normal_cross_m"]],
-		[&"elite_nest", "elite_nest", 53, ["normal_cross_m", "normal_rectangle_m"]],
-		[&"wager", "wagnis_altar", 23, ["normal_ring_s", "normal_rectangle_m"]],
+		[&"soul_flame", "seelenflamme", 22, ["kreuzgang_slime_grotto", "gewoelbe_slime_grotto"]],
+		[&"rifts", "beschwoerungsrisse", 37, ["kreuzgang_shadow_realm", "galerie_shadow_realm"]],
+		[&"gravedigger", "totengraeber", 7, ["grabhalle", "ruinenhof_crypt"]],
+		[&"bounty", "kopfgeld", 52, ["gewoelbe_ember_forge", "kreuzgang_ember_forge"]],
+		[&"stone_guardian", "steinwaechter", 38, ["zwei_kammern_shadow_realm", "galerie_shadow_realm"]],
+		[&"lantern", "laternentraeger", 8, ["saeulenhalle_crypt", "gruft_crypt"]],
+		[&"torch_room", "fackelraum", 36, ["kreuzgang_shadow_realm", "gewoelbe_shadow_realm"]],
+		[&"elite_nest", "elite_nest", 53, ["kreuzgang_ember_forge", "schmiede_ember_forge"]],
+		[&"wager", "wagnis_altar", 23, ["gruft_slime_grotto", "kreuzgang_slime_grotto"]],
 	]
 	for item in list:
 		var room: Node = null
@@ -651,11 +669,11 @@ func _attach_variant(room: Node, id: StringName) -> bool:
 func _phase_arena() -> void:
 	await _ensure_stage()
 	# Arena: enemies step out of the walls right after entering.
-	var arena := _stage(load("res://dungeon/rooms/combat/arena_pillar_hall_m.tscn"), 22, COMBAT, {"ambush": 0})
+	var arena := _stage(load("res://dungeon/rooms/combat/arena_tore_slime_grotto.tscn"), 22, COMBAT, {"ambush": 0})
 	await _frames(10)
 	await _enter_staged(arena)
 	await _seconds(0.2)
-	await _shot("arena_1_wand_bricht_auf", "Arena/Hinterhalt", "Arena (Säulenhalle M, Schleimgrotte) 0,2 s nach dem Betreten: Wand-Tore kündigen sich an")
+	await _shot("arena_1_wand_bricht_auf", "Arena/Hinterhalt", "Arena (Arena der Tore, Schleimgrotte) 0,2 s nach dem Betreten: Wand-Tore kündigen sich an")
 	await _seconds(0.25)
 	await _room_overview(arena, "arena_uebersicht_tore", "Arena/Hinterhalt", "Arena ca. 0,5 s nach dem Betreten, ganzer Raum (alle Wand-Tore): %s" % _describe(arena), 0)
 	_restore_vision(arena)
@@ -667,12 +685,12 @@ func _phase_arena() -> void:
 	_unstage(arena)
 	await _frames(6)
 	# Ambush: looks empty, breaks open when the door closes behind the player.
-	var ambush := _stage(load("res://dungeon/rooms/combat/arena_cross_m.tscn"), 52, COMBAT, {"ambush": 1})
+	var ambush := _stage(load("res://dungeon/rooms/combat/arena_grube_ember_forge.tscn"), 52, COMBAT, {"ambush": 1})
 	await _frames(10)
 	await _room_overview(ambush, "hinterhalt_vorher_leer", "Arena/Hinterhalt", "Hinterhalt vor dem Betreten (wirkt leer): %s" % _describe(ambush), 1)
 	await _enter_staged(ambush)
 	await _seconds(0.1)
-	await _shot("hinterhalt_1_tuer_schliesst", "Arena/Hinterhalt", "Hinterhalt (Kreuz M, Glutkammer) 0,1 s: Tür schließt hinter dem Spieler")
+	await _shot("hinterhalt_1_tuer_schliesst", "Arena/Hinterhalt", "Hinterhalt (Arena mit Grube, Glutkammer) 0,1 s: Tür schließt hinter dem Spieler")
 	await _seconds(0.45)
 	await _shot("hinterhalt_2_ausbruch", "Arena/Hinterhalt", "Hinterhalt 0,55 s: Ausbruch aus den Wänden")
 	await _room_overview(ambush, "hinterhalt_uebersicht_ausbruch", "Arena/Hinterhalt", "Hinterhalt ca. 0,7 s, ganzer Raum beim Ausbruch: %s" % _describe(ambush), 0)
@@ -689,9 +707,9 @@ func _phase_arena() -> void:
 
 func _phase_doors() -> void:
 	await _ensure_stage()
-	var rectangle: PackedScene = load("res://dungeon/rooms/combat/normal_rectangle_m.tscn")
 	for biome in 4:
-		var room := _stage(rectangle, BIOME_ROOMS[biome], COMBAT)
+		var plan: PackedScene = load("res://dungeon/rooms/combat/kreuzgang_%s.tscn" % BIOME_IDS[biome])
+		var room := _stage(plan, BIOME_ROOMS[biome], COMBAT)
 		await _frames(10)
 		_overlay().set_biome(room.spawner.get_biome(room.room_index), true)
 		await _door_shot(room, room.get_chosen_exit(), "tuer_nord_%s" % BIOME_SLUGS[biome], "Tür", "Nordtür (Ausgang, geschlossen) in %s, nah" % _biome_name(room))

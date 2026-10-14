@@ -790,6 +790,24 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Messung (Bot Schwert, 24 Seeds × 3):** Median Raum 30 → 30; Schaden je Kampfraum Raum 1–5 0,094 → 0,056, Raum 6–10 0,148 → 0,101. Ob es sich „von hinten“ genug anfühlt, zeigt der Playtest.
 - **Folgen:** `enemies/ai/`, `enemy_base.gd` Zustand `HOP`; Töne `slime_hop`/`slime_land` fehlen noch (bis dahin stumm). Ergänzt D-118, D-120.
 
+### D-131 – Räume aus Plänen, einheitliches Wand-System (R1)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Claude-Design-Antwort (D-120)
+- **Beschluss:** Alle Raumvorlagen entstehen aus ASCII-Plänen (`dungeon/rooms/plans/`, Legende aus `docs/design/claude_design_antwort/02_grundrisse.md` plus `a F D Z m j`); je Biom eigene Vorlagen (Bodenquellen wechseln auf die Biomquelle), Spiegelungen als eigene Vorlagen. Der Generator prüft: Wandregel (Krone + Vorderseite, Nordwand 2 Kronen + 1 Vorderseite, Pfeiler 2×2), Einbauten bündig in der Vorderseite, Türen frei, jede Bodenkachel zu Fuß erreichbar, keine Deko im einzigen Gang, Fallen nur mit Grund, höchstens 1 Deko-Gruppe je 20 Bodenkacheln (Auffüllen bis 1 je 30). Keine Zufallsstreuung von Requisiten mehr. Raumart-Gewichte ab Raum 10: Normal 0,65 / Arena 0,35 / Abgrund 0. Boss-, Miniboss- und Ruheräume je Biom aus eigenen Plänen. Wasser bremst Spieler auf 70 %. Geheimnische bis zum Sprengen als Fels gemalt, Bruchkante in Biomfarbe.
+- **Stand:** 39 Pläne → 124 Kampf- und 25 weitere Vorlagen; Säubern je Biom 11–16 Pläne.
+
+### D-132 – Gegner-Quellen: Warnung, Erscheinen, Wahl hinter dem Spieler (R2)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude im Auftrag des Projektmitglieds („deutlicher, woher Gegner kommen; aus dem Boden, in der Arena aus der Wand“)
+- **Beschluss:** Jeder Gegner eines Kampf- oder Champion-Raums kommt aus einer Quelle (Grab, Sarkophag, Pfütze, Bodenriss, Lavaspalte, Wandtor, Wandriss; Marker `Sources` aus den Plänen). Ablauf: 1 s Warnung (Licht in Quellenfarbe, Bodenring, Ton), 0,5 s Erscheinen (passiv, unverwundbar, ohne Körper), dann Kampf. Je Schub mindestens 3 Quellen, nie alle (bei ≥ 3 höchstens 60 %), Abstand ≥ 160 px zu jedem lebenden Spieler (Tore 96 px), bevorzugt hinter (3) bzw. neben (2) statt vor (1) dem nächsten Spieler; Quellen des letzten Schubs zuletzt. Arena nur aus Toren, jede Welle andere Tore. Elites nehmen freie Sarkophage, Champions steigen aus einem Sarkophag, Bosse behalten ihr Intro. Ohne Plan-Marker werden alte Spawnpunkte zu Quellen in Biomart. Hinterhalt entfällt (`AMBUSH_CHANCE` 0). Zufall aus Dungeon-Seed + Raumnummer.
+
+### D-133 – Intro-Muster, Aufgabenleiste, Licht (R3, R6, R9)
+
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Claude-Design-Antwort
+- **Intro (R3):** Räume mit Aufgabe (zuerst die Arena) beginnen mit Tür zu → Kamera auf das Ziel (Sperre je Spieler) → Ziel-Banner in Modusfarbe → 3-2-1 → los; beim ersten Mal je Spielstand mit Erklärkarte, danach kurz (ca. 2,2 s, ohne Kamera und Sperre); Überspringen mit E. Bewegung ist während 3-2-1 erlaubt. `RoomObjective` meldet Fortschritt, Zeit und Gefahr an die Aufgabenleiste oben Mitte; die Bossleiste ersetzt sie. Zwischen Arena-Wellen 2 s Pause mit „Welle n/N“ und Gong. Banner und Weltbeschriftungen teilen sich eine Warteschlange; veraltete Banner fallen weg.
+- **Licht (R6):** Umgebung je Biom 0,53–0,60 Dunkelheit statt 0,97 (40–50 % sichtbar), Spielerkreis gezeichnet ×1,45 (ca. 5 Kacheln), für die Spiellogik unverändert 300 px; absichtlich dunkle Räume 0,84. Lichtfarben nach Regel warm = sicher, kalt = Ziel, rot = Gefahr. Helligkeits-Regler vorbereitet (Haken in den Optionen offen).
+- **Töne (R9):** 27 neue synthetische Töne (Quellen, Intro, Countdown, Gong, Seelen, Einsturz, Geleit, Reliquie, Feuer, Slimes, Steinwächter, Laterne).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

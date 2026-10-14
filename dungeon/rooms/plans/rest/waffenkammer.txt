@@ -1,0 +1,21 @@
+# Waffenkammer-Nische (01_raumarten.md, Ruhe): die zwei Waffensockel (WeaponContent) stehen am
+# Waffenstaender j vor einer Nische der Nordseite, Fackeln in den Mauervorspruengen, Kisten links und
+# rechts.
+name: Waffenkammer
+role: rest
+mode: rest
+special: weapon
+biomes: all
+size: 17x11
+---
+#################
+#################
+########N########
+##T##.......##T##
+##..a.......a..##
+##......j......##
+##...........r.##
+##.............##
+##......@......##
+########S########
+#################

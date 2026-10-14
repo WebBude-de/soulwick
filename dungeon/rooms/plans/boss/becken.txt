@@ -1,0 +1,23 @@
+# Bossraum der Schleimgrotte (01_raumarten.md): ein Becken mit seichtem Wasser in der Mitte bremst
+# den Spieler, die Koenigin nicht; Pfuetzen als Quellen, Tropfstellen, zwei Felspfeiler.
+name: Becken der Koenigin
+role: boss
+mode: boss
+biomes: slime_grotto
+size: 25x15
+---
+#########################
+#########################
+###T##n#####N#####n##T###
+##.....................##
+##.p........0........p.##
+##.....d.........d.....##
+##...##.wwwwwww.##.....##
+##...##.wwwwwww.##.....##
+##......wwwwwww........##
+##.p...B.........B...p.##
+##.....................##
+##.....................##
+##..........@..........##
+############S############
+#########################

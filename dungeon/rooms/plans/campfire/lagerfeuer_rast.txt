@@ -1,0 +1,21 @@
+# Claude Design 11 (Rast am Feuer): kleiner Raum zwischen zwei Biomen, Feuer J, zwei Staemme, eine
+# Schlafmatte, Portal O hinten rechts. Feuer, Sitz und Matte baut CampfireContent am ContentAnchor;
+# l und z bleiben Marker. Ein Plan fuer jeden Biomwechsel (Bodenuebergang zur Laufzeit).
+name: Rast am Feuer
+role: campfire
+mode: campfire
+biomes: crypt
+size: 17x11
+scene: campfire/campfire_room.tscn
+---
+#################
+#################
+###T#####N###T###
+##.............##
+##..l......J...##
+##........l....##
+##.z.........O.##
+##..b..........##
+##...@.........##
+########S########
+#################

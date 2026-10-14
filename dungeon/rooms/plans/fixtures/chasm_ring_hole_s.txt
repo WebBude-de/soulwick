@@ -1,0 +1,22 @@
+# Testvorlage (kein Katalog): der alte Abgrund-Raum "Ring um ein Loch" S, den die Fall-Tests laden
+# (test_fall_player, test_fall_enemy, test_chasm_tiles). Abgrund ist seit D-120 keine Raumart mehr.
+name: Ring um ein Loch (Test)
+role: fixture
+biomes: crypt
+size: 19x14
+scene: combat/chasm_ring_hole_s.tscn
+---
+###################
+###################
+#########N#########
+##...............##
+##...............##
+##...............##
+##....~~~~~~~....##
+##....==...~~....##
+##....~~~~~~~....##
+##...............##
+##...............##
+##...............##
+#########S#########
+###################

@@ -1,0 +1,21 @@
+# Claude Design 12 (Haendlerstube): Theke mit Haendler links, Kisten, Kerzen, ein Kristall; der
+# Laden selbst (Theke, Haendler, Angebote) entsteht zur Laufzeit am ContentAnchor (ShopContent).
+# Abweichung: der Kristall steht rechts der Eingangsschneise.
+name: Haendlerstube
+role: rest
+mode: rest
+special: shop
+biomes: all
+size: 15x11
+---
+###############
+###############
+##T###N####T###
+##...........##
+##..h...K....##
+##..H........##
+##..b........##
+##.......C...##
+##.....@.....##
+#######S#######
+###############

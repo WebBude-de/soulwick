@@ -11,6 +11,9 @@ extends SceneTree
 ## test walks up to a door, the elite nest when offered) and seal the other door; a cracked wall is
 ## blown up with a barrel blast and its niche (chest, crystals or merchant) is used. Branches and
 ## secrets are made more frequent for the test (BranchRules/SecretRules.chance_override).
+## Room plans (R1, D-120): every room is checked against the plan rules on entry (RoomPlanChecks:
+## every floor tile reachable with props and sources blocked, doors free, nothing in the only way,
+## traps with a reason); combat rooms come from a plan of their biome and scatter nothing at random.
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms]
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
@@ -30,9 +33,11 @@ var _rolled_deep := {}
 var _used_kinds := {}
 var _previous_kind := -1
 var _campfires_seen := 0
-## Shapes and ingredients of the combat rooms played (A3).
+## Shapes and ingredients of the combat rooms played (A3); plans played (R1).
 var _shapes_seen := {}
 var _ingredients_seen := {}
+var _plans_seen := {}
+var _plan_rooms_checked := 0
 ## Abysses (A4): chasm rooms and rooms with holes played.
 var _chasm_rooms := 0
 var _hole_rooms := 0
@@ -155,6 +160,7 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	_entrance_sides[tiles_of_room.entrance_side] = _entrance_sides.get(tiles_of_room.entrance_side, 0) + 1
 	_longest_corridor = maxi(_longest_corridor, tiles_of_room.entrance_corridor_extra)
 	_check_no_overlap(index)
+	_check_plan_rules(index, room)
 	var is_branch: bool = room.is_branch_room()
 	if type_name == "BOSS":
 		# Behind a boss room comes the campfire, room index + 1 only behind it (D-103).
@@ -170,6 +176,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		print("room %d: special %s, portal=%s" % [index, room.special_type, room.has_portal])
 		await _use_special(room, player)
 	else:
+		# Intro pattern (R3): a player would skip it with E; the fight starts on release.
+		var intro: Object = load("res://dungeon/modes/room_intro.gd").get_intro(room)
+		if intro != null:
+			intro.skip()
+			await _frames(5)
 		_check(room.is_encounter_started(), "room %d encounter started on entry" % index)
 		var enemies: Array = room.enemy_container.get_children().filter(func(n): return n.get_script() != null and n.get_script().get_global_name() == &"Enemy")
 		if type_name.begins_with("COMBAT"):
@@ -200,10 +211,12 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		for enemy in enemies:
 			_kill(enemy, player)
 		# Splitting slimes, summons and later waves add enemies: keep clearing until empty.
-		for sweep in 12:
+		# Enemies come out of sources first (R2): about 2.5 s per wave before they can be hit.
+		for sweep in 40:
 			await _frames(25)
 			var remaining: Array = room.enemy_container.get_children().filter(func(n): return _is_enemy(n) and not n.is_dead())
-			if remaining.is_empty():
+			# Arena waves keep a short pause (R3): empty is only done once no wave is left.
+			if remaining.is_empty() and room._waves_spawned >= room._waves_total:
 				break
 			for enemy in remaining:
 				_kill(enemy, player)
@@ -458,7 +471,8 @@ func _print_kind_distribution() -> void:
 	print("room kinds drawn over 1000 simulated runs, rooms 1-%d: %s" % [first_kind_room - 1, _format_counts(early)])
 	print("room kinds drawn over 1000 simulated runs, rooms %d+: %s" % [first_kind_room, _format_counts(deep)])
 	print("shapes played (kind · shape · size): %s" % _format_counts(_shapes_seen))
-	print("ingredients scattered: %s" % _format_counts(_ingredients_seen))
+	print("plans played: %s (%d plan rooms checked against the plan rules)" % [_format_counts(_plans_seen), _plan_rooms_checked])
+	print("ingredients scattered (R1: none): %s" % _format_counts(_ingredients_seen))
 	print("abyss: %d chasm rooms, %d rooms with holes" % [_chasm_rooms, _hole_rooms])
 	print("entrance walls (0 N, 1 E, 2 S, 3 W): %s, longest extra corridor %d" % [_format_counts(_entrance_sides), _longest_corridor])
 	print("branches taken: %s" % ", ".join(_branches_taken))
@@ -500,9 +514,20 @@ func _check_no_gold_in_abyss(index: int, room: Node) -> void:
 			_check(not tiles.is_pit_at_local(local), "room %d: pickup not in the abyss (tile %s, age %.2f s)" % [index, tiles.local_to_tile(local), node.get(&"_age")])
 
 
-## Shape and ingredients of a combat room (A3): the scatter ran once from the dungeon RNG, 2-3
-## ingredients (the catacomb may get fewer), exit and every marker still reachable, the room name
-## only for kinds with their own gameplay (D-110).
+## Plan rules of every plan room on entry (R1, RoomPlanChecks); trial courses and the old special
+## room are no plans (their props are the course).
+func _check_plan_rules(index: int, room: Node) -> void:
+	var template: Resource = load("res://dungeon/rooms/room_catalog.gd").find_template_of(room)
+	if template == null or template.plan_id == &"":
+		return
+	_plan_rooms_checked += 1
+	var problems: Array = load("res://dungeon/rooms/room_plan_checks.gd").problems(room)
+	_check(problems.is_empty(), "room %d (%s): plan rules %s" % [index, room.scene_file_path.get_file(), problems])
+
+
+## Plan and ingredients of a combat room (A3, R1): a plan of the room's biome, the scatter ran once
+## from the dungeon RNG but placed nothing (no random props), exit and every marker reachable, the
+## room name only for kinds with their own gameplay (D-110).
 func _check_shape_and_ingredients(index: int, room: Node) -> void:
 	var template: Resource = load("res://dungeon/rooms/templates/room_template.gd").of(room)
 	_check(template != null, "room %d: template in the catalog" % index)
@@ -510,14 +535,18 @@ func _check_shape_and_ingredients(index: int, room: Node) -> void:
 		return
 	var label := _describe_room(room)
 	_shapes_seen[label] = _shapes_seen.get(label, 0) + 1
+	_plans_seen[template.plan_id] = _plans_seen.get(template.plan_id, 0) + 1
+	var biome: Resource = room.spawner.get_biome(index)
+	_check(biome == null or template.allows_biome(biome.id), "room %d: plan %s made for the biome %s" % [index, template.id, biome.id if biome != null else &""])
+	_check(template.is_plain_fight(), "room %d: plain fight plan (%s, mode %s)" % [index, template.id, template.mode])
 	var scatter: Node = room.get_node_or_null("Ingredients")
-	_check(scatter != null and scatter.plan != null, "room %d: ingredients scattered" % index)
+	_check(scatter != null and scatter.plan != null, "room %d: the scatter ran (one RNG draw)" % index)
 	if scatter == null or scatter.plan == null:
 		return
 	var set_script: GDScript = load("res://dungeon/rooms/ingredients/ingredient_set.gd")
 	var count: int = scatter.plan.ingredients.size()
 	var is_catacomb: bool = template.shape == template.Shape.CATACOMB
-	_check(count <= 3 and (count >= 2 or is_catacomb), "room %d: %d ingredients" % [index, count])
+	_check(count == 0, "room %d: no random props (R1), %d ingredients" % [index, count])
 	for kind in scatter.plan.ingredients:
 		var kind_name: String = set_script.get_kind_name(kind)
 		_ingredients_seen[kind_name] = _ingredients_seen.get(kind_name, 0) + 1
@@ -555,6 +584,8 @@ func _walk_in_point(room: Node) -> Vector2:
 	var reachable: Dictionary = tiles.get_reachable_tiles()
 	var scatter: Node = room.get_node_or_null("Ingredients")
 	var occupied: Array = scatter.get_blocked_tiles() if scatter != null else []
+	# Plan props (coffins, pillars, crates) block their tiles too (R1).
+	occupied.append_array(load("res://dungeon/rooms/room_plan_checks.gd").solid_tiles(room).keys())
 	var middle: Vector2 = tiles.get_floor_rect().get_center()
 	var best := Vector2i(tiles.entrance_x, tiles.room_size.y - 2)
 	var best_distance := INF

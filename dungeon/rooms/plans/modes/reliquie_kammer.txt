@@ -1,0 +1,22 @@
+# Claude Design 05 (Reliquie holen): zwei Gaenge um eine Mittelmauer fuehren zur Reliquie hinten
+# rechts, der leere Altar steht neben dem Eingang. Abweichungen: die Nordtuer sitzt rechts der
+# Mittelmauer, die Mittelmauer endet eine Reihe vor dem Eingang (sonst waeren beide Tueren zu).
+name: Reliquienkammer
+role: combat
+mode: relic
+biomes: all
+size: 25x13
+---
+#########################
+#########################
+##T####n######N##n####T##
+##.G.................R.##
+##..........##.........##
+##.3........##....3....##
+##..######..##..######.##
+##..######..##..######.##
+##..........##.........##
+##.G...................##
+##....A.....@........G.##
+############S############
+#########################

@@ -159,8 +159,10 @@ static func roll_portal(rng: RandomNumberGenerator) -> bool:
 ## TESTWERT (D-118: 6 -> 10, playtest: arenas shortly before the first boss; = WaveRules.ARENA_FROM_ROOM).
 const CHASM_FROM_ROOM := 10
 ## Room kind weights in RoomKind order (D-100, TESTWERTE): rooms 1-5 and from CHASM_FROM_ROOM.
+## D-120 (R1): the abyss is no room kind any more, only a part of floor plans (bridge cross,
+## collapse); its former share goes to normal rooms, the arena share stays.
 const ROOM_KIND_WEIGHTS_EARLY: Array[float] = [1.0, 0.0, 0.0]
-const ROOM_KIND_WEIGHTS: Array[float] = [0.4, 0.35, 0.25]
+const ROOM_KIND_WEIGHTS: Array[float] = [0.65, 0.35, 0.0]
 ## Spawn markers per combat template (D-086): at least S 5 / M 8 / L 12, never more than 14.
 const MIN_SPAWN_POINTS: Array[int] = [5, 8, 12]
 const MAX_SPAWN_POINTS := 14

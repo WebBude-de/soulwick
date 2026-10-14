@@ -1,0 +1,22 @@
+# Gewoelbe (M): ein massiver Block in der Mitte, der Weg fuehrt aussen herum; Fackeln und eine
+# Nische sitzen buendig in der Suedseite des Blocks.
+name: Gewoelbe
+role: combat
+mode: clear
+biomes: all
+size: 23x14
+---
+#######################
+#######################
+##T#####n##N##n#####T##
+##...................##
+##.G...............G.##
+##.....#########.....##
+##..k..#########..r..##
+##.....#########.....##
+##.....#T##n##T#.....##
+##...................##
+##.G............P..G.##
+##.........@.........##
+###########S###########
+#######################

@@ -1,0 +1,135 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
+[ext_resource type="PackedScene" path="res://dungeon/rooms/ingredients/rubble.tscn" id="2_rubble"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="3_torch"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="4_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="5_scatter"]
+
+[node name="SaeulenhalleMirrorSlimeGrotto" instance=ExtResource("1_base")]
+room_kind = 0
+room_size_class = 0
+
+[node name="Tiles" parent="."]
+room_size = Vector2i(19, 9)
+entrance_x = 9
+exit_x = 9
+floor_seed = 4
+wall_rects = Array[Rect2i]([Rect2i(1, 1, 2, 2), Rect2i(7, 1, 2, 2), Rect2i(13, 1, 2, 2), Rect2i(4, 6, 2, 2), Rect2i(10, 6, 2, 2)])
+moss_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(10, 1), Vector2i(11, 0), Vector2i(11, 1), Vector2i(12, 0), Vector2i(12, 1)])
+door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 9), Vector2i(0, 15), Vector2i(3, 0), Vector2i(1, 4)])
+front_fixtures = Array[Vector2i]([Vector2i(4, -1), Vector2i(13, -1), Vector2i(18, -1)])
+
+[node name="Spawn1" parent="SpawnPoints"]
+position = Vector2(1120, 96)
+
+[node name="Spawn2" parent="SpawnPoints"]
+position = Vector2(96, 480)
+
+[node name="Spawn3" parent="SpawnPoints"]
+position = Vector2(1120, 480)
+
+[node name="Spawn4" parent="SpawnPoints"]
+position = Vector2(480, 32)
+
+[node name="Spawn5" parent="SpawnPoints"]
+position = Vector2(800, 224)
+
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(352, 288)
+
+[node name="ContentAnchor" parent="."]
+position = Vector2(608, 288)
+
+[node name="PortalAnchor" parent="."]
+position = Vector2(928, 224)
+
+[node name="PlayerStart" type="Marker2D" parent="."]
+position = Vector2(608, 544)
+
+[node name="Sources" type="Node2D" parent="."]
+
+[node name="Source1" type="Marker2D" parent="Sources"]
+position = Vector2(1120, 96)
+metadata/source_kind = &"puddle"
+metadata/tile = Vector2i(17, 1)
+metadata/floor_tile = Vector2i(17, 1)
+metadata/wall_side = -1
+
+[node name="Source2" type="Marker2D" parent="Sources"]
+position = Vector2(96, 480)
+metadata/source_kind = &"puddle"
+metadata/tile = Vector2i(1, 7)
+metadata/floor_tile = Vector2i(1, 7)
+metadata/wall_side = -1
+
+[node name="Source3" type="Marker2D" parent="Sources"]
+position = Vector2(1120, 480)
+metadata/source_kind = &"puddle"
+metadata/tile = Vector2i(17, 7)
+metadata/floor_tile = Vector2i(17, 7)
+metadata/wall_side = -1
+
+[node name="Torch1" parent="Props" instance=ExtResource("3_torch")]
+position = Vector2(256, -64)
+
+[node name="Niche1" type="Node2D" parent="Props"]
+position = Vector2(864, 0)
+script = ExtResource("4_deco")
+item = &"wall_niche"
+
+[node name="Torch2" parent="Props" instance=ExtResource("3_torch")]
+position = Vector2(1152, -64)
+
+[node name="Rubble1" parent="Props" instance=ExtResource("2_rubble")]
+position = Vector2(32, 312)
+modulate = Color(0.72, 0.92, 0.78, 1)
+
+[node name="Candles1" type="Node2D" parent="Props"]
+position = Vector2(543, 292)
+script = ExtResource("4_deco")
+item = &"candles"
+
+[node name="Bones1" type="Node2D" parent="Props"]
+position = Vector2(511, 306)
+script = ExtResource("4_deco")
+item = &"bones_1"
+flip = true
+
+[node name="Gravestone1" type="Node2D" parent="Props"]
+position = Vector2(572, 274)
+script = ExtResource("4_deco")
+item = &"gravestone"
+still_frame = 0
+
+[node name="Rubble2" parent="Props" instance=ExtResource("2_rubble")]
+position = Vector2(1056, 312)
+modulate = Color(0.72, 0.92, 0.78, 1)
+
+[node name="Puddle1" type="Node2D" parent="Props"]
+position = Vector2(736, 38)
+script = ExtResource("4_deco")
+item = &"puddle"
+tint = Color(0.72, 1, 0.72, 1)
+
+[node name="Drip1" type="Node2D" parent="Props"]
+position = Vector2(742, 36)
+script = ExtResource("4_deco")
+item = &"drip"
+
+[node name="Crystals1" type="Node2D" parent="Props"]
+position = Vector2(228, 568)
+script = ExtResource("4_deco")
+item = &"crystal_cluster"
+blocked_tiles = Array[Vector2i]([Vector2i(3, 8)])
+
+[node name="RubbleBit1" type="Node2D" parent="Props"]
+position = Vector2(254, 562)
+script = ExtResource("4_deco")
+item = &"rubble_2"
+flip = true
+
+[node name="Ingredients" type="Node2D" parent="."]
+y_sort_enabled = true
+script = ExtResource("5_scatter")
+allowed = Array[int]([])

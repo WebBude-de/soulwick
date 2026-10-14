@@ -15,7 +15,9 @@ extends RefCounted
 ##   (the shop's prices, rarer goods, D-109). Weights are TESTWERTE.
 ## - Where: find_sites() keeps every front with plain, reachable floor in front of it and solid rock
 ##   all around the niche (walls stay at least two tiles tall), away from north doors and wall
-##   torches; the dungeon RNG picks one.
+##   torches; the dungeon RNG picks one. A room plan (R1) may name the places itself (cell 'q',
+##   RoomTiles.secret_cracks); then only those count. Fronts holding a fixture of the plan (niche,
+##   gate, rift, chains) and their neighbours never crack (RoomTiles.front_fixtures).
 ## - Randomness: exactly DRAWS numbers of the dungeon RNG per normal combat room, none otherwise.
 
 enum Content { CHEST, CRYSTAL, MERCHANT }
@@ -151,32 +153,41 @@ static func find_sites(tiles: RoomTiles, forbidden: Dictionary, torch_columns: A
 	for exit in tiles.get_exit_doors():
 		if exit.x == RoomTiles.DoorSide.NORTH:
 			door_columns.append(exit.y)
+	var cracks: Array[Vector2i] = []
 	for y in range(-1, size.y - 1):
 		for x in range(NICHE_HALF + 1, size.x - NICHE_HALF - 1):
-			var site := site_at(Vector2i(x, y))
-			var approach := site.approach
-			if not floor_rect.has_point(approach) or not reachable.has(approach) or mass.has(approach) or tiles.is_pit(approach) \
-					or tiles.is_bridge(approach) or forbidden.has(approach):
-				continue
-			if site.is_in_north_wall() and not _clear_of_doors_and_torches(x, door_columns, torch_columns):
-				continue
-			var solid := true
-			for tile in site.niche + site.opening + site.get_enclosure():
-				solid = solid and _is_solid(tile, floor_rect, mass, open)
-			if not solid:
-				continue
-			# Carved niche and later opening keep every wall at least two tiles tall.
-			var carved: Dictionary[Vector2i, bool] = {}
-			for tile: Vector2i in mass:
-				carved[tile] = true
-			for tile in site.niche:
-				carved.erase(tile)
-			if not WallAutotile.is_valid_mass(carved, size):
-				continue
-			for tile in site.opening:
-				carved.erase(tile)
-			if WallAutotile.is_valid_mass(carved, size):
-				sites.append(site)
+			cracks.append(Vector2i(x, y))
+	if not tiles.secret_cracks.is_empty():
+		cracks = tiles.secret_cracks.duplicate()
+	for crack in cracks:
+		var x := crack.x
+		if x < NICHE_HALF + 1 or x >= size.x - NICHE_HALF - 1 or _beside_fixture(crack, tiles.front_fixtures):
+			continue
+		var site := site_at(crack)
+		var approach := site.approach
+		if not floor_rect.has_point(approach) or not reachable.has(approach) or mass.has(approach) or tiles.is_pit(approach) \
+				or tiles.is_bridge(approach) or forbidden.has(approach):
+			continue
+		# A place the plan names keeps its distance by the plan's own rules (generator).
+		if site.is_in_north_wall() and tiles.secret_cracks.is_empty() and not _clear_of_doors_and_torches(x, door_columns, torch_columns):
+			continue
+		var solid := true
+		for tile in site.niche + site.opening + site.get_enclosure():
+			solid = solid and _is_solid(tile, floor_rect, mass, open)
+		if not solid:
+			continue
+		# Carved niche and later opening keep every wall at least two tiles tall.
+		var carved: Dictionary[Vector2i, bool] = {}
+		for tile: Vector2i in mass:
+			carved[tile] = true
+		for tile in site.niche:
+			carved.erase(tile)
+		if not WallAutotile.is_valid_mass(carved, size):
+			continue
+		for tile in site.opening:
+			carved.erase(tile)
+		if WallAutotile.is_valid_mass(carved, size):
+			sites.append(site)
 	return sites
 
 
@@ -195,6 +206,14 @@ static func _is_solid(tile: Vector2i, floor_rect: Rect2i, mass: Dictionary, open
 	# painted with it (RoomTiles.get_niche_bump).
 	return tile.x >= -2 and tile.x <= floor_rect.end.x + 1 and tile.y >= -4 and tile.y <= floor_rect.end.y + 1 \
 			and not open.has(tile)
+
+
+## A front holding a plan fixture or right beside one (niche, gate, rift, torch, chains).
+static func _beside_fixture(crack: Vector2i, fixtures: Array[Vector2i]) -> bool:
+	for fixture in fixtures:
+		if fixture.y == crack.y and absi(fixture.x - crack.x) <= 1:
+			return true
+	return false
 
 
 static func _clear_of_doors_and_torches(column: int, door_columns: Array[int], torch_columns: Array[int]) -> bool:

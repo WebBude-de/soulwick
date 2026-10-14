@@ -35,11 +35,19 @@ const CONTROLS_HINT_SHORT: StringName = &"HUD_CONTROLS_HINT_SHORT"
 ## Room type -> key HUD_ROOM_TYPE_<RoomSequence.RoomType name>; unknown types fall back to
 ## RoomSequence.get_type_name() (German).
 const ROOM_TYPE_KEY_PREFIX := "HUD_ROOM_TYPE_"
+## The HUD joins this group (DungeonUI: set_room_mode).
+const GROUP: StringName = &"hud"
+## Bars at the top centre (task bar, boss bar of DungeonUI): the room line moves below them when
+## they would overlap (R3, 07_ui.md).
+const TOP_CENTER_GROUP: StringName = &"hud_top_center"
 
 # Layout in mockup pixels (ui_spec.json "hud").
 const STATUS_POSITION := Vector2(6, 6)
 const HEART_GAP := 2.0
 const EDGE_MARGIN := 8.0
+## Room/cycle line top: the height of the task bar (07_ui.md).
+const ROOM_LINE_TOP := 4.0
+const ROOM_LINE_GAP := 3.0
 const WEAPON_MARGIN := 6.0
 const SLOT_SIZE := 28.0
 const SLOT_GAP := 4.0
@@ -57,6 +65,8 @@ var _heal_countdown := -1
 ## Campfire between two biomes (set by the dungeon via WorldController).
 var _campfire_active := false
 var _campfire_area := ""
+## Name of the room mode ("Arena", "Flamme hüten") instead of the room type; "" = room type.
+var _room_mode := ""
 
 var _status_frame: PanelContainer
 var _hearts: GridContainer
@@ -92,6 +102,7 @@ var _root: Control
 
 func _ready() -> void:
 	layer = 5
+	add_to_group(GROUP)
 	var root := Control.new()
 	root.theme = UiKit.get_theme()
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -153,11 +164,21 @@ func set_heal_countdown(rooms_left: int) -> void:
 	_on_room_changed(RunManager.get_current_room())
 
 
+## Hook for DungeonUI: the detail line names the room mode ("Zyklus 3 · Arena"); "" = room type.
+func set_room_mode(mode_name: String) -> void:
+	if _room_mode == mode_name:
+		return
+	_room_mode = mode_name
+	_on_room_changed(RunManager.get_current_room())
+
+
 func _process(delta: float) -> void:
 	if not _dungeon_mode:
 		_chronicle_timer -= delta
 		if _chronicle_timer <= 0.0:
 			_refresh_chronicle()
+	else:
+		_dodge_top_center()
 	if _player == null or not is_instance_valid(_player):
 		return
 	_dash_bar.value = 1.0 - _player.get_dash_cooldown_left() / maxf(0.01, _player.dash_cooldown)
@@ -206,7 +227,7 @@ func _build_room(root: Control) -> void:
 	box.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	box.offset_right = -UiKit.px(EDGE_MARGIN)
-	box.offset_top = UiKit.px(EDGE_MARGIN - 2)
+	box.offset_top = UiKit.px(ROOM_LINE_TOP)
 	root.add_child(box)
 	_room_label = UiKit.text_label(Loc.t(&"HUD_ROOM", [1]), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT, true)
 	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -380,6 +401,8 @@ func _on_room_changed(room_index: int) -> void:
 	var room := maxi(1, room_index)
 	var cycle := floori(float(room - 1) / RoomSequence.CYCLE_LENGTH) + 1
 	var type_name := room_type_name(RoomSequence.get_room_type(room))
+	if not _room_mode.is_empty():
+		type_name = _room_mode
 	if _campfire_active:
 		type_name = Loc.t(&"HUD_CAMPFIRE_NEXT", [_campfire_area]) if not _campfire_area.is_empty() else Loc.t(&"HUD_CAMPFIRE")
 	_room_label.text = Loc.t(&"HUD_ROOM", [room])
@@ -387,6 +410,22 @@ func _on_room_changed(room_index: int) -> void:
 	if _heal_countdown >= 0:
 		detail += " · " + Loc.t(&"HUD_NEXT_HEAL", [_heal_countdown])
 	_room_detail.text = detail
+
+
+## The room line sits at the height of the task bar and moves below a bar at the top centre that
+## would cover it (wide boss bar, narrow windows).
+func _dodge_top_center() -> void:
+	var top := UiKit.px(ROOM_LINE_TOP)
+	var line := Rect2(_room_box.global_position.x, top, _room_box.size.x, _room_box.size.y)
+	for node in get_tree().get_nodes_in_group(TOP_CENTER_GROUP):
+		var bar := node as Control
+		if bar == null or not bar.is_visible_in_tree():
+			continue
+		var rect := bar.get_global_rect()
+		if rect.intersects(line.grow(UiKit.px(ROOM_LINE_GAP))):
+			top = maxf(top, rect.end.y + UiKit.px(ROOM_LINE_GAP))
+	if not is_equal_approx(_room_box.position.y, top):
+		_room_box.position.y = top
 
 
 ## Translated room type ("Combat", "Special room" ...); RoomSequence's German name if there is no key.
