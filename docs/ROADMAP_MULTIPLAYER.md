@@ -125,7 +125,7 @@ Regeln: **D-126**; Stand und Bausteine: [MULTIPLAYER.md](MULTIPLAYER.md) §3c.
 
 **Braucht:** Relay und API online in der Umgebung `development` (Plattform P2, P17).
 
-- [ ] Windows-Export einrichten, Build als ZIP, gebaut gegen `development` (API `api.dev.…`, Relay `play.dev.…`, Domains nach Plattform P-018); später automatisch über die CI (ROADMAP_CROSSPLAY CP7). **Teilweise 14.10.2026:** Export-Vorlagen (`export_presets.cfg`: Windows, Linux, Linux Dedicated Server) und Build-Skripte (`tools/export_build.ps1`/`.sh` → `builds/<env>/<version>/`, ZIP, Start-Prüfung) stehen, `test_online_build.gd` prüft die Vorlagen; **offen:** Export-Vorlagen von Godot 4.7.2 installieren und den ersten Build erzeugen und starten.
+- [ ] Windows-Export einrichten, Build als ZIP, gebaut gegen `development` (API `api.dev.…`, Relay `play.dev.…`, Domains nach Plattform P-018); später automatisch über die CI (ROADMAP_CROSSPLAY CP7). **Teilweise 14.10.2026:** Export-Vorlagen (`export_presets.cfg`: Windows, Linux, Linux Dedicated Server) und Build-Skripte (`tools/export_build.ps1`/`.sh` → `builds/<env>/<version>/`, ZIP, Start-Prüfung) stehen, `test_online_build.gd` prüft die Vorlagen; **15.10.2026:** Export-Vorlagen installiert, erster Windows-Build `Soulwick-0.9.0-development-windows.zip` erzeugt, Starttest bestanden (Skript wartet jetzt auf Godot, verträgt Godot-Warnungen und kurz gesperrte Dateien); **offen:** online gegen die Dev-Instanz spielen.
 - [x] Umgebung je Build: `online/environment.cfg` bzw. Feature-Tag `env_*` → API/Relay/Website nach P-018, Editor bleibt auf localhost, `online.cfg` und Kommandozeile gewinnen weiter, Relay aus `GET /public/config`; Dev-Schlüssel nie im Build (nur `online.cfg` oder `-- dev_key=…`). 14.10.2026, `test_online_build.gd` (12 Tests), [MULTIPLAYER.md](MULTIPLAYER.md) §3d.
 - [x] README-Abschnitt „Mit Freunden testen“: entpacken, starten; der Host erstellt im Gildengebäude einen Raum und teilt den **Raumcode**, die anderen geben ihn ein. Keine Portfreigabe, kein VPN, keine Zusatzsoftware. 14.10.2026: [README.md](../README.md), ausführlich [MULTIPLAYER.md](MULTIPLAYER.md) §3d, `LIESMICH.txt` in jedem ZIP.
 - [ ] Nur noch als Notlösung ohne erreichbaren Relay: ENet über LAN oder ein virtuelles LAN (z. B. Tailscale); früher als Hauptweg geplant, durch D-119 ersetzt.
@@ -162,6 +162,7 @@ Steam ist **kein Transport** (D-119, Plattform P-017): Auch Steam-Spieler verbin
 - [ ] In Dokploy deployen; Domain (z. B. `api.<domain>`) mit HTTPS; Umgebungsvariablen (Datenbank, Steam-Web-API-Schlüssel, Token-Geheimnis) nur in Dokploy.
 - [ ] **Anmeldung:**
   - **Testphase:** `POST /auth/dev`: Spielername plus zufällige Geräte-ID, nur mit Test-Schlüssel aktiv.
+  - **Gastkonto (P-028, 15.10.2026):** `POST /auth/device` ohne Schlüssel, Geräte-ID je Installation; Test-Builds für Freunde melden sich so an, später Verknüpfung per Link-Code.
   - **Mit eigener AppID (MP10):** `POST /auth/steam`: Das Spiel schickt ein Steam-Sitzungsticket, der Server prüft es bei Steam (`AuthenticateUserTicket`). Mit der Test-AppID 480 geht das nicht, weil dafür der Publisher-Schlüssel der eigenen App nötig ist.
   - Antwort: Sitzungs-Token für weitere Aufrufe.
 - [ ] `GET /health`, Fehlerprotokoll, Begrenzung der Anfragen pro Minute.

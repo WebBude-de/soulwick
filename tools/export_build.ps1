@@ -80,7 +80,8 @@ try {
 		New-Item -ItemType Directory -Force $PlatformDir | Out-Null
 		$Binary = Join-Path $PlatformDir $target.Binary
 		Write-Host "Exporting $($target.Preset) ($Environment, $Version) -> $Binary"
-		& $Godot --headless --path $Root --export-release $target.Preset $Binary
+		# Godot is a GUI-subsystem exe: without the pipe PowerShell would not wait for the export.
+		& $Godot --headless --path $Root --export-release $target.Preset $Binary | Out-Host
 		if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Binary)) { throw "Export of $($target.Preset) failed (exit $LASTEXITCODE)." }
 		[System.IO.File]::WriteAllText((Join-Path $PlatformDir "LIESMICH.txt"), $Readme.Replace("`n", "`r`n"), (New-Object System.Text.UTF8Encoding($false)))
 
@@ -88,12 +89,17 @@ try {
 			# Boot check with its own user folder, so no settings or logs land in the real one.
 			$BootData = Join-Path $OutDir ".boot_userdata"
 			$OldAppData = $env:APPDATA
+			# Windows PowerShell 5.1 turns stderr lines of native programs into errors; Godot
+			# warnings there must not stop the script (the log is checked below).
+			$OldPreference = $ErrorActionPreference
 			try {
 				$env:APPDATA = $BootData
+				$ErrorActionPreference = "Continue"
 				$bootLog = & $Binary --headless --quit-after 300 -- offline 2>&1 | Out-String
 				$bootExit = $LASTEXITCODE
 				Write-Host $bootLog
 			} finally {
+				$ErrorActionPreference = $OldPreference
 				$env:APPDATA = $OldAppData
 				if (Test-Path $BootData) { Remove-Item -Recurse -Force $BootData }
 			}
@@ -105,7 +111,17 @@ try {
 
 		$Zip = Join-Path $OutDir "Soulwick-$Version-$Environment-$platform.zip"
 		if (Test-Path $Zip) { Remove-Item -Force $Zip }
-		Compress-Archive -Path (Join-Path $PlatformDir "*") -DestinationPath $Zip
+		# The exe can stay locked for a moment after the boot check (process exit, virus scanner).
+		for ($attempt = 1; $attempt -le 10; $attempt++) {
+			try {
+				Compress-Archive -Path (Join-Path $PlatformDir "*") -DestinationPath $Zip -ErrorAction Stop
+				break
+			} catch {
+				if ($attempt -eq 10) { throw }
+				if (Test-Path $Zip) { Remove-Item -Force $Zip }
+				Start-Sleep -Seconds 2
+			}
+		}
 		$Zips += $Zip
 	}
 } finally {

@@ -42,7 +42,7 @@ Im Editor laufen die Unit-Tests auch über das Panel *GUT* → *Run All*.
 
 ## Mit Freunden testen
 
-Testversion (MP4): `powershell -ExecutionPolicy Bypass -File tools/export_build.ps1` baut Windows und Linux gegen die Umgebung `development` als ZIP nach `builds/` (vorher einmal die Export-Vorlagen von Godot 4.7.2 installieren). Freunde entpacken das ZIP und starten `Soulwick.exe`; den Dev-Schlüssel für das Online-Spiel bekommen sie privat und tragen ihn einmal in `online.cfg` ein. Im Dorf erstellt der Host im Gildengebäude einen Raum und teilt den **Raumcode**, die anderen geben ihn ein. Keine Portfreigabe, kein VPN, keine Zusatzsoftware. Details, Dev-Schlüssel und Testliste: [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) §3d.
+Testversion (MP4): `powershell -ExecutionPolicy Bypass -File tools/export_build.ps1` baut Windows und Linux gegen die Umgebung `development` als ZIP nach `builds/` (vorher einmal die Export-Vorlagen von Godot 4.7.2 installieren). Freunde entpacken das ZIP und starten `Soulwick.exe`; online meldet sich jede Installation automatisch mit einem Gastkonto an (Plattform P-028), ein Dev-Schlüssel ist nicht nötig. Im Dorf erstellt der Host im Gildengebäude einen Raum und teilt den **Raumcode**, die anderen geben ihn ein. Keine Portfreigabe, kein VPN, keine Zusatzsoftware. Details und Testliste: [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) §3d.
 
 ## Inhalte anpassen
 

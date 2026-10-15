@@ -8,18 +8,9 @@ STARTEN
   Linux:   ZIP entpacken, "chmod +x Soulwick.x86_64", dann ./Soulwick.x86_64
 
 ONLINE (Koop ueber Raumcode)
-  Der Dev-Schluessel steckt NICHT im Build. Du bekommst ihn privat vom Projektteam.
-  Einmal eintragen, dann gilt er fuer jeden Start:
-
-  Windows (PowerShell, <KEY> ersetzen):
-    $d = "$env:APPDATA\Godot\app_userdata\Soulwick"; New-Item -ItemType Directory -Force $d | Out-Null
-    Set-Content "$d\online.cfg" "[settings]`ndev_key=`"<KEY>`""
-
-  Linux:
-    mkdir -p ~/.local/share/godot/app_userdata/Soulwick
-    printf '[settings]\ndev_key="<KEY>"\n' > ~/.local/share/godot/app_userdata/Soulwick/online.cfg
-
-  Oder nur fuer einen Start:  Soulwick.exe -- dev_key=<KEY>
+  Kein Konto, kein Schluessel noetig: Beim ersten Online-Spiel bekommt dieser PC
+  automatisch ein Gastkonto. Es haengt an dieser Installation; Spielstand und
+  Gastkonto liegen unter %APPDATA%\Godotpp_userdata\Soulwick (nicht loeschen).
 
   Dann: Spielstand anlegen (der Name wird dein Online-Name), im Dorf ins Gildengebaeude.
   Host: "Raum erstellen" und den 6-stelligen Raumcode an die anderen schicken.
