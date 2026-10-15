@@ -35,14 +35,27 @@ static func nearest_living(candidates: Array, from: Vector2) -> Node2D:
 
 
 ## Keeps current while it lives, unless another living candidate is SWITCH_MARGIN closer.
+## Protected players (menu open in a group game, D-085/D-123) are no targets.
 static func choose(candidates: Array, from: Vector2, current: Node2D) -> Node2D:
-	var nearest := nearest_living(candidates, from)
-	if not is_alive(current) or nearest == null or nearest == current:
+	var targets: Array = []
+	for candidate: Variant in candidates:
+		if is_targetable(candidate):
+			targets.append(candidate)
+	var nearest := nearest_living(targets, from)
+	if not is_targetable(current) or nearest == null or nearest == current:
 		return nearest
 	var current_distance := from.distance_to(current.global_position)
 	if from.distance_to(nearest.global_position) + SWITCH_MARGIN < current_distance:
 		return nearest
 	return current
+
+
+## Alive and not protected (is_protected() if it has one): a menu in a group game hides a player.
+static func is_targetable(candidate: Variant) -> bool:
+	if not is_alive(candidate):
+		return false
+	var node := candidate as Node2D
+	return not node.has_method(&"is_protected") or not bool(node.call(&"is_protected"))
 
 
 ## A valid, not freed Node2D that is alive (is_alive() if it has one).

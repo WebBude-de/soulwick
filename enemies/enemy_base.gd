@@ -28,6 +28,8 @@ signal phase_changed(enemy: Enemy, phase: int)
 signal ability_used(enemy: Enemy, ability: StringName)
 ## The boss intro is over (end_intro, safety timeout or death); the enemy fights from now on.
 signal intro_ended(enemy: Enemy)
+## begin_emerge started (MP3 hook: the host replays it on the network clients' puppets).
+signal emerge_started(enemy: Enemy, wait: float, rise_time: float, style: Emerge)
 ## Internal: the death animation is over or its time limit ran out (see _wait_for_death_animation).
 signal death_wait_over
 
@@ -372,6 +374,7 @@ func begin_emerge(wait: float, rise_time: float, style := Emerge.RISE) -> void:
 	_emerge_tween.tween_callback(_start_rise.bind(maxf(0.05, rise_time), style))
 	_emerge_tween.tween_interval(maxf(0.05, rise_time))
 	_emerge_tween.tween_callback(end_intro)
+	emerge_started.emit(self, wait, rise_time, style)
 
 
 ## Hidden or coming out of a source right now.
@@ -1434,7 +1437,8 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	if not result.killed:
 		_check_pit_push(damage.source)
 	var top := global_position + Vector2(0.0, -data.body_radius * _visual_scale - 22.0)
-	DamageNumber.spawn_for_result(get_parent(), top, result)
+	if DamageNumber.shows_hit_by(damage.source):
+		DamageNumber.spawn_for_result(get_parent(), top, result)
 	SpriteStrip.spawn_effect(get_parent(), global_position, HIT_SPARK_TEXTURE, Vector2i(16, 16), 15.0, Vector2(8, 8), Vector2.ONE * SpriteStrip.PIXEL_SCALE)
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 6, 110.0, 0.3, 3.0)
 	SpriteFx.flash(_sprite)

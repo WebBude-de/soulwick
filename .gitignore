@@ -10,3 +10,9 @@ __pycache__/
 
 # Szenen-Galerie: per tools/scene_gallery.gd neu erzeugbar, nur INDEX/AUSWAHL versionieren
 docs/design/szenen/*.png
+
+# Isolated user data for local Godot runs (APPDATA redirect)
+.userdata/
+
+# Exported game builds (tools/export_build.ps1 / .sh, MP4)
+builds/

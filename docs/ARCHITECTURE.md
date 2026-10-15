@@ -6,7 +6,7 @@
 
 ## 1. Anwendung („Apps“) und Laufzeit
 
-**Eine lokale Desktop-Spielanwendung in Godot 4**. Das Projekt benötigt für den MVP **keine Web-App, keinen Backend-Dienst, keine Datenbank und keine Benutzeranmeldung**. Gameplay, Physik, UI und Speichervorgänge laufen innerhalb der Godot-Anwendung.
+**Eine lokale Desktop-Spielanwendung in Godot 4**. Das Projekt benötigt für den MVP **keine Web-App, keinen Backend-Dienst, keine Datenbank und keine Benutzeranmeldung**. Gameplay, Physik, UI und Speichervorgänge laufen innerhalb der Godot-Anwendung. **Nach dem MVP** kommen **optionale** Online-Teile dazu (Konto, Gilden, Ranglisten, Relay für Koop; D-083, D-093, D-119, D-121): Sie liegen im Repo `soulwick-platform`, das Spiel spricht sie über den geplanten Ordner `online/` an und **bleibt ohne sie offline spielbar**.
 
 ```text
 main.tscn / main_menu.tscn
@@ -204,8 +204,8 @@ Die Herkunft `PRIMARY`/`SECONDARY` verhindert Rekursion. Ein sekundärer Treffer
 
 ## 8. Auth, Sicherheit und Entwicklungsumgebung
 
-- **Authentifizierung/Autorisierung:** Für den MVP **nicht zutreffend**, da rein lokales Spiel ohne Accounts oder Online-API. GitLab-Zugriffsrechte betreffen **Entwicklung**, nicht Spiellogin.
-- **Netzwerk-/Server-API:** Nicht vorgesehen; keine API-Schlüssel im Projekt.
+- **Authentifizierung/Autorisierung:** Für den MVP **nicht zutreffend**, da rein lokales Spiel ohne Accounts oder Online-API. GitLab-Zugriffsrechte betreffen **Entwicklung**, nicht Spiellogin. Nach dem MVP: Soulwick-Konto mit Plattform-Identitäten, ohne E-Mail und Passwort (D-121, D-122).
+- **Netzwerk-/Server-API:** Nach dem MVP geplant, optional: HTTPS-API und Relay aus dem Repo `soulwick-platform` (D-093, D-119; Abläufe in `soulwick-platform/docs/KONZEPT_ONLINE.md`). Im Spiel nur im geplanten Ordner `online/` (`api_client.gd`, `session.gd`, `relay_peer.gd`, `lobby_client.gd`; [MULTIPLAYER.md](MULTIPLAYER.md), [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP1b und MP2). Jeder Aufruf darf scheitern, ohne den Einzelspieler zu stören. Keine geheimen API-Schlüssel im Projekt (der Steam-Web-API-Schlüssel liegt nur auf dem Server).
 - **Dateisicherheit:** Save-Daten validieren, Version überprüfen, fehlende/defekte Dateien kontrolliert behandeln; persistente Goldgutschrift nicht doppelt durchführen.
 - **Dev-Umgebung:** Gemeinsame Godot-4-Version **im Team konkret festlegen** (GDD gibt keine Patchversion vor), GDScript, `.tres` und `.tscn` im Git; `.godot/` nicht versionieren; von Godot erzeugte `.uid`-Dateien im Git behalten.
 - **Repository/Workflow:** Hochschul-GitLab (`gitlab.gwdg.de`), `master` (stabil/geschützt), `dev` (Integration/geschützt); Feature-Branches von `dev`, Merge Request, mindestens ein Review, kein direkter Push auf die geschützten Branches. Siehe [TECHSTACK.md](TECHSTACK.md).

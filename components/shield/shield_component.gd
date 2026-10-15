@@ -59,6 +59,15 @@ func add_shield_up_to(requested_gain: float, cap: float) -> float:
 	return add_shield(minf(requested_gain, cap - _current))
 
 
+## Sets the shield directly (MP3: a network client takes the host's value), no softcap.
+func set_current(value: float) -> void:
+	var clamped := maxf(0.0, value)
+	if is_equal_approx(clamped, _current):
+		return
+	_current = clamped
+	shield_changed.emit(_current)
+
+
 ## Returns the damage actually absorbed.
 func absorb(amount: float) -> float:
 	var absorbed := minf(maxf(0.0, amount), _current)

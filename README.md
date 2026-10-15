@@ -40,6 +40,10 @@ Der Dungeon ist dunkel: Du siehst nur einen Lichtkreis um dich, Fackeln, Geschos
 
 Im Editor laufen die Unit-Tests auch über das Panel *GUT* → *Run All*.
 
+## Mit Freunden testen
+
+Testversion (MP4): `powershell -ExecutionPolicy Bypass -File tools/export_build.ps1` baut Windows und Linux gegen die Umgebung `development` als ZIP nach `builds/` (vorher einmal die Export-Vorlagen von Godot 4.7.2 installieren). Freunde entpacken das ZIP und starten `Soulwick.exe`; den Dev-Schlüssel für das Online-Spiel bekommen sie privat und tragen ihn einmal in `online.cfg` ein. Im Dorf erstellt der Host im Gildengebäude einen Raum und teilt den **Raumcode**, die anderen geben ihn ein. Keine Portfreigabe, kein VPN, keine Zusatzsoftware. Details, Dev-Schlüssel und Testliste: [docs/MULTIPLAYER.md](docs/MULTIPLAYER.md) §3d.
+
 ## Inhalte anpassen
 
 - **Balance:** Waffen `weapons/data/*.tres`, Gegner `enemies/data/*.tres`, Upgrades `upgrades/data/*.tres`, Preise und Gold `economy/data/economy_config.tres`. Werte mit **PLATZHALTER** sind noch nicht im Team abgestimmt ([D-055](docs/DECISIONS.md) ff.).

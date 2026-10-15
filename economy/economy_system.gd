@@ -5,6 +5,10 @@ extends Node
 
 @export var config: EconomyConfig
 
+## MP3: a network client sends purchases to the host (shared run gold, D-081); set by NetDungeon.
+## Called as hook(offer, player, upgrades, weapon_slot) -> bool instead of buying here.
+var purchase_hook: Callable = Callable()
+
 
 static func scale_by_block(base: float, room_index: int, growth_per_block: float) -> int:
 	return roundi(base * (1.0 + growth_per_block * EnemyScaling.get_block(room_index)))
@@ -69,6 +73,13 @@ func can_deliver(offer: ShopOffer, player: Player, upgrades: UpgradeManager, wea
 
 
 func try_purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, weapon_slot := -1) -> bool:
+	if purchase_hook.is_valid():
+		return bool(purchase_hook.call(offer, player, upgrades, weapon_slot))
+	return purchase(offer, player, upgrades, weapon_slot)
+
+
+## The purchase itself: validate -> spend -> deliver, or nothing changes.
+func purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, weapon_slot := -1) -> bool:
 	if not can_purchase(offer, player, upgrades, weapon_slot):
 		return false
 	if not RunManager.try_spend_run_gold(offer.price):

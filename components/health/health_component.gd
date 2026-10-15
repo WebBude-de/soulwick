@@ -38,6 +38,18 @@ func is_dead() -> bool:
 	return _is_dead
 
 
+## Sets the HP of a living owner directly (MP3: a network client takes the host's value). Never
+## kills and never revives: take_damage and reset do that.
+func set_current(value: float) -> void:
+	if _is_dead or value <= 0.0:
+		return
+	var clamped := clampf(value, 0.0, max_health)
+	if is_equal_approx(clamped, _current):
+		return
+	_current = clamped
+	health_changed.emit(_current, max_health)
+
+
 ## Returns the HP actually removed.
 func take_damage(amount: float) -> float:
 	if _is_dead or amount <= 0.0:

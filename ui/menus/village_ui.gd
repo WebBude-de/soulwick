@@ -1,7 +1,8 @@
 class_name VillageUI
 extends CanvasLayer
 ## Village building dialogs (D-078): Schmiede (permanent upgrades), Handelsposten (Proviant only,
-## no crystal exchange since D-087), Chronik (statistics), Gilde (multiplayer lobby, in preparation)
+## no crystal exchange since D-087), Chronik (statistics), Gilde (rooms with a room code on the relay,
+## MP2: create, join, player list; guild rooms in preparation)
 ## and Zuhause with the wardrobe (MM1: clothing colour of the save's character, live preview).
 ## Created by Village; every dialog is a Modal and pauses the village while open.
 ## D-087: on the first visit a building explains itself (show_intro, "Verstanden"), its role
@@ -66,6 +67,8 @@ var _body: VBoxContainer = null
 var _currencies: HBoxContainer = null
 var _notice_root: Control = null
 var _notice: Control = null
+## Room code typed in the guild dialog (kept across rebuilds).
+var _room_code_input := ""
 
 
 func _ready() -> void:
@@ -76,6 +79,7 @@ func _ready() -> void:
 	_notice_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_notice_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_notice_root)
+	_resume_lobby.call_deferred()
 
 
 ## Enter/Space confirms an open explanation like the "Verstanden" button (Esc does too, via Modal).
@@ -212,36 +216,169 @@ func open_guild() -> void:
 
 
 func _build_guild(body: VBoxContainer, _refresh: Callable) -> void:
-	var badge := UiKit.label(Loc.t(&"VILLAGE_UI_IN_PREPARATION"), 18, Color(1.0, 0.55, 0.35))
+	var lobby := LobbyClient.of(self)
+	if lobby == null:
+		return
+	for lobby_signal: Signal in [lobby.state_changed, lobby.room_changed, lobby.error]:
+		if not lobby_signal.is_connected(_on_lobby_changed):
+			lobby_signal.connect(_on_lobby_changed)
+	body.add_child(_section_title(Loc.t(&"LOBBY_QUICK_TITLE")))
+	if lobby.is_in_room():
+		_build_room(body, lobby)
+	else:
+		_build_room_entry(body, lobby)
+	var status := _lobby_status(lobby)
+	if not status.is_empty():
+		var status_label := _centered(UiKit.label(status, 16, UiKit.MUTED_COLOR if lobby.is_busy() else Color(1.0, 0.55, 0.35)))
+		status_label.name = "LobbyStatus"
+		body.add_child(status_label)
+	if lobby.is_in_room():
+		# R8: dialogs stay short (D-139); the guild teaser only matters before a room exists.
+		return
+	# Guild rooms follow with MP8.
+	var guild_row := UiKit.hbox(10)
+	guild_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	guild_row.add_child(UiKit.label(Loc.t(&"LOBBY_GUILD_TITLE"), 18, UiKit.MUTED_COLOR))
+	var badge := UiKit.label(Loc.t(&"VILLAGE_UI_IN_PREPARATION"), 14, Color(1.0, 0.55, 0.35))
 	badge.uppercase = true
-	badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	body.add_child(badge)
+	badge.tooltip_text = Loc.t(&"LOBBY_GUILD_HINT")
+	badge.mouse_filter = Control.MOUSE_FILTER_PASS
+	guild_row.add_child(badge)
+	body.add_child(guild_row)
+
+
+## Quick game, not in a room: create one, or type a room code (6 characters, upper case, only the
+## unambiguous alphabet) and join.
+func _build_room_entry(body: VBoxContainer, lobby: LobbyClient) -> void:
+	body.add_child(UiKit.wrapped_label(Loc.t(&"LOBBY_QUICK_HINT"), 560.0, 14, UiKit.MUTED_COLOR))
 	var actions := UiKit.hbox(10)
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	var create := UiKit.button(Loc.t(&"VILLAGE_UI_LOBBY_CREATE"), func() -> void: pass)
-	create.disabled = true
-	create.tooltip_text = Loc.t(&"VILLAGE_UI_IN_PREPARATION")
+	var create := UiKit.button(Loc.t(&"LOBBY_CREATE"), func() -> void:
+		lobby.resume_dialog = true
+		lobby.create_room())
+	create.name = "CreateRoom"
+	create.disabled = lobby.is_busy()
 	actions.add_child(create)
-	var address := LineEdit.new()
-	address.placeholder_text = Loc.t(&"VILLAGE_UI_LOBBY_ADDRESS")
-	address.custom_minimum_size = Vector2(260, 0)
-	address.editable = false
-	actions.add_child(address)
-	var join := UiKit.button(Loc.t(&"VILLAGE_UI_LOBBY_JOIN"), func() -> void: pass)
-	join.disabled = true
-	join.tooltip_text = Loc.t(&"VILLAGE_UI_IN_PREPARATION")
+	var code := LineEdit.new()
+	code.name = "RoomCode"
+	code.placeholder_text = Loc.t(&"LOBBY_CODE_PLACEHOLDER")
+	code.max_length = RelayProtocol.ROOM_CODE_LENGTH
+	code.custom_minimum_size = Vector2(150, 0)
+	code.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	code.text = _room_code_input
+	code.editable = not lobby.is_busy()
+	actions.add_child(code)
+	var join := UiKit.button(Loc.t(&"LOBBY_JOIN"), func() -> void:
+		lobby.resume_dialog = true
+		lobby.join_room(_room_code_input))
+	join.name = "JoinRoom"
+	join.disabled = lobby.is_busy() or not RelayProtocol.is_valid_code(_room_code_input)
 	actions.add_child(join)
+	code.text_changed.connect(func(text: String) -> void:
+		var normalized := RelayProtocol.normalize_code(text)
+		if normalized != text:
+			code.text = normalized
+			code.caret_column = normalized.length()
+		_room_code_input = normalized
+		join.disabled = lobby.is_busy() or not RelayProtocol.is_valid_code(normalized))
+	code.text_submitted.connect(func(_text: String) -> void:
+		if not join.disabled:
+			join.pressed.emit())
 	body.add_child(actions)
 
-	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_LOBBY_PLAYERS")))
-	var list := UiKit.vbox(4)
-	list.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_LOBBY_HOST", [1]), 16))
-	for i in range(2, 5):
-		list.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_LOBBY_FREE_SLOT", [i]), 16, UiKit.MUTED_COLOR))
+
+## In a room: the code large, the players in their co-op colour, leave (and Start for MP3).
+func _build_room(body: VBoxContainer, lobby: LobbyClient) -> void:
+	var peers := lobby.get_room_peers()
+	var code_box := UiKit.vbox(2)
+	code_box.add_child(_centered(UiKit.label(Loc.t(&"LOBBY_ROOM_CODE"), 14, UiKit.MUTED_COLOR)))
+	var code := _centered(UiKit.label(lobby.get_room_code(), 44, UiKit.ACCENT_COLOR))
+	code.name = "RoomCodeLabel"
+	code_box.add_child(code)
+	var host_name := str(peers[0].get("name", "")) if not peers.is_empty() and peers[0] is Dictionary else ""
+	var hint := Loc.t(&"LOBBY_SHARE_HINT") if lobby.is_host() else Loc.t(&"LOBBY_JOINED_HINT", [host_name])
+	code_box.add_child(_centered(UiKit.label(hint, 14, UiKit.MUTED_COLOR)))
+	body.add_child(code_box)
+
+	var max_players := int(lobby.room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))
+	body.add_child(_section_title(Loc.t(&"LOBBY_PLAYERS", [peers.size(), max_players])))
+	# Two columns (P1 P2 / P3 P4): the dialog stays short (R8, D-139).
+	var list := _grid(2)
+	list.name = "LobbyPlayers"
+	list.add_theme_constant_override("h_separation", 28)
+	list.add_theme_constant_override("v_separation", 4)
+	for i in max_players:
+		if i < peers.size() and peers[i] is Dictionary:
+			list.add_child(UiKit.label(_peer_line(i, peers[i], lobby), 16, NetPlayers.color_for(i)))
+		else:
+			list.add_child(UiKit.label("P%d  %s" % [i + 1, Loc.t(&"LOBBY_FREE_SLOT")], 16, UiKit.MUTED_COLOR))
 	var frame := UiKit.panel(&"dark")
 	frame.add_child(list)
 	body.add_child(frame)
-	body.add_child(UiKit.wrapped_label(Loc.t(&"VILLAGE_UI_LOBBY_PLANNED"), 560.0, 14, UiKit.MUTED_COLOR))
+
+	var actions := UiKit.hbox(10)
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	if lobby.is_host():
+		var start := UiKit.button(Loc.t(&"LOBBY_START"), lobby.start_run)
+		start.name = "StartRun"
+		# Until the relay confirmed the end of the last run (end_run -> run_ended) the room is closed.
+		start.disabled = lobby.is_busy() or lobby.is_run_started()
+		start.tooltip_text = Loc.t(&"LOBBY_START_HINT")
+		actions.add_child(start)
+	else:
+		actions.add_child(UiKit.label(Loc.t(&"LOBBY_WAIT_FOR_HOST"), 14, UiKit.MUTED_COLOR))
+	var leave := UiKit.button(Loc.t(&"LOBBY_CLOSE_ROOM" if lobby.is_host() else &"LOBBY_LEAVE"), lobby.leave)
+	leave.name = "LeaveRoom"
+	leave.disabled = lobby.is_busy()
+	actions.add_child(leave)
+	body.add_child(actions)
+
+
+## "P2  Name (Host, du) · PC" for one RoomPeer.
+func _peer_line(index: int, peer: Dictionary, lobby: LobbyClient) -> String:
+	var peer_id := int(peer.get("peerId", 0))
+	var tags: Array[String] = []
+	if peer_id == RelayProtocol.HOST_PEER_ID:
+		tags.append(Loc.t(&"LOBBY_HOST"))
+	if peer_id == lobby.get_peer_id():
+		tags.append(Loc.t(&"LOBBY_YOU"))
+	var peer_name := str(peer.get("name")) if peer.get("name") != null else "?"
+	var platform: String = {"android": "Android", "ios": "iOS"}.get(str(peer.get("platform", "")), "PC")
+	var line := "P%d  %s" % [index + 1, peer_name]
+	if not tags.is_empty():
+		line += " (%s)" % ", ".join(tags)
+	return "%s · %s" % [line, platform]
+
+
+func _lobby_status(lobby: LobbyClient) -> String:
+	match lobby.state:
+		LobbyClient.State.LOGGING_IN:
+			return Loc.t(&"LOBBY_STATUS_LOGGING_IN")
+		LobbyClient.State.CONNECTING:
+			return Loc.t(&"LOBBY_STATUS_CONNECTING")
+		LobbyClient.State.LEAVING:
+			return Loc.t(&"LOBBY_STATUS_LEAVING")
+	return LobbyClient.error_text(lobby.last_error) if not lobby.last_error.is_empty() else ""
+
+
+func _on_lobby_changed(_value: Variant = null) -> void:
+	if _body != null and _build == _build_guild:
+		_request_refresh()
+
+
+## After a room was entered or ended the village is reloaded: reopen the room dialog for the
+## player who opened it, or explain why the room closed.
+func _resume_lobby() -> void:
+	var lobby := LobbyClient.find(self)
+	if lobby == null:
+		return
+	var notice := lobby.take_notice()
+	if not notice.is_empty():
+		var lines: Array[String] = [Loc.t(StringName(notice))]
+		show_notice(Loc.t(&"LOBBY_SESSION_ENDED"), lines)
+	elif lobby.is_in_room() and lobby.resume_dialog:
+		lobby.resume_dialog = false
+		open_guild()
 
 
 # --- Zuhause: wardrobe (MM1) ---

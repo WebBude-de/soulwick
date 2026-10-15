@@ -63,6 +63,29 @@ func roll_offer(owned_weapons: Array[WeaponData], rng: RandomNumberGenerator, co
 	return offer
 
 
+## All stacks by upgrade id (MP3: the host sends them to every machine).
+func get_all_stacks() -> Dictionary:
+	return _stacks.duplicate()
+
+
+## Takes the stacks of another machine (MP3: the host's state of a player); emits no signals, so
+## nothing is counted twice. Zero stacks are dropped.
+func set_all_stacks(stacks: Dictionary) -> void:
+	_stacks.clear()
+	for id: Variant in stacks:
+		var count := int(stacks[id])
+		if count > 0:
+			_stacks[StringName(str(id))] = count
+
+
+## The pool entry with this id (null if unknown).
+func find_upgrade(upgrade_id: StringName) -> UpgradeData:
+	for upgrade in upgrade_pool:
+		if upgrade.id == upgrade_id:
+			return upgrade
+	return null
+
+
 ## Sum of value * stacks of all upgrades with this effect that apply to an attack with these tags.
 func get_modifier(effect: UpgradeData.Effect, attack_tags: Array[StringName]) -> float:
 	var total := 0.0

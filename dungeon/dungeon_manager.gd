@@ -117,6 +117,12 @@ var _run_seed := 0
 var _last_side_slot := -1
 ## Size and entrance place of special templates (branch fit check), by scene path.
 var _layout_cache: Dictionary[String, Vector3i] = {}
+## Every player of this run in spawn order (MP1); context.player is the first local one.
+var _players: Array[Player] = []
+## Shared run over the relay (MP3): the NetDungeon of a relay room, null otherwise. Host: hears about
+## every slot before it is prepared and decides when a room starts; client: preparing, starting,
+## completing and opening rooms follow the host. Hooks only, the logic is in online/net_dungeon.gd.
+var net: Node = null
 
 
 ## What _prepare_slot reads and writes besides the RNG: kept per branch way, so the chosen way
@@ -161,19 +167,47 @@ func _ready() -> void:
 	_prepare_slot(2)
 
 
-## Called by the WorldController after it created the player for this world (D-041).
+## Called by the WorldController after it created a player for this world (D-041), once per
+## player, the primary (local) player first. MP1: context, upgrade dialogs and upgrade effects serve
+## that first player; the others share its weapon modifiers until MP3 gives everyone their own.
 func on_player_spawned(player: Player) -> void:
+	_players.append(player)
+	player.weapon_controller.upgrades = upgrade_manager
+	player.died.connect(_on_player_died)
+	if net != null:
+		net.on_player_spawned(player)
+	# A network client may get the host's player first: the local one still becomes the primary.
+	if context.player != null and (context.player.is_local or not player.is_local):
+		return
 	context.player = player
 	upgrade_manager.player = player
 	upgrade_effects.player = player
-	player.weapon_controller.upgrades = upgrade_manager
-	player.died.connect(_on_player_died)
-	# Village meta upgrades and Proviant boosts (D-078), summarized in one banner (D-087).
-	var applied := MetaProgression.apply_to_run(player, context)
-	var summary := MetaProgression.get_run_start_summary(applied)
-	if not summary.is_empty():
-		ui.show_banner(MetaProgression.RUN_BANNER_TITLE, summary)
+	# Village meta upgrades and Proviant boosts (D-078), summarized in one banner (D-087); only
+	# from the local save in single player (D-081: quick games start without them).
+	if GameMode.of(self).get_meta_source() == GameMode.MetaSource.LOCAL:
+		var applied := MetaProgression.apply_to_run(player, context)
+		var summary := MetaProgression.get_run_start_summary(applied)
+		if not summary.is_empty():
+			ui.show_banner(MetaProgression.RUN_BANNER_TITLE, summary)
 	heal_countdown_changed.emit(get_rooms_until_heal())
+
+
+## Every player of this run still in the world (downed ones too), in spawn order.
+func get_session_players() -> Array[Player]:
+	var result: Array[Player] = []
+	for player in _players:
+		if is_instance_valid(player) and player.is_inside_tree():
+			result.append(player)
+	return result
+
+
+## Living players of this run (MP1), in spawn order.
+func get_living_players() -> Array[Player]:
+	var living: Array[Player] = []
+	for player in _players:
+		if is_instance_valid(player) and player.is_alive():
+			living.append(player)
+	return living
 
 
 func get_rooms_until_heal() -> int:
@@ -226,6 +260,9 @@ func get_combat_catalog() -> RoomCatalog:
 func end_run(reason: RunManager.EndReason) -> void:
 	if _run_ending:
 		return
+	# MP3: on a network client the host ends the run (portal, everyone down).
+	if net != null and not net.allow_end_run(reason):
+		return
 	_run_ending = true
 	RunManager.end_run(reason)
 
@@ -239,7 +276,11 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> Ro
 	var is_way := via_exit >= 0
 	if _rooms.has(slot) and not is_way:
 		return _rooms[slot]
+	# MP3: a client prepares only what the host sent and takes the host's RNG state for it (the gate
+	# sets it); the host updates the player count. The capture below is what the host shares.
 	var way := via_exit if is_way else -1
+	if net != null and not net.before_prepare_slot(slot, option, way):
+		return null
 	_slot_rng_states[Vector2i(slot, way)] = context.rng.state
 	slot_rng_captured.emit(slot, way, context.rng.state)
 	var index := RoomSequence.get_room_for_slot(slot)
@@ -317,7 +358,21 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> Ro
 	room.wave_started.connect(_on_wave_started)
 	room.branch_offered.connect(_on_branch_offered)
 	room.branch_chosen.connect(_on_branch_chosen)
+	if net != null:
+		net.after_prepare_slot(room, way)
 	return room
+
+
+## Prepares a slot from outside (MP3: a network client builds the slot the host announced).
+func prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
+	return _prepare_slot(slot, option)
+
+
+## Builds both ways of an active branch room from outside (MP3: a network client, once the host's RNG
+## state of every way arrived; R5).
+func prepare_branch_ways(room: RoomController) -> void:
+	if is_instance_valid(room) and room.is_branch_room() and _branch_ways.is_empty():
+		_prepare_branch_ways(room)
 
 
 # --- Way-finding (A10) ---
@@ -485,14 +540,15 @@ func _estimate_extra(origin: Vector2i, tiles: RoomTiles, side: int, next_type: i
 	return needed if needed >= 0 else RoomTiles.MAX_CORRIDOR_EXTRA + 1
 
 
-## Worst case over every single-player combat template that can be entered through side.
+## Worst case over every combat template of the session's size classes (S/M for one or two
+## players, D-084) that can be entered through side.
 func _get_combat_reach(side: int) -> ExitRules.Footprint:
 	if _combat_reach.has(side):
 		return _combat_reach[side]
 	var sizes: Array[Vector2i] = []
 	var places: Array[int] = []
 	for entry in _combat_catalog.get_entries():
-		if not RoomSequence.SOLO_ROOM_SIZES.has(entry.size_class) or not entry.allows_entrance(side):
+		if not get_room_sizes().has(entry.size_class) or not entry.allows_entrance(side):
 			continue
 		var slots: Array[int] = []
 		for slot in entry.door_slots:
@@ -831,8 +887,8 @@ func _unload_slot(slot: int) -> void:
 	room.free()
 
 
-## Combat rooms: a template of the rolled kind in a single-player size (S or M); kinds without a
-## template fall back to a normal room (D-100, RoomCatalog.pick).
+## Combat rooms: a template of the rolled kind in a size for the player count (S or M, L for 3-4
+## players, D-084); kinds without a template fall back to a normal room (D-100, RoomCatalog.pick).
 func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.RoomKind.NORMAL, special := -1, room_index := 0, entrance_side := -1, plan_mode: StringName = &"") -> PackedScene:
 	match room_type:
 		RoomSequence.RoomType.SPECIAL:
@@ -855,9 +911,21 @@ func _template_for(room_type: RoomSequence.RoomType, kind: int = RoomSequence.Ro
 	var side_filter := entrance_side if entrance_side != RoomTiles.DoorSide.SOUTH else -1
 	# R4: a minigame draws a plan made for it when one fits the room (else any combat plan).
 	var mode := RoomVariants.plan_mode_for(plan_mode, _combat_catalog, kind, room_index, side_filter)
-	var template: PackedScene = _combat_catalog.pick(kind, RoomSequence.SOLO_ROOM_SIZES, context.rng, &"", room_index, side_filter, mode)
+	var template: PackedScene = _combat_catalog.pick(kind, get_room_sizes(), context.rng, &"", room_index, side_filter, mode)
 	assert(template != null, "No combat room templates configured.")
 	return template
+
+
+## Combat room size classes for the session's player count (D-084: 1-2 players S/M, 3-4 L). The
+## rooms from plans (R1, D-131) have no L templates yet: a group then gets S/M like a solo run.
+func get_room_sizes() -> Array[RoomSequence.RoomSize]:
+	var sizes := RoomSequence.room_sizes_for(GameMode.of(self).get_player_count())
+	if sizes == RoomSequence.SOLO_ROOM_SIZES or _combat_catalog == null:
+		return sizes
+	for entry in _combat_catalog.get_entries():
+		if sizes.has(entry.size_class):
+			return sizes
+	return RoomSequence.SOLO_ROOM_SIZES
 
 
 # Deferred: runs outside physics callbacks, so freeing rooms is safe here.
@@ -866,6 +934,17 @@ func _on_player_entered_room(room: RoomController) -> void:
 		return
 	# A way of a branch before the choice: its door is shut, nobody gets in (R5).
 	if _branch_ways.has(room):
+		return
+	# MP3: the host waits for the group (exit rule D-126), a client waits for the host.
+	if net != null and not net.allow_room_entry(room):
+		return
+	enter_room(room)
+
+
+## The group moves into room: it becomes the active room, N-2 goes, N+1 (or both ways of a branch
+## room) is prepared - unless prepare_next is false: a network client gets them from the host (MP3).
+func enter_room(room: RoomController, prepare_next := true) -> void:
+	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending or _branch_ways.has(room):
 		return
 	_active_slot = room.slot_index
 	# The campfire is no room (D-103): room number, scaling and heals stay where they are.
@@ -877,12 +956,17 @@ func _on_player_entered_room(room: RoomController) -> void:
 	RoomVeil.lift_room(room)
 	_apply_vision(room)
 	room.activate()
-	# No way back (M2): the gate of the room before shuts once everyone is inside this one.
-	GateCloser.close_behind(_rooms.get(room.slot_index - 1), room)
+	# No way back (M2): the gate of the room before shuts once everyone is inside this one. MP: only
+	# the host watches the group and tells the clients (NetDungeon.close_gate_behind).
+	if net == null:
+		GateCloser.close_behind(_rooms.get(room.slot_index - 1), room)
+	else:
+		net.close_gate_behind(_rooms.get(room.slot_index - 1), room)
 	# A branch room builds both ways now, dark behind its doors (D-105, R5).
 	if room.is_branch_room():
-		_prepare_branch_ways(room)
-	else:
+		if prepare_next:
+			_prepare_branch_ways(room)
+	elif prepare_next:
 		_prepare_slot(room.slot_index + 1)
 		_plan_side_way(room, _rooms.get(room.slot_index + 1))
 	if room.is_campfire():
@@ -892,18 +976,42 @@ func _on_player_entered_room(room: RoomController) -> void:
 
 ## M5: the way from room to next may run through a side segment (SideRules: after the campfire,
 ## the ladder way, 10 % after a rest room; never before the boss, never twice in a row).
-func _plan_side_way(room: RoomController, next: RoomController, ladder_way := false) -> void:
-	var gate := SideWays.plan(room, next, _run_seed, _last_side_slot == room.slot_index, ladder_way)
+## MP: the host plans with its own "skip" option and tells the clients (NetDungeon), a client plans
+## only the ways the host announced (plan_side_way, same seed and slot = same segment).
+func _plan_side_way(room: RoomController, next: RoomController, ladder_way := false, forced := false) -> SideGate:
+	var skip := false if forced else SideWays.is_skipped()
+	var gate := SideWays.plan(room, next, _run_seed, _last_side_slot == room.slot_index, ladder_way, skip)
 	if gate != null:
 		gate.passed.connect(_on_side_gate_passed)
+	if net != null and not forced:
+		net.after_plan_side_way(room, next, gate)
+	return gate
+
+
+## Plans the side way from room to next from outside (MP: a client, after the host announced it).
+func plan_side_way(room: RoomController, next: RoomController) -> SideGate:
+	if not is_instance_valid(room) or not is_instance_valid(next):
+		return null
+	var existing := room.get_node_or_null(^"SideGate") as SideGate
+	return existing if existing != null else _plan_side_way(room, next, false, true)
 
 
 func _on_side_gate_passed(gate: SideGate, _player: Player) -> void:
 	if _run_ending or not is_instance_valid(gate.next_room):
 		return
+	# MP: the host takes the group into the segment and tells the clients (they wait for it).
+	if net != null and not net.allow_side_transit(gate):
+		return
+	start_side_transit(gate)
+
+
+## Takes every player of the session through the side segment of gate (M5; MP: also from outside).
+func start_side_transit(gate: SideGate) -> SideTransit:
+	if _run_ending or gate == null or not is_instance_valid(gate.next_room):
+		return null
+	gate.is_used = true
 	_last_side_slot = gate.next_room.slot_index
-	var players: Array[Player] = [context.player]  # MP: every player of the session
-	SideTransit.start(self, players, gate.layout, gate.next_room.room_index, context, gate.rng_seed, gate.place_players)
+	return SideTransit.start(self, get_session_players(), gate.layout, gate.next_room.room_index, context, gate.rng_seed, gate.place_players)
 
 
 ## Campfire entered: the boss music has faded, the next biome's ambient bed comes in (C3 hook);
@@ -915,8 +1023,9 @@ func _begin_campfire(room: RoomController) -> void:
 func _on_room_completed(room: RoomController) -> void:
 	_completed_rooms += 1
 	EventBus.room_completed.emit(room.room_index)
-	if _completed_rooms % HEAL_EVERY_COMPLETED_ROOMS == 0 and context.player != null and context.player.is_alive():
-		context.player.health.heal(HEAL_AMOUNT)
+	if _completed_rooms % HEAL_EVERY_COMPLETED_ROOMS == 0 and not get_living_players().is_empty():
+		for player in get_living_players():
+			player.health.heal(HEAL_AMOUNT)
 		Sfx.play_ui(self, &"heal")
 	heal_countdown_changed.emit(get_rooms_until_heal())
 
@@ -940,11 +1049,16 @@ func _on_room_completed(room: RoomController) -> void:
 			# Checkpoint: after every boss an exit portal appears (D-073).
 			room.spawn_exit_portal()
 			ui.show_banner(DungeonTexts.t(&"PORTAL_APPEARED_TITLE"), DungeonTexts.t(&"PORTAL_APPEARED_SUB"), Color(0.6, 0.85, 1.0))
-	if is_instance_valid(room):
+	# MP3: a network client opens the exit when the host does.
+	if is_instance_valid(room) and (net == null or net.may_open_exit(room)):
 		room.open_exit()
 
 
 func _offer_upgrade(title: String) -> void:
+	if net != null:
+		# MP3: every player picks their own upgrade; the host waits for all (D-126).
+		await net.offer_upgrade(title)
+		return
 	if context.player == null:
 		return
 	var offer := upgrade_manager.roll_offer(context.get_owned_weapons(), context.rng)
@@ -1029,13 +1143,15 @@ func _on_encounter_started(_room: RoomController, enemies: Array[Enemy]) -> void
 ## Boss intro (roars and shakes itself) or, without intro data, the plain banner; then the boss bar.
 func _announce_boss(enemy: Enemy) -> void:
 	if BossIntro.has_intro_for(enemy):
-		# The player stands still while the boss speaks (per-player lock, no global pause).
-		var player := context.player
+		# The players stand still while the boss speaks (per-player lock, no global pause).
+		var players := get_living_players()
 		var unlock := func(_boss: Enemy = null) -> void:
-			if is_instance_valid(player):
-				player.set_input_locked(INPUT_LOCK_BOSS_INTRO, false)
-		if player != null:
+			for player in players:
+				if is_instance_valid(player):
+					player.set_input_locked(INPUT_LOCK_BOSS_INTRO, false)
+		for player in players:
 			player.set_input_locked(INPUT_LOCK_BOSS_INTRO, true)
+		if not players.is_empty():
 			# Also released by the boss's safety timeout or its death, so the lock can never stick.
 			enemy.intro_ended.connect(unlock, CONNECT_ONE_SHOT)
 		await BossIntro.play(enemy, ui)
@@ -1068,5 +1184,8 @@ func _on_upgrade_acquired(_upgrade: UpgradeData, _stacks: int) -> void:
 
 
 func _on_player_died() -> void:
+	# A group run ends when nobody stands any more (D-084; reviving follows in MP5).
+	if not get_living_players().is_empty():
+		return
 	await get_tree().create_timer(DEATH_SCREEN_DELAY, false).timeout
 	end_run(RunManager.EndReason.DEATH)

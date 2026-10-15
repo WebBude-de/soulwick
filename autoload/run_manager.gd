@@ -40,10 +40,14 @@ func start_run() -> void:
 	_run_gold = 0
 	_run_gold_earned = 0
 	_run_crystals = 0
-	# Pending boosts are consumed now and saved, so quitting mid-run cannot keep them.
-	_run_boosts = SaveManager.take_pending_boosts()
-	if not _run_boosts.is_empty():
-		SaveManager.save_game()
+	# Pending boosts are consumed now and saved, so quitting mid-run cannot keep them. Group runs
+	# without meta upgrades (quick game, D-081) neither use nor consume them: they wait for solo.
+	if GameMode.of_tree(get_tree()).get_meta_source() == GameMode.MetaSource.LOCAL:
+		_run_boosts = SaveManager.take_pending_boosts()
+		if not _run_boosts.is_empty():
+			SaveManager.save_game()
+	else:
+		_run_boosts.clear()
 	run_gold_changed.emit(_run_gold)
 	run_crystals_changed.emit(_run_crystals)
 	room_changed.emit(_current_room)
@@ -98,6 +102,32 @@ func get_run_boosts() -> Array[StringName]:
 
 func has_run_boost(id: StringName) -> bool:
 	return _is_run_active and _run_boosts.has(id)
+
+
+## MP3 (D-081): the host owns the shared run gold and crystals; a network client mirrors them.
+func sync_from_host(gold: int, gold_earned: int, crystals: int) -> void:
+	if not _is_run_active:
+		return
+	var gold_changed := gold != _run_gold
+	var crystals_changed := crystals != _run_crystals
+	_run_gold = maxi(0, gold)
+	_run_gold_earned = maxi(0, gold_earned)
+	_run_crystals = maxi(0, crystals)
+	if gold_changed:
+		run_gold_changed.emit(_run_gold)
+	if crystals_changed:
+		run_crystals_changed.emit(_run_crystals)
+
+
+## MP3: the room number of a network client follows the host.
+func sync_room(room_index: int) -> void:
+	if _is_run_active and room_index > 0 and room_index != _current_room:
+		_current_room = room_index
+		room_changed.emit(_current_room)
+
+
+func get_run_gold_earned() -> int:
+	return _run_gold_earned
 
 
 ## Spends gold only if the full amount is available. Returns false without any change otherwise.

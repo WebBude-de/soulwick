@@ -8,8 +8,8 @@ extends Node
 ## coyote and buffer timers, the ladder, the last safe platform, the time outside the view.
 ## Decisions here, looks elsewhere: jumped / landed / fell_into_pit / returned drive sounds and dust
 ## (SideSegment), the body animation comes from get_animation().
-## Inputs are read in exactly one place (_read_input); a bot or a network peer replaces them through
-## input_source (the multiplayer branch maps it to player.input).
+## Inputs are read in exactly one place (_read_input): the player's own input object (MP1: keyboard
+## at this machine, RemoteInput for network players and bots), or input_source when a bot drives.
 
 signal jumped(player: Player)
 ## On landing; fall_speed = downward speed right before touching the ground.
@@ -36,8 +36,8 @@ const LAND_ANIMATION_TIME := 0.12
 const LAND_EFFECT_AIR_TIME := 0.25
 
 
-## One frame of side-view input. Today read from Input; a bot or a network peer fills the same
-## fields (input_source).
+## One frame of side-view input, read from the player's input object; a bot fills the same fields
+## (input_source).
 class SideInput:
 	extends RefCounted
 	var axis := Vector2.ZERO
@@ -47,7 +47,7 @@ class SideInput:
 	var attack_pressed := false
 
 
-## Callable() -> SideInput replacing the keyboard (bot, network). Invalid = Input.
+## Callable() -> SideInput replacing the player's input (bot). Invalid = player.input.
 var input_source: Callable
 ## Facing in the run: +1 right, -1 left (camera look-ahead, dash without input).
 var facing := 1.0
@@ -117,6 +117,30 @@ func is_on_floor() -> bool:
 
 func is_in_pit() -> bool:
 	return _pit_left > 0.0
+
+
+## Rising from a jump the player still holds (variable height; network state).
+func is_jumping() -> bool:
+	return _jumping
+
+
+## Network copy of a player who runs at another machine (NetPlayerState): the ladder, the pit and
+## the facing of the authoritative copy, so the replayed movement climbs and falls where it does.
+func apply_remote_state(climbing: bool, in_pit: bool, remote_facing: float) -> void:
+	if not _active or _player == null:
+		return
+	if remote_facing != 0.0:
+		facing = signf(remote_facing)
+	if in_pit:
+		if _pit_left <= 0.0:
+			start_pit()
+		return
+	if climbing and not _climbing and _world != null:
+		var ladder := _world.ladder_rect_at(_player.get_feet_position())
+		if ladder.has_area():
+			_start_climbing(ladder)
+	elif not climbing and _climbing:
+		_stop_climbing()
 
 
 ## Feet position the next pit returns to (global), INF before the first platform.
@@ -270,18 +294,22 @@ func place_at(feet: Vector2) -> void:
 
 # --- Input ---
 
-## The only place the side view reads input (multiplayer: player.input instead of Input).
+## The only place the side view reads input: a bot's input_source, else player.input (polled by
+## the player at the start of its physics frame; RemoteInput and the network work as in top-down).
 func _read_input() -> SideInput:
 	if input_source.is_valid():
 		var provided: Variant = input_source.call()
 		if provided is SideInput:
 			return provided
 	var input := SideInput.new()
-	input.axis = Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
-	input.jump_pressed = Input.is_action_pressed(JUMP_ACTION)
-	input.jump_just_pressed = Input.is_action_just_pressed(JUMP_ACTION)
-	input.dash_just_pressed = InputMap.has_action(DASH_ACTION) and Input.is_action_just_pressed(DASH_ACTION)
-	input.attack_pressed = Input.is_action_pressed(&"attack")
+	var commands := _player.input if _player != null else null
+	if commands == null:
+		return input
+	input.axis = commands.move
+	input.jump_pressed = commands.is_pressed(JUMP_ACTION)
+	input.jump_just_pressed = commands.is_just_pressed(JUMP_ACTION)
+	input.dash_just_pressed = commands.is_just_pressed(DASH_ACTION)
+	input.attack_pressed = commands.is_pressed(PlayerInput.ATTACK)
 	return input
 
 

@@ -108,6 +108,10 @@ var _exit_doors: Array[Door] = []
 ## The two ways of a branch room (BranchOption, same order as the exits); empty otherwise.
 var branch_options: Array[BranchOption] = []
 var _branch_choice: BranchChoice = null
+## MP3: on a network client the host fights this room: no spawn sources, waves or completion of its
+## own; enemies, wave state (apply_remote_progress) and completion (complete_remotely) come over the
+## network. The intro still plays, the fight counts as started when the host's has (D-126).
+var remote_encounter := false
 
 @onready var tiles: RoomTiles = $Tiles
 @onready var enemy_container: Node2D = $EnemyContainer
@@ -302,7 +306,7 @@ func activate() -> void:
 
 
 func start_encounter() -> void:
-	if _encounter_started:
+	if _encounter_started or remote_encounter:
 		return
 	_encounter_started = true
 	_waves_spawned = 1
@@ -340,7 +344,7 @@ func start_encounter() -> void:
 ## The next wave comes when the running one is down to WaveRules.should_start_next_wave (arena:
 ## at most one left, otherwise cleared); the room is done after the last wave, with nobody left.
 func check_completion() -> void:
-	if not _encounter_started or state == State.UNLOADED:
+	if not _encounter_started or state == State.UNLOADED or remote_encounter:
 		return
 	if _waves_spawned < _waves_total:
 		if not _next_wave_queued and WaveRules.should_start_next_wave(get_wave_alive(_waves_spawned), is_arena):
@@ -498,6 +502,29 @@ func _on_branch_decided(_choice: BranchChoice, index: int) -> void:
 	branch_chosen.emit(self, index)
 	if state == State.CLEARED:
 		open_exit()
+
+
+## MP3: the host reported this room as cleared (network client).
+func complete_remotely() -> void:
+	_complete()
+
+
+## MP3: wave state of the host's fight (network client): running wave of total, living enemies in
+## the room and in that wave. The first call starts the encounter here (a running intro ends), a
+## later wave announces itself like on the host (wave_started: task bar, banner, shake).
+func apply_remote_progress(wave: int, total: int, alive: int, wave_alive: int) -> void:
+	if not remote_encounter or state == State.UNLOADED:
+		return
+	var previous := _waves_spawned if _encounter_started else 0
+	_encounter_started = true
+	_waves_spawned = wave
+	_waves_total = total
+	_alive_enemies = alive
+	if _wave_alive.size() <= wave:
+		_wave_alive.resize(wave + 1)
+	_wave_alive[wave] = wave_alive
+	if previous > 0 and wave > previous:
+		wave_started.emit(self, wave, total)
 
 
 func mark_unloaded() -> void:

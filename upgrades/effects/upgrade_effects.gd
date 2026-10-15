@@ -21,6 +21,8 @@ const KILL_SHIELD_CAP_MAX := 20.0
 @export var upgrade_manager: UpgradeManager
 
 var player: Player = null
+## MP3: in a group game each player has their own effects; only hits of this player count.
+var only_own_hits := false
 
 var _pending_explosions: Array[Dictionary] = []
 var _exploded_hit_ids: Dictionary[int, bool] = {}
@@ -39,6 +41,8 @@ func _physics_process(_delta: float) -> void:
 
 
 func _on_enemy_damaged(enemy: Node2D, result: DamageResult, damage: DamageData) -> void:
+	if only_own_hits and (player == null or damage.source != player):
+		return
 	if result.killed:
 		_grant_kill_rewards()
 	if damage.origin != DamageData.Origin.PRIMARY or upgrade_manager == null:

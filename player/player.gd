@@ -3,8 +3,12 @@ extends CharacterBody2D
 ## Player body: WASD movement, 360° mouse aim, dash, hit I-frames and E interaction (PRD 4.3).
 ## HP/shield/weapons live in child components. Node origin = body centre; feet are below it.
 ## Abysses (A4): the dash is in the air; falling and the last safe spot live in the PlayerFall child.
+## Several players (MP1): commands come only from the input object (keyboard/mouse or RemoteInput);
+## camera, prompts and screen shake belong to the local player.
 
 signal died
+## MP3 (D-084): a downed player got up again (revived by a teammate or the cleared room).
+signal revived
 signal blinded(duration: float)
 ## Emitted when an effective hit stuns the player (screen tilt, post-process wobble).
 signal stunned(duration: float)
@@ -32,6 +36,8 @@ const STUN_STAR_HEIGHT := -40.0
 const STATUS_TEXT_COLOR := Color(1.0, 0.9, 0.4)
 ## Drop shadow under the feet (half width in world px).
 const SHADOW_RADIUS := 14.0
+## I-frames after getting up from the floor (MP3, TESTWERT).
+const REVIVE_INVULNERABILITY := 1.5
 
 ## PLATZHALTER: player move speed is not specified in the GDD.
 @export var move_speed := 180.0
@@ -56,12 +62,27 @@ var _weapon_kick := 0.0
 var _focused_interactable: Interactable = null
 var _stun_left := 0.0
 var _input_locks: Dictionary[StringName, bool] = {}
+var _protections: Dictionary[StringName, bool] = {}
 var _stun_stars: Node2D = null
 ## Falling into an abyss and the last safe spot of this player (A4, D-086, D-088).
 var fall: PlayerFall = null
 ## Side-view gang segments (M5): while active it moves this player (gravity, jump, ladders) instead
 ## of the top-down movement; null or inactive = top-down as always.
 var side_motion: PlayerSideMotion = null
+## Session id of this player (0..3, GameMode); set by the WorldController before add_child.
+var player_id := 0
+## Sits at this machine: own camera, interaction prompt, screen shake (MP1). Set before add_child.
+var is_local := true
+## Look of this player (MP2): {character: StringName, color: Color} of a remote player's save;
+## empty = the loaded save's character and clothing colour, following the wardrobe live.
+var appearance: Dictionary = {}
+## Where this player's commands come from (MP1): keyboard and mouse by default, RemoteInput for
+## players fed from outside (network later, bots and tests now). Never null.
+var input: PlayerInput = LocalKeyboardMouseInput.new():
+	set(value):
+		input = value if value != null else RemoteInput.new()
+		if weapon_controller != null:
+			weapon_controller.input = input
 
 @onready var health: HealthComponent = $HealthComponent
 @onready var shield: ShieldComponent = $ShieldComponent
@@ -81,11 +102,16 @@ func _ready() -> void:
 	_sprite.play(&"idle")
 	SpriteFx.apply(_sprite)
 	# Character and clothing colour of the active save slot (MM1); the wardrobe updates it live.
-	CharacterCatalog.apply_active(_sprite)
-	SaveManager.profile_changed.connect(func() -> void: CharacterCatalog.apply_active(_sprite))
+	_apply_appearance()
+	SaveManager.profile_changed.connect(_apply_appearance)
 	_build_stun_stars()
 	DropShadow.attach(self, SHADOW_RADIUS, FEET_OFFSET.y)
 	_camera.add_child(AmbientParticles.new())
+	if not is_local:
+		# Only the local player's camera shows the world (its ambient particles hang below it).
+		_camera.enabled = false
+		_camera.visible = false
+	weapon_controller.input = input
 	hurtbox.hit_received.connect(_on_hit_received)
 	health.died.connect(_on_died)
 	weapon_controller.weapon_changed.connect(_on_weapon_changed.unbind(2))
@@ -103,6 +129,7 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	input.poll(self)
 	_tick_timers(delta)
 	var side_view := is_side_view()
 	if not side_view:
@@ -121,34 +148,62 @@ func _physics_process(delta: float) -> void:
 		_update_visuals(Vector2.ZERO)
 		return
 
-	var move_input := Input.get_vector(&"move_left", &"move_right", &"move_up", &"move_down")
+	var move_input := input.move
 	if side_view:
 		move_input = side_motion.physics_step(delta, true)
 	else:
-		if Input.is_action_just_pressed(&"dash") and can_dash():
+		if input.is_just_pressed(PlayerInput.DASH) and can_dash():
 			_start_dash(move_input, _aim)
 		velocity = _dash_direction * dash_speed if is_dashing() else move_input * move_speed
 		move_and_slide()
 
-	if Input.is_action_just_pressed(&"switch_weapon"):
+	if input.is_just_pressed(PlayerInput.SWITCH_WEAPON):
 		weapon_controller.switch_weapon()
 	# No attacks while dashing (D-016) or while carrying the soul lantern (A9).
-	if not is_dashing() and Input.is_action_pressed(&"attack") and LanternCarry.can_attack(self):
+	if not is_dashing() and input.is_pressed(PlayerInput.ATTACK) and LanternCarry.can_attack(self):
 		weapon_controller.request_attack()
 
 	_update_interaction()
 	_update_visuals(move_input)
 
 
+## Character and clothing colour: the appearance of a remote player or the loaded save (MM1).
+func _apply_appearance() -> void:
+	if appearance.is_empty():
+		CharacterCatalog.apply_active(_sprite)
+		return
+	var data := CharacterCatalog.get_character(appearance.get("character", SaveManager.get_character_id()))
+	if data != null:
+		data.apply_to(_sprite, appearance.get("color", data.default_color))
+
+
 func get_aim_direction() -> Vector2:
-	var to_mouse := get_global_mouse_position() - weapon_controller.global_position
-	if to_mouse.length_squared() < 4.0:
-		return _aim
-	return to_mouse.normalized()
+	return input.get_aim_direction(weapon_controller.global_position, _aim)
 
 
 func is_alive() -> bool:
 	return not health.is_dead()
+
+
+## Group game (MP3, D-084): at 0 HP a player is down instead of gone while a teammate stands; the
+## body lies there (death animation) until revive(). In single player 0 HP ends the run as before.
+func is_downed() -> bool:
+	return health.is_dead()
+
+
+## Gets a downed player up with hp HP (D-084: 2 HP), brief I-frames. No effect on a living player.
+func revive(hp: float) -> void:
+	if not health.is_dead():
+		return
+	var maximum := health.get_max_health()
+	health.reset(maximum)
+	health.take_damage(maximum - clampf(hp, DamageProcessor.DAMAGE_STEP, maximum))
+	set_physics_process(true)
+	weapon_controller.set_physics_process(true)
+	_weapon_pivot.visible = true
+	_sprite.play(&"idle")
+	grant_invulnerability(REVIVE_INVULNERABILITY)
+	revived.emit()
 
 
 func is_dashing() -> bool:
@@ -197,6 +252,21 @@ func set_input_locked(reason: StringName, locked: bool) -> void:
 
 func is_input_locked() -> bool:
 	return not _input_locks.is_empty()
+
+
+## Protected for a named reason (MP1, D-085/D-123: a menu open in a group game): no input, no
+## damage, and enemies should ignore the player (is_protected(), hook for EnemyTargeting).
+func set_protected(reason: StringName, protected: bool) -> void:
+	if protected:
+		_protections[reason] = true
+	else:
+		_protections.erase(reason)
+	set_input_locked(reason, protected)
+	hurtbox.set_invulnerable(reason, protected)
+
+
+func is_protected() -> bool:
+	return not _protections.is_empty()
 
 
 ## Falling into an abyss right now (input locked, invisible body, A4).
@@ -333,7 +403,8 @@ func _update_interaction() -> void:
 			closest = interactable
 			closest_distance = distance
 	_focused_interactable = closest
-	_prompt_label.visible = closest != null
+	# Only the player at this machine sees its prompt (MP1).
+	_prompt_label.visible = closest != null and is_local
 	if closest != null:
 		var prompt_text := "E %s" % closest.prompt
 		if _prompt_label.text != prompt_text:
@@ -341,7 +412,7 @@ func _update_interaction() -> void:
 			# The panel hugs the text, centered above the head.
 			_prompt_label.reset_size()
 			_prompt_label.position.x = -_prompt_label.size.x * 0.5
-		if Input.is_action_just_pressed(&"interact"):
+		if input.is_just_pressed(PlayerInput.INTERACT):
 			closest.interact(self)
 
 
@@ -390,7 +461,8 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	if result.is_effective() and not health.is_dead():
 		_hit_invulnerability_left = hit_invulnerability_time
 		hurtbox.set_invulnerable(INVULNERABLE_HIT, true)
-		CameraShake.shake(self, 7.0)
+		if is_local:
+			CameraShake.shake(self, 7.0)
 		HitStop.trigger(self, 0.08)
 		Sfx.play_at(self, &"hit_player", global_position)
 		# Status effects only come with effective hits (D-017).
@@ -410,7 +482,8 @@ func _on_died() -> void:
 	_sprite.modulate.a = 1.0
 	_sprite.play(&"death")
 	Sfx.play_at(self, &"player_death", global_position)
-	CameraShake.shake(self, 10.0)
+	if is_local:
+		CameraShake.shake(self, 10.0)
 	# Dramatic slow motion before the run end screen.
 	HitStop.trigger(self, 0.9, 0.3)
 	died.emit()
