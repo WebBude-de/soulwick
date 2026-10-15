@@ -2,7 +2,7 @@ class_name SideCoin
 extends Node2D
 ## A coin on a jump arc of a side segment (M5); the golden coin sits at the hardest spot. Only the
 ## look lives here: SideSegment decides when a player touches it and pays the reward
-## (SideRules.coin_gold, SideRules.GOLDEN_COIN_CRYSTALS); take() plays the pickup.
+## (SideRules.coin_gold, SideRules.golden_coin_gold); take() plays the pickup.
 
 const TEXTURE: Texture2D = preload("res://art/environment/props/gold_coin_4f.png")
 const FRAME := Vector2i(16, 16)

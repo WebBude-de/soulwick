@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "wall_breach_cave_<biom>_6f 32×48: Felsfront bricht auf; Loch ab Frame 2 transparent."
+  ],
+  "items": [
+    {
+      "name": "wall_breach_cave_crypt",
+      "file": "wall_breach_cave_crypt_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

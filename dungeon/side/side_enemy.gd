@@ -129,7 +129,7 @@ func get_facing() -> float:
 func _physics_process(delta: float) -> void:
 	if _dead:
 		return
-	velocity.y = minf(velocity.y + SideRules.GRAVITY * delta, SideRules.MAX_FALL_SPEED)
+	velocity.y = minf(velocity.y + PlayerSideMotion.gravity_for(velocity.y) * delta, SideRules.MAX_FALL_SPEED)
 	match kind:
 		Kind.SLIME:
 			_hop(delta)
@@ -253,7 +253,10 @@ func _on_died() -> void:
 	get_tree().create_timer(DEATH_TIME, false).timeout.connect(queue_free)
 
 
+## Side enemies are obstacles: the coins are the reward (SideRules.ENEMY_GOLD, round 2).
 func _drop_gold() -> void:
+	if SideRules.ENEMY_GOLD <= 0:
+		return
 	var amount := maxi(1, roundi(data.gold_drop * GOLD_DROP_FACTOR * MetaProgression.get_gold_multiplier()))
 	var pickup := GOLD_PICKUP_SCENE.instantiate() as GoldPickup
 	pickup.amount = amount

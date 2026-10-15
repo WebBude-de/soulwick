@@ -1,11 +1,9 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/crate.tscn" id="3_crate"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="5_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="6_scatter"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
 
 [node name="SchraegeHalleEmberForge" instance=ExtResource("1_base")]
 room_kind = 0
@@ -22,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(13, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(2, 5, 3), Vector3i(3, 5, 3), Vector3i(3, 6, 3), Vector3i(4, 5, 3), Vector3i(4, 6, 3), Vector3i(5, 1, 2), Vector3i(5, 5, 3), Vector3i(5, 6, 3), Vector3i(5, 7, 3), Vector3i(6, 0, 2), Vector3i(6, 1, 2), Vector3i(7, 0, 2), Vector3i(7, 1, 2), Vector3i(7, 2, 0), Vector3i(8, 1, 2), Vector3i(8, 2, 0), Vector3i(9, 2, 0), Vector3i(9, 3, 0), Vector3i(9, 4, 0), Vector3i(9, 5, 0), Vector3i(9, 6, 0), Vector3i(10, 4, 0), Vector3i(14, 0, 2), Vector3i(16, 0, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(1, 6, 13), Vector3i(2, 2, 13), Vector3i(2, 6, 9), Vector3i(3, 2, 5), Vector3i(3, 6, 9), Vector3i(4, 2, 1), Vector3i(4, 6, 8), Vector3i(5, 6, 9), Vector3i(5, 7, 5), Vector3i(6, 6, 9), Vector3i(7, 6, 5), Vector3i(11, 0, 13), Vector3i(11, 2, 5), Vector3i(11, 3, 13), Vector3i(12, 2, 0), Vector3i(12, 6, 1), Vector3i(13, 6, 0), Vector3i(13, 7, 3), Vector3i(14, 2, 1)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 6, 13), Vector3i(2, 2, 13), Vector3i(2, 6, 9), Vector3i(3, 2, 5), Vector3i(4, 0, 9), Vector3i(4, 2, 1), Vector3i(5, 2, 8), Vector3i(6, 7, 5), Vector3i(7, 7, 3), Vector3i(11, 6, 13), Vector3i(12, 2, 5), Vector3i(12, 5, 13), Vector3i(12, 6, 5), Vector3i(13, 2, 5), Vector3i(13, 6, 5), Vector3i(13, 7, 1), Vector3i(14, 0, 0), Vector3i(14, 7, 1)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(800, 32)
@@ -37,19 +35,19 @@ position = Vector2(224, 224)
 position = Vector2(928, 416)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(288, 480)
+position = Vector2(416, 352)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(992, 160)
+position = Vector2(288, 32)
 
 [node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(416, 160)
+position = Vector2(992, 160)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(736, 288)
+position = Vector2(224, 416)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(416, 352)
+position = Vector2(416, 160)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 224)
@@ -105,76 +103,40 @@ metadata/objective_kind = &"light_crystal"
 metadata/tile = Vector2i(6, 4)
 metadata/built = true
 
-[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
+[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(832, -64)
 
 [node name="Crystal1" type="Node2D" parent="Props"]
 position = Vector2(416, 312)
-script = ExtResource("5_deco")
+script = ExtResource("3_deco")
 item = &"light_crystal"
 tint = Color(1, 0.7, 0.45, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(6, 4)])
 
-[node name="Anvil1" type="Node2D" parent="Props"]
-position = Vector2(224, 504)
-script = ExtResource("5_deco")
-item = &"anvil"
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(288, 504)
+script = ExtResource("3_deco")
+item = &"group_large_2"
+blocked_tiles = Array[Vector2i]([Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7)])
+biome = &"ember_forge"
+
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(256, 120)
+script = ExtResource("3_deco")
+item = &"group_3"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(3, 7)])
+blocked_tiles = Array[Vector2i]([Vector2i(3, 1), Vector2i(4, 1)])
+biome = &"ember_forge"
 
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(290, 482)
-script = ExtResource("5_deco")
-item = &"rubble_1"
+[node name="Group3" type="Node2D" parent="Props"]
+position = Vector2(768, 504)
+script = ExtResource("3_deco")
+item = &"group_1"
 flip = true
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(290, 458)
-script = ExtResource("5_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="Crate1" parent="Props" instance=ExtResource("3_crate")]
-position = Vector2(288, 56)
-
-[node name="Barrel1" parent="Props" instance=ExtResource("2_barrel")]
-position = Vector2(288, 120)
-
-[node name="Bedroll1" type="Node2D" parent="Props"]
-position = Vector2(226, 98)
-script = ExtResource("5_deco")
-item = &"bedroll"
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(802, 482)
-script = ExtResource("5_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(802, 458)
-script = ExtResource("5_deco")
-item = &"rubble_2"
-
-[node name="RubbleBit5" type="Node2D" parent="Props"]
-position = Vector2(762, 458)
-script = ExtResource("5_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(750, 488)
-script = ExtResource("5_deco")
-item = &"bones_2"
-flip = true
-
-[node name="Mist1" type="Node2D" parent="Props"]
-position = Vector2(482, 482)
-script = ExtResource("5_deco")
-item = &"mist"
-flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(11, 7), Vector2i(12, 7)])
+biome = &"ember_forge"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("6_scatter")
+script = ExtResource("4_scatter")
 allowed = Array[int]([])

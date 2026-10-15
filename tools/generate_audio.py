@@ -625,7 +625,55 @@ def build_room_kinds():
     return len(fx)
 
 
+# ---------------------------------------------------------------- side view (M5 round 2)
+# Gang segments in side view: jump, double jump, landing (soft and hard), wall slide, crumbling
+# ledge and the low drone of the black fade. Own seed: every sound above stays byte-identical.
+# Only this block: python tools/generate_audio.py side   (TESTWERTE: pitches and lengths)
+
+def build_side():
+    random.seed(23)
+    fx = {}
+    # Jump: a short springy blip 260 -> 520 Hz over a soft puff of air.
+    fx["side_jump"] = mix(tone(260, 0.09, "square", 0.35, duty=0.25, slide_to=520, attack=0.002, release=0.04),
+                          noise(0.07, 0.35, 0.5, attack=0.002, release=0.05))
+    # Double jump: a higher whoosh (band noise rising) with a bright two-note sparkle.
+    fx["side_double_jump"] = mix(tone(520, 0.12, "triangle", 0.4, slide_to=1040, attack=0.003, release=0.06),
+                                 band_noise(0.16, 1200, 3200, 0.35, attack=0.01, release=0.1),
+                                 bell(midi(88), 0.18, 0.18),
+                                 offsets=[0.0, 0.0, 0.05])
+    # Landing: a soft thud (sine 120 -> 60 Hz) and a little grit.
+    fx["side_land"] = mix(tone(120, 0.08, "sine", 0.6, slide_to=60, attack=0.001, release=0.05),
+                          noise(0.05, 0.4, lp_coef(1200), attack=0.001, release=0.04))
+    # Hard landing: a heavier thump, a low sub and rubble crumbs afterwards.
+    fx["side_land_hard"] = mix(tone(90, 0.16, "sine", 0.8, slide_to=42, attack=0.001, release=0.1),
+                               noise(0.1, 0.6, lp_coef(600), attack=0.001, release=0.08),
+                               clatter(0.22, 5, (380, 520, 640), 0.3, accelerate=1.4),
+                               offsets=[0.0, 0.0, 0.06])
+    # Wall slide: a short scrape (band noise with fast tremolo), played every few tenths of a second.
+    fx["side_wall_slide"] = tremolo(band_noise(0.26, 500, 1800, 0.45, attack=0.02, release=0.08), 28, 0.5)
+    # Crumbling ledge: a crack, then stones falling and bouncing.
+    fx["side_crumble"] = mix(noise(0.05, 0.7, lp_coef(3000), attack=0.0005, release=0.04),
+                             tone(140, 0.2, "sine", 0.5, slide_to=70, release=0.12),
+                             clatter(0.5, 9, (300, 420, 560, 700), 0.4, accelerate=1.6),
+                             offsets=[0.0, 0.0, 0.08])
+    # Drone of the black fade ("Abstieg"): a low hum with a slow beat and dark air, 1.6 s.
+    fx["side_drone"] = mix(tone(55, 1.6, "sine", 0.6, attack=0.25, release=0.6),
+                           tone(55.8, 1.6, "sine", 0.45, attack=0.25, release=0.6),
+                           tone(82.5, 1.6, "saw", 0.08, attack=0.4, release=0.6),
+                           tremolo(band_noise(1.6, 80, 400, 0.25, attack=0.4, release=0.6), 0.7, 0.5))
+    peaks = {"side_jump": 0.5, "side_double_jump": 0.55, "side_land": 0.5, "side_land_hard": 0.75,
+             "side_wall_slide": 0.35, "side_crumble": 0.75, "side_drone": 0.7}
+    for name, samples in fx.items():
+        write_wav(SFX_DIR / f"{name}.wav", samples, peak=peaks.get(name, 0.7))
+    return len(fx)
+
+
 if __name__ == "__main__":
+    import sys
+    if sys.argv[1:] == ["side"]:
+        side_count = build_side()
+        print(f"{side_count} side view sounds (M5) written to {SFX_DIR}")
+        raise SystemExit(0)
     count = build_sfx()
     print(f"{count} sound effects written to {SFX_DIR}")
     babble = build_babble()
@@ -638,3 +686,5 @@ if __name__ == "__main__":
     print(f"{room_count} room content sounds written to {SFX_DIR}")
     kind_count = build_room_kinds()
     print(f"{kind_count} room kind sounds (R9) written to {SFX_DIR}")
+    side_count = build_side()
+    print(f"{side_count} side view sounds (M5) written to {SFX_DIR}")

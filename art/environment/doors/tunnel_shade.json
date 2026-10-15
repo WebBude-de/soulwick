@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "Biomneutral, Alpha-Verlauf; über der Öffnung des Rahmens platzieren (gleiche Größe wie der Rahmen)."
+  ],
+  "items": [
+    {
+      "name": "tunnel_shade_cave",
+      "file": "tunnel_shade_cave.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "tunnel_shade_arch",
+      "file": "tunnel_shade_arch.png",
+      "frame_size": [
+        64,
+        56
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        55
+      ],
+      "note": ""
+    }
+  ]
+}

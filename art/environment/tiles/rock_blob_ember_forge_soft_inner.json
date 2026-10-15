@@ -1,0 +1,165 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 8,
+  "rows": 4,
+  "notes": [
+    "Ergänzung zu rock_blob_<biom>_soft: Masken mit freier oberer Diagonale (Randband als Bogen um den Eckpunkt, Innenradius 4 px). In das Haupt-Sheet an die Maskennamen kopieren oder als zweites Atlas-Sheet laden.",
+    "fill_left/right/both = Slots 51-53: transparent bis auf Felsstück in der unteren Ecke (Radius 5), liegt auf der Bodenkachel unter einer Innenecke.",
+    "front_step_left/right: Vorderseite, deren Lippe an der Stufe nach unten umbiegt."
+  ],
+  "tiles": {
+    "r87": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "r93": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "r213": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "r215": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    },
+    "r221": {
+      "x": 128,
+      "y": 0,
+      "col": 4,
+      "row": 0
+    },
+    "r223": {
+      "x": 160,
+      "y": 0,
+      "col": 5,
+      "row": 0
+    },
+    "r241": {
+      "x": 192,
+      "y": 0,
+      "col": 6,
+      "row": 0
+    },
+    "r245": {
+      "x": 224,
+      "y": 0,
+      "col": 7,
+      "row": 0
+    },
+    "r247": {
+      "x": 0,
+      "y": 32,
+      "col": 0,
+      "row": 1
+    },
+    "r253": {
+      "x": 32,
+      "y": 32,
+      "col": 1,
+      "row": 1
+    },
+    "r31": {
+      "x": 64,
+      "y": 32,
+      "col": 2,
+      "row": 1
+    },
+    "r29": {
+      "x": 96,
+      "y": 32,
+      "col": 3,
+      "row": 1
+    },
+    "r127": {
+      "x": 128,
+      "y": 32,
+      "col": 4,
+      "row": 1
+    },
+    "r125": {
+      "x": 160,
+      "y": 32,
+      "col": 5,
+      "row": 1
+    },
+    "r119": {
+      "x": 192,
+      "y": 32,
+      "col": 6,
+      "row": 1
+    },
+    "r117": {
+      "x": 224,
+      "y": 32,
+      "col": 7,
+      "row": 1
+    },
+    "r95": {
+      "x": 0,
+      "y": 64,
+      "col": 0,
+      "row": 2
+    },
+    "r61": {
+      "x": 32,
+      "y": 64,
+      "col": 1,
+      "row": 2
+    },
+    "r23": {
+      "x": 64,
+      "y": 64,
+      "col": 2,
+      "row": 2
+    },
+    "r21": {
+      "x": 96,
+      "y": 64,
+      "col": 3,
+      "row": 2
+    },
+    "fill_left": {
+      "x": 128,
+      "y": 64,
+      "col": 4,
+      "row": 2
+    },
+    "fill_right": {
+      "x": 160,
+      "y": 64,
+      "col": 5,
+      "row": 2
+    },
+    "fill_both": {
+      "x": 192,
+      "y": 64,
+      "col": 6,
+      "row": 2
+    },
+    "front_step_left": {
+      "x": 224,
+      "y": 64,
+      "col": 7,
+      "row": 2
+    },
+    "front_step_right": {
+      "x": 0,
+      "y": 96,
+      "col": 0,
+      "row": 3
+    }
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "notes": [
+    "cave_mouth_<biom>_soft: nur der Bogenrand (5 px Band), Öffnung und Umfeld transparent, Krone läuft oben durch (kein Aufsatz).",
+    "door_frame_<biom>_soft 64×56: gemauerter Bogen mit runder Öffnung, Krone läuft durch, kein Netz.",
+    "tunnel_shade_cave/arch: Innenschatten als weicher Verlauf (18 px) in Form der Öffnung; einmal pro Form, biomneutral.",
+    "side_mouth_<biom>_soft 20×32 für die OSTWAND (x=0 im Raum): 7 px Schatten auf dem Boden, 5 px Schlitz, 8 px Übergang in den Fels; oben/unten weich; Code spiegelt für West.",
+    "door_side_<biom>_bars_4f: Fallgitter quer (10 px) auf der Lichtkante, Frame 1 zu, Frame 4 weg."
+  ],
+  "items": [
+    {
+      "name": "cave_mouth_ember_forge_soft",
+      "file": "cave_mouth_ember_forge_soft.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_frame_ember_forge_soft",
+      "file": "door_frame_ember_forge_soft.png",
+      "frame_size": [
+        64,
+        56
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        55
+      ],
+      "note": ""
+    },
+    {
+      "name": "side_mouth_ember_forge_soft",
+      "file": "side_mouth_ember_forge_soft.png",
+      "frame_size": [
+        20,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_side_ember_forge_bars",
+      "file": "door_side_ember_forge_bars_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

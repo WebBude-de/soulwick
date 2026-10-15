@@ -131,23 +131,12 @@ script = ExtResource("4_deco")
 item = &"bone_pile"
 flip = true
 
-[node name="Coffin1" type="Node2D" parent="Props"]
-position = Vector2(736, 120)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(768, 120)
 script = ExtResource("4_deco")
-item = &"coffin"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(11, 1)])
-
-[node name="Candles1" type="Node2D" parent="Props"]
-position = Vector2(738, 40)
-script = ExtResource("4_deco")
-item = &"candles"
-flip = true
-
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(784, 58)
-script = ExtResource("4_deco")
-item = &"bones_1"
+item = &"group_2"
+blocked_tiles = Array[Vector2i]([Vector2i(11, 1), Vector2i(12, 1)])
+biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

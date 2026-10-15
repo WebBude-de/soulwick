@@ -22,6 +22,8 @@ extends Node2D
 
 ## The rock over the passage (PassageCover) lies above the characters.
 const LINTEL_Z := 1
+## Door views whose passage is a tunnel (is_in_tunnel).
+const TUNNEL_GROUP := &"door_tunnels"
 ## The shade in the opening of a north gate comes up this fast (alpha per second) once a player
 ## walks in: hidden in the tunnel within about a tenth of a second.
 const SHADE_FADE_SPEED := 8.0
@@ -96,6 +98,8 @@ const BLOCKED_RUBBLE := [
 ## The mode symbol hangs this far above the arch (world px) and a little lighter than the mode
 ## colour, so dark modes (Lichtfeuer, Flamme) read on the rock.
 const MODE_SYMBOL_GAP := 2.0
+## Gap of a sign on the crown to the crown's top edge and to the arch below it (world px).
+const SYMBOL_CROWN_GAP := 2.0
 const MODE_SYMBOL_LIGHTEN := 0.25
 const PIXEL_SCALE := 2.0
 const TILE := 64.0
@@ -239,8 +243,13 @@ func set_symbol(symbol_id: StringName) -> void:
 		_symbol.position = Vector2(TILE * 0.5, SIDE_SYMBOL_Y)
 		_symbol.z_index = LINTEL_Z + 2
 	elif not _lintel.is_empty():
-		# On the crown above the arch, under its light edge, clear of the arch (32/38.png).
-		_symbol.position = Vector2(TILE * 0.5, -TILE + 2.0 + texture.get_height() * PIXEL_SCALE * 0.5)
+		# On the crown above the arch, under its light edge, clear of the arch (32/38.png). The tall
+		# V9 arch leaves less room there: the sign shrinks to fit (never below the art's own size).
+		var arch_top := (DoorArt.frame_top_row(style) - style.leaf_offset.y) * PIXEL_SCALE
+		var room := arch_top + TILE - 2.0 * SYMBOL_CROWN_GAP
+		var symbol_scale := clampf(room / float(texture.get_height()), 1.0, PIXEL_SCALE)
+		_symbol.scale = Vector2.ONE * symbol_scale
+		_symbol.position = Vector2(TILE * 0.5, -TILE + SYMBOL_CROWN_GAP + texture.get_height() * symbol_scale * 0.5)
 		_symbol.z_index = LINTEL_Z + 2
 	elif mode_icon != null:
 		# The mode floats over the arch (05_tueren.md), clear of the keystone ornament.
@@ -279,6 +288,22 @@ func get_passage_rects() -> Array[Rect2]:
 	return _passage_rects
 
 
+## Is this world point inside the passage of any gate with a tunnel? Things a player carries (the relic)
+## hide with the player under the rock (pure optics).
+static func is_in_tunnel(tree: SceneTree, point: Vector2) -> bool:
+	if tree == null:
+		return false
+	for node in tree.get_nodes_in_group(TUNNEL_GROUP):
+		var view := node as DoorView
+		if view == null or not view.is_inside_tree():
+			continue
+		var local := view.to_local(point)
+		for rect: Rect2 in view.get_passage_rects():
+			if rect.grow(-4.0).has_point(local):
+				return true
+	return false
+
+
 func _build_lintel() -> void:
 	for piece in _lintel + _lintel_extras:
 		if is_instance_valid(piece):
@@ -301,6 +326,8 @@ func _build_lintel() -> void:
 	var door_cell := PassageSeam.origin_of(rooms[0]) + own_tiles.local_to_map(own_tiles.to_local(global_position + Vector2.ONE * TILE * 0.5))
 	for cell in PassageCover.passage_cells(door_cell, outward, rooms[1]):
 		_passage_rects.append(Rect2(Vector2(cell - door_cell) * TILE, Vector2.ONE * TILE))
+	if not _passage_rects.is_empty():
+		add_to_group(TUNNEL_GROUP)
 	# A north gate keeps its door tile (arch and gate), a side gate lies in the closed side wall.
 	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, not _is_side()):
 		var piece := _cover_sprite(entry, door_cell)
@@ -321,7 +348,7 @@ func _build_lintel() -> void:
 func _build_side_mouth() -> void:
 	var mouth := Sprite2D.new()
 	mouth.name = "SideMouth"
-	mouth.texture = ImageTexture.create_from_image(DoorArt.side_mouth_image())
+	mouth.texture = DoorArt.get_side_mouth(style)
 	mouth.centered = false
 	mouth.scale = Vector2.ONE * PIXEL_SCALE
 	var width := float(mouth.texture.get_width()) * PIXEL_SCALE
@@ -374,6 +401,11 @@ func _cover_sprite(entry: Dictionary, door_cell: Vector2i) -> Sprite2D:
 func _build_frame_top() -> void:
 	if style == null or _frame == null:
 		return
+	# The delivered inner shadow (V9): its part over the crown above the cover, under the top of the
+	# frame; its part over the door tile on the floor, under the gate and the players.
+	var delivered := DoorArt.get_delivered_shade(style)
+	if delivered != null:
+		_opening_sprite("ShadeTop", DoorArt.rows_of(delivered, 0, style.leaf_offset.y), LINTEL_Z + 1)
 	var image := DoorArt.frame_top_image(style)
 	if image != null:
 		var top := _opening_sprite("FrameTop", image, LINTEL_Z + 1)
@@ -386,7 +418,10 @@ func _build_frame_top() -> void:
 		var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles
 		opening_floor.material = tiles.material
 		opening_floor.modulate = tiles.modulate
-	_opening_sprite("TunnelFade", DoorArt.tunnel_fade_image(style), 0)
+	if delivered != null:
+		_opening_sprite("ShadeFloor", DoorArt.rows_of(delivered, style.leaf_offset.y, delivered.get_height()), OPENING_FLOOR_Z)
+	else:
+		_opening_sprite("TunnelFade", DoorArt.tunnel_fade_image(style), 0)
 	var shade_image := DoorArt.tunnel_shade_image(style)
 	if shade_image != null:
 		# Over the top of the frame too (same layer, drawn after it; the arch itself stays in front).

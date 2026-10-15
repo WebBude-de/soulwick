@@ -58,18 +58,23 @@ func test_arches_and_cave_mouths_are_open_up_to_the_top() -> void:
 			var style := DoorStyle.for_door(biome)
 			style.apply_room_look(cave)
 			styles.append(style)
-	var soft := DoorStyle.for_door(&"crypt")
-	soft.apply_room_look(true, true)
-	styles.append(soft)
+	for cave in [false, true]:
+		var soft := DoorStyle.for_door(&"crypt")
+		soft.apply_room_look(cave, true)
+		styles.append(soft)
 	styles.append(DoorStyle.for_door(&"crypt", DoorStyle.KIND_BOSS))
 	for style in styles:
 		var image := _image(DoorArt.get_frame(style))
-		# The passage: between the posts, from the arch's top inside edge down to the floor line.
+		# The passage: between the posts, from the arch's top inside edge down to the floor line. The
+		# V9 soft frames are the arch alone (transparent above it): skip that first.
 		var top := 0
 		var middle := image.get_width() / 2
+		while top < image.get_height() and image.get_pixel(middle, top).a <= 0.05:
+			top += 1
 		while top < image.get_height() and image.get_pixel(middle, top).a > 0.05:
 			top += 1
-		assert_lt(top, style.leaf_offset.y + 1, "%s: the passage is open above the door tile" % style.get_key())
+		# The V9 mouth opens at the door tile's top line (its arch band lies on the front's top edge).
+		assert_lt(top, style.leaf_offset.y + 4, "%s: the passage is open up to the door tile" % style.get_key())
 		var rect := Rect2i(style.leaf_offset.x + 2, top, style.leaf_size.x - 4, image.get_height() - top)
 		assert_eq(_dark_sheet(image, rect), Vector2i(-1, -1), "%s: no dark sheet in the opening" % style.get_key())
 
@@ -167,10 +172,11 @@ func test_cave_mouth_keeps_its_whole_arch() -> void:
 
 
 func test_everything_in_the_opening_is_cut_to_the_arch() -> void:
+	# The shadow made from the opening (frames without a delivered inner shadow).
 	for biome in [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]:
 		for cave in [false, true]:
 			var style := DoorStyle.for_door(biome)
-			style.apply_room_look(cave, true)
+			style.apply_room_look(cave, false)
 			var frame := _image(DoorArt.get_frame(style))
 			var mask := DoorArt.passage_mask(style)
 			assert_false(mask.is_empty(), "%s cave %s: an opening" % [biome, cave])
@@ -187,6 +193,67 @@ func test_everything_in_the_opening_is_cut_to_the_arch() -> void:
 			for point: Vector2i in mask:
 				if point.y == row:
 					assert_gt(shade.get_pixelv(point).a, 0.9)
+
+
+func test_soft_rooms_use_the_v9_frames_and_their_inner_shadow() -> void:
+	for biome in DoorStyle.BIOMES:
+		for cave in [false, true]:
+			var style := DoorStyle.for_door(biome)
+			style.apply_room_look(cave, true)
+			if not DoorArt.has_art(style.get_frame_path()):
+				pending("V9 frame of %s cave %s not delivered" % [biome, cave])
+				continue
+			var key := "%s cave %s" % [biome, cave]
+			assert_eq(style.frame_size, DoorStyle.CAVE_FRAME_SIZE if cave else DoorStyle.SOFT_ARCH_FRAME_SIZE, key)
+			assert_eq(Vector2i(DoorArt.get_frame(style).get_size()), style.frame_size, key)
+			var frame := _image(DoorArt.get_frame(style))
+			assert_almost_eq(frame.get_pixel(0, 0).a, 0.0, 0.01, "%s: no rock block around the arch" % key)
+			var shade := DoorArt.get_delivered_shade(style)
+			assert_not_null(shade, "%s: inner shadow" % key)
+			if shade == null:
+				continue
+			# The shadow fills the opening over the door tile; the hiding shade covers it as well.
+			var hide := DoorArt.tunnel_shade_image(style)
+			var inside := 0
+			var covered := 0
+			for point: Vector2i in DoorArt.passage_mask(style):
+				if point.y >= style.leaf_offset.y:
+					inside += 1
+					covered += 1 if shade.get_pixelv(point).a > 0.0 and hide.get_pixelv(point).a > 0.9 else 0
+			assert_gt(inside, 0)
+			assert_gt(float(covered) / float(maxi(1, inside)), 0.95, "%s: shadow fills the opening" % key)
+	# Without the soft palette the old frames stay.
+	var plain := DoorStyle.for_door(&"crypt")
+	plain.apply_room_look(false, false)
+	assert_eq(plain.frame_size, DoorStyle.ARCH_FRAME_SIZE)
+	assert_null(DoorArt.get_delivered_shade(plain))
+
+
+func test_soft_side_doors_show_the_portcullis_and_the_mouth() -> void:
+	for biome in DoorStyle.BIOMES:
+		var style := DoorStyle.for_door(biome)
+		style.apply_room_look(true, true)
+		if not DoorArt.has_art(style.get_side_bars_path()):
+			pending("side portcullis of %s not delivered" % biome)
+			continue
+		assert_eq(style.get_side_leaf_path(), style.get_side_bars_path())
+		assert_eq(Vector2i(DoorArt.get_side_leaf_strip(style).get_size()), Vector2i(128, 32))
+		assert_eq(Vector2i(DoorArt.get_side_mouth(style).get_size()), Vector2i(20, 32))
+		var plain := DoorStyle.for_door(biome)
+		plain.apply_room_look(true, false)
+		assert_eq(plain.get_side_leaf_path(), "res://art/environment/doors/door_side_%s_open_4f.png" % biome, "plain rooms keep their leaf")
+
+
+func test_ladder_sign_is_available() -> void:
+	assert_true(DoorStyle.is_branch_symbol(&"ladder"))
+	assert_eq(DoorStyle.branch_symbol_index(&"ladder"), 3)
+	var sign := DoorArt.get_symbol(&"ladder")
+	assert_not_null(sign)
+	if DoorArt.has_art(DoorStyle.BRANCH_SYMBOLS_PATH):
+		assert_true(sign is AtlasTexture, "fourth column of door_branch_symbols_4.png")
+		assert_eq((sign as AtlasTexture).region, Rect2(48, 0, 16, 16))
+	# The other signs keep their columns on the new sheet.
+	assert_eq(DoorStyle.branch_symbol_index(&"unknown"), 2)
 
 
 func test_cone_is_narrow_and_soft_at_its_base() -> void:
@@ -260,3 +327,14 @@ func test_nothing_to_shut_without_an_open_gate() -> void:
 	var entered := _room(4, Vector2(0, -64 * 30))
 	assert_null(GateCloser.close_behind(left, entered), "the gate is still shut")
 	assert_null(GateCloser.close_behind(null, entered))
+
+
+func test_is_in_tunnel_finds_points_in_a_passage() -> void:
+	# A carried relic hides with its carrier under the rock (playtest note of the MP session, 15.10.2026).
+	var view := DoorView.new()
+	add_child_autofree(view)
+	view.position = Vector2(320, 160)
+	view._passage_rects.append(Rect2(Vector2(0, -64), Vector2(64, 64)))
+	view.add_to_group(DoorView.TUNNEL_GROUP)
+	assert_true(DoorView.is_in_tunnel(get_tree(), Vector2(352, 128)), "inside the passage")
+	assert_false(DoorView.is_in_tunnel(get_tree(), Vector2(352, 260)), "in the room below")

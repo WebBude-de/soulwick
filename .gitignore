@@ -10,3 +10,6 @@ __pycache__/
 
 # Szenen-Galerie: per tools/scene_gallery.gd neu erzeugbar, nur INDEX/AUSWAHL versionieren
 docs/design/szenen/*.png
+
+# Raw art deliveries, merged into art/ by hand
+_inbox/

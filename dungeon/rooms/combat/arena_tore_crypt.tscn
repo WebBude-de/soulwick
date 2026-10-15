@@ -1,10 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/crate.tscn" id="3_crate"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="4_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="5_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
 
 [node name="ArenaToreCrypt" instance=ExtResource("1_base")]
 room_kind = 1
@@ -21,7 +19,7 @@ front_fixtures = Array[Vector2i]([Vector2i(2, -1), Vector2i(6, -1), Vector2i(6, 
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(3, 6, 2), Vector3i(3, 7, 2), Vector3i(4, 5, 2), Vector3i(4, 6, 2), Vector3i(4, 7, 2), Vector3i(5, 6, 2), Vector3i(5, 7, 2), Vector3i(9, 3, 0), Vector3i(9, 4, 0), Vector3i(9, 5, 1), Vector3i(9, 6, 1), Vector3i(9, 7, 1), Vector3i(10, 3, 0), Vector3i(10, 4, 0), Vector3i(10, 5, 1), Vector3i(10, 6, 1), Vector3i(10, 7, 1), Vector3i(11, 3, 0), Vector3i(11, 4, 0), Vector3i(11, 5, 0), Vector3i(11, 6, 1), Vector3i(11, 7, 1), Vector3i(12, 4, 0), Vector3i(12, 5, 0), Vector3i(12, 7, 1), Vector3i(13, 4, 0), Vector3i(14, 3, 0), Vector3i(14, 4, 0)])
-overlay_cells = Array[Vector3i]([Vector3i(1, 5, 13), Vector3i(5, 6, 10), Vector3i(7, 0, 1), Vector3i(10, 5, 13), Vector3i(12, 5, 8), Vector3i(12, 6, 5), Vector3i(13, 6, 8), Vector3i(13, 7, 9), Vector3i(14, 6, 0), Vector3i(15, 1, 13), Vector3i(16, 5, 2), Vector3i(16, 6, 13), Vector3i(17, 5, 9)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 5, 13), Vector3i(7, 3, 3), Vector3i(7, 4, 1), Vector3i(11, 3, 11), Vector3i(12, 7, 8), Vector3i(14, 3, 8), Vector3i(14, 6, 0), Vector3i(16, 2, 13), Vector3i(16, 5, 1), Vector3i(17, 5, 2)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(160, 32)
@@ -48,10 +46,10 @@ position = Vector2(160, 416)
 position = Vector2(992, 416)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(352, 480)
+position = Vector2(224, 224)
 
 [node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(224, 224)
+position = Vector2(992, 224)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 224)
@@ -127,96 +125,52 @@ metadata/built = true
 
 [node name="Brazier1" type="Node2D" parent="Props"]
 position = Vector2(96, 120)
-script = ExtResource("4_deco")
+script = ExtResource("2_deco")
 item = &"brazier"
 blocked_tiles = Array[Vector2i]([Vector2i(1, 1)])
 
 [node name="Brazier2" type="Node2D" parent="Props"]
 position = Vector2(928, 120)
-script = ExtResource("4_deco")
+script = ExtResource("2_deco")
 item = &"brazier"
 blocked_tiles = Array[Vector2i]([Vector2i(14, 1)])
 
 [node name="Brazier3" type="Node2D" parent="Props"]
 position = Vector2(160, 312)
-script = ExtResource("4_deco")
+script = ExtResource("2_deco")
 item = &"brazier"
 blocked_tiles = Array[Vector2i]([Vector2i(2, 4)])
 
 [node name="Brazier4" type="Node2D" parent="Props"]
 position = Vector2(1056, 312)
-script = ExtResource("4_deco")
+script = ExtResource("2_deco")
 item = &"brazier"
 blocked_tiles = Array[Vector2i]([Vector2i(16, 4)])
 
-[node name="Coffin1" type="Node2D" parent="Props"]
-position = Vector2(992, 504)
-script = ExtResource("4_deco")
-item = &"coffin"
-blocked_tiles = Array[Vector2i]([Vector2i(15, 7)])
-
-[node name="Candles1" type="Node2D" parent="Props"]
-position = Vector2(930, 482)
-script = ExtResource("4_deco")
-item = &"candles"
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(928, 504)
+script = ExtResource("2_deco")
+item = &"group_large_1"
 flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(13, 7), Vector2i(14, 7), Vector2i(15, 7)])
+biome = &"crypt"
 
-[node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(930, 500)
-script = ExtResource("4_deco")
-item = &"bones_1"
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(288, 504)
+script = ExtResource("2_deco")
+item = &"group_large_2"
+blocked_tiles = Array[Vector2i]([Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7)])
+biome = &"crypt"
+
+[node name="Group3" type="Node2D" parent="Props"]
+position = Vector2(1088, 120)
+script = ExtResource("2_deco")
+item = &"group_3"
 flip = true
-
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(226, 482)
-script = ExtResource("4_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(226, 458)
-script = ExtResource("4_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(266, 458)
-script = ExtResource("4_deco")
-item = &"rubble_1"
-
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(278, 488)
-script = ExtResource("4_deco")
-item = &"bones_2"
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(1122, 98)
-script = ExtResource("4_deco")
-item = &"bone_pile"
-
-[node name="Bones4" type="Node2D" parent="Props"]
-position = Vector2(1122, 128)
-script = ExtResource("4_deco")
-item = &"bones_2"
-
-[node name="Bones5" type="Node2D" parent="Props"]
-position = Vector2(1070, 128)
-script = ExtResource("4_deco")
-item = &"bones_1"
-flip = true
-
-[node name="Crate1" parent="Props" instance=ExtResource("3_crate")]
-position = Vector2(736, 504)
-
-[node name="Barrel1" parent="Props" instance=ExtResource("2_barrel")]
-position = Vector2(800, 504)
-
-[node name="Bedroll1" type="Node2D" parent="Props"]
-position = Vector2(738, 418)
-script = ExtResource("4_deco")
-item = &"bedroll"
+blocked_tiles = Array[Vector2i]([Vector2i(16, 1), Vector2i(17, 1)])
+biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("5_scatter")
+script = ExtResource("3_scatter")
 allowed = Array[int]([])

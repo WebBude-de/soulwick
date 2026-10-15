@@ -696,3 +696,5 @@ SIDE_OPTION_SKIP_NOTE,"No side-view stretches between rooms","Keine Abschnitte i
 OPTIONS_LIGHT_EFFECTS,"Light effects","Lichteffekte"
 OPTIONS_LIGHT_LOW,"Low","Niedrig"
 OPTIONS_LIGHT_HIGH,"High","Hoch"
+SIDE_GOLDEN_COIN_GOLD,"+%d gold","+%d Gold"
+SIDE_HINT_MOVES,"Jump: %s · in the air again: double jump · Dash: %s","Springen: %s · in der Luft nochmal: Doppelsprung · Dash: %s"

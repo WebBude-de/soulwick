@@ -1,0 +1,24 @@
+{
+  "notes": [
+    "platform_edge 96×16: links/Mitte/rechts je 32×16 auf die Plattform-Oberkante.",
+    "bg_<biom>_parallax 480×270 bei halber Kamerageschwindigkeit."
+  ],
+  "items": [
+    {
+      "name": "bg_crypt_parallax",
+      "file": "bg_crypt_parallax.png",
+      "frame_size": [
+        480,
+        270
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -50,7 +50,7 @@ position = Vector2(672, 224)
 position = Vector2(224, 288)
 
 [node name="ContentAnchor" parent="."]
-position = Vector2(608, 288)
+position = Vector2(672, 224)
 
 [node name="PortalAnchor" parent="."]
 position = Vector2(928, 96)
@@ -105,27 +105,12 @@ script = ExtResource("3_deco")
 item = &"bones_1"
 flip = true
 
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(546, 290)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(576, 312)
 script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(546, 314)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(586, 314)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(598, 284)
-script = ExtResource("3_deco")
-item = &"bones_2"
+item = &"group_1"
+blocked_tiles = Array[Vector2i]([Vector2i(8, 4), Vector2i(9, 4)])
+biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

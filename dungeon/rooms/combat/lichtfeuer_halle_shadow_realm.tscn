@@ -18,7 +18,7 @@ door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 9), Vector2i(3, 3), Ve
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(2, 5, 2), Vector3i(2, 6, 2), Vector3i(3, 4, 2), Vector3i(3, 5, 2), Vector3i(3, 6, 2), Vector3i(3, 7, 2), Vector3i(4, 4, 2), Vector3i(4, 5, 2), Vector3i(4, 6, 2), Vector3i(4, 7, 2), Vector3i(8, 3, 0), Vector3i(8, 4, 0), Vector3i(8, 5, 0), Vector3i(9, 2, 0), Vector3i(9, 3, 0), Vector3i(9, 4, 0), Vector3i(9, 5, 0), Vector3i(10, 2, 0), Vector3i(10, 3, 0), Vector3i(10, 4, 0), Vector3i(10, 5, 0), Vector3i(11, 5, 0), Vector3i(13, 7, 2), Vector3i(14, 5, 2), Vector3i(14, 6, 2), Vector3i(14, 7, 2), Vector3i(15, 6, 2), Vector3i(15, 7, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(3, 6, 0), Vector3i(4, 1, 13), Vector3i(4, 7, 1), Vector3i(5, 5, 5), Vector3i(5, 6, 1), Vector3i(6, 1, 1), Vector3i(6, 5, 5), Vector3i(6, 6, 5), Vector3i(8, 3, 9), Vector3i(10, 4, 0), Vector3i(11, 2, 0), Vector3i(11, 7, 0), Vector3i(12, 7, 0), Vector3i(13, 0, 11), Vector3i(13, 3, 8), Vector3i(14, 1, 8), Vector3i(16, 2, 0)])
+overlay_cells = Array[Vector3i]([Vector3i(3, 6, 0), Vector3i(4, 1, 13), Vector3i(4, 7, 1), Vector3i(5, 4, 5), Vector3i(5, 5, 1), Vector3i(6, 6, 5), Vector3i(7, 0, 5), Vector3i(8, 5, 9), Vector3i(11, 0, 0), Vector3i(11, 7, 3), Vector3i(12, 2, 5), Vector3i(12, 5, 1), Vector3i(12, 7, 0), Vector3i(13, 0, 11), Vector3i(13, 3, 8), Vector3i(14, 1, 8), Vector3i(16, 2, 0)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(480, 32)
@@ -111,16 +111,12 @@ item = &"torch_stand"
 tint = Color(0.85, 0.7, 1, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(7, 6)])
 
-[node name="Mist1" type="Node2D" parent="Props"]
-position = Vector2(418, 482)
-script = ExtResource("2_deco")
-item = &"mist"
+[node name="Ambience" type="Node2D" parent="."]
 
-[node name="Mist2" type="Node2D" parent="Props"]
-position = Vector2(354, 34)
+[node name="Mist1" type="Node2D" parent="Ambience"]
+position = Vector2(482, 482)
 script = ExtResource("2_deco")
 item = &"mist"
-flip = true
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

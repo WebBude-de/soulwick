@@ -1,0 +1,87 @@
+{
+  "notes": [
+    "deco_group_<biom>_1..3 64×48 und deco_group_large_<biom>_1..2 96×64; Pivot unten Mitte. Krypta: Schrein, Beinhaus, Geröll · Grotte: Pilzbeet, Kristalle, Tümpel · Schattenreich: Altar, Kristallgarten, Geröll · Glutkammer: Schmiede, Glutgeröll, Lager."
+  ],
+  "items": [
+    {
+      "name": "deco_group_slime_grotto_1",
+      "file": "deco_group_slime_grotto_1.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "deco_group_slime_grotto_2",
+      "file": "deco_group_slime_grotto_2.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "deco_group_slime_grotto_3",
+      "file": "deco_group_slime_grotto_3.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "deco_group_large_slime_grotto_1",
+      "file": "deco_group_large_slime_grotto_1.png",
+      "frame_size": [
+        96,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        48,
+        63
+      ],
+      "note": ""
+    },
+    {
+      "name": "deco_group_large_slime_grotto_2",
+      "file": "deco_group_large_slime_grotto_2.png",
+      "frame_size": [
+        96,
+        64
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        48,
+        63
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "wall_niche_soft 32×48 bündig in Krone + Vorderseite; Nische rund, Schädel und Kerzen."
+  ],
+  "items": [
+    {
+      "name": "wall_niche_soft",
+      "file": "wall_niche_soft.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

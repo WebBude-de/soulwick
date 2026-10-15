@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(4, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(2, 0, 2), Vector3i(4, 7, 1), Vector3i(5, 6, 1), Vector3i(5, 7, 1), Vector3i(6, 6, 1), Vector3i(6, 7, 1), Vector3i(7, 6, 1), Vector3i(7, 7, 1), Vector3i(8, 6, 1), Vector3i(8, 7, 1), Vector3i(9, 6, 1), Vector3i(9, 7, 1), Vector3i(10, 0, 1), Vector3i(11, 0, 1), Vector3i(11, 3, 0), Vector3i(12, 2, 0), Vector3i(12, 3, 0), Vector3i(12, 4, 0), Vector3i(12, 5, 0), Vector3i(13, 5, 0)])
-overlay_cells = Array[Vector3i]([Vector3i(2, 5, 5), Vector3i(3, 7, 9), Vector3i(5, 7, 0), Vector3i(6, 6, 2), Vector3i(7, 0, 9), Vector3i(7, 1, 1), Vector3i(10, 3, 1), Vector3i(11, 0, 8), Vector3i(11, 7, 3), Vector3i(12, 0, 0), Vector3i(12, 7, 8), Vector3i(14, 6, 0)])
+overlay_cells = Array[Vector3i]([Vector3i(2, 5, 5), Vector3i(3, 7, 9), Vector3i(5, 0, 5), Vector3i(5, 3, 10), Vector3i(6, 2, 2), Vector3i(6, 6, 9), Vector3i(7, 0, 1), Vector3i(8, 5, 1), Vector3i(9, 5, 8), Vector3i(10, 2, 0), Vector3i(11, 0, 3), Vector3i(11, 6, 8), Vector3i(12, 3, 8), Vector3i(14, 5, 5), Vector3i(15, 5, 1)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(480, 32)
@@ -50,7 +50,7 @@ position = Vector2(288, 32)
 position = Vector2(352, 480)
 
 [node name="ContentAnchor" parent="."]
-position = Vector2(544, 288)
+position = Vector2(480, 288)
 
 [node name="PortalAnchor" parent="."]
 position = Vector2(800, 160)
@@ -109,27 +109,25 @@ script = ExtResource("3_deco")
 item = &"bones_1"
 flip = true
 
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(610, 290)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(576, 312)
 script = ExtResource("3_deco")
-item = &"bone_pile"
-flip = true
+item = &"group_2"
+blocked_tiles = Array[Vector2i]([Vector2i(8, 4), Vector2i(9, 4)])
+biome = &"crypt"
 
-[node name="Bones4" type="Node2D" parent="Props"]
-position = Vector2(610, 320)
-script = ExtResource("3_deco")
-item = &"bones_2"
+[node name="Ambience" type="Node2D" parent="."]
 
-[node name="Bones5" type="Node2D" parent="Props"]
-position = Vector2(552, 320)
-script = ExtResource("3_deco")
-item = &"bones_1"
-
-[node name="Mist1" type="Node2D" parent="Props"]
-position = Vector2(290, 482)
+[node name="Mist1" type="Node2D" parent="Ambience"]
+position = Vector2(802, 488)
 script = ExtResource("3_deco")
 item = &"mist"
 flip = true
+
+[node name="Mist2" type="Node2D" parent="Ambience"]
+position = Vector2(418, 482)
+script = ExtResource("3_deco")
+item = &"mist"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

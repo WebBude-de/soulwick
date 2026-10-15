@@ -1,7 +1,7 @@
 # Grafik-Briefing V9 – Soulwick: Makeover-Welle A, offene Teile
 
 > **Für Claude Design.** Diese Teile sind im Spiel heute **Platzhalter aus Code**. Sie laufen schon, sehen aber noch nicht sauber aus. Liefert ihr eine Datei mit genau diesem Namen, baut der Code sie automatisch ein.
-> **Stand:** 15.10.2026 · Stil wie bisher: Pixel-Art, 32-px-Kacheln, Kontur `#1c1a2b`, weiche Palette aus `crypt_soft` (andere Biome per Palettentausch). Animationen als Streifen mit Frame-Anzahl im Namen. Zu jeder Datei ein JSON mit fps und Pivot, wie bei den gelieferten Teilen.
+> **Stand:** 15.10.2026 (Abschnitte 1–5 geliefert, siehe `design/claude_design_antwort/SPRITES_V9_lieferung.md`; **offen: Nachlieferung Abschnitt 1 und Abschnitt 6**) · Stil wie bisher: Pixel-Art, 32-px-Kacheln, Kontur `#1c1a2b`, weiche Palette aus `crypt_soft` (andere Biome per Palettentausch). Animationen als Streifen mit Frame-Anzahl im Namen. Zu jeder Datei ein JSON mit fps und Pivot, wie bei den gelieferten Teilen.
 > **Leitlinie des Projektmitglieds:** „Das Game muss clean sein.“ Keine sichtbaren Rechteckkanten, keine Stummel, keine harten Schatten. Jedes Teil schließt nahtlos an die Nachbarkacheln an.
 > `<biom>` = `crypt`, `slime_grotto`, `shadow_realm`, `ember_forge`. `_soft` = weiche Palette.
 
@@ -12,6 +12,8 @@
 | `art/environment/tiles/rock_blob_<biom>_soft.png`, **Ergänzung** | 32×32 je Kachel, 8×7-Raster wie bisher | Die Masken mit fehlender oberer Diagonale (NE oder NW frei, N und E bzw. W fest), z. B. r87, r93, r213, r215, r221, r223, r241, r245, r247, r253. In der jeweiligen oberen Ecke läuft das Randband (2 px hell, 2 px mittel, wie an geraden Kanten) als Bogen um den Eckpunkt, Innenradius ca. 4 px. Heute zeichnet der Code diesen Viertelbogen nach. |
 | Dieselben Sheets, **Slots 51–53** (Zeile 6, Spalten 3–5) | je 32×32 | Füllkacheln: transparent bis auf ein Felsstück in der unteren Ecke, Varianten links, rechts, beide. Rundung mit Radius 5 px, Bandfarben wie die Kante. Sie liegen auf der Bodenkachel unter einer Innenecke. |
 | `art/environment/tiles/front_step_{left,right}_<biom>_soft.png` *(optional)* | 32×32 | Wie `front_left`/`front_right`, aber die Lippe oben biegt an einer Stufe nach unten um. |
+
+**Nachlieferung §1 (offen, Stand 15.10.2026):** Das gelieferte Set `rock_blob_<biom>_soft_inner.png` ist eingebaut, aber abgeschaltet (`RockTerrain.USE_DELIVERED_INNER = false`), weil es im Raum nicht sauber anschließt: Die Bögen liegen 4–8 px neben dem Eckpunkt statt die geraden Randbänder fortzusetzen (heller Fleck in der Ecke), und `fill_left/right/both` sind eine nach außen gewölbte Felsbeule statt einer nach innen gerundeten Füllung. Gewünscht: Bogen genau dort, wo das obere und das seitliche Band der Nachbarkacheln enden (Band 2 px hell + 2 px mittel, Innenradius 4 px), Füllkacheln als Hohlkehle (konkav, Radius 5 px) in den Farben von `rock_blob_<biom>_soft.png`. Bis dahin zeichnet der Code Bögen und Füllungen selbst; nach der Lieferung den Schalter auf `true` setzen.
 
 ## 2. Tore und Tunnel (M2)
 
@@ -53,3 +55,16 @@
 | Datei | Größe | Beschreibung |
 | --- | --- | --- |
 | `art/characters/npcs/lost_villager_{idle_4f,walk_6f,scared_4f}.png`, **Nachlieferung** | Frames 32×32 | Den Laternenschein **nicht** einmalen: Er war am Framerand abgeschnitten und wurde am 15.10.2026 aus den Dateien entfernt. Den Schein erzeugt das Licht-System. Gern die Laterne etwas weiter vom Rand weg (Laternen-Anker heute bei 22,20). |
+
+## 6. Seitenansicht Runde 2: Doppelsprung, Wandrutschen, Staub (offen)
+
+| Datei | Größe | Beschreibung |
+| --- | --- | --- |
+| `art/characters/player/player_double_jump_4f.png` und `player_tint_mask_double_jump_4f.png` | 4 × 32×32, Pivot (16,30), 14 fps, keine Schleife | Figur zusammengerollt (Knie an der Brust, Arme um die Beine), Haare und Kleidung flattern leicht. **Keine Drehung einmalen**, den Salto dreht der Code. Maske: weiß = Kleidung, deckungsgleich. |
+| `art/characters/player/player_wall_slide_2f.png` und `player_tint_mask_wall_slide_2f.png` | 2 × 32×32, Pivot (16,30), 6 fps, Schleife | Figur seitlich mit Blick nach rechts, Rücken, eine Hand und ein Fuß an einer Wand am linken Bildrand (Wand bei x ≈ 4); Bild 2 einen Pixel tiefer. |
+| `art/effects/side_jump_puff_4f.png` | 4 × 32×16, Pivot (16,16) | Zwei kleine Wölkchen weichen seitlich vom Fuß weg. Helles Grauviolett, transparent, biomneutral (gilt für alle Staub-Teile). |
+| `art/effects/side_land_dust_5f.png` | 5 × 48×16, Pivot (24,16) | Breite Wolke nach links und rechts, löst sich auf (der Code skaliert 0,8–1,4× nach Landehärte). |
+| `art/effects/side_double_jump_ring_5f.png` | 5 × 32×16, Pivot (16,8) | Flacher Ring (Ellipse), dehnt sich aus und verblasst. |
+| `art/effects/side_wall_dust_3f.png` | 3 × 16×16, Pivot (8,8) | Zwei, drei Krümel fallen von der Wand nach unten. |
+
+Hinweis zu `side_props.json` der Lieferung: Die goldene Münze gibt **keinen** Seelenkristall, sondern Gold wie zwei Münzen (Balance, D-144).

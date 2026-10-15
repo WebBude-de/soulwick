@@ -93,7 +93,8 @@ func test_pools_and_puddles_share_the_biome_palette() -> void:
 					if pixel.a == 0.0:
 						continue
 					var key := Color(pixel.r, pixel.g, pixel.b).to_html(false)
-					if allowed.has(key) or _is_between(pixel, colors["body"], colors["deep"]) or _is_between(pixel, colors["body"], colors["reflect"]) or _is_between(pixel, colors["deep"], colors["reflect"]):
+					# Palette colours, blends of the depth bands, and the glitter laid over them.
+					if allowed.has(key) or _is_between(pixel, colors["body"], colors["deep"]) or _is_between(pixel, colors["body"], colors["reflect"]) or _is_between(pixel, colors["deep"], colors["reflect"]) or _near_glint(pixel, colors):
 						body += 1
 					else:
 						fail_test("%s: colour %s outside the water palette" % [biome, key])
@@ -102,6 +103,18 @@ func test_pools_and_puddles_share_the_biome_palette() -> void:
 		var body_key := (colors["body"] as Color).to_html(false)
 		assert_false(seen.has(body_key), "%s: own water colour" % biome)
 		seen[body_key] = true
+
+
+## Is c a water colour with the glint colour laid over it (the delivered glitter)?
+func _near_glint(c: Color, colors: Dictionary) -> bool:
+	for key in ["body", "deep", "reflect", "ripple"]:
+		var base: Color = colors[key]
+		for depth_key in ["body", "deep"]:
+			for i in 9:
+				var start := base.lerp(colors[depth_key], i / 8.0)
+				if _is_between(c, start, colors["glint"]):
+					return true
+	return false
 
 
 ## Is c on the line between colours a and b (blends of the depth bands)?

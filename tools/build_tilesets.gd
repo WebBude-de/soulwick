@@ -36,7 +36,8 @@ extends SceneTree
 ##                                      and caves of a biome match): the soft rock pieces with the
 ##                                      delivered brick fronts in the soft rock colour
 ##   masonry_floor_<biome>_soft.png     the biome's flagstones (4 tiles) in the soft floor colour
-##   ../doors/cave_mouth_<biome>_soft.png  the delivered crypt_soft cave mouth swapped (hook H2, M2)
+##   ../doors/cave_mouth_<biome>_soft.png  only where missing: the crypt_soft cave mouth swapped (hook
+##                                      H2, M2); delivered for every biome since SPRITES_V9
 ## Run `godot --headless --path . --import` afterwards.
 
 const TILE := 32
@@ -50,8 +51,10 @@ const SOURCE_BRIDGE := 3
 ## TileSet physics layer of the abyss (A4); its bodies sit on PhysicsLayers.PIT.
 const PHYSICS_PIT := 1
 const PIT_COLLISION_LAYER := 64
-## Abyss art per biome; the crypt version stands in for a biome without its own file.
+## Abyss art per biome; the crypt version stands in for a biome without its own file. The soft
+## version (SPRITES_V9 §3, the palette of the soft rock every room uses) wins where it exists.
 const ABYSS_PNG := "abyss_tiles_%s.png"
+const ABYSS_SOFT_PNG := "abyss_tiles_%s_soft.png"
 const ABYSS_FALLBACK_BIOME := "crypt"
 ## Navigation layer bit used by every walkable dungeon tile (NavigationAgent2D default layers = 1).
 const NAVIGATION_LAYERS := 1
@@ -150,8 +153,10 @@ func _build_soft_art() -> void:
 		_save_png(recolor(zones, palette), TILES_DIR + SOFT_ZONES % biome)
 		if masonry != null:
 			_save_png(recolor(masonry, palette), TILES_DIR + SOFT_MASONRY % biome)
-		if mouth != null:
-			_save_png(recolor(mouth, palette), DOORS_DIR + "cave_mouth_%s_soft.png" % biome)
+		# Delivered since SPRITES_V9 (arch only): a swap only where the file is missing, never over it.
+		var mouth_path := DOORS_DIR + "cave_mouth_%s_soft.png" % biome
+		if mouth != null and not ResourceLoader.exists(mouth_path) and not FileAccess.file_exists(mouth_path):
+			_save_png(recolor(mouth, palette), mouth_path)
 
 
 ## The soft rock pieces with the delivered brick fronts in the soft rock colour (masonry look).
@@ -292,7 +297,9 @@ func _build_dungeon(out_path: String, ground_png: String, inner_wall_png: String
 	if not ResourceLoader.exists(TILES_DIR + inner_wall_png):
 		inner_wall_png = "inner_wall_tiles.png"
 	_add_source(tileset, SOURCE_INNER_WALL, TILES_DIR + inner_wall_png, 4, 2, _solid, _no_navigation)
-	var abyss_png := ABYSS_PNG % biome
+	var abyss_png := ABYSS_SOFT_PNG % biome
+	if not ResourceLoader.exists(TILES_DIR + abyss_png):
+		abyss_png = ABYSS_PNG % biome
 	if not ResourceLoader.exists(TILES_DIR + abyss_png):
 		abyss_png = ABYSS_PNG % ABYSS_FALLBACK_BIOME
 	_add_source(tileset, SOURCE_ABYSS, TILES_DIR + abyss_png, 4, 4, _solid, _no_navigation, PHYSICS_PIT)

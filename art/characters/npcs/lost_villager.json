@@ -12,12 +12,12 @@
   "flip_h_for_left": true,
   "anchors": {
     "lantern": [
-      22,
+      20,
       20
     ]
   },
   "notes": [
-    "Geleit-Figur: Kapuzenumhang, kleine Laterne (Light2D warm, Radius 3 Kacheln). Bleibt stehen, wenn Gegner nah sind (idle), läuft weiter neben dem Spieler (walk).",
+    "Geleit-Figur: Kapuzenumhang, kleine Laterne ohne eingemalten Schein (Light2D warm, Radius 3 Kacheln, am Anker lantern). Bleibt stehen, wenn Gegner nah sind (idle), läuft weiter neben dem Spieler (walk).",
     "Varianten per Modulate (Umhang-Farbe) für mehrere Gerettete im Dorf."
   ],
   "animations": [

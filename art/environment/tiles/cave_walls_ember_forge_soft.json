@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "wall_cracked_<biom>_soft 32×48 (Krone + Vorderseite) für Geheimnischen in Höhlenräumen."
+  ],
+  "items": [
+    {
+      "name": "wall_cracked_ember_forge_soft",
+      "file": "wall_cracked_ember_forge_soft.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

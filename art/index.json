@@ -3298,6 +3298,49 @@
         },
         {
           "kind": "anim",
+          "name": "player_tint_mask_land",
+          "file": "art/characters/player/player_tint_mask_land_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "player_climb",
+          "file": "art/characters/player/player_climb_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ],
+          "note": "Rücken zur Kamera: Code spiegelt nicht; Beine wechseln, Rumpf hebt sich"
+        },
+        {
+          "kind": "anim",
+          "name": "player_tint_mask_climb",
+          "file": "art/characters/player/player_tint_mask_climb_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        },
+        {
+          "kind": "anim",
           "name": "player_tint_mask_jump",
           "file": "art/characters/player/player_tint_mask_jump_3f.png",
           "w": 32,
@@ -6164,12 +6207,12 @@
       ],
       "anchors": {
         "lantern": [
-          22,
+          20,
           20
         ]
       },
       "notes": [
-        "Geleit-Figur: Kapuzenumhang, kleine Laterne (Light2D warm, Radius 3 Kacheln). Bleibt stehen, wenn Gegner nah sind (idle), läuft weiter neben dem Spieler (walk).",
+        "Geleit-Figur: Kapuzenumhang, kleine Laterne ohne eingemalten Schein (Light2D warm, Radius 3 Kacheln, am Anker lantern). Bleibt stehen, wenn Gegner nah sind (idle), läuft weiter neben dem Spieler (walk).",
         "Varianten per Modulate (Umhang-Farbe) für mehrere Gerettete im Dorf."
       ],
       "items": [
@@ -7483,6 +7526,443 @@
       "priority": 25
     },
     {
+      "id": "environment/deco/deco_groups_crypt",
+      "title": "Deko-Gruppen crypt",
+      "dir": "art/environment/deco",
+      "notes": [
+        "deco_group_<biom>_1..3 64×48 und deco_group_large_<biom>_1..2 96×64; Pivot unten Mitte. Krypta: Schrein, Beinhaus, Geröll · Grotte: Pilzbeet, Kristalle, Tümpel · Schattenreich: Altar, Kristallgarten, Geröll · Glutkammer: Schmiede, Glutgeröll, Lager."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "deco_group_crypt_1",
+          "file": "art/environment/deco/deco_group_crypt_1.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_crypt_2",
+          "file": "art/environment/deco/deco_group_crypt_2.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_crypt_3",
+          "file": "art/environment/deco/deco_group_crypt_3.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_crypt_1",
+          "file": "art/environment/deco/deco_group_large_crypt_1.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_crypt_2",
+          "file": "art/environment/deco/deco_group_large_crypt_2.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/deco/deco_groups_ember_forge",
+      "title": "Deko-Gruppen ember_forge",
+      "dir": "art/environment/deco",
+      "notes": [
+        "deco_group_<biom>_1..3 64×48 und deco_group_large_<biom>_1..2 96×64; Pivot unten Mitte. Krypta: Schrein, Beinhaus, Geröll · Grotte: Pilzbeet, Kristalle, Tümpel · Schattenreich: Altar, Kristallgarten, Geröll · Glutkammer: Schmiede, Glutgeröll, Lager."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "deco_group_ember_forge_1",
+          "file": "art/environment/deco/deco_group_ember_forge_1.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_ember_forge_2",
+          "file": "art/environment/deco/deco_group_ember_forge_2.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_ember_forge_3",
+          "file": "art/environment/deco/deco_group_ember_forge_3.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_ember_forge_1",
+          "file": "art/environment/deco/deco_group_large_ember_forge_1.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_ember_forge_2",
+          "file": "art/environment/deco/deco_group_large_ember_forge_2.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/deco/deco_groups_shadow_realm",
+      "title": "Deko-Gruppen shadow_realm",
+      "dir": "art/environment/deco",
+      "notes": [
+        "deco_group_<biom>_1..3 64×48 und deco_group_large_<biom>_1..2 96×64; Pivot unten Mitte. Krypta: Schrein, Beinhaus, Geröll · Grotte: Pilzbeet, Kristalle, Tümpel · Schattenreich: Altar, Kristallgarten, Geröll · Glutkammer: Schmiede, Glutgeröll, Lager."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "deco_group_shadow_realm_1",
+          "file": "art/environment/deco/deco_group_shadow_realm_1.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_shadow_realm_2",
+          "file": "art/environment/deco/deco_group_shadow_realm_2.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_shadow_realm_3",
+          "file": "art/environment/deco/deco_group_shadow_realm_3.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_shadow_realm_1",
+          "file": "art/environment/deco/deco_group_large_shadow_realm_1.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_shadow_realm_2",
+          "file": "art/environment/deco/deco_group_large_shadow_realm_2.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/deco/deco_groups_slime_grotto",
+      "title": "Deko-Gruppen slime_grotto",
+      "dir": "art/environment/deco",
+      "notes": [
+        "deco_group_<biom>_1..3 64×48 und deco_group_large_<biom>_1..2 96×64; Pivot unten Mitte. Krypta: Schrein, Beinhaus, Geröll · Grotte: Pilzbeet, Kristalle, Tümpel · Schattenreich: Altar, Kristallgarten, Geröll · Glutkammer: Schmiede, Glutgeröll, Lager."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "deco_group_slime_grotto_1",
+          "file": "art/environment/deco/deco_group_slime_grotto_1.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_slime_grotto_2",
+          "file": "art/environment/deco/deco_group_slime_grotto_2.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_slime_grotto_3",
+          "file": "art/environment/deco/deco_group_slime_grotto_3.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_slime_grotto_1",
+          "file": "art/environment/deco/deco_group_large_slime_grotto_1.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "deco_group_large_slime_grotto_2",
+          "file": "art/environment/deco/deco_group_large_slime_grotto_2.png",
+          "w": 96,
+          "h": 64,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            48,
+            63
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/deco/platform_edges",
+      "title": "Plattform-Oberkanten",
+      "dir": "art/environment/deco",
+      "notes": [
+        "96×16, links/Mitte/rechts."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "platform_edge_crypt",
+          "file": "art/environment/deco/platform_edge_crypt.png",
+          "w": 96,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "platform_edge_slime_grotto",
+          "file": "art/environment/deco/platform_edge_slime_grotto.png",
+          "w": 96,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "platform_edge_shadow_realm",
+          "file": "art/environment/deco/platform_edge_shadow_realm.png",
+          "w": 96,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "platform_edge_ember_forge",
+          "file": "art/environment/deco/platform_edge_ember_forge.png",
+          "w": 96,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/deco/water_fog",
+      "title": "Wasser-Glitzer & Bodennebel",
+      "dir": "art/environment/deco",
+      "notes": [
+        "water_glint_4f: weißes Overlay mit Alpha über Wasserflächen (Modulate = Wasserfarbe hell).",
+        "fog_floor_4f 64×32: Nebelfetzen, langsam driften lassen (3 fps, 4 px/s)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "water_glint",
+          "file": "art/environment/deco/water_glint_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "fog_floor",
+          "file": "art/environment/deco/fog_floor_4f.png",
+          "w": 64,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true,
+          "pivot": [
+            32,
+            31
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
       "id": "environment/doors/gates",
       "title": "Verschlossene Zugänge (V12)",
       "dir": "art/environment/doors",
@@ -7522,6 +8002,1086 @@
         }
       ],
       "module": "gates12",
+      "priority": 26
+    },
+    {
+      "id": "environment/doors/gates_crypt_soft",
+      "title": "Tore & Tunnel crypt (soft)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "cave_mouth_<biom>_soft: nur der Bogenrand (5 px Band), Öffnung und Umfeld transparent, Krone läuft oben durch (kein Aufsatz).",
+        "door_frame_<biom>_soft 64×56: gemauerter Bogen mit runder Öffnung, Krone läuft durch, kein Netz.",
+        "tunnel_shade_cave/arch: Innenschatten als weicher Verlauf (18 px) in Form der Öffnung; einmal pro Form, biomneutral.",
+        "side_mouth_<biom>_soft 20×32 für die OSTWAND (x=0 im Raum): 7 px Schatten auf dem Boden, 5 px Schlitz, 8 px Übergang in den Fels; oben/unten weich; Code spiegelt für West.",
+        "door_side_<biom>_bars_4f: Fallgitter quer (10 px) auf der Lichtkante, Frame 1 zu, Frame 4 weg."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_crypt_soft",
+          "file": "art/environment/doors/cave_mouth_crypt_soft.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_crypt_soft",
+          "file": "art/environment/doors/door_frame_crypt_soft.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            55
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "side_mouth_crypt_soft",
+          "file": "art/environment/doors/side_mouth_crypt_soft.png",
+          "w": 20,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_crypt_bars",
+          "file": "art/environment/doors/door_side_crypt_bars_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/doors/gates_ember_forge_soft",
+      "title": "Tore & Tunnel ember_forge (soft)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "cave_mouth_<biom>_soft: nur der Bogenrand (5 px Band), Öffnung und Umfeld transparent, Krone läuft oben durch (kein Aufsatz).",
+        "door_frame_<biom>_soft 64×56: gemauerter Bogen mit runder Öffnung, Krone läuft durch, kein Netz.",
+        "tunnel_shade_cave/arch: Innenschatten als weicher Verlauf (18 px) in Form der Öffnung; einmal pro Form, biomneutral.",
+        "side_mouth_<biom>_soft 20×32 für die OSTWAND (x=0 im Raum): 7 px Schatten auf dem Boden, 5 px Schlitz, 8 px Übergang in den Fels; oben/unten weich; Code spiegelt für West.",
+        "door_side_<biom>_bars_4f: Fallgitter quer (10 px) auf der Lichtkante, Frame 1 zu, Frame 4 weg."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_ember_forge_soft",
+          "file": "art/environment/doors/cave_mouth_ember_forge_soft.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_ember_forge_soft",
+          "file": "art/environment/doors/door_frame_ember_forge_soft.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            55
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "side_mouth_ember_forge_soft",
+          "file": "art/environment/doors/side_mouth_ember_forge_soft.png",
+          "w": 20,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_ember_forge_bars",
+          "file": "art/environment/doors/door_side_ember_forge_bars_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/doors/gates_shadow_realm_soft",
+      "title": "Tore & Tunnel shadow_realm (soft)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "cave_mouth_<biom>_soft: nur der Bogenrand (5 px Band), Öffnung und Umfeld transparent, Krone läuft oben durch (kein Aufsatz).",
+        "door_frame_<biom>_soft 64×56: gemauerter Bogen mit runder Öffnung, Krone läuft durch, kein Netz.",
+        "tunnel_shade_cave/arch: Innenschatten als weicher Verlauf (18 px) in Form der Öffnung; einmal pro Form, biomneutral.",
+        "side_mouth_<biom>_soft 20×32 für die OSTWAND (x=0 im Raum): 7 px Schatten auf dem Boden, 5 px Schlitz, 8 px Übergang in den Fels; oben/unten weich; Code spiegelt für West.",
+        "door_side_<biom>_bars_4f: Fallgitter quer (10 px) auf der Lichtkante, Frame 1 zu, Frame 4 weg."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_shadow_realm_soft",
+          "file": "art/environment/doors/cave_mouth_shadow_realm_soft.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_shadow_realm_soft",
+          "file": "art/environment/doors/door_frame_shadow_realm_soft.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            55
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "side_mouth_shadow_realm_soft",
+          "file": "art/environment/doors/side_mouth_shadow_realm_soft.png",
+          "w": 20,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_shadow_realm_bars",
+          "file": "art/environment/doors/door_side_shadow_realm_bars_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/doors/gates_slime_grotto_soft",
+      "title": "Tore & Tunnel slime_grotto (soft)",
+      "dir": "art/environment/doors",
+      "notes": [
+        "cave_mouth_<biom>_soft: nur der Bogenrand (5 px Band), Öffnung und Umfeld transparent, Krone läuft oben durch (kein Aufsatz).",
+        "door_frame_<biom>_soft 64×56: gemauerter Bogen mit runder Öffnung, Krone läuft durch, kein Netz.",
+        "tunnel_shade_cave/arch: Innenschatten als weicher Verlauf (18 px) in Form der Öffnung; einmal pro Form, biomneutral.",
+        "side_mouth_<biom>_soft 20×32 für die OSTWAND (x=0 im Raum): 7 px Schatten auf dem Boden, 5 px Schlitz, 8 px Übergang in den Fels; oben/unten weich; Code spiegelt für West.",
+        "door_side_<biom>_bars_4f: Fallgitter quer (10 px) auf der Lichtkante, Frame 1 zu, Frame 4 weg."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "cave_mouth_slime_grotto_soft",
+          "file": "art/environment/doors/cave_mouth_slime_grotto_soft.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "door_frame_slime_grotto_soft",
+          "file": "art/environment/doors/door_frame_slime_grotto_soft.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            55
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "side_mouth_slime_grotto_soft",
+          "file": "art/environment/doors/side_mouth_slime_grotto_soft.png",
+          "w": 20,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "door_side_slime_grotto_bars",
+          "file": "art/environment/doors/door_side_slime_grotto_bars_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/doors/tunnel_shade",
+      "title": "Tunnel-Innenschatten",
+      "dir": "art/environment/doors",
+      "notes": [
+        "Biomneutral, Alpha-Verlauf; über der Öffnung des Rahmens platzieren (gleiche Größe wie der Rahmen)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "tunnel_shade_cave",
+          "file": "art/environment/doors/tunnel_shade_cave.png",
+          "w": 64,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            47
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "tunnel_shade_arch",
+          "file": "art/environment/doors/tunnel_shade_arch.png",
+          "w": 64,
+          "h": 56,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            32,
+            55
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/props/golden_coin",
+      "title": "Goldene Münze",
+      "dir": "art/environment/props",
+      "notes": [
+        "golden_coin_4f 16×16, 8 fps, mit Schein."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "golden_coin",
+          "file": "art/environment/props/golden_coin_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/rooms/breach_cave_crypt",
+      "title": "Wanddurchbruch Höhle crypt",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_breach_cave_<biom>_6f 32×48: Felsfront bricht auf; Loch ab Frame 2 transparent."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "wall_breach_cave_crypt",
+          "file": "art/environment/rooms/wall_breach_cave_crypt_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/rooms/breach_cave_ember_forge",
+      "title": "Wanddurchbruch Höhle ember_forge",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_breach_cave_<biom>_6f 32×48: Felsfront bricht auf; Loch ab Frame 2 transparent."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "wall_breach_cave_ember_forge",
+          "file": "art/environment/rooms/wall_breach_cave_ember_forge_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/rooms/breach_cave_shadow_realm",
+      "title": "Wanddurchbruch Höhle shadow_realm",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_breach_cave_<biom>_6f 32×48: Felsfront bricht auf; Loch ab Frame 2 transparent."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "wall_breach_cave_shadow_realm",
+          "file": "art/environment/rooms/wall_breach_cave_shadow_realm_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/rooms/breach_cave_slime_grotto",
+      "title": "Wanddurchbruch Höhle slime_grotto",
+      "dir": "art/environment/rooms",
+      "notes": [
+        "wall_breach_cave_<biom>_6f 32×48: Felsfront bricht auf; Loch ab Frame 2 transparent."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "wall_breach_cave_slime_grotto",
+          "file": "art/environment/rooms/wall_breach_cave_slime_grotto_6f.png",
+          "w": 32,
+          "h": 48,
+          "frames": 6,
+          "fps": 10,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/side/side_crypt",
+      "title": "Seitenansicht crypt",
+      "dir": "art/environment/side",
+      "notes": [
+        "platform_edge 96×16: links/Mitte/rechts je 32×16 auf die Plattform-Oberkante.",
+        "bg_<biom>_parallax 480×270 bei halber Kamerageschwindigkeit."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "bg_crypt_parallax",
+          "file": "art/environment/side/bg_crypt_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/side/side_ember_forge",
+      "title": "Seitenansicht ember_forge",
+      "dir": "art/environment/side",
+      "notes": [
+        "platform_edge 96×16: links/Mitte/rechts je 32×16 auf die Plattform-Oberkante.",
+        "bg_<biom>_parallax 480×270 bei halber Kamerageschwindigkeit."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "bg_ember_forge_parallax",
+          "file": "art/environment/side/bg_ember_forge_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/side/side_props",
+      "title": "Seitenansicht-Props",
+      "dir": "art/environment/side",
+      "notes": [
+        "spikes_side_3f 32×16: eingefahren, Warnung, ausgefahren.",
+        "golden_coin_4f: 1 Seelenkristall an der schwersten Stelle."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "spikes_side",
+          "file": "art/environment/side/spikes_side_3f.png",
+          "w": 32,
+          "h": 16,
+          "frames": 3,
+          "fps": 6,
+          "loop": false,
+          "pivot": [
+            0,
+            16
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/side/side_shadow_realm",
+      "title": "Seitenansicht shadow_realm",
+      "dir": "art/environment/side",
+      "notes": [
+        "platform_edge 96×16: links/Mitte/rechts je 32×16 auf die Plattform-Oberkante.",
+        "bg_<biom>_parallax 480×270 bei halber Kamerageschwindigkeit."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "bg_shadow_realm_parallax",
+          "file": "art/environment/side/bg_shadow_realm_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/side/side_slime_grotto",
+      "title": "Seitenansicht slime_grotto",
+      "dir": "art/environment/side",
+      "notes": [
+        "platform_edge 96×16: links/Mitte/rechts je 32×16 auf die Plattform-Oberkante.",
+        "bg_<biom>_parallax 480×270 bei halber Kamerageschwindigkeit."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "bg_slime_grotto_parallax",
+          "file": "art/environment/side/bg_slime_grotto_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_ember_forge_soft",
+      "title": "Abgrund ember_forge (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png, weiche Palette."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_ember_forge_soft",
+          "file": "art/environment/tiles/abyss_tiles_ember_forge_soft.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_shadow_realm_soft",
+      "title": "Abgrund shadow_realm (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png, weiche Palette."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_shadow_realm_soft",
+          "file": "art/environment/tiles/abyss_tiles_shadow_realm_soft.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/abyss_tiles_slime_grotto_soft",
+      "title": "Abgrund slime_grotto (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Layout wie abyss_tiles.png, weiche Palette."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "abyss_tiles_slime_grotto_soft",
+          "file": "art/environment/tiles/abyss_tiles_slime_grotto_soft.png",
+          "w": 128,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 4,
+          "rows": 4,
+          "tiles": [
+            "abyss_edge_n",
+            "abyss_edge_e",
+            "abyss_edge_s",
+            "abyss_edge_w",
+            "abyss_outer_ne",
+            "abyss_outer_nw",
+            "abyss_outer_se",
+            "abyss_outer_sw",
+            "abyss_inner_ne",
+            "abyss_inner_nw",
+            "abyss_inner_se",
+            "abyss_inner_sw",
+            "abyss_void_1",
+            "abyss_void_2",
+            "abyss_void_3",
+            "abyss_void_4"
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/cave_walls_crypt_soft",
+      "title": "Felsfronten crypt (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_cracked_<biom>_soft 32×48 (Krone + Vorderseite) für Geheimnischen in Höhlenräumen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_cracked_crypt_soft",
+          "file": "art/environment/tiles/wall_cracked_crypt_soft.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/cave_walls_ember_forge_soft",
+      "title": "Felsfronten ember_forge (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_cracked_<biom>_soft 32×48 (Krone + Vorderseite) für Geheimnischen in Höhlenräumen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_cracked_ember_forge_soft",
+          "file": "art/environment/tiles/wall_cracked_ember_forge_soft.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/cave_walls_shadow_realm_soft",
+      "title": "Felsfronten shadow_realm (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_cracked_<biom>_soft 32×48 (Krone + Vorderseite) für Geheimnischen in Höhlenräumen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_cracked_shadow_realm_soft",
+          "file": "art/environment/tiles/wall_cracked_shadow_realm_soft.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/cave_walls_slime_grotto_soft",
+      "title": "Felsfronten slime_grotto (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_cracked_<biom>_soft 32×48 (Krone + Vorderseite) für Geheimnischen in Höhlenräumen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_cracked_slime_grotto_soft",
+          "file": "art/environment/tiles/wall_cracked_slime_grotto_soft.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9b",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/rock_blob_crypt_soft_inner",
+      "title": "Fels-Innenecken + Füllungen crypt (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Ergänzung zu rock_blob_<biom>_soft: Masken mit freier oberer Diagonale (Randband als Bogen um den Eckpunkt, Innenradius 4 px). In das Haupt-Sheet an die Maskennamen kopieren oder als zweites Atlas-Sheet laden.",
+        "fill_left/right/both = Slots 51-53: transparent bis auf Felsstück in der unteren Ecke (Radius 5), liegt auf der Bodenkachel unter einer Innenecke.",
+        "front_step_left/right: Vorderseite, deren Lippe an der Stufe nach unten umbiegt."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_crypt_soft_inner",
+          "file": "art/environment/tiles/rock_blob_crypt_soft_inner.png",
+          "w": 256,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 4,
+          "tiles": [
+            "r87",
+            "r93",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r31",
+            "r29",
+            "r127",
+            "r125",
+            "r119",
+            "r117",
+            "r95",
+            "r61",
+            "r23",
+            "r21",
+            "fill_left",
+            "fill_right",
+            "fill_both",
+            "front_step_left",
+            "front_step_right"
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/rock_blob_ember_forge_soft_inner",
+      "title": "Fels-Innenecken + Füllungen ember_forge (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Ergänzung zu rock_blob_<biom>_soft: Masken mit freier oberer Diagonale (Randband als Bogen um den Eckpunkt, Innenradius 4 px). In das Haupt-Sheet an die Maskennamen kopieren oder als zweites Atlas-Sheet laden.",
+        "fill_left/right/both = Slots 51-53: transparent bis auf Felsstück in der unteren Ecke (Radius 5), liegt auf der Bodenkachel unter einer Innenecke.",
+        "front_step_left/right: Vorderseite, deren Lippe an der Stufe nach unten umbiegt."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_ember_forge_soft_inner",
+          "file": "art/environment/tiles/rock_blob_ember_forge_soft_inner.png",
+          "w": 256,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 4,
+          "tiles": [
+            "r87",
+            "r93",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r31",
+            "r29",
+            "r127",
+            "r125",
+            "r119",
+            "r117",
+            "r95",
+            "r61",
+            "r23",
+            "r21",
+            "fill_left",
+            "fill_right",
+            "fill_both",
+            "front_step_left",
+            "front_step_right"
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/rock_blob_shadow_realm_soft_inner",
+      "title": "Fels-Innenecken + Füllungen shadow_realm (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Ergänzung zu rock_blob_<biom>_soft: Masken mit freier oberer Diagonale (Randband als Bogen um den Eckpunkt, Innenradius 4 px). In das Haupt-Sheet an die Maskennamen kopieren oder als zweites Atlas-Sheet laden.",
+        "fill_left/right/both = Slots 51-53: transparent bis auf Felsstück in der unteren Ecke (Radius 5), liegt auf der Bodenkachel unter einer Innenecke.",
+        "front_step_left/right: Vorderseite, deren Lippe an der Stufe nach unten umbiegt."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_shadow_realm_soft_inner",
+          "file": "art/environment/tiles/rock_blob_shadow_realm_soft_inner.png",
+          "w": 256,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 4,
+          "tiles": [
+            "r87",
+            "r93",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r31",
+            "r29",
+            "r127",
+            "r125",
+            "r119",
+            "r117",
+            "r95",
+            "r61",
+            "r23",
+            "r21",
+            "fill_left",
+            "fill_right",
+            "fill_both",
+            "front_step_left",
+            "front_step_right"
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/rock_blob_slime_grotto_soft_inner",
+      "title": "Fels-Innenecken + Füllungen slime_grotto (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "Ergänzung zu rock_blob_<biom>_soft: Masken mit freier oberer Diagonale (Randband als Bogen um den Eckpunkt, Innenradius 4 px). In das Haupt-Sheet an die Maskennamen kopieren oder als zweites Atlas-Sheet laden.",
+        "fill_left/right/both = Slots 51-53: transparent bis auf Felsstück in der unteren Ecke (Radius 5), liegt auf der Bodenkachel unter einer Innenecke.",
+        "front_step_left/right: Vorderseite, deren Lippe an der Stufe nach unten umbiegt."
+      ],
+      "items": [
+        {
+          "kind": "tileset",
+          "name": "rock_blob_slime_grotto_soft_inner",
+          "file": "art/environment/tiles/rock_blob_slime_grotto_soft_inner.png",
+          "w": 256,
+          "h": 128,
+          "tileW": 32,
+          "tileH": 32,
+          "cols": 8,
+          "rows": 4,
+          "tiles": [
+            "r87",
+            "r93",
+            "r213",
+            "r215",
+            "r221",
+            "r223",
+            "r241",
+            "r245",
+            "r247",
+            "r253",
+            "r31",
+            "r29",
+            "r127",
+            "r125",
+            "r119",
+            "r117",
+            "r95",
+            "r61",
+            "r23",
+            "r21",
+            "fill_left",
+            "fill_right",
+            "fill_both",
+            "front_step_left",
+            "front_step_right"
+          ]
+        }
+      ],
+      "module": "v9a",
+      "priority": 26
+    },
+    {
+      "id": "environment/tiles/wall_niche_soft",
+      "title": "Felsnische (soft)",
+      "dir": "art/environment/tiles",
+      "notes": [
+        "wall_niche_soft 32×48 bündig in Krone + Vorderseite; Nische rund, Schädel und Kerzen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "wall_niche_soft",
+          "file": "art/environment/tiles/wall_niche_soft.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            47
+          ]
+        }
+      ],
+      "module": "v9c",
+      "priority": 26
+    },
+    {
+      "id": "ui/ladder_symbol",
+      "title": "Leiter-Symbol",
+      "dir": "art/ui",
+      "notes": [
+        "16×16 weiß/grau; als 11. Spalte an door_mode_symbols / 4. an door_branch_symbols anhängen (door_mode_symbols.png wird hier neu mit 11 Spalten geschrieben)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "symbol_ladder",
+          "file": "art/ui/symbol_ladder.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            16
+          ]
+        }
+      ],
+      "module": "v9c",
       "priority": 26
     }
   ]

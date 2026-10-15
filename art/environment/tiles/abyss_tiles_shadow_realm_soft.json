@@ -1,0 +1,109 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 4,
+  "rows": 4,
+  "notes": [
+    "Layout wie abyss_tiles.png, weiche Palette."
+  ],
+  "tiles": {
+    "abyss_edge_n": {
+      "x": 0,
+      "y": 0,
+      "col": 0,
+      "row": 0
+    },
+    "abyss_edge_e": {
+      "x": 32,
+      "y": 0,
+      "col": 1,
+      "row": 0
+    },
+    "abyss_edge_s": {
+      "x": 64,
+      "y": 0,
+      "col": 2,
+      "row": 0
+    },
+    "abyss_edge_w": {
+      "x": 96,
+      "y": 0,
+      "col": 3,
+      "row": 0
+    },
+    "abyss_outer_ne": {
+      "x": 0,
+      "y": 32,
+      "col": 0,
+      "row": 1
+    },
+    "abyss_outer_nw": {
+      "x": 32,
+      "y": 32,
+      "col": 1,
+      "row": 1
+    },
+    "abyss_outer_se": {
+      "x": 64,
+      "y": 32,
+      "col": 2,
+      "row": 1
+    },
+    "abyss_outer_sw": {
+      "x": 96,
+      "y": 32,
+      "col": 3,
+      "row": 1
+    },
+    "abyss_inner_ne": {
+      "x": 0,
+      "y": 64,
+      "col": 0,
+      "row": 2
+    },
+    "abyss_inner_nw": {
+      "x": 32,
+      "y": 64,
+      "col": 1,
+      "row": 2
+    },
+    "abyss_inner_se": {
+      "x": 64,
+      "y": 64,
+      "col": 2,
+      "row": 2
+    },
+    "abyss_inner_sw": {
+      "x": 96,
+      "y": 64,
+      "col": 3,
+      "row": 2
+    },
+    "abyss_void_1": {
+      "x": 0,
+      "y": 96,
+      "col": 0,
+      "row": 3
+    },
+    "abyss_void_2": {
+      "x": 32,
+      "y": 96,
+      "col": 1,
+      "row": 3
+    },
+    "abyss_void_3": {
+      "x": 64,
+      "y": 96,
+      "col": 2,
+      "row": 3
+    },
+    "abyss_void_4": {
+      "x": 96,
+      "y": 96,
+      "col": 3,
+      "row": 3
+    }
+  }
+}

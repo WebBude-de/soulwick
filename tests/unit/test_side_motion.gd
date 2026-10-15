@@ -1,9 +1,10 @@
 extends GutTest
 ## Side-view motion of the real player (M5) in a small segment, stepped by hand with the real body
 ## physics: standing, a 2.5-tile jump, variable height, coyote time, jump buffer, the horizontal
-## dash, ladders up and down, a pit (half a heart past the shield, back on the last platform, never
-## the last 0.5 HP), coins (run gold ×1.5), the door, the co-op catch-up, the body animations and
-## leaving the side view (shape and motion mode restored). The autopilot crosses the segment.
+## dash, ladders up and down, a pit (an abyss's damage past the shield, back on the last platform,
+## may kill), coins, the door, the co-op catch-up, the body animations and leaving the side view
+## (shape and motion mode restored). Round 2: double jump, apex hang, wall slide and wall jump,
+## crumbling ledges, squash/stretch, salto and the camera kick. The autopilot crosses the segment.
 
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const STEP := 1.0 / 60.0
@@ -50,9 +51,11 @@ func _layout() -> SideLayout:
 
 
 ## A segment with one player (or two), physics ready, stepped by hand.
-func _setup(players := 1) -> Array[Player]:
+func _setup(players := 1, plan: Array = PLAN) -> Array[Player]:
 	_segment = SideSegment.new()
-	_segment.setup(_layout(), 1, null, 42)
+	var layout := SideLayout.parse(PackedStringArray(plan), &"test")
+	layout.biome_id = &"crypt"
+	_segment.setup(layout, 1, null, 42)
 	add_child_autofree(_segment)
 	_segment.global_position = Vector2(0, 5000)
 	_segment.set_physics_process(false)
@@ -157,6 +160,7 @@ func test_coyote_time_and_its_end() -> void:
 	_press(Vector2.RIGHT, true, true)
 	_run([player], 1)
 	assert_lt(player.velocity.y, -500.0, "a jump 0.05 s after leaving the edge still works")
+	assert_false(player.side_motion.has_double_jumped, "that was the ground jump (coyote), not the air jump")
 	# Second case: too late.
 	player.side_motion.place_at(_segment.to_global(SideLayout.feet_of(Vector2i(11, 4))))
 	_press()
@@ -169,7 +173,8 @@ func test_coyote_time_and_its_end() -> void:
 	_run([player], 9)
 	_press(Vector2.RIGHT, true, true)
 	_run([player], 1)
-	assert_gt(player.velocity.y, 0.0, "0.15 s after the edge: no jump")
+	assert_true(player.side_motion.has_double_jumped, "0.15 s after the edge: no ground jump, the air jump")
+	assert_almost_eq(player.velocity.y, -SideRules.DOUBLE_JUMP_VELOCITY, 1.0)
 
 
 func test_jump_buffer_jumps_on_landing() -> void:
@@ -233,7 +238,7 @@ func test_ladder_up_and_down() -> void:
 	assert_almost_eq(_feet_local(player).y, 8 * 64.0, 2.0, "at the bottom")
 
 
-func test_pit_costs_half_a_heart_past_the_shield_and_returns() -> void:
+func test_pit_costs_an_abyss_heart_past_the_shield_and_returns() -> void:
 	var player := (await _setup())[0]
 	player.shield.add_shield(3.0)
 	var hp := player.health.get_health()
@@ -252,20 +257,19 @@ func test_pit_costs_half_a_heart_past_the_shield_and_returns() -> void:
 	_press()
 	_run([player], ceili(SideRules.PIT_RETURN_TIME / STEP) + 1)
 	assert_false(player.side_motion.is_in_pit())
-	assert_eq(player.health.get_health(), hp - SideRules.PIT_DAMAGE, "half a heart")
+	assert_eq(player.health.get_health(), hp - ChasmRules.fall_damage(), "a whole heart like an abyss")
 	assert_eq(player.shield.get_shield(), shield, "past the shield")
 	assert_true(player.hurtbox.is_invulnerable(), "briefly invulnerable")
 	assert_almost_eq(player.get_feet_position().distance_to(safe), 0.0, 1.0, "back on the last platform")
 	assert_eq(player.side_motion.pit_falls, 1)
 
 
-func test_pit_never_kills() -> void:
+func test_pit_can_kill_like_an_abyss() -> void:
 	var player := (await _setup())[0]
-	player.health.take_damage(player.health.get_health() - 0.5)
+	player.health.take_damage(player.health.get_health() - 1.0)
 	player.side_motion.start_pit()
 	_run([player], ceili(SideRules.PIT_RETURN_TIME / STEP) + 1)
-	assert_true(player.is_alive())
-	assert_eq(player.health.get_health(), 0.5)
+	assert_false(player.is_alive(), "the last heart goes in the pit (D-115)")
 
 
 func test_coin_pays_run_gold_and_the_door_finishes() -> void:
@@ -280,7 +284,7 @@ func test_coin_pays_run_gold_and_the_door_finishes() -> void:
 		_run([player], 1)
 		frames += 1
 	assert_eq(_segment.coins_taken, 1)
-	assert_eq(RunManager.get_run_gold(), SideRules.coin_gold(0, MetaProgression.get_gold_multiplier()))
+	assert_eq(RunManager.get_run_gold(), SideRules.coin_gold(1, MetaProgression.get_gold_multiplier()))
 	assert_true(_segment.is_finished, "walked through the door")
 	assert_signal_emitted(_segment, "finished")
 	RunManager.end_run(RunManager.EndReason.ABORT)
@@ -345,3 +349,164 @@ func test_bot_crosses_the_segment() -> void:
 		frames += 1
 	assert_true(_segment.is_finished, "the autopilot reached the door (%d frames, %d jumps)" % [frames, bot.jumps])
 	assert_eq(player.side_motion.pit_falls, 0)
+
+
+func test_double_jump_once_per_air_time() -> void:
+	var player := (await _setup())[0]
+	var motion := player.side_motion
+	_run([player], 10)
+	var ground := _feet_local(player).y
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	_press(Vector2.ZERO, false, true)
+	while player.velocity.y < -100.0:
+		_run([player], 1)
+	assert_false(motion.has_double_jumped)
+	assert_eq(motion.air_jumps_left, 1)
+	watch_signals(motion)
+	_press()
+	_run([player], 1)
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	assert_signal_emitted(motion, "double_jumped")
+	assert_true(motion.has_double_jumped, "public, for the multiplayer mirror")
+	assert_eq(motion.air_jumps_left, 0)
+	assert_almost_eq(player.velocity.y, -SideRules.DOUBLE_JUMP_VELOCITY, 60.0)
+	var top := _feet_local(player).y
+	_press(Vector2.ZERO, false, true)
+	for i in 60:
+		_run([player], 1)
+		top = minf(top, _feet_local(player).y)
+	assert_gt(ground - top, 3.8 * SideRules.TILE, "both jumps reach about 4.5 tiles")
+	_press()
+	_run([player], 1)
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	assert_eq(motion.double_jumps, 1, "no third jump")
+	for i in 120:
+		_run([player], 1)
+	assert_true(motion.is_on_floor())
+	assert_false(motion.has_double_jumped, "landing gives it back")
+	assert_eq(motion.air_jumps_left, SideRules.AIR_JUMPS)
+
+
+func test_walking_off_an_edge_keeps_the_double_jump() -> void:
+	var player := (await _setup())[0]
+	player.side_motion.place_at(_segment.to_global(SideLayout.feet_of(Vector2i(11, 4))))
+	_run([player], 5)
+	_press(Vector2.RIGHT)
+	while player.side_motion.is_on_floor():
+		_run([player], 1)
+	_run([player], 12)
+	_press(Vector2.RIGHT, true, true)
+	_run([player], 1)
+	assert_lt(player.velocity.y, -600.0, "after the coyote time the air jump still works")
+	assert_true(player.side_motion.has_double_jumped)
+
+
+func test_apex_hang_slows_the_turn() -> void:
+	var player := (await _setup())[0]
+	_run([player], 10)
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	_press(Vector2.ZERO, false, true)
+	var slow_frames := 0
+	for i in 60:
+		_run([player], 1)
+		if absf(player.velocity.y) < SideRules.APEX_SPEED:
+			slow_frames += 1
+	# Without the hang the speed passes the band in about 2*90/2400 s (5 frames at 60 fps).
+	assert_gt(slow_frames, 6, "the body hangs a moment at the top")
+
+
+func test_wall_slide_and_wall_jump() -> void:
+	var player := (await _setup())[0]
+	var motion := player.side_motion
+	# Next to the left border wall, jump and hold left: slide down the wall.
+	player.side_motion.place_at(_segment.to_global(SideLayout.feet_of(Vector2i(1, 7))))
+	_run([player], 5)
+	_press(Vector2.LEFT, true, true)
+	_run([player], 1)
+	_press(Vector2.LEFT, false, true)
+	var slid := false
+	for i in 50:
+		_run([player], 1)
+		if motion.is_wall_sliding:
+			slid = true
+			assert_lte(player.velocity.y, SideRules.WALL_SLIDE_SPEED + 1.0, "the slide is slow")
+			break
+	assert_true(slid, "slides down the rock wall")
+	assert_eq(motion.wall_side, -1, "the wall is on the left")
+	watch_signals(motion)
+	_press(Vector2.LEFT, true, true)
+	_run([player], 1)
+	assert_signal_emitted(motion, "wall_jumped")
+	assert_gt(player.velocity.x, 100.0, "pushed away from the wall")
+	assert_lt(player.velocity.y, -500.0, "and up")
+	assert_false(motion.is_wall_sliding)
+	assert_eq(motion.air_jumps_left, SideRules.AIR_JUMPS, "the wall gives the double jump back")
+
+
+func test_crumbling_ledge_falls_and_comes_back() -> void:
+	var plan := [
+		"####################",
+		"#..................#",
+		"#..................#",
+		"#..................#",
+		"#..................#",
+		"#.....~~~..........#",
+		"#..................#",
+		"#S...............D.#",
+		"####################",
+	]
+	var player := (await _setup(1, plan))[0]
+	var crumble := _segment.get_crumbles()[0]
+	assert_eq(crumble.cells, 3)
+	player.side_motion.place_at(_segment.to_global(SideLayout.feet_of(Vector2i(7, 4))))
+	_run([player], 3)
+	assert_eq(crumble.state, SideCrumble.State.SHAKING, "standing on it starts the shaking")
+	_run([player], ceili(SideRules.CRUMBLE_DELAY / STEP) + 4)
+	assert_eq(crumble.state, SideCrumble.State.FALLEN)
+	_run([player], 40)
+	assert_almost_eq(_feet_local(player).y, 8 * 64.0, 2.0, "the player dropped to the ground")
+	_run([player], ceili(SideRules.CRUMBLE_RESPAWN / STEP) + 2)
+	assert_true(crumble.is_solid(), "back after the respawn time")
+	assert_eq(crumble.crumble_count, 1)
+
+
+func test_squash_stretch_salto_and_camera_kick() -> void:
+	var player := (await _setup())[0]
+	var fx := _segment.get_fx(player)
+	assert_not_null(fx)
+	_run([player], 10)
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	assert_lt(fx.get_stretch().x, 1.0, "stretched at the take-off")
+	assert_gt(fx.get_stretch().y, 1.0)
+	_press()
+	while player.velocity.y < -100.0:
+		_run([player], 1)
+	_press(Vector2.ZERO, true, true)
+	_run([player], 1)
+	assert_true(fx.is_spinning(), "salto at the double jump")
+	# A hard landing from high up: squash and a camera kick.
+	_press()
+	player.side_motion.place_at(_segment.to_global(SideLayout.feet_of(Vector2i(3, 1))))
+	for i in 90:
+		_run([player], 1)
+		if player.side_motion.is_on_floor():
+			break
+	assert_gt(fx.get_stretch().x, 1.0, "squashed wide at the landing")
+	assert_lt(fx.get_stretch().y, 1.0)
+	assert_gt(_segment.camera.get_kick().y, 0.0, "the camera is kicked down")
+	var sprite := player.get_node("Sprite") as AnimatedSprite2D
+	_segment.remove_players()
+	assert_eq(sprite.scale, Vector2.ONE * SpriteStrip.PIXEL_SCALE, "the body sprite is put back")
+	assert_eq(sprite.rotation, 0.0)
+
+
+func test_new_animations_exist() -> void:
+	var player := (await _setup())[0]
+	var sprite := player.get_node("Sprite") as AnimatedSprite2D
+	for animation in [PlayerSideArt.DOUBLE_JUMP, PlayerSideArt.WALL_SLIDE]:
+		assert_true(sprite.sprite_frames.has_animation(animation), "%s added" % animation)

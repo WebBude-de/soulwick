@@ -2,12 +2,15 @@ class_name SideLayout
 extends RefCounted
 ## One parsed side-segment plan (M5): the cells of an ASCII plan (SidePlans) plus the questions the
 ## segment, the player motion and the tools ask about it - where is rock, a ledge, a ladder, where
-## can a player stand, which stand spots a 2.5-tile jump connects. check() holds the plan rules.
+## can a player stand, which stand spots a 2.5-tile jump (or a double jump) connects. check() holds
+## the plan rules.
 ## Cell (column, row); row 0 is the ceiling. A stand cell is an air cell with something to stand on
 ## below it; the feet of a player standing there are at feet_of(cell).
 
 const ROCK := "#"
 const LEDGE := "="
+## A ledge that crumbles shortly after a player stands on it and comes back later (round 2).
+const CRUMBLE := "~"
 const LADDER := "H"
 const START := "S"
 const DOOR := "D"
@@ -20,22 +23,28 @@ const CHEST := "C"
 const TORCH := "t"
 const AIR := "."
 
-## Planning reach of a jump in whole tiles (SideRules: 2.5 tiles high, about 2.6 tiles far on the
+## Planning reach of a jump in whole tiles (SideRules: 2.5 tiles high, about 2.7 tiles far on the
 ## same level): [rows up] -> furthest column distance between two stand cells.
 const REACH_UP_MAX := 2
 const REACH_BY_RISE := {2: 2, 1: 3, 0: 3}
-## Dropping down: 3 columns too (the fall adds little distance at this gravity; DROP_EXTRA kept for
-## tuning).
+## Dropping down: 3 columns too (the fall adds little distance at this gravity).
 const REACH_DROP := 3
 const REACH_DROP_EXTRA_MAX := 0
-## Items count as reachable within this many columns and rows above a reachable stand cell.
+## The same with the double jump (2 more tiles high, about 4 tiles far): 4 rows up at most.
+const DOUBLE_REACH_UP_MAX := 4
+const DOUBLE_REACH_BY_RISE := {4: 2, 3: 3, 2: 4, 1: 4, 0: 4}
+const DOUBLE_REACH_DROP := 4
+## Items count as reachable within this many columns and rows above a reachable stand cell
+## (with the double jump: up to 4 rows).
 const ITEM_REACH_COLUMNS := 2
 const ITEM_REACH_ROWS := 2
+const ITEM_REACH_ROWS_DOUBLE := 4
 
 const WIDTH_RANGE := Vector2i(40, 60)
 const PLATFORM_RANGE := Vector2i(8, 14)
 const PIT_RANGE := Vector2i(1, 2)
-const COIN_RANGE := Vector2i(6, 12)
+## Coins per plan (TESTWERT round 2: 6-7 coins + the golden coin pay about a combat room).
+const COIN_RANGE := Vector2i(6, 8)
 const ENEMY_RANGE := Vector2i(1, 3)
 
 var plan_id: StringName = &""
@@ -54,8 +63,13 @@ var spikes: Array[Vector2i] = []
 var torches: Array[Vector2i] = []
 ## Ladder column -> Vector2i(top row, bottom row).
 var ladders: Dictionary[int, Vector2i] = {}
+## Crumbling ledges: Vector3i(first column, last column, row) per run.
+var crumbles: Array[Vector3i] = []
+## The niche chest is set up (SideWays: only on the ladder way of a branch; tests and tools: yes).
+var chest_enabled := true
 
-var _edges: Dictionary[Vector2i, Array] = {}
+## Jump graphs without (false) and with (true) the double jump.
+var _edges: Dictionary[bool, Dictionary] = {}
 
 
 static func parse(plan_rows: PackedStringArray, id: StringName = &"") -> SideLayout:
@@ -89,6 +103,12 @@ static func parse(plan_rows: PackedStringArray, id: StringName = &"") -> SideLay
 				LADDER:
 					var span: Vector2i = layout.ladders.get(column, Vector2i(row, row))
 					layout.ladders[column] = Vector2i(mini(span.x, row), maxi(span.y, row))
+				CRUMBLE:
+					if column == 0 or line[column - 1] != CRUMBLE:
+						var last := column
+						while last + 1 < line.length() and line[last + 1] == CRUMBLE:
+							last += 1
+						layout.crumbles.append(Vector3i(column, last, row))
 	return layout
 
 
@@ -125,10 +145,14 @@ func is_ledge(cell: Vector2i) -> bool:
 	return char_at(cell) == LEDGE
 
 
-## Rock or ledge: something a player stands on.
+func is_crumble(cell: Vector2i) -> bool:
+	return char_at(cell) == CRUMBLE
+
+
+## Rock or ledge (also a crumbling one): something a player stands on.
 func is_blocking(cell: Vector2i) -> bool:
 	var c := char_at(cell)
-	return c == ROCK or c == LEDGE
+	return c == ROCK or c == LEDGE or c == CRUMBLE
 
 
 func is_ladder(cell: Vector2i) -> bool:
@@ -243,24 +267,30 @@ func run_direction() -> float:
 
 # --- Jump graph ---
 
-## Stand cells a jump, a step, a drop or a ladder reaches from cell (planning rules, REACH_*).
-func neighbours(cell: Vector2i) -> Array[Vector2i]:
-	if _edges.is_empty():
-		_build_edges()
+## Stand cells a jump, a step, a drop or a ladder reaches from cell (planning rules, REACH_*);
+## double = with the double jump.
+func neighbours(cell: Vector2i, double := true) -> Array[Vector2i]:
+	if not _edges.has(double):
+		_edges[double] = _build_edges(double)
 	var result: Array[Vector2i] = []
-	result.assign(_edges.get(cell, []))
+	result.assign((_edges[double] as Dictionary).get(cell, []))
 	return result
 
 
+## true if going from a to b needs the double jump (no plain jump, step or ladder gets there).
+func needs_double_jump(a: Vector2i, b: Vector2i) -> bool:
+	return not neighbours(a, false).has(b) and neighbours(a, true).has(b)
+
+
 ## Shortest chain of stand cells from one stand cell to another (both included), empty if none.
-func find_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
+func find_path(from: Vector2i, to: Vector2i, double := true) -> Array[Vector2i]:
 	var previous: Dictionary[Vector2i, Vector2i] = {from: from}
 	var queue: Array[Vector2i] = [from]
 	while not queue.is_empty():
 		var cell: Vector2i = queue.pop_front()
 		if cell == to:
 			break
-		for next in neighbours(cell):
+		for next in neighbours(cell, double):
 			if not previous.has(next):
 				previous[next] = cell
 				queue.append(next)
@@ -272,43 +302,71 @@ func find_path(from: Vector2i, to: Vector2i) -> Array[Vector2i]:
 	return path
 
 
-func reachable_from(cell: Vector2i) -> Dictionary[Vector2i, bool]:
+func reachable_from(cell: Vector2i, double := true) -> Dictionary[Vector2i, bool]:
 	var seen: Dictionary[Vector2i, bool] = {cell: true}
 	var queue: Array[Vector2i] = [cell]
 	while not queue.is_empty():
 		var current: Vector2i = queue.pop_front()
-		for next in neighbours(current):
+		for next in neighbours(current, double):
 			if not seen.has(next):
 				seen[next] = true
 				queue.append(next)
 	return seen
 
 
-func _build_edges() -> void:
+## The stand cell to jump from for an item high above (closest below it, free column), or (-1, -1).
+## The autopilot takes the golden coin from there.
+func launch_cell_for(item: Vector2i, reach: Dictionary[Vector2i, bool]) -> Vector2i:
+	var best := Vector2i(-1, -1)
+	var best_score := 1000000
+	for cell in reach:
+		var above := cell.y - item.y
+		if above < 0 or above > ITEM_REACH_ROWS_DOUBLE or absi(cell.x - item.x) > ITEM_REACH_COLUMNS:
+			continue
+		var clear := true
+		for step in range(1, above + 1):
+			if is_blocking(Vector2i(cell.x, cell.y - step)):
+				clear = false
+		if not clear:
+			continue
+		var score := absi(cell.x - item.x) * 10 + above
+		if score < best_score:
+			best_score = score
+			best = cell
+	return best
+
+
+func _build_edges(double: bool) -> Dictionary:
+	var edges := {}
 	var cells := stand_cells()
 	for a in cells:
 		var targets: Array[Vector2i] = []
 		for b in cells:
-			if a != b and _jump_connects(a, b):
+			if a != b and _jump_connects(a, b, double):
 				targets.append(b)
-		_edges[a] = targets
+		edges[a] = targets
 	for column in ladders:
 		var span: Vector2i = ladders[column]
 		var bottom := Vector2i(column, span.y)
 		var top := Vector2i(column, span.x - 1)
-		if _edges.has(bottom) and _edges.has(top):
-			if not (_edges[bottom] as Array).has(top):
-				(_edges[bottom] as Array).append(top)
-			if not (_edges[top] as Array).has(bottom):
-				(_edges[top] as Array).append(bottom)
+		if edges.has(bottom) and edges.has(top):
+			if not (edges[bottom] as Array).has(top):
+				(edges[bottom] as Array).append(top)
+			if not (edges[top] as Array).has(bottom):
+				(edges[top] as Array).append(bottom)
+	return edges
 
 
-func _jump_connects(a: Vector2i, b: Vector2i) -> bool:
+func _jump_connects(a: Vector2i, b: Vector2i, double := false) -> bool:
 	var columns := absi(b.x - a.x)
 	var rise := a.y - b.y
-	if rise > REACH_UP_MAX:
+	if rise > (DOUBLE_REACH_UP_MAX if double else REACH_UP_MAX):
 		return false
-	var reach: int = REACH_BY_RISE[rise] if rise >= 0 else REACH_DROP + mini(REACH_DROP_EXTRA_MAX, -rise)
+	var reach: int
+	if double:
+		reach = DOUBLE_REACH_BY_RISE[rise] if rise >= 0 else DOUBLE_REACH_DROP
+	else:
+		reach = REACH_BY_RISE[rise] if rise >= 0 else REACH_DROP + mini(REACH_DROP_EXTRA_MAX, -rise)
 	if columns > reach:
 		return false
 	# Straight up under solid rock is impossible (ledges can be jumped through from below).
@@ -343,7 +401,7 @@ func check() -> PackedStringArray:
 	var pits := count_pits()
 	if pits < PIT_RANGE.x or pits > PIT_RANGE.y:
 		errors.append("%s: %d pits" % [plan_id, pits])
-	var reach := reachable_from(start)
+	var reach := reachable_from(start, true)
 	var levels := {}
 	for cell in reach:
 		levels[cell.y] = true
@@ -374,19 +432,33 @@ func check() -> PackedStringArray:
 	items.append_array(slimes)
 	items.append_array(skeletons)
 	items.append_array(spikes)
-	if golden_coin.x >= 0:
-		items.append(golden_coin)
 	if chest.x >= 0:
 		items.append(chest)
 	for item in items:
-		if not _item_in_reach(item, reach):
+		if not _item_in_reach(item, reach, ITEM_REACH_ROWS):
 			errors.append("%s: %s at %s out of reach" % [plan_id, char_at(item), item])
+	# The golden coin needs the double jump: out of a plain jump's reach, in a double jump's.
+	if golden_coin.x >= 0:
+		if not _item_in_reach(golden_coin, reach, ITEM_REACH_ROWS_DOUBLE):
+			errors.append("%s: golden coin out of reach" % plan_id)
+		elif _item_in_reach(golden_coin, reach, ITEM_REACH_ROWS):
+			errors.append("%s: golden coin needs no double jump" % plan_id)
+	for run in crumbles:
+		for column in range(run.x, run.y + 1):
+			var above := char_at(Vector2i(column, run.z - 1))
+			if above in [SLIME, SKELETON, SPIKES, CHEST, DOOR, START]:
+				errors.append("%s: something stands on the crumbling ledge at %d" % [plan_id, column])
 	return errors
 
 
-func _item_in_reach(item: Vector2i, reach: Dictionary[Vector2i, bool]) -> bool:
+## true if the door can only be reached with the double jump (the plan asks for it on the way).
+func way_needs_double_jump() -> bool:
+	return not reachable_from(start, false).has(door)
+
+
+func _item_in_reach(item: Vector2i, reach: Dictionary[Vector2i, bool], rows_above: int) -> bool:
 	for cell in reach:
 		var above := cell.y - item.y
-		if absi(cell.x - item.x) <= ITEM_REACH_COLUMNS and above >= 0 and above <= ITEM_REACH_ROWS:
+		if absi(cell.x - item.x) <= ITEM_REACH_COLUMNS and above >= 0 and above <= rows_above:
 			return true
 	return false

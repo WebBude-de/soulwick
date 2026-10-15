@@ -96,6 +96,14 @@ const BAND := 4
 const FILLET_RADIUS := 5
 const FILLET_LEFT := 1
 const FILLET_RIGHT := 2
+## Delivered inner corner set (SPRITES_V9 §1, %s = biome) and its fillet piece names (bits 1..3).
+## Off (look, 15.10.2026): the delivered arcs sit 4-8 px around the corner point instead of joining
+## the straight bands (a light blob in the corner), and the fill pieces are a convex bump of rock
+## instead of a concave rounding; the drawn joints and fillets stay until a corrected set comes
+## (SPRITES_V9 Nachlieferung). The loader stays ready: true uses the files where they exist.
+const USE_DELIVERED_INNER := false
+const INNER_SHEET := "rock_blob_%s_soft_inner.png"
+const FILL_NAMES: Array[String] = ["fill_left", "fill_right", "fill_both"]
 ## Top edge piece (floor north of it) the band colours are read from.
 const BAND_SAMPLE_MASK := E | SE | S | SW | W
 
@@ -279,11 +287,12 @@ static func ensure_sources(tileset: TileSet) -> bool:
 		ground_image.decompress()
 	ground_image.convert(Image.FORMAT_RGBA8)
 	var masonry_rock := _load_image(masonry["rock"])
-	_add_rock_source(tileset, SOURCE_ROCK, compose_rock(cave_rock, cave_floor.get_region(Rect2i(0, 0, TILE, TILE))))
+	var inner := inner_pieces(biome)
+	_add_rock_source(tileset, SOURCE_ROCK, compose_rock(cave_rock, cave_floor.get_region(Rect2i(0, 0, TILE, TILE)), inner))
 	var soft_floor := _load_image(masonry["floor"]) if masonry.get("soft", false) else null
 	if masonry_rock != null and soft_floor != null:
 		# Soft masonry: its own flagstones (with navigation) under the soft rock with brick fronts.
-		_add_rock_source(tileset, SOURCE_MASONRY_ROCK, compose_rock(masonry_rock, soft_floor.get_region(Rect2i(0, 0, TILE, TILE))))
+		_add_rock_source(tileset, SOURCE_MASONRY_ROCK, compose_rock(masonry_rock, soft_floor.get_region(Rect2i(0, 0, TILE, TILE)), inner))
 		_add_floor_source(tileset, SOURCE_MASONRY_GROUND, soft_floor)
 	elif masonry_rock != null:
 		var masonry_floor := ground_image.get_region(Rect2i(GROUND_FLOOR * TILE, Vector2i(TILE, TILE)))
@@ -370,16 +379,57 @@ static func _add_floor_source(tileset: TileSet, id: int, floor_image: Image) -> 
 
 
 ## Every piece of sheet laid over floor (the floor shows where the piece is transparent).
-static func compose_rock(sheet: Image, floor_tile: Image) -> Image:
+static func compose_rock(sheet: Image, floor_tile: Image, inner: Dictionary = {}) -> Image:
 	var result := Image.create_empty(sheet.get_width(), sheet.get_height(), false, Image.FORMAT_RGBA8)
 	for y in sheet.get_height() / TILE:
 		for x in sheet.get_width() / TILE:
 			result.blit_rect(floor_tile, Rect2i(0, 0, TILE, TILE), Vector2i(x, y) * TILE)
 	result.blend_rect(sheet, Rect2i(Vector2i.ZERO, sheet.get_size()), Vector2i.ZERO)
 	var band := band_colors(sheet)
-	_draw_inner_corners(result, band)
-	_draw_fillets(result, band)
+	var delivered: Dictionary = inner.get("pieces", {})
+	_draw_inner_corners(result, band, delivered)
+	_draw_fillets(result, band, delivered)
 	return result
+
+
+## The delivered inner corner set of a biome (rock_blob_<biome>_soft_inner, SPRITES_V9 §1), fitted to
+## the room rock (SoftPalette): {"pieces": name -> 32x32 Image}. Empty without the files.
+static func inner_pieces(biome_id: StringName) -> Dictionary:
+	if not USE_DELIVERED_INNER:
+		return {}
+	var path := TILES_DIR + INNER_SHEET % biome_id
+	var json_path := path.get_basename() + ".json"
+	if not ResourceLoader.exists(path) or not FileAccess.file_exists(json_path):
+		return {}
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(json_path))
+	if not data is Dictionary or not (data as Dictionary).has("tiles"):
+		return {}
+	var image := SoftPalette.load_image(path)
+	if image == null:
+		return {}
+	image = SoftPalette.fit(image, biome_id, biome_id)
+	var pieces := {}
+	var tiles: Dictionary = data["tiles"]
+	for piece_name: String in tiles:
+		var cell: Dictionary = tiles[piece_name]
+		pieces[piece_name] = image.get_region(Rect2i(int(cell["x"]), int(cell["y"]), TILE, TILE))
+	return {"pieces": pieces}
+
+
+## The arcs of a delivered inner corner piece on a piece of the sheet: only its band and outline
+## pixels (lighter than the rock or as dark as the outline); straight edges stay the sheet's own.
+static func _lay_arcs(image: Image, origin: Vector2i, piece: Image, band: Array[Color]) -> void:
+	var rock := image.get_pixel(origin.x + TILE / 2, origin.y + TILE / 2)
+	var light_from := rock.get_luminance() + 0.12
+	var dark_below := rock.get_luminance() - 0.12
+	for y in TILE:
+		for x in TILE:
+			var pixel := piece.get_pixel(x, y)
+			if pixel.a < 0.5:
+				continue
+			var luminance := pixel.get_luminance()
+			if luminance > light_from or luminance < dark_below:
+				image.set_pixel(origin.x + x, origin.y + y, pixel)
 
 
 ## Colours of the edge band from the outside in (BAND rows of the top edge piece).
@@ -394,10 +444,13 @@ static func band_colors(sheet: Image) -> Array[Color]:
 ## The band's joint in every piece with an upper inner corner (both sides solid, the diagonal floor):
 ## a quarter ring around the corner point, so the side band and the top band run into each other.
 ## Lower inner corners touch a front, which ends with its own rounded corner.
-static func _draw_inner_corners(image: Image, band: Array[Color]) -> void:
+static func _draw_inner_corners(image: Image, band: Array[Color], delivered: Dictionary = {}) -> void:
 	for i in MASKS.size():
 		var mask := MASKS[i]
 		var origin := Vector2i(i % SHEET_COLUMNS, i / SHEET_COLUMNS) * TILE
+		if delivered.has("r%d" % mask):
+			_lay_arcs(image, origin, delivered["r%d" % mask], band)
+			continue
 		for corner: Array in [[NE, E, TILE], [NW, W, 0]]:
 			if not mask & N or not mask & int(corner[1]) or mask & int(corner[0]):
 				continue
@@ -411,10 +464,14 @@ static func _draw_inner_corners(image: Image, band: Array[Color]) -> void:
 
 ## Fillet pieces (transparent but for the rock in a rounded lower corner): slot 1 left, 2 right,
 ## 3 both. The rock inside the fillet takes the band colour of its distance to the curve.
-static func _draw_fillets(image: Image, band: Array[Color]) -> void:
+static func _draw_fillets(image: Image, band: Array[Color], delivered: Dictionary = {}) -> void:
 	for bits in range(1, 4):
 		var origin := fillet_coords(bits) * TILE
 		image.fill_rect(Rect2i(origin, Vector2i(TILE, TILE)), Color(0, 0, 0, 0))
+		var file_name: String = FILL_NAMES[bits - 1]
+		if delivered.has(file_name):
+			image.blit_rect(delivered[file_name], Rect2i(0, 0, TILE, TILE), origin)
+			continue
 		for side: int in [FILLET_LEFT, FILLET_RIGHT]:
 			if not bits & side:
 				continue

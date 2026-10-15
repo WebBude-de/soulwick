@@ -127,23 +127,12 @@ position = Vector2(866, 418)
 script = ExtResource("3_deco")
 item = &"bones_2"
 
-[node name="Crystals1" type="Node2D" parent="Props"]
-position = Vector2(800, 56)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(832, 56)
 script = ExtResource("3_deco")
-item = &"crystal_cluster"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(12, 0)])
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(866, 34)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(866, 58)
-script = ExtResource("3_deco")
-item = &"rubble_1"
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(12, 0), Vector2i(13, 0)])
+biome = &"slime_grotto"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

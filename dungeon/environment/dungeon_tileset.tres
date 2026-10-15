@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" path="res://art/environment/tiles/dungeon_tileset.png" id="1_5xypy"]
 [ext_resource type="Texture2D" path="res://art/environment/tiles/inner_wall_tiles.png" id="2_vocev"]
-[ext_resource type="Texture2D" path="res://art/environment/tiles/abyss_tiles_crypt.png" id="3_527k6"]
+[ext_resource type="Texture2D" path="res://art/environment/tiles/abyss_tiles_crypt_soft.png" id="3_527k6"]
 [ext_resource type="Texture2D" path="res://art/environment/tiles/bridge_tiles.png" id="4_kx2fn"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_trofv"]

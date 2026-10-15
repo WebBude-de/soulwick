@@ -193,11 +193,14 @@ func _follow_carrier() -> void:
 		return
 	var side := -1.0 if carrier.get_aim_direction().x < 0.0 else 1.0
 	global_position = carrier.global_position + Vector2(HAND_OFFSET.x * side, HAND_OFFSET.y)
+	# Under the rock of a passage the carrier is hidden; the relic in hand (z 2) goes with them.
+	visible = not DoorView.is_in_tunnel(get_tree(), carrier.global_position)
 	if _sprite != null:
 		_sprite.position.y = 0.0
 
 
 func _release_carrier() -> void:
+	visible = true
 	if carrier != null and is_instance_valid(carrier):
 		LanternCarry.detach(carrier)
 		if carrier.hurtbox.hit_received.is_connected(_on_carrier_hit):

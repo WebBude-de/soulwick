@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(3, -1), Vector2i(13, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(4, 1, 0), Vector3i(5, 1, 0), Vector3i(5, 2, 0), Vector3i(5, 3, 0), Vector3i(6, 1, 0), Vector3i(6, 2, 0), Vector3i(6, 3, 0), Vector3i(7, 3, 0), Vector3i(7, 4, 0), Vector3i(8, 4, 1), Vector3i(8, 5, 1), Vector3i(9, 4, 1), Vector3i(9, 5, 1), Vector3i(12, 4, 2), Vector3i(12, 5, 2), Vector3i(12, 6, 2), Vector3i(13, 5, 2), Vector3i(13, 6, 2), Vector3i(14, 5, 2), Vector3i(14, 6, 2), Vector3i(14, 7, 2), Vector3i(15, 5, 2), Vector3i(15, 6, 2), Vector3i(15, 7, 2), Vector3i(16, 6, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(1, 5, 13), Vector3i(2, 6, 9), Vector3i(3, 0, 1), Vector3i(4, 4, 0), Vector3i(4, 7, 9), Vector3i(5, 1, 8), Vector3i(6, 6, 13), Vector3i(6, 7, 9), Vector3i(7, 3, 8), Vector3i(7, 7, 11), Vector3i(10, 2, 0), Vector3i(10, 3, 1), Vector3i(11, 3, 13), Vector3i(12, 4, 9), Vector3i(13, 4, 10), Vector3i(13, 7, 5), Vector3i(14, 6, 3), Vector3i(16, 5, 1)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 5, 13), Vector3i(2, 6, 9), Vector3i(3, 4, 1), Vector3i(4, 5, 0), Vector3i(5, 0, 9), Vector3i(5, 2, 8), Vector3i(6, 7, 13), Vector3i(7, 2, 9), Vector3i(7, 4, 8), Vector3i(8, 4, 11), Vector3i(10, 3, 0), Vector3i(11, 0, 1), Vector3i(11, 6, 13), Vector3i(12, 4, 9), Vector3i(13, 1, 10), Vector3i(14, 6, 0), Vector3i(15, 6, 13), Vector3i(16, 2, 13)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(736, 32)
@@ -44,10 +44,10 @@ position = Vector2(480, 224)
 position = Vector2(672, 224)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(224, 96)
+position = Vector2(608, 96)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(608, 96)
+position = Vector2(224, 288)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 288)
@@ -88,62 +88,29 @@ position = Vector2(192, -64)
 [node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(832, -64)
 
-[node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(866, 34)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(832, 56)
 script = ExtResource("3_deco")
-item = &"bone_pile"
+item = &"group_1"
 flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(12, 0), Vector2i(13, 0)])
+biome = &"shadow_realm"
 
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(866, 64)
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(192, 120)
 script = ExtResource("3_deco")
-item = &"bones_2"
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(814, 64)
-script = ExtResource("3_deco")
-item = &"bones_1"
+item = &"group_2"
 flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(2, 1), Vector2i(3, 1)])
+biome = &"shadow_realm"
 
-[node name="Crystals1" type="Node2D" parent="Props"]
-position = Vector2(160, 120)
+[node name="Group3" type="Node2D" parent="Props"]
+position = Vector2(960, 504)
 script = ExtResource("3_deco")
-item = &"crystal_cluster"
+item = &"group_3"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(2, 1)])
-
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(226, 98)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(226, 74)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(994, 482)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(994, 458)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-
-[node name="RubbleBit5" type="Node2D" parent="Props"]
-position = Vector2(948, 458)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="Bones4" type="Node2D" parent="Props"]
-position = Vector2(942, 488)
-script = ExtResource("3_deco")
-item = &"bones_2"
-flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(14, 7), Vector2i(15, 7)])
+biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

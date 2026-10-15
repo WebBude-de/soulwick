@@ -1,8 +1,9 @@
 extends GutTest
 ## Where side segments sit and what they give (M5): after the campfire, the ladder way of a branch,
 ## 10 % after a rest room; never before the boss, never twice in a row, never when switched off;
-## coins pay run gold ×1.5 with carry, the golden coin a crystal, a pit half a heart (never the
-## last 0.5 HP); the jump hint on the first three segments; the physics numbers; the plan choice.
+## a segment pays about a combat room (coins × wave count, golden coin = 2 coins, no crystals, the
+## chest only on the ladder way), a pit costs what an abyss costs; the jump hint on the first three
+## segments; the physics numbers (2.5-tile jump, double jump, apex hang); the plan choice.
 
 
 func test_campfire_and_ladder_way_lead_into_a_segment() -> void:
@@ -44,24 +45,34 @@ func test_only_the_rest_case_draws() -> void:
 	assert_ne(rng.state, state, "one draw after a rest room")
 
 
-func test_coins_pay_one_and_a_half_with_carry() -> void:
-	var total := 0
-	for i in 8:
-		total += SideRules.coin_gold(i)
-	assert_eq(total, 12, "8 coins = 12 gold")
-	assert_eq(SideRules.coin_gold(0), 1)
-	assert_eq(SideRules.coin_gold(1), 2, "the carried half")
-	var greedy := 0
-	for i in 10:
-		greedy += SideRules.coin_gold(i, 1.3)
-	assert_eq(greedy, floori(10 * 1.5 * 1.3 + 0.0001), "the village gold multiplier counts too")
+func test_coins_scale_like_combat_room_gold() -> void:
+	assert_eq(SideRules.coin_gold(16), 1, "one gold per coin before room 30")
+	assert_eq(SideRules.coin_gold(31), RoomSequence.get_wave_count(31), "two waves, twice the gold")
+	assert_eq(SideRules.coin_gold(61), RoomSequence.get_wave_count(61))
+	assert_eq(SideRules.golden_coin_gold(16), 2, "the golden coin = two coins")
+	assert_eq(SideRules.coin_gold(16, 1.6), 2, "the village gold multiplier counts (rounded)")
+	assert_eq(SideRules.coin_gold(16, 0.0), 1, "never less than one")
 
 
-func test_pit_costs_half_a_heart_but_never_the_last() -> void:
-	assert_eq(SideRules.pit_damage(6.0), 1.0)
-	assert_eq(SideRules.pit_damage(1.5), 1.0)
-	assert_eq(SideRules.pit_damage(1.0), 0.5)
-	assert_eq(SideRules.pit_damage(0.5), 0.0)
+func test_a_segment_pays_about_a_combat_room() -> void:
+	# A normal combat room before room 30: 4-6 enemies at about 1 gold plus 1-2 from crates.
+	var room_low := 4 + 1
+	var room_high := 6 + 2
+	for id in SidePlans.all_ids():
+		var layout := SidePlans.build(id)
+		var gold := SideRules.segment_gold(layout.coins.size(), 16)
+		assert_between(gold, room_low, room_high + 1, "%s: %d gold if every coin is taken" % [id, gold])
+	assert_eq(SideRules.ENEMY_GOLD, 0, "side enemies drop nothing")
+
+
+func test_chest_only_on_the_ladder_way() -> void:
+	assert_true(SideRules.has_chest(SideRules.Reason.LADDER_WAY))
+	assert_false(SideRules.has_chest(SideRules.Reason.BIOME_CHANGE))
+	assert_false(SideRules.has_chest(SideRules.Reason.AFTER_REST))
+
+
+func test_pit_costs_what_an_abyss_costs() -> void:
+	assert_eq(SideRules.pit_damage(), ChasmRules.fall_damage(), "a whole heart like an abyss in a room")
 
 
 func test_jump_hint_on_the_first_three_segments() -> void:
@@ -73,6 +84,17 @@ func test_jump_hint_on_the_first_three_segments() -> void:
 func test_jump_reaches_two_and_a_half_tiles() -> void:
 	assert_almost_eq(SideRules.jump_height(), SideRules.JUMP_HEIGHT_TILES * SideRules.TILE, 1.0)
 	assert_almost_eq(SideRules.jump_velocity_for(2.5 * SideRules.TILE), SideRules.JUMP_VELOCITY, 1.0)
+	assert_almost_eq(SideRules.jump_velocity_for(SideRules.DOUBLE_JUMP_HEIGHT_TILES * SideRules.TILE), SideRules.DOUBLE_JUMP_VELOCITY, 1.0)
+	assert_almost_eq(SideRules.double_jump_height(), 4.5 * SideRules.TILE, 2.0, "both jumps: 4.5 tiles")
+
+
+func test_gravity_hangs_at_the_apex_and_falls_faster() -> void:
+	var rising := PlayerSideMotion.gravity_for(-500.0)
+	var apex := PlayerSideMotion.gravity_for(-20.0)
+	var falling := PlayerSideMotion.gravity_for(500.0)
+	assert_eq(rising, SideRules.GRAVITY)
+	assert_lt(apex, rising, "a short hang at the top")
+	assert_gt(falling, rising, "faster down than up")
 
 
 func test_segment_rng_is_derived_and_stable() -> void:
@@ -105,6 +127,9 @@ func test_texts_exist_in_both_tables() -> void:
 	for key in [&"SIDE_DESCENT_TITLE", &"SIDE_DESCENT_SUB", &"SIDE_HINT_JUMP", &"SIDE_GOLDEN_COIN_TITLE",
 			&"SIDE_GOLDEN_COIN_SUB", &"SIDE_WAY_NAME", &"SIDE_OPTION_SKIP", &"SIDE_OPTION_SKIP_NOTE"]:
 		assert_true(DungeonTexts.has_text(key), "%s in DungeonTexts" % key)
+	for key in [&"SIDE_GOLDEN_COIN_GOLD", &"SIDE_HINT_MOVES"]:
+		assert_true(Loc.has_key(key, &"en") and Loc.has_key(key, &"de"), "%s in the CSV (en + de)" % key)
+	assert_true(SideTransit.jump_hint_text().length() > 10, "the hint names jump, double jump and dash")
 	var csv := FileAccess.get_file_as_string("res://localization/translations.csv")
 	assert_true(csv.contains("SIDE_DESCENT_TITLE,\"Descent\",\"Abstieg\""), "English and German in the CSV")
 	assert_eq(DungeonTexts.t(&"SIDE_HINT_JUMP", ["Leertaste", "Umschalt"]).count("Leertaste"), 1)

@@ -87,7 +87,7 @@ static func has_leaf_file(style: DoorStyle) -> bool:
 
 static func has_symbol_file(symbol_id: StringName) -> bool:
 	if DoorStyle.is_branch_symbol(symbol_id):
-		var branch_sheet := _load_file(DoorStyle.BRANCH_SYMBOLS_PATH)
+		var branch_sheet := _load_file(DoorStyle.get_branch_symbols_path())
 		var column := DoorStyle.branch_symbol_index(symbol_id)
 		return branch_sheet != null and branch_sheet.get_width() >= (column + 1) * SYMBOL_SIZE.x
 	var sheet := _load_file(_art_path(DoorStyle.get_symbols_path()))
@@ -104,7 +104,9 @@ static func get_frame(style: DoorStyle) -> Texture2D:
 		if file == null and style.soft:
 			file = _load_file(_art_path(style.get_frame_path().replace(DoorStyle.SOFT_SUFFIX, "")))
 		var image := open_passage(file.get_image()) if file != null else paint_frame(style)
-		if style.is_cave() and not style.is_boss():
+		# Old mouths are a rock block with the arch in it: only the arch stays. The V9 soft mouths are
+		# the arch band alone already (transparent corners).
+		if style.is_cave() and not style.is_boss() and image.get_pixel(0, 0).a > 0.5:
 			image = arch_band(image, CAVE_ARCH_BAND)
 		_cache[key] = ImageTexture.create_from_image(image)
 	return _cache[key]
@@ -285,10 +287,93 @@ static func opening_image(style: DoorStyle, top: int, alpha_of_row: Callable) ->
 	return image
 
 
+## Inner shadow of the V9 frames (tunnel_shade.json): one per frame shape, biome-neutral, as large
+## as the frame, an 18 px soft run from the crown into the opening.
+const TUNNEL_SHADE_CAVE := "res://art/environment/doors/tunnel_shade_cave.png"
+const TUNNEL_SHADE_ARCH := "res://art/environment/doors/tunnel_shade_arch.png"
+## Side passage opening of the soft rooms (V9): side_mouth_<biome>_soft.png, 20x32, east wall.
+const SIDE_MOUTH_PATH := "res://art/environment/doors/side_mouth_%s_soft.png"
+
+
+## The delivered inner shadow for this style (a V9 soft mouth or arch, the shade of its size), else
+## null (the shadow is made from the opening, opening_image).
+static func get_delivered_shade(style: DoorStyle) -> Image:
+	if style.is_boss() or not style.soft or not has_art(style.get_frame_path()):
+		return null
+	var path := TUNNEL_SHADE_CAVE if style.is_cave() else TUNNEL_SHADE_ARCH
+	var key := "delivered_shade_%s" % path
+	if not _cache.has(key):
+		var file := _load_file(_art_path(path))
+		var image: Image = null
+		if file != null:
+			image = file.get_image()
+			if image.is_compressed():
+				image.decompress()
+			image.convert(Image.FORMAT_RGBA8)
+		_cache[key] = image
+	var shade: Image = _cache[key]
+	if shade == null or shade.get_size() != style.frame_size:
+		return null
+	return shade
+
+
+## First row of the frame with an opaque pixel (the top of the arch), 0 for a frame that starts at
+## its top edge. Cached.
+static func frame_top_row(style: DoorStyle) -> int:
+	var key := "top_row_%s" % style.get_key()
+	if not _cache.has(key):
+		var image := get_frame(style).get_image()
+		if image.is_compressed():
+			image.decompress()
+		var row := 0
+		var found := false
+		while row < image.get_height() and not found:
+			for x in image.get_width():
+				if image.get_pixel(x, row).a > 0.05:
+					found = true
+					break
+			if not found:
+				row += 1
+		_cache[key] = row if found else 0
+	return _cache[key]
+
+
+## Rows of image from top (incl.) to bottom (excl.) kept, the rest transparent (same size).
+static func rows_of(image: Image, top: int, bottom: int) -> Image:
+	var part := Image.create_empty(image.get_width(), image.get_height(), false, Image.FORMAT_RGBA8)
+	var from := clampi(top, 0, image.get_height())
+	var to := clampi(bottom, from, image.get_height())
+	if to > from:
+		part.blit_rect(image, Rect2i(0, from, image.get_width(), to - from), Vector2i(0, from))
+	return part
+
+
+## The opening of the side passage: the delivered side_mouth_<biome>_soft (soft rooms), else the
+## placeholder (side_mouth_image).
+static func get_side_mouth(style: DoorStyle) -> Texture2D:
+	if style != null and style.soft:
+		var file := _load_file(_art_path(SIDE_MOUTH_PATH % style.biome_id))
+		if file != null:
+			return file
+	var key := "side_mouth_placeholder"
+	if not _cache.has(key):
+		_cache[key] = ImageTexture.create_from_image(side_mouth_image())
+	return _cache[key]
+
+
 ## The whole opening in the tunnel colour (over the door tile and up into the crown): DoorView fades
 ## it in while a player walks through, so the player is hidden in the arch and the opening is one
-## even dark, no step where the crown part meets the door tile. null without an opening.
+## even dark, no step where the crown part meets the door tile. With a delivered inner shadow its
+## shape (every pixel it touches), else the opening of the frame. null without an opening.
 static func tunnel_shade_image(style: DoorStyle) -> Image:
+	var delivered := get_delivered_shade(style)
+	if delivered != null:
+		var image := Image.create_empty(delivered.get_width(), delivered.get_height(), false, Image.FORMAT_RGBA8)
+		for y in delivered.get_height():
+			for x in delivered.get_width():
+				if delivered.get_pixel(x, y).a > 0.02:
+					image.set_pixel(x, y, Color(TUNNEL_COLOR, 1.0))
+		return image
 	if passage_mask(style).is_empty():
 		return null
 	return opening_image(style, 0, func(_row: int) -> float: return 1.0)
@@ -342,6 +427,9 @@ static func frame_top_image(style: DoorStyle) -> Image:
 		frame.decompress()
 	frame.convert(Image.FORMAT_RGBA8)
 	var image := frame.get_region(Rect2i(0, 0, frame.get_width(), rows))
+	if get_delivered_shade(style) != null:
+		# The delivered inner shadow darkens the opening (DoorView).
+		return image
 	# The opening of the arch itself, not a rectangle (44.png).
 	for point: Vector2i in passage_mask(style):
 		if point.y < rows:
@@ -570,7 +658,7 @@ static func _get_branch_symbol(symbol_id: StringName) -> Texture2D:
 	if not _cache.has(key):
 		if has_symbol_file(symbol_id):
 			var atlas := AtlasTexture.new()
-			atlas.atlas = _load_file(DoorStyle.BRANCH_SYMBOLS_PATH)
+			atlas.atlas = _load_file(DoorStyle.get_branch_symbols_path())
 			atlas.region = Rect2(DoorStyle.branch_symbol_index(symbol_id) * SYMBOL_SIZE.x, 0, SYMBOL_SIZE.x, SYMBOL_SIZE.y)
 			_cache[key] = atlas
 		else:
@@ -582,6 +670,12 @@ static func _get_branch_symbol(symbol_id: StringName) -> Texture2D:
 
 static func _art_path(default_path: String) -> String:
 	return art_dir + default_path.get_file()
+
+
+## Is the delivered file of this default path there? Door files are looked up in art_dir like every
+## door file, others (the branch signs) where they are.
+static func has_art(default_path: String) -> bool:
+	return _file_exists(_art_path(default_path) if default_path.begins_with(DoorStyle.ART_DIR) else default_path)
 
 
 static func _file_exists(path: String) -> bool:

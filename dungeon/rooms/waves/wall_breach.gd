@@ -11,6 +11,9 @@ extends Node2D
 enum Mode { GATE, BREACH }
 
 const BREACH_ART := "res://art/environment/rooms/wall_breach_6f.png"
+## Breach in a cave's rock front (SPRITES_V9 §3, breach_cave_<biome>.json: same frames, pivot and
+## speed as wall_breach_6f), fitted to the room rock (SoftPalette). %s = biome.
+const BREACH_CAVE_ART := "res://art/environment/rooms/wall_breach_cave_%s_6f.png"
 const GATE_ART := "res://art/environment/rooms/enemy_gate_4f.png"
 const BREACH_FRAME := Vector2i(32, 48)
 const GATE_FRAME := Vector2i(32, 32)
@@ -64,12 +67,15 @@ var _crack_angles: Array[float] = []
 var _depth := NORTH_DEPTH
 var _hole_centre := Vector2(0.0, -NORTH_DEPTH * 0.5)
 var _rubble: Array[Vector2] = []
+## Biome of a cave room (rock front instead of masonry), empty in masonry rooms.
+var _cave_biome: StringName = &""
 
 
 ## mode_value: Mode; inward: unit direction from the wall into the room; look_seed only varies
 ## the drawn cracks (optics, not the dungeon RNG).
-func setup(mode_value: Mode, inward: Vector2, look_seed: int) -> void:
+func setup(mode_value: Mode, inward: Vector2, look_seed: int, cave_biome: StringName = &"") -> void:
 	mode = mode_value
+	_cave_biome = cave_biome
 	rotation = inward.angle() - PI * 0.5
 	_depth = NORTH_DEPTH if inward.is_equal_approx(Vector2.DOWN) else EDGE_DEPTH
 	_hole_centre = Vector2(0.0, -_depth * 0.5)
@@ -142,6 +148,11 @@ func settle() -> void:
 	tween.tween_property(self, "opening", 0.0, 0.3)
 
 
+## Does the breach use the cave art (a rock front)?
+func is_cave_breach() -> bool:
+	return mode == Mode.BREACH and _cave_biome != &"" and ResourceLoader.exists(BREACH_CAVE_ART % _cave_biome)
+
+
 static func has_art(art_mode: Mode) -> bool:
 	return ResourceLoader.exists(BREACH_ART if art_mode == Mode.BREACH else GATE_ART)
 
@@ -156,6 +167,10 @@ func _build_sprite() -> void:
 	var breach := mode == Mode.BREACH
 	var frame_size := BREACH_FRAME if breach else GATE_FRAME
 	var texture := load(BREACH_ART if breach else GATE_ART) as Texture2D
+	if breach and _cave_biome != &"" and ResourceLoader.exists(BREACH_CAVE_ART % _cave_biome):
+		var cave := SoftPalette.texture(BREACH_CAVE_ART % _cave_biome, _cave_biome)
+		if cave != null:
+			texture = cave
 	_sprite = AnimatedSprite2D.new()
 	_sprite.name = "Art"
 	_sprite.sprite_frames = SpriteStrip.make_frames(texture, frame_size, BREACH_FPS, false)

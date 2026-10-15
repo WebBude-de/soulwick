@@ -1,11 +1,9 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/crate.tscn" id="3_crate"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="5_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="6_scatter"]
+[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
 
 [node name="TropfsteinhoehleCrypt" instance=ExtResource("1_base")]
 room_kind = 0
@@ -24,7 +22,7 @@ front_fixtures = Array[Vector2i]([Vector2i(12, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(5, 1, 1), Vector3i(5, 2, 1), Vector3i(6, 0, 1), Vector3i(6, 1, 1), Vector3i(6, 2, 1), Vector3i(7, 0, 1), Vector3i(7, 1, 1), Vector3i(7, 2, 1), Vector3i(7, 5, 1), Vector3i(8, 1, 1), Vector3i(8, 5, 1), Vector3i(8, 6, 1), Vector3i(8, 7, 1), Vector3i(9, 6, 1), Vector3i(9, 7, 1), Vector3i(10, 6, 1), Vector3i(11, 0, 2), Vector3i(12, 0, 2), Vector3i(13, 1, 2), Vector3i(14, 1, 2), Vector3i(16, 0, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(2, 2, 2), Vector3i(2, 4, 8), Vector3i(3, 1, 13), Vector3i(4, 1, 1), Vector3i(4, 6, 0), Vector3i(6, 1, 13), Vector3i(9, 5, 9), Vector3i(11, 2, 2), Vector3i(11, 5, 0), Vector3i(12, 3, 10), Vector3i(13, 1, 10), Vector3i(13, 2, 2), Vector3i(13, 3, 2), Vector3i(14, 0, 8), Vector3i(14, 7, 8), Vector3i(15, 5, 13)])
+overlay_cells = Array[Vector3i]([Vector3i(2, 2, 2), Vector3i(2, 4, 8), Vector3i(3, 1, 13), Vector3i(4, 1, 1), Vector3i(4, 6, 0), Vector3i(6, 0, 13), Vector3i(6, 1, 0), Vector3i(9, 2, 9), Vector3i(10, 5, 0), Vector3i(11, 2, 10), Vector3i(12, 3, 2), Vector3i(12, 4, 5), Vector3i(12, 6, 8), Vector3i(13, 1, 10), Vector3i(13, 2, 10), Vector3i(13, 3, 2), Vector3i(13, 6, 8), Vector3i(14, 0, 13), Vector3i(15, 7, 8)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(736, 96)
@@ -100,75 +98,51 @@ metadata/objective_kind = &"light_crystal"
 metadata/tile = Vector2i(4, 4)
 metadata/built = true
 
-[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
+[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(768, -64)
 
 [node name="Crystal1" type="Node2D" parent="Props"]
 position = Vector2(288, 312)
-script = ExtResource("5_deco")
+script = ExtResource("3_deco")
 item = &"light_crystal"
 tint = Color(1, 0.85, 0.6, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(4, 4)])
 
 [node name="Puddle1" type="Node2D" parent="Props"]
 position = Vector2(800, 166)
-script = ExtResource("5_deco")
+script = ExtResource("3_deco")
 item = &"puddle"
 tint = Color(0.75, 0.82, 1, 1)
 biome = &"crypt"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(804, 164)
-script = ExtResource("5_deco")
+script = ExtResource("3_deco")
 item = &"drip"
 
-[node name="Crate1" parent="Props" instance=ExtResource("3_crate")]
-position = Vector2(736, 504)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(704, 504)
+script = ExtResource("3_deco")
+item = &"group_1"
+blocked_tiles = Array[Vector2i]([Vector2i(10, 7), Vector2i(11, 7)])
+biome = &"crypt"
 
-[node name="Barrel1" parent="Props" instance=ExtResource("2_barrel")]
-position = Vector2(672, 504)
-
-[node name="Bedroll1" type="Node2D" parent="Props"]
-position = Vector2(674, 418)
-script = ExtResource("5_deco")
-item = &"bedroll"
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(1024, 440)
+script = ExtResource("3_deco")
+item = &"group_2"
 flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(15, 6), Vector2i(16, 6)])
+biome = &"crypt"
 
-[node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(1058, 418)
-script = ExtResource("5_deco")
-item = &"bone_pile"
-
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(1058, 372)
-script = ExtResource("5_deco")
-item = &"bones_2"
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(1058, 336)
-script = ExtResource("5_deco")
-item = &"bones_1"
-flip = true
-
-[node name="Coffin1" type="Node2D" parent="Props"]
-position = Vector2(288, 56)
-script = ExtResource("5_deco")
-item = &"coffin"
-blocked_tiles = Array[Vector2i]([Vector2i(4, 0)])
-
-[node name="Candles1" type="Node2D" parent="Props"]
-position = Vector2(354, 40)
-script = ExtResource("5_deco")
-item = &"candles"
-flip = true
-
-[node name="Bones4" type="Node2D" parent="Props"]
-position = Vector2(354, 58)
-script = ExtResource("5_deco")
-item = &"bones_1"
-flip = true
+[node name="Group3" type="Node2D" parent="Props"]
+position = Vector2(320, 56)
+script = ExtResource("3_deco")
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("6_scatter")
+script = ExtResource("4_scatter")
 allowed = Array[int]([])

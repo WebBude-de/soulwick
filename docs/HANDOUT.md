@@ -99,3 +99,30 @@ art/ui/logo.png, logo_square.png   (1×-Pixelversionen 128×32 / 64×64 für In-
 
 - Preise, Gold-Drops, Skalierung ab Raum 46 sind im PRD OFFEN; Mockups zeigen Platzhalter.
 - Keyart und Biom-Szenen sind aus den Spiel-Sprites komponiert; eine gemalte Illustration wäre der nächste Schritt für den Store-Auftritt.
+
+## Räume V2 (Design-Antwort, 14.10.2026)
+
+- Wand-Autotile je Biom (`wall_autotile_<biom>`, Maske N=1 O=2 S=4 W=8, Zeile 5 Vorderseiten) ersetzt inner_wall_tiles; Regel: Mauer mit Boden im Süden ≥ 2 Kacheln hoch.
+- Seitentüren `door_side_<biom>_open_4f` (Westwand, Ost spiegeln), Abbruchkanten `abyss_cliff_<biom>`, Tint-Maske Fall.
+- Gegner-Quellen `art/environment/spawn/`, Tür-Erkennung `door_mode_symbols` + `door_glow` (Farben in docs/design/claude_design_antwort/05_tueren.md), Geleit-Figur `lost_villager`, Minispiel-Objekte `art/environment/objectives/`, Deko-Gruppen `art/environment/deco/`.
+- Beleuchtungsvorschlag: Umgebung 45–55 % sichtbar, Lichtkreis 5 Kacheln, jede Quelle mit Light2D.
+
+## Makeover 3 (14.10.2026)
+
+- Fels-Terrain `rock_blob_<biom>` (47 Kacheln, Godot „Match Corners and Sides“, Maske N=1 NO=2 O=4 SO=8 S=16 SW=32 W=64 NW=128) für Höhlenräume; `wall_autotile_<biom>` bleibt für gemauerte Räume.
+- Eingänge: `cave_mouth_<biom>` 64×48 über zwei Vorderseiten; Emporen über `ladder`/`ladder_top`.
+- Seitenansicht-Segmente: `player_jump_3f`, `player_land_2f`, Fall = `player_fall_4f` Frame 1; Plattformen aus `front_mid` + `rock_blob`.
+- Details: docs/design/claude_design_antwort/11_makeover3_komplett.md
+
+## Weiche Palette & Zugänge (14.10.2026)
+
+- Referenz-Set `crypt_soft`: Erdboden ohne Fugen, Fels `#5a5677`, Kante `#b9b5d2`/`#8f8bac`, Kontur `#2a2740`; Klippen (`front_*` in rock_blob_crypt_soft) statt Ziegel in Höhlen; Treppen `stairs_cut`.
+- Zugänge: max. 1 Kachel Gang, geschlossen bündig gefüllt (`gate_slab_open_4f` / `gate_bars_open_4f`, 32×48, 10 fps).
+
+## V9 (15.10.2026)
+
+- Fels-Innenecken `rock_blob_<biom>_soft_inner` (Bogenband Radius 4), Füllkacheln fill_left/right/both, front_step_*.
+- Tore: `cave_mouth_<biom>_soft` nur Bogen, `door_frame_<biom>_soft` rund, `tunnel_shade_*`, `side_mouth_<biom>_soft` (Ostwand, Code spiegelt), `door_side_<biom>_bars_4f`.
+- Deko-Gruppen je Biom, Nebel, Wasser-Glitzer, Felsnische/-riss, Abgrund soft für alle Biome, Höhlen-Durchbruch.
+- Seitenansicht: Plattformkanten, Parallax-Hintergründe, Stacheln, goldene Münze, Leiter-Symbol (11. Spalte), player_climb + Masken.
+- lost_villager ohne eingemalten Laternenschein (Licht-System), Anker lantern (20,20).

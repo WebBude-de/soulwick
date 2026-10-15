@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(11, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(3, 5, 2), Vector3i(3, 6, 2), Vector3i(4, 5, 2), Vector3i(4, 6, 2), Vector3i(5, 0, 1), Vector3i(5, 6, 2), Vector3i(6, 0, 1), Vector3i(7, 3, 0), Vector3i(7, 4, 0), Vector3i(8, 2, 0), Vector3i(8, 3, 0), Vector3i(8, 4, 0), Vector3i(9, 2, 0), Vector3i(9, 3, 0), Vector3i(9, 4, 0), Vector3i(14, 0, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(1, 4, 13), Vector3i(3, 4, 13), Vector3i(5, 0, 0), Vector3i(5, 3, 9), Vector3i(5, 6, 1), Vector3i(6, 4, 10), Vector3i(7, 4, 10), Vector3i(8, 3, 11), Vector3i(9, 0, 8), Vector3i(9, 3, 1), Vector3i(9, 4, 5), Vector3i(10, 4, 1), Vector3i(10, 6, 1), Vector3i(11, 0, 1), Vector3i(11, 1, 0), Vector3i(11, 4, 13), Vector3i(11, 6, 13), Vector3i(12, 2, 8), Vector3i(12, 3, 8), Vector3i(12, 5, 1), Vector3i(13, 4, 5), Vector3i(13, 5, 1)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 4, 13), Vector3i(3, 4, 13), Vector3i(5, 1, 0), Vector3i(5, 4, 9), Vector3i(6, 4, 1), Vector3i(8, 2, 11), Vector3i(8, 4, 10), Vector3i(9, 2, 13), Vector3i(9, 3, 9), Vector3i(10, 4, 1), Vector3i(10, 5, 5), Vector3i(11, 1, 1), Vector3i(11, 6, 1), Vector3i(12, 2, 1), Vector3i(12, 3, 0), Vector3i(12, 5, 13), Vector3i(13, 5, 8), Vector3i(14, 2, 8), Vector3i(14, 4, 13)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(672, 96)
@@ -108,24 +108,22 @@ position = Vector2(738, 354)
 script = ExtResource("3_deco")
 item = &"bone_pile"
 
-[node name="Crystals1" type="Node2D" parent="Props"]
-position = Vector2(992, 376)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(960, 376)
 script = ExtResource("3_deco")
-item = &"crystal_cluster"
-blocked_tiles = Array[Vector2i]([Vector2i(15, 5)])
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(14, 5), Vector2i(15, 5)])
+biome = &"shadow_realm"
 
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(930, 354)
+[node name="Ambience" type="Node2D" parent="."]
+
+[node name="Mist1" type="Node2D" parent="Ambience"]
+position = Vector2(290, 40)
 script = ExtResource("3_deco")
-item = &"rubble_2"
+item = &"mist"
 
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(930, 330)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="Mist1" type="Node2D" parent="Props"]
-position = Vector2(290, 34)
+[node name="Mist2" type="Node2D" parent="Ambience"]
+position = Vector2(674, 40)
 script = ExtResource("3_deco")
 item = &"mist"
 flip = true

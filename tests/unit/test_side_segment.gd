@@ -41,7 +41,8 @@ func test_segment_builds_everything_of_its_plan() -> void:
 		var solid := 0
 		for row in layout.size.y:
 			for column in layout.size.x:
-				if layout.is_blocking(Vector2i(column, row)):
+				var cell := Vector2i(column, row)
+				if layout.is_blocking(cell) and not layout.is_crumble(cell):
 					solid += 1
 		var in_plan := 0
 		for cell in tiles.get_used_cells():
@@ -53,6 +54,7 @@ func test_segment_builds_everything_of_its_plan() -> void:
 		assert_eq(segment.get_ladder_bodies().size(), layout.ladders.size(), "%s: ladder steps" % plan)
 		assert_eq(segment.get_enemies().size(), layout.slimes.size() + layout.skeletons.size(), "%s: enemies" % plan)
 		assert_eq(segment.get_chest() != null, layout.chest.x >= 0, "%s: chest as planned" % plan)
+		assert_eq(segment.get_crumbles().size(), layout.crumbles.size(), "%s: crumbling ledges" % plan)
 		assert_not_null(segment.get_node_or_null("Exit"), "%s: door" % plan)
 		assert_not_null(segment.camera, "%s: own camera" % plan)
 		assert_eq(segment.get_door_feet(), segment.to_global(SideLayout.feet_of(layout.door)))
@@ -103,7 +105,7 @@ func test_every_biome_has_tiles() -> void:
 		assert_false(SideTiles.sheet_path(biome).is_empty(), "%s rock sheet" % biome)
 
 
-func test_side_enemy_reports_hits_and_dies_with_gold() -> void:
+func test_side_enemy_reports_hits_and_dies_without_gold() -> void:
 	var segment := _segment(&"crypt_steps")
 	var enemy := segment.get_enemies()[0]
 	watch_signals(EventBus)
@@ -125,7 +127,7 @@ func test_side_enemy_reports_hits_and_dies_with_gold() -> void:
 	for child in segment.get_children():
 		if child is GoldPickup:
 			gold += 1
-	assert_eq(gold, 1, "drops its gold")
+	assert_eq(gold, 0, "side enemies are obstacles, the coins are the reward")
 
 
 func test_side_enemy_is_weaker_than_in_a_room() -> void:
@@ -203,3 +205,44 @@ func test_jump_hint_names_the_keys() -> void:
 	var text := SideTransit.jump_hint_text()
 	assert_false(text.is_empty())
 	assert_true(InputMap.has_action(PlayerSideMotion.DASH_ACTION), "the side dash action exists at runtime")
+
+
+func test_chest_only_when_the_way_brings_one() -> void:
+	var layout := SidePlans.build(&"crypt_gallery")
+	assert_true(layout.chest.x >= 0, "the plan has a niche")
+	layout.chest_enabled = false
+	var segment := SideSegment.new()
+	segment.setup(layout, 1, null, 7)
+	add_child_autofree(segment)
+	assert_null(segment.get_chest(), "no chest outside the ladder way")
+
+
+func test_golden_coin_pays_gold_not_crystals() -> void:
+	RunManager.end_run(RunManager.EndReason.ABORT)
+	RunManager.start_run()
+	var segment := _segment(&"crypt_steps")
+	var player := add_child_autofree(PLAYER_SCENE.instantiate()) as Player
+	player.set_physics_process(false)
+	segment.add_player(player)
+	var crystals := RunManager.get_run_crystals()
+	player.global_position = segment.to_global(SideLayout.cell_center(segment.layout.golden_coin))
+	segment._physics_process(STEP)
+	assert_true(segment.golden_coin_taken)
+	assert_eq(RunManager.get_run_gold(), SideRules.golden_coin_gold(1, MetaProgression.get_gold_multiplier()))
+	assert_eq(RunManager.get_run_crystals(), crystals, "no crystals (round 2 balance)")
+	segment.remove_players()
+	RunManager.end_run(RunManager.EndReason.ABORT)
+
+
+func test_dust_spawns_and_frees_itself() -> void:
+	var holder := Node2D.new()
+	add_child_autofree(holder)
+	for kind in [SideDust.Kind.PUFF, SideDust.Kind.CLOUD, SideDust.Kind.RING, SideDust.Kind.SLIDE]:
+		var dust := SideDust.spawn(holder, Vector2(10, 10), kind, 0.8)
+		assert_not_null(dust, "dust %d" % kind)
+	await wait_seconds(0.5)
+	var left := 0
+	for child in holder.get_children():
+		if child is SideDust:
+			left += 1
+	assert_eq(left, 0, "placeholder dust is gone after its lifetime")

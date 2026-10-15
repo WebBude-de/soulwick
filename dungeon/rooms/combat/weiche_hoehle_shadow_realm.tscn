@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(4, -1), Vector2i(12, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(7, 2, 0), Vector3i(8, 1, 0), Vector3i(8, 2, 0), Vector3i(8, 3, 0), Vector3i(8, 4, 0), Vector3i(8, 5, 0), Vector3i(8, 6, 0), Vector3i(9, 1, 2), Vector3i(9, 2, 0), Vector3i(9, 3, 0), Vector3i(9, 4, 0), Vector3i(9, 5, 0), Vector3i(10, 1, 2), Vector3i(10, 3, 1), Vector3i(11, 2, 1), Vector3i(11, 3, 1), Vector3i(12, 2, 1), Vector3i(13, 5, 2), Vector3i(13, 6, 2), Vector3i(13, 7, 2), Vector3i(14, 5, 2), Vector3i(14, 6, 2), Vector3i(14, 7, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(3, 4, 9), Vector3i(3, 5, 13), Vector3i(3, 6, 13), Vector3i(4, 2, 9), Vector3i(4, 4, 8), Vector3i(4, 6, 1), Vector3i(5, 2, 13), Vector3i(8, 5, 9), Vector3i(10, 0, 9), Vector3i(10, 6, 9), Vector3i(11, 0, 13), Vector3i(11, 6, 13), Vector3i(13, 6, 13), Vector3i(14, 6, 9)])
+overlay_cells = Array[Vector3i]([Vector3i(3, 4, 9), Vector3i(3, 5, 13), Vector3i(3, 6, 13), Vector3i(4, 1, 9), Vector3i(4, 3, 8), Vector3i(4, 4, 1), Vector3i(5, 7, 13), Vector3i(7, 3, 5), Vector3i(8, 4, 9), Vector3i(10, 7, 9), Vector3i(12, 1, 0), Vector3i(12, 6, 1), Vector3i(14, 2, 13), Vector3i(14, 6, 8), Vector3i(15, 4, 5)])
 plateau_tiles = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2), Vector2i(1, 0), Vector2i(1, 1), Vector2i(1, 2), Vector2i(2, 0), Vector2i(2, 1), Vector2i(2, 2), Vector2i(3, 0), Vector2i(3, 1), Vector2i(3, 2), Vector2i(13, 0), Vector2i(14, 0), Vector2i(14, 1), Vector2i(15, 0), Vector2i(15, 1), Vector2i(15, 2), Vector2i(15, 3), Vector2i(16, 0), Vector2i(16, 1), Vector2i(16, 2), Vector2i(16, 3), Vector2i(17, 0), Vector2i(17, 1), Vector2i(17, 2)])
 
 [node name="Spawn1" parent="SpawnPoints"]
@@ -39,16 +39,16 @@ position = Vector2(288, 480)
 position = Vector2(928, 160)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(416, 32)
-
-[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(608, 224)
 
-[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(992, 416)
 
-[node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
+[node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(288, 96)
+
+[node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(800, 96)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 224)
@@ -120,46 +120,19 @@ position = Vector2(290, 372)
 script = ExtResource("3_deco")
 item = &"bones_1"
 
-[node name="Crystals1" type="Node2D" parent="Props"]
-position = Vector2(288, 56)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(352, 56)
 script = ExtResource("3_deco")
-item = &"crystal_cluster"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(4, 0)])
+item = &"group_large_1"
+blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0)])
+biome = &"shadow_realm"
 
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(290, 98)
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(896, 504)
 script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(290, 74)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(930, 482)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(930, 458)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit5" type="Node2D" parent="Props"]
-position = Vector2(884, 458)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(878, 488)
-script = ExtResource("3_deco")
-item = &"bones_2"
-flip = true
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(13, 7), Vector2i(14, 7)])
+biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

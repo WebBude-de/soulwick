@@ -24,6 +24,7 @@ static func plan(room: RoomController, next: RoomController, run_seed: int, prev
 	var gate := SideGate.new()
 	gate.name = "SideGate"
 	gate.layout = SidePlans.pick(biome_id, rng)
+	gate.layout.chest_enabled = SideRules.has_chest(reason)
 	gate.reason = reason
 	gate.from_room = room
 	gate.next_room = next

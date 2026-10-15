@@ -4,7 +4,8 @@ extends Camera2D
 ## vertically only when the players change level (the height of the platform they stand on), never
 ## past the segment's edges. The players it follows come from camera_targets() - today the players
 ## of this machine; the co-op later puts the group's middle there (SideSegment.camera_targets).
-## Knows add_trauma, so CameraShake works in the segment as everywhere else.
+## Knows add_trauma, so CameraShake works in the segment as everywhere else, and kick() for a short
+## push (a hard landing, round 2).
 
 ## TESTWERTE
 const LOOK_AHEAD := 110.0
@@ -18,6 +19,8 @@ const MAX_SHAKE := 16.0
 ## floor stays above the HUD at the bottom of the screen.
 const BOTTOM_MARGIN := 128.0
 const SHAKE_DECAY := 1.8
+## A kick springs back within about this many seconds (TESTWERT).
+const KICK_RETURN_SPEED := 18.0
 
 var segment: SideSegment = null
 
@@ -25,6 +28,7 @@ var _look := 0.0
 var _anchor_y := 0.0
 var _trauma := 0.0
 var _time := 0.0
+var _kick := Vector2.ZERO
 
 
 ## The players the camera keeps in view (hook for the co-op group camera).
@@ -41,6 +45,15 @@ func snap() -> void:
 	_look = LOOK_AHEAD * _mean_facing(targets)
 	global_position = _desired(targets)
 	reset_smoothing()
+
+
+## A short push of the view (px), springing back at once: a hard landing.
+func kick(amount: Vector2) -> void:
+	_kick += amount
+
+
+func get_kick() -> Vector2:
+	return _kick
 
 
 func add_trauma(amount: float) -> void:
@@ -63,12 +76,13 @@ func _process(delta: float) -> void:
 		global_position.x = lerpf(global_position.x, desired.x, 1.0 - exp(-FOLLOW_X * delta))
 		global_position.y = lerpf(global_position.y, desired.y, 1.0 - exp(-FOLLOW_Y * delta))
 	_time += delta
+	_kick = _kick.lerp(Vector2.ZERO, 1.0 - exp(-KICK_RETURN_SPEED * delta))
 	if _trauma > 0.0:
 		_trauma = maxf(0.0, _trauma - SHAKE_DECAY * delta)
 		var shake := _trauma * _trauma * MAX_SHAKE
-		offset = Vector2(sin(_time * 47.0), cos(_time * 39.0)) * shake
+		offset = Vector2(sin(_time * 47.0), cos(_time * 39.0)) * shake + _kick
 	else:
-		offset = Vector2.ZERO
+		offset = _kick
 
 
 func _desired(targets: Array[Player]) -> Vector2:

@@ -21,6 +21,8 @@ var _hole: AnimatedSprite2D = null
 var _hole_tile := VariantSpots.INVALID
 var _caught_at := Vector2.ZERO
 var _loot_upgrade := false
+## Zigzag spots, taken at attach before the guards stand on them (they walk off once the fight runs).
+var _evade_tiles: Array[Vector2i] = []
 
 
 func can_host() -> bool:
@@ -49,6 +51,7 @@ func _on_attach() -> void:
 	if _hole_tile != VariantSpots.INVALID:
 		_free.erase(_hole_tile)
 		_build_hole(RoomTiles.tile_center(_hole_tile))
+	_evade_tiles = _evade_spot_tiles(tile)
 	place_plan_guards(HuntRules.MIN_GUARDS, _guard_fallback_tiles(tile))
 
 
@@ -209,13 +212,25 @@ func _close_hole() -> void:
 	tween.tween_callback(hole.queue_free)
 
 
-## Spots he zigzags between: free floor tiles of the room, every second one (global floor points).
+## Spots he zigzags between (global floor points of _evade_tiles).
 func _evade_points() -> Array[Vector2]:
 	var points: Array[Vector2] = []
-	for tile in VariantSpots.sorted_tiles(_free):
-		if (tile.x + tile.y) % 2 == 0 and VariantSpots.is_open(tile, _free):
-			points.append(room.to_global(RoomTiles.tile_center(tile)))
+	for tile in _evade_tiles:
+		points.append(room.to_global(RoomTiles.tile_center(tile)))
 	return points
+
+
+## Free floor tiles of the room, every second one, with free floor all around. His own start tile
+## counts as free (he leaves it) and so do the guards' (they walk off once the fight runs), so a
+## crowned one in a cave corner still has spots next to him.
+func _evade_spot_tiles(crowned_tile: Vector2i) -> Array[Vector2i]:
+	var free: Dictionary[Vector2i, bool] = _free.duplicate()
+	free[crowned_tile] = true
+	var tiles: Array[Vector2i] = []
+	for tile in VariantSpots.sorted_tiles(free):
+		if tile != crowned_tile and (tile.x + tile.y) % 2 == 0 and VariantSpots.is_open(tile, free):
+			tiles.append(tile)
+	return tiles
 
 
 ## The crowned one of the plan, else a free tile far from the entrance.

@@ -1,8 +1,8 @@
 extends SceneTree
 ## Plays every side-segment layout (M5) with the autopilot (SideBot) and checks the rules at runtime:
 ## the plan rules (SideLayout.check), the door is reached by jumping and climbing within
-## SideRules.MAX_SEGMENT_SECONDS, the player never falls into a pit, enemies and spikes are only
-## counted. The player is invulnerable for the check (it measures the way, not the fight).
+## SideRules.MAX_SEGMENT_SECONDS, the golden coin is fetched with the double jump on the way, the
+## player never falls into a pit, enemies, spikes and crumbling ledges are only counted. The player is invulnerable for the check (it measures the way, not the fight).
 ## Usage (repo root):
 ##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- [plan=<id>] [mirror=0|1]
 ##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- dungeon
@@ -108,10 +108,14 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 		frames += 1
 	var seconds := frames / float(Engine.physics_ticks_per_second)
 	var falls: int = player.side_motion.pit_falls
-	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, %d Sprünge, %d Stürze" % [
+	var crumbled := 0
+	for crumble: Node in segment.get_crumbles():
+		crumbled += crumble.crumble_count
+	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze" % [
 		name, "Tür erreicht" if segment.is_finished else "Tür NICHT erreicht", seconds,
-		segment.coins_taken, segment.coins_total, "ja" if not segment.has_golden_coin() else "nein",
-		bot.jumps, falls]
+		segment.coins_taken, segment.coins_total, "ja" if segment.golden_coin_taken else "nein", segment.gold_earned,
+		bot.jumps, player.side_motion.double_jumps, " (Pflicht)" if layout.way_needs_double_jump() else "",
+		player.side_motion.wall_jumps, crumbled, falls]
 	print(line)
 	if not segment.is_finished:
 		_failures.append("%s: door not reached (bot at %s)" % [name, segment.to_local(player.get_feet_position())])
@@ -119,6 +123,8 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 		_failures.append("%s: %.1f s > 45 s" % [name, seconds])
 	if falls > 0:
 		_failures.append("%s: %d falls into a pit" % [name, falls])
+	if not segment.golden_coin_taken:
+		_failures.append("%s: golden coin not reached with the double jump" % name)
 	segment.remove_players()
 	world.queue_free()
 	await process_frame
@@ -225,15 +231,24 @@ func _screenshots() -> void:
 		await _seconds(2.4)
 		_shot("%02d_segment_start_%s" % [i * 10 + 3, biome])
 		var segment: Node2D = transit.segment
+		if i == 0:
+			await _moves_sequence(segment, player)
 		var _bot: Variant = (load("res://dungeon/side/side_bot.gd") as GDScript).drive(segment, player)
 		var shots_taken := 0
 		var elapsed := 0.0
+		var crumble_shot := false
 		while is_instance_valid(transit) and transit.segment != null and not transit.segment.is_finished and elapsed < 60.0:
-			await _seconds(0.5)
-			elapsed += 0.5
+			await _seconds(0.1)
+			elapsed += 0.1
 			if shots_taken < 2 and elapsed >= 5.0 + shots_taken * 6.0:
 				_shot("%02d_segment_%s_%d" % [i * 10 + 4 + shots_taken, biome, shots_taken + 1])
 				shots_taken += 1
+			if not crumble_shot:
+				for crumble: Node in segment.get_crumbles():
+					if crumble.state == 1:
+						_shot("%02d_broeckelt_%s" % [i * 10 + 6, biome])
+						crumble_shot = true
+						break
 		_bot = null
 		await _seconds(0.25)
 		if i == 0:
@@ -243,6 +258,78 @@ func _screenshots() -> void:
 		await _seconds(0.5)
 		if i == 0:
 			_shot("07_raum_danach")
+
+
+## Short picture series of the moves (window): take-off, double jump with salto and ring, landing
+## with squash and dust, a hard landing with the camera kick, a wall slide. Scripted input through
+## input_source, like the autopilot.
+func _moves_sequence(segment: Node2D, player: Node2D) -> void:
+	var motion_script: GDScript = load("res://player/player_side_motion.gd")
+	var state := {"axis": Vector2.ZERO, "just": false, "held": false}
+	player.side_motion.input_source = func() -> Variant:
+		var input: Variant = motion_script.SideInput.new()
+		input.axis = state["axis"]
+		input.jump_just_pressed = state["just"]
+		input.jump_pressed = state["held"] or state["just"]
+		state["just"] = false
+		return input
+	await _seconds(0.3)
+	state["just"] = true
+	state["held"] = true
+	for k in 3:
+		await _frames(3)
+		_shot("seq_a_sprung_%d" % k)
+	while player.velocity.y < -120.0:
+		await _frames(1)
+	state["held"] = false
+	await _frames(1)
+	state["just"] = true
+	state["held"] = true
+	for k in 6:
+		await _frames(3)
+		_shot("seq_b_doppelsprung_%d" % k)
+	state["held"] = false
+	while not player.side_motion.is_on_floor():
+		await _frames(1)
+	for k in 4:
+		_shot("seq_c_landung_%d" % k)
+		await _frames(3)
+	# A hard landing from high above the start ledge.
+	var layout: Variant = segment.layout
+	player.side_motion.place_at(segment.to_global(layout.feet_of(layout.start + Vector2i(2 * int(layout.run_direction()), -5))))
+	await _frames(4)
+	while player.velocity.y < 900.0:
+		await _frames(1)
+	while not player.side_motion.is_on_floor():
+		await _frames(1)
+	for k in 4:
+		_shot("seq_d_harte_landung_%d" % k)
+		await _frames(2)
+	# Wall slide: next to the outer wall, jump and press into it.
+	player.side_motion.place_at(segment.to_global(layout.feet_of(layout.start)))
+	await _frames(20)
+	state["axis"] = Vector2(-layout.run_direction(), 0)
+	state["just"] = true
+	state["held"] = true
+	var slid := false
+	for k in 180:
+		await _frames(1)
+		if player.side_motion.is_wall_sliding:
+			slid = true
+			await _frames(6)
+			_shot("seq_e_wandrutschen")
+			break
+	print("wall slide seen: ", slid, " wall_side ", player.side_motion.wall_side)
+	state["axis"] = Vector2.ZERO
+	state["held"] = false
+	await _seconds(0.6)
+	player.side_motion.place_at(segment.to_global(layout.feet_of(layout.start)))
+	await _frames(5)
+
+
+func _frames(count: int) -> void:
+	for k in count:
+		await process_frame
 
 
 func _shot(shot_name: String) -> void:

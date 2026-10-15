@@ -166,6 +166,54 @@
       "note": ""
     },
     {
+      "name": "player_tint_mask_land",
+      "file": "player_tint_mask_land_2f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 2,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "player_climb",
+      "file": "player_climb_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Rücken zur Kamera: Code spiegelt nicht; Beine wechseln, Rumpf hebt sich"
+    },
+    {
+      "name": "player_tint_mask_climb",
+      "file": "player_tint_mask_climb_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
       "name": "player_tint_mask_jump",
       "file": "player_tint_mask_jump_3f.png",
       "frame_size": [

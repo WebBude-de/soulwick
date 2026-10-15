@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "water_glint_4f: weißes Overlay mit Alpha über Wasserflächen (Modulate = Wasserfarbe hell).",
+    "fog_floor_4f 64×32: Nebelfetzen, langsam driften lassen (3 fps, 4 px/s)."
+  ],
+  "items": [
+    {
+      "name": "water_glint",
+      "file": "water_glint_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "fog_floor",
+      "file": "fog_floor_4f.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 4,
+      "fps": 3,
+      "loop": true,
+      "pivot": [
+        32,
+        31
+      ],
+      "note": ""
+    }
+  ]
+}

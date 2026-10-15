@@ -1,0 +1,71 @@
+{
+  "notes": [
+    "96×16, links/Mitte/rechts."
+  ],
+  "items": [
+    {
+      "name": "platform_edge_crypt",
+      "file": "platform_edge_crypt.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "platform_edge_slime_grotto",
+      "file": "platform_edge_slime_grotto.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "platform_edge_shadow_realm",
+      "file": "platform_edge_shadow_realm.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "platform_edge_ember_forge",
+      "file": "platform_edge_ember_forge.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    }
+  ]
+}

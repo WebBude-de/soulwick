@@ -218,7 +218,9 @@ func _check_u_wall(room: Node, player: Node) -> void:
 	var cup: Array[Vector2i] = []
 	for x in range(center - 3, center + 4):
 		cup.append(Vector2i(x, bar))
-	for y in range(bar - 3, bar):
+	# Small makeover caves have only 6-7 rows: keep at least two free rows above the cup.
+	var depth := clampi(size.y - 5, 1, 3)
+	for y in range(bar - depth, bar):
 		cup.append(Vector2i(center - 3, y))
 		cup.append(Vector2i(center + 3, y))
 	for y in size.y:

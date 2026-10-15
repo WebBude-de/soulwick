@@ -1,0 +1,24 @@
+{
+  "notes": [
+    "spikes_side_3f 32×16: eingefahren, Warnung, ausgefahren.",
+    "golden_coin_4f: 1 Seelenkristall an der schwersten Stelle."
+  ],
+  "items": [
+    {
+      "name": "spikes_side",
+      "file": "spikes_side_3f.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 3,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        0,
+        16
+      ],
+      "note": ""
+    }
+  ]
+}

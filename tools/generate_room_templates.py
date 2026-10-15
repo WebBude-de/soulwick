@@ -169,6 +169,10 @@ MIN_SPAWNS = {"S": 5, "M": 8, "L": 12}
 MAX_SPAWNS = 14
 SPAWN_COUNT = {"S": 6, "M": 9, "L": 13}
 ARENA_SPAWN_COUNT = {"S": 8, "M": 10, "L": 14}
+# A plan with enemy sources has at least this many for normal enemies (sarcophagi serve elites; a
+# plan with sarcophagi only falls back to its spawn points): a push comes out of several sources and
+# never all of them, and one of them may lie too close to the player (R2, SpawnSourceRules).
+MIN_PLAN_SOURCES = 3
 # Boss, miniboss, rest and campfire rooms keep exactly five markers (champion escort, D-009).
 BASE_SPAWNS = 5
 # Floor area (tiles of the floor rectangle) up to which a plan is S / M (D-086: S ~ 15x9, M ~ 19x11).
@@ -550,6 +554,12 @@ VISIBLE = {
     "drip": (-6, -62, 6, 2),
     "puddle": (-24, -14, 24, 18),
     "wall_niche": (-22, -92, 22, -8),
+    "wall_niche_soft": (-32, -94, 32, 2),
+    "group_1": (-54, -60, 52, 2),
+    "group_2": (-58, -72, 60, 2),
+    "group_3": (-60, -52, 60, 0),
+    "group_large_1": (-92, -60, 92, 2),
+    "group_large_2": (-92, -72, 92, 2),
     "chains": (-18, -62, 22, 2),
     "bones_1": (-24, -10, 28, 12),
     "bones_2": (-26, -20, 26, 14),
@@ -566,7 +576,7 @@ VISIBLE = {
     "log": (-32, -22, 30, 2),
     "pack": (-16, -26, 16, 0),
     "torch_stand_unlit": (-12, -64, 12, 2),
-    "mist": (-28, -26, 28, 16),
+    "mist": (-70, -36, 72, -4),
     "light_crystal": (-22, -52, 22, 2),
     "torch_stand": (-12, -78, 12, 2),
     "scene:crate": (-26, -48, 26, 0),
@@ -584,7 +594,7 @@ VISIBLE = {
 ITEM_LAYER = {
     "candles": "floor", "drip": "floor", "puddle": "floor", "bones_1": "floor", "bones_2": "floor",
     "bone_pile": "floor", "rubble_1": "floor", "rubble_2": "floor", "mushrooms": "floor", "bedroll": "floor",
-    "log": "floor", "pack": "floor", "mist": "floor", "stairs": "floor", "wall_niche": "wall", "chains": "wall",
+    "log": "floor", "pack": "floor", "mist": "floor", "stairs": "floor", "wall_niche": "wall", "wall_niche_soft": "wall", "chains": "wall",
     "cobweb": "wall", "scene:torch": "wall", "scene:spike_trap": "floor", "scene:lava_crack": "floor",
     "scene:toxic_puddle": "floor",
 }
@@ -603,7 +613,18 @@ CAVE_GROUP_TILES = 28
 # Overlays at decoration groups (their border).
 OVERLAY_GROUP_CHANCE = 0.55
 
-# Composed decoration groups (placeholders from delivered parts until deco_group_<biome> art comes):
+# Decoration groups drawn as one picture per biome (SPRITES_V9 §3, deco_group_<biome>_1..3 64x48 and
+# deco_group_large_<biome>_1..2 96x64, pivot bottom middle): small ones stand on two floor tiles,
+# large ones on three, side by side; the footprint blocks walking. Share of large ones (TESTWERT).
+GROUP_ART_DIR = ROOT / "art" / "environment" / "deco"
+GROUP_LARGE_CHANCE = 0.4
+
+
+def has_group_art(biome):
+    return all((GROUP_ART_DIR / f"deco_group_{biome}_{n}.png").exists() for n in (1, 2, 3))
+
+
+# Composed decoration groups (the fallback from delivered parts where a biome has no group art):
 # a solid piece on the anchor tile (optional), loose pieces packed around it without overlap, wall
 # pieces in the front above (chains). Weights per biome (TESTWERTE).
 COMPOSITES = {
@@ -886,6 +907,8 @@ class Room:
                 self._occupy([below], "source")
             elif c == "T":
                 self.props.append(dict(scene="torch", name="Torch", pos=(x * T, y * T), group=None))
+            elif c == "n" and self.plan.rock == "blob" and GROUP_ART_DIR.joinpath("../tiles/wall_niche_soft.png").exists():
+                self.props.append(dict(deco="wall_niche_soft", name="Niche", pos=(x * T + T / 2, (y + 1) * T - WALL_ITEM_LIFT), group=None))
             elif c == "n":
                 self.props.append(dict(deco="wall_niche", name="Niche", pos=(x * T + T / 2, (y + 1) * T), group=None))
         for x in self.north:
@@ -1203,6 +1226,12 @@ class Room:
             if existing >= wanted:
                 break
             fresh = [(kind, weight) for kind, weight in pool if kind not in used] or pool
+            if has_group_art(self.biome):
+                item = self._try_group_art(tile, lanes, cut, used)
+                if item:
+                    existing += 1
+                    used.append(item)
+                continue
             kind = self._weighted(fresh)
             if self._try_composite(kind, tile, lanes, cut):
                 existing += 1
@@ -1234,6 +1263,44 @@ class Room:
             if prop.get("scene") in ("chest", "explosive"):
                 tiles.add(prop_tile(prop))
         return tiles
+
+    def _try_group_art(self, tile, lanes, cut, used):
+        """One delivered decoration group on two (small) or three (large) floor tiles in a row that
+        hold the anchor tile; the row with the most rock behind it wins. Returns its item or None."""
+        floor = self.walk_floor() - self.water - self.pits - self.bridges
+        fixed = self._fixed_tiles()
+        keep = [s["floor_tile"] for s in self.sources] + [o["tile"] for o in self.objectives] + self.secret_approaches + [self.player_start]
+        if any(chebyshev(tile, c) < GROUP_SPACING for c in self._group_centres()):
+            return None
+        taken = self._taken_rects()
+        sizes = [3, 2] if self.rng.random() < GROUP_LARGE_CHANCE else [2]
+        for length in sizes:
+            rows = [[(tile[0] + start + i, tile[1]) for i in range(length)] for start in range(-length + 1, 1)]
+            rows.sort(key=lambda row: (-sum(self._rock_around(t) for t in row), row))
+            for row in rows:
+                if any(t not in floor or t in lanes or t in cut or t in self.occupied for t in row):
+                    continue
+                if any(chebyshev(t, f) < OBJECT_SPACING for t in row for f in fixed):
+                    continue
+                if any(k and chebyshev(t, k) <= 1 for t in row for k in keep):
+                    continue
+                if not self._keeps_ways(row):
+                    continue
+                names = [f"group_large_{n}" for n in (1, 2)] if length == 3 else [f"group_{n}" for n in (1, 2, 3)]
+                fresh = [n for n in names if n not in used] or names
+                item = fresh[self.rng.randrange(len(fresh))]
+                flip = self.rng.random() < 0.5
+                pos = ((row[0][0] + length / 2) * T, (tile[1] + 1) * T - 8)
+                rect = item_rect(item, pos, flip)
+                if any(overlaps(rect, other) for other in taken):
+                    continue
+                if not self._rect_on_ground(item, rect):
+                    continue
+                self._add_prop(dict(deco=item, name="Group", pos=pos, blocked=list(row), flip=flip, group=f"auto{tile}"))
+                self.blocked.update(row)
+                self._occupy(row, "decoration")
+                return item
+        return None
 
     def _try_composite(self, kind, tile, lanes, cut):
         """One composed group at an anchor tile and the floor tile beside it along the wall."""
@@ -1370,6 +1437,9 @@ class Room:
         for s in self.sources:
             if s["wall_side"] >= 0 and s["floor_tile"] not in reached:
                 self.fail(f"{s['kind']} at {s['tile']}: the floor in front of it is not reachable")
+        normal_sources = [s for s in self.sources if s["kind"] != "sarcophagus"]
+        if normal_sources and len(normal_sources) < MIN_PLAN_SOURCES:
+            self.fail(f"{len(normal_sources)} enemy sources, at least {MIN_PLAN_SOURCES} (sarcophagi not counted)")
         for o in self.objectives:
             if o["tile"] not in walk:
                 self.fail(f"{o['kind']} at {o['tile']} not on floor")
@@ -1378,7 +1448,7 @@ class Room:
         # No decoration in the only way.
         cut = articulation_points(walk)
         for prop in self.props:
-            if prop.get("scene") == "torch" or prop.get("deco") in ("wall_niche", "chains", "cobweb") or prop.get("group") in (None, "light"):
+            if prop.get("scene") == "torch" or prop.get("deco") in ("wall_niche", "wall_niche_soft", "chains", "cobweb") or prop.get("group") in (None, "light"):
                 continue
             tile = (int(prop["pos"][0] // T), int((prop["pos"][1] - 1) // T))
             for t in prop.get("blocked", [tile]):
@@ -1624,7 +1694,16 @@ class Room:
             lanes.update(self.lane(side, place, 3))
         options = [t for t in sorted(self.walk_floor() - self.pits - self.bridges - self.water - set(self.occupied) - set(self.blocked))
                    if t not in cut and t not in lanes and t != self.player_start and self._rock_around(t) >= 3 and t not in self.spawns]
+        # Fog wisps sit in bays and at the rock, never next to open floor: room modes look for free
+        # spots there (a tile with free floor all around, VariantSpots.is_open), and a wisp would
+        # take that away.
+        free = self.walk_floor() - self.pits - self.bridges - self.water - set(self.occupied) - set(self.blocked)
+        around = [(dx, dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1) if dx or dy]
+        def open_floor(t):
+            return t in free and all((t[0] + dx, t[1] + dy) in free for dx, dy in around)
+        options = [t for t in options if not open_floor(t) and not any(open_floor((t[0] + dx, t[1] + dy)) for dx, dy in around)]
         rng.shuffle(options)
+        options.sort(key=lambda t: -self._rock_around(t))
         placed = []
         for tile in options:
             if moving >= MOVING_MAX or (moving >= MOVING_MIN and rng.random() < 0.5):
@@ -1998,7 +2077,15 @@ def write_scene(room, rel_path):
             if p.get("min_room"):
                 text += f"metadata/min_room = {p['min_room']}\n"
         else:
-            text += f'\n[node name="{node}" type="Node2D" parent="Props"]\nposition = {vec2(*p["pos"])}\nscript = ExtResource("{deco_id}")\n'
+            parent = "Props"
+            if p["deco"] == "mist":
+                # Fog wisps are mood, no object: their own node, so nothing that looks for free
+                # spots among the props (room modes, VariantSpots) counts them.
+                if "Ambience" not in counts:
+                    counts["Ambience"] = 1
+                    text += '\n[node name="Ambience" type="Node2D" parent="."]\n'
+                parent = "Ambience"
+            text += f'\n[node name="{node}" type="Node2D" parent="{parent}"]\nposition = {vec2(*p["pos"])}\nscript = ExtResource("{deco_id}")\n'
             text += f'item = &"{p["deco"]}"\n'
             if p.get("flip"):
                 text += "flip = true\n"
@@ -2008,8 +2095,8 @@ def write_scene(room, rel_path):
                 text += f"blocked_tiles = {vec2i_list(p['blocked'])}\n"
             if "still" in p:
                 text += f"still_frame = {p['still']}\n"
-            if p["deco"] == "puddle":
-                # Water in the biome's water palette (WaterArt, M1).
+            if p["deco"] == "puddle" or p["deco"].startswith("group_") or p["deco"] == "wall_niche_soft":
+                # Biome art: water palette (WaterArt), group pictures, soft rock colours (M1, V9).
                 text += f'biome = &"{room.biome}"\n'
     if plan.role == "combat":
         # The scatter keeps its one dungeon RNG draw per room but places nothing (R1: no random props).

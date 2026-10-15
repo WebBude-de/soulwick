@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "golden_coin_4f 16×16, 8 fps, mit Schein."
+  ],
+  "items": [
+    {
+      "name": "golden_coin",
+      "file": "golden_coin_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -145,6 +145,20 @@ static func paint(layer: TileMapLayer, layout: SideLayout, biome_id: StringName)
 			layer.set_cell(cell, SOURCE_ID, names[piece] if names.has(piece) else names.get("r255", Vector2i.ZERO))
 
 
+## One piece of the biome's sheet as a texture (crumbling ledges draw themselves with it), or null.
+static func piece_texture(biome_id: StringName, piece: String) -> AtlasTexture:
+	var tileset := tileset_for(biome_id)
+	var names: Dictionary = _coords.get(biome_id, {})
+	if not names.has(piece) or not tileset.has_source(SOURCE_ID):
+		return null
+	var source := tileset.get_source(SOURCE_ID) as TileSetAtlasSource
+	var coords: Vector2i = names[piece]
+	var atlas := AtlasTexture.new()
+	atlas.atlas = source.texture
+	atlas.region = Rect2(Vector2(coords * TILE_PX), Vector2(TILE_PX, TILE_PX))
+	return atlas
+
+
 ## Rock for the drawing: the bottom row continues downwards (no rounded edge at the screen bottom).
 static func _rock_for_mask(layout: SideLayout, cell: Vector2i) -> bool:
 	if cell.y >= layout.size.y and cell.x >= 0 and cell.x < layout.size.x:

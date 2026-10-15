@@ -2,7 +2,7 @@
 
 [ext_resource type="Texture2D" path="res://art/environment/tiles/shadow_realm_tileset.png" id="1_ava67"]
 [ext_resource type="Texture2D" path="res://art/environment/tiles/inner_wall_tiles_shadow_realm.png" id="2_qxnix"]
-[ext_resource type="Texture2D" path="res://art/environment/tiles/abyss_tiles_shadow_realm.png" id="3_brfhg"]
+[ext_resource type="Texture2D" path="res://art/environment/tiles/abyss_tiles_shadow_realm_soft.png" id="3_brfhg"]
 [ext_resource type="Texture2D" path="res://art/environment/tiles/bridge_tiles.png" id="4_28jsr"]
 
 [sub_resource type="NavigationPolygon" id="NavigationPolygon_3ymsm"]

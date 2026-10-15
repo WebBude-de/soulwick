@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "16×16 weiß/grau; als 11. Spalte an door_mode_symbols / 4. an door_branch_symbols anhängen (door_mode_symbols.png wird hier neu mit 11 Spalten geschrieben)."
+  ],
+  "items": [
+    {
+      "name": "symbol_ladder",
+      "file": "symbol_ladder.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        16
+      ],
+      "note": ""
+    }
+  ]
+}

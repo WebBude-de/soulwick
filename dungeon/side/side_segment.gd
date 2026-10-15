@@ -1,17 +1,17 @@
 class_name SideSegment
 extends Node2D
 ## One gang segment in side view (M5): the world of a SideLayout - rock and ledges (SideTiles), a
-## dark back wall, torches, ladders with one-way top steps, coins on the jump arcs, the golden coin,
-## spike trap, slimes and skeletons, maybe a chest in a niche, the door at the end - and its own
-## camera (SideCamera). It lies far below the dungeon (WORLD_ORIGIN), so rooms and segment never
+## dark back wall, torches, ladders with one-way top steps, crumbling ledges, coins on the jump arcs,
+## the golden coin (a double-jump spot), spike trap, slimes and skeletons, the chest in a niche on
+## the ladder way, the door at the end - and its own camera (SideCamera). It lies far below the dungeon (WORLD_ORIGIN), so rooms and segment never
 ## meet. Players come in through add_player (PlayerSideMotion takes over their movement) and leave
 ## through remove_players; their health, shield, gold, weapons and upgrades stay theirs.
-## Decisions here (coins, golden coin, door, co-op catch-up), looks in the children and through
-## signals. Randomness only from the seed handed to setup (multiplayer rule).
+## Decisions here (coins, golden coin, door, crumbling ledges, co-op catch-up), looks in the
+## children and through signals (each player's moves: SidePlayerFx). Randomness only from the seed handed to setup (multiplayer rule).
 
 signal finished(segment: SideSegment)
 signal coin_collected(player: Player, gold: int)
-signal golden_coin_collected(player: Player, crystals: int)
+signal golden_coin_collected(player: Player, gold: int)
 
 ## Far below every room (rooms grow north, west and east of room 1).
 const WORLD_ORIGIN := Vector2(0, 160000)
@@ -22,7 +22,6 @@ const PLAYER_SPACING := 26.0
 const TORCH_SCENE: PackedScene = preload("res://dungeon/environment/decorations/torch.tscn")
 const LADDER_TEXTURE: Texture2D = preload("res://art/environment/deco/ladder.png")
 const LADDER_TOP_TEXTURE: Texture2D = preload("res://art/environment/deco/ladder_top.png")
-const DASH_DUST: Texture2D = preload("res://art/effects/dash_dust_4f.png")
 ## Thickness of a ladder's one-way top step (px).
 const LADDER_STEP_DEPTH := 12.0
 ## Optional platform edge art (SPRITES_V9): 96×16, left / middle / right piece.
@@ -43,7 +42,7 @@ var is_finished := false
 var coins_total := 0
 var coins_taken := 0
 var gold_earned := 0
-var crystals_earned := 0
+var golden_coin_taken := false
 
 var _players: Array[Player] = []
 var _rng := RandomNumberGenerator.new()
@@ -55,6 +54,8 @@ var _exit: SideExit = null
 var _enemies: Array[SideEnemy] = []
 var _spikes: Array[SideSpikes] = []
 var _chest: SideChest = null
+var _crumbles: Array[SideCrumble] = []
+var _fx: Dictionary[Player, SidePlayerFx] = {}
 
 
 ## Before entering the tree.
@@ -78,6 +79,7 @@ func _ready() -> void:
 	_build_edges()
 	_build_torches()
 	_build_ladders()
+	_build_crumbles()
 	_build_coins()
 	_build_spikes()
 	_build_chest()
@@ -99,10 +101,7 @@ func add_player(player: Player) -> void:
 	_players.append(player)
 	var motion := PlayerSideMotion.attach(player)
 	motion.enter(self, feet)
-	motion.jumped.connect(_on_jumped)
-	motion.landed.connect(_on_landed)
-	motion.fell_into_pit.connect(_on_fell_into_pit)
-	motion.returned.connect(_on_returned)
+	_fx[player] = SidePlayerFx.attach(player, self)
 
 
 ## Every player back to top-down movement (the caller puts them into the next room).
@@ -110,14 +109,16 @@ func remove_players() -> void:
 	for player in _players:
 		if not is_instance_valid(player) or player.side_motion == null:
 			continue
-		var motion := player.side_motion
-		motion.exit()
-		for connection: Array in [[motion.jumped, _on_jumped], [motion.landed, _on_landed],
-				[motion.fell_into_pit, _on_fell_into_pit], [motion.returned, _on_returned]]:
-			var sig: Signal = connection[0]
-			if sig.is_connected(connection[1]):
-				sig.disconnect(connection[1])
+		if _fx.has(player) and is_instance_valid(_fx[player]):
+			_fx[player].detach()
+		player.side_motion.exit()
+	_fx.clear()
 	_players.clear()
+
+
+## The look of a player's moves in this segment (tests).
+func get_fx(player: Player) -> SidePlayerFx:
+	return _fx.get(player, null)
 
 
 func get_players() -> Array[Player]:
@@ -210,7 +211,10 @@ func _physics_process(delta: float) -> void:
 	if is_finished:
 		return
 	var view := camera.get_view_rect().grow(-8.0) if camera != null else Rect2()
-	for player in get_players():
+	var players := get_players()
+	for crumble in _crumbles:
+		crumble.update(players, delta)
+	for player in players:
 		if not player.is_alive() or player.side_motion == null or not player.side_motion.is_active():
 			continue
 		var center := player.global_position
@@ -242,7 +246,7 @@ func _collect_coins(player: Player, center: Vector2) -> void:
 		if center.distance_to(coin.global_position) > coin.get_pickup_radius():
 			continue
 		_coins.remove_at(i)
-		var gold := SideRules.coin_gold(coins_taken, MetaProgression.get_gold_multiplier())
+		var gold := SideRules.coin_gold(room_index, MetaProgression.get_gold_multiplier())
 		coins_taken += 1
 		gold_earned += gold
 		RunManager.add_run_gold(gold)
@@ -251,13 +255,15 @@ func _collect_coins(player: Player, center: Vector2) -> void:
 	if _golden != null and is_instance_valid(_golden) and center.distance_to(_golden.global_position) <= _golden.get_pickup_radius():
 		var golden := _golden
 		_golden = null
-		crystals_earned += SideRules.GOLDEN_COIN_CRYSTALS
-		RunManager.add_run_crystals(SideRules.GOLDEN_COIN_CRYSTALS)
+		var gold := SideRules.golden_coin_gold(room_index, MetaProgression.get_gold_multiplier())
+		golden_coin_taken = true
+		gold_earned += gold
+		RunManager.add_run_gold(gold)
 		golden.take()
-		golden_coin_collected.emit(player, SideRules.GOLDEN_COIN_CRYSTALS)
+		golden_coin_collected.emit(player, gold)
 		if context != null and context.ui != null:
 			context.ui.show_banner(DungeonTexts.t(&"SIDE_GOLDEN_COIN_TITLE"),
-					DungeonTexts.t(&"SIDE_GOLDEN_COIN_SUB", [SideRules.GOLDEN_COIN_CRYSTALS]), UiKit.COLOR_CRYSTAL)
+					Loc.t(&"SIDE_GOLDEN_COIN_GOLD", [gold]), UiKit.COLOR_GOLD)
 
 
 ## Co-op: whoever stays outside the view CATCH_UP_TIME seconds is brought to the foremost player.
@@ -275,26 +281,6 @@ func _update_catch_up(player: Player, view: Rect2, delta: float) -> void:
 		return
 	var feet := leader.side_motion.get_safe_feet() if leader.side_motion != null else Vector2.INF
 	motion.place_at(feet if feet != Vector2.INF else leader.get_feet_position())
-
-
-# --- Effects (signals of the side motion) ---
-
-func _on_jumped(player: Player) -> void:
-	Sfx.play_at(self, SideRules.sound_or(SideRules.SOUND_JUMP, SideRules.SOUND_JUMP_FALLBACK), player.global_position, -12.0)
-
-
-func _on_landed(player: Player, fall_speed: float) -> void:
-	var feet := player.get_feet_position()
-	Sfx.play_at(self, SideRules.sound_or(SideRules.SOUND_LAND, SideRules.SOUND_LAND_FALLBACK), feet, -14.0 if fall_speed < 700.0 else -8.0)
-	SpriteStrip.spawn_effect(self, feet, DASH_DUST, Vector2i(32, 32), 14.0, Vector2(16, 30), Vector2.ONE * SpriteStrip.PIXEL_SCALE)
-
-
-func _on_fell_into_pit(player: Player) -> void:
-	Sfx.play_at(self, ChasmRules.fall_sound(), player.global_position, -4.0)
-
-
-func _on_returned(player: Player, _damage: float) -> void:
-	Burst.spawn(self, player.global_position, Color(0.8, 0.75, 1.0), 10, 110.0, 0.4, 3.0)
 
 
 # --- Building ---
@@ -367,6 +353,21 @@ func _build_ladders() -> void:
 		_ladder_bodies.append(step)
 
 
+func _build_crumbles() -> void:
+	for run in layout.crumbles:
+		var crumble := SideCrumble.new()
+		crumble.name = "Crumble%d_%d" % [run.x, run.z]
+		crumble.cells = run.y - run.x + 1
+		crumble.biome_id = layout.biome_id
+		crumble.position = SideLayout.cell_origin(Vector2i(run.x, run.z))
+		add_child(crumble)
+		_crumbles.append(crumble)
+
+
+func get_crumbles() -> Array[SideCrumble]:
+	return _crumbles
+
+
 func _build_coins() -> void:
 	for cell in layout.coins:
 		var coin := SideCoin.new()
@@ -391,8 +392,10 @@ func _build_spikes() -> void:
 		_spikes.append(spikes)
 
 
+## The chest only on the ladder way (SideRules.has_chest, layout.chest_enabled); otherwise its niche
+## stays empty.
 func _build_chest() -> void:
-	if layout.chest.x < 0:
+	if layout.chest.x < 0 or not layout.chest_enabled:
 		return
 	_chest = SideChest.new()
 	_chest.name = "Chest"
@@ -472,7 +475,7 @@ class _Edges:
 		for row in range(1, layout.size.y):
 			for column in range(1, layout.size.x - 1):
 				var cell := Vector2i(column, row)
-				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.UP):
+				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.UP) or layout.is_crumble(cell):
 					continue
 				var left := layout.is_blocking(cell + Vector2i.LEFT) and not layout.is_blocking(cell + Vector2i(-1, -1))
 				var right := layout.is_blocking(cell + Vector2i.RIGHT) and not layout.is_blocking(cell + Vector2i(1, -1))

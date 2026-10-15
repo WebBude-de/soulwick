@@ -886,10 +886,12 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ### D-144 – Gang-Segmente in Seitenansicht (M5)
 
-- **Status:** VORGESCHLAGEN (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Makeover 3 und Mockup 29
+- **Status:** VERBINDLICH im Grundsatz (Projektmitglied 15.10.2026), Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude nach Makeover 3 und Mockup 29
 - **Beschluss:** Zwischen manchen Räumen liegt ein kurzes Jump'n'Run-Segment in Seitenansicht: Tor → Schwarzblende 0,3 s → Banner „Abstieg“ (die ersten 3 Male mit Tastenhinweis) → Segment → Tür → Schwarzblende → nächster Raum. Immer nach dem Lagerfeuer, als Leiter-Weg einer Abzweigung (noch nicht angeschlossen), 10 % nach Ruhe-Räumen; nie vor dem Boss, nie zweimal hintereinander, abschaltbar. 4 Pläne je Biom, gespiegelt 8.
 - **Physik:** Schwerkraft 1800 px/s² (Fallen ×1,4), Sprung 2,5 Kacheln (759 px/s), Kojote 0,1 s, Puffer 0,12 s, variable Höhe, Laufen 1,3 × Bewegungstempo, Dash waagerecht. Zufall nur aus Run-Seed + Slot, Zustand je Spieler am Spieler.
-- **Offen (Projektmitglied):** Münzen Run-Gold ×1,5 und goldene Münze = 1 Seelenkristall; Grube ½ Herz und nie tödlich (Abgrund im Raum 1 Herz, D-115); ersetzt der Leiter-Weg den Raum n+1 oder liegt er davor.
+- **Runde 2 (Projektmitglied 15.10.2026: „soll ruhig Herzen kosten, ganz normal“, „Gameplay geiler, Double Jump“; Werte an Claude delegiert):** Grube = wie Abgrund im Raum (D-115, 1 Herz am Schild vorbei, kann töten), danach zurück auf die letzte Plattform. Doppelsprung (+2 Kacheln, Salto, Staubring), Wandrutschen und Wandsprung an Felswänden, Scheitel-Schweben, schnelleres Fallen, Squash/Stretch, Staub und Kamera-Stoß bei harter Landung, bröckelnde Vorsprünge (0,6 s, zurück nach 3 s). Je Plan genau eine Besonderheit: 8 Pläne verlangen den Doppelsprung, 8 haben einen bröckelnden Vorsprung; die goldene Münze braucht immer den Doppelsprung. Physik **TESTWERT** in `SideRules` (Schwerkraft 2400, Fallen ×1,6, Sprung 876, Doppelsprung 784, Kojote 0,1 s, Puffer 0,12 s).
+- **Belohnung (TESTWERT, Maßstab: ein Segment lohnt sich wie ein Kampfraum):** 6–7 Münzen je 1 Gold × Wellenzahl des Raums, goldene Münze = 2 Münzen, Goldgier gilt; kein Seelenkristall, Segment-Gegner ohne Gold; Truhe nur auf dem Leiter-Weg einer Abzweigung. Ersetzt Münzen ×1,5 und Kristall aus Runde 1.
+- **Offen:** ersetzt der Leiter-Weg den Raum n+1 oder liegt er davor (Leiter-Weg noch nicht angeschlossen); bewegte Plattformen als späteres Paket.
 
 ## 8. Vorlagen für spätere Entscheidungen
 

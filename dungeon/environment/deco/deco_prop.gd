@@ -40,9 +40,21 @@ const ITEMS := {
 	&"pack": {"path": "res://art/environment/campfire/pack.png", "frame": Vector2i(16, 16), "pivot": Vector2(8, 15), "layer": Layer.FLOOR},
 	&"torch_stand_unlit": {"path": "res://art/environment/variants/torch_stand_unlit.png", "frame": Vector2i(16, 40), "pivot": Vector2(8, 39), "layer": Layer.STANDING, "solid": Vector2(24, 14)},
 	# Moving points of a cave room (M1, Makeover 2 "Bewegung im Bild"): a slow wisp of fog on the
-	# floor (the abyss mist, faint) until fog_floor_4f is delivered (SPRITES_V9).
-	&"mist": {"path": "res://art/environment/props/abyss_mist_4f.png", "frame": Vector2i(32, 32), "frames": 4, "fps": 2.5, "pivot": Vector2(16, 20), "layer": Layer.FLOOR, "alpha": 0.4, "additive": true},
+	# floor (fog_floor_4f, SPRITES_V9 §3, water_fog.json: 3 fps, drifting 4 px/s).
+	&"mist": {"path": "res://art/environment/deco/fog_floor_4f.png", "frame": Vector2i(64, 32), "frames": 4, "fps": 3.0, "pivot": Vector2(32, 31), "layer": Layer.FLOOR, "alpha": 0.7, "drift": 8.0},
+	# Niche in a cave front (SPRITES_V9 §3, drawn in the crypt colours of V9; SoftPalette fits it).
+	&"wall_niche_soft": {"path": "res://art/environment/tiles/wall_niche_soft.png", "frame": Vector2i(32, 48), "pivot": Vector2(16, 47), "layer": Layer.WALL, "light": 90.0, "light_y": 40.0, "fit_from": &"crypt"},
+	# Decoration groups per biome (SPRITES_V9 §3, deco_groups_<biome>.json, %s = biome): one picture
+	# instead of the composed placeholder groups, standing on two (small) or three (large) floor
+	# tiles along a wall; the footprint blocks walking.
+	&"group_1": {"path": "res://art/environment/deco/deco_group_%s_1.png", "frame": Vector2i(64, 48), "pivot": Vector2(32, 47), "layer": Layer.STANDING, "solid": Vector2(104, 26), "shadow": false},
+	&"group_2": {"path": "res://art/environment/deco/deco_group_%s_2.png", "frame": Vector2i(64, 48), "pivot": Vector2(32, 47), "layer": Layer.STANDING, "solid": Vector2(104, 26), "shadow": false},
+	&"group_3": {"path": "res://art/environment/deco/deco_group_%s_3.png", "frame": Vector2i(64, 48), "pivot": Vector2(32, 47), "layer": Layer.STANDING, "solid": Vector2(104, 26), "shadow": false},
+	&"group_large_1": {"path": "res://art/environment/deco/deco_group_large_%s_1.png", "frame": Vector2i(96, 64), "pivot": Vector2(48, 63), "layer": Layer.STANDING, "solid": Vector2(168, 30), "shadow": false},
+	&"group_large_2": {"path": "res://art/environment/deco/deco_group_large_%s_2.png", "frame": Vector2i(96, 64), "pivot": Vector2(48, 63), "layer": Layer.STANDING, "solid": Vector2(168, 30), "shadow": false},
 }
+## Fog wisps drift this slowly (px per second, water_fog.json).
+const DRIFT_SPEED := 4.0
 ## Free-standing lights built as LightIsland (A3 ingredient look, LightQuery counts them).
 const LIGHT_ISLANDS := {
 	&"light_crystal": IngredientSet.LightStyle.CRYSTAL,
@@ -62,7 +74,8 @@ const PLACEHOLDER := Color(0.42, 0.4, 0.46)
 @export var blocked_tiles: Array[Vector2i] = []
 ## Frame shown of a multi-frame strip that does not animate (gravestone = first frame of a source).
 @export var still_frame := -1
-## Biome of the room (generator): the puddle's water palette (WaterArt).
+## Biome of the room (generator): the puddle's water palette (WaterArt), the decoration group's
+## art and the colours of soft wall pieces.
 @export var biome: StringName = &""
 
 var sprite: Node2D = null
@@ -83,7 +96,7 @@ func _ready() -> void:
 	_build_sprite(data)
 	var footprint: Vector2 = data.get("solid", Vector2.ZERO)
 	if footprint != Vector2.ZERO:
-		_build_body(footprint)
+		_build_body(footprint, data.get("shadow", true))
 	var radius: float = data.get("light", 0.0)
 	if radius > 0.0:
 		light = LightSource.new()
@@ -120,7 +133,7 @@ static func has_item(id: StringName) -> bool:
 func _build_sprite(data: Dictionary) -> void:
 	var frame: Vector2i = data["frame"]
 	var frames: int = data.get("frames", 1)
-	var texture := _puddle_texture() if item == &"puddle" else _texture(String(data["path"]), frame * Vector2i(frames, 1))
+	var texture := _puddle_texture() if item == &"puddle" else _art_texture(data, frame * Vector2i(frames, 1))
 	var pivot: Vector2 = data["pivot"]
 	var art_scale: float = data.get("scale", 1.0)
 	if frames > 1 and still_frame < 0:
@@ -152,9 +165,32 @@ func _build_sprite(data: Dictionary) -> void:
 	if sprite is AnimatedProp:
 		# Not all drips and puddles in step.
 		(sprite as AnimatedProp).frame = absi(hash(position)) % frames
+	var drift: float = data.get("drift", 0.0)
+	if drift > 0.0:
+		# Slowly back and forth around its place (optics only, no RNG).
+		var tween := sprite.create_tween().set_loops()
+		tween.tween_property(sprite, "position:x", drift, drift / DRIFT_SPEED).set_trans(Tween.TRANS_SINE)
+		tween.tween_property(sprite, "position:x", -drift, drift * 2.0 / DRIFT_SPEED).set_trans(Tween.TRANS_SINE)
+		tween.tween_property(sprite, "position:x", 0.0, drift / DRIFT_SPEED).set_trans(Tween.TRANS_SINE)
 
 
-func _build_body(footprint: Vector2) -> void:
+## The item's picture: per-biome files (%s in the path) and soft wall pieces fitted to the rock.
+func _art_texture(data: Dictionary, size: Vector2i) -> Texture2D:
+	var path := String(data["path"])
+	var biome_id: StringName = biome if biome != &"" else &"crypt"
+	if path.contains("%s"):
+		path = path % biome_id
+		if not ResourceLoader.exists(path):
+			path = String(data["path"]) % "crypt"
+	if data.has("fit_from"):
+		var fitted := SoftPalette.texture(path, data["fit_from"], biome_id)
+		if fitted != null:
+			return fitted
+	return _texture(path, size)
+
+
+## shadow: a drop shadow under it (groups bring their own in the art).
+func _build_body(footprint: Vector2, shadow := true) -> void:
 	var body := StaticBody2D.new()
 	body.name = "Body"
 	body.collision_layer = PhysicsLayers.WORLD
@@ -166,7 +202,8 @@ func _build_body(footprint: Vector2) -> void:
 	collision.position = Vector2(0, -footprint.y * 0.5)
 	body.add_child(collision)
 	add_child(body)
-	DropShadow.attach(self, footprint.x * 0.4, -2.0)
+	if shadow:
+		DropShadow.attach(self, footprint.x * 0.4, -2.0)
 
 
 ## A small organic puddle in the biome's water palette (WaterArt), its shape from the position.

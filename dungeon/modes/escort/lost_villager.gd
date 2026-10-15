@@ -20,7 +20,7 @@ const FRAMES_PATH := "res://art/characters/npcs/lost_villager_frames.tres"
 const FRAME := Vector2i(32, 32)
 const PIVOT := Vector2(16, 30)
 ## Lantern in the hand (lost_villager.json anchor, art pixels from the frame's top left).
-const LANTERN_ANCHOR := Vector2(22, 20)
+const LANTERN_ANCHOR := Vector2(20, 20)
 ## Placeholder until a chicken with a lantern exists (SPRITES_V3): the village chicken, a small
 ## drawn lantern at its neck.
 const CHICKEN_FRAMES_PATH := "res://art/characters/npcs/chicken_frames.tres"

@@ -124,12 +124,13 @@ func _run() -> void:
 	queue_free()
 
 
-## "Springen: Leertaste · Dash: Umschalt" with the keys actually bound.
+## "Springen: Leertaste · in der Luft nochmal: Doppelsprung · Dash: Umschalt" with the keys
+## actually bound (round 2: the double jump is part of the hint).
 static func jump_hint_text() -> String:
 	var jump := ControlsInfo.action_key(PlayerSideMotion.JUMP_ACTION)
 	PlayerSideMotion.ensure_actions()
 	var dash := ControlsInfo.action_key(PlayerSideMotion.DASH_ACTION)
-	return DungeonTexts.t(&"SIDE_HINT_JUMP", [jump if not jump.is_empty() else "Space", dash if not dash.is_empty() else "Shift"])
+	return Loc.t(&"SIDE_HINT_MOVES", [jump if not jump.is_empty() else "Space", dash if not dash.is_empty() else "Shift"])
 
 
 func _enter_segment() -> void:

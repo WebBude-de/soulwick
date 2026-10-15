@@ -19,7 +19,7 @@ secret_cracks = Array[Vector2i]([Vector2i(11, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(5, 4, 1), Vector3i(5, 5, 1), Vector3i(5, 6, 1), Vector3i(6, 0, 0), Vector3i(6, 1, 0), Vector3i(6, 2, 0), Vector3i(6, 3, 0), Vector3i(6, 4, 1), Vector3i(6, 5, 1), Vector3i(6, 6, 1), Vector3i(7, 0, 0), Vector3i(7, 1, 0), Vector3i(7, 2, 0), Vector3i(7, 3, 0), Vector3i(7, 4, 1), Vector3i(7, 5, 1), Vector3i(8, 0, 2), Vector3i(8, 1, 0), Vector3i(8, 4, 1), Vector3i(9, 0, 0), Vector3i(9, 1, 0), Vector3i(10, 1, 0)])
-overlay_cells = Array[Vector3i]([Vector3i(3, 2, 8), Vector3i(3, 5, 0), Vector3i(4, 2, 0), Vector3i(6, 3, 0), Vector3i(7, 3, 13), Vector3i(9, 0, 5), Vector3i(9, 4, 5), Vector3i(9, 6, 5), Vector3i(9, 7, 0), Vector3i(10, 3, 0), Vector3i(11, 0, 0), Vector3i(11, 1, 9), Vector3i(12, 4, 5), Vector3i(12, 5, 8), Vector3i(13, 1, 11)])
+overlay_cells = Array[Vector3i]([Vector3i(2, 4, 11), Vector3i(3, 2, 8), Vector3i(3, 6, 11), Vector3i(4, 2, 0), Vector3i(4, 6, 5), Vector3i(6, 3, 5), Vector3i(7, 4, 2), Vector3i(10, 6, 0), Vector3i(12, 5, 0), Vector3i(13, 1, 1)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(352, 32)
@@ -59,15 +59,18 @@ position = Vector2(418, 308)
 script = ExtResource("2_deco")
 item = &"bones_1"
 
-[node name="Mist1" type="Node2D" parent="Props"]
-position = Vector2(674, 482)
+[node name="Ambience" type="Node2D" parent="."]
+
+[node name="Mist1" type="Node2D" parent="Ambience"]
+position = Vector2(226, 360)
 script = ExtResource("2_deco")
 item = &"mist"
 
-[node name="Mist2" type="Node2D" parent="Props"]
-position = Vector2(802, 34)
+[node name="Mist2" type="Node2D" parent="Ambience"]
+position = Vector2(610, 40)
 script = ExtResource("2_deco")
 item = &"mist"
+flip = true
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

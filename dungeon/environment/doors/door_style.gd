@@ -21,10 +21,15 @@ const KIND_BOSS := &"boss"
 ## (SPRITES_V4 §4). "miniboss" is an optional seventh column (see DoorArt).
 const SYMBOLS: Array[StringName] = [&"shop", &"weapon", &"fountain", &"upgrade", &"trial", &"campfire", &"miniboss"]
 ## Symbols over the two doors of a branch (A10, D-105), in the column order of
-## art/environment/rooms/door_branch_symbols.png: elite nest (crossed swords), safe way (heart),
-## unknown (question mark).
-const BRANCH_SYMBOLS: Array[StringName] = [&"elite_nest", &"safe", &"unknown"]
-const BRANCH_SYMBOLS_PATH := "res://art/environment/rooms/door_branch_symbols.png"
+## art/environment/rooms/door_branch_symbols_4.png: elite nest (crossed swords), safe way (heart),
+## unknown (question mark), ladder (the way down into a side segment, M5; SPRITES_V9 §4).
+const BRANCH_SYMBOLS: Array[StringName] = [&"elite_nest", &"safe", &"unknown", &"ladder"]
+## V9 sheet with the ladder as the fourth column; the old three-column sheet is the fallback.
+const BRANCH_SYMBOLS_PATH := "res://art/environment/rooms/door_branch_symbols_4.png"
+const BRANCH_SYMBOLS_OLD_PATH := "res://art/environment/rooms/door_branch_symbols.png"
+## V9 mode sheet: the ten modes of door_mode_symbols.png plus the ladder as the eleventh column
+## (RoomObjective loads the mode sheet; hook in the M2 report).
+const MODE_SYMBOLS_LADDER_PATH := "res://art/environment/doors/door_mode_symbols_11.png"
 
 const ART_DIR := "res://art/environment/doors/"
 
@@ -64,6 +69,12 @@ const FRAME_CAVE := &"cave"
 ## cave_mouth_<biome>.png: 64x48, the 32x32 door tile at (16, 16) (cave_mouth_*.json).
 const CAVE_FRAME_SIZE := Vector2i(64, 48)
 const CAVE_LEAF_OFFSET := Vector2i(16, 16)
+## door_frame_<biome>.png: 48x48, door tile at (8, 16); the soft arch door_frame_<biome>_soft.png
+## (SPRITES_V9 §2): 64x56, round opening, the crown runs through, door tile at (16, 24).
+const ARCH_FRAME_SIZE := Vector2i(48, 48)
+const ARCH_LEAF_OFFSET := Vector2i(8, 16)
+const SOFT_ARCH_FRAME_SIZE := Vector2i(64, 56)
+const SOFT_ARCH_LEAF_OFFSET := Vector2i(16, 24)
 ## Fallback while a room template has no "cave" field of its own (plan header, M1): these biomes dig
 ## their combat rooms into the rock (11_makeover3_komplett.md §2.1); crypt halls, boss, rest and
 ## campfire rooms are built. TESTWERT (design choice until every plan says it)
@@ -114,7 +125,8 @@ var leaf_kind: StringName = LEAF_WOOD
 var gate: StringName = GATE_SLAB
 ## FRAME_ARCH or FRAME_CAVE (apply_room_look); the boss gate has its own frame.
 var frame_kind: StringName = FRAME_ARCH
-## Soft cave palette (cave_mouth_<biome>_soft).
+## Soft palette of the room (M1): cave_mouth_<biome>_soft, door_frame_<biome>_soft and the side
+## portcullis door_side_<biome>_bars_4f when they exist (V9), else the biome's own art.
 var soft := false
 ## Speed of the opening animation (gates.json; boss and side leaves: doors.json).
 var leaf_fps := GATE_FPS
@@ -165,9 +177,20 @@ func apply_room_look(cave: bool, soft_palette := false, arena := false) -> void:
 	if is_boss():
 		return
 	frame_kind = FRAME_CAVE if cave else FRAME_ARCH
-	frame_size = CAVE_FRAME_SIZE if cave else Vector2i(48, 48)
-	leaf_offset = CAVE_LEAF_OFFSET if cave else Vector2i(8, 16)
-	soft = soft_palette and cave
+	soft = soft_palette
+	if cave:
+		frame_size = CAVE_FRAME_SIZE
+		leaf_offset = CAVE_LEAF_OFFSET
+	elif soft and DoorArt.has_art(get_frame_path()):
+		frame_size = SOFT_ARCH_FRAME_SIZE
+		leaf_offset = SOFT_ARCH_LEAF_OFFSET
+	else:
+		frame_size = ARCH_FRAME_SIZE
+		leaf_offset = ARCH_LEAF_OFFSET
+	if has_side_bars():
+		# The side portcullis rattles like the gate.
+		side_open_sound = GATE_SOUNDS[GATE_BARS]
+		side_leaf_fps = 8.0
 	if arena:
 		_apply_gate(GATE_BARS)
 
@@ -270,7 +293,7 @@ func get_frame_path() -> String:
 		return ART_DIR + "door_frame_boss.png"
 	if is_cave():
 		return ART_DIR + "cave_mouth_%s%s.png" % [biome_id, SOFT_SUFFIX if soft else ""]
-	return ART_DIR + "door_frame_%s.png" % biome_id
+	return ART_DIR + "door_frame_%s%s.png" % [biome_id, SOFT_SUFFIX if soft else ""]
 
 
 ## Four-frame leaf strip of a north door (frame 1 closed, frame 4 open): the gate (32x48 frames,
@@ -283,8 +306,27 @@ func get_leaf_path() -> String:
 
 ## Leaf of a door in the west or east wall, seen from above (A10, docs/SPRITES_V7.md): four
 ## frames of 32x32, drawn for a west wall door (the east one is mirrored).
+## Soft rooms: the portcullis across the passage (door_side_<biome>_bars_4f, V9) when it exists.
 func get_side_leaf_path() -> String:
-	return ART_DIR + ("door_side_boss_open_4f.png" if is_boss() else "door_side_%s_open_4f.png" % biome_id)
+	if is_boss():
+		return ART_DIR + "door_side_boss_open_4f.png"
+	if has_side_bars():
+		return get_side_bars_path()
+	return ART_DIR + "door_side_%s_open_4f.png" % biome_id
+
+
+func get_side_bars_path() -> String:
+	return ART_DIR + "door_side_%s_bars_4f.png" % biome_id
+
+
+## Does a side door of this style show the delivered portcullis (soft room, file there)?
+func has_side_bars() -> bool:
+	return soft and not is_boss() and DoorArt.has_art(get_side_bars_path())
+
+
+## The branch sign sheet: the V9 sheet with the ladder, else the old one.
+static func get_branch_symbols_path() -> String:
+	return BRANCH_SYMBOLS_PATH if DoorArt.has_art(BRANCH_SYMBOLS_PATH) else BRANCH_SYMBOLS_OLD_PATH
 
 
 static func get_symbols_path() -> String:

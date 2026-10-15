@@ -122,61 +122,21 @@ script = ExtResource("3_deco")
 item = &"brazier"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 6)])
 
-[node name="Crystals1" type="Node2D" parent="Props"]
-position = Vector2(480, 504)
+[node name="Group1" type="Node2D" parent="Props"]
+position = Vector2(448, 504)
 script = ExtResource("3_deco")
-item = &"crystal_cluster"
-blocked_tiles = Array[Vector2i]([Vector2i(7, 7)])
-
-[node name="RubbleBit1" type="Node2D" parent="Props"]
-position = Vector2(418, 482)
-script = ExtResource("3_deco")
-item = &"rubble_2"
+item = &"group_2"
 flip = true
+blocked_tiles = Array[Vector2i]([Vector2i(6, 7), Vector2i(7, 7)])
+biome = &"shadow_realm"
 
-[node name="RubbleBit2" type="Node2D" parent="Props"]
-position = Vector2(418, 458)
+[node name="Group2" type="Node2D" parent="Props"]
+position = Vector2(832, 504)
 script = ExtResource("3_deco")
-item = &"rubble_1"
+item = &"group_3"
 flip = true
-
-[node name="RubbleBit3" type="Node2D" parent="Props"]
-position = Vector2(866, 482)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-
-[node name="RubbleBit4" type="Node2D" parent="Props"]
-position = Vector2(866, 458)
-script = ExtResource("3_deco")
-item = &"rubble_2"
-flip = true
-
-[node name="RubbleBit5" type="Node2D" parent="Props"]
-position = Vector2(820, 458)
-script = ExtResource("3_deco")
-item = &"rubble_1"
-flip = true
-
-[node name="Bones1" type="Node2D" parent="Props"]
-position = Vector2(814, 488)
-script = ExtResource("3_deco")
-item = &"bones_2"
-flip = true
-
-[node name="Bones2" type="Node2D" parent="Props"]
-position = Vector2(482, 34)
-script = ExtResource("3_deco")
-item = &"bone_pile"
-
-[node name="Bones3" type="Node2D" parent="Props"]
-position = Vector2(482, 64)
-script = ExtResource("3_deco")
-item = &"bones_2"
-
-[node name="Bones4" type="Node2D" parent="Props"]
-position = Vector2(482, 92)
-script = ExtResource("3_deco")
-item = &"bones_1"
+blocked_tiles = Array[Vector2i]([Vector2i(12, 7), Vector2i(13, 7)])
+biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

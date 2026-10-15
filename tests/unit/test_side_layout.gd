@@ -2,7 +2,8 @@ extends GutTest
 ## Side-segment plans (M5): four per biome, each mirrored, all following the plan rules (width,
 ## platforms, pits, ladder, coins, golden coin, enemies, spikes, start and door reachable with a
 ## 2.5-tile jump, no dead end, every item in reach); parsing, mirroring, the jump graph and the
-## coordinates the segment uses.
+## coordinates the segment uses. Round 2: the double jump (golden coin in every plan, on the way in
+## half of them), crumbling ledges in the other half.
 
 const MINI := [
 	"##########",
@@ -39,7 +40,7 @@ func test_plan_numbers_stay_in_the_ranges() -> void:
 		assert_eq(layout.size.y, SideRules.ROWS, "%s height" % id)
 		assert_between(layout.count_platforms(), 8, 14, "%s platforms" % id)
 		assert_between(layout.count_pits(), 1, 2, "%s pits" % id)
-		assert_between(layout.coins.size(), 6, 12, "%s coins" % id)
+		assert_between(layout.coins.size(), SideLayout.COIN_RANGE.x, SideLayout.COIN_RANGE.y, "%s coins" % id)
 		assert_between(layout.slimes.size() + layout.skeletons.size(), 1, 3, "%s enemies" % id)
 		assert_eq(layout.spikes.size(), 1, "%s spike trap" % id)
 		assert_true(layout.golden_coin.x >= 0, "%s golden coin" % id)
@@ -103,10 +104,10 @@ func test_jump_rules_follow_the_physics() -> void:
 		"##############",
 	]), &"reach")
 	var start := Vector2i(1, 6)
-	assert_true(layout.neighbours(start).has(Vector2i(3, 4)), "two rows up, two columns over")
-	assert_false(layout.neighbours(start).has(Vector2i(7, 2)), "four rows up is too high")
-	assert_true(layout.neighbours(Vector2i(3, 4)).has(Vector2i(6, 6)), "a drop of two rows, three columns")
-	assert_false(layout.neighbours(Vector2i(3, 4)).has(Vector2i(8, 6)), "five columns is too far")
+	assert_true(layout.neighbours(start, false).has(Vector2i(3, 4)), "two rows up, two columns over")
+	assert_false(layout.neighbours(start, false).has(Vector2i(7, 2)), "four rows up is too high")
+	assert_true(layout.neighbours(Vector2i(3, 4), false).has(Vector2i(6, 6)), "a drop of two rows, three columns")
+	assert_false(layout.neighbours(Vector2i(3, 4), false).has(Vector2i(8, 6)), "five columns is too far")
 
 
 func test_coordinates() -> void:
@@ -119,3 +120,73 @@ func test_coordinates() -> void:
 	assert_eq(layout.ladder_rect_at(Vector2(6 * 64.0 + 30.0, 4 * 64.0)), ladder, "feet on the top step")
 	assert_false(layout.ladder_rect_at(Vector2(5 * 64.0, 6 * 64.0)).has_area(), "next column")
 	assert_almost_eq(layout.kill_y(), 7.75 * 64.0, 0.01)
+
+
+func test_every_golden_coin_needs_the_double_jump() -> void:
+	for id in SidePlans.all_ids():
+		for mirrored in [false, true]:
+			var layout := SidePlans.build(id, mirrored)
+			var reach := layout.reachable_from(layout.start, true)
+			var launch := layout.launch_cell_for(layout.golden_coin, reach)
+			assert_true(launch.x >= 0, "%s: a launch spot under the golden coin" % id)
+			assert_between(launch.y - layout.golden_coin.y, 3, SideLayout.ITEM_REACH_ROWS_DOUBLE,
+					"%s: 3-4 rows above the launch spot (one jump is not enough)" % id)
+
+
+func test_half_the_plans_need_the_double_jump_on_the_way_half_have_crumbling_ledges() -> void:
+	var on_way := 0
+	var crumbling := 0
+	for biome in SidePlans.BIOME_PLANS:
+		var biome_way := 0
+		var biome_crumble := 0
+		for id in SidePlans.ids_for(biome):
+			var layout := SidePlans.build(id)
+			if layout.way_needs_double_jump():
+				biome_way += 1
+			if not layout.crumbles.is_empty():
+				biome_crumble += 1
+		assert_eq(biome_way, 2, "%s: two plans ask for the double jump on the way" % biome)
+		assert_eq(biome_crumble, 2, "%s: two plans have a crumbling ledge" % biome)
+		on_way += biome_way
+		crumbling += biome_crumble
+	assert_eq(on_way, 8)
+	assert_eq(crumbling, 8)
+
+
+func test_crumbling_ledges_parse_and_block() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"##########",
+		"#........#",
+		"#..~~~...#",
+		"#S......D#",
+		"##########",
+	]), &"crumble")
+	assert_eq(layout.crumbles, [Vector3i(3, 5, 2)] as Array[Vector3i])
+	assert_true(layout.is_crumble(Vector2i(4, 2)))
+	assert_true(layout.is_blocking(Vector2i(4, 2)), "stood on like a ledge")
+	assert_false(layout.is_ledge(Vector2i(4, 2)), "not painted as a ledge tile")
+	assert_true(layout.is_standable(Vector2i(4, 1)))
+
+
+func test_double_jump_graph_reaches_higher_and_further() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"################",
+		"#..............#",
+		"#..............#",
+		"#..=...........#",
+		"#..............#",
+		"#..............#",
+		"#S.....#.......#",
+		"################",
+	]), &"double")
+	var start := Vector2i(1, 6)
+	var high := Vector2i(3, 2)
+	assert_false(layout.neighbours(start, false).has(high), "four rows up: no single jump")
+	assert_true(layout.neighbours(start, true).has(high), "but a double jump")
+	assert_true(layout.needs_double_jump(start, high))
+	var far := Vector2i(5, 6)
+	assert_true(layout.neighbours(start, false).has(Vector2i(4, 6)), "walking")
+	assert_false(layout.needs_double_jump(start, Vector2i(3, 6)))
+	assert_eq(layout.find_path(start, high, false), [] as Array[Vector2i], "no way without the double jump")
+	assert_false(layout.find_path(start, high, true).is_empty())
+	assert_true(layout.neighbours(start, true).has(far))

@@ -41,6 +41,11 @@ const DEEP_FROM := 9.0
 ## Ripples and glints per 100 water pixels (TESTWERTE, look).
 const RIPPLES_PER_100 := 0.55
 const GLINTS_PER_100 := 0.35
+## Delivered glitter overlay (white with alpha, modulated with the glint colour; water_fog.json) and
+## how strongly it shows (TESTWERT, look). Without the file: single glint pixels.
+const GLINT_ART := "res://art/environment/deco/water_glint_4f.png"
+const GLINT_FRAME := 32
+const GLINT_STRENGTH := 0.85
 ## Small puddle (DecoProp, one 32x32 frame, pivot (16, 18)): ellipse half axes and centre (art px).
 const PUDDLE_CENTER := Vector2(16.0, 19.0)
 const PUDDLE_RADII := Vector2(11.0, 7.0)
@@ -211,6 +216,7 @@ static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringNa
 				water_pixels.append(Vector2i(x, y))
 			base.set_pixel(x, y, color)
 	var strip := Image.create_empty(size.x * FRAMES, size.y, false, Image.FORMAT_RGBA8)
+	var glint_art := _glint_image()
 	var rng := RandomNumberGenerator.new()
 	var ripples := maxi(1, int(water_pixels.size() * RIPPLES_PER_100 / 100.0))
 	var glints := maxi(1, int(water_pixels.size() * GLINTS_PER_100 / 100.0))
@@ -229,14 +235,35 @@ static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringNa
 						var ripple: Color = colors["ripple"]
 						ripple.a = BODY_ALPHA
 						image.set_pixelv(pixel, ripple)
-			# Glints blink: each one lights up in one of the frames.
-			rng.seed = seed_value * 3 + 1
-			for i in glints:
-				var pixel: Vector2i = water_pixels[rng.randi() % water_pixels.size()]
-				if rng.randi() % FRAMES == frame:
-					image.set_pixelv(pixel, colors["glint"])
+			if glint_art != null:
+				# The delivered glitter (white with alpha) in the water's glint colour, tiled over
+				# the water from a shape-dependent offset, never on the shore and rim.
+				var shift := Vector2i(seed_value % GLINT_FRAME, (seed_value / GLINT_FRAME) % GLINT_FRAME)
+				for pixel in water_pixels:
+					var at := Vector2i((pixel.x + shift.x) % GLINT_FRAME + frame * GLINT_FRAME, (pixel.y + shift.y) % GLINT_FRAME)
+					var glint := glint_art.get_pixelv(at)
+					if glint.a > 0.0:
+						image.set_pixelv(pixel, image.get_pixelv(pixel).lerp(Color(colors["glint"], BODY_ALPHA), glint.a * GLINT_STRENGTH))
+			else:
+				# Glints blink: each one lights up in one of the frames.
+				rng.seed = seed_value * 3 + 1
+				for i in glints:
+					var pixel: Vector2i = water_pixels[rng.randi() % water_pixels.size()]
+					if rng.randi() % FRAMES == frame:
+						image.set_pixelv(pixel, colors["glint"])
 		strip.blit_rect(image, Rect2i(Vector2i.ZERO, size), Vector2i(frame * size.x, 0))
 	return ImageTexture.create_from_image(strip)
+
+
+## The delivered glitter strip (water_glint_4f, SPRITES_V9 §3), null without the file.
+static func _glint_image() -> Image:
+	if not ResourceLoader.exists(GLINT_ART):
+		return null
+	var image := (load(GLINT_ART) as Texture2D).get_image()
+	if image.is_compressed():
+		image.decompress()
+	image.convert(Image.FORMAT_RGBA8)
+	return image if image.get_width() >= GLINT_FRAME * FRAMES else null
 
 
 static func _depth_at(depth: PackedFloat32Array, size: Vector2i, x: int, y: int) -> float:

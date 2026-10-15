@@ -324,7 +324,20 @@ func _build_wall() -> void:
 	add_child(_breach)
 	var inward := -Vector2(RoomTiles.SIDE_DIRECTIONS[side]) if side >= 0 else Vector2.DOWN
 	var mode := WallBreach.Mode.GATE if kind == SpawnSourceRules.Kind.GATE else WallBreach.Mode.BREACH
-	_breach.setup(mode, inward, wall_tile.x * 73 + wall_tile.y * 31)
+	_breach.setup(mode, inward, wall_tile.x * 73 + wall_tile.y * 31, _cave_biome())
+
+
+## Biome of the room when its walls are cave rock (the breach breaks a rock front), else empty.
+func _cave_biome() -> StringName:
+	var node := get_parent()
+	while node != null:
+		var tiles := node.get_node_or_null("Tiles") as RoomTiles
+		if tiles != null:
+			if tiles.tile_set != null and tiles.is_terrain_drawn() and tiles.get_look() == RockTerrain.Look.CAVE:
+				return WallAutotile.biome_of(tiles.tile_set)
+			return &""
+		node = node.get_parent()
+	return &""
 
 
 func _ensure_light() -> void:

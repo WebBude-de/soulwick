@@ -18,6 +18,9 @@ signal content_used(niche: SecretNiche)
 
 const NODE_NAME := &"SecretNiche"
 const CRACK_ART := "res://art/environment/rooms/wall_cracked_%s.png"
+## Cracked rock front of a cave room (SPRITES_V9 §3, 32x48: crown and front, pivot (16, 47)),
+## fitted to the room rock (SoftPalette).
+const CRACK_CAVE_ART := "res://art/environment/tiles/wall_cracked_%s_soft.png"
 const BREAK_ART: Texture2D = preload("res://art/environment/rooms/wall_break_6f.png")
 const BREAK_FRAME := Vector2i(32, 48)
 const BREAK_PIVOT := Vector2(16, 47)
@@ -92,6 +95,13 @@ func _ready() -> void:
 	_crack.centered = false
 	_crack.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
 	_crack.position = RoomTiles.tile_to_local(site.crack)
+	var tiles := room.tiles if room != null else null
+	if tiles != null and tiles.is_terrain_drawn() and tiles.get_look() == RockTerrain.Look.CAVE and ResourceLoader.exists(CRACK_CAVE_ART % biome_id):
+		var cave := SoftPalette.texture(CRACK_CAVE_ART % biome_id, biome_id)
+		if cave != null:
+			# Crown and front: the picture reaches one half tile up into the crown.
+			_crack.texture = cave
+			_crack.position.y -= float(cave.get_height() - RoomTiles.TILE_WORLD / SpriteStrip.PIXEL_SCALE) * SpriteStrip.PIXEL_SCALE
 	_crack.z_index = WALL_Z
 	add_child(_crack)
 	_build_dust()

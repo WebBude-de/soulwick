@@ -34,8 +34,9 @@ const LIGHTFIRE: StringName = &"lightfire"
 const COLLAPSE: StringName = &"collapse"
 const ELITE_NEST: StringName = &"elite_nest"
 
-## 10 symbols of 16×16 in one row (door_modes.json), grey art tinted with the mode colour.
-const MODE_SYMBOLS_PATH := "res://art/environment/doors/door_mode_symbols.png"
+## 16×16 symbols in one row (door_modes.json), grey art tinted with the mode colour; V9 sheet with
+## the ladder as the eleventh column (the first ten are the same as door_mode_symbols.png).
+const MODE_SYMBOLS_PATH := "res://art/environment/doors/door_mode_symbols_11.png"
 const SYMBOL_SIZE := 16
 ## symbol: frame in MODE_SYMBOLS_PATH; color: mode colour (07_ui.md, door_modes.json); key: text
 ## prefix in DungeonTexts; calm: intro tone intro_banner_calm instead of intro_banner_combat.

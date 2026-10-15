@@ -193,6 +193,7 @@ func test_a_wave_comes_out_of_several_sources_away_from_the_player() -> void:
 	var player := _player_at(room, Vector2(480, 288))
 	var sources := _sources(room)
 	watch_signals(sources)
+	var started := Time.get_ticks_usec()
 	var enemies := sources.spawn_wave(room.spawner, 4, room.enemy_container, room.context, room.get_arena())
 	assert_eq(enemies.size(), 4)
 	var used := sources.get_last_sources()
@@ -202,9 +203,13 @@ func test_a_wave_comes_out_of_several_sources_away_from_the_player() -> void:
 		assert_true(enemy.is_hidden_in_source(), "nobody stands there yet")
 		assert_true(enemy.is_in_intro())
 		assert_gte(enemy.global_position.distance_to(player.global_position), SpawnSourceRules.MIN_PLAYER_DISTANCE - SpawnSourceRules.QUEUE_SPREAD * 2.0)
-	await wait_frames(2)
+	# The source timelines are idle tweens: wait for process frames. Physics frames can come in a
+	# burst after the slow spawn frame, before any tween step ran (seen in the full run).
+	await wait_process_frames(2)
 	assert_eq(used[0].phase, SpawnSource.Phase.WARN, "the first source warns at once")
-	assert_eq(used[1].phase, SpawnSource.Phase.IDLE, "the next one a moment later")
+	# The tweens run on the frame time: after a slow frame they may already be past the stagger.
+	if (Time.get_ticks_usec() - started) / 1000000.0 < SpawnSourceRules.SOURCE_STAGGER:
+		assert_eq(used[1].phase, SpawnSource.Phase.IDLE, "the next one a moment later")
 	await wait_seconds((used.size() - 1) * SpawnSourceRules.SOURCE_STAGGER + 0.05)
 	for source in used:
 		assert_eq(source.phase, SpawnSource.Phase.WARN, "every source warns before anyone comes out")

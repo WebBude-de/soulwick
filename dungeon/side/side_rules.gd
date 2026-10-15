@@ -22,40 +22,65 @@ const TILE := 64.0
 const ROWS := 11
 
 # --- Platform physics (TESTWERTE, world px; sprites are drawn ×2, one tile = 64 px) ---
-## Gravity while rising; falling uses FALL_GRAVITY_FACTOR on top (snappier landings).
-const GRAVITY := 1800.0
-const FALL_GRAVITY_FACTOR := 1.4
-## Jump height 2.5 tiles: v = sqrt(2 * GRAVITY * 2.5 * TILE) = 759 px/s.
+# Round 2 (15.10.2026): snappier jump (higher gravity, faster take-off), a short hang at the apex,
+# faster falling, a double jump, wall slide and wall jump. The single jump still reaches 2.5 tiles,
+# so every plan rule for a plain jump stays; the double jump adds 2 tiles on top.
+## Gravity while rising; falling uses FALL_GRAVITY_FACTOR on top.
+const GRAVITY := 2400.0
+const FALL_GRAVITY_FACTOR := 1.6
+## Apex hang: while the vertical speed is below APEX_SPEED, gravity is scaled by this factor.
+const APEX_SPEED := 90.0
+const APEX_GRAVITY_FACTOR := 0.45
+## Jump height 2.5 tiles: v = sqrt(2 * GRAVITY * 2.5 * TILE) = 876 px/s.
 const JUMP_HEIGHT_TILES := 2.5
-const JUMP_VELOCITY := 759.0
+const JUMP_VELOCITY := 876.0
+## Double jump: one more jump in the air, 2 tiles high: sqrt(2 * GRAVITY * 2 * TILE) = 784 px/s.
+const AIR_JUMPS := 1
+const DOUBLE_JUMP_HEIGHT_TILES := 2.0
+const DOUBLE_JUMP_VELOCITY := 784.0
 ## Releasing the jump button while rising cuts the upward speed (variable jump height).
-const JUMP_CUT_FACTOR := 0.45
+const JUMP_CUT_FACTOR := 0.4
 const COYOTE_TIME := 0.1
 const JUMP_BUFFER_TIME := 0.12
-const MAX_FALL_SPEED := 1100.0
+const MAX_FALL_SPEED := 1250.0
 ## Running speed = the player's move_speed (with all its modifiers) times this factor.
 const RUN_SPEED_FACTOR := 1.3
-const GROUND_ACCELERATION := 2400.0
-const AIR_ACCELERATION := 1600.0
+const GROUND_ACCELERATION := 3000.0
+const AIR_ACCELERATION := 2000.0
+## Wall slide: falling while pressing against a rock wall is capped at this speed; a jump from
+## the wall pushes away (x) and up (y), the stick is ignored for WALL_JUMP_LOCK seconds. Touching a
+## wall gives the double jump back.
+const WALL_SLIDE_SPEED := 170.0
+const WALL_JUMP_VELOCITY := Vector2(330.0, 800.0)
+const WALL_JUMP_LOCK := 0.14
 const CLIMB_SPEED := 170.0
 ## How close (px) the body centre must be to a ladder's middle to grab it.
 const LADDER_GRAB_DISTANCE := 24.0
+## Landings faster than this are hard: louder, more dust, a camera kick.
+const HARD_LANDING_SPEED := 900.0
 
-# --- Pits (TESTWERTE) ---
-## Falling out of the segment costs half a heart past the shield, never the last 0.5 HP (no death
-## by falling in a side segment, Makeover 3 §3 "Risiken").
-const PIT_DAMAGE := 1.0
-const PIT_MIN_HEALTH_LEFT := 0.5
+# --- Crumbling ledges (plan "~", TESTWERTE) ---
+## A crumbling ledge shakes this long after a player stands on it, then falls; it is back after
+## CRUMBLE_RESPAWN seconds (when nobody is in the way).
+const CRUMBLE_DELAY := 0.6
+const CRUMBLE_RESPAWN := 3.0
+
+# --- Pits (decision of the team member, 15.10.2026) ---
+## Falling out of the segment costs what an abyss in a room costs (D-115: a whole heart past the
+## shield, may kill, ChasmRules.fall_damage), then back on the last platform.
 ## How long the player is gone before landing on the last platform.
 const PIT_RETURN_TIME := 0.45
 
-# --- Rewards (TESTWERTE, Makeover 3 §3 "Vorschlag Gameplay") ---
-## Gold per coin before the side-way factor (one coin = one enemy's gold drop at the start).
-const COIN_GOLD := 1.0
-## Coins count as run gold ×1.5 because there is (almost) no fight.
-const COIN_GOLD_FACTOR := 1.5
-## The golden coin at the hardest spot.
-const GOLDEN_COIN_CRYSTALS := 1
+# --- Rewards (TESTWERTE, delegated 15.10.2026: "worth about a normal combat room, not more") ---
+## A normal combat room pays about 1 gold per enemy (gold_drop × 0.4, at least 1) for 2-6 enemies,
+## plus 1-2 from crates: 4-8 gold in rooms 1-29, ×2 waves from room 30, ×3 from room 60. A segment
+## pays 6-7 coins + the golden coin (2 coins) = 8-9 coin values, scaled by the same wave count, and
+## its enemies drop nothing (they are obstacles here). No crystals, no hearts; the chest (an upgrade
+## choice) only on the ladder way of a branch, where it stands against the elite nest or a variant.
+const COIN_GOLD := 1
+const GOLDEN_COIN_COINS := 2
+## Side enemies drop no gold (the coins are the reward).
+const ENEMY_GOLD := 0
 
 # --- Where segments sit (TESTWERTE) ---
 const AFTER_REST_CHANCE := 0.1
@@ -80,8 +105,12 @@ const SOUND_DRONE := &"side_drone"
 const SOUND_DRONE_FALLBACK := &"intro_door"
 const SOUND_JUMP := &"side_jump"
 const SOUND_JUMP_FALLBACK := &"dash"
+const SOUND_DOUBLE_JUMP := &"side_double_jump"
 const SOUND_LAND := &"side_land"
 const SOUND_LAND_FALLBACK := &"slime_land"
+const SOUND_LAND_HARD := &"side_land_hard"
+const SOUND_WALL_SLIDE := &"side_wall_slide"
+const SOUND_CRUMBLE := &"side_crumble"
 const SOUND_COIN := &"coin"
 const SOUND_GOLDEN_COIN := &"soul_collect"
 const SOUND_DOOR := &"door_open"
@@ -120,25 +149,40 @@ static func make_rng(run_seed: int, slot: int) -> RandomNumberGenerator:
 	return rng
 
 
-## Gold for coin number index (0-based) of a segment: the running total of index + 1 coins minus
-## the total of index coins, so fractions carry over and n coins pay floor(n × 1.5 × multiplier).
-static func coin_gold(index: int, gold_multiplier := 1.0) -> int:
-	return _coin_total(index + 1, gold_multiplier) - _coin_total(index, gold_multiplier)
+## Gold of one coin in room room_index: COIN_GOLD × the room's wave count (rooms pay more deeper
+## down the same way), × the village gold multiplier, rounded, at least 1.
+static func coin_gold(room_index: int, gold_multiplier := 1.0) -> int:
+	return maxi(1, roundi(COIN_GOLD * RoomSequence.get_wave_count(room_index) * maxf(0.0, gold_multiplier)))
 
 
-static func _coin_total(count: int, gold_multiplier: float) -> int:
-	return floori(count * COIN_GOLD * COIN_GOLD_FACTOR * maxf(0.0, gold_multiplier) + 0.0001)
+## Gold of the golden coin (the hardest spot, needs the double jump).
+static func golden_coin_gold(room_index: int, gold_multiplier := 1.0) -> int:
+	return coin_gold(room_index, gold_multiplier) * GOLDEN_COIN_COINS
 
 
-## Damage of a fall out of the segment: half a heart, never below PIT_MIN_HEALTH_LEFT.
-static func pit_damage(health: float) -> float:
-	var allowed := maxf(0.0, health - PIT_MIN_HEALTH_LEFT)
-	return DamageProcessor.DAMAGE_STEP * floorf(minf(PIT_DAMAGE, allowed) / DamageProcessor.DAMAGE_STEP)
+## Everything a segment can pay in gold: all coins and the golden coin (tools, balance).
+static func segment_gold(coins: int, room_index: int, gold_multiplier := 1.0) -> int:
+	return coins * coin_gold(room_index, gold_multiplier) + golden_coin_gold(room_index, gold_multiplier)
+
+
+## Damage of a fall out of the segment: the same as an abyss in a room (may kill).
+static func pit_damage() -> float:
+	return ChasmRules.fall_damage()
+
+
+## Whether the chest in a plan's niche is set up: only on the ladder way of a branch.
+static func has_chest(reason: Reason) -> bool:
+	return reason == Reason.LADDER_WAY
 
 
 ## Show "Springen: Leertaste" when the save has seen fewer than JUMP_HINT_TIMES segments.
 static func shows_jump_hint(segments_seen: int) -> bool:
 	return segments_seen < JUMP_HINT_TIMES
+
+
+## Highest point of a double jump taken at the apex of the first, in px.
+static func double_jump_height() -> float:
+	return jump_height() + DOUBLE_JUMP_VELOCITY * DOUBLE_JUMP_VELOCITY / (2.0 * GRAVITY)
 
 
 ## Jump speed for a height in px under GRAVITY (tests and tools).
