@@ -42,7 +42,7 @@ const ENVIRONMENT_FEATURE_PREFIX := "env_"
 ## Addresses per environment (platform P-018). local = the services of `bun dev` in soulwick-platform.
 const ENVIRONMENTS := {
 	ENV_LOCAL: {"api": DEFAULT_API_URL, "relay": DEFAULT_RELAY_URL, "web": ""},
-	ENV_DEVELOPMENT: {"api": "https://api.dev.playsoulwick.com", "relay": "wss://play.dev.playsoulwick.com/v1", "web": "https://dev.playsoulwick.com"},
+	ENV_DEVELOPMENT: {"api": "https://api-dev.playsoulwick.com", "relay": "wss://play-dev.playsoulwick.com/v1", "web": "https://dev.playsoulwick.com"},
 	ENV_PRODUCTION: {"api": "https://api.playsoulwick.com", "relay": "wss://play.playsoulwick.com/v1", "web": "https://playsoulwick.com"},
 }
 ## Website for "please update" when the environment has none of its own (local).

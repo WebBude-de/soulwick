@@ -73,8 +73,8 @@ func test_environment_file_is_read_and_has_no_dev_key() -> void:
 
 func test_environment_addresses_follow_p018() -> void:
 	var dev := _config(OnlineConfig.ENV_DEVELOPMENT)
-	assert_eq(dev.api_url, "https://api.dev.playsoulwick.com")
-	assert_eq(dev.relay_url, "wss://play.dev.playsoulwick.com/v1")
+	assert_eq(dev.api_url, "https://api-dev.playsoulwick.com")
+	assert_eq(dev.relay_url, "wss://play-dev.playsoulwick.com/v1")
 	assert_false(dev.relay_explicit, "GET /public/config may still name another relay")
 	assert_eq(dev.get_web_url(), "https://dev.playsoulwick.com")
 	assert_eq(dev.get_environment_tag(), "dev")
@@ -108,7 +108,7 @@ func test_overrides_still_win_over_the_environment() -> void:
 func test_command_line_can_switch_the_environment() -> void:
 	var config := _config(OnlineConfig.ENV_LOCAL, OnlineConfig.parse_args(PackedStringArray(["env=development"])))
 	assert_eq(config.environment, OnlineConfig.ENV_DEVELOPMENT)
-	assert_eq(config.api_url, "https://api.dev.playsoulwick.com")
+	assert_eq(config.api_url, "https://api-dev.playsoulwick.com")
 	var unknown := _config(OnlineConfig.ENV_LOCAL, {"env": "staging"})
 	assert_eq(unknown.environment, OnlineConfig.ENV_LOCAL, "unknown names change nothing")
 	assert_true(_config(OnlineConfig.ENV_DEVELOPMENT).apply_server_relay("wss://other.example/v1"), "server relay replaces the built-in one")
