@@ -123,7 +123,7 @@ script = ExtResource("3_deco")
 item = &"rubble_2"
 
 [node name="Chains1" type="Node2D" parent="Props"]
-position = Vector2(672, 256)
+position = Vector2(672, 252)
 script = ExtResource("3_deco")
 item = &"chains"
 

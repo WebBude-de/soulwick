@@ -8,7 +8,11 @@ extends GutTest
 ##   - no one-tile slots between solid things, no wall front right above an abyss;
 ##   - props never overlap (visible art rects), overlays never lie under props, sources or
 ##     objectives, nothing that lies on the floor reaches over abyss or rock;
-##   - everything is reachable on foot from the entrance and from every side door.
+##   - everything is reachable on foot from the entrance and from every side door;
+##   - wall things (torches, niches, chains) hang fully on rock, their lowest row on a front
+##     (playtest 15.10.2026: a torch stem below a front);
+##   - inner corners and steps are round: the band's joint, fillets in the floor, fronts that end
+##     at a step get their rounded end piece (playtest 15.10.2026).
 
 const SHEETS: Array[String] = [
 	"res://art/environment/tiles/rock_blob_crypt_soft.json",
@@ -93,7 +97,8 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 			for x in range(rect.position.x, rect.end.x):
 				var tile := Vector2i(x, y)
 				if floor_mask.has(tile):
-					if rock.get_cell_source_id(tile) != -1:
+					var fillet := 0 if tiles.is_pit(tile) else RockTerrain.fillet_bits(tile, floor_mask)
+					if rock.get_cell_source_id(tile) != -1 and (fillet == 0 or rock.get_cell_atlas_coords(tile) != RockTerrain.fillet_coords(fillet)):
 						problems.append("%s: rock piece on floor %s" % [entry.id, tile])
 					continue
 				var borders := false
@@ -108,7 +113,7 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 				if rock.get_cell_source_id(tile) != RockTerrain.rock_source(tiles.get_look()):
 					problems.append("%s: no terrain piece at border %s" % [entry.id, tile])
 					continue
-				var expected := RockTerrain.piece_for(tile, floor_mask)
+				var expected := RockTerrain.piece_for(tile, floor_mask, tiles.get_cliff_faces())
 				if rock.get_cell_atlas_coords(tile) != expected:
 					problems.append("%s: piece %s at %s, mask wants %s" % [entry.id, rock.get_cell_atlas_coords(tile), tile, expected])
 				if not WallAutotile.is_front(tile, floor_mask) and RockTerrain.mask_for(tile, floor_mask) == RockTerrain.FULL:
@@ -131,6 +136,56 @@ func test_corner_bits_follow_the_floor() -> void:
 	# Outer corner: floor west and south, so neither of their corners counts.
 	floor_mask = {Vector2i(-1, 0): true, Vector2i(0, 1): true, Vector2i(-1, 1): true}
 	assert_eq(RockTerrain.mask_for(Vector2i.ZERO, floor_mask), RockTerrain.N | RockTerrain.NE | RockTerrain.E)
+
+
+func test_inner_corners_and_steps_are_round() -> void:
+	# A floor cell with rock beside and below: fillets in its lower corners, none on an abyss side.
+	var floor_mask: Dictionary[Vector2i, bool] = {Vector2i(0, 0): true, Vector2i(0, -1): true, Vector2i(1, -1): true}
+	assert_eq(RockTerrain.fillet_bits(Vector2i(0, 0), floor_mask), RockTerrain.FILLET_LEFT | RockTerrain.FILLET_RIGHT, "rock left, right and below")
+	assert_eq(RockTerrain.fillet_bits(Vector2i(0, -1), floor_mask), 0, "floor below: no lower corner")
+	floor_mask[Vector2i(1, 0)] = true
+	assert_eq(RockTerrain.fillet_bits(Vector2i(0, 0), floor_mask), RockTerrain.FILLET_LEFT, "floor right")
+	# A step: the front row y 0 (x 0..1) steps back to a deeper front at (2, 1); a front ends with its
+	# rounded piece where its neighbour is floor or rock that is no front.
+	var step: Dictionary[Vector2i, bool] = {Vector2i(0, 1): true, Vector2i(1, 1): true, Vector2i(0, 2): true, Vector2i(1, 2): true, Vector2i(2, 2): true}
+	assert_eq(RockTerrain.piece_for(Vector2i(0, 0), step), RockTerrain.front_coords(RockTerrain.Front.LEFT), "front ends at the side wall")
+	assert_eq(RockTerrain.piece_for(Vector2i(1, 0), step), RockTerrain.front_coords(RockTerrain.Front.RIGHT), "front ends at the step")
+	assert_eq(RockTerrain.piece_for(Vector2i(2, 1), step), RockTerrain.front_coords(RockTerrain.Front.SINGLE), "deeper front: floor left, rock right")
+	# The composed sheet: the band runs round the inner corner, the fillet piece holds rock only in
+	# its corner.
+	var tileset := (load(BIOME_TILESET_PATH % &"slime_grotto") as TileSet).duplicate() as TileSet
+	assert_true(RockTerrain.ensure_sources(tileset))
+	var image := (tileset.get_source(RockTerrain.SOURCE_ROCK) as TileSetAtlasSource).texture.get_image()
+	var band := RockTerrain.band_colors(image)
+	var inner := RockTerrain.rock_coords(RockTerrain.N | RockTerrain.E | RockTerrain.S | RockTerrain.W | RockTerrain.SE | RockTerrain.SW | RockTerrain.NW) * RockTerrain.TILE
+	assert_eq(image.get_pixel(inner.x + RockTerrain.TILE - 1, inner.y), band[0], "inner corner: the band's joint at the corner point")
+	var fillet := RockTerrain.fillet_coords(RockTerrain.FILLET_LEFT) * RockTerrain.TILE
+	assert_gt(image.get_pixel(fillet.x, fillet.y + RockTerrain.TILE - 1).a, 0.5, "fillet: rock in the corner")
+	assert_eq(image.get_pixel(fillet.x + RockTerrain.TILE / 2, fillet.y + RockTerrain.TILE / 2).a, 0.0, "fillet: clear elsewhere")
+
+
+func test_fillets_lie_in_the_lower_inner_corners_of_every_template() -> void:
+	var problems: Array[String] = []
+	var fillets := 0
+	for entry in _entries:
+		var room := _room(entry)
+		var tiles := room.get_node("Tiles") as RoomTiles
+		var rock := tiles.get_rock_layer()
+		var floor_mask := tiles.get_floor_mask()
+		for tile: Vector2i in floor_mask:
+			if not tiles.is_painted(tile):
+				continue
+			var bits := 0 if tiles.is_pit(tile) else RockTerrain.fillet_bits(tile, floor_mask)
+			var has_piece := rock.get_cell_source_id(tile) != -1
+			if bits == 0 and has_piece:
+				problems.append("%s: rock on floor %s" % [entry.id, tile])
+			elif bits != 0:
+				fillets += 1
+				if rock.get_cell_atlas_coords(tile) != RockTerrain.fillet_coords(bits):
+					problems.append("%s: fillet %d missing at %s" % [entry.id, bits, tile])
+		room.free()
+	assert_gt(fillets, 100, "inner corners found")
+	assert_eq(problems.slice(0, 20), [] as Array[String], "%d problems: %s" % [problems.size(), "; ".join(problems.slice(0, 6))])
 
 
 # --- plan rules ---
@@ -289,6 +344,16 @@ func test_props_never_overlap_and_lie_on_floor() -> void:
 			if String(node.name).begins_with("Torch") and not String(node.name).begins_with("TorchStand"):
 				layer = DecoProp.Layer.WALL
 			if layer == DecoProp.Layer.WALL:
+				# Fully on rock, the lowest row a front: nothing hangs out under it into the floor.
+				var cover := _tiles_under(rect.grow(-1.0))
+				var bottom := cover[cover.size() - 1].y
+				for tile in cover:
+					if floor_mask.has(tile):
+						problems.append("%s: %s hangs over the floor at %s" % [entry.id, node.name, tile])
+						break
+					if tile.y == bottom and not WallAutotile.is_front(tile, floor_mask):
+						problems.append("%s: %s ends on %s, no front" % [entry.id, node.name, tile])
+						break
 				continue
 			var origin := RoomTiles.local_to_tile(node.position - Vector2(0, 1))
 			if not floor_mask.has(origin) or tiles.is_pit(origin):

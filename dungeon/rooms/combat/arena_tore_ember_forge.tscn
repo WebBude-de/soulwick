@@ -167,7 +167,7 @@ item = &"rubble_2"
 flip = true
 
 [node name="Chains1" type="Node2D" parent="Props"]
-position = Vector2(1120, 64)
+position = Vector2(1120, 60)
 script = ExtResource("4_deco")
 item = &"chains"
 

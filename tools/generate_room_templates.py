@@ -590,6 +590,9 @@ ITEM_LAYER = {
 }
 SOLID_SCENES = {"crate", "barrel", "explosive", "chest", "rubble"}
 OVERLAP_MARGIN = 2
+# Wall things whose art ends below their pivot (chains) hang this many px higher, so they end on the
+# front and not in the floor under it (look).
+WALL_ITEM_LIFT = 4
 # Objectives that are markers only (enemies, souls, collapse fields, the escort's start): no thing of
 # their own in the template, not spaced.
 MARKER_OBJECTIVES = {"merchant", "guard", "soul", "collapse_field", "escort_start", "crowned", "stone_guardian", "boss", "log", "bedroll", "relic"}
@@ -1047,7 +1050,7 @@ class Room:
         ground = self.walk_floor() - self.pits - self.bridges
         layer = ITEM_LAYER.get(item, "standing")
         if layer == "wall":
-            return True
+            return self._rect_on_front(rect)
         x0, y0, x1, y1 = rect
         if layer == "floor":
             rows = range(int(y0 // T), int((y1 - 1) // T) + 1)
@@ -1058,6 +1061,20 @@ class Room:
                 if (tx, ty) not in ground:
                     return False
         return True
+
+    def _rect_on_front(self, rect):
+        """Wall things hang fully on rock (M1, playtest 15.10.2026: a torch stem below a front):
+        every tile they cover is solid, and the lowest row they reach is a brick front (plain floor
+        right below it), so nothing hangs out under the front into the floor."""
+        floor = self.floor_tiles()
+        x0, y0, x1, y1 = rect
+        bottom = int((y1 - 1) // T)
+        columns = range(int(x0 // T), int((x1 - 1) // T) + 1)
+        for ty in range(int(y0 // T), bottom + 1):
+            for tx in columns:
+                if (tx, ty) in floor:
+                    return False
+        return all((tx, bottom + 1) in floor for tx in columns)
 
     def _compose(self, group, tiles, pieces, required=True):
         """Places pieces (dict with deco and name, optional flip) without overlap inside tiles, as
@@ -1277,7 +1294,7 @@ class Room:
         for piece in recipe:
             above = (tile[0], tile[1] - 1)
             if piece.get("wall") and "N" in walls and above in self.walls and self._front_free(above):
-                self._add_prop(dict(deco=piece["deco"], name=piece["name"], pos=(above[0] * T + T / 2, (above[1] + 1) * T), flip=self.rng.random() < 0.5, group=group))
+                self._add_prop(dict(deco=piece["deco"], name=piece["name"], pos=(above[0] * T + T / 2, (above[1] + 1) * T - WALL_ITEM_LIFT), flip=self.rng.random() < 0.5, group=group))
                 self.fixtures[above] = "c"
         self._occupy([tile], "decoration")
         if kind in ("mushroom_bed", "drip_pool"):
@@ -1669,7 +1686,10 @@ class Room:
             item = prop.get("deco") or "scene:" + str(prop.get("scene"))
             rect = prop_rect(prop)
             if rect and not self._rect_on_ground(item, rect):
-                self.fail(f"{item} at {prop_tile(prop)} reaches off the floor (abyss, rock or bridge)")
+                if ITEM_LAYER.get(item) == "wall":
+                    self.fail(f"{item} at {prop_tile(prop)} does not hang fully on a wall front (it would reach into the floor)")
+                else:
+                    self.fail(f"{item} at {prop_tile(prop)} reaches off the floor (abyss, rock or bridge)")
         for marker in [s["floor_tile"] for s in self.sources] + [o["tile"] for o in self.objectives] + list(self.spawns):
             if marker not in ground:
                 self.fail(f"marker at {marker} not on walkable floor")
@@ -1988,6 +2008,9 @@ def write_scene(room, rel_path):
                 text += f"blocked_tiles = {vec2i_list(p['blocked'])}\n"
             if "still" in p:
                 text += f"still_frame = {p['still']}\n"
+            if p["deco"] == "puddle":
+                # Water in the biome's water palette (WaterArt, M1).
+                text += f'biome = &"{room.biome}"\n'
     if plan.role == "combat":
         # The scatter keeps its one dungeon RNG draw per room but places nothing (R1: no random props).
         text += f'\n[node name="Ingredients" type="Node2D" parent="."]\ny_sort_enabled = true\nscript = ExtResource("{scatter_id}")\n'

@@ -187,6 +187,7 @@ func test_plan_rifts_send_their_enemies_through_the_wall() -> void:
 	var source := rifts.get_source_of(rift)
 	assert_not_null(source, "the rift sits in a wall source")
 	assert_eq(source.kind, SpawnSourceRules.Kind.RIFT_WALL)
+	assert_true(source.is_opening_hidden(), "no second hole beside the rift (playtest 15.10.2026)")
 	var uses := source.uses
 	var before := room.get_alive_enemy_count()
 	var pushed := rifts.push_from(rift)

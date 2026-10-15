@@ -225,7 +225,10 @@ func test_closed_niche_is_rock_until_the_wall_breaks() -> void:
 	for tile in site.niche:
 		assert_true(tiles.get_floor_mask().has(tile), "niche %s floor after the break" % tile)
 		assert_eq(tiles.get_cell_source_id(tile), RockTerrain.SOURCE_GROUND, "niche %s painted as cave floor" % tile)
-		assert_eq(tiles.get_rock_layer().get_cell_source_id(tile), -1, "no rock left on the niche %s" % tile)
+		# No rock left on it; a rounded fillet in a lower inner corner of the pocket at most.
+		var fillet := RockTerrain.fillet_bits(tile, tiles.get_floor_mask())
+		var rock := tiles.get_rock_layer()
+		assert_true(rock.get_cell_source_id(tile) == -1 or (fillet != 0 and rock.get_cell_atlas_coords(tile) == RockTerrain.fillet_coords(fillet)), "no rock left on the niche %s" % tile)
 	assert_true(tiles.get_reachable_tiles().has(site.get_content_tile()), "open after the break")
 
 

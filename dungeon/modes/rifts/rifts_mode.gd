@@ -193,7 +193,9 @@ func _open_rift(tile: Vector2i, in_wall: bool, first_delay: float) -> SummoningR
 	rifts.append(rift)
 	var source := _wall_source_at(tile) if in_wall else null
 	if source != null:
-		# The mode sends its enemies through the wall rift; the rift itself only shows it.
+		# The mode sends its enemies through the wall rift; the rift itself only shows it. No second
+		# hole beside the rift: the wall stays whole and closes with the rift (playtest 15.10.2026).
+		source.hide_opening()
 		_rift_sources[rift] = source
 		_push_in[rift] = first_delay
 	else:

@@ -124,6 +124,7 @@ position = Vector2(352, 166)
 script = ExtResource("3_deco")
 item = &"puddle"
 tint = Color(0.72, 1, 0.72, 1)
+biome = &"slime_grotto"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(348, 164)
@@ -135,6 +136,7 @@ position = Vector2(992, 166)
 script = ExtResource("3_deco")
 item = &"puddle"
 tint = Color(0.72, 1, 0.72, 1)
+biome = &"slime_grotto"
 
 [node name="Drip2" type="Node2D" parent="Props"]
 position = Vector2(996, 164)

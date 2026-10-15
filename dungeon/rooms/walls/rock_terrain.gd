@@ -86,6 +86,18 @@ const OVERLAY_COUNT := 6
 const FLIP_BIT := 8
 ## Frayed zone edges: art pixels over which a zone fades into the floor next to it (TESTWERT, look).
 const ZONE_FRAY := 7
+## Soft inner corners (M1, playtest 15.10.2026: no sharp 90 degree steps). The delivered pieces draw
+## a light band along every straight edge but nothing where two edges meet at an inner corner: the
+## sheet gets the band's corner joint drawn into those pieces, and a floor cell whose lower corner
+## lies between two edges gets a small rounded fillet of rock (bits FILLET_LEFT / FILLET_RIGHT, the
+## three sheet slots after the fronts). Band width in art px (the delivered sets: 4) and fillet
+## radius (TESTWERT, look).
+const BAND := 4
+const FILLET_RADIUS := 5
+const FILLET_LEFT := 1
+const FILLET_RIGHT := 2
+## Top edge piece (floor north of it) the band colours are read from.
+const BAND_SAMPLE_MASK := E | SE | S | SW | W
 
 static var _mask_index: Dictionary[int, int] = {}
 
@@ -100,6 +112,25 @@ static func rock_coords(mask: int) -> Vector2i:
 static func front_coords(front: Front) -> Vector2i:
 	var index := MASKS.size() + int(front)
 	return Vector2i(index % SHEET_COLUMNS, index / SHEET_COLUMNS)
+
+
+## Atlas coords of a fillet piece (bits FILLET_LEFT | FILLET_RIGHT, 1..3).
+static func fillet_coords(bits: int) -> Vector2i:
+	var index := MASKS.size() + Front.size() + clampi(bits, 1, 3) - 1
+	return Vector2i(index % SHEET_COLUMNS, index / SHEET_COLUMNS)
+
+
+## Fillets of a floor tile: a lower corner between rock on the side and rock below (both drawn as
+## edges with the band; a front on the side ends with its own rounded corner instead).
+static func fillet_bits(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> int:
+	if not floor_mask.has(tile) or floor_mask.has(tile + Vector2i.DOWN):
+		return 0
+	var bits := 0
+	for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
+		var beside := tile + side
+		if not floor_mask.has(beside) and not WallAutotile.is_front(beside, floor_mask):
+			bits |= FILLET_LEFT if side == Vector2i.LEFT else FILLET_RIGHT
+	return bits
 
 
 ## Corner bits count only where both sides are solid (47 distinct pieces).
@@ -136,11 +167,14 @@ static func mask_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> 
 
 
 ## Atlas coords of a solid tile. Fronts: solid with floor right below it and solid above it
-## (WallAutotile.is_front), rounded towards floor on the left / right.
-static func piece_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> Vector2i:
+## (WallAutotile.is_front), ending with a rounded corner where the front really ends: floor beside it
+## or rock that is no front (a step back to a deeper front, the side wall; playtest 15.10.2026).
+## faces: abyss tiles drawn with the same rock face in the same row (RoomTiles.get_cliff_faces); a
+## front runs on into them without an end.
+static func piece_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], faces: Dictionary[Vector2i, bool] = {}) -> Vector2i:
 	if WallAutotile.is_front(tile, floor_mask):
-		var left := floor_mask.has(tile + Vector2i.LEFT)
-		var right := floor_mask.has(tile + Vector2i.RIGHT)
+		var left := not WallAutotile.is_front(tile + Vector2i.LEFT, floor_mask) and not faces.has(tile + Vector2i.LEFT)
+		var right := not WallAutotile.is_front(tile + Vector2i.RIGHT, floor_mask) and not faces.has(tile + Vector2i.RIGHT)
 		if left and right:
 			return front_coords(Front.SINGLE)
 		if left:
@@ -296,7 +330,7 @@ static func has_look(tileset: TileSet, look: Look) -> bool:
 
 static func _add_rock_source(tileset: TileSet, id: int, image: Image) -> void:
 	var source := _add_source(tileset, id, image)
-	for i in MASKS.size() + Front.size():
+	for i in MASKS.size() + Front.size() + 3:
 		source.create_tile(Vector2i(i % SHEET_COLUMNS, i / SHEET_COLUMNS))
 
 
@@ -342,7 +376,54 @@ static func compose_rock(sheet: Image, floor_tile: Image) -> Image:
 		for x in sheet.get_width() / TILE:
 			result.blit_rect(floor_tile, Rect2i(0, 0, TILE, TILE), Vector2i(x, y) * TILE)
 	result.blend_rect(sheet, Rect2i(Vector2i.ZERO, sheet.get_size()), Vector2i.ZERO)
+	var band := band_colors(sheet)
+	_draw_inner_corners(result, band)
+	_draw_fillets(result, band)
 	return result
+
+
+## Colours of the edge band from the outside in (BAND rows of the top edge piece).
+static func band_colors(sheet: Image) -> Array[Color]:
+	var origin := rock_coords(BAND_SAMPLE_MASK) * TILE
+	var colors: Array[Color] = []
+	for row in BAND:
+		colors.append(sheet.get_pixel(origin.x + TILE / 2, origin.y + row))
+	return colors
+
+
+## The band's joint in every piece with an upper inner corner (both sides solid, the diagonal floor):
+## a quarter ring around the corner point, so the side band and the top band run into each other.
+## Lower inner corners touch a front, which ends with its own rounded corner.
+static func _draw_inner_corners(image: Image, band: Array[Color]) -> void:
+	for i in MASKS.size():
+		var mask := MASKS[i]
+		var origin := Vector2i(i % SHEET_COLUMNS, i / SHEET_COLUMNS) * TILE
+		for corner: Array in [[NE, E, TILE], [NW, W, 0]]:
+			if not mask & N or not mask & int(corner[1]) or mask & int(corner[0]):
+				continue
+			var corner_x: int = corner[2]
+			for y in BAND:
+				for x in range(0, BAND) if corner_x == 0 else range(TILE - BAND, TILE):
+					var ring := int(Vector2(x + 0.5 - corner_x, y + 0.5).length())
+					if ring < BAND:
+						image.set_pixel(origin.x + x, origin.y + y, band[ring])
+
+
+## Fillet pieces (transparent but for the rock in a rounded lower corner): slot 1 left, 2 right,
+## 3 both. The rock inside the fillet takes the band colour of its distance to the curve.
+static func _draw_fillets(image: Image, band: Array[Color]) -> void:
+	for bits in range(1, 4):
+		var origin := fillet_coords(bits) * TILE
+		image.fill_rect(Rect2i(origin, Vector2i(TILE, TILE)), Color(0, 0, 0, 0))
+		for side: int in [FILLET_LEFT, FILLET_RIGHT]:
+			if not bits & side:
+				continue
+			var center := Vector2(FILLET_RADIUS if side == FILLET_LEFT else TILE - FILLET_RADIUS, TILE - FILLET_RADIUS)
+			for y in range(TILE - FILLET_RADIUS, TILE):
+				for x in range(0, FILLET_RADIUS) if side == FILLET_LEFT else range(TILE - FILLET_RADIUS, TILE):
+					var depth := Vector2(x + 0.5, y + 0.5).distance_to(center) - FILLET_RADIUS
+					if depth > 0.0:
+						image.set_pixel(origin.x + x, origin.y + y, band[clampi(int(depth), 0, BAND - 1)])
 
 
 ## The delivered set with its rock fill (the colour of the enclosed piece) in fill_color.

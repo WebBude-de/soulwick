@@ -130,6 +130,19 @@ func _ready() -> void:
 	_show_frame()
 
 
+## A mode shows the opening itself (rifts mode: the rift in the wall is the opening): the wall
+## stays whole, enemies still step out here. Pure optics.
+func hide_opening() -> void:
+	if _breach != null:
+		_breach.visible = false
+	if _sprite != null:
+		_sprite.visible = false
+
+
+func is_opening_hidden() -> bool:
+	return (_breach == null or not _breach.visible) and (_sprite == null or not _sprite.visible)
+
+
 func is_wall_source() -> bool:
 	return SpawnSourceRules.is_wall_kind(kind)
 

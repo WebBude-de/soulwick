@@ -15,6 +15,15 @@ const GROUP := &"light_sources"
 const GAMEPLAY_GROUP := &"gameplay_lights"
 ## Share of the drawn radius that counts as lit: the soft outer edge of the circle does not.
 const DEFAULT_LIT_SHARE := 0.8
+## L1 rework: a light inside a room that is still veiled (prepared, not entered, RoomVeil) is drawn
+## this much dimmer, so it does not shine through the rock into the room the player stands in.
+## Optics only (TESTWERT). The veil's sheet alpha at full darkness, and how often a light without a
+## veil looks again (frames).
+const VEIL_LIGHT_DIM := 0.9
+const VEIL_FULL_ALPHA := 0.62
+const VEIL_RECHECK_FRAMES := 30
+const VEIL_NODE := &"RoomVeil"
+const VEIL_SEARCH_DEPTH := 10
 
 @export var radius := 140.0
 @export_range(0.0, 1.0) var intensity := 1.0
@@ -44,6 +53,10 @@ var _seed := randf() * 100.0
 var _draw_color := LightPalette.NEUTRAL
 var _draw_color_resolved := false
 var _halo := 0.0
+## Room veil above this light (RoomVeil of a prepared room, found by name; null = none) and the
+## frame of the last search (a veil may be attached after the light).
+var _veil: Node = null
+var _veil_checked := -VEIL_RECHECK_FRAMES
 ## Strip of the owning torch when the colour was resolved: a biome torch that swaps its strip
 ## (green/purple flame) gets its light colour again.
 var _resolved_strip: Variant = null
@@ -108,6 +121,39 @@ func get_draw_intensity() -> float:
 func _owner_strip() -> Variant:
 	var parent := get_parent()
 	return parent.get(&"strip") if parent != null else null
+
+
+## Brightness factor as drawn under a room veil (L1 rework): 1 without a veil or once it lifted,
+## down to 1 - VEIL_LIGHT_DIM under a full veil, following the veil while it fades.
+func get_veil_factor() -> float:
+	if _veil == null or not is_instance_valid(_veil):
+		var frame := Engine.get_process_frames()
+		if frame - _veil_checked < VEIL_RECHECK_FRAMES:
+			return 1.0
+		_veil_checked = frame
+		_veil = _find_veil()
+		if _veil == null:
+			return 1.0
+	if not (_veil as CanvasItem).visible:
+		return 1.0
+	var sheet: Variant = _veil.call(&"get_sheet") if _veil.has_method(&"get_sheet") else null
+	if not sheet is CanvasItem:
+		return 1.0
+	var share := clampf((sheet as CanvasItem).modulate.a / VEIL_FULL_ALPHA, 0.0, 1.0)
+	return 1.0 - VEIL_LIGHT_DIM * share
+
+
+## The RoomVeil of the room this light belongs to (child named RoomVeil of an ancestor).
+func _find_veil() -> Node:
+	var node := get_parent()
+	for _i in VEIL_SEARCH_DEPTH:
+		if node == null:
+			return null
+		var veil := node.get_node_or_null(NodePath(String(VEIL_NODE)))
+		if veil is CanvasItem:
+			return veil
+		node = node.get_parent()
+	return null
 
 
 ## Glow halo strength as drawn (L1).

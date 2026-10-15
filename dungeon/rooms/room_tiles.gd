@@ -990,6 +990,10 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 				set_cell(tile, SOURCE_WALL, WallAutotile.front_coords(WallAutotile.Front.MIDDLE_ALT))
 			else:
 				set_cell(tile, SOURCE_WALL, piece)
+	if _terrain_active:
+		for tile: Vector2i in floor_mask:
+			if parts.size() <= 1 or _in_any(parts, tile):
+				_paint_fillet(tile, floor_mask)
 
 
 ## Editor view (no generated pieces there): the hand-drawn outer wall, walls as pillar tiles.
@@ -1137,6 +1141,12 @@ func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 			set_cell(tile, SOURCE_WALL, WallAutotile.front_coords(WallAutotile.Front.MIDDLE_ALT))
 		else:
 			set_cell(tile, SOURCE_WALL, piece)
+	if _terrain_active:
+		# Fillets of the changed cells and of the floor around them.
+		for tile: Vector2i in area:
+			for offset: Vector2i in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i(-1, -1), Vector2i(1, -1)]:
+				if floor_mask.has(tile + offset) and is_painted(tile + offset):
+					_paint_fillet(tile + offset, floor_mask)
 
 
 ## Solid rock around the room on a child layer below every room's tiles (also below neighbours,
@@ -1224,7 +1234,20 @@ func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) ->
 	if RockTerrain.is_enclosed(tile, floor_mask):
 		_rock_layer.erase_cell(tile)
 	else:
-		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask))
+		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask, get_cliff_faces()))
+
+
+## Rounded rock in the lower corners of a floor cell between two edges (RockTerrain fillets), on
+## the rock layer over the floor; never over an abyss.
+func _paint_fillet(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
+	_update_pit_sets()
+	var bits := 0 if _pit_set.has(tile) else RockTerrain.fillet_bits(tile, floor_mask)
+	if bits == 0:
+		if _rock_layer != null and _rock_layer.get_cell_source_id(tile) == RockTerrain.rock_source(_look):
+			_rock_layer.erase_cell(tile)
+		return
+	_ensure_cave_layers()
+	_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.fillet_coords(bits))
 
 
 ## The draw-only child layers of a cave room, in drawing order: zones, overlays, rock.
@@ -1434,11 +1457,12 @@ func _paint_cliffs() -> void:
 		_cliffs.name = CLIFF_NAME
 		add_child(_cliffs, false, Node.INTERNAL_MODE_BACK)
 	var art_tile := float(tile_set.tile_size.x)
+	var floor_mask := get_floor_mask()
 	for tile in get_pit_tiles():
 		if not _has_cliff(tile):
 			continue
-		var left := _has_cliff(tile + Vector2i.LEFT)
-		var right := _has_cliff(tile + Vector2i.RIGHT)
+		var left := _has_cliff(tile + Vector2i.LEFT) or _is_rock_face(tile + Vector2i.LEFT, floor_mask)
+		var right := _has_cliff(tile + Vector2i.RIGHT) or _is_rock_face(tile + Vector2i.RIGHT, floor_mask)
 		var piece := 3
 		if left and right:
 			piece = 1
@@ -1458,6 +1482,24 @@ func _paint_cliffs() -> void:
 ## A pit tile with solid ground or a wall right north of it (no other pit, no bridge).
 func _has_cliff(tile: Vector2i) -> bool:
 	return is_pit(tile) and not _is_abyss(tile + Vector2i.UP)
+
+
+## Abyss tiles whose cliff is the cave's rock face (cave look): a rock front beside one runs on into
+## it and the cliff into the front, one face without a seam (M1, playtest 15.10.2026).
+func get_cliff_faces() -> Dictionary[Vector2i, bool]:
+	var faces: Dictionary[Vector2i, bool] = {}
+	if not _terrain_active or _look != RockTerrain.Look.CAVE:
+		return faces
+	_update_pit_sets()
+	for tile: Vector2i in _pit_set:
+		if _has_cliff(tile):
+			faces[tile] = true
+	return faces
+
+
+## Is the tile a solid rock front (the cave's face) a cliff beside it runs on into?
+func _is_rock_face(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
+	return _terrain_active and _look == RockTerrain.Look.CAVE and not floor_mask.has(tile) and WallAutotile.is_front(tile, floor_mask)
 
 
 ## Shallow water overlay and its slow area (ShallowWater), runtime only.

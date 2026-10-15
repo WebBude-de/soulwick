@@ -20,7 +20,7 @@ const ITEMS := {
 	&"pillar_fallen": {"path": "res://art/environment/deco/pillar_fallen.png", "frame": Vector2i(64, 32), "pivot": Vector2(32, 30), "layer": Layer.STANDING, "solid": Vector2(112, 22)},
 	&"candles": {"path": "res://art/environment/deco/candles_cluster.png", "frame": Vector2i(32, 24), "pivot": Vector2(16, 22), "layer": Layer.FLOOR, "light": 110.0, "light_y": 22.0},
 	&"drip": {"path": "res://art/environment/deco/drip_4f.png", "frame": Vector2i(16, 32), "frames": 4, "fps": 5.0, "pivot": Vector2(8, 31), "layer": Layer.FLOOR},
-	&"puddle": {"path": PUDDLE_WATER, "frame": Vector2i(32, 32), "frames": 4, "fps": 3.0, "pivot": Vector2(16, 18), "layer": Layer.FLOOR, "alpha": 0.85},
+	&"puddle": {"path": "", "frame": Vector2i(32, 32), "frames": 4, "fps": 3.0, "pivot": Vector2(16, 18), "layer": Layer.FLOOR},
 	&"stairs": {"path": "res://art/environment/deco/stairs_down.png", "frame": Vector2i(32, 32), "pivot": Vector2(16, 16), "layer": Layer.FLOOR},
 	&"wall_niche": {"path": "res://art/environment/deco/wall_niche.png", "frame": Vector2i(32, 48), "pivot": Vector2(16, 47), "layer": Layer.WALL, "light": 90.0, "light_y": 40.0},
 	&"chains": {"path": "res://art/environment/props/chains.png", "frame": Vector2i(32, 32), "pivot": Vector2(16, 31), "layer": Layer.WALL},
@@ -43,10 +43,6 @@ const ITEMS := {
 	# floor (the abyss mist, faint) until fog_floor_4f is delivered (SPRITES_V9).
 	&"mist": {"path": "res://art/environment/props/abyss_mist_4f.png", "frame": Vector2i(32, 32), "frames": 4, "fps": 2.5, "pivot": Vector2(16, 20), "layer": Layer.FLOOR, "alpha": 0.4, "additive": true},
 }
-## A puddle under a drip: the blob of the toxic puddle filled with the shallow water's glitter
-## (both delivered strips have four 32 px frames), built once at runtime.
-const PUDDLE_WATER := "res://art/environment/deco/shallow_water_4f.png"
-const PUDDLE_SHAPE := "res://art/environment/props/toxic_puddle_4f.png"
 ## Free-standing lights built as LightIsland (A3 ingredient look, LightQuery counts them).
 const LIGHT_ISLANDS := {
 	&"light_crystal": IngredientSet.LightStyle.CRYSTAL,
@@ -66,6 +62,8 @@ const PLACEHOLDER := Color(0.42, 0.4, 0.46)
 @export var blocked_tiles: Array[Vector2i] = []
 ## Frame shown of a multi-frame strip that does not animate (gravestone = first frame of a source).
 @export var still_frame := -1
+## Biome of the room (generator): the puddle's water palette (WaterArt).
+@export var biome: StringName = &""
 
 var sprite: Node2D = null
 var light: LightSource = null
@@ -171,35 +169,10 @@ func _build_body(footprint: Vector2) -> void:
 	DropShadow.attach(self, footprint.x * 0.4, -2.0)
 
 
-static var _puddle: Texture2D = null
-
-
-## Water glitter cut to the blob of the toxic puddle (falls back to the plain water strip).
-static func _puddle_texture() -> Texture2D:
-	if _puddle != null:
-		return _puddle
-	var water := _texture(PUDDLE_WATER, Vector2i(128, 32))
-	if not ResourceLoader.exists(PUDDLE_SHAPE):
-		_puddle = water
-		return _puddle
-	var shape := (load(PUDDLE_SHAPE) as Texture2D).get_image()
-	var glitter := water.get_image()
-	for image: Image in [shape, glitter]:
-		if image.is_compressed():
-			image.decompress()
-		image.convert(Image.FORMAT_RGBA8)
-	if shape.get_size() != glitter.get_size():
-		_puddle = water
-		return _puddle
-	var result := Image.create_empty(shape.get_width(), shape.get_height(), false, Image.FORMAT_RGBA8)
-	for y in shape.get_height():
-		for x in shape.get_width():
-			var alpha := shape.get_pixel(x, y).a
-			if alpha > 0.0:
-				var colour := glitter.get_pixel(x, y)
-				result.set_pixel(x, y, Color(colour.r, colour.g, colour.b, alpha))
-	_puddle = ImageTexture.create_from_image(result)
-	return _puddle
+## A small organic puddle in the biome's water palette (WaterArt), its shape from the position.
+func _puddle_texture() -> Texture2D:
+	var shape_seed := absi(int(position.x) * 7 + int(position.y) * 13)
+	return WaterArt.puddle_strip(biome if biome != &"" else WaterArt.DEFAULT_BIOME, shape_seed)
 
 
 ## The delivered file, or a flat placeholder of the same size.

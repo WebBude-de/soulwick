@@ -43,6 +43,9 @@ const HALO_SHARE := 0.5
 const EMISSIVE_KEEP := 0.75
 const EMISSIVE_GLOW := 0.55
 const EMISSIVE_RADIUS := 5.0
+## Self-lit only for details: share of bright neighbours (1 / this) at which it is fully off, so
+## large bright areas like door light cones never glow as a block (L1 rework, TESTWERT).
+const EMISSIVE_AREA := 1.6
 const SHADOW_LIFT := 0.35
 const HIGHLIGHT_MIX := 0.5
 const GRADE_SPEED := 1.5
@@ -258,6 +261,7 @@ func _apply_fx(origin: Vector2, zoom: float) -> void:
 	_material.set_shader_parameter(&"halo_strength", HALO_STRENGTH)
 	_material.set_shader_parameter(&"halo_share", HALO_SHARE)
 	_material.set_shader_parameter(&"emissive_keep", EMISSIVE_KEEP)
+	_material.set_shader_parameter(&"emissive_area", EMISSIVE_AREA)
 	_material.set_shader_parameter(&"emissive_glow", EMISSIVE_GLOW)
 	_material.set_shader_parameter(&"emissive_radius", EMISSIVE_RADIUS * zoom)
 	_material.set_shader_parameter(&"world_origin", origin)
@@ -305,7 +309,8 @@ func _update_lights(canvas: Transform2D, zoom: float, screen: Vector2) -> void:
 			var light: LightSource = entry[0]
 			var pos: Vector2 = entry[1]
 			var r: float = entry[2]
-			packed.append(Vector4(pos.x, pos.y, r, light.get_draw_intensity()))
+			# Lights of a room still under its veil stay dim (they would shine through the rock).
+			packed.append(Vector4(pos.x, pos.y, r, light.get_draw_intensity() * light.get_veil_factor()))
 			var color := light.get_draw_color()
 			colors.append(Vector4(color.r, color.g, color.b, LightPalette.tint_strength(color)))
 			halos.append(light.get_halo())

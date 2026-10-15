@@ -862,6 +862,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Playtest („mehr mit Lichtern und Shadern arbeiten“)
 - **Beschluss:** Alle Lichteffekte laufen im einen Vollbild-Durchgang `vision.gdshader`. Schein um jede Quelle in ihrer Farbe (Feuer, Lava, Magie, Blitze; Türkegel ohne Schein), Selbstleuchten heller, satter Pixel, Feuer flackert in der Helligkeit, Seelen- und Magielichter atmen (±14 %, 2,6 s), Biomfackeln leuchten in ihrer Flammenfarbe, Partikel-Blitze ab 8 Partikeln. Biomstimmung je Biom (`BiomeGrade.TABLE`: Schattenfarbe, Lichtertönung, Vignette, Nebel), Dorf nachts blau mit warmen Laternen. Bis 32 Lichter je Bild, Gameplay-Lichter haben Vorrang. Option „Lichteffekte: Hoch / Niedrig“ (Standard Hoch).
 - **Grenze:** reine Optik; `LightQuery`, `counts_as_light` und die logischen Sichtwerte bleiben (D-067, R6).
+- **Nachtrag 15.10.2026 (Playtest „Licht hart abgeschnitten“):** Selbstleuchten nur für kleine helle Details (Kontrast zur Umgebung, `emissive_area` 1,6), nicht für große helle Flächen wie Lichtkegel; Lichter in Räumen unter dem Schleier werden um 90 % gedämpft gezeichnet (`LightSource.get_veil_factor()`, `LightQuery` unverändert). Werte **TESTWERT**.
 - **Nebenbei:** Optionenfenster mit fester Größe über alle Tabs.
 
 ### D-142 – Fels-Terrain, eine weiche Palette, organische Pläne (M1)
@@ -879,8 +880,9 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Gang:** Zwischen Tor und Boden des nächsten Raums liegt genau eine Gangkachel; wo sich Räume überdecken, behält jeder Boden und Mauern (`PassageSeam`). Ein längerer Gang bleibt Notfall (D-117).
 - **Tor:** genau eins je Übergang, im Ausgang des verlassenen Raums: Steinblock (Krypta, Schattenreich) bzw. Fallgitter (Grotte, Glutkammer, jede Arena), 0,4 s mit Ton; Lichtkegel 30 % geschlossen, 100 % offen. Der Eingang des nächsten Raums ist ein offener Höhlenmund bzw. Torbogen ohne Türblatt. Türöffnungen und Portal sind durchsichtig. Bosstor und Seitentüren bleiben.
 - **Kein Zurück:** Sind alle lebenden Spieler im neuen Raum, schließt das Tor dahinter für immer (auch für Gegner), nie solange jemand im Gang steht.
+- **Durchgänge sind Tunnel (Projektmitglied 15.10.2026):** Fels bzw. Krone mit Lichtkante läuft geschlossen über den ganzen Durchgang (auch den Notfall-Gang), der Spieler ist darin unsichtbar; alles in der Öffnung folgt der Bogenform des Sprites (weicher Innenschatten ≈ 18 px); Weglicht nur auf der Raumseite, Kegel so breit wie die Öffnung, `CONE_ALPHA` 0,5 (TESTWERT); keine Fackel an Seitentoren. Im Risse-Modus zeigt die Wand nur den Riss, kein zweites Loch; Bonustruhen nie auf oder neben einem Spieler.
 - **Ersetzt:** den Tür-Teil von D-008 („Kampfraum-Eingang schließt“); ergänzt D-117 und D-137.
-- **Offen (Koop):** Wiederbelebte Spieler hinter einem geschlossenen Tor – Vorschlag: sie erscheinen beim Team.
+- **Koop:** Wer hinter einem geschlossenen Tor wieder aufsteht, erscheint beim nächsten stehenden Mitspieler (D-128 der Multiplayer-Sitzung, feature/multiplayer).
 
 ### D-144 – Gang-Segmente in Seitenansicht (M5)
 

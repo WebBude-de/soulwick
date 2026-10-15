@@ -95,3 +95,11 @@ static func show_way(door: Door, room: Node, option: BranchOption = null) -> voi
 		return
 	var mode := mode_for_way(room, option)
 	door.show_way(mode, way_color(door.get_style(), mode))
+	# The crown runs straight over the passage (flush lintel, 32.png): taken from the door's room and
+	# the room behind it, which are joined by now.
+	var rooms: Array[Node2D] = []
+	if door.get_parent() is Node2D:
+		rooms.append(door.get_parent())
+	if room is Node2D:
+		rooms.append(room)
+	door.view.build_lintel(rooms)

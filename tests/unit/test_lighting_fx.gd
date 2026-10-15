@@ -197,3 +197,35 @@ func test_more_lights_than_the_shader_takes_keep_the_gameplay_lights() -> void:
 func test_shader_takes_as_many_lights_as_the_overlay_sends() -> void:
 	var code := (load("res://components/visual/vision.gdshader") as Shader).code
 	assert_true(code.contains("const int MAX_LIGHTS = %d;" % VisionOverlay.MAX_LIGHTS))
+
+
+# --- Veiled rooms (L1 rework: no light through the rock from rooms not entered yet) ---
+
+func test_lights_under_a_room_veil_are_drawn_dim_but_still_count() -> void:
+	var room: Node2D = add_child_autofree(Node2D.new())
+	var script := GDScript.new()
+	script.source_code = "extends Node2D\nvar sheet: Sprite2D\nfunc get_sheet() -> Sprite2D:\n\treturn sheet\n"
+	script.reload()
+	var veil := Node2D.new()
+	veil.set_script(script)
+	veil.name = "RoomVeil"
+	var sheet := Sprite2D.new()
+	sheet.modulate = Color(0, 0, 0, LightSource.VEIL_FULL_ALPHA)
+	veil.add_child(sheet)
+	veil.set("sheet", sheet)
+	room.add_child(veil)
+	var holder := Node2D.new()
+	room.add_child(holder)
+	var light := _light(holder, Vector2(10, 10), 150.0, true)
+	assert_almost_eq(light.get_veil_factor(), 1.0 - LightSource.VEIL_LIGHT_DIM, 0.001, "veiled: dim")
+	assert_eq(LightQuery.source_circles(get_tree()).size(), 1, "gameplay still sees the light")
+	sheet.modulate.a = LightSource.VEIL_FULL_ALPHA * 0.5
+	assert_almost_eq(light.get_veil_factor(), 1.0 - LightSource.VEIL_LIGHT_DIM * 0.5, 0.001, "follows the fade")
+	veil.visible = false
+	assert_eq(light.get_veil_factor(), 1.0, "lifted veil: full light")
+	var free_light := _light(root_node(), Vector2.ZERO)
+	assert_eq(free_light.get_veil_factor(), 1.0, "no veil: full light")
+
+
+func root_node() -> Node2D:
+	return add_child_autofree(Node2D.new()) as Node2D

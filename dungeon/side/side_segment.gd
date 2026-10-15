@@ -128,8 +128,8 @@ func get_players() -> Array[Player]:
 	return alive
 
 
-## The players the camera keeps in view: today every player of this machine in the segment (one);
-## the co-op group camera replaces this with the local players and the group middle (MP).
+## The players the camera keeps in view: every living player in the segment (the camera follows
+## their middle; in co-op these are all players of the session).
 func camera_targets() -> Array[Player]:
 	var targets: Array[Player] = []
 	for player in get_players():

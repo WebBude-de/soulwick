@@ -347,6 +347,9 @@ func _check_transition(index: int, room: Node) -> void:
 	_gate_looks[look] = _gate_looks.get(look, 0) + 1
 	if not gate.is_side_door() and not style.is_boss():
 		_check(style.is_gate(), "room %d: the exit of %s is a gate" % [index, previous.name])
+	# The passage runs under the rock (PassageCover): every tile from the gate to the next floor.
+	_check(gate.view.get_passage_rects().size() == between + 1, "room %d: the passage under the rock is %d tiles long (%d)" % [index, between + 1, gate.view.get_passage_rects().size()])
+	_check(gate.view.get_lintel().size() >= 3 * between, "room %d: rock over the passage (%d pieces)" % [index, gate.view.get_lintel().size()])
 	var entrance: Node = door_script.entrance_of(room)
 	_check(entrance != null and entrance.is_open, "room %d: the entrance is open behind the player" % index)
 	if entrance != null:

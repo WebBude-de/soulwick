@@ -11,7 +11,9 @@ extends RefCounted
 ##   - no decoration, no floor source on a tile that is the only way (articulation point);
 ##   - spike traps only with a reason: a chest close by or a side passage;
 ##   - no one-tile slots between two solid or unwalkable things (rock, wall, abyss), no wall front
-##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose.
+##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose;
+##   - every wall torch (plan torches and door torches) hangs fully on one wall front, nothing of it
+##     below the front in the floor (M1, playtest 15.10.2026).
 ## problems() returns readable lines, empty = fine.
 
 ## Rows of a door lane that stay free (generator DOOR_LANE_ROWS).
@@ -90,7 +92,53 @@ static func problems(room: Node) -> Array[String]:
 		if not near_chest and neighbours > 2:
 			result.append("trap at %s without a reason" % tile)
 	result.append_array(slot_problems(tiles))
+	result.append_array(torch_problems(room))
 	return result
+
+
+## Wall torches whose art does not lie on one wall front (the visible pixels of the first frame).
+static func torch_problems(room: Node) -> Array[String]:
+	var result: Array[String] = []
+	var tiles := room.get_node_or_null("Tiles") as RoomTiles
+	if tiles == null or tiles.tile_set == null:
+		return result
+	var floor_mask := tiles.get_floor_mask()
+	var unit := float(tiles.tile_set.tile_size.x)
+	var stack: Array[Node] = [room]
+	while not stack.is_empty():
+		var node: Node = stack.pop_back()
+		stack.append_array(node.get_children())
+		var torch := node as AnimatedProp
+		if torch == null or torch.strip == null or not torch.is_visible_in_tree():
+			continue
+		var file := torch.strip.resource_path.get_file()
+		if not file.begins_with("torch_") or file.contains("stand"):
+			continue
+		var art := torch_rect(torch, tiles).grow(-0.5)
+		var low := Vector2i(floori(art.position.x / unit), floori(art.position.y / unit))
+		var high := Vector2i(floori(art.end.x / unit), floori(art.end.y / unit))
+		if low != high:
+			result.append("%s spans tiles %s..%s, not one front" % [room.get_path_to(torch), low, high])
+		elif floor_mask.has(low) or not WallAutotile.is_front(low, floor_mask):
+			result.append("%s hangs on %s, no wall front" % [room.get_path_to(torch), low])
+	return result
+
+
+## Visible pixels of a torch's first frame in the layer space of tiles.
+static func torch_rect(torch: AnimatedProp, tiles: RoomTiles) -> Rect2:
+	var frame := torch.sprite_frames.get_frame_texture(torch.animation, 0) if torch.sprite_frames != null else null
+	if frame == null:
+		return Rect2()
+	var image := frame.get_image()
+	if image.is_compressed():
+		image.decompress()
+	var used := image.get_used_rect()
+	var size := Vector2(frame.get_size())
+	var origin := torch.offset - (size / 2.0 if torch.centered else Vector2.ZERO)
+	var to_tiles := tiles.get_global_transform().affine_inverse() * torch.get_global_transform()
+	var a := to_tiles * (origin + Vector2(used.position))
+	var b := to_tiles * (origin + Vector2(used.end))
+	return Rect2(Vector2(minf(a.x, b.x), minf(a.y, b.y)), (a - b).abs())
 
 
 ## One-tile slots and wall fronts right above the abyss (M1).

@@ -10,8 +10,10 @@ shader_type canvas_item;
 //   - glow halo: every source draws an additive core in its colour (bloom around flames, lava,
 //     crystals, projectiles), strength per light (light_halos),
 //   - mist: faint world-locked haze drifting where source light falls,
-//   - self-lit pixels: bright, saturated art (lava, flames, crystals, glowing runes) resists the
-//     darkness and glows a few pixels into its surroundings (12 taps on the cell raster),
+//   - self-lit pixels: small bright, saturated details (lava cracks, flames, crystals, runes) resist
+//     the darkness and glow a few pixels into their surroundings (12 taps on the cell raster). Only
+//     details count (local contrast): large bright areas - additive door light cones, lit floor -
+//     stay normal, so a soft cone never turns into a hard-edged glowing block (L1 rework 34.png).
 //   - biome grading: shadows lifted towards the biome colour, highlights tinted, soft vignette into
 //     the biome darkness.
 // quality < 0.5 (option "Lichteffekte: Niedrig") skips halo, mist, grading and vignette.
@@ -66,7 +68,10 @@ uniform float shadow_lift = 0.5;
 uniform float highlight_mix = 0.5;
 uniform float vignette = 0.0;
 // Self-lit art: share of the darkness it keeps off, glow strength and glow reach in screen px.
+// emissive_area: how strongly a bright neighbourhood switches the effect off (1 / share of the
+// taps that may be bright before it is gone).
 uniform float emissive_keep = 0.75;
+uniform float emissive_area = 1.6;
 uniform float emissive_glow = 0.5;
 uniform float emissive_radius = 8.0;
 
@@ -155,7 +160,32 @@ void fragment() {
 	// Quantise the light falloff into bands with ordered dithering for a pixel-art gradient;
 	// full darkness (remaining = 1) stays a solid colour.
 	remaining = clamp(floor(remaining * bands + dither * step(remaining, 0.999)) / bands, 0.0, 1.0);
-	float self_lit = high ? emissive(scene) * emissive_keep : 0.0;
+	// Self-lit details: sample the neighbourhood once (high quality only).
+	float e0 = 0.0;
+	float detail = 0.0;
+	vec3 eg = vec3(0.0);
+	if (high && emissive_glow > 0.0) {
+		e0 = emissive(scene);
+		float ecover = 0.0;
+		for (int k = 0; k < 8; k++) {
+			float ang = float(k) * 0.7853982;
+			vec3 c = texture(screen_tex, (p + vec2(cos(ang), sin(ang)) * emissive_radius) / screen_size).rgb;
+			float e = emissive(c);
+			eg += c * e;
+			ecover += e;
+		}
+		for (int k = 0; k < 4; k++) {
+			float ang = float(k) * 1.5707963 + 0.7853982;
+			vec3 c = texture(screen_tex, (p + vec2(cos(ang), sin(ang)) * emissive_radius * 2.2) / screen_size).rgb;
+			float e = emissive(c);
+			eg += c * e * 0.6;
+			ecover += e * 0.6;
+		}
+		eg /= 10.4;
+		// 0 inside large bright areas (cones, lit floor), 1 around thin details (lava cracks).
+		detail = clamp(1.0 - ecover / 10.4 * emissive_area, 0.0, 1.0);
+	}
+	float self_lit = e0 * emissive_keep * detail;
 	float shade = darkness * remaining * (1.0 - self_lit);
 	vec3 color = mix(scene, dark_color.rgb, shade) * (1.0 + light_boost * glow_amount * (1.0 - remaining));
 
@@ -181,25 +211,12 @@ void fragment() {
 			float q = band(min(hs, 1.5), bands * 2.0, dither);
 			color += (halo / hs) * q * halo_strength * glow_amount;
 		}
-		// Self-lit glow: bright saturated art around this cell spills a little light (12 taps, on
-		// the cell raster so the glow stays blocky like the darkness).
-		if (emissive_glow > 0.0 && glow_amount > 0.0) {
-			vec3 eg = vec3(0.0);
-			for (int k = 0; k < 8; k++) {
-				float ang = float(k) * 0.7853982;
-				vec3 c = texture(screen_tex, (p + vec2(cos(ang), sin(ang)) * emissive_radius) / screen_size).rgb;
-				eg += c * emissive(c);
-			}
-			for (int k = 0; k < 4; k++) {
-				float ang = float(k) * 1.5707963 + 0.7853982;
-				vec3 c = texture(screen_tex, (p + vec2(cos(ang), sin(ang)) * emissive_radius * 2.2) / screen_size).rgb;
-				eg += c * emissive(c) * 0.6;
-			}
-			eg /= 10.4;
-			float es = max(max(eg.r, eg.g), eg.b);
-			if (es > 0.001) {
-				color += (eg / es) * band(min(es, 1.0), bands * 2.0, dither) * emissive_glow * glow_amount;
-			}
+		// Self-lit glow: small bright details spill a little light around them (on the cell raster,
+		// blocky like the darkness). Not onto the bright pixels themselves and not around large
+		// bright areas, so nothing blows out and no glow bleeds over the rock beside a cone.
+		float es = max(max(eg.r, eg.g), eg.b) * (1.0 - e0) * detail;
+		if (es > 0.001 && glow_amount > 0.0) {
+			color += (eg / max(max(eg.r, eg.g), eg.b)) * band(min(es, 1.0), bands * 2.0, dither) * emissive_glow * glow_amount;
 		}
 		// Mist: slow world-locked haze where source light falls.
 		if (mist_strength > 0.0 && strength > 0.0) {

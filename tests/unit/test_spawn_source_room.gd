@@ -21,6 +21,12 @@ func after_all() -> void:
 	SaveManager.save_path = _old_save_path
 
 
+## The source timelines are tweens: a hit stop left over from an earlier test file would slow them
+## down (seen in the full run: "the first source warns at once" failed).
+func before_each() -> void:
+	HitStop.reset()
+
+
 func _other_kind() -> int:
 	for kind in RoomSequence.RoomKind.values():
 		if kind != RoomSequence.RoomKind.ARENA:

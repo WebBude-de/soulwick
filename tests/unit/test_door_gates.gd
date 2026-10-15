@@ -1,8 +1,9 @@
 extends GutTest
 ## One gate per transition (M2, 11_makeover3_komplett.md §11/§12): openings show what lies behind
 ## them (playtest 14.10.2026: no dark sheet in an arch, a cave mouth, an open gate or the exit
-## portal), the light cone of a shut gate shines at 30 %, a side door's sign never covers its torch,
-## and the gate of the room left shuts behind the group once everyone is inside the next room.
+## portal), the light cone of a shut gate shines at 30 %, a side door has no torch in its passage
+## (40.png), a cave mouth keeps its whole arch, the cone is soft at its base and sides, and the gate
+## of the room left shuts behind the group once everyone is inside the next room.
 
 const DOOR_SCENE: PackedScene = preload("res://dungeon/environment/doors/door.tscn")
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
@@ -123,24 +124,88 @@ func test_shut_gate_shows_its_way_dimmed() -> void:
 	assert_almost_eq(door.view.get_cone_share(), DoorView.CONE_CLOSED_SHARE, 0.01)
 	assert_almost_eq(door.view.get_way_light().intensity, DoorView.WAY_LIGHT_INTENSITY * DoorView.CONE_CLOSED_SHARE, 0.01)
 	door.open()
-	await wait_seconds(DoorView.CONE_SHARE_TIME + 0.2)
+	# Time is stepped by hand (no real-time dependency): the cone reaches full share within its
+	# opening time, whatever the frame rate of the test run.
+	door.view.set_process(false)
+	door.view._process(DoorView.CONE_SHARE_TIME + 0.05)
 	assert_almost_eq(door.view.get_cone_share(), 1.0, 0.01, "open: full light")
-	assert_gt(door.view.get_cone_sprite().modulate.a, DoorView.CONE_ALPHA * 0.8)
+	# The cone breathes by CONE_PULSE around CONE_ALPHA.
+	var alpha := door.view.get_cone_sprite().modulate.a
+	assert_between(alpha, DoorView.CONE_ALPHA - DoorView.CONE_PULSE - 0.001, DoorView.CONE_ALPHA + DoorView.CONE_PULSE + 0.001)
 
 
-func test_side_sign_stays_clear_of_the_torch() -> void:
+func test_side_door_has_no_torch_and_its_sign_above() -> void:
 	for side in [RoomTiles.DoorSide.WEST, RoomTiles.DoorSide.EAST]:
 		var door := DOOR_SCENE.instantiate() as Door
 		door.set_side(side)
 		door.configure(&"slime_grotto")
 		add_child_autofree(door)
 		door.show_way(RoomObjective.SOULS, RoomObjective.get_mode_color(RoomObjective.SOULS))
+		assert_eq(door.view.get_torches().size(), 0, "side %d: no torch in a passage" % side)
+		assert_null(door.view.get_node_or_null("TorchLight"), "no torch light either")
 		var symbol := door.view.get_symbol_sprite()
-		var torches := door.view.get_torches()
-		assert_eq(torches.size(), 1)
-		var symbol_bottom := symbol.position.y + symbol.texture.get_height() * symbol.scale.y * 0.5
-		var torch_top := torches[0].position.y - torches[0].pivot.y * torches[0].scale.y
-		assert_lt(symbol_bottom, torch_top, "side %d: the sign hangs above the torch" % side)
+		assert_lt(symbol.position.y, 0.0, "the sign sits on the wall above the door tile")
+
+
+func test_cave_mouth_keeps_its_whole_arch() -> void:
+	for soft in [false, true]:
+		var style := DoorStyle.for_door(&"slime_grotto")
+		style.apply_room_look(true, soft)
+		var image := _image(DoorArt.get_frame(style))
+		var width := image.get_width()
+		var left := 0
+		var right := 0
+		for y in image.get_height():
+			for x in width:
+				if image.get_pixel(x, y).a > 0.5:
+					if x < width / 2:
+						left += 1
+					else:
+						right += 1
+		assert_gt(left, 0)
+		assert_almost_eq(float(left) / float(right), 1.0, 0.15, "soft %s: both halves of the arch stay" % soft)
+
+
+func test_everything_in_the_opening_is_cut_to_the_arch() -> void:
+	for biome in [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]:
+		for cave in [false, true]:
+			var style := DoorStyle.for_door(biome)
+			style.apply_room_look(cave, true)
+			var frame := _image(DoorArt.get_frame(style))
+			var mask := DoorArt.passage_mask(style)
+			assert_false(mask.is_empty(), "%s cave %s: an opening" % [biome, cave])
+			for image: Image in [DoorArt.tunnel_shade_image(style), DoorArt.tunnel_fade_image(style)]:
+				var outside := 0
+				for y in image.get_height():
+					for x in image.get_width():
+						if image.get_pixel(x, y).a > 0.0 and (frame.get_pixel(x, y).a > 0.05 or not mask.has(Vector2i(x, y))):
+							outside += 1
+				assert_eq(outside, 0, "%s cave %s: nothing outside the arch" % [biome, cave])
+			# The shade fills the whole opening over the door tile, its corners included.
+			var shade := DoorArt.tunnel_shade_image(style)
+			var row := style.leaf_offset.y + 1
+			for point: Vector2i in mask:
+				if point.y == row:
+					assert_gt(shade.get_pixelv(point).a, 0.9)
+
+
+func test_cone_is_narrow_and_soft_at_its_base() -> void:
+	var raw: Texture2D = load(DoorView.CONE_PATH)
+	var base_share := DoorView.TILE / (DoorView.PIXEL_SCALE * DoorView.CONE_SCALE * raw.get_width())
+	var cone := _image(DoorArt.soft_cone(raw, DoorView.CONE_FADE_IN, base_share))
+	var source := _image(raw)
+	var row := int(cone.get_height() * 0.6)
+	var width := cone.get_width()
+	assert_almost_eq(cone.get_pixel(0, row).a, 0.0, 0.01, "the side fades out")
+	assert_almost_eq(cone.get_pixel(width - 1, row).a, 0.0, 0.01)
+	assert_almost_eq(cone.get_pixel(width / 2, 0).a, 0.0, 0.01, "the start fades in")
+	# Halfway down the cone is still narrower than the art: its outer quarters stay dark.
+	var near := int(cone.get_height() * 0.5)
+	var lit_outside := 0
+	for x in width:
+		if absi(x - width / 2) > int(width * 0.375) and source.get_pixel(x, near).a > 0.05:
+			lit_outside += 1 if cone.get_pixel(x, near).a > 0.01 else 0
+	assert_eq(lit_outside, 0)
 
 
 func test_mouth_has_pebbles_and_moss() -> void:

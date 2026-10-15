@@ -107,6 +107,7 @@ position = Vector2(480, 422)
 script = ExtResource("4_deco")
 item = &"puddle"
 tint = Color(0.72, 0.6, 1, 1)
+biome = &"shadow_realm"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(483, 420)

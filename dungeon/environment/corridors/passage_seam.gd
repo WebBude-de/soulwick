@@ -3,9 +3,12 @@ extends RefCounted
 ## The seam between two joined rooms (M2, 11_makeover3_komplett.md §11/§12): with one gate per
 ## transition and at most one tile of corridor the rooms overlap (ExitRules.JOIN_OVERLAP) - the next
 ## room's south wall lies on this room's wall crown, its west/east wall right behind this room's door.
-## Both rooms paint their own ring of rock there, so every cell painted by both belongs to one of them:
-##   - the room whose floor and wall ring (ExitRules.body_rect_of) holds the cell,
-##   - a cell in both rings (the shared wall line) to the room whose floor touches it,
+## Both rooms paint their own ring of rock there, so every cell painted by both belongs to one of them,
+## decided by their floors (rooms from plans are no rectangles, 30.png):
+##   - a floor tile (corridors included) to the room it is floor of; floor of both (the end of a
+##     corridor lying in the next room, 42.png) to the room whose own floor it is, not a corridor,
+##   - a wall tile right beside the floor of only one room to that room,
+##   - beside both floors to the room it is the wall front of (its floor right below),
 ##   - anything else (rock on rock) stays as it is.
 ## The other room erases its copy of the cell, so the owner's floor, wall pieces (light edges along
 ## its floor) and collision show, whichever room is drawn on top. When the owner goes (unloaded,
@@ -45,6 +48,10 @@ static func join(first: Node2D, second: Node2D) -> int:
 	if overlap.size == Vector2i.ZERO:
 		return 0
 	var erased := 0
+	var first_floor := _world_floor(first_tiles, first_origin)
+	var second_floor := _world_floor(second_tiles, second_origin)
+	var first_corridors := _world_corridors(first_tiles, first_origin)
+	var second_corridors := _world_corridors(second_tiles, second_origin)
 	for y in range(overlap.position.y, overlap.end.y):
 		for x in range(overlap.position.x, overlap.end.x):
 			var world := Vector2i(x, y)
@@ -52,7 +59,7 @@ static func join(first: Node2D, second: Node2D) -> int:
 			var in_second := world - second_origin
 			if not _painted(first_tiles, in_first) or not _painted(second_tiles, in_second):
 				continue
-			match owner_of(world, first_origin, first_tiles.room_size, second_origin, second_tiles.room_size):
+			match owner_by_floor(world, first_floor, second_floor, first_corridors, second_corridors):
 				Owner.FIRST:
 					_erase(second_tiles, in_second, first)
 					erased += 1
@@ -207,6 +214,45 @@ static func owner_of(tile: Vector2i, first_origin: Vector2i, first_size: Vector2
 	if near_first != near_second:
 		return Owner.FIRST if near_first else Owner.SECOND
 	return Owner.NONE
+
+
+## Who keeps a world tile both rooms paint, from their floors (world tiles, corridors included) and
+## their door corridors (world tiles).
+static func owner_by_floor(tile: Vector2i, first_floor: Dictionary, second_floor: Dictionary, first_corridors: Dictionary = {}, second_corridors: Dictionary = {}) -> Owner:
+	var floor_first := first_floor.has(tile)
+	var floor_second := second_floor.has(tile)
+	if floor_first != floor_second:
+		return Owner.FIRST if floor_first else Owner.SECOND
+	if floor_first:
+		var own_first := not first_corridors.has(tile)
+		var own_second := not second_corridors.has(tile)
+		if own_first != own_second:
+			return Owner.FIRST if own_first else Owner.SECOND
+		return Owner.NONE
+	var near_first := _beside(tile, first_floor)
+	var near_second := _beside(tile, second_floor)
+	if near_first != near_second:
+		return Owner.FIRST if near_first else Owner.SECOND
+	if near_first:
+		var front_first := first_floor.has(tile + Vector2i.DOWN)
+		var front_second := second_floor.has(tile + Vector2i.DOWN)
+		if front_first != front_second:
+			return Owner.FIRST if front_first else Owner.SECOND
+	return Owner.NONE
+
+
+static func _world_floor(tiles: RoomTiles, origin: Vector2i) -> Dictionary:
+	var world: Dictionary = {}
+	for tile: Vector2i in tiles.get_floor_mask():
+		world[tile + origin] = true
+	return world
+
+
+static func _world_corridors(tiles: RoomTiles, origin: Vector2i) -> Dictionary:
+	var world: Dictionary = {}
+	for tile: Vector2i in tiles.get_door_corridor_tiles():
+		world[tile + origin] = true
+	return world
 
 
 ## World tile of a room's tile (0, 0) (same as DungeonManager.get_room_origin).

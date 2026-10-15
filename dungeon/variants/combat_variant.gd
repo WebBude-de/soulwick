@@ -240,7 +240,8 @@ func get_player_tiles() -> Array[Vector2i]:
 ## away when the room is already cleared (TreasureChest.locked_until_cleared).
 func spawn_bonus_chests(near_local: Vector2) -> Array[TreasureChest]:
 	var placed: Array[TreasureChest] = []
-	var taken: Array[Vector2i] = []
+	# Never on or right beside a player: a chest that lands on someone locks them in (playtest 15.10.2026).
+	var taken := _tiles_around_players()
 	for i in VariantRules.chest_count(get_player_count()):
 		var tile := VariantSpots.nearest_free(_free, RoomTiles.local_to_tile(near_local), taken)
 		var spot := RoomTiles.tile_center(tile) + Vector2(0, 22) if tile != VariantSpots.INVALID else near_local
@@ -257,6 +258,16 @@ func spawn_bonus_chests(near_local: Vector2) -> Array[TreasureChest]:
 			Burst.spawn(self, chest.global_position + Vector2(0, -24), BONUS_COLOR, 20, 140.0)
 			LightSource.flash(self, chest.global_position + Vector2(0, -24), 180.0, 0.5)
 	return placed
+
+
+## Tiles of the living players and their eight neighbours (the chest sits a bit below its tile).
+func _tiles_around_players() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for tile in get_player_tiles():
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				tiles.append(tile + Vector2i(dx, dy))
+	return tiles
 
 
 func show_banner(title: String, subtitle: String, color := BANNER_COLOR) -> void:

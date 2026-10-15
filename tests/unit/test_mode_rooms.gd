@@ -449,3 +449,18 @@ func test_a_hit_or_a_step_destroys_the_heap_and_drops_the_gold() -> void:
 	await wait_physics_frames(2)
 	assert_eq(room.state, RoomController.State.CLEARED)
 	assert_eq(gravedigger.get_risen_count(), 0)
+
+
+func test_bonus_chest_never_lands_on_a_player() -> void:
+	var room := _room()
+	var mode := _attach(room, &"flame")
+	var player := _player(room, Vector2i(7, 7))
+	room.activate()
+	await wait_process_frames(1)
+	var player_tile := RoomTiles.local_to_tile(room.to_local(player.get_feet_position()))
+	var chests := mode.spawn_bonus_chests(RoomTiles.tile_center(player_tile))
+	assert_false(chests.is_empty())
+	for chest in chests:
+		var tile := RoomTiles.local_to_tile(chest.position - Vector2(0, 22))
+		var off := (tile - player_tile).abs()
+		assert_true(maxi(off.x, off.y) >= 2, "the chest keeps clear of the player (playtest 15.10.2026)")

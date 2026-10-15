@@ -24,7 +24,7 @@
 2. [docs/ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md): **als Nächstes**, in Phasen (D-106): Phase 1 spielbar machen (Hauptmenü, Spielstände, UX, Dorf), Phase 2 **alle Räume** nach [docs/KONZEPT_RAEUME.md](docs/KONZEPT_RAEUME.md) als Einzelspieler-Content, jedes Paket mit Koop-Check.
 3. [docs/ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md): Phase 3, erst nach den Räumen: Koop, Steam, Server, Gilden, Ranglisten; das Plattform-Repo (MP7, MP7b) darf jederzeit parallel laufen. Danach Phase 4 KI-Bosse ([docs/ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md)).
 4. [docs/ROADMAP_CROSSPLAY.md](docs/ROADMAP_CROSSPLAY.md): Phase nach dem Multiplayer (Steam, Google Play, App Store, D-108 VORGESCHLAGEN); nur die Entscheidungen **CP0** fallen **vor MP2**.
-5. Grafiken, die noch fehlen: [docs/SPRITES_V6.md](docs/SPRITES_V6.md) (Mauer-Autotile) und [docs/SPRITES_V7.md](docs/SPRITES_V7.md) (Seitentüren, Abgrund-Nachträge); V1–V5 sind geliefert.
+5. Grafiken, die noch fehlen: [docs/SPRITES_V8.md](docs/SPRITES_V8.md) (Räume v2, offene Teile) und [docs/SPRITES_V9.md](docs/SPRITES_V9.md) (Makeover-Welle A: Fels-Innenecken, Tunnel-Tore, Wasser, Seitenansicht); ältere Briefings sind geliefert oder darin aufgegangen.
 6. [docs/HANDOUT.md](docs/HANDOUT.md) (Übersicht des Projektmitglieds, falls vorhanden) und [docs/design/](docs/design/) (Mockups für UI und Stimmung: als Inspiration lesen, bevor UI gebaut wird).
 
 Jedes Roadmap-Paket ist für **einen Agenten** geschnitten und nennt seine Dateien.
