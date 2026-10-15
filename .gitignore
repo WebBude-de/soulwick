@@ -13,3 +13,8 @@ docs/design/szenen/*.png
 
 # Raw art deliveries, merged into art/ by hand
 _inbox/
+
+# Dev-Feedback (F9): Auswertungen von tools/collect_feedback.py und kopierte Screenshots bleiben
+# lokal (gross, jederzeit aus user://dev_feedback neu erzeugbar); nur die Anleitung wird versioniert.
+docs/feedback/*
+!docs/feedback/README.md

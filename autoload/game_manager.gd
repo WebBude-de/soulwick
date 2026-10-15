@@ -22,6 +22,9 @@ var _phase: Phase = Phase.MENU
 func _ready() -> void:
 	# Must keep running while the tree is paused so pause reasons can be released.
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	# Dev feedback tool (F9: screenshot, marks, note), debug builds only, no autoload of its own.
+	if OS.is_debug_build():
+		DevFeedback.install(get_tree().root)
 
 
 func request_pause(reason: StringName) -> void:
