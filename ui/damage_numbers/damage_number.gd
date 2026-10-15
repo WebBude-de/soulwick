@@ -18,6 +18,16 @@ static func spawn_for_result(parent: Node, global_pos: Vector2, result: DamageRe
 		_spawn(parent, global_pos + Vector2(8.0, 0.0), result.health_damage, HEALTH_COLOR)
 
 
+## Numbers of a hit on an enemy (MP3, D-126): in a group game every player sees only the numbers
+## of their own hits; single player shows all.
+static func shows_hit_by(source: Node) -> bool:
+	var tree := Engine.get_main_loop() as SceneTree
+	if not GameMode.of_tree(tree).is_multiplayer():
+		return true
+	var player := source as Player
+	return player != null and is_instance_valid(player) and player.is_local
+
+
 ## Floating status text such as "Betäubt!".
 static func spawn_text(parent: Node, global_pos: Vector2, text: String, color: Color) -> void:
 	_spawn_label(parent, global_pos, text, color)

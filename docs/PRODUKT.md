@@ -34,11 +34,12 @@ Soulwick ist ein 2D-Top-down-Dungeon-Roguelite mit direkter, mausgesteuerter Act
 
 ## 5. Was online dazukommt
 
-Alles davon ist **optional**: Das Spiel bleibt ohne Server spielbar, jeder Aufruf aus dem Spiel darf scheitern (D-083, D-093). Für Koop leitet ein eigener Relay die Spielpakete weiter (Raumcode); gerechnet wird nur beim Host, nie auf dem Server (D-119).
+Alles davon ist **optional**: Das Spiel bleibt ohne Server spielbar, jeder Aufruf aus dem Spiel darf scheitern (D-083, D-093). Koop bleibt im Host-Modell: Ein Spieler rechnet die Spielwelt; die Pakete laufen über den eigenen Relay `soulwick-relay` mit Raumcodes, der nur weiterleitet und keine Spiellogik kennt (entschieden in D-119, CP0 Frage 3; ENet im LAN nur optional, D-124).
 
 | Baustein | Was | Wo |
 | --- | --- | --- |
-| **Konto / Identität** | Anmeldung aus dem Spiel: Testphase mit Geräte-ID, später Steam-Ticket. Zielbild: ein Soulwick-Konto mit mehreren Plattform-Identitäten (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort (D-108, Plattform P-014). Konto löschen in-App. | `apps/api` |
+| **Konto / Identität** | Anmeldung aus dem Spiel: Testphase mit Geräte-ID, später Steam, Google Play, Game Center. Ein Soulwick-Konto mit beliebig vielen Plattform-Identitäten (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort; Geräte verknüpfen per Code, Zusammenführen zweier Konten nach festen Regeln (D-121, D-122, Plattform P-014). Konto löschen in-App und per Web-Formular. | `apps/api` |
+| **Relay** | Räume mit Raumcode, leitet die Pakete zwischen Host und Clients weiter (D-119) | `apps/relay` (geplant) |
 | **Gilden** | gründen, Beitritt per Einladungscode, jederzeit verlassen; höchstens eine Gilde je Spieler, höchstens 30 Mitglieder; Gildenkasse und Gilden-Schmiede auf dem Server (D-080, D-081 als Vorschlag) | `apps/api`, im Spiel das Gildenhaus |
 | **Run-Berichte und Ranglisten** | der Host meldet das Run-Ende; Plausibilitätsprüfung **markiert statt löscht**; Tafeln Spieler Solo, Spieler Gruppe, Gilden, jeweils Allzeit und Saison (D-082) | `apps/api`, Website, später im Spiel |
 | **Koop-Relay** | Räume mit Raumcode, leitet Pakete weiter, ohne sie zu lesen (D-119) | `apps/relay` |
@@ -49,7 +50,7 @@ Datenschutz: gespeichert werden nur Plattform-Identitäten (Nutzer-ID des Provid
 
 ## 6. Plattformen und Sprachen
 
-- **Zielbild** (D-108, VORGESCHLAGEN): Steam, Google Play und App Store, mit Crossplay über alle drei. Reihenfolge entschieden: Steam → Android → iOS, Publisher WebBude (D-119). Vor Steam: Windows-Build und Schnelles Spiel über direkte IP oder virtuelles LAN (PRD §7.6).
+- **Zielbild** (D-108; Architektur D-119): Steam, Google Play und App Store, mit Crossplay über alle drei. Reihenfolge entschieden: **Steam → Android → iOS**, iOS später (kein Mac); Publisher WebBude (D-119). Vor Steam: Windows-Test-Build und Schnelles Spiel per Raumcode über den eigenen Relay (MP4, D-124).
 - **Website** zeigt die Stores als „geplant“ mit Crossplay-Hinweis; keine Store-Badges oder Markenlogos, bis es echte Links gibt.
 - **Sprachen** (D-111, VERBINDLICH): Englisch Standard, Deutsch zweite Sprache in Spiel und Website; Dokumentation bleibt Deutsch. Das Spiel erkennt die Systemsprache und lässt in den Optionen umschalten (UX3); die Website leitet `/` auf `/en`, deutsche Browser auf `/de` (Plattform P-012).
 - **Domain:** playsoulwick.com (D-111).
@@ -64,9 +65,9 @@ Nicht entschieden (D-108, CP0 Frage 1). Optionen: (a) mobil kostenlos und PC bez
 
 - Phase 1 „Spielbar für mich“ ist fertig: Hauptmenü, Spielstände, UX-Pass, Dorf.
 - Phase 2 „Räume“ und die Umbauten 2b (Räume v2 mit Minispielen, D-120, D-130 bis D-139) und 2c (Fels-Makeover, Kamera, Seitenansicht, D-140 bis D-144) laufen; Stand und offene Pakete in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md).
-- Entscheidungen bis D-144 (D-121 bis D-129 sind für den Multiplayer-Zweig reserviert).
+- Entscheidungen bis D-146 (D-121 bis D-129 Multiplayer, D-145 Dev-Feedback, D-146 GitHub).
 - Grafik: offen sind vor allem [SPRITES_V8](design/sprites/SPRITES_V8.md) und Teile von [SPRITES_V9](design/sprites/SPRITES_V9.md); Übersicht in [design/sprites/](design/sprites/README.md).
-- Phase 3 Multiplayer läuft im Worktree `../soulwick-mp` (Branch `feature/multiplayer`); Crossplay und Phase 4 KI-Bosse: geplant.
+- Phase 3 Multiplayer (MP1–MP4: Eingaben, Lobby, gemeinsamer Run über den eigenen Relay, Gast-Anmeldung, Test-Build) ist seit 15.10.2026 im selben Branch wie die Räume (kein eigener Worktree mehr); Test-Build mit `tools/export_build.ps1`. Crossplay und Phase 4 KI-Bosse: geplant.
 
 **Plattform** (`soulwick-platform`, [ROADMAP](../../soulwick-platform/docs/ROADMAP.md)):
 
@@ -98,7 +99,7 @@ Warum zwei Repos: kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zykl
 | [README.md](../../soulwick-platform/README.md), [AGENTS.md](../../soulwick-platform/AGENTS.md) | Starten, Prüfen, Ordner; Ergänzungen zur Arbeitsweise (Verträge zuerst, Agenten `api-dev`, `web-dev`, `admin-dev`) |
 | [docs/PRD.md](../../soulwick-platform/docs/PRD.md) | Anforderungen an API, Website und Admin-Panel |
 | [docs/ARCHITECTURE.md](../../soulwick-platform/docs/ARCHITECTURE.md), [docs/TECHSTACK.md](../../soulwick-platform/docs/TECHSTACK.md) | Systemgrenzen, Datenmodell, Abläufe; Bun, Turborepo, Prisma, Befehle |
-| [docs/ROADMAP.md](../../soulwick-platform/docs/ROADMAP.md) | Pakete P1 bis P12 |
+| [docs/ROADMAP.md](../../soulwick-platform/docs/ROADMAP.md) | Pakete P1 bis P17 |
 | [docs/DECISIONS.md](../../soulwick-platform/docs/DECISIONS.md) | technische Entscheidungen, P-Nummern |
 | [docs/design/README.md](../../soulwick-platform/docs/design/README.md) | Design-Index: Ordnerregeln, Dateien, wer was schreibt |
 | [docs/design/TOKENS.md](../../soulwick-platform/docs/design/TOKENS.md) | Design-Tokens für Website und Admin-Panel |
@@ -130,12 +131,13 @@ Deutsch ist die Doku-Sprache, Englisch die Standardsprache von Spiel und Website
 | Gildenkasse, Gilden-Schmiede | guild treasury, guild forge | gemeinsamer Gilden-Fortschritt auf dem Server, abgesichert über eine Versionsnummer (Vorschlag D-081) |
 | Rangliste | leaderboard (`leaderboards`, `solo`, `group`, `guild`) | Wertung nach höchstem Raum, bei Gleichstand kürzere Zeit; markierte Runs und gesperrte Spieler zählen nicht |
 | Saison | season (`season=YYYY-MM`) | Kalendermonat als Ranglisten-Zeitraum, neben Allzeit (`all`) |
-| Konto, Identität | account, identity (`player_identities`) | Konto = Spieler auf dem Server; Identität = ein Plattform-Login daran (`steam`, `device`, `google_play`, `game_center`) |
+| Konto, Identität | account, identity (`player_identities`) | Konto = Spieler auf dem Server; Identität = ein Plattform-Login daran (`steam`, `device`, `google_play`, `game_center`); verknüpft per Code (D-121, D-122) |
+| Relay, Raumcode | relay, room code | eigener Server, der Koop-Pakete nur weiterleitet; der Host teilt einen Raumcode, die anderen treten damit bei (D-119) |
 | Crossplay | crossplay | zusammen spielen über Steam, Google Play und App Store hinweg (Zielbild D-108) |
 
 ## 11. Wo Entscheidungen stehen
 
-- **Produkt:** D-Nummern in [DECISIONS.md](DECISIONS.md) (Spiel-Repo), aktuell bis D-144. Vor einem neuen Eintrag die höchste Nummer suchen (`grep -n "^### D-" docs/DECISIONS.md | tail`); nichts als OFFEN Markiertes still festlegen (AGENTS.md §6).
-- **Technik der Plattform:** P-Nummern in [`soulwick-platform/docs/DECISIONS.md`](../../soulwick-platform/docs/DECISIONS.md): P-001 bis P-015 (Stack, i18n, eRecht24, Identitäten, WebP) und P-101 bis P-109 (Annahmen, VORGESCHLAGEN, vom Team zu bestätigen).
+- **Produkt:** D-Nummern in [DECISIONS.md](DECISIONS.md) (Spiel-Repo), aktuell bis D-146. Vor einem neuen Eintrag die höchste Nummer suchen (`grep -n "^### D-" docs/DECISIONS.md | tail`); nichts als OFFEN Markiertes still festlegen (AGENTS.md §6).
+- **Technik der Plattform:** P-Nummern in [`soulwick-platform/docs/DECISIONS.md`](../../soulwick-platform/docs/DECISIONS.md): P-001 bis P-029 (Stack, i18n, eRecht24, Identitäten, WebP) und P-101 bis P-109 (Annahmen, VORGESCHLAGEN, vom Team zu bestätigen).
 - **Offene Produktfragen gesammelt:** CP0 Fragen 1 bis 8 in [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md), MP0 in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md), Website in [`KONZEPT_WEB.md`](../../soulwick-platform/docs/design/web/KONZEPT_WEB.md) §12.
 - **Bei Widerspruch** zwischen den Repos gilt für Produktfragen das Spiel-Repo; Verträge (`packages/contracts`) gelten für die API.

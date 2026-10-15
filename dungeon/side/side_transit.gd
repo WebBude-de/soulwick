@@ -157,7 +157,8 @@ func _leave_segment() -> void:
 		if not is_instance_valid(player):
 			continue
 		var own := player.get_node_or_null("Camera2D") as Camera2D
-		if own != null:
+		# Only the local player's camera is enabled (MP: the others have none at this machine).
+		if own != null and own.enabled:
 			own.make_current()
 	if _on_finished.is_valid():
 		_on_finished.call(group)

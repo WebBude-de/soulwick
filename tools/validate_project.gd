@@ -40,6 +40,9 @@ func _collect(dir_path: String, out: Array[String]) -> void:
 	if dir == null:
 		return
 	for sub in dir.get_directories():
+		# Hidden folders (.godot, .userdata for isolated test runs) are never project files.
+		if sub.begins_with("."):
+			continue
 		_collect(dir_path.path_join(sub), out)
 	for file in dir.get_files():
 		if file.get_extension() in EXTENSIONS:

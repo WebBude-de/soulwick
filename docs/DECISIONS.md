@@ -391,6 +391,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Beschluss:** Gilden, Gildenfortschritt und Ranglisten laufen auf dem **virtuellen Server mit Dokploy** des Projektmitglieds (Docker-Container). Das reine Webhosting von WebBude wird dafür nicht genutzt.
 - **Vorschlag Technik:** Container `soulwick-api` (TypeScript mit Hono, passend zur vorhandenen TypeScript-Erfahrung) und `soulwick-db` (PostgreSQL); HTTPS und Domain über Dokploy; regelmäßige Datenbank-Backups. Quellcode im Ordner `server/` dieses Repos. Der Steam-Web-API-Schlüssel liegt **nur** auf dem Server.
 - **Folgen:** Kein Echtzeit-Spielverkehr über den Server (Host-Modell bleibt). Ein Headless-Godot-Server als weiterer Container ist später möglich, aber nicht geplant. Ändert für die Zeit nach dem MVP die Regel „kein Backend“ aus ARCHITECTURE.md.
+- **Ergänzt durch D-119** (Weiterleitung ja, Spiellogik nein: Echtzeit-Pakete laufen über den eigenen Relay `soulwick-relay`, gerechnet wird weiter nur beim Host) und D-093 (Quellcode im Repo `soulwick-platform` statt `server/`).
 
 ### D-084 – Skalierung nach Spielerzahl
 
@@ -410,14 +411,14 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ### D-085 – Menüs und Pause im Multiplayer, Verbindungsabbruch
 
-- **Status:** VORGESCHLAGEN (Projektmitglied hat um Erklärung gebeten) · **Datum:** 2026-10-13 / Claude
+- **Status:** VERBINDLICH seit D-123 (14.10.2026); vorher VORGESCHLAGEN (Projektmitglied hatte um Erklärung gebeten) · **Datum:** 2026-10-13 / Claude
 - **Kontext:** Heute **friert jedes Menü das ganze Spiel ein** (D-043): Shop, Upgrade-Wahl, Waffenwahl, Tab-Übersicht und Esc halten Gegner, Geschosse und Timer an. Im Multiplayer würde ein Spieler, der den Shop öffnet, das Spiel für alle anhalten.
 - **Vorschlag:**
   - **Einzelspieler:** unverändert (D-043 gilt weiter).
   - **Multiplayer:** Menüs halten das Spiel **nicht** an. Wer ein Menü offen hat, ist **geschützt**: kann nicht getroffen werden, wird von Gegnern ignoriert, kann aber auch nicht angreifen. Das betrifft kaum etwas, weil Upgrade-Wahl und Shop ohnehin in sicheren Momenten kommen (Raum geschafft, Spezialraum).
   - Esc öffnet im Multiplayer ein Menü ohne Pause. HitStop (kurzes Einfrieren bei Treffern) ist im Multiplayer **aus**.
   - **Verbindungsabbruch:** Fällt ein Client heraus, läuft der Run weiter, die Gegneranzahl passt sich ab dem nächsten Raum an. Fällt der **Host** heraus, endet der Run für alle (Auszahlung wie Tod, 50 %). Kein Host-Wechsel, kein Wiederbeitreten im laufenden Run (später möglich).
-- **Folgen:** Ersetzt D-043 nur im Multiplayer; Entscheidung des Teams nötig.
+- **Folgen:** Ersetzt D-043 nur im Multiplayer; Entscheidung des Teams nötig (getroffen in D-123).
 
 ### D-086 – Raumarten und Abgründe
 
@@ -640,6 +641,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Neue Roadmap [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) (CP0–CP6) als Phase nach dem Multiplayer; Verweise in AGENTS.md §3 und ROADMAP_MULTIPLAYER „Überblick“. Website (Plattform P9): Steam, Google Play, App Store als „geplant“ mit Crossplay-Hinweis.
   - **Zu entscheiden vor MP2** (CP0): Geschäftsmodell, Konto-Modell, Lobby/Relay, Plattform-Reihenfolge, Touch-Steuerung, Altersfreigabe, Ranglisten je Plattform oder gemeinsam.
 - **Ergänzt:** D-083, D-093. **Ersetzt:** keine.
+- **Teilweise entschieden in D-119, D-121, D-122** (Relay, Plattform-Reihenfolge und Publisher; Konto-Modell; Zusammenführen von Konten). Geschäftsmodell, Touch, Altersfreigabe, Ranglisten je Plattform und Relay-Regionen bleiben OFFEN (CP0).
 
 ### D-109 – Belohnungen der neuen Räume
 
@@ -782,6 +784,116 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Status:** VERBINDLICH (Gameplay) · Look folgt aus Claude Design · **Datum:** 2026-10-14 / Projektmitglied
 - **Beschluss:** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
 - **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/claude_design_antwort/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
+
+### D-121 – Konto-Modell: ein Soulwick-Konto mit verknüpften Plattform-Identitäten
+
+- **Status:** VERBINDLICH · Werte **TESTWERT** · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** D-108 schlug ein Soulwick-Konto mit mehreren Plattform-Identitäten vor; ROADMAP_CROSSPLAY CP0 Frage 2 war OFFEN. Die Plattform hat die Tabelle `player_identities` schon (P11, P-014); Store-Anmeldungen (P14) und Verknüpfen (P15) warten auf diese Entscheidung.
+- **Beschluss:**
+  - Je Spieler ein **Soulwick-Konto** (der Spieler auf dem Server), **ohne E-Mail und Passwort**. Daran hängen beliebig viele **Plattform-Identitäten**: `steam`, `device`, `google_play`, `game_center` (je Provider nur dessen Nutzer-ID). Jede Anmeldung findet oder erzeugt eine Identität; eine neue Identität ohne Konto erzeugt ein Konto.
+  - **Verknüpfen wie bei Among Us:** Ein angemeldetes Gerät erzeugt einen **6-stelligen Code** (Alphabet wie die Raumcodes), **10 Minuten gültig**; das zweite Gerät löst ihn angemeldet ein, seine Identität hängt danach am Konto des ersten. Hat das zweite Gerät schon ein eigenes Konto, gilt D-122.
+  - Eine Identität darf entkoppelt werden, die letzte eines Kontos nicht.
+  - **Konto löschen** in der App (Konto-Panel → Bestätigung → `DELETE /me`) **und** als Web-Formular für den Löschantrag (Google-Play-Pflicht; Website `/delete-account`, Ablauf mit Löschcode als Vorschlag in `soulwick-platform/docs/KONZEPT_ONLINE.md` §3.7).
+  - Entscheidet ROADMAP_CROSSPLAY **CP0 Frage 2: (a)**.
+- **Gründe / verworfene Alternativen:** (b) nur Plattform-Konten ohne Verknüpfung macht Cross-Progression und gemeinsame Gilden über Plattformen hinweg unmöglich. (c) E-Mail und Passwort bringen Passwort-Reset, mehr personenbezogene Daten und Angriffsfläche ohne Nutzen; die Store-Anmeldungen reichen. Der Code-Weg braucht keine Zusatzdaten und ist vielen Spielern von Among Us vertraut.
+- **Folgen:** Plattform: `player_identities` existiert (P11, P-014); Anmeldung je Provider in **P14**, Verknüpfungscode und Löschantrag-Seite in **P15** (Verträge zuerst in `packages/contracts`). Spiel: Konto-Panel in CP1 (`ui/options/account_panel.gd`), Konto und Token in `online/session.gd` (Node in `game.tscn`, kein Autoload, D-044). Datenschutzerklärung: nur Provider-Nutzer-IDs (eRecht24, P-013). Ohne Konto bleibt das Spiel offline spielbar.
+- **Ersetzt:** keine; macht den Konto-Teil von D-108 verbindlich.
+
+### D-122 – Konten zusammenführen
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** Beim Verknüpfen (D-121) kann das zweite Gerät schon ein eigenes Konto haben. D-119 und `soulwick-platform/docs/KONZEPT_ONLINE.md` §3.6 ließen die Regel OFFEN (nur Vorschlag); Plattform P15 wartet darauf.
+- **Beschluss:** Wird ein Verknüpfungscode eingelöst und beide Geräte haben schon Konten:
+  - **Leeres Konto** (keine Gilde, keine Runs): Die Identität wandert ohne Rückfrage, das leere Konto wird gelöscht (KONZEPT_ONLINE §3.5).
+  - **Sonst** zeigt das Spiel vorher, welches Konto bleibt, und führt erst nach Bestätigung zusammen (nie still; bis dahin antwortet die API `409 account_has_progress`). Dann gilt:
+    - **Bleibendes Konto** ist das **ältere** (früheres `created_at`); es erhält alle Identitäten des anderen.
+    - **Name:** der des bleibenden Kontos.
+    - **Gilde:** Die Mitgliedschaft des bleibenden Kontos bleibt. Ist es gildenlos, übernimmt es die Mitgliedschaft des anderen.
+    - **Run-Berichte** beider bleiben bestehen; die Teilnahmen des anderen Kontos werden auf das bleibende umgehängt.
+    - Das **andere Konto wird gelöscht**.
+  - **Sperren:** Ist eines der beiden Konten gesperrt, wird **nicht** zusammengeführt; die API lehnt ab, ein Admin prüft manuell.
+- **Gründe / verworfene Alternativen:** Die Regel ist vorhersagbar und ohne Vergleich von Inhalten umsetzbar; das ältere Konto hat meist den längeren Verlauf. Niemand verliert unbemerkt seine Gilde, und es entsteht keine doppelte Mitgliedschaft (höchstens eine Gilde je Spieler, D-080). Gesperrte Konten werden nicht automatisch zusammengeführt, damit niemand eine Sperre durch Verknüpfen umgeht oder ein unbeteiligtes Konto mitsperrt. Verworfen: freie Wahl durch den Spieler (fehleranfällig, mehr Oberfläche), „das neuere Konto gewinnt“.
+- **Folgen:** Plattform P15: `POST /me/link` führt in **einer** Transaktion zusammen, Tests für leeres Konto, Konflikt mit Bestätigung, Gildenfälle, Sperre; Hinweis im Admin-Panel bei abgelehnter Zusammenführung. Spiel CP1: Bestätigungsdialog im Konto-Panel. `soulwick-platform/docs/KONZEPT_ONLINE.md` §0, §3.6 und §8 von OFFEN auf D-122 bringen (Plattform-Sitzung). **Offen (Plattform P15):** Was mit der Gründerrolle passiert, wenn das gelöschte Konto eine Gilde gegründet hat.
+- **Ersetzt:** keine; beantwortet den offenen Punkt „Zusammenführen zweier Konten“ aus D-119 und ROADMAP_CROSSPLAY CP1.
+
+### D-123 – Menüs, Pause und Verbindungsabbruch im Multiplayer
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** D-085 stand seit 2026-10-13 nur als Vorschlag da. MP1 (Pause und HitStop je Modus) und MP3 (Menüs, Abbruch) brauchen eine feste Regel.
+- **Beschluss:** **D-085 gilt inhaltlich unverändert als VERBINDLICH.** Kurzfassung:
+  - **Einzelspieler:** unverändert, Menüs pausieren das Spiel (D-043).
+  - **Multiplayer:** Menüs (Shop, Upgrade-Wahl, Waffenwahl, Tab-Übersicht, Esc) halten das Spiel **nicht** an. Wer ein Menü offen hat, ist geschützt: nicht treffbar, von Gegnern ignoriert, kann selbst nicht angreifen. HitStop ist im Multiplayer aus.
+  - **Verbindungsabbruch:** Fällt ein Client heraus, läuft der Run weiter, die Gegneranzahl passt sich ab dem nächsten Raum an. Fällt der Host heraus, endet der Run für alle (Auszahlung wie Tod, 50 %). Kein Host-Wechsel, kein Wiederbeitreten im laufenden Run (später möglich). Über den Relay (D-119) gilt: Verliert der Host die Verbindung zum Relay, ist das ein Host-Abbruch.
+- **Gründe / verworfene Alternativen:** Eine globale Pause würde im Koop alle Spieler anhalten. Upgrade-Wahl und Shop kommen ohnehin in sicheren Momenten, der Schutz kostet daher kaum Spielgefühl. Host-Wechsel und Wiederbeitreten sind im Host-Modell aufwendig und für den Anfang nicht nötig.
+- **Folgen:** Status von D-085 auf VERBINDLICH gesetzt. ROADMAP_MULTIPLAYER: MP0 (Bestätigung erledigt), MP1 (Pause und HitStop je Modus), MP3 (Menüs, Verbindungsabbruch). Keine neuen globalen Pausen (AGENTS.md Regel 6).
+- **Ersetzt:** D-043 nur im Multiplayer (wie in D-085 vorgeschlagen).
+
+### D-124 – Netzwerk-Reihenfolge
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** ROADMAP_MULTIPLAYER und MULTIPLAYER.md planten ENet zuerst (MP2 per IP, MP4 über ein virtuelles LAN) und den Steam-Relay in MP6; der HTTP-Client im Spiel stand erst in MP7. D-119 macht den eigenen Relay zum Hauptweg, und der Relay verlangt ein Spieler-Token.
+- **Beschluss:** Reihenfolge der Spiel-Pakete:
+  1. **MP1:** Code verträgt mehrere Spieler, noch ohne Netzwerk.
+  2. **MP1b – API-Client im Spiel:** `online/api_client.gd` (HTTP mit Token), Dev-Anmeldung über `POST /auth/dev` mit Geräte-ID, Sitzung in `online/session.gd`; vorgezogen aus MP7.
+  3. **MP2** über den Relay (D-119): Raum erstellen, Raumcode eingeben; braucht den Relay (ROADMAP_CROSSPLAY CP3 Teil A, Plattform P13; lokal im Plattform-Repo).
+  4. **MP3:** gemeinsamer Dungeon-Run, ebenfalls über den Relay.
+  - **ENet** nur optional für LAN-Tests und Entwicklung, hinter derselben `MultiplayerPeer`-Schnittstelle.
+  - **Steam** erst in **MP6** und nur als Zusatz (Anmeldung, Einladung mit Raumcode), nicht als Transport.
+- **Gründe / verworfene Alternativen:** Internet-Koop braucht ohnehin Anmeldung und Relay; ein ENet-Zwischenschritt (IP, virtuelles LAN) würde Lobby, Fehlermeldungen und Testanleitung doppelt bauen. Der API-Client ist klein, ohne Netzwerk-Spiellogik testbar und Voraussetzung für das Relay-Token.
+- **Folgen:** ROADMAP_MULTIPLAYER: neues Paket MP1b zwischen MP1 und MP2, Reihenfolge-Zeile; MULTIPLAYER.md §2 und §4a. MP2 bis MP6 folgen D-119 (Raumcode statt IP, Test-Build über den Relay, Steam als Zusatz).
+- **Ersetzt:** die Stufen „ENet direkt → virtuelles LAN → Steam“ (MULTIPLAYER.md §4a) und „Warum ENet zuerst“ (ROADMAP_MULTIPLAYER).
+
+### D-125 – Lobby im Dorf und Netz-Testwerte (MP2)
+
+- **Status:** VERBINDLICH (Lobby-Ort, Ablauf) · Zahlen **TESTWERT** · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** MP2 verbindet Spieler über den Relay (D-119) mit Raumcode. Es brauchte einen Ort im Dorf, einen Ablauf und Zahlen für Synchronisation und Zeitlimits.
+- **Beschluss:**
+  - **Ort:** Das Gildengebäude zeigt „Schnelles Spiel“ mit „Raum erstellen“ und „Raum beitreten“ (Raumcode, 6 Zeichen ohne verwechselbare Zeichen). Im Raum: Code groß, Spielerliste mit Name, Host, Plattform und Koop-Farbe P1–P4; „Starten“ folgt mit MP3. Gilden-Räume bleiben „in Vorbereitung“ bis MP8.
+  - **Ablauf:** Nach dem Beitritt wird die Sitzung `QUICK`, das Dorf lädt neu, der Host erzeugt jeden Mitspieler, sobald dessen Profil (Name, Figur, Farbe) da ist. Endet die Sitzung (Host weg, Kick, Relay beendet), geht es mit Hinweis ins Solo-Dorf zurück (D-123).
+  - **Host-Autorität:** Der Host synchronisiert Position, Bewegung, Zielrichtung und gehaltene Tasten; der eigene Spieler eines Clients läuft lokal sofort los und gleitet zur Host-Position zurück. „Interagieren“ (E) wird nie übertragen.
+  - **TESTWERTE:** API-Zeitlimit 5 s, Verbindungsaufbau 10 s, Leave-Bestätigung 2 s, Synchronisation 30/s, Sprung statt Gleiten ab 96 px Abweichung, Eingabe bei Änderung oder alle 10 Frames.
+  - **Anmeldung am Relay (P-027, 15.10.2026):** Das Sitzungs-Token (30 Tage) bleibt nur für die API; vor jeder Relay-Verbindung holt das Spiel per `GET /auth/token` ein JWT (15 min) und erneuert es, wenn weniger als 60 s übrig sind (TESTWERT). 401 löscht die Sitzung und meldet einmal neu an.
+  - **Proviant** (Einmal-Boosts aus dem Dorf) wird nur im Solo verbraucht, im Schnellen Spiel bleibt er liegen (D-081).
+- **Gründe:** Das Gildengebäude ist der vorhandene Ort für Online-Funktionen; Raumcodes funktionieren auf allen Plattformen gleich. Leichte Vorhersage beim eigenen Spieler hält die Steuerung direkt, ohne die Host-Autorität aufzugeben.
+- **Folgen:** `online/` (Konfiguration, API-Client, Sitzung, Relay-Peer, Lobby, Netz-Spieler), `ui/menus/village_ui.gd`, `LOBBY_*`-Texte; Test `tools/net_smoke.gd`. Zahlen in MULTIPLAYER.md §3b.
+
+### D-126 – Gemeinsamer Dungeon-Run (MP3): Host-Autorität, Raumwechsel, Wiederbeleben, Run-Ende
+
+- **Status:** VERBINDLICH (Grundsätze, vom Projektmitglied vorgegeben) · Zahlen **TESTWERT** · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (Grundsätze 1–8), Ausarbeitung und Testwerte Claude
+- **Kontext:** MP2 brachte zwei bis vier Spieler über den Relay zusammen ins Dorf (D-119, D-125). Für MP3 brauchte der gemeinsame Run feste Regeln: wer rechnet, wie alle denselben Dungeon bekommen, wann der nächste Raum beginnt, was mit Upgrades, Shop, Gefallenen und dem Run-Ende passiert.
+- **Beschluss:**
+  1. **Host-Autorität:** Nur der Host rechnet Gegner-KI, Schaden, Drops, Raumlogik und den Dungeon-Zufall. Clients schicken ihre Eingabe (wie MP2) und zeigen, was der Host repliziert.
+  2. **Gleicher Dungeon über den Seed:** Der Host startet („Starten“ im Gildengebäude oder am Dungeon-Eingang), schickt Seed und Spielerzahl; jeder baut die Räume selbst. Vor jedem weiteren Raum schickt der Host den Zustand des Dungeon-RNG, die Spielerzahl und den gewählten Weg (Abzweigung), damit der Client trotz anderer Zufallszüge genau denselben Raum baut (Prüfung über eine Raum-Signatur). Alles Dynamische entscheidet der Host.
+  3. **Replikation** (eigene RPCs statt Spawner, `online/net_enemies.gd`): Gegner als Ereignis (Spawn mit Szene, Daten-ID, Champion/Elite/Stufe, HP) plus Schnappschüsse 15/s (Position, Animation, Warnkreis/-linie, HP); Treffer und Tod als Ereignis. Gegnergeschosse einmal als Ereignis (Start, Richtung, Tempo, Aussehen), Münzen/Herzen und zerbrochene Kisten als Ereignis. Treffer-Funken, Töne und Wackeln laufen lokal aus diesen Ereignissen; Schadenszahlen nur für eigene Treffer und eigenen erlittenen Schaden. Auf dem Client sind Treffer auf Gegner und Kisten aus (seine Angriffe sind nur Bild, die Kopie beim Host trifft).
+  4. **Je Spieler:** HP, Schild, Waffen, Upgrades, Dash. Upgrade-Wahl nach Raum 3: jeder wählt selbst (eigener Dialog, keine Pause); der Ausgang öffnet, wenn alle lebenden Spieler gewählt haben oder nach **30 s** (dann die erste Karte). Shop: Angebote des Hosts für alle, Kauf aus der gemeinsamen Kasse (D-081), der Host prüft, wer zuerst kauft, bekommt das Einzelstück. Waffenraum, Brunnen, Altar und Lagerfeuer wählt jeder für sich, der Host übernimmt das Ergebnis. **Prüfungsräume** gibt es im gemeinsamen Run vorerst nicht (Gewicht 0, bis sie repliziert sind).
+  5. **Raumwechsel:** Der Ausgang öffnet, wenn der Raum geschafft ist. Der nächste Raum beginnt, wenn alle lebenden Spieler in ihm stehen, oder **10 s** nachdem der Erste ihn betreten hat (für alle sichtbarer Countdown); Nachzügler und Gefallene werden hineingeholt. Spieler mit offenem Menü (geschützt) zählen als anwesend. Raum 1 beginnt, wenn alle Clients geladen haben (höchstens **30 s** warten).
+  6. **Am Boden und Wiederbeleben (D-084):** Bei 0 HP geht ein Spieler zu Boden, solange ein anderer steht; wer **2 s** innerhalb von **56 px** neben ihm steht, holt ihn mit **2 HP** zurück (danach 1,5 s unverwundbar); ein geschaffter Raum holt alle Gefallenen zurück; liegen alle, endet der Run. Gegner ignorieren geschützte und gefallene Spieler.
+  7. **Skalierung (D-084)** wendet der Host an, mit der Spielerzahl der Sitzung (Gefallene zählen mit): Gegneranzahl ×(1 + 0,6(n−1)) über die Encounter-Gruppe, HP normaler Gegner ×(1 + 0,2(n−1)), Champions/Minibosse/Bosse ×(1 + 0,7(n−1)), Raumgröße L ab 3 Spielern. Verlässt ein Client den Run, gilt die neue Zahl ab dem nächsten vorbereiteten Raum (D-123).
+  8. **Run-Ende:** Portal = **100 %** der Kasse für jeden Spieler ins eigene Dorf, Tod, Aufgeben und Host weg = **50 %** (D-081/D-123; Schnelles Spiel ohne Meta-Boni). Das Portal darf jeder benutzen, es beendet den Run für alle. Gibt ein Client auf, verlässt er den Raum (50 % für ihn), die anderen spielen weiter. Danach geht die Gruppe ins gemeinsame Dorf zurück, der Host kann erneut starten. Der Host meldet den Run an die API (`POST /runs`, Modus `quick`, Teilnehmer = Konten im Raum beim Start), wenn er angemeldet ist; Fehler werden nur protokolliert.
+- **TESTWERTE:** Countdown 10 s, Upgrade-Wahl 30 s, Warten auf Clients 30 s, Wiederbeleben 2 s / 56 px / 2 HP / 1,5 s I-Frames, Gegner-Schnappschüsse 15/s, Spielerwerte 10/s, Weltwechsel des Hosts 0,5 s nach der Startnachricht.
+- **Gründe / verworfene Alternativen:** Host-Autorität passt zum Relay-Modell (D-119) und macht Schummeln nur beim Host möglich. Den RNG-Zustand je Raum zu senden ist billiger als ganze Räume zu übertragen und hält den Einzelspieler-Ablauf unverändert (gleiche Zufallszüge). `MultiplayerSpawner` für Gegner wurde verworfen: Gegner leben in wechselnden Raum-Instanzen, eigene Ereignisse mit Raum-Slot sind robuster und kompakter. Die Spieler bleiben beim Spawner (MP2); ihre Sichtbarkeit hängt jetzt am Synchronizer des Spielers, damit Weltwechsel keine Spawns verlieren.
+- **Folgen:** `online/net_run.gd`, `net_dungeon.gd`, `net_enemies.gd`, `coop_rules.gd`; Haken in `dungeon_manager.gd`, `room_controller.gd` (zwei), `enemy_base.gd` (eine Zeile) und weiteren Dateien (MULTIPLAYER.md §3c); Test `tools/net_run_smoke.gd`. **Offen (MP5):** Varianten ab Raum 6 (Seelenflamme, Risse, Laterne …), Geheimnischen, Arena-Tore und Fallen-Takt laufen auf Clients nur lokal; Flüche des Pakt-Altars werden nicht zum Host übertragen; kein Wiederbeitreten.
+- **Ergänzt:** D-081, D-084, D-085/D-123, D-125. **Ersetzt:** den Vorschlag „Schnelles Spiel ohne dauerhafte Auszahlung“ aus D-081 (jetzt 100/50 % wie im Einzelspieler).
+
+### D-127 – Raumgröße für 3–4 Spieler ohne L-Pläne
+
+- **Status:** VERBINDLICH bis L-Pläne existieren · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** D-084 sieht ab 3 Spielern Räume der Größe L vor. Seit den Plan-Räumen (D-131) gibt es keine L-Vorlagen; ab 3 Spielern brachen Ausgangsregeln mit Skriptfehlern.
+- **Beschluss:** `DungeonManager.get_room_sizes()` gibt ab 3 Spielern L zurück, **wenn L-Vorlagen vorhanden sind**, sonst die größte vorhandene Größe (heute M). Mehr Gegner als Quellen-Plätze werden zu weiteren Wellen (D-086). Sobald L-Pläne geliefert sind, gilt D-084 wieder ohne Codeänderung.
+- **Gründe:** Kein Absturz, keine leeren Platzhalterräume; die Gegnerzahl skaliert trotzdem nach D-084.
+- **Folgen:** Raum-Rework: L-Pläne für Gruppen sind erwünscht (Hinweis an den Raum-Strang). MULTIPLAYER.md §3e.
+
+### D-128 – Koop mit Toren und Seitenwegen (Makeover)
+
+- **Status:** VERBINDLICH · Zahlen **TESTWERT** · **Datum / Teamfreigabe:** 2026-10-15 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
+- **Kontext:** Das Makeover (D-140, D-143, D-144) bringt ein Tor pro Übergang, eine Kamera mit 1,25× und Gang-Segmente in Seitenansicht. D-143 ließ offen, was mit Spielern hinter einem geschlossenen Tor passiert.
+- **Beschluss:**
+  - **Tor:** Nur der Host schließt Tore, und erst wenn alle lebenden Spieler im neuen Raum sind; Clients bekommen das Schließen gespiegelt. Nachzügler werden beim Raumwechsel auf begehbaren Boden hinter dem Tor geholt.
+  - **Aufstehen hinter dem Tor:** Wer außerhalb des aktiven Raums wiederbelebt wird und dessen Tor zu ist (oder dessen Raum entladen ist), erscheint beim nächsten stehenden Mitspieler.
+  - **Kamera:** im Koop die Mitte aus lokalem Spieler und stehenden Mitspielern im Umkreis von 380×200 px (TESTWERT); der lokale Spieler bleibt immer im Bild.
+  - **Seitenwege:** Alle Spieler der Sitzung gehen gemeinsam hindurch; die Segmentkamera folgt der Gruppe, wer länger als 3 s außerhalb des Bildes ist, wird zurückgeholt (Host). Ob Seitenwege ausgelassen werden, entscheidet die Option des Hosts. Neue Taste „Seiten-Dash“ (Umschalt) für die Seitenansicht.
+- **Gründe:** Niemand bleibt allein hinter einem Tor zurück; die Gruppe sieht sich gegenseitig, ohne dass der eigene Spieler aus dem Bild fällt.
+- **Folgen:** `online/net_dungeon.gd`, `online/net_side.gd`, `online/coop_rules.gd`; Haken im Multiplayer-Vertrag (MULTIPLAYER.md §3e).
 
 ### D-130 – Gegner-Verhalten: Slime-Banden, Flankieren, Seitenwechsel
 

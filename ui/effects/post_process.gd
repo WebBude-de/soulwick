@@ -58,6 +58,7 @@ func bind_player(player: Player) -> void:
 	player.blinded.connect(blind)
 	player.stunned.connect(stun)
 	player.died.connect(_on_player_died)
+	player.revived.connect(_on_player_revived)
 
 
 ## Clears every effect (new player, world change).
@@ -159,11 +160,18 @@ func _disconnect_player(player: Player) -> void:
 		player.stunned.disconnect(stun)
 	if player.died.is_connected(_on_player_died):
 		player.died.disconnect(_on_player_died)
+	if player.revived.is_connected(_on_player_revived):
+		player.revived.disconnect(_on_player_revived)
 
 
 func _on_player_hit(result: DamageResult, _damage: DamageData) -> void:
 	if result.is_effective():
 		hit_pulse(1.0)
+
+
+## Up again after being downed (MP3): the colour comes back.
+func _on_player_revived() -> void:
+	_desaturate_target = 0.0
 
 
 func _on_player_died() -> void:

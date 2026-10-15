@@ -19,6 +19,8 @@ extends Node2D
 signal started(variant: CombatVariant)
 signal bonus_changed(variant: CombatVariant, state: Bonus)
 signal finished(variant: CombatVariant, bonus: bool)
+## A banner of the mode (MP hook: the host shows it on the network clients too, NetModes).
+signal banner_shown(variant: CombatVariant, title: String, subtitle: String, color: Color)
 
 enum Bonus { OPEN, ACHIEVED, LOST }
 
@@ -36,6 +38,8 @@ var context: DungeonContext = null
 var bonus := Bonus.OPEN
 ## Bonus chests placed by finish() (tests, tools).
 var chests: Array[TreasureChest] = []
+## MP hook: on a network client the mode's banners come from the host (NetModes), its own stay quiet.
+var banners_muted := false
 
 var _rng := RandomNumberGenerator.new()
 var _started := false
@@ -88,7 +92,8 @@ static func of(target: Node) -> CombatVariant:
 
 ## The fight began (RoomController.encounter_started). Once.
 func start() -> void:
-	if _started or _finished:
+	# MP hook: on a network client the host runs the mode (RoomController.remote_encounter, NetModes).
+	if _started or _finished or (room != null and room.remote_encounter):
 		return
 	_started = true
 	_on_start()
@@ -189,8 +194,9 @@ func get_players() -> Array[Player]:
 	return players
 
 
+## Players of the session (GameMode, D-084): the room scales for everyone taking part.
 func get_player_count() -> int:
-	return maxi(1, get_players().size())
+	return GameMode.of(self).get_player_count()
 
 
 ## A late enemy joins the room's encounter (rifts, raid waves): RoomController tracks it like its
@@ -271,6 +277,9 @@ func _tiles_around_players() -> Array[Vector2i]:
 
 
 func show_banner(title: String, subtitle: String, color := BANNER_COLOR) -> void:
+	banner_shown.emit(self, title, subtitle, color)
+	if banners_muted:
+		return
 	if context != null and context.ui != null and is_instance_valid(context.ui):
 		context.ui.show_banner(title, subtitle, color)
 

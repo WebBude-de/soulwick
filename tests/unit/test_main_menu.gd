@@ -16,6 +16,8 @@ var _old_locale: String
 
 
 func before_all() -> void:
+	# No network from the menu's online version check (MP4).
+	MainMenu.online_check = false
 	_old_save_path = SaveManager.save_path
 	_old_saves_dir = SaveManager.saves_dir
 	_old_settings_path = SaveManager.settings_path
@@ -38,6 +40,7 @@ func after_each() -> void:
 
 
 func after_all() -> void:
+	MainMenu.online_check = true
 	_wipe()
 	SaveManager.saves_dir = _old_saves_dir
 	SaveManager.settings_path = _old_settings_path

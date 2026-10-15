@@ -168,6 +168,14 @@ const MIN_SPAWN_POINTS: Array[int] = [5, 8, 12]
 const MAX_SPAWN_POINTS := 14
 ## Size classes a single player may get (D-086); L is kept for tests and later multiplayer.
 const SOLO_ROOM_SIZES: Array[RoomSize] = [RoomSize.S, RoomSize.M]
+## Size classes for 3-4 players (D-084, TESTWERT) and the player count they start at.
+const GROUP_ROOM_SIZES: Array[RoomSize] = [RoomSize.L]
+const GROUP_ROOM_SIZES_FROM_PLAYERS := 3
+
+
+## Combat room size classes for player_count players (GameMode.get_player_count, D-084).
+static func room_sizes_for(player_count: int) -> Array[RoomSize]:
+	return GROUP_ROOM_SIZES if player_count >= GROUP_ROOM_SIZES_FROM_PLAYERS else SOLO_ROOM_SIZES
 
 
 ## Room kind of a normal combat room (D-100). previous_kind is the kind of the room directly

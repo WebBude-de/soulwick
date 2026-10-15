@@ -81,13 +81,16 @@ const AMBUSH_WINDOW := 0.5
 @export var starting_weapon: WeaponData
 ## Hurtbox layer(s) this controller's attacks can hit (default: enemy_hurtbox).
 @export_flags_2d_physics var target_hurtbox_mask := 16
-## Reads the special_attack action itself (gated by the owning Player's dash/stun state).
+## Reads the special action from input itself (gated by the owning Player's dash/stun state).
 @export var handle_special_input := true
 
 ## Normalized aim direction, updated by the owner every physics frame.
 var aim_direction := Vector2.RIGHT
 ## Run-wide upgrades; null outside the dungeon (village) means base values.
 var upgrades: UpgradeManager = null
+## Commands of the owning player (MP1), set by the Player; null = no special input (standalone
+## controllers in tests). Never reads Input directly.
+var input: PlayerInput = null
 
 var _slots: Array[WeaponData] = [null, null]
 var _active_slot := 0
@@ -139,7 +142,7 @@ func _physics_process(delta: float) -> void:
 		_ambush_left = AMBUSH_WINDOW
 	else:
 		_ambush_left = maxf(0.0, _ambush_left - delta)
-	if handle_special_input and _owner_can_attack() and Input.is_action_pressed(&"special_attack"):
+	if handle_special_input and input != null and _owner_can_attack() and input.is_pressed(PlayerInput.SPECIAL):
 		request_special()
 
 

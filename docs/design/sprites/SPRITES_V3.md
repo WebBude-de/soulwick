@@ -92,6 +92,7 @@ Die Abschnitte 1–5 sind geliefert und eingebaut. Beim Einbau fiel Folgendes au
 | `ui/slider_grabber.png` | 8×8 | Griff für die Lautstärkeregler im Pausemenü (heute Godot-Standardgriff), Stil wie `button.png` |
 | `ui/menu/menu_bg_near.png` | 480×270 (im Spiel repariert) | Weg-Kreuzung: 4 px Grasspalt zwischen waagerechtem und senkrechtem Weg (x 288–291) und 4 px Stufe rechts am senkrechten Weg (x 316–319, ab y 206) wurden am 14.10.2026 per Skript korrigiert. Bei einem Neuexport bitte die saubere L-Kreuzung übernehmen. |
 | `ui/button_disabled.png` | wie `button.png`, 9-Slice mit 6 px Rand | Deaktivierter Button (ausgegraut, flacher), heute wird der normale Button blass dargestellt |
+| `ui/app_icon.png` und `ui/app_icon.ico` | PNG 256×256; ICO mit 16, 32, 48, 64, 128, 256 px | **Programmsymbol** der Windows-EXE und des Linux-Builds (MP4, `export_presets.cfg` → `application/icon`): Kerzenflamme bzw. Logo-Motiv, bei 16 px noch erkennbar, transparenter Hintergrund; kleine Größen von Hand gepixelt statt verkleinert. Heute steht dort `ui/logo_square.png` (64×64) als Platzhalter. Nach dem Ablegen in `export_presets.cfg` auf `res://art/ui/app_icon.ico` umstellen. |
 
 ## Priorität
 

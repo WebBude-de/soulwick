@@ -11,6 +11,11 @@ extends Control
 ## loaded or created, play_requested is emitted after a short fade; scenes/main.gd starts the game.
 ## Texts are translation keys (D-111, localization/translations.csv); composed texts (hints with
 ## numbers, record, key line) are rebuilt on NOTIFICATION_TRANSLATION_CHANGED.
+##
+## MP4: the footer shows version and build environment ("v0.9.0 dev"); on start an
+## OnlineVersionCheck reads GET /public/config in the background. Too old for the API → online
+## features locked with "please update" and the website; API unreachable → offline hint, single
+## player as always. Command line "-- offline" or online_check = false (tests) skip the check.
 
 signal play_requested
 signal quit_requested
@@ -38,6 +43,9 @@ const ENTRY_ONLINE := &"online"
 const ENTRY_OPTIONS := &"options"
 const ENTRY_QUIT := &"quit"
 
+## Run the online version check when the menu opens (tests switch it off: no network).
+static var online_check := true
+
 var _background: MenuBackground = null
 var _list: MenuList = null
 var _panel_area: Control = null
@@ -51,6 +59,11 @@ var _record_label: Label = null
 var _keys_label: Label = null
 var _fade: ColorRect = null
 var _starting := false
+var _online_label: Label = null
+var _update_link: LinkButton = null
+var _online_config: OnlineConfig = null
+var _version_check: OnlineVersionCheck = null
+var _online_status := OnlineVersionCheck.Status.UNKNOWN
 
 
 func _ready() -> void:
@@ -79,6 +92,7 @@ func _ready() -> void:
 	add_child(_fade)
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
 	refresh()
+	_start_online_check()
 
 
 ## Re-reads slots: entry texts, currencies, record and the figure in the scene.
@@ -97,7 +111,8 @@ func refresh() -> void:
 		_show_slot_info({})
 	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
 	if _keys_label != null:
-		_keys_label.text = tr(&"MENU_KEYS") % version_text()
+		_keys_label.text = tr(&"MENU_KEYS") % build_text(_environment_tag())
+	_show_online_status()
 
 
 func get_list() -> MenuList:
@@ -114,6 +129,14 @@ func get_background() -> MenuBackground:
 
 func is_starting() -> bool:
 	return _starting
+
+
+func get_online_status() -> OnlineVersionCheck.Status:
+	return _online_status
+
+
+func get_online_label() -> Label:
+	return _online_label
 
 
 func _notification(what: int) -> void:
@@ -339,9 +362,21 @@ func _build_corners() -> void:
 	_record_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	record_row.add_child(_record_label)
 	status_box.add_child(record_row)
-	_keys_label = UiKit.text_label(tr(&"MENU_KEYS") % version_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	_keys_label = UiKit.text_label(tr(&"MENU_KEYS") % build_text(_environment_tag()), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	_keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	status_box.add_child(_keys_label)
+	_online_label = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	_online_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_online_label.visible = false
+	status_box.add_child(_online_label)
+	_update_link = LinkButton.new()
+	_update_link.focus_mode = Control.FOCUS_NONE
+	_update_link.underline = LinkButton.UNDERLINE_MODE_ALWAYS
+	_update_link.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_EYEBROW))
+	_update_link.add_theme_color_override("font_color", UiKit.COLOR_GOLD)
+	_update_link.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_update_link.visible = false
+	status_box.add_child(_update_link)
 	_status.add_child(status_box)
 	_anchor_corner(_status, true)
 	add_child(_status)
@@ -351,6 +386,72 @@ func _build_corners() -> void:
 static func version_text() -> String:
 	var version := str(ProjectSettings.get_setting("application/config/version", ""))
 	return "v" + version if not version.is_empty() else FALLBACK_VERSION
+
+
+## Version plus build environment for the footer: "v0.9.0 dev", "v0.9.0 local", "v1.0.0" (production).
+static func build_text(environment_tag: String) -> String:
+	return version_text() if environment_tag.is_empty() else "%s %s" % [version_text(), environment_tag]
+
+
+func _environment_tag() -> String:
+	if _online_config != null:
+		return _online_config.get_environment_tag()
+	return OnlineConfig.environment_tag(OnlineConfig.build_environment())
+
+
+# --- Online version check (MP4) ---
+
+func _start_online_check() -> void:
+	if not online_check or OS.get_cmdline_user_args().has("offline") or OS.get_cmdline_user_args().has("--offline"):
+		return
+	_online_config = OnlineConfig.load_default()
+	_version_check = OnlineVersionCheck.new()
+	_version_check.name = "OnlineVersionCheck"
+	_version_check.config = _online_config
+	add_child(_version_check)
+	_version_check.finished.connect(_on_online_checked)
+	_online_status = OnlineVersionCheck.Status.CHECKING
+	refresh()
+	_version_check.run()
+
+
+func _on_online_checked(status: OnlineVersionCheck.Status) -> void:
+	_online_status = status
+	if status == OnlineVersionCheck.Status.OUTDATED:
+		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"ONLINE_UPDATE_SHORT", false)
+	refresh()
+
+
+## Footer line under the version: checking, ready, offline or "please update" with the website.
+func _show_online_status() -> void:
+	if _online_label == null:
+		return
+	var key := &""
+	var color := UiKit.COLOR_DISABLED
+	match _online_status:
+		OnlineVersionCheck.Status.CHECKING:
+			key = &"ONLINE_CHECKING"
+		OnlineVersionCheck.Status.ONLINE:
+			key = &"ONLINE_READY"
+		OnlineVersionCheck.Status.OFFLINE:
+			key = &"ONLINE_OFFLINE"
+			color = UiKit.COLOR_MUTED
+		OnlineVersionCheck.Status.OUTDATED:
+			key = &"ONLINE_UPDATE"
+			color = UiKit.COLOR_GOLD
+	_online_label.visible = key != &""
+	_online_label.add_theme_color_override("font_color", color)
+	if key == &"ONLINE_UPDATE":
+		var minimum := OnlineVersionCheck.min_game_version
+		_online_label.text = tr(key) % (minimum if not minimum.is_empty() else "?")
+	elif key != &"":
+		_online_label.text = tr(key)
+	var outdated := _online_status == OnlineVersionCheck.Status.OUTDATED
+	_update_link.visible = outdated
+	if outdated:
+		var url := _online_config.get_web_url() if _online_config != null else OnlineConfig.DEFAULT_WEB_URL
+		_update_link.uri = url
+		_update_link.text = tr(&"ONLINE_UPDATE_LINK") % url.trim_prefix("https://")
 
 
 func _anchor_corner(control: Control, right: bool) -> void:

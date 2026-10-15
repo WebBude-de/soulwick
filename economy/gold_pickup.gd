@@ -18,6 +18,8 @@ const HEART_TEXTURE: Texture2D = preload("res://art/ui/heart_full.png")
 
 var amount := 1
 var kind := Kind.GOLD
+## MP3: a network client's copy of the host's pickup: it flies and vanishes, the host credits.
+var visual_only := false
 
 var _age := 0.0
 var _pop_velocity := Vector2.ZERO
@@ -71,6 +73,10 @@ func _collect(player: Player) -> void:
 	if _collected:
 		return
 	_collected = true
+	if visual_only:
+		Sfx.play_at(player, &"heart" if kind == Kind.HEART else &"coin", player.global_position, -4.0)
+		queue_free()
+		return
 	if kind == Kind.HEART:
 		player.health.heal(amount)
 		Sfx.play_at(player, &"heart", player.global_position)

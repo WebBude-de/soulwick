@@ -18,3 +18,9 @@ _inbox/
 # lokal (gross, jederzeit aus user://dev_feedback neu erzeugbar); nur die Anleitung wird versioniert.
 docs/feedback/*
 !docs/feedback/README.md
+
+# Isolated user data for local Godot runs (APPDATA redirect)
+.userdata/
+
+# Exported game builds (tools/export_build.ps1 / .sh, MP4)
+builds/
