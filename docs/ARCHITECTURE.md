@@ -1,23 +1,22 @@
 # ARCHITECTURE – Systemgrenzen, Szenen und Datenfluss
 
-> **Status:** Verbindliche Zielarchitektur, **nicht** Beschreibung einer verifiziert implementierten Codebasis.  
-> **Quelle:** Überarbeitetes GDD Master 1.0, Kapitel 8, 10–15 (10.10.2026).  
-> **Abgrenzung:** Keine Übernahme von Klassen oder Szenen aus dem verworfenen Testprojekt.
+> **Stand:** 15.10.2026 · **Status:** Verbindliche Architektur, im Spiel umgesetzt (ROADMAP M0–M15, Ausbau in ROADMAP_AUSBAU). Abschnitt 6 nennt die ursprünglichen Ziel-Schnittstellen aus dem GDD; maßgeblich sind die Signaturen im Code.  
+> **Quelle:** Überarbeitetes GDD Master 1.0, Kapitel 8, 10–15 (10.10.2026), ergänzt um spätere Entscheidungen (D-Nummern).
 
 ## 1. Anwendung („Apps“) und Laufzeit
 
-**Eine lokale Desktop-Spielanwendung in Godot 4**. Das Projekt benötigt für den MVP **keine Web-App, keinen Backend-Dienst, keine Datenbank und keine Benutzeranmeldung**. Gameplay, Physik, UI und Speichervorgänge laufen innerhalb der Godot-Anwendung.
+**Eine Spielanwendung in Godot 4.7.2** (zuerst Windows-Desktop, später Android und iOS, D-119). Gameplay, Physik, UI und Speichern laufen vollständig im Spiel; es ist **ohne Server spielbar**. Die Online-Teile (Konto, Gilden, Ranglisten, Koop-Relay) liegen im eigenen Repo `soulwick-platform` (D-093, D-119) und sind optional: Jeder Aufruf aus dem Spiel darf scheitern, Spiellogik läuft nie auf dem Server.
 
 ```text
-main.tscn / main_menu.tscn
+scenes/main.tscn  (Hauptmenü: ui/main_menu/)
           |
-       game.tscn  (WorldController / aktive Welt)
+       scenes/game.tscn  (WorldController / aktive Welt)
           |
           +-- world/village/village.tscn
           +-- dungeon/dungeon.tscn
                   +-- DungeonManager
                   +-- RoomContainer (maximal 3 lebende Rauminstanzen)
-                  +-- room_base.tscn / Varianten
+                  +-- room_base.tscn / Vorlagen aus Plänen (dungeon/rooms/plans/)
 ```
 
 `game.tscn` ist der Weltkontext; `village.tscn` und `dungeon.tscn` sind **unterschiedliche Welten**. Beim Wechsel Dorf ↔ Dungeon wird `player.tscn` neu instanziiert; beim Raumwechsel **innerhalb** des Dungeons bleibt die Spielerinstanz erhalten.
@@ -48,24 +47,32 @@ main.tscn / main_menu.tscn
 ```text
 res://
 ├── project.godot
-├── scenes/                   # main.tscn, game.tscn, main_menu.tscn
+├── scenes/                   # main.tscn (Hauptmenü), game.tscn
 ├── world/village/            # village.tscn, NPCs, Interaktionen
 ├── dungeon/
 │   ├── dungeon.tscn          # DungeonManager, RoomContainer, Übergänge
-│   ├── rooms/                # room_base.tscn, combat/, special/, boss/
-│   ├── environment/          # TileSets, doors/, decorations/
-│   └── spawning/             # enemy_spawner.gd
-├── player/                   # player.tscn, Movement, WeaponController
+│   ├── rooms/                # room_base.tscn, plans/, templates/, special/, trials/, campfire/, walls/ …
+│   ├── modes/                # Minispiele (escort/, flame/, relic/, souls/, rifts/, hunt/, lightfire/, collapse/)
+│   ├── variants/             # Wagnis-Altar, Elite-Nest, ältere Kampf-Varianten
+│   ├── side/                 # Gang-Segmente in Seitenansicht (D-144)
+│   ├── biomes/               # BiomeData je Biom (.tres)
+│   ├── environment/          # TileSets, doors/, corridors/, deco/, traps/
+│   └── spawning/             # enemy_spawner.gd, Gegner-Quellen
+├── player/                   # player.tscn, Movement, WeaponController, Seitenansicht
+├── characters/               # CharacterData (Held, Kleidungsfarbe)
 ├── enemies/                  # enemy_base, types/, data/
 ├── weapons/                  # weapon_data.gd, types/, data/, projectiles/
 ├── upgrades/                 # upgrade_manager, effects/, data/
-├── economy/                  # economy_manager, shop_controller, data/
-├── components/               # health/, shield/, hitbox/, hurtbox/
-├── ui/                       # hud/, menus/, widgets/, damage_numbers/
+├── economy/                  # economy_system, shop_offer, data/
+├── meta/                     # Meta-Progression, Freischaltungen, Spielstände, Statistik
+├── localization/             # translations.csv (en, de), Loc
+├── components/               # health/, shield/, hitbox/, hurtbox/, combat/, visual/, audio/
+├── ui/                       # main_menu/, hud/, menus/, options/, widgets/, damage_numbers/, boss_intro/
 ├── autoload/                 # game_manager, run_manager, save_manager, event_bus
 ├── art/                      # characters/, environment/, weapons/, ui/
-├── audio/                    # music/, sfx/
-├── tests/
+├── audio/                    # music/, sfx/, ambient/
+├── tests/                    # unit/ (GUT), manual/
+├── tools/                    # Prüf-, Simulations- und Generator-Skripte
 └── docs/
 ```
 
@@ -78,7 +85,7 @@ Unterordner dürfen passend ergänzt werden. **Nur die vier genannten Kern-Autol
 | `scenes/game.tscn` | WorldController, gemeinsamer Gameplay-Kontext |
 | `world/village/village.tscn` | `TileMapLayer`, Buildings, NPCs, `DungeonEntrance` (`Area2D`), SpawnPoints |
 | `dungeon/dungeon.tscn` | `RoomContainer`, `DungeonManager`, Übergangslogik, Effekte |
-| `dungeon/rooms/room_base.tscn` | `Ground`/`Walls` (`TileMapLayer`), Doors, **fünf** `Marker2D`-Spawnpunkte, `EnemyContainer`, `EnemySpawner`, `RoomController` |
+| `dungeon/rooms/room_base.tscn` | `Ground`/`Walls` (`TileMapLayer`), Doors, Gegner-Quellen bzw. `Marker2D`-Spawnpunkte (früher genau fünf, heute aus dem Plan, D-086, D-132), `EnemyContainer`, `EnemySpawner`, `RoomController` |
 | `player/player.tscn` | `CharacterBody2D`, Visuals, Collision, Bewegung, Waffen, Health/Shield, Hurtbox |
 | `enemies/enemy_base.tscn` | Visuelle/physische Basis, `HealthComponent`, Hitbox/Hurtbox, typabhängige KI |
 
@@ -100,7 +107,7 @@ Raumvorlagen sind eigenständig in Godot bearbeitbar. Der DungeonManager ist fü
 | `DamageData` | `amount`, `source`, `tags`, `origin` (`PRIMARY`/`SECONDARY`), `hit_id`, `knockback` | Angriffs-/Damage-Pfad | **Nein** |
 | `PermanentSave` | Version, permanentes Gold, freigeschaltete Inhalte | SaveManager | **Ja** |
 
-**Wichtige Invarianten:** Kein Run wird nach Programmneustart fortgesetzt; Run-Ende vergütet **höchstens einmal**; gespeicherte Dateien müssen versioniert/validiert werden, fehlende/defekte Dateien kontrolliert behandelt werden. **Exaktes Speicherformat und Migration sind OFFEN.** Die Festlegung „kein JSON“ betrifft Godot-Gameplay-Resources, nicht ein bereits beschlossenes Persistenz-Dateiformat.
+**Wichtige Invarianten:** Kein Run wird nach Programmneustart fortgesetzt; Run-Ende vergütet **höchstens einmal**; gespeicherte Dateien werden versioniert und validiert, fehlende oder defekte Dateien kontrolliert behandelt. **Speicherformat:** Godot-`ConfigFile` je Spielstand mit `[meta] version` und Migration älterer Stände (D-059, VORGESCHLAGEN; Code: `autoload/save_manager.gd`). Die Festlegung „kein JSON“ betrifft Godot-Gameplay-Resources, nicht das Speicherformat.
 
 ## 6. Interne „API“-Konventionen – keine HTTP-API
 
@@ -170,9 +177,9 @@ RoomController.check_completion()
 DungeonManager: Raumtyp + Vorlage
     -> RoomController: start_encounter() einmalig
     -> EnemySpawner: gültigen Raumtyp prüfen
-    -> Anzahl 1–3 (normal, ab Raum 25: 2–3)
-    -> verschiedene Marker aus genau 5 wählen
-    -> Typ je Marker unabhängig gewichten (50/35/15)
+    -> Anzahl und Wellen je Raumnummer (TESTWERTE, D-074, D-118)
+    -> verschiedene Quellen/Marker ohne Zurücklegen wählen, bevorzugt hinter dem Spieler (D-132)
+    -> Typ je Platz aus der Gegner-Tabelle des Bioms (D-075)
     -> EnemyContainer: Gegner instanziieren
     -> RoomController: Tode verfolgen -> room_completed einmalig
 ```
@@ -196,7 +203,7 @@ Die Herkunft `PRIMARY`/`SECONDARY` verhindert Rekursion. Ein sekundärer Treffer
 
 ### 7.4 Gold und Shop – atomare Operationen
 
-`EconomySystem` prüft Gültigkeit/Preis/Angebot; **`RunManager` führt Run-Gold**. Der Kauf wird nur als Gesamtaktion verbucht (Geld weg **und** Gegenstand erhalten, sonst keine Änderung). Bei Run-Ende berechnet RunManager die Quote **50 % (Tod/Abbruch)** oder **100 % (regulär)**; **SaveManager** sichert die dauerhafte Gutschrift **einmalig**. Die Rundung von 50 % bei ungeraden Beständen bleibt **OFFEN** – nicht ohne Teamentscheidung implementieren.
+`EconomySystem` prüft Gültigkeit/Preis/Angebot; **`RunManager` führt Run-Gold**. Der Kauf wird nur als Gesamtaktion verbucht (Geld weg **und** Gegenstand erhalten, sonst keine Änderung). Bei Run-Ende berechnet RunManager die Quote **50 % (Tod/Abbruch)** oder **100 % (regulär)**; **SaveManager** sichert die dauerhafte Gutschrift **einmalig**. Bei ungeraden Beständen wird die 50-%-Auszahlung **aufgerundet** (D-062).
 
 ### 7.5 Pause / UI
 
@@ -204,14 +211,14 @@ Die Herkunft `PRIMARY`/`SECONDARY` verhindert Rekursion. Ein sekundärer Treffer
 
 ## 8. Auth, Sicherheit und Entwicklungsumgebung
 
-- **Authentifizierung/Autorisierung:** Für den MVP **nicht zutreffend**, da rein lokales Spiel ohne Accounts oder Online-API. GitLab-Zugriffsrechte betreffen **Entwicklung**, nicht Spiellogin.
-- **Netzwerk-/Server-API:** Nicht vorgesehen; keine API-Schlüssel im Projekt.
+- **Authentifizierung:** Das Einzelspieler-Spiel braucht kein Konto. Anmeldung (Gerät, später Steam, Google Play, Game Center) gibt es nur für die Online-Teile; Ablauf und Verträge im Repo `soulwick-platform` (D-108, D-119).
+- **Netzwerk-/Server-API:** HTTPS-API und WebSocket-Relay der Plattform, Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`. Keine Geheimnisse oder API-Schlüssel im Spiel-Repo; Spiellogik läuft nur beim Host (D-119).
 - **Dateisicherheit:** Save-Daten validieren, Version überprüfen, fehlende/defekte Dateien kontrolliert behandeln; persistente Goldgutschrift nicht doppelt durchführen.
-- **Dev-Umgebung:** Gemeinsame Godot-4-Version **im Team konkret festlegen** (GDD gibt keine Patchversion vor), GDScript, `.tres` und `.tscn` im Git; `.godot/` nicht versionieren; von Godot erzeugte `.uid`-Dateien im Git behalten.
-- **Repository/Workflow:** Hochschul-GitLab (`gitlab.gwdg.de`), `master` (stabil/geschützt), `dev` (Integration/geschützt); Feature-Branches von `dev`, Merge Request, mindestens ein Review, kein direkter Push auf die geschützten Branches. Siehe [TECHSTACK.md](TECHSTACK.md).
+- **Dev-Umgebung:** Godot 4.7.2 stable, Standard-Build (D-051), GDScript, `.tres` und `.tscn` im Git; `.godot/` nicht versionieren; von Godot erzeugte `.uid`-Dateien im Git behalten.
+- **Repository/Workflow:** privates GitHub-Repo `WebBude-de/soulwick`; Integrations-Branch `dev`, Feature-Branches von `dev`, Pull Request mit mindestens einem Review. Siehe [TECHSTACK.md](TECHSTACK.md) §3.
 
 ## 9. Nicht final spezifiziert
 
-Konkrete `Resource`-Property-Typen, vollständige Methoden-/Signalparameter, Fallbacks bei Raumfehlern, Rückwärtsnavigation, genaue Tür-/Raummaße, Save-Format und Migration, ON_KILL-Zeitgleichheitsfälle, Goldrundung sowie Spezialraum-Portalziehung. **Diese Punkte bleiben offen**, bis sie im Team verbindlich festgelegt und unter [DECISIONS.md](DECISIONS.md) dokumentiert werden.
+Im Code umgesetzt, aber nur als **Vorschlag** festgehalten und vom Team zu bestätigen: Speicherformat und Migration (D-059), Spezialraum-Portalziehung (D-058), eine Upgrade-Explosion je Angriffsinstanz (D-056), Physik-Layer (D-053). Weiter ohne Festlegung: gleichzeitige ON_KILL-Auslöser im selben Frame (heute seriell). Rückwärtsnavigation gibt es nicht (ein Tor pro Übergang, kein Zurück, D-143). Entschieden: Goldrundung aufrunden (D-062).
 
 **Weiterlesen:** [PRD.md](PRD.md) · [TECHSTACK.md](TECHSTACK.md) · [ROADMAP.md](ROADMAP.md) · [DECISIONS.md](DECISIONS.md)

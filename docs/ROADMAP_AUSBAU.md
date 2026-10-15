@@ -1,6 +1,6 @@
 # ROADMAP Ausbau – Spielbar machen, Räume, dann Multiplayer
 
-> **Stand:** 14.10.2026 · **Neu ausgerichtet** nach dem Playtest vom 14.10.2026 und dem bestätigten Raumkonzept [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
+> **Stand:** 14.10.2026, Verweise aktualisiert 15.10.2026 · **Neu ausgerichtet** nach dem Playtest vom 14.10.2026 und dem bestätigten Raumkonzept [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md); für Raumarten und Minispiele gilt seit D-120 [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) (Phase 2b).
 > **Reihenfolge (D-088, D-106):** Phase 1 spielbar machen → Phase 2 **alle Räume als Einzelspieler-Content** → Phase 3 Multiplayer und Plattform ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md)) → Phase 4 KI-Bosse ([ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md)).
 > **Entscheidungen:** D-086 (Raumarten, Abgründe), D-087 (Dorf), D-088 (Leitplanken), D-095–D-099 (Umsetzung 14.10.), D-100–D-106 (Raumkonzept, Reihenfolge) in [DECISIONS.md](DECISIONS.md).
 > **Abhaken** nur mit Nachweis (Tests grün, Datum). Jedes Paket ist für **einen Agenten** geschnitten.
@@ -16,11 +16,11 @@
 
 **Parallel möglich** (verschiedene Dateien): In Phase 1 laufen MM1, BI2 und C3 gleichzeitig; UX1 und B2 danach. In Phase 2 können **A2 ‖ A3** und später **A6 ‖ A7** parallel laufen; A4, A8, A9, A10 nacheinander, weil sie Generator, `room_tiles.gd` oder `dungeon_manager.gd` teilen. Das Plattform-Repo (`soulwick-platform`, MP7/MP7b) darf jederzeit parallel laufen, weil es kein Spielcode ist.
 
-**Grafiken:** [SPRITES_V3.md](SPRITES_V3.md) (geliefert, Nachträge §7). Neue Grafiken für Phase 2 schreibt der jeweilige Agent als Briefing in `docs/SPRITES_V4.md`.
+**Grafiken:** Übersicht und Stand aller Briefings in [design/sprites/](design/sprites/README.md). Neue Grafiken schreibt der jeweilige Agent als Briefing in das neueste offene `docs/design/sprites/SPRITES_V*.md` (heute V9) oder in ein neues.
 
 ## Regeln für jeden Agenten
 
-1. Vorher lesen: [AGENTS.md](../AGENTS.md), die genannten D-Einträge, [ARCHITECTURE.md](ARCHITECTURE.md), für Räume [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
+1. Vorher lesen: [AGENTS.md](../AGENTS.md), die genannten D-Einträge, [ARCHITECTURE.md](ARCHITECTURE.md), für Räume [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) (und was davon nicht berührt ist aus [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md)).
 2. Zahlen als `@export`/Konstanten mit Kommentar `TESTWERT`, Gewichte als `.tres` (Balancing ohne Code).
 3. Prüfen: `validate_project.gd`, GUT, `smoke_test.gd -- 47`; bei Kampf zusätzlich `combat_sim.gd` und `boss_sim.gd`.
 4. Erledigte Punkte hier abhaken (mit Datum); Prüfstand in [ROADMAP.md](ROADMAP.md) aktualisieren.
@@ -79,7 +79,7 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 - [x] **Vorhandene, ungenutzte Grafiken einsetzen:** Wohnhäuser `house_1`–`house_3` als Nachbarhäuser, Fässer, Kisten, Brunnen (`fountain.png`), Marktstand, Laternen. *(14.10.2026: 5 Nachbarhäuser ohne Tür, 4 Fässer, 3 Kisten, Springbrunnen auf dem Marktplatz, 6 Laternen)*
 - [x] **Leben:** 2–4 Dorfbewohner, die langsam zwischen Punkten laufen (Platzhalter mit vorhandenen NPC-Sprites, bis eigene Grafik da ist), Glühwürmchen/Blütenpartikel, Rauch aus Schornsteinen; Dorf-Geräuschkulisse gibt es schon (D-097). *(14.10.2026: 3 Dorfbewohner ohne Kollision, 2 Hühner, Rauch aus 5 Schornsteinen, Pollen tagsüber und Glühwürmchen 19–6 Uhr)*
 - [x] **Deko-Streuer** mit Regeln (Blumenbeete, Zäune, Büsche, Steine an Wegrändern und Hauswänden, nie auf Wegen und Türen), Y-Sortierung über `SortLift`. *(14.10.2026: `VillageDecor`, fester Seed, 61 Teile ohne Kollision; Gartenzäune, Bank, Heuballen, Teich, Wegweiser fest platziert)*
-- [x] **Grafik-Briefing** `docs/SPRITES_V4.md`: Blumenbeete, Gartenzaun-Teile, Heuballen, Karren, Bank, Wegweiser, Teich, Hühner/Katze, 2–3 Dorfbewohner (idle/walk), `sign_home.png`. *(14.10.2026; der Code übernimmt die Dateien automatisch, bis dahin Platzhalter)*
+- [x] **Grafik-Briefing** `docs/design/sprites/SPRITES_V4.md`: Blumenbeete, Gartenzaun-Teile, Heuballen, Karren, Bank, Wegweiser, Teich, Hühner/Katze, 2–3 Dorfbewohner (idle/walk), `sign_home.png`. *(14.10.2026; der Code übernimmt die Dateien automatisch, bis dahin Platzhalter)*
 - [x] Tests: keine Deko auf Wegen/Türen/Spawn, alle Gebäude erreichbar; Screenshot-Vergleich vorher/nachher. *(14.10.2026: `test_village_layout` 12/12 mit Physik-Flutfüllung, `test_village_life` 9/9; GUT 426/426, validate 0 failed, smoke_test 20 Räume 279 PASS; Screenshots von 7 Stellen + Übersicht vorher/nachher)*
 
 ### B4 – Dorf mit Tageszeit ✓ *(14.10.2026, D-107)*
@@ -109,11 +109,11 @@ Phase 2 kommt **vor** dem Multiplayer. Damit der Umbau (MP1) klein bleibt, beant
 > | 3 | **A4** Abgrund und Brücken · **A9** Licht-Varianten | A4: `player/`, Physik-Ebene, Abgrund-Teile in Generator/`room_tiles.gd` · A9: `dungeon/variants/light/`, Licht-Abfrage |
 > | 4 | **A10** Wegführung (Ausgänge an allen Seiten, Abzweigungen, Geheimräume) | `dungeon_manager.gd` (Raumkette), Generator |
 >
-> Zieh-Regeln der neuen Inhalte (Varianten 20 %, gewichtete Spezialräume, Wagnis-Altar 12 %) liegen als eigene Tabellen (`.tres`) in den Paketen; der Integrator schließt sie in `room_sequence.gd`/`dungeon_manager.gd` an. Grafiken: [SPRITES_V5.md](SPRITES_V5.md).
+> Zieh-Regeln der neuen Inhalte (Varianten 20 %, gewichtete Spezialräume, Wagnis-Altar 12 %) liegen als eigene Tabellen (`.tres`) in den Paketen; der Integrator schließt sie in `room_sequence.gd`/`dungeon_manager.gd` an. Grafiken: [SPRITES_V5.md](design/sprites/SPRITES_V5.md).
 
 ### D1 – Türen je Biom und Raumtyp
 
-**Ziel:** Türen erzählen, wohin es geht: eigener Rahmen und eigene Öffnen-Animation je Biom, ein großes Bosstor, Symbole über Spezialraum-Türen. Grafiken: [SPRITES_V4.md](SPRITES_V4.md) §4; bis dahin Platzhalter aus vorhandener Grafik (Einfärben, Fackeln, Partikel, Licht).
+**Ziel:** Türen erzählen, wohin es geht: eigener Rahmen und eigene Öffnen-Animation je Biom, ein großes Bosstor, Symbole über Spezialraum-Türen. Grafiken: [SPRITES_V4.md](design/sprites/SPRITES_V4.md) §4; bis dahin Platzhalter aus vorhandener Grafik (Einfärben, Fackeln, Partikel, Licht).
 
 - [x] Rahmen + Türblatt je Biom (`door_frame_<biom>`, `door_<biom>_open_4f`), Bosstor (`door_frame_boss`, `door_boss_open_4f`), Spezialraum-Symbole (`door_special_symbols`). *(14.10.2026: `DoorStyle` wählt aus Biom und Zielraum, `Door.configure_for_room`; Fackeln/Glutschalen und ein Licht je Tür, Schild über Türen zu Spezialräumen und Miniboss; Anschluss in `RoomController`/`DungeonManager` durch den Integrator offen)*
 - [x] Öffnen mit Staub/Funken, Ton und kurzem Licht-Aufblitzen; verschlossene Bossraum-Tür sichtbar bedrohlich (Glühen, Ketten). *(14.10.2026: `DoorView` folgt `Door.state_changed`; Töne `door_open_stone/_vines/_rune/_gate`, `door_boss_unlock`, `door_boss_close`; rotes Pulsieren + Pulslicht am Bosstor, Runen-/Glut-Glimmen)*
@@ -224,7 +224,7 @@ Raumart und Größe je Vorlage, Ziehung über den Dungeon-RNG (D-095), Katalog `
 
 ### A10 – Wegführung (KONZEPT_RAEUME §7) ✓ *(14.10.2026, D-117; vom Integrator angeschlossen: Wagnis-Altar neben Seiteneingängen, Englisch für 13 Textschlüssel; Elite-Nest wird weiter zur Laufzeit geladen; offen: Seitentür-Grafiken SPRITES_V7)*
 
-- [x] Ausgänge oben, links oder rechts; Türen an mehreren Seiten der Vorlagen; Überlappungsprüfung mit den noch existierenden Räumen. *(14.10.2026: Generator schreibt Türplätze je Seite (`RoomTiles.door_slots`, `RoomTemplate.entrance_sides`/`door_slots`; alle Vorlagen außer Katakombe haben West/Ost), Eingang gegenüber dem vorigen Ausgang, Ziehung Nord 50 / Ost 25 / West 25 (TESTWERT, `ExitRules`, ein Zufallswert je Kampfraum), vor Spezial-, Miniboss-, Boss- und Lagerfeuerraum immer Nord. Überlappung: „Fels auf Fels“ erlaubt, nie auf Boden, Mauer oder Gang (`ExitRules.Footprint`); sonst verlängert sich der Eingangsgang (schmaler Streifen) statt eines Ausweichens nach oben. Seitentüren mit Platzhalter-Türblatt, Fackel und Symbol (Grafik-Briefing [SPRITES_V7.md](SPRITES_V7.md) §1). GUT test_exit_rules 13/13)*
+- [x] Ausgänge oben, links oder rechts; Türen an mehreren Seiten der Vorlagen; Überlappungsprüfung mit den noch existierenden Räumen. *(14.10.2026: Generator schreibt Türplätze je Seite (`RoomTiles.door_slots`, `RoomTemplate.entrance_sides`/`door_slots`; alle Vorlagen außer Katakombe haben West/Ost), Eingang gegenüber dem vorigen Ausgang, Ziehung Nord 50 / Ost 25 / West 25 (TESTWERT, `ExitRules`, ein Zufallswert je Kampfraum), vor Spezial-, Miniboss-, Boss- und Lagerfeuerraum immer Nord. Überlappung: „Fels auf Fels“ erlaubt, nie auf Boden, Mauer oder Gang (`ExitRules.Footprint`); sonst verlängert sich der Eingangsgang (schmaler Streifen) statt eines Ausweichens nach oben. Seitentüren mit Platzhalter-Türblatt, Fackel und Symbol (Grafik-Briefing [SPRITES_V7.md](design/sprites/SPRITES_V7.md) §1). GUT test_exit_rules 13/13)*
 - [x] **Abzweigungen** (D-105): zwei Ausgänge mit Symbol, beide zu Raum n+1; **Elite-Nest** nur über Abzweigungen. *(14.10.2026: `BranchRules` ab Raum 6, höchstens einmal je Zyklus, 30 % der Kampfräume ohne Variante (TESTWERT); vor Platz 4 zwei Spezialraum-Typen (zwei Nordtüren), sonst Elite-Nest bzw. unbekannte Variante gegen den sicheren Weg (West/Ost-Gabel). Raum n+1 entsteht erst bei der Wahl (`BranchChoice`: alle vor einer Tür = sofort, sonst nach 10 s Mehrheit, Gleichstand Dungeon-RNG), die andere Tür wird versiegelt. `EliteNestVariant`: 2–3 Elites oder ein Champion mit Begleitung, Bonus-Truhe und 2 Kristalle. GUT test_branch_rules 12/12, test_elite_nest 4/4)*
 - [x] **Geheimräume** hinter rissigen Wänden (Explosionen), Nische mit Truhe/Kristall/seltenem Händler. *(14.10.2026: `SecretRules`/`SecretNiche`: 1 von 8 Normal- und Abgrundräumen ab Raum 6 (TESTWERT, nicht in Arenen), Nische hinter der Nordwand im Felsring oder in einer dicken Innenmauer, Grundriss bleibt; bricht nur durch Fass, Bomber, Boss-Schläge, Stab-, Hammer- und andere Flächentreffer; Inhalt Truhe 55 / Kristalle 35 / wandernder Händler 10 (seltene Mechanik- und Effekt-Upgrades zum Shop-Preis, Shop-Dialog). GUT test_secret_rules 10/10. Prüfstand gesamt: GUT 816/817 (einziger Fehler `test_i18n_round2`: englische Texte der neuen Schlüssel fehlen in `localization/`), smoke_test 47 Räume fünfmal PASS mit Seitenwegen, Abzweigungen, Elite-Nest und gesprengten Nischen, combat_sim und boss_sim PASS, validate 0 failed)*
 - [x] **Balance nach dem Raum-Ausbau** (D-118, Playtest-Rückmeldung umgesetzt). *(14.10.2026: mehr, aber einzeln schwächere Gegner (Raum 1–3: 2–4, 4–14: 4–5, 15–29: 4–6, ab 30: 5–8; HP ×0,6, Schaden ×0,65), Arena ab Raum 10 mit vollen Wellen und nächster Welle erst bei leerem Raum, Seelenflamme/Risse entschärft, Bosse nur gezielt. Bot Median Schwert 18 → 34, Bogen 36 → 45, Stab 42,5 → 44; GUT, combat_sim, boss_sim, smoke_test 47 grün. Nach dem neuen Gegnerverhalten neu messen.)*
@@ -326,7 +326,7 @@ Heute gibt es nur die Kleidungsfarbe (beim Anlegen des Spielstands und im Kleide
 - [ ] Kosmetik-Teile über `CharacterData` (z. B. Hüte, Umhänge, Haarfarbe, Waffen-Skins, Laternen-/Lichtfarbe), nur Optik, kein Spielvorteil.
 - [ ] Freischalten über Erfolge/Meilensteine oder Seelenkristalle (Werte `OFFEN`); Anprobieren im Zuhause.
 - [ ] Koop: Kosmetik wird mit dem Profil an Mitspieler übertragen (MP2), Spielerfarben dürfen nicht mit der Kleidung kollidieren (`OFFEN`).
-- [ ] Grafiken als Briefing in `docs/SPRITES_V4.md` (Ebenen passend zu den Spieler-Animationen).
+- [ ] Grafiken als Briefing in `docs/design/sprites/SPRITES_V4.md` (Ebenen passend zu den Spieler-Animationen).
 
 ---
 

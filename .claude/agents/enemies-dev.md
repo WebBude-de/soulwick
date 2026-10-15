@@ -45,4 +45,4 @@ For number changes run `tools/balance_sim.gd -- runs=3 policy=sword quiet=1` bef
 - Code and comments English, docs German, `snake_case` files/vars, `PascalCase` classes.
 - Tests never touch the real save (`SaveManager.save_path` in `before_all`). No new autoload (D-044).
 - Never commit or push. Do not change decisions; unclear points go to the report as questions.
-- Report format: Summary, Files changed, Hooks for the integrator, Art needed (for `docs/SPRITES_V3.md`), How verified, Open points.
+- Report format: Summary, Files changed, Hooks for the integrator, Art needed (for the newest open briefing in `docs/design/sprites/`), How verified, Open points.

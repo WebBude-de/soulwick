@@ -31,7 +31,7 @@ names (`docs/DECISIONS.md`: D-067 vision, D-068/D-072 audio, D-075 biomes, D-092
   biome tint via `set_biome`. Post-process: chromatic aberration, stun wobble, blind blur, low-HP desaturation. Keep every
   effect subtle enough for a 30-minute session; expose strengths as constants.
 - Visual randomness may use `randf()`; gameplay randomness never (D-088).
-- New art goes to `docs/SPRITES_V3.md`; until delivered, placeholders by script. When weapon art arrives (§1), check pivots
+- New art goes to the newest open briefing in `docs/design/sprites/` (see its README); until delivered, placeholders by script. When weapon art arrives (SPRITES_V3 §1), check pivots
   and scale with `tools/screenshots.gd`.
 
 ## Verify before reporting

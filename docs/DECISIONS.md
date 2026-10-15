@@ -893,6 +893,18 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Belohnung (TESTWERT, Maßstab: ein Segment lohnt sich wie ein Kampfraum):** 6–7 Münzen je 1 Gold × Wellenzahl des Raums, goldene Münze = 2 Münzen, Goldgier gilt; kein Seelenkristall, Segment-Gegner ohne Gold; Truhe nur auf dem Leiter-Weg einer Abzweigung. Ersetzt Münzen ×1,5 und Kristall aus Runde 1.
 - **Offen:** ersetzt der Leiter-Weg den Raum n+1 oder liegt er davor (Leiter-Weg noch nicht angeschlossen); bewegte Plattformen als späteres Paket.
 
+### D-145 – Dev-Feedback mit F9 (lokal)
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-15 / Projektmitglied („bleibt lokal für Dev drin“)
+- **Beschluss:** Nur in Debug-Builds friert F9 das Spiel über `GameManager.request_pause(&"dev_feedback")` ein, nimmt einen Screenshot auf, auf dem man Bereiche markiert und eine Notiz schreibt; gespeichert wird beides samt Kontext (Szene, Raum, Biom …) nach `user://dev_feedback`. `tools/collect_feedback.py` sammelt die Einträge nach `docs/feedback/` (gitignored außer README), als Grundlage für den Grafik-Rework.
+- **Folgen:** `ui/dev/*`, Haken in `autoload/game_manager.gd`, `tests/unit/test_dev_feedback.gd`, [feedback/README.md](feedback/README.md).
+
+### D-146 – Repositories auf GitHub (WebBude-de)
+
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-15 / Projektmitglied
+- **Beschluss:** Beide Repositories liegen privat in der GitHub-Organisation `WebBude-de`: `soulwick` (Spiel) und `soulwick-platform` (Website, API, Relay, Admin). Das Branch-Modell aus D-047 bleibt (`feature/*`, Pull Request mit Review statt Merge Request). Dokploy baut die Plattform aus GitHub. **OFFEN:** Name des Haupt-Branches (`main` oder `master`, D-047), CI für Spiel-Builds (CP7 plante GitLab-CI, jetzt GitHub Actions zu prüfen).
+- **Ersetzt:** die GitLab-Angaben in D-047 und in der Repo-Tabelle von D-093.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

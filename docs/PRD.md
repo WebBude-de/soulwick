@@ -1,247 +1,206 @@
-# PRD – Soulwick (2D-Dungeon-Roguelite)
+# PRD – Soulwick: Anforderungen an das Spiel
 
-> **Status:** Produktanforderungen, Zielbild MVP · **Stand:** 13.10.2026  
-> **Verbindliche Quelle:** `GDD Master 1.0 – überarbeitet` (10.10.2026), einschließlich späterer explizit bestätigter Entscheidungen.  
-> **Leseregel:** `VERBINDLICH` = beschlossen; `TESTWERT` = vorläufige Balance; `OFFEN` = Teamentscheidung ausstehend; `NACH MVP` = kein Lieferumfang des MVP.  
-> **Abgrenzung:** Dieses Dokument beschreibt das **reale Teamprojekt**, nicht das verworfene ChatGPT-Testprojekt.  
-> **Produktüberblick für beide Repositories:** [docs/PRODUKT.md](PRODUKT.md); dieses PRD enthält die verbindlichen Spielregeln.
+> **Stand:** 15.10.2026 · **Gilt für:** das Spiel in diesem Repository. Die Anforderungen an API, Website und Admin-Panel stehen im Repo `soulwick-platform` (`docs/PRD.md`).
+> **Abgrenzung:** [PRODUKT.md](PRODUKT.md) = Überblick für beide Repositories (Pitch, Säulen, Zielgruppe, Status) · dieses PRD = was das Spiel leisten muss · [GLOSSAR.md](GLOSSAR.md) = Begriffe Deutsch ↔ Englisch · [DECISIONS.md](DECISIONS.md) = Zahlen und Ausgestaltung; bei Widerspruch gilt die jüngere D-Entscheidung.
+> **Herkunft:** Abschnitte 2–6 stammen aus dem GDD Master 1.0 (10.10.2026, MVP); später beschlossene Änderungen sind eingearbeitet und mit D-Nummer markiert.
+> **Leseregel:** `VERBINDLICH` = beschlossen · `TESTWERT` = vorläufige Zahl · `VORGESCHLAGEN` = braucht Bestätigung · `OFFEN` = nicht entschieden, nicht still festlegen.
 
-## 1. Was bauen wir?
+## 1. Was ist Soulwick?
 
-Ein eigenständiges **2D-Top-down-Dungeon-Roguelite** mit direkter, mausgesteuerter Action. Vom Dorf aus startet der Spieler einen Dungeon-Run. Vorgefertigte, nahtlos miteinander verbundene Räume enthalten Kämpfe, Waffen- und Upgrade-Entscheidungen, Spezialräume und Bosse. Temporäre Run-Fortschritte gehen nach einem Run verloren; ein definierter Teil des Run-Goldes wird dauerhaft gutgeschrieben.
+Ein **2D-Top-down-Dungeon-Roguelite** in Pixel-Art mit direkter, mausgesteuerter Action. Vom Dorf aus startet man einen Run in einen endlosen, dunklen Dungeon aus vorgefertigten, nahtlos verbundenen Räumen: Kämpfe, Minispiele, Spezialräume und alle 15 Räume ein Boss. Waffen, Upgrades und Run-Gold gelten nur im Run; ein Teil des Golds bleibt und baut das Dorf dauerhaft aus.
 
-**Produktziel:** Ein vollständig spielbarer, wiederholbarer Kern-Loop, dessen Kampfsystem und Upgrade-Kombinationen technisch erweiterbar und über eindeutige Regeln reproduzierbar sind. Das Dorf dient im MVP vor allem als Einstieg und Rückkehrpunkt, nicht als bereits vollständig ausgebautes Metaprogressionssystem.
+**Produktziel:** Ein vollständig spielbarer, wiederholbarer Kern-Loop, dessen Kampf- und Upgrade-System nach eindeutigen Regeln funktioniert und sich um Inhalte (Räume, Gegner, Waffen, Effekte) erweitern lässt, ohne den Kern neu zu bauen. Später kommen Koop für bis zu vier Spieler, Gilden, Ranglisten und Store-Veröffentlichung dazu (§7).
 
-## 2. Warum? – Designziele
+## 2. Designziele
 
-1. **Direkte Steuerung:** Bewegung, Zielen, Angreifen und Dash sollen sich präzise anfühlen.
-2. **Bedeutsame Run-Entscheidungen:** Zwei Waffenslots, kompatibilitätsabhängige Upgrade-Kombinationen und freiwillige Spezialräume schaffen Variation.
-3. **Nachvollziehbare Regeln:** Schaden, Schild, Trefferhistorie, Effektauslösung und Goldtransfer haben eine eindeutige Rechen- bzw. Zustandslogik.
-4. **Wiederverwendbarer Inhalt:** Neue Raumvorlagen, Gegner, Waffen und Effekte können später ergänzt werden, ohne den Kern neu aufzubauen.
-5. **Überschaubarer MVP:** Drei Waffen und genau 15 Upgrades statt eines frühzeitig aufgeblähten Inhaltsumfangs.
+1. **Direkte Steuerung:** Bewegung, Zielen, Angreifen und Dash fühlen sich präzise an.
+2. **Bedeutsame Run-Entscheidungen:** Zwei Waffenslots, kombinierbare Upgrades und freiwillige Spezialräume schaffen Variation.
+3. **Nachvollziehbare Regeln:** Schaden, Schild, Trefferhistorie, Effektauslösung und Goldtransfer folgen einer eindeutigen Rechen- bzw. Zustandslogik.
+4. **Wiederverwendbarer Inhalt:** Neue Raumvorlagen, Gegner, Waffen und Effekte sind Daten oder Szenen, kein Umbau des Kerns.
+5. **Ein Raum, eine Aufgabe:** Jeder Raum ist in einem Satz erklärbar und kündigt sich vorher an (D-120).
 
-## 3. Zielablauf (Core Loop)
+## 3. Kern-Loop
 
-1. Im **Dorf** den Dungeon-Eingang mit **E** benutzen; neuer Run startet.
-2. Im **Kampfraum** schließt sich der Eingang. Gegner besiegen; danach öffnet der Ausgang.
-3. Über den verbindlichen **Fünf-Raum-Zyklus** voranschreiten.
-4. **Waffen** und **Upgrades** kombinieren, **Gold** sammeln bzw. freiwillig ausgeben.
-5. Per regulärem **Portal** aussteigen oder bei **Tod/Abbruch** zurückkehren.
-6. Dauerhafte Goldgutschrift gemäß Exit-Regel; neuer Run beginnt ohne temporäre Ausrüstung.
+1. Im **Dorf** den Dungeon-Eingang mit **E** benutzen; ein neuer Run startet ohne Ausrüstung aus dem letzten Run, aber mit den dauerhaften Dorf-Verbesserungen.
+2. Im Raum schließt sich der Eingang; erst nach erfüllter Aufgabe (meist: alle Gegner besiegt) öffnet der Ausgang.
+3. Über den **Fünferzyklus** (§4.1) voranschreiten, alle 15 Räume ein Boss, danach ein **Lagerfeuer** mit Ausgangsportal (D-103).
+4. **Waffen** und **Upgrades** kombinieren, **Gold** sammeln und freiwillig ausgeben.
+5. Per **Portal** aussteigen (100 % des Run-Golds) oder bei **Tod/Abbruch** zurückkehren (50 %).
+6. Mit Gold und Seelenkristallen im Dorf ausbauen; der nächste Run beginnt.
 
-## 4. Spielfunktionen des MVP
+## 4. Anforderungen an den Kern
 
 ### 4.1 Dungeonstruktur – VERBINDLICH
 
-| Raum im Fünferzyklus | Funktion |
+| Platz im Fünferzyklus | Funktion |
 | --- | --- |
-| 1 | Normaler Kampfraum |
-| 2 | Normaler Kampfraum |
-| 3 | Normaler Kampfraum **mit Upgrade-Auswahl erst nach Kampfabschluss** |
-| 4 | Spezialraum |
-| 5 | Miniboss; auf den absoluten Räumen **15, 30 und 45 stattdessen Boss** |
+| 1, 2 | Kampfraum (ab Zyklus 2 auch Minispiel) |
+| 3 | Kampfraum (auch Arena oder Minispiel), **Upgrade-Wahl erst nach Abschluss** |
+| 4 | Spezialraum (Ruhe oder Prüfung) |
+| 5 | Miniboss (Champion, D-077); auf jedem 15. Raum stattdessen der **Boss** des Bioms |
 
-Ab Raum 6 wiederholt sich der Zyklus. **Nach Raum 45** besteht die Wahl zwischen regulärem Ausstieg (100 % des verbleibenden Run-Goldes) und Fortsetzung des laufenden Runs im Endlosmodus. Die abgeschwächte Skalierung **ab Raum 46** ist noch **OFFEN**.
+- **Endlos** (D-073): kein Ende und keine Wahl bei Raum 45; der Zyklus wiederholt sich unbegrenzt, alle 15 Räume wechselt das Biom (D-075), nach jedem Boss folgt ein Lagerfeuer, das nicht als Raum zählt (D-103).
+- **Raumarten und Minispiele** nach [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) (D-120): Säubern, Arena, acht Minispiele (ab Zyklus 2, 30–40 % der Kampfräume, TESTWERT), Wagnis-Altar, Elite-Nest über Abzweigungen, Geheimnischen. Misserfolg in einem Minispiel kostet nur den Bonus, nie den Run.
+- **Spezialräume:** Händler, Waffenauswahl, Brunnen, Upgrade-Altar (in einem Drittel als Pakt-Altar, D-112) und Prüfungsraum (D-102), gewichtet gezogen, der direkt vorherige Typ wiederholt sich nicht. Angebote sind freiwillig.
+- **Portal:** In **30 %** der Spezialräume steht zusätzlich ein Ausgangsportal (E plus Bestätigung). Reihenfolge von Typ- und Portalziehung: ursprünglich `OFFEN`, umgesetzt nach Vorschlag D-058 (Typ zuerst, Portal unabhängig), Bestätigung im Team ausstehend.
 
-> **Stand Ausbau:** Es gibt kein Ende und keine Wahl bei Raum 45 mehr (KONZEPT_ENDLOS); der Dungeon geht endlos weiter. Nach jedem Boss folgt ein **Lagerfeuer** (zählt nicht als Raum) mit Rast und festem Exit-Portal (D-103).
+### 4.2 Gegner, Spawning und Schwierigkeit – VERBINDLICH (Zahlen TESTWERT)
 
-**Spezialräume:** Shop, Waffenauswahl, Brunnen, Extra-Upgrade. Die vier Typen werden gleichgewichtet gezogen; der unmittelbar vorherige Typ darf sich nicht wiederholen. Angebote sind freiwillig. In **30 % der Spezialräume** erscheint ein reguläres Exit-Portal; mit **E** plus Bestätigung nutzbar. Die technische Reihenfolge von Portalchance und Raumtypziehung ist **OFFEN**.
-
-> **Stand Ausbau:** Spezialräume werden gewichtet gezogen, neu ist der **Prüfungsraum** (D-102); in einem Drittel der Extra-Upgrade-Räume steht der **Pakt-Altar** (D-112). Kampfräume können ab Raum 6 **Kampf-Varianten** (D-101) oder einen **Wagnis-Altar** (D-104) haben; Raumarten Normal/Arena/Abgrund und Formen nach D-100, Anzeige nach D-110, Belohnungen D-109. Details: [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
-
-### 4.2 Gegner, Spawning und Schwierigkeit – VERBINDLICH
-
-- Normale Kampfräume: **1–3 Gegner**, ab **Raum 25** **2–3**; maßgeblich ist der **Raumtyp** (Raum 25 ist Miniboss, erster betroffener normaler Kampfraum ist Raum 26).
-- Jede Kampfraumvorlage hat **genau fünf** im Editor positionierte `Marker2D`-Spawnpunkte; die tatsächlich belegten Punkte werden **ohne Zurücklegen** gewählt.
-- Gegnertypen werden **pro Spawn unabhängig** gezogen: **Slime 50 %**, **Skeleton 35 %**, **Archer 15 %**.
-- Slime: langsame Verfolgung/Annäherung; Skeleton: schnelle Nahkampf-Verfolgung; Archer: Distanzkampf.
-- Gegner blockieren einander, verursachen **kein Friendly Fire**, kündigen Angriffe sichtbar an und zeigen ihre HP-Leiste. Treffer verursachen leichten konfigurierbaren Rückstoß; nach dem Tod folgt eine kurze Animation und Gold-Drop.
-- Normale Gegner besitzen **keine generellen Treffer-I-Frames**; dieselbe Hit-ID darf aber nicht mehrfach auf dasselbe Ziel wirken.
-- Skalierungsblock `k(r) = floor((r - 1) / 5)`; ab jedem neuen Block: Gegner-HP `× 1,20`, Gegnerschaden `× 1,10`. Miniboss ist ein zufälliger Standardgegner mit jeweils zusätzlichem Faktor `× 1,50`.
-- Konkretes Bossverhalten, spezielle Bossfaktoren und Endlos-Balance sind **OFFEN**.
+- Gegner blockieren einander, verursachen **kein Friendly Fire**, kündigen Angriffe sichtbar an und zeigen ihre HP-Leiste. Treffer verursachen leichten Rückstoß; nach dem Tod folgt eine kurze Animation und Gold-Drop.
+- Normale Gegner haben **keine allgemeinen Treffer-I-Frames**; dieselbe Hit-ID wirkt aber nur einmal auf dasselbe Ziel.
+- **Spawning:** Gegner erscheinen aus sichtbaren Quellen des Grundrisses mit 1 s Warnung, bevorzugt hinter dem Spieler (D-132); gezogen wird ohne Zurücklegen. Die frühere Regel „genau fünf Spawnpunkte“ ist ersetzt (D-086: 5–14 je Vorlage, heute die Quellen der Pläne).
+- **Gegnertypen** je Biom aus eigener Tabelle (D-075); in der Krypta gelten die Grundgewichte Slime 50 % / Skelett 35 % / Bogenschütze 15 % (D-010).
+- **Anzahl, Wellen und Skalierung** steigen mit der Raumnummer: Werte nach D-074 und D-118 (ersetzen die MVP-Werte „1–3 Gegner, ×1,20 HP, ×1,10 Schaden“). Mehr, aber einzeln schwächere Gegner; Slimes in Rudeln, Nahkämpfer flankieren (D-130).
+- **Miniboss** = Champion: Gegner des Bioms mit Elite-Eigenschaft, mehr HP und Begleitern (D-077). **Bosse:** vier (Knochenkönig, Schleimkönigin, Schattenlord, Glutgolem), je zwei Phasen, nach jedem vollen Zyklus eine Stufe stärker (D-065, D-076).
 
 ### 4.3 Spieler und Eingaben – VERBINDLICH
 
 | Eingabe | Aktion |
 | --- | --- |
-| WASD | Bewegung; diagonale Eingaben normalisieren |
-| Maus | Durchgängiges 360°-Zielen/Ausrichten |
-| Linke Maustaste (halten) | Wiederholte Normalangriffe nach effektiver Attack-Rate |
-| Space | Dash in Bewegungsrichtung; ohne Bewegungsinput in Zielrichtung |
-| Q | Zwischen zwei Waffenslots wechseln |
-| E | Interaktion (Dorf-Eingang, Portal usw.) |
-| Tab | Pausierte Übersicht erworbener Upgrades |
+| WASD | Bewegung; diagonale Eingaben normalisiert |
+| Maus | durchgängiges 360°-Zielen |
+| Linke Maustaste (halten) | wiederholte Normalangriffe nach effektiver Angriffsrate |
+| Rechte Maustaste | Spezialangriff der aktiven Waffe mit Abklingzeit (D-090) |
+| Leertaste | Dash in Bewegungsrichtung, ohne Bewegung in Zielrichtung |
+| Q | zwischen den zwei Waffenslots wechseln |
+| E | Interaktion (Dorf-Eingang, Portal, Händler, Altar …) |
+| Tab | pausierte Übersicht der Upgrades |
 | Esc | Pausemenü |
 
-- Spieler startet mit **6 HP = drei Herzen**, Anzeigeschritte von **0,5 HP** (Viertelherz).
-- Alle **fünf abgeschlossenen Räume** automatische Heilung von **1 HP**, maximal bis zur HP-Obergrenze.
-- **Schild vor HP**; keine passive Schildregeneration; keine harte Schildobergrenze. Erhöhungen oberhalb **50 Schild** wirken nur zu **50 %**; interne Werte in **0,5er-Schritten**.
-- Dash bricht aktuelle Angriffe ab, verbietet weitere während des Dashs und gibt unabhängig von Treffer-I-Frames Schutz. **Dash-TESTWERTE:** Dauer `0,2 s`, Geschwindigkeit `450 px/s`, Cooldown `1,5 s`.
-- Jeder **tatsächlich schadenswirksame Treffer gegen Schild oder HP** löst **0,5 s konfigurierbare Treffer-Unverwundbarkeit** aus. Vollständig blockierte Treffer verursachen weder Schaden noch schadensabhängige Effekte.
+- Start mit **6 HP = drei Herzen**, Anzeige in halben Herzen (0,5 HP).
+- Alle **fünf abgeschlossenen Räume** heilt der Spieler **1 HP**, höchstens bis zur HP-Obergrenze.
+- **Schild vor HP**; keine passive Regeneration, keine harte Obergrenze. Gewinne über einer Schwelle wirken nur zur Hälfte (Softcap; Schwelle TESTWERT, heute 15 nach D-074; Rundung nach D-091).
+- Dash bricht laufende Angriffe ab, verbietet neue während des Dashs und schützt unabhängig von Treffer-I-Frames. Dauer, Tempo und Abklingzeit sind TESTWERTE am Spieler.
+- Jeder **tatsächlich schadenswirksame Treffer** gegen Schild oder HP löst **0,5 s** Treffer-Unverwundbarkeit aus. Vollständig blockierte Treffer verursachen weder Schaden noch schadensabhängige Effekte.
 
-### 4.4 Waffen – drei Typen im MVP
+### 4.4 Waffen – VERBINDLICH (Werte TESTWERT)
 
-Zwei Slots, maximal eine aktive Waffe, **keine doppelten Waffentypen**. Beim neuen Waffenkauf/bei Waffenwahl und zwei belegten Slots muss ein Slot ersetzt werden. Globale Run-Upgrades bleiben erhalten. Technische Seltenheit ist vorgesehen, hat im MVP **keine spielerische Auswirkung**.
+Zwei Slots, genau eine aktive Waffe, **kein Waffentyp doppelt**. Bei zwei belegten Slots muss beim Kauf oder in der Waffenauswahl ein Slot ersetzt werden. Run-Upgrades bleiben erhalten. Seltenheit ist technisch vorgesehen, hat aber **keine spielerische Auswirkung**. Zahlenwerte stehen in `weapons/data/*.tres`.
 
-| TESTWERTE | Schwert | Bogen | Magierstab |
-| --- | ---: | ---: | ---: |
-| Basisschaden | 12 | 9 | 8 |
-| Attack-Rate | 1,5/s | 1,2/s | 0,8/s |
-| Reichweite | 75 px | 600 px | 450 px |
-| Projektilgeschwindigkeit | – | 550 px/s | 300 px/s |
-| Trefferbereich | 100° | Direkt | 45 px AOE |
+- **Schwert:** Schwungangriff in Zielrichtung, je Schwung und Ziel höchstens ein Treffer; jeder dritte Schlag ist ein Finisher (D-090).
+- **Bogen:** schneller Pfeil; Durchschlag und Wandabprall nur über Upgrades.
+- **Magierstab:** langsames magisches Geschoss mit **einem einzigen Flächentreffer** beim Einschlag, der das direkt getroffene Ziel einschließt (kein zusätzlicher Direktschaden).
+- **Dolche** (schnell, Hinterhalt ×2) und **Kriegshammer** (langsamer Flächenschlag), seit D-090.
+- Angriffsrate = **Angriffe pro Sekunde**; Bonusprozente werden addiert.
 
-- **Schwert:** Bogen-/Schwungangriff in Mauszeigerrichtung, je Schwung und Ziel maximal ein Treffer.
-- **Bogen:** Schneller Pfeil; Durchschlag und einmaliger Wandabprall nur über passende Upgrades.
-- **Magierstab:** Größeres, langsames magisches Geschoss; **ein einziger AOE-Grundtreffer** beim Einschlag, einschließlich direkt getroffenen Gegners (**kein zusätzlicher Direktschaden**).
-- Attack-Rate ist **Angriffe pro Sekunde**, nicht Cooldown in Sekunden; Bonusprozente werden addiert.
+### 4.5 Upgrades – genau 15 Typen
 
-### 4.5 Upgrades – exakt 15 Typen
+Alle Upgrades gelten **runweit** für passende Angriffe. Eine Auswahl bietet bis zu **drei verschiedene verfügbare** Upgrades, keine Dubletten. Gibt es keines mehr, wird keine Ersatzbelohnung erfunden. Tag-Filter: **ODER** über die anwendbaren Tags; zusätzliche `required_tags` müssen **alle** zutreffen.
 
-Alle Upgrades gelten **runweit** für kompatible Angriffe. Pro Auswahl bis zu **drei verschiedene verfügbare** Upgrades; keine Dubletten in derselben Auswahl. Ohne verfügbares Upgrade wird keine Ersatzbelohnung erfunden. Tag-Filter: **OR** über anwendbare Tags; separat definierte `required_tags` müssen zusätzlich vollständig zutreffen.
-
-| Kategorie | Upgrade | Effekt pro Stack/Stufe (Balancewerte = TESTWERTE) | Limit |
+| Kategorie | Upgrade | Wirkung je Stufe (MVP-TESTWERT; geändert durch D-074, D-091, aktuell in `upgrades/data/*.tres`) | Limit |
 | --- | --- | --- | --- |
-| Attribut | Verstärkter Angriff | +10 % Schaden global | ∞ |
+| Attribut | Verstärkter Angriff | +10 % Schaden | ∞ |
 | Attribut | Krafttraining | +2 Nahkampfschaden | ∞ |
-| Attribut | Schneller Angriff | +15 % Attack-Rate global | ∞ |
+| Attribut | Schneller Angriff | +15 % Angriffsrate | ∞ |
 | Attribut | Präzise Pfeile | +20 % Pfeilschaden | ∞ |
 | Attribut | Magische Verstärkung | +20 % Magieschaden | ∞ |
 | Attribut | Schnelle Geschosse | +20 % Projektilgeschwindigkeit | ∞ |
-| Attribut | Schildverstärkung | +10 Schild vor Softcap, sofort | ∞ |
-| Mechanik | Durchschlag | +1 zusätzlich treffbarer Gegner je Pfeil | 3 |
-| Mechanik | Wandabprall | 1 Abprall pro Projektil | 1 |
-| Mechanik | Doppelschuss | +1 Projektil pro Angriff | 1 |
+| Attribut | Schildverstärkung | +10 Schild sofort (vor Softcap) | ∞ |
+| Mechanik | Durchschlag | +1 weiterer Gegner je Pfeil | 3 |
+| Mechanik | Wandabprall | 1 Abprall je Projektil | 1 |
+| Mechanik | Doppelschuss | +1 Projektil je Angriff | 1 |
 | Mechanik | Größerer Schwung | +20 % Angriffswinkel | 3 |
-| Mechanik | Größere Explosion | +20 % AOE-Radius | 3 |
-| Effekt | Explosiver Treffer | Sekundäre Explosion = 50 % des auslösenden Treffers | 1 |
-| Effekt | Heilung bei Tötung | +2 HP pro Kill/Stack, bis Max-HP | ∞ |
-| Effekt | Schild bei Tötung | +2 Schild pro Kill/Stack, vor Softcap | ∞ |
+| Mechanik | Größere Explosion | +20 % Flächenradius | 3 |
+| Effekt | Explosiver Treffer | Zweitexplosion mit 50 % des auslösenden Treffers | 1 |
+| Effekt | Heilung bei Tötung | +2 HP je Kill und Stufe, bis Max-HP | ∞ |
+| Effekt | Schild bei Tötung | +2 Schild je Kill und Stufe (heute gedeckelt, D-091) | ∞ |
 
-**Effektregeln:** Sekundäreffekte dürfen **keine weiteren Sekundäreffekte** auslösen. Sie dürfen jedoch reguläre Kills erzeugen; normale `ON_KILL`-Belohnungen (Heilung/Schild) werden gewährt. Eine Upgrade-Explosion darf das durch den Primärtreffer bereits getroffene Ziel nochmals beschädigen. Beim Magierstab entsteht aus **einem primären Flächentreffer höchstens eine Upgrade-Explosion**, auch bei mehreren getroffenen Gegnern. Projektile aus Doppelschuss besitzen getrennte Trefferhistorien. AOE-Radiusboni wirken additiv.
+**Effektregeln:** Sekundäreffekte lösen **keine weiteren Sekundäreffekte** aus, dürfen aber normale Kills erzeugen; deren Tötungsbelohnungen (Heilung, Schild) gelten. Eine Upgrade-Explosion darf das schon getroffene Ziel noch einmal treffen. Beim Magierstab entsteht aus **einem** primären Flächentreffer höchstens **eine** Upgrade-Explosion, auch bei mehreren Getroffenen (für alle Waffen eine je Hit-ID, Vorschlag D-056). Doppelschuss-Projektile haben getrennte Trefferhistorien. Radiusboni wirken additiv.
 
-### 4.6 Shop, Gold und Run-Ende
+### 4.6 Händler, Gold und Run-Ende – VERBINDLICH
 
-- Shop: **bis zu sechs gültige Angebote**: `2 Upgrades + 2 Waffen + 1 Heilung (+2 HP) + 1 Schild (+4)`; nicht verfügbare/nicht kaufbare Optionen nicht anzeigen oder ersetzen.
-- Waffenauswahl-Spezialraum: Bis zu **zwei nicht besessene Waffen**, gegebenenfalls mit Slotersatz.
-- Brunnen: **einmalig kostenlos +3 HP** bis Max-HP.
-- Einkäufe sind **atomar**: Abbuchung und Lieferung gemeinsam oder gar nicht.
-- **Tod** oder **vorzeitiger Abbruch**: **50 %** des maßgeblichen verbleibenden Run-Goldes permanent verbuchen.
-- **Regulärer Ausstieg**: **100 %** permanent verbuchen.
-- **Fortsetzen ab Raum 45**: Kein Run-Ende, Gold verbleibt im Run.
-- **OFFEN:** Gold-Drops, Shoppreise, Gold-/Preiswachstum, konkrete permanente Dorf-Freischaltungen und **Rundung ungerader Goldbeträge bei 50 %**. Keine stillschweigenden Platzhalterwerte als finale Balance übernehmen.
+- **Händler:** bis zu **sechs gültige Angebote** (2 Upgrades, 2 Waffen, 1 Heilung, 1 Schild; Mengen TESTWERT, D-036, D-074); nicht verfügbare oder nicht kaufbare Angebote werden weggelassen, nicht ersetzt.
+- **Waffenauswahl:** bis zu **zwei nicht besessene Waffen**, ggf. mit Slotersatz. **Brunnen:** einmal kostenlos +3 HP bis Max-HP (D-037).
+- Käufe sind **atomar**: Abbuchung und Lieferung zusammen oder gar nicht.
+- **Tod oder Abbruch:** **50 %** des verbleibenden Run-Golds werden dauerhaft gutgeschrieben, aufgerundet (D-062). **Portal:** **100 %**. Jeder Run wird **genau einmal** ausgezahlt.
+- Gold-Drops, Preise und Wachstum sind TESTWERTE (D-064, D-091, D-118); Seelenkristalle als zweite Währung (D-078, D-109).
 
-### 4.7 UI, Pause und Speicherung
+### 4.7 UI, Pause, Sprache und Speicherung – VERBINDLICH
 
-- Kompaktes HUD am Bildschirmrand: HP-Herzen, numerischer Schild mit Symbol, Run-Gold, aktive Waffenwerte.
-- Schadenszahlen über Gegnern; Schild- und HP-Schaden visuell unterscheidbar. Trefferfeedback enthält Aufblinken/Rückstoß.
-- Waffenvergleich und Shop zeigen **effektive Werte inklusive Upgrades**.
-- Shop-, Waffen-, Upgrade-Auswahl und Tab-Upgrade-Übersicht **pausieren die gesamte Spielsimulation**, einschließlich Projektile und Gameplay-Timer. Menüs sind während Pause bedienbar. Mehrere Pausengründe können parallel aktiv sein.
-- Auf Datenträger werden im MVP **nur permanente Werte** (z. B. permanentes Gold/Freischaltungen) gespeichert, **keine fortsetzbaren Runs**.
-- Dorf ↔ Dungeon erzeugt einen neuen Spieler aus `player.tscn`; **Raum ↔ Raum im Dungeon erhält dieselbe Spielerinstanz**.
+- Kompaktes HUD am Rand: Herzen, Schild mit Symbol, Run-Gold, aktive Waffe mit Werten; Aufgabenleiste für Minispiele (D-133).
+- Schadenszahlen über Gegnern, Schild- und HP-Schaden unterscheidbar, Trefferfeedback mit Aufblitzen und Rückstoß.
+- Waffenvergleich und Händler zeigen **effektive Werte inklusive Upgrades**.
+- Händler, Waffen- und Upgrade-Auswahl, Tab-Übersicht und Esc-Menü **pausieren im Einzelspieler die ganze Simulation** (auch Projektile und Timer); Menüs bleiben bedienbar, mehrere Pausengründe können gleichzeitig gelten. Im Multiplayer pausieren Menüs nicht (§7.1).
+- Texte in **Englisch (Standard) und Deutsch**, Systemsprache automatisch, umschaltbar (D-111).
+- Gespeichert werden **nur dauerhafte Werte** (Dorf-Fortschritt, Gold, Kristalle, Statistik, Einstellungen) in mehreren Spielständen; **kein Fortsetzen eines Runs** nach Neustart. Format: Godot-`ConfigFile` mit Version und Migration (D-059, VORGESCHLAGEN).
+- Dorf ↔ Dungeon erzeugt eine neue Spielerinstanz; Raum ↔ Raum im Dungeon behält dieselbe.
 
-## 5. MVP-Abnahme – nutzerseitig beobachtbar
+### 4.8 Dorf und Meta-Progression – VERBINDLICH (D-078, D-087)
 
-Der MVP ist akzeptierbar, wenn ein regulärer Run vom Dorf aus möglich ist, Spieler/Gegner/Waffen korrekt kämpfen, die spezifizierte Raum- und Bossfolge funktioniert, Spezialräume und Upgrade-Interaktionen gültig sind, wirksame Treffer/Golddrops/Run-Ende korrekt verarbeitet werden und nur permanente Zustände nach Neustart vorhanden sind. Außerdem muss das Projekt auf dem Team-Repository nachvollziehbar startbar und getestet sein. Detailkriterien und der **nicht verifizierte Implementierungsstand** stehen in [ROADMAP.md](ROADMAP.md).
+- Begehbare Gebäude: Schmiede (dauerhafte Verbesserungen gegen Gold), Handelsposten (Proviant für den nächsten Run gegen Seelenkristalle), Chronik (Rekorde, Statistik), Zuhause (Kleidungsfarbe), Gildenhaus (Koop, in Vorbereitung).
+- Jedes Gebäude erklärt beim ersten Betreten seine Rolle in einem Satz; Verbesserungen zeigen konkrete Werte („Max-HP 6 → 7“); der Run-Start fasst alle Dorf-Boni zusammen.
+- Schrittweise Freischaltung: anfangs drei Verbesserungen, Chronik nach dem ersten Run, Handelsposten ab dem ersten Kristall, der Rest nach dem ersten Boss.
 
-## 6. Was wird NICHT gebaut? – NACH MVP
+### 4.9 Stimmung
 
-- Mehr als drei Waffentypen oder spielmechanisch wirksame Seltenheiten.
-- Andere Upgrade-Typen als die verbindlichen 15, insbesondere Feuer-/Gift-Statussysteme.
-- Eigenständiges Rüstungs-/Resistenzsystem und kritische Treffer.
-- Verbindliche Hitstop-/Kamerawackel-Features (nur optionale spätere Verbesserungen).
-- Fortsetzen eines unterbrochenen Dungeon-Runs nach Programmneustart.
-- Vollständig ausgebautes Dorf bzw. abschließend ausbalancierte Metaprogression.
-- Bereits endgültig ausbalancierter Endlosmodus ab Raum 46.
+- Der Dungeon ist dunkel: Lichtkreis um den Spieler, Fackeln, Geschosse und Münzen leuchten (D-067, Licht D-141).
+- Musik je Biom und Boss mit weichen Übergängen, Geräuschkulissen (D-092, D-097; [AUDIO.md](AUDIO.md)).
 
-Was **nach** dem MVP kommen soll, steht in Abschnitt 7.
+## 5. Abnahme
 
-## 7. Ausbauziele nach dem MVP – Vision
+Der MVP ist abgenommen, wenn ein regulärer Run vom Dorf aus möglich ist, Spieler, Gegner und Waffen korrekt kämpfen, Raum- und Bossfolge stimmen, Spezialräume und Upgrade-Regeln gelten, Treffer, Gold-Drops und Run-Ende korrekt verarbeitet werden und nach einem Neustart nur dauerhafte Zustände vorhanden sind. Das Projekt muss frisch geklont startbar und getestet sein. Detailkriterien und Prüfstand: [ROADMAP.md](ROADMAP.md); jede Erweiterung wird in ihrer Roadmap mit Nachweis (Tests, Datum) abgehakt.
 
-> **Stand:** 13.10.2026 · **Status:** Ziele beschlossen (D-080 … D-088 in [DECISIONS.md](DECISIONS.md)), **noch nichts gebaut**. Balancewerte sind `TESTWERT`; als „Vorschlag“ markierte Punkte brauchen noch eine Bestätigung.  
-> **Reihenfolge (D-088):** zuerst [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) (7.4, 7.5), danach [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) (7.1–7.3, 7.6). Technik: [MULTIPLAYER.md](MULTIPLAYER.md).
+## 6. Bewusst nicht vorgesehen
 
-### 7.1 Online-Koop mit Freunden
+- Spielmechanisch wirksame Seltenheiten bei Waffen.
+- Andere Upgrade-Typen als die 15 aus §4.5, insbesondere Feuer- oder Gift-Statussysteme.
+- Rüstungs- oder Resistenzsystem, kritische Treffer.
+- Fortsetzen eines unterbrochenen Runs nach Programmneustart.
+- Endgültig ausbalancierte Werte: alle Zahlen bleiben TESTWERTE, bis das Team sie festlegt.
 
-**Ziel:** 2–4 Spieler spielen gemeinsam einen Dungeon-Run, auch über das Internet.
+## 7. Ausbau nach dem Kern (Vision)
 
-- **Ein Spieler ist Host** und berechnet die Spielwelt; für das Spielen selbst ist **kein eigener Gameserver** nötig.
-- **Zwei Wege** im Gildengebäude (D-080): **Schnelles Spiel** (beliebige Leute einladen, z. B. von Discord, ohne Bindung) und **Gilde** (dauerhaft, siehe 7.2).
-- **Getrennt vom Einzelspieler** (D-081): Im Multiplayer startet man ohne eigene Dorf-Verbesserungen und ohne gute Waffen. Run-Gold ist eine **gemeinsame Kasse**. Waffen und Upgrades bleiben je Spieler.
-- **Testphase:** direkte IP bzw. virtuelles LAN (Tailscale/ZeroTier). **Später:** Steam-Lobbys, Einladen über die Freundesliste, Steam-Relay (7.6).
-- **Menüs pausieren im Multiplayer nicht**; wer ein Menü offen hat, ist geschützt. Fällt der Host heraus, endet der Run (Vorschlag D-085).
+> Ziele beschlossen (D-080 bis D-088, D-108, D-119), Umsetzung nach Phasen: Räume ([ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md)) → Multiplayer ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md), Technik [MULTIPLAYER.md](MULTIPLAYER.md)) → Crossplay ([ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md)) → KI-Bosse ([ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md)). Was online dazukommt, beschreibt [PRODUKT.md](PRODUKT.md) §5. Als „Vorschlag“ markierte Punkte brauchen noch eine Bestätigung.
+
+### 7.1 Koop mit Freunden
+
+- **2–4 Spieler** in einem Run, auch über das Internet. Ein Spieler ist **Host** und rechnet die Spielwelt; die Pakete laufen über einen eigenen Relay mit Raumcode, Spiellogik gibt es nur im Spiel (D-119).
+- **Zwei Wege** im Gildenhaus (D-080): **Schnelles Spiel** (ohne Bindung) und **Gilde** (§7.2).
+- **Getrennt vom Einzelspieler** (D-081): ohne eigene Dorf-Verbesserungen; Run-Gold ist eine **gemeinsame Kasse**, Waffen und Upgrades bleiben je Spieler.
+- **Menüs pausieren nicht**; wer ein Menü offen hat, ist geschützt. Fällt der Host aus, endet der Run (Vorschlag D-085).
 
 ### 7.2 Gilden und Ranglisten
 
-- **Gilde** (D-080): gründen, per Einladungscode beitreten, jederzeit verlassen; höchstens eine Gilde je Spieler, max. 30 Mitglieder. Gilden-Runs nur mit Mitgliedern.
-- **Gilden-Fortschritt** (Vorschlag D-081): Gildenkasse und Gilden-Schmiede auf dem Server, alle Mitglieder profitieren in Gilden-Runs. Schnelles Spiel hat keine Meta-Boni und keine Auszahlung.
-- **Ranglisten** (D-082): Spieler (Solo und Gruppe) und Gilden, gewertet nach dem höchsten erreichten Raum, bei Gleichstand nach Zeit; Allzeit und monatliche Saison (Wertung als Vorschlag).
-- **Server** (D-083): eigener VPS mit Dokploy, Container für API (TypeScript) und Datenbank (PostgreSQL). Nur Gilden-, Run- und Ranglisten-Daten, **kein Echtzeit-Spielverkehr**. Das Spiel funktioniert ohne Server weiter (Einzelspieler, Schnelles Spiel).
-- **Datenschutz:** nur Steam-ID bzw. Geräte-ID, Name, Gilde und Run-Berichte; Löschung auf Wunsch. *Zielbild D-108 (Vorschlag): zusätzlich die Nutzer-IDs von Google Play Games und Game Center.*
+- **Gilde** (D-080): gründen, per Einladungscode beitreten, jederzeit verlassen; eine Gilde je Spieler, höchstens 30 Mitglieder; Gilden-Runs nur mit Mitgliedern. Gildenkasse und Gilden-Schmiede auf dem Server (Vorschlag D-081); Schnelles Spiel hat keine Meta-Boni und keine Auszahlung.
+- **Ranglisten** (D-082): Solo, Gruppe und Gilden, gewertet nach höchstem Raum, bei Gleichstand nach Zeit; Allzeit und Monats-Saison.
+- **Server** (D-083, D-119): eigener Server mit API, Datenbank und Relay im Repo `soulwick-platform`. Das Spiel bleibt ohne Server spielbar; jeder Aufruf darf scheitern.
+- **Datenschutz:** nur Plattform-IDs, Name, Gilde und Run-Berichte; Löschen auf Wunsch (Details im Plattform-PRD).
 
 ### 7.3 Schwierigkeit nach Spielerzahl (D-084, TESTWERTE)
 
-- Gegneranzahl `× (1 + 0,6 · (n − 1))`, HP normaler Gegner `× (1 + 0,2 · (n − 1))`, HP von Champion/Miniboss/Boss `× (1 + 0,7 · (n − 1))`; Schaden, Elite-Chance und Gold je Gegner unverändert.
-- Raumgröße: 1–2 Spieler S/M, 3–4 Spieler L.
-- **Wiederbeleben:** Bei 0 HP zu Boden; Mitspieler belebt durch 2 s Danebenstehen (2 HP); Raum geschafft → alle stehen auf; alle am Boden → Run-Ende.
+- Mehr Gegner und mehr HP je zusätzlichem Spieler, deutlich mehr bei Champions und Bossen; Schaden, Elite-Chance und Gold je Gegner bleiben. Formeln in D-084.
+- **Wiederbeleben:** Bei 0 HP zu Boden; ein Mitspieler belebt durch 2 s Danebenstehen; Raum geschafft → alle stehen auf; alle am Boden → Run-Ende.
 - Jeder Spieler hat einen eigenen Lichtkreis.
 
-### 7.4 Raumarten – intensivere Dungeons (D-086)
+### 7.4 Raumarten
 
-**Problem heute:** Kampfräume sind große, recht leere Flächen mit Gegnern.
+Umgesetzt und in §4.1 eingearbeitet; maßgeblich ist heute [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) (D-120, ersetzt Teile von D-086 und D-100). Koop-exklusive Raumideen sind für MP5 vorgemerkt.
 
-| Raumart | Inhalt |
-| --- | --- |
-| **Arena** | groß und offen, mehrere Wellen, reiner Kampf |
-| **Strukturiert** | Innenmauern, Engstellen, Säulen als Deckung, getrennte Bereiche |
-| **Abgrund** | Abgründe, Brücken, Plattformen; über Lücken springen, herunterfallen möglich |
-| **Rätsel** | Idee für später (Schalter, Druckplatten, Kisten, Licht; Koop-Rätsel) |
+### 7.5 Verständliches Dorf
 
-- Gilt für normale Kampfräume; Spezial-, Miniboss- und Bossräume bleiben. Raumart und Biom sind unabhängig.
-- **Springen = Dash** (keine neue Taste): Überquert Abgründe bis 1 Tile Breite. **Herunterfallen:** ein ganzes Herz (2 HP) direkt, zurück an die letzte sichere Stelle.
-- Gegner meiden Abgründe, können aber durch starken Rückstoß hineingestoßen werden (nicht Champions, Golems, Bosse).
-- Raum 1–5 ohne Abgründe; danach Arena 35 % / Strukturiert 40 % / Abgrund 25 %, kein Abgrund zweimal hintereinander.
-- Kampfraumvorlagen haben 5–14 Spawnpunkte (ersetzt „genau fünf“, Abschnitt 4.2) und Größenklassen S/M/L.
+Umgesetzt, siehe §4.8 (D-087).
 
-### 7.5 Verständliches Dorf statt Upgrade-Flut (D-087)
+### 7.6 Veröffentlichung
 
-- Jedes Gebäude erklärt beim ersten Betreten seine Rolle in einem Satz.
-- Verbesserungen zeigen konkrete Werte („Max-HP 6 → 7“); der Run-Start fasst alle Dorf-Boni zusammen.
-- Schrittweise Freischaltung: zu Beginn nur drei Verbesserungen; Chronik nach dem ersten Run, Handelsposten ab dem ersten Kristall, die restlichen Verbesserungen nach dem ersten Boss.
-- Weniger Stufen (28 → 20), Kristall-Tausch entfällt.
+- **Reihenfolge** (D-119): Steam → Android → iOS, Crossplay über alle (Zielbild D-108, Details [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md)). **Publisher:** WebBude.
+- **Vor Steam:** Windows-Build und Test-Builds für Freunde über den Relay.
+- **Steam:** GodotSteam, Test-AppID 480 für Lobbys und Einladungen in der Entwicklung, danach Steam Direct und Playtest bzw. Beta-Branch; Steam ist Zusatz zum eigenen Relay (Anmeldung, Freunde einladen). Optional: Achievements, Steam-Cloud.
+- **OFFEN:** Geschäftsmodell und Preis (CP0 Frage 1), Zeitpunkt, Rechte am Spiel im Team und Lizenzen für den Verkauf (MP10), Touch-Steuerung (Prototyp CP2).
 
-### 7.6 Veröffentlichung auf Steam
+### 7.7 KI-Wunschbosse „Traumweber“ (Idee, OFFEN)
 
-> **Zielbild (D-108, Vorschlag):** zusätzlich Google Play und App Store mit Crossplay; Details und offene Punkte in [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md).
+Nach einem Boss beschreibt der Spieler einem Traumweber seinen eigenen Albtraum-Boss; eine KI stellt daraus aus einem festen **Baukasten** (Daten, kein Code) Verhalten, Werte, Texte und Sprites im Stil des Spiels zusammen, das Spiel prüft alles selbst. Echte Personen und Marken nur als fiktive Hommage (Empfehlung). Details: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) · Plan: [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md).
 
-- **Vor Steam:** Windows-Build, Schnelles Spiel über direkte IP und virtuelles LAN.
-- **Steam-Entwicklung:** Plugin GodotSteam, Test-AppID 480 (Lobbys und Einladungen ohne eigene App).
-- **Eigene App:** Steam Direct (einmalige Gebühr), danach Steam Playtest oder Beta-Branch für Freunde; Steam-Anmeldung am eigenen Server.
-- **Optional:** Achievements, Steam-Cloud für Spielstände.
-- **OFFEN:** Zeitpunkt, wer das Steamworks-Konto führt, Rechte am Spiel im Team, Lizenzen für den Verkauf, Preis.
+## 8. Technische Begriffe
 
-### 7.7 KI-Wunschbosse „Traumweber“ (Idee für später, OFFEN)
-
-- Nach einem Boss beschreibt der Spieler einem Traumweber im Chat seinen eigenen Albtraum-Boss; eine KI erzeugt im Hintergrund Verhalten, Werte, Texte und Sprites **im Stil des Spiels**; wenige Räume später kommt der Kampf. Später auch als eigener Modus „Arena der Albträume“ und zum Teilen.
-- **Leitprinzip:** Die KI wählt nur aus einem festen **Baukasten** (Daten, kein Code); Budget nach gewählter Schwierigkeit; das Spiel prüft alles selbst nach und lädt Daten und Bilder ohne Neukompilieren.
-- Echte Personen und Marken nur als fiktive Hommage (Empfehlung); Moderation, Melden, Kostengrenzen, Steam-Angaben zu KI-Inhalten.
-- Details: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) · Plan: [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md)
-
-## 8. Begriffe
-
-Spielbegriffe mit englischer Entsprechung (Biom, Dorf, Seelenkristall, Gilde, Saison …): [PRODUKT.md](PRODUKT.md) §10. Hier stehen die technischen MVP-Begriffe.
+Spielbegriffe (Run, Raumart, Biom, Host …) stehen im [GLOSSAR.md](GLOSSAR.md). Hier nur die Begriffe der Regeln oben:
 
 | Begriff | Bedeutung |
 | --- | --- |
-| **Run** | Ein zusammenhängender Dungeon-Durchlauf; besitzt temporäre Waffen, Upgrades und Gold. |
-| **MVP** | Erstes spielbares Zielpaket mit verbindlichem, bewusst begrenztem Umfang. |
-| **Resource** | Typisierte Godot-Definition (`.tres`), nicht identisch mit Laufzeitstatus. |
-| **Hit-ID** | Eindeutige Kennung einer Angriffs-/Trefferinstanz zur Verhinderung von Mehrfachregistrierung. |
-| **I-Frames** | Zeitfenster ohne Wirkung normaler, blockierter Treffer. |
-| **Softcap** | Reduzierte Wirksamkeit jenseits einer Schwelle, keine starre Obergrenze. |
-| **Primäreffekt** | Direkter Angriff oder primärer Magierstab-AOE-Treffer. |
-| **Sekundäreffekt** | Vom Primärtreffer ausgelöster zusätzlicher Effekt ohne erneute Sekundärkette. |
-| **Host** | Spieler, dessen Spiel im Multiplayer die Spielwelt berechnet; die anderen sind **Clients**. |
-| **Raumart** | Aufbau eines Raums (Arena, strukturiert, Sprung, Rätsel); unabhängig vom **Biom** (Optik, Gegner). |
+| **Resource** | typisierte Godot-Definition (`.tres`), nicht der Laufzeitzustand |
+| **Hit-ID** | eindeutige Kennung einer Angriffsinstanz gegen Mehrfachtreffer |
+| **I-Frames** | Zeitfenster, in dem normale Treffer blockiert sind |
+| **Softcap** | verringerte Wirkung oberhalb einer Schwelle statt harter Obergrenze |
+| **Primär-, Sekundäreffekt** | direkter Angriff bzw. Flächentreffer des Stabs; davon ausgelöster Zusatzeffekt ohne weitere Kette |
 
-**Weiterlesen:** [ARCHITECTURE.md](ARCHITECTURE.md) · [TECHSTACK.md](TECHSTACK.md) · [ROADMAP.md](ROADMAP.md) · [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) · [DECISIONS.md](DECISIONS.md)
+**Weiterlesen:** [ARCHITECTURE.md](ARCHITECTURE.md) · [TECHSTACK.md](TECHSTACK.md) · [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) · [DECISIONS.md](DECISIONS.md)

@@ -1,6 +1,6 @@
 # Soulwick – Design-Handout
 
-Alles, was Code und Grafik gemeinsam wissen müssen: Palette, Maßstab, Namensregeln, Ordner. Die Spielgrafiken liegen in `art/`, die Referenz-Screens in `docs/design/`, die Website-Grafiken in `website/public/` (→ `soulwick-platform/apps/web/public/`).
+Alles, was Code und Grafik gemeinsam wissen müssen: Palette, Maßstab, Namensregeln, Ordner. Die Spielgrafiken liegen in `art/`, die Referenz-Screens in `docs/design/`, die Website-Grafiken im Repo `soulwick-platform` unter `apps/web/public/brand/` (als WebP). Grafik-Briefings: [design/sprites/](design/sprites/README.md).
 
 ## Maßstab und Format
 
@@ -87,17 +87,18 @@ art/
   index.json          (alle Gruppen und Dateien, maschinenlesbar)
 docs/
   HANDOUT.md          (diese Datei)
-  design/README.md    (Screen-Beschreibungen)
+  design/README.md    (Ordner und Screen-Beschreibungen)
+  design/sprites/     (Grafik-Briefings SPRITES*.md mit Stand)
   design/ui_spec.json
-  design/screens/     (12 Screens, 1x/ und 2x)
+  design/screens/     (13 Screens, 1x/ und 2x)
   design/scenes/      (gerenderte Räume und Dorf als Hintergrund)
-website/public/       (logo.svg + .png, logo_square.svg + .png, logo_mono.svg, favicon-32.png, keyart, og_image, biome_*)
+soulwick-platform/apps/web/public/brand/   (logo.svg + .webp, logo_square, logo_mono.svg, favicon-32.png, keyart, og_image, biome_*, scenes/, sprites/)
 art/ui/logo.png, logo_square.png   (1×-Pixelversionen 128×32 / 64×64 für In-Game, Nearest skalieren)
 ```
 
 ## Offen
 
-- Preise, Gold-Drops, Skalierung ab Raum 46 sind im PRD OFFEN; Mockups zeigen Platzhalter.
+- Preise und Gold-Drops in den Mockups sind Platzhalter; im Spiel gelten TESTWERTE (D-064, D-091, D-118).
 - Keyart und Biom-Szenen sind aus den Spiel-Sprites komponiert; eine gemalte Illustration wäre der nächste Schritt für den Store-Auftritt.
 
 ## Räume V2 (Design-Antwort, 14.10.2026)

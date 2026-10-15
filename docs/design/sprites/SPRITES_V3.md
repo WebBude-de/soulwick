@@ -1,6 +1,6 @@
 # Grafik-Briefing V3 – Soulwick: Raumarten, Waffen, Multiplayer, Website
 
-> **Für Claude Design.** Diese Datei ist eigenständig lesbar. Sie ergänzt [SPRITES.md](SPRITES.md) und [SPRITES_V2.md](SPRITES_V2.md) um alles, was für [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md), [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) und die Website gebraucht wird.
+> **Für Claude Design.** Diese Datei ist eigenständig lesbar. Sie ergänzt [SPRITES.md](SPRITES.md) und [SPRITES_V2.md](SPRITES_V2.md) um alles, was für [ROADMAP_AUSBAU.md](../../ROADMAP_AUSBAU.md), [ROADMAP_MULTIPLAYER.md](../../ROADMAP_MULTIPLAYER.md) und die Website gebraucht wird.
 > **Ablage:** Spielgrafiken im Spiel-Repo unter `art/` im angegebenen Unterordner, Website-Grafiken im Repo `soulwick-platform` unter `apps/web/public/`. Dateinamen exakt übernehmen, dann werden sie automatisch eingebaut. Bis dahin erzeugt der Code Platzhalter.
 
 ## Spiel in einem Satz

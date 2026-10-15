@@ -1,5 +1,7 @@
 # Konzept „Endlos“ – Schwierigkeit, Biome, Meta-Progression
 
+> **Status 15.10.2026: umgesetzt** (ROADMAP M11, D-073 bis D-079). Gültige Zahlen stehen in [DECISIONS.md](DECISIONS.md) und im Code, nicht hier: Schmiede nach D-087, Balance nach D-089 und D-118, nach jedem Boss ein Lagerfeuer mit Ausgangsportal (D-103). Die Grafikliste in §7 ist über [SPRITES_V2.md](design/sprites/SPRITES_V2.md) geliefert und nur noch historisch. Das Dokument bleibt als Begründung der Struktur (immer endlos, Biome, Schwierigkeitskurve).
+>
 > **Stand:** 13.10.2026 · **Anlass:** Playtest bis Raum 101: bis Raum ~90 zu leicht (Schild 120+, Facetanking, Fernkampf ohne Risiko).
 > **Ziel:** Ein Endlos-Dungeon, der am Anfang fair ist, stetig schwerer wird und durch dauerhafte Dorf-Verbesserungen langfristig motiviert. Entscheidungen: D-073 bis D-079 in [DECISIONS.md](DECISIONS.md).
 
@@ -77,7 +79,7 @@ Frühere Fassung (bis Spielstand v2): Startschild 5 × 2, Schärfe 8 × 5 %, Gol
 
 ## 7. Benötigte Grafiken (für Claude Design)
 
-Gleiche Formatregeln wie in [SPRITES.md](SPRITES.md). Tilesets **exakt im Layout** von `dungeon_tileset.png` (8×3 Tiles à 32 px, gleiche Reihenfolge).
+Gleiche Formatregeln wie in [SPRITES.md](design/sprites/SPRITES.md). Tilesets **exakt im Layout** von `dungeon_tileset.png` (8×3 Tiles à 32 px, gleiche Reihenfolge).
 
 **Biome**
 - [ ] `slime_grotto_tileset.png` – grünliche, feuchte Höhle, Moos, Pfützen

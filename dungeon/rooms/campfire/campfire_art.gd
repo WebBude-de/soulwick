@@ -1,6 +1,6 @@
 class_name CampfireArt
 extends RefCounted
-## Art of the campfire room (docs/SPRITES_V4.md §5): loads art/environment/campfire/<name>.png and
+## Art of the campfire room (docs/design/sprites/SPRITES_V4.md §5): loads art/environment/campfire/<name>.png and
 ## draws a simple pixel placeholder with the same size and frame layout until the file exists.
 ## Placeholders are drawn once per name with a fixed seed (pure optics, no dungeon RNG).
 

@@ -1,6 +1,7 @@
 # ROADMAP – Meilensteine und Definition of Done
 
-> **Stand der Informationen:** 13.10.2026 · **Planquelle:** Überarbeitetes GDD Master 1.0, Kapitel 15–16.  
+> **Stand der Informationen:** 13.10.2026, Repository-Angaben aktualisiert am 15.10.2026 · **Planquelle:** Überarbeitetes GDD Master 1.0, Kapitel 15–16.  
+> **Einordnung:** MVP und Endlos-Ausbau, fast fertig. Die laufende Arbeit steht in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md); Überblick aller Roadmaps: [README.md](README.md).  
 > **Wichtig:** Abgehakt = lokal umgesetzt und automatisch geprüft (13.10.2026). Teamabnahme im echten Repository steht noch aus. Der von ChatGPT erstellte Testprototyp zählt ausdrücklich **nicht** als Fortschritt des echten Teamprojekts.
 
 ## 1. Aktueller Stand – nur verifizierte Fakten
@@ -9,12 +10,12 @@
 | --- | --- | --- |
 | Zielbild / Anforderungen | **Dokumentiert** | GDD Master 1.0 vom 10.10.2026 ist konsolidierte, verbindliche Basis. |
 | Architekturprinzipien | **Dokumentiert** | Godot 4, vier Kern-Autoloads, Zuständigkeiten, Drei-Raum-Streaming und Schnittstellenregeln beschlossen. |
-| Team-Repository | **Vorhanden** | Hochschul-GitLab `gitlab.gwdg.de`; Branches `master` und `dev` wurden im Gespräch bestätigt. |
+| Team-Repository | **Vorhanden** | Privates GitHub-Repo `WebBude-de/soulwick` (ersetzt das ursprünglich geplante GitLab); Branch `dev` lokal angelegt, erster Push steht an (15.10.2026). |
 | Godot-Grundprojekt im echten Repo | **Nicht verifiziert** | Ein leeres Godot-Projekt auf `dev` war als nächster Schritt vorgesehen. Aktueller Commit-/Buildstand ist hier nicht einsehbar. |
 | Gameplay-Systeme im echten Repo | **Nicht verifiziert** | Keine Implementierung wird allein wegen des GDD oder eines ChatGPT-Prototyps als fertig betrachtet. |
 | Tests / spielbarer MVP | **Nicht verifiziert** | Build, automatische Tests und Spielbarkeit müssen im echten Teamprojekt geprüft werden. |
 | Economy-/Dorf-Balance | **OFFEN** | Bewusst später im Team zu entscheiden; keine erfundenen Preise/Gold-Drops. |
-| Lokales Godot-Projekt (`soulwick/`) | **Implementiert, lokal automatisch getestet** (13.10.2026) | M0–M6 umgesetzt, in Godot 4.7.2 geprüft. Noch **nicht im Team-Repo**, Teamabnahme offen. Nächster Schritt: Commit, MR nach `dev`, Review. |
+| Lokales Godot-Projekt (`soulwick/`) | **Implementiert, lokal automatisch getestet** (13.10.2026) | M0–M6 umgesetzt, in Godot 4.7.2 geprüft. Noch **nicht im Team-Repo**, Teamabnahme offen. Nächster Schritt: Push nach GitHub, Pull Request nach `dev`, Review. |
 | Economy-/Boss-Werte | **PLATZHALTER** | Spielbare Vorschläge D-055 … D-061, zentral änderbar; Teamentscheidung ausstehend. |
 
 ### Lokaler Prüfstand (13.10.2026, Godot 4.7.2)
@@ -48,17 +49,17 @@ Der Smoke-Test prüft u. a.: Fünf-Raum-Zyklus, Bosse 15/30/45, nie mehr als 3 R
 
 ### M0 – Repositorium und technisches Fundament
 
-**Ziel:** Ein gemeinsames, startbares Godot-Grundprojekt, nachvollziehbare Aufgabenverteilung und verlässlicher GitLab-Workflow.
+**Ziel:** Ein gemeinsames, startbares Godot-Grundprojekt, nachvollziehbare Aufgabenverteilung und verlässlicher Git-Workflow (GitHub).
 
 - [x] Godot-4-Minor-/Patchversion im Team festlegen und dokumentieren. *(4.7.2, D-051)*
 - [x] Test-Framework installieren und Headless-Lauf prüfen. *(GUT 9.7.1, D-052)*
 - [ ] Tatsächliches `dev`-Projekt mit `project.godot`, Startszene und vereinbarter Ordnerhierarchie prüfen. *(offen: Projekt liegt erst lokal)*
-- [ ] `master` / `dev` schützen; MR-Review durch mindestens eine andere Person sicherstellen. *(offen: GitLab-Einstellung im Team)*
+- [ ] Haupt-Branch und `dev` schützen; Review durch mindestens eine andere Person sicherstellen. *(offen: Branch-Schutz auf GitHub)*
 - [x] `.godot/` ignorieren, Quellen-Assets/`.tscn`/`.tres`/`.uid` versionieren.
 - [x] Vier Autoloads (`GameManager`, `RunManager`, `SaveManager`, `EventBus`) als definierte Verträge anlegen.
 - [x] Typisierte Definitions-Resources, fachlichen Event-/Signalfluss und Fehlerkonventionen spezifizieren.
 
-**Fertig, wenn:** Frischer Clone des echten Repositories in der vereinbarten Engine-Version ohne Parse-/Importfehler startet, vier Verantwortlichkeiten getrennt sind und ein Test-MR mit Review regulär nach `dev` gelangt.
+**Fertig, wenn:** Frischer Clone des echten Repositories in der vereinbarten Engine-Version ohne Parse-/Importfehler startet, vier Verantwortlichkeiten getrennt sind und ein Test-Pull-Request mit Review regulär nach `dev` gelangt.
 
 ### M1 – Spieler, Gegner und zentraler Kampfpfad
 
@@ -149,7 +150,7 @@ Der Smoke-Test prüft u. a.: Fünf-Raum-Zyklus, Bosse 15/30/45, nie mehr als 3 R
 - [ ] Manuelle E2E-Durchläufe über Raumzyklus, Portal und Tod. *(automatisierter E2E-Lauf über 47 Räume ✓; manueller Durchlauf durch das Team offen)*
 - [ ] Automatisierte Tests für Damage, Upgrades, Economy, Save; manuelle Tests für Streaming, Input, HUD/UI. *(automatisiert ✓ 73 Tests + 4 Simulationen; manuelle Tests offen)*
 - [ ] Alle offenen MVP-blockierenden Entscheidungen umgesetzt und in `DECISIONS.md` begründet; verbleibende Nach-MVP-Arbeiten separat markieren. *(Blocker entschieden; nicht blockierende Restpunkte in Abschnitt 3)*
-- [ ] Release via geprüftem Merge Request nach `master` und Versions-Tag. *(offen: GitLab)*
+- [ ] Release via geprüftem Pull Request in den Haupt-Branch und Versions-Tag. *(offen: GitHub)*
 
 **Fertig, wenn:** Eine Person aus dem Team das Projekt frisch klonen, starten, vom Dorf aus einen Run spielen und korrekte Rückkehr/Goldspeicherung nachweisen kann; definierte GDD-Abnahmetests bestehen; keine unbegründeten Wirtschaftsannahmen im Release stehen.
 
@@ -173,7 +174,7 @@ Der Smoke-Test prüft u. a.: Fünf-Raum-Zyklus, Bosse 15/30/45, nie mehr als 3 R
 - [x] **Neu:** Spezialräume hell, Lichtkreise in Pixel-Optik (D-067).
 
 ### M9 – Erweitertes Gameplay
-s
+
 - [x] Skelett-Schildstoß mit Stun 0,8 s (D-066).
 - [x] Schattenwesen (blendet) und Bomber (explodiert) (D-069).
 - [x] Elite-Gegner: Schnell, Gepanzert, Explosiv.
@@ -211,20 +212,21 @@ s
 
 ### M15 – Eigene Grafiken (Claude Design)
 
-- [x] Grafiken laut [SPRITES_V2.md](SPRITES_V2.md) erzeugt und eingebaut (Gegner, Bosse, Kennzeichen, Biome, Dorf, Icons).
-- [ ] Waffen-Grafiken aus SPRITES_V2 §8 (Dolche, Kriegshammer, Effekte) – noch Platzhalter.
+- [x] Grafiken laut [SPRITES_V2.md](design/sprites/SPRITES_V2.md) erzeugt und eingebaut (Gegner, Bosse, Kennzeichen, Biome, Dorf, Icons).
+- [ ] Waffen-Grafiken aus SPRITES_V2 §8 (Dolche, Kriegshammer, Effekte). *(Hinweis 15.10.2026: laut D-099 und SPRITES_V3 §1 geliefert und eingebaut; Haken nach Prüfung setzen)*
 
-### Weitere Roadmaps (Vision nach dem MVP, beschlossen D-080 … D-088, noch nicht gebaut)
+### Weitere Roadmaps (nach dem MVP)
 
 Diese Themen sind zu groß für einzelne Meilensteine und haben eigene Pläne. Anforderungen: [PRD.md](PRD.md) Abschnitt 7.
 
 | Roadmap | Inhalt |
 | --- | --- |
-| [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) | Schnelles Spiel, Testversion für Freunde, Skalierung, Gilden, Ranglisten, Server (Dokploy), Steam, Release |
-| [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) | Raumarten (Arena, strukturiert, Sprung/Abgrund, später Rätsel), verständliches Dorf |
+| [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) | **aktuell:** Phase 1 spielbar machen, Phase 2 Räume, 2b Räume v2 mit Minispielen, 2c Makeover |
+| [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) | Phase 3: Schnelles Spiel, Testversion für Freunde, Skalierung, Gilden, Ranglisten, Server, Steam, Release |
+| [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) | nach dem Multiplayer: Google Play, App Store, Crossplay |
 | [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) | **Idee für später:** KI-generierte Wunschbosse („Traumweber“), Konzept in [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) |
 
-**Reihenfolge (D-088):** zuerst ROADMAP_AUSBAU (Pakete A1–A5 und B1–B2, je ein Agent), danach ROADMAP_MULTIPLAYER. Neuer Code hält sich an die Multiplayer-Leitplanken in ROADMAP_AUSBAU.
+**Reihenfolge (D-088, D-106):** zuerst ROADMAP_AUSBAU (Phasen 1, 2, 2b, 2c), danach ROADMAP_MULTIPLAYER (Phase 3, Crossplay schließt an) und ROADMAP_KI_BOSS (Phase 4). Neuer Code hält sich an die Multiplayer-Leitplanken (Koop-Check in ROADMAP_AUSBAU).
 
 ## 3. Offene Entscheidungen und Blocker (vor dem jeweiligen Feature klären)
 
@@ -240,7 +242,7 @@ Diese Themen sind zu groß für einzelne Meilensteine und haben eigene Pläne. A
 | Mittel | Bounds/Feedback für Schadenszahlen, Knockback | M6 | Knockback-Werte in den `.tres` (PLATZHALTER) |
 | Mittel | Finale Resource-Properties, Speicherformat und Migration | vor M5 | ConfigFile v1 (D-059), Migration noch keine |
 | Mittel | Explosion „Explosiver Treffer“: Radius und Regel für Schwert/Pfeile | M3 | 48 px, eine pro Angriffsinstanz (D-056) |
-| Teamtechnik | CI, Exportziel, GitLab-Schutz der Branches | M0 / Release | – |
+| Teamtechnik | CI, Exportziel, Branch-Schutz auf GitHub | M0 / Release | – (CI und Exporte: ROADMAP_CROSSPLAY CP7) |
 
 **Regel für Fortschrittsupdates:** Abgehakt am 13.10.2026 auf Basis der lokalen automatischen Prüfungen (Abschnitt 1); offene Punkte sind markiert. Nach dem Merge ins Team-Repo erneut prüfen. Neben jeder abgeschlossenen Teilaufgabe bei Bedarf **MR/Commit, Tester, Datum** notieren. Das GDD selbst ist **kein Nachweis einer Implementierung**.
 

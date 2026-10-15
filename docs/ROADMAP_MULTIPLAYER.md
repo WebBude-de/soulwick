@@ -151,7 +151,7 @@ Steam ist **kein Transport** (D-119, Plattform P-017): Auch Steam-Spieler verbin
 
 - [x] Grundgerüst: `apps/web` (Startseite, Ranglisten, Gildenseiten, Datenschutz/Impressum als Platzhalter) und `apps/admin` (Anmeldung, Spieler sperren/entsperren, Gilden verwalten, Runs prüfen, Protokoll, Admins) – 13.10.2026.
 - [ ] Texte für Datenschutz und Impressum (verantwortliche Person, Betreiber WebBude).
-- [ ] Logo, Keyart und Screenshots einbauen ([SPRITES_V3.md](SPRITES_V3.md) §6).
+- [ ] Logo, Keyart und Screenshots einbauen ([SPRITES_V3.md](design/sprites/SPRITES_V3.md) §6).
 - [ ] Deployment auf Dokploy: Domains `<domain>`, `api.<domain>`, `admin.<domain>`; Admin-Panel zusätzlich schützen (z. B. Basic Auth oder IP-Liste in Dokploy).
 - [ ] Ersten Admin anlegen, Moderatoren einladen.
 - [ ] Optional: Discord-Webhook bei gemeldeten Runs.

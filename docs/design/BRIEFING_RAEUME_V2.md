@@ -1,5 +1,7 @@
 # Briefing für Claude Design – Soulwick: Räume, Raumarten und Look neu denken
 
+> **Status 15.10.2026: erledigt.** Claude Design hat geantwortet ([claude_design_antwort/](claude_design_antwort/README.md)); daraus sind D-120 bis D-144, die Pakete der Phasen 2b und 2c in [ROADMAP_AUSBAU.md](../ROADMAP_AUSBAU.md) und die Briefings [SPRITES_V8](sprites/SPRITES_V8.md) und [SPRITES_V9](sprites/SPRITES_V9.md) entstanden. Das Briefing bleibt als Anfrage zum Nachlesen.
+>
 > **Für Claude Design.** Eigenständig lesbar. Dazu gehören das Gameplay-Konzept [../KONZEPT_RAEUME_V2.md](../KONZEPT_RAEUME_V2.md) (zuerst lesen) und die Bilder in `docs/design/szenen/` (Übersicht und Beobachtungen: `szenen/INDEX.md`). Die Bilder zeigen den **heutigen** Stand mit allen Schwächen.
 > **Stand:** 14.10.2026 · Projektmitglied + Claude (Entwicklung)
 
@@ -94,5 +96,5 @@ Bitte Bilder (Mockups im Spielstil) und kurze Texte, aus denen wir Pakete für d
 - Mockups als Bilder, gern mehrere Varianten.
 - Je Raumart und Grundriss ein kurzer Steckbrief (Name, Fantasie, Bau, Gegner-Auftritt, Belohnung, Erkennungsmerkmal).
 - Grundrisse als Raster-Skizze mit Legende (Boden, Mauer, Loch, Wasser, Deko-Gruppe, Spawn-Art, Tür).
-- Noch offene Grafik-Wünsche aus [../SPRITES_V6.md](../SPRITES_V6.md) (Mauer-Autotile) und [../SPRITES_V7.md](../SPRITES_V7.md) (Seitentüren, Fall-Farbmaske) bitte nicht einzeln liefern, sondern ins neue Wand- und Tür-System einarbeiten.
+- Noch offene Grafik-Wünsche aus [../SPRITES_V6.md](sprites/SPRITES_V6.md) (Mauer-Autotile) und [../SPRITES_V7.md](sprites/SPRITES_V7.md) (Seitentüren, Fall-Farbmaske) bitte nicht einzeln liefern, sondern ins neue Wand- und Tür-System einarbeiten.
 - Am Ende eine Liste, welche neuen Grafiken nötig wären (Datei, Größe, Frames), damit wir daraus ein `SPRITES_V8.md` machen können.

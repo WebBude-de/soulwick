@@ -1,7 +1,7 @@
 # ROADMAP KI-Boss „Traumweber“
 
 > **Stand:** 13.10.2026 · **Status:** Idee für später, **nichts beschlossen oder gebaut.** Konzept: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md).  
-> **Einordnung:** nach [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) und [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) (D-088). Braucht den Server aus MP7. **KI1 und KI2 brauchen keine KI und keinen Server** und können jederzeit vorgezogen werden.  
+> **Einordnung:** Phase 4, nach [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) und [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) (D-088, D-106). Braucht den Server aus MP7 (heute `apps/api` im Repo `soulwick-platform`, Bun und Hono). **KI1 und KI2 brauchen keine KI und keinen Server** und können jederzeit vorgezogen werden.  
 > **Abhaken** nur mit Nachweis (Tests, Datum).
 
 ## Überblick

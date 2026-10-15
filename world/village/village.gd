@@ -9,7 +9,7 @@ extends Node2D
 ## crystal) stay visible with a lock and "Öffnet nach …" above the door; E shows that as a notice.
 ## On load the village records reached unlock events and announces new ones once ("Neu freigeschaltet").
 ## B3: the layout comes from tools/generate_village.py (neighbour houses, villagers, chimney smoke,
-## props from docs/SPRITES_V4.md); the small decoration is scattered here by VillageDecor.
+## props from docs/design/sprites/SPRITES_V4.md); the small decoration is scattered here by VillageDecor.
 ## R7 (06_dorf.md): village square instead of a cross, the dungeon ruin up on the ridge
 ## (VillageEntrance), rescued villagers and chickens from the escort walk around (RescueRecord,
 ## D-135), the evening is a soft vignette with lit windows (VillageEvening). Building names show only

@@ -157,7 +157,7 @@ Empfohlene Reihenfolge: (1) `ui/menus/game_ui.gd` + `ui/hud` (sichtbar in jedem 
 - Soll „Gesamt“ (Master) langfristig in `[audio]` bei Musik/Effekte liegen (Hotspot `SaveManager`, siehe §8)?
 - Randlos auf Mehrbildschirm-Systemen: nimmt den Bildschirm, auf dem das Fenster liegt. Reicht das, oder soll der Bildschirm wählbar werden?
 - Tasten ändern (Rebinding) ist als „später“ angezeigt; eigenes Paket nach UX2?
-- Website (playsoulwick.com) nutzt dieselben Sprachen; eine gemeinsame Wortliste (Glossar) für Spiel und Website wäre sinnvoll, Ort: `soulwick-platform/docs/`.
+- Website (playsoulwick.com) nutzt dieselben Sprachen; die gemeinsame Wortliste für Spiel und Website gibt es inzwischen: [GLOSSAR.md](GLOSSAR.md) (erledigt 14.10.2026).
 
 ## 11. Runde zwei (14.10.2026)
 

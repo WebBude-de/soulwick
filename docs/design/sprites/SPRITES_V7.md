@@ -1,7 +1,7 @@
 # Grafik-Briefing V7 – Soulwick: Seitentüren und Abgrund-Nachträge
 
 > **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V4.md](SPRITES_V4.md) §4 (Türen), [SPRITES_V5.md](SPRITES_V5.md) §5–§6 (Abgrund, Wegführung) und [SPRITES_V6.md](SPRITES_V6.md) (Mauer-Autotile, noch offen). **Dateinamen exakt übernehmen**, dann baut der Code sie automatisch ein; bis dahin zeigt das Spiel Platzhalter.
-> **Stand:** 14.10.2026 (Pakete A4 und A10 aus [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md))
+> **Stand:** 14.10.2026 (Pakete A4 und A10 aus [ROADMAP_AUSBAU.md](../../ROADMAP_AUSBAU.md))
 
 ## Spiel in einem Satz
 

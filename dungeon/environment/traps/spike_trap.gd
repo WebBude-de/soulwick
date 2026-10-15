@@ -15,7 +15,7 @@ const PLATE_COLOR := Color(0.18, 0.16, 0.22)
 const HOLE_COLOR := Color(0.07, 0.06, 0.09)
 const SPIKE_COLOR := Color(0.82, 0.82, 0.9)
 const WARN_COLOR := Color(1.0, 0.3, 0.2, 0.35)
-## Frames: retracted / warning / extended (docs/SPRITES_V2.md §2). Replaces the drawing if present.
+## Frames: retracted / warning / extended (docs/design/sprites/SPRITES_V2.md §2). Replaces the drawing if present.
 const ART_PATH := "res://art/environment/props/spike_trap_3f.png"
 
 var _phase := Phase.IDLE

@@ -1,6 +1,6 @@
 class_name VillageArt
 extends RefCounted
-## Village decoration art (B3, docs/SPRITES_V4.md): loads art/environment/village/<name>.png and
+## Village decoration art (B3, docs/design/sprites/SPRITES_V4.md): loads art/environment/village/<name>.png and
 ## the villager/animal strips in art/characters/npcs/ as soon as the files exist. Until then simple
 ## props get a pixel placeholder in the palette (flowers, grass, stones, bush, stump, garden fence,
 ## flower bed, hay bale, bench, signpost, pond, chicken); the rest (cart, cat) has none and stays

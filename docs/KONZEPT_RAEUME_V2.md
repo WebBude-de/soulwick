@@ -1,6 +1,6 @@
 # Konzept Räume v2 – klare Modi, mehr Varianz, lebendige Räume
 
-> **Status:** FREIGEGEBEN (Projektmitglied, 14.10.2026, D-120): Modi-Liste, Abgrund als Raumart gestrichen, 30–40 % Minispiele, Koop-Ideen vormerken. Look und Grundrisse folgen aus Claude Design. Löst [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md) ab.
+> **Status:** FREIGEGEBEN (Projektmitglied, 14.10.2026, D-120): Modi-Liste, Abgrund als Raumart gestrichen, 30–40 % Minispiele, Koop-Ideen vormerken. Look und Grundrisse folgen aus Claude Design. Löst [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md) in den Raumarten und Modi ab (was dort weiter gilt, steht in dessen Status-Kasten). Die nächsten Schritte aus §9 sind erledigt: Design-Antwort in [design/claude_design_antwort/](design/claude_design_antwort/README.md), Briefing [SPRITES_V8](design/sprites/SPRITES_V8.md), Pakete der Phasen 2b und 2c in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) (Stand 15.10.2026).
 > **Anlass:** Playtest 14.10.2026. Die Balance passt, aber es macht noch nicht richtig Spaß: Räume sind leer und zufällig, die Modi sind unklar und überschneiden sich, man sieht nicht, woher Gegner kommen.
 > **Arbeitsteilung:** Dieses Dokument legt das **Gameplay** fest (was passiert, Regeln, Ablauf). **Claude Design** entwirft den **Look** dazu: Grundrisse, Wände, Deko-Gruppen, Gegner-Auftritt, Türen, UI ([design/BRIEFING_RAEUME_V2.md](design/BRIEFING_RAEUME_V2.md)). Danach schneidet Claude daraus die Pakete der Phase 2b.
 

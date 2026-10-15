@@ -1,6 +1,6 @@
 class_name SpriteStrip
 extends RefCounted
-## Helpers for horizontal sprite strips from art/ (see docs/SPRITES.md).
+## Helpers for horizontal sprite strips from art/ (see docs/design/sprites/SPRITES.md).
 ## All character and tile art is drawn at PIXEL_SCALE in the world, so GDD pixel values
 ## (ranges, speeds) keep their meaning while 32 px sprites stay readable.
 

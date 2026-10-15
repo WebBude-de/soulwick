@@ -1,4 +1,18 @@
-# Game-UI Screens – Referenz für die Umsetzung
+# Design – Mockups, Referenzen, Briefings
+
+> Alles hier ist **Inspiration und Orientierung**, keine pixelgenaue Vorlage. Palette und Regeln: [HANDOUT.md](../HANDOUT.md). Übersicht der ganzen Doku: [docs/README.md](../README.md).
+
+| Ordner / Datei | Inhalt |
+| --- | --- |
+| `screens/`, `ui_spec.json` | 13 UI-Mockups (unten beschrieben) mit Maßen, Farben und Schriftgrößen |
+| `scenes/` | gerenderte Hintergründe (Hauptmenü, Dorf, Räume) aus den Spiel-Sprites |
+| `szenen/` | Fotos aus dem echten Spiel als Vorlage für Claude Design ([INDEX.md](szenen/INDEX.md)); die PNGs sind nicht versioniert und werden mit `tools/scene_gallery.gd` neu erzeugt |
+| [sprites/](sprites/README.md) | Grafik-Briefings `SPRITES*.md` mit Stand |
+| [BRIEFING_RAEUME_V2.md](BRIEFING_RAEUME_V2.md) | Anfrage an Claude Design zu Räumen v2 (erledigt) |
+| [claude_design_antwort/](claude_design_antwort/README.md) | Antworten von Claude Design; Dateinamen nicht ändern |
+| `web/` | Website-Handoff und Landing-Mockups (Kopie; maßgeblich ist `soulwick-platform/docs/design/web/`) |
+
+## Game-UI Screens – Referenz für die Umsetzung
 
 13 Mockups der Spiel-Oberfläche, gerendert aus den echten Sprites in `art/`. Virtuelle Auflösung **480 × 270 px**: `1x/` = Originalgröße (pixelgenau), Hauptordner = 2× nearest-neighbor (960 × 540), `_overview.png` = alle zwölf auf einen Blick. Schrift: Pixelify Sans (SIL OFL) liegt als `art/fonts/PixelifySans-Variable.ttf` bei (Lizenz und Godot-Importeinstellungen daneben) und ist im Theme als `default_font` eingetragen.
 

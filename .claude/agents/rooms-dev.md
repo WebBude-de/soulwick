@@ -31,7 +31,7 @@ the decisions it names (`docs/DECISIONS.md`, at least D-086 and D-088) and `docs
 - Numbers from the decisions go into `const`/`@export` values with a `TESTWERT` comment, centrally changeable.
 - Multiplayer guard rails (D-088): no new `get_first_node_in_group(&"player")`, randomness only via `DungeonContext` RNG,
   per-player state lives on the player, decisions separated from effects (signals).
-- New art goes to `docs/SPRITES_V3.md` as a briefing; until delivered, generate placeholders by script (like `build_tilesets.gd`).
+- New art goes to the newest open briefing in `docs/design/sprites/` (see its README); until delivered, generate placeholders by script (like `build_tilesets.gd`).
 
 ## Verify before reporting
 

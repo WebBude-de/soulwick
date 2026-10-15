@@ -1,7 +1,7 @@
 # Konzept „Traumweber“ – KI-generierte Wunschbosse
 
 > **Stand:** 13.10.2026 · **Status:** Idee und Konzept für später (Advanced Feature). **Nichts davon ist beschlossen oder gebaut.** Offene Punkte: Abschnitt 11.  
-> **Umsetzungsplan:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · **Voraussetzung:** Server aus [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP7 · **Grafikregeln:** [SPRITES.md](SPRITES.md)
+> **Umsetzungsplan:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · **Voraussetzung:** Server aus [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP7 · **Grafikregeln:** [SPRITES.md](design/sprites/SPRITES.md)
 
 ## 1. Die Idee in drei Sätzen
 
@@ -109,7 +109,7 @@ Die KI darf den **Inhalt** bestimmen, nicht den **Stil**. Ablauf auf dem Server:
 ## 7. Technik
 
 ```text
-Spiel ──HTTPS──► soulwick-api (Server, MP7)
+Spiel ──HTTPS──► soulwick-platform apps/api (Server, MP7)
   │               ├─ Chat und Beschreibung ──► Sprachmodell (Claude, strukturierte Ausgabe)
   │               ├─ Moderation             ──► Sprachmodell
   │               ├─ Sprites                ──► Bildgenerator + Nachbearbeitung + Bildprüfung
@@ -167,4 +167,4 @@ Spiel ──HTTPS──► soulwick-api (Server, MP7)
 | Eigener Modus „Arena der Albträume“ | ja, nach dem Einbau in den Run |
 | Teilen und Community-Galerie | erst mit Melde- und Moderationswerkzeugen |
 
-**Weiterlesen:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · [PRD.md](PRD.md) · [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [SPRITES.md](SPRITES.md) · [DECISIONS.md](DECISIONS.md)
+**Weiterlesen:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · [PRD.md](PRD.md) · [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [SPRITES.md](design/sprites/SPRITES.md) · [DECISIONS.md](DECISIONS.md)

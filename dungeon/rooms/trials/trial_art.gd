@@ -1,6 +1,6 @@
 class_name TrialArt
 extends RefCounted
-## Art of the trial rooms and the pact altar (docs/SPRITES_V5.md §1, §3, §4). Loads the delivered
+## Art of the trial rooms and the pact altar (docs/design/sprites/SPRITES_V5.md §1, §3, §4). Loads the delivered
 ## file by name and draws a pixel placeholder with the same size and frame layout until then.
 ## Placeholders are drawn once per name with fixed shapes (pure optics, no dungeon RNG).
 

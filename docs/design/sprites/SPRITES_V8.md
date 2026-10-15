@@ -1,6 +1,6 @@
 # Grafik-Briefing V8 – Soulwick: Räume v2, offene Teile
 
-> **Für Claude Design.** Ergänzt [design/claude_design_antwort/SPRITES_V8_vorschlag.md](design/claude_design_antwort/SPRITES_V8_vorschlag.md): Die dort als GELIEFERT markierten Teile sind im Spiel eingebaut. Hier stehen nur die **offenen** Teile. Dateinamen exakt übernehmen, dann baut der Code sie automatisch ein; bis dahin laufen Platzhalter.
+> **Für Claude Design.** Ergänzt [design/claude_design_antwort/SPRITES_V8_vorschlag.md](../claude_design_antwort/SPRITES_V8_vorschlag.md): Die dort als GELIEFERT markierten Teile sind im Spiel eingebaut. Hier stehen nur die **offenen** Teile. Dateinamen exakt übernehmen, dann baut der Code sie automatisch ein; bis dahin laufen Platzhalter.
 > **Stand:** 14.10.2026 · Stil wie bisher (Pixel-Art, 32-px-Kacheln, Kontur `#1c1a2b`, Palette `docs/HANDOUT.md`, Animationen als Streifen mit Frame-Anzahl im Namen, je Datei ein JSON mit fps und Pivot wie bei den gelieferten Teilen).
 
 ## 1. Türen und Gänge

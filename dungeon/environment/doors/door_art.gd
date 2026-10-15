@@ -1,7 +1,7 @@
 class_name DoorArt
 extends RefCounted
 ## Door textures (ROADMAP_AUSBAU D1). Delivered files from art/environment/doors/ (names in
-## docs/SPRITES_V4.md §4, built by DoorStyle) win automatically; while a file is missing, a
+## docs/design/sprites/SPRITES_V4.md §4, built by DoorStyle) win automatically; while a file is missing, a
 ## placeholder is painted here pixel by pixel in the HANDOUT palette. Everything is cached.
 ## Visual only: randomness here is a fixed hash, so every door of a style looks the same.
 ## Gates (M2, gates.json) are one neutral strip per kind (slab, bars), tinted by DoorView; the

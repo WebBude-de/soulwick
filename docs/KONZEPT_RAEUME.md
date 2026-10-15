@@ -1,5 +1,7 @@
 # Konzept: Räume und Raumvielfalt
 
+> **Status 15.10.2026: teilweise abgelöst durch [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) (D-120).** Was in v2 neu geregelt ist, gilt dort: Raumarten und Modi (Abgrund ist keine eigene Raumart mehr, Hinterhalt entfällt, Katakombe ist ein Grundriss), Kampf-Varianten aus §4 (werden zu Minispielen), Häufigkeiten aus §2 (v2 §4). **Weiter gültig** aus diesem Dokument: Wagnis-Altar (§5), Räume ohne Kampf (§6: Prüfungen, Pakt-Altar, Lagerfeuer), Wegführung (§7), Elite-Nest (§4.8) sowie die Ausgestaltungen D-109, D-112, D-113, D-117, soweit D-120 sie nicht ändert. Pakete und Haken stehen in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md), nicht in §9.
+>
 > **Zweck:** Ausformuliertes Raumkonzept für Strang A ([ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md)). Ersetzt die Ideensammlung vom 14.10.2026.
 > **Stand:** 14.10.2026 · **Status:** vom Projektmitglied bestätigt, übernommen als **D-100 bis D-105** und als Phase 2 in ROADMAP_AUSBAU; Werte sind `TESTWERT`, Punkte mit `OFFEN` brauchen noch eine Teamentscheidung. Änderungen an D-005 und D-086 sind in Abschnitt 9 als D-Entwürfe gesammelt.
 > **Grundlage:** D-005 (Fünf-Raum-Zyklus), D-084 (Koop-Skalierung), D-086 (Raumarten), D-095 (Ziehung), KONZEPT_ENDLOS (Zyklen, Biome).

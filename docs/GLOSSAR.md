@@ -1,11 +1,11 @@
 # Glossar Deutsch ↔ Englisch
 
-> **Stand:** 14.10.2026 · **Gilt für:** Spiel (`localization/translations.csv`), Website (`soulwick-platform/apps/web/messages/`) und Plattform (API-Verträge, Admin-Panel).
+> **Stand:** 15.10.2026 · **Gilt für:** Spiel (`localization/translations.csv`), Website (`soulwick-platform/apps/web/messages/`) und Plattform (API-Verträge, Admin-Panel).
 
-Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, damit Spiel, Website und Plattform dieselben Wörter benutzen. Englisch ist die Standardsprache, Deutsch die zweite Sprache (D-111). **Regel:** Ein neuer Begriff, den Spieler zu sehen bekommen, wird **zuerst hier** eingetragen, danach in `localization/translations.csv` (Spiel) und in `soulwick-platform/apps/web/messages/en|de/*.json` (Website). Code-Bezeichner (Klassen, Dateien, Enums, Vertragswerte) bleiben Englisch; Werte in `Backticks` stammen aus Code oder API-Verträgen und sind verbindlich. Die Begriffserklärungen in [PRODUKT.md](PRODUKT.md) §10 und [PRD.md](PRD.md) §8 bleiben bestehen, bei Abweichungen gilt dieses Glossar für die Wortwahl, [DECISIONS.md](DECISIONS.md) für die Regeln.
+Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, damit Spiel, Website und Plattform dieselben Wörter benutzen. Englisch ist die Standardsprache, Deutsch die zweite Sprache (D-111). **Regel:** Ein neuer Begriff, den Spieler zu sehen bekommen, wird **zuerst hier** eingetragen, danach in `localization/translations.csv` (Spiel) und in `soulwick-platform/apps/web/messages/en|de/*.json` (Website). Code-Bezeichner (Klassen, Dateien, Enums, Vertragswerte) bleiben Englisch; Werte in `Backticks` stammen aus Code oder API-Verträgen und sind verbindlich. Die Begriffserklärungen in [PRODUKT.md](PRODUKT.md) §10 und die technischen Begriffe in [PRD.md](PRD.md) §8 bleiben bestehen, bei Abweichungen gilt dieses Glossar für die Wortwahl, [DECISIONS.md](DECISIONS.md) für die Regeln.
 
 **Lesehilfe:** ⚠ uneinheitlich = die Quellen benutzen verschiedene Wörter; die Zeile nennt den gewählten Begriff, die Varianten sollen bei der nächsten Überarbeitung angeglichen werden. **Vorschlag** = es gibt noch keinen englischen Text in Spiel oder Website. **OFFEN** = nicht entschieden.
-**Quellen-Kürzel:** TR = `localization/translations.csv` (Schlüssel) · WEB = `soulwick-platform/apps/web/messages/{en,de}/landing.json` (sonst Datei genannt) · API = `soulwick-platform/packages/contracts/src/common.ts` · KR = [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
+**Quellen-Kürzel:** TR = `localization/translations.csv` (Schlüssel) · WEB = `soulwick-platform/apps/web/messages/{en,de}/landing.json` (sonst Datei genannt) · API = `soulwick-platform/packages/contracts/src/common.ts` · KR = [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md) (für Raumarten und Minispiele gilt [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md), D-120).
 
 ## Spielablauf
 
@@ -13,10 +13,10 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | --- | --- | --- | --- |
 | Run | run (`runs`) | ein Dungeon-Durchlauf vom Dorf bis Tod, Abbruch oder Portal; Waffen, Upgrades und Run-Gold gelten nur darin | PRD §8, PRODUKT §10, API `RunMode` |
 | Raum | room | kleinste Einheit des Dungeons, gezählt ab 1; der höchste Raum zählt für Rekord und Rangliste | PRODUKT §10, TR `HUD_ROOM` |
-| Fünferzyklus, Zyklus | cycle of five, cycle | Raum 1–3 Kampf (nach Raum 3 Upgrade-Wahl), 4 Spezialraum, 5 Miniboss bzw. Boss. ⚠ uneinheitlich: „five-room cycle“ (PRODUKT §10); WEB `loopText`/`loopSteps` beschreibt „vier Kampfräume, dann Spezialraum“ und „jeder fünfte Raum ist Spezialraum“ | D-005, PRD §4.1, TR `HUD_ROOM_DETAIL`, WEB `loopTitle` |
-| Endlosmodus | endless (Vorschlag) | der Dungeon geht nach jedem Boss unbegrenzt weiter; kein eigener Modus, keine Wahl bei Raum 45. ⚠ uneinheitlich: PRODUKT §3/§4 und WEB `goldText` nennen noch die Wahl nach Raum 45 | D-073, KONZEPT_ENDLOS |
+| Fünferzyklus, Zyklus | cycle of five, cycle | Raum 1–3 Kampf (nach Raum 3 Upgrade-Wahl), 4 Spezialraum, 5 Miniboss bzw. Boss. ⚠ uneinheitlich: WEB `loopText`/`loopSteps` beschreibt „vier Kampfräume, dann Spezialraum“ und „jeder fünfte Raum ist Spezialraum“ | D-005, PRD §4.1, TR `HUD_ROOM_DETAIL`, WEB `loopTitle` |
+| Endlosmodus | endless (Vorschlag) | der Dungeon geht nach jedem Boss unbegrenzt weiter; kein eigener Modus, keine Wahl bei Raum 45. ⚠ uneinheitlich: WEB `goldText` nennt noch die Wahl nach Raum 45 | D-073, KONZEPT_ENDLOS |
 | Ausgangsportal | exit portal | Portal zurück ins Dorf mit 100 % Run-Gold; immer am Lagerfeuer, in 30 % der Spezialräume. ⚠ uneinheitlich: „Exit-Portal“ (D-073, D-103), im Spiel nur „Portal“ (TR `CONTROLS_INTERACT_NOTE`) | D-073, D-103, WEB `loopText` |
-| Gold-Regel | gold rule | 100 % des Run-Golds am Portal, 50 % (aufgerundet) bei Tod oder Abbruch. ⚠ uneinheitlich: „ab Raum 45 bleibt Gold im Run“ (PRODUKT §10, WEB `goldText`) ist durch D-073 überholt | D-039, D-062, PRODUKT §10 |
+| Gold-Regel | gold rule | 100 % des Run-Golds am Portal, 50 % (aufgerundet) bei Tod oder Abbruch. ⚠ uneinheitlich: „ab Raum 45 bleibt Gold im Run“ (WEB `goldText`) ist durch D-073 überholt | D-039, D-062, PRODUKT §10 |
 | Run-Ende: Gefallen, Run abgebrochen, Dungeon verlassen | Run over: You have fallen, Run abandoned, You left the dungeon | die drei Arten, einen Run zu beenden: Tod, Abbruch im Pausemenü, Ausstieg durchs Portal | TR `RUNEND_*`, `GAME_UI_ABORT_RUN` |
 | Spielstand, Platz | save, slot | lokaler Spielstand mit Dorf-Fortschritt; mehrere Plätze im Hauptmenü | TR `MENU_SLOTS`, `SLOTS_SLOT_NUMBER` |
 
@@ -25,7 +25,7 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Deutsch | English | Bedeutung | Quelle |
 | --- | --- | --- | --- |
 | Kampfraum | combat room (Banner: „Combat“) | öffnet erst, wenn alle Gegner besiegt sind; Plätze 1–3 im Zyklus | PRD §4.1, TR `ROOM_EYEBROW_COMBAT`, WEB `loopSteps` |
-| Raumart | room kind | Aufbau eines normalen Kampfraums: Normal (`normal`), Arena (`arena`), Abgrund (`chasm`); Formen und Zutaten sind keine Raumarten. ⚠ uneinheitlich: veraltete Listen „Arena, strukturiert, Abgrund“ (PRODUKT §3, §10), „Arena, strukturiert, Sprung, Rätsel“ (PRD §8) | D-100, KR §3.1 |
+| Raumart | room kind | Aufbau eines normalen Kampfraums: Säubern bzw. Normal (`normal`), Arena (`arena`) und die Minispiele; Abgrund ist seit D-120 keine eigene Raumart mehr (Code `chasm` besteht weiter), Formen und Zutaten sind keine Raumarten | D-100, D-120, KR §3.1 |
 | Raum-Genre | room genre (`room_genre`) | alles, was beim Betreten als Banner benannt und beim ersten Mal erklärt wird (Arena, Katakombe, Abgrund, Varianten, Spezialräume …) | D-110 |
 | Arena, Hinterhalt | Arena, Ambush | Kampfraum mit 2–3 Gegnerwellen aus Toren; Hinterhalt = Arena, deren Gegner erst beim Schließen der Tür aus den Wänden brechen | D-100, D-113, TR `ROOM_ARENA_TITLE`, `ROOM_AMBUSH_TITLE` |
 | Abgrund | Chasm | Raumart mit Lücken, die man per Dash überquert; Herunterfallen kostet ein Herz | D-086, D-115, TR `ROOM_CHASM_TITLE` |
@@ -34,10 +34,10 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Elite-Nest | Elite Nest | nur über eine Weggabelung erreichbar: wenige starke Gegner, Bonus-Truhe und Seelenkristalle | D-117, TR `ROOM_ELITE_NEST_TITLE` |
 | Bonus-Truhe | Bonus chest | Belohnung für erfüllte Variante, Prüfung oder Katakombe; enthält eine Upgrade-Wahl | D-109, TR `VARIANT_CHEST_TITLE` |
 | Spezialraum | Special room | Platz 4 im Zyklus, gewichtet gezogen: Händler, Waffenauswahl, Brunnen, Upgrade-Altar, Prüfungsraum | D-102, TR `ROOM_EYEBROW_SPECIAL` |
-| Händler | Trader | Spezialraum: Upgrades, Waffen, Heilung und Schild gegen Run-Gold. ⚠ uneinheitlich: „Shop“ (PRD, PRODUKT, KR, D-102, WEB `loopText` de/en) | PRD §4.6, TR `ROOM_SHOP_TITLE` |
-| Waffenauswahl | Armory | Spezialraum: eine von bis zu zwei neuen Waffen nehmen. ⚠ uneinheitlich: „Waffenwahl“ (PRODUKT, WEB de), „weapon choice“ (WEB en) | PRD §4.6, TR `ROOM_WEAPON_TITLE` |
+| Händler | Trader | Spezialraum: Upgrades, Waffen, Heilung und Schild gegen Run-Gold. ⚠ uneinheitlich: „Shop“ (KR, D-102, WEB `loopText` de/en) | PRD §4.6, TR `ROOM_SHOP_TITLE` |
+| Waffenauswahl | Armory | Spezialraum: eine von bis zu zwei neuen Waffen nehmen. ⚠ uneinheitlich: „Waffenwahl“ (WEB de), „weapon choice“ (WEB en) | PRD §4.6, TR `ROOM_WEAPON_TITLE` |
 | Brunnen | Fountain | Spezialraum: einmal kostenlos heilen | PRD §4.6, TR `ROOM_FOUNTAIN_TITLE` |
-| Upgrade-Altar | Upgrade Altar | Spezialraum: ein Upgrade geschenkt (eine von drei Karten). ⚠ uneinheitlich: „Extra-Upgrade“ (PRD §4.1, PRODUKT, D-102, KR) | TR `ROOM_UPGRADE_ALTAR_TITLE`, WEB `loopText` |
+| Upgrade-Altar | Upgrade Altar | Spezialraum: ein Upgrade geschenkt (eine von drei Karten). ⚠ uneinheitlich: „Extra-Upgrade“ (D-102, KR) | TR `ROOM_UPGRADE_ALTAR_TITLE`, WEB `loopText` |
 | Prüfungsraum, Prüfung | Trial | Spezialraum ohne Kampf: freiwilliger Parcours zu einer Truhe, Fehler kosten ½ Herz, nie den Run. ⚠ uneinheitlich: „Prüfung“/„Trial“ heißt auch die Ziel-Bedingung am Wagnis-Altar (TR `ROOM_WAGER_SUB`, KR §5) | D-102, D-112, TR `ROOM_EYEBROW_TRIAL` |
 | Spießrutenlauf | Gauntlet | Prüfung: Stacheln, Flammen und Pendelklingen im eigenen Takt | D-112, TR `ROOM_TRIAL_GAUNTLET_TITLE` |
 | Lichtlauf | Light Run | Prüfung: Fackeln erlöschen nacheinander, Dunkelheit kostet Leben | D-112, TR `ROOM_TRIAL_LIGHT_RUN_TITLE` |
@@ -84,7 +84,7 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Waffe, Slot | Weapon, slot | zwei Waffen-Slots, Wechsel mit Q, kein Waffentyp doppelt | PRD §4.4, TR `WEAPON_SLOT` |
 | Schwert, Bogen, Magierstab, Dolche, Kriegshammer | Sword, Bow, Mage Staff, Daggers, War Hammer | die fünf Waffen. ⚠ uneinheitlich: „Mage staff“ (WEB en), Kurzform „Staff“/„Stab“ (TR `META_WEAPON_STAFF`); WEB nennt nur drei Waffen | D-090, TR `WEAPON_*_NAME`, WEB `weapons` |
 | Upgrade, Upgrade-Wahl | Upgrade, Choose an upgrade | runweite Verbesserung; Wahl aus drei nach Raum 3 jedes Zyklus, am Upgrade-Altar und aus Bonus-Truhen. ⚠ uneinheitlich: WEB `loopSteps`/`upgradesNote` sagt „nach jedem (gewonnenen) Kampf“ | PRD §4.5, TR `UPGRADE_EYEBROW` |
-| Stufe | level | wie oft ein Upgrade genommen wurde. ⚠ uneinheitlich: „Stack(s)“ (TR `OVERVIEW_UPGRADES`, PRD §4.5, D-103), „Stapel“ (TR `UPGRADE_SHIELD_ON_KILL_DESC`) | TR `UPGRADE_STACKS_UNLIMITED`, `CAMPFIRE_STACK_UNLIMITED` |
+| Stufe | level | wie oft ein Upgrade genommen wurde. ⚠ uneinheitlich: „Stack(s)“ (TR `OVERVIEW_UPGRADES`, D-103), „Stapel“ (TR `UPGRADE_SHIELD_ON_KILL_DESC`) | TR `UPGRADE_STACKS_UNLIMITED`, `CAMPFIRE_STACK_UNLIMITED` |
 | Attribut | Attribute | Upgrade-Kategorie für Werte (Schaden, Angriffsrate, Schild), unbegrenzt stapelbar; Farbe Blau `#6cb2ec` | PRD §4.5, HANDOUT, TR `CATEGORY_ATTRIBUTE` |
 | Mechanik | Mechanic | Upgrade-Kategorie für Angriffsverhalten (Durchschlag, Wandabprall …), mit Limit; Farbe Grün `#5fcd62` | PRD §4.5, HANDOUT, TR `CATEGORY_MECHANIC` |
 | Effekt | Effect | Upgrade-Kategorie für Zusatzwirkungen (Explosion, Heilung/Schild bei Tötung); Farbe Orange `#ff8a3c` | PRD §4.5, HANDOUT, TR `CATEGORY_EFFECT` |

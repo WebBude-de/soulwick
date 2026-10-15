@@ -1,6 +1,6 @@
 class_name EnemyArt
 extends RefCounted
-## Picks up real enemy art by naming convention (docs/SPRITES_V2.md §3/§4), so dropping the PNGs
+## Picks up real enemy art by naming convention (docs/design/sprites/SPRITES_V2.md §3/§4), so dropping the PNGs
 ## into art/ replaces the tinted placeholder sprites without touching any .tres:
 ##   art/characters/enemies/<id>/<id>_<anim>_<n>f.png          (normal enemies)
 ##   art/characters/bosses/<name>/<name>_<anim>_<n>f.png       (id "boss_<name>")

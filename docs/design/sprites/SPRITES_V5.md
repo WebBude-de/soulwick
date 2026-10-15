@@ -1,6 +1,6 @@
 # Grafik-Briefing V5 – Soulwick: neue Räume (Phase 2)
 
-> **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V4.md](SPRITES_V4.md) (Dorf, Türen, Lagerfeuer – geliefert). Gehört zu Phase 2 in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) und zum Raumkonzept [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md).
+> **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V4.md](SPRITES_V4.md) (Dorf, Türen, Lagerfeuer – geliefert). Gehört zu Phase 2 in [ROADMAP_AUSBAU.md](../../ROADMAP_AUSBAU.md) und zum Raumkonzept [KONZEPT_RAEUME.md](../../KONZEPT_RAEUME.md).
 > **Ablage:** im Spiel-Repo unter `art/` im angegebenen Unterordner. **Dateinamen exakt übernehmen**, dann baut der Code sie automatisch ein; bis dahin zeigt das Spiel Platzhalter. Zu jeder Gruppe gern eine JSON-Datei mit Pivots wie bei den Türen (`doors.json`).
 > **Stand:** 14.10.2026
 
@@ -96,7 +96,7 @@ Abgrund-, Brücken- und Nebel-Grafiken sind geliefert (SPRITES_V3). Optional fü
 
 ## 8. Website (`soulwick-platform/apps/web/public/brand/`, WebP)
 
-Ersetzt **SPRITES_V3 §6** (dort noch PNG): Die Website liest nur **WebP**. Pixel-Art (Logo, Symbole, Spielerfigur) **verlustfrei** speichern, Szenen (Keyart, Biom-Bilder, Vorschaubild) dürfen verlustbehaftet sein (Qualität 85–90). Kein Pixel-Raster-Zwang außer wo angegeben. Dateinamen exakt übernehmen; die Website lädt nach Namen und zeigt bis dahin Platzhalter (README im Ordner). Palette aus [HANDOUT.md](HANDOUT.md).
+Ersetzt **SPRITES_V3 §6** (dort noch PNG): Die Website liest nur **WebP**. Pixel-Art (Logo, Symbole, Spielerfigur) **verlustfrei** speichern, Szenen (Keyart, Biom-Bilder, Vorschaubild) dürfen verlustbehaftet sein (Qualität 85–90). Kein Pixel-Raster-Zwang außer wo angegeben. Dateinamen exakt übernehmen; die Website lädt nach Namen und zeigt bis dahin Platzhalter (README im Ordner). Palette aus [HANDOUT.md](../../HANDOUT.md).
 
 | Datei | Größe | Beschreibung |
 | --- | --- | --- |
@@ -110,7 +110,7 @@ Ersetzt **SPRITES_V3 §6** (dort noch PNG): Die Website liest nur **WebP**. Pixe
 | `platform_mobile.webp` | 32×32, Pixel-Art, transparent | Symbol „Mobil“ (Smartphone, auf dem Bildschirm ein kleiner Lichtkreis) |
 | `platform_crossplay.webp` | 32×32, Pixel-Art, transparent | Symbol „Crossplay“ (Monitor und Handy, durch Pfeile oder eine Kette verbunden) |
 
-**Keine Markenlogos** von Steam, Google oder Apple: Deren offizielle Badges kommen erst mit echten Store-Links ([ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4). Die Spiel-Sprites für die Animationen auf der Website (Spieler, Schleim, Seelenflamme) werden **nicht** neu gezeichnet; die Website konvertiert sie per Skript aus `art/` nach `apps/web/public/sprites/` (verlustfreies WebP).
+**Keine Markenlogos** von Steam, Google oder Apple: Deren offizielle Badges kommen erst mit echten Store-Links ([ROADMAP_CROSSPLAY.md](../../ROADMAP_CROSSPLAY.md) CP4). Die Spiel-Sprites für die Animationen auf der Website (Spieler, Schleim, Seelenflamme) werden **nicht** neu gezeichnet; die Website konvertiert sie per Skript aus `art/` nach `apps/web/public/sprites/` (verlustfreies WebP).
 
 ## Wo der Code die Dateien abholt
 
