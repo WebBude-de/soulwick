@@ -57,6 +57,7 @@ NO_CATEGORY = "Ohne Kategorie"
 COPY_FILES = ["marked.png", "screenshot.png", "note.json", "upload.json"]
 MAX_NODES_IN_REPORT = 6
 HTTP_TIMEOUT = 20
+USER_AGENT = "soulwick-collect-feedback/1.0"
 IMAGE_EXT = {"image/webp": "webp", "image/jpeg": "jpg", "image/png": "png"}
 MARK_COLOR = (255, 41, 31, 255)
 MARK_FILL = (255, 41, 31, 46)
@@ -138,7 +139,8 @@ def api_request(base: str, path: str, token: str = "", method: str = "GET", body
                 raw: bool = False):
     url = base.rstrip("/") + path
     data = None
-    headers = {"Accept": "application/json"}
+    # Own User-Agent: Cloudflare answers the default "Python-urllib/x" with 403 before the API.
+    headers = {"Accept": "application/json", "User-Agent": USER_AGENT}
     if body is not None:
         data = json.dumps(body).encode("utf-8")
         headers["Content-Type"] = "application/json"
