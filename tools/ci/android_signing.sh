@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Picks the keystore that signs the Android APK of a release run (release.yml, docs/RELEASES.md)
+# Picks the keystore that signs the Android APK of a release run (release.yml, docs/RELEASE.md)
 # and hands it to tools/export_build.sh through GODOT_ANDROID_KEYSTORE_RELEASE_PATH/_USER/_PASSWORD
 # (written to $GITHUB_ENV; never echoed). The keystore file lands in $RUNNER_TEMP, never in the repo.
 #
@@ -11,6 +11,8 @@
 #   Fallbacks: production without release key uses the shared debug key, otherwise (both
 #   environments) a fresh debug key is generated. Such an APK is "test only" (test_signed=true marks
 #   the release); a fresh key also means a phone with an older Soulwick APK has to uninstall first.
+#   REQUIRE_RELEASE_KEY=1 (Google Play AAB, both environments): always the release key (= Play
+#   upload key), no fallback; fails without it.
 #
 # Output ($GITHUB_OUTPUT or stdout): signing=release|debug-shared|debug-new, test_signed=true|false.
 # Needs keytool (JDK 17) on PATH or in JAVA_HOME.
@@ -48,7 +50,12 @@ password=""
 signing=""
 test_signed=false
 
-if [ "$ENVIRONMENT" = "production" ] && [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+REQUIRE_RELEASE_KEY="${REQUIRE_RELEASE_KEY:-0}"
+if [ "$REQUIRE_RELEASE_KEY" = "1" ] && [ -z "${ANDROID_KEYSTORE_BASE64:-}" ]; then
+	fail "The Google Play bundle needs the release (upload) key: secret ANDROID_KEYSTORE_BASE64 is missing."
+fi
+
+if { [ "$ENVIRONMENT" = "production" ] || [ "$REQUIRE_RELEASE_KEY" = "1" ]; } && [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; then
 	[ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ] || fail "ANDROID_KEYSTORE_PASSWORD is missing."
 	[ -n "${ANDROID_KEY_ALIAS:-}" ] || fail "ANDROID_KEY_ALIAS is missing."
 	keystore="$WORK/release.keystore"
@@ -69,6 +76,9 @@ if [ "$ENVIRONMENT" = "production" ] && [ -n "${ANDROID_KEYSTORE_BASE64:-}" ]; t
 		keystore="$unified"
 	fi
 	signing=release
+	# The certificate fingerprint is public (Play Console -> App integrity shows the same value).
+	"$KEYTOOL" -list -v -keystore "$keystore" -storepass "$password" -alias "$user" 2>/dev/null |
+		grep -m 1 -E "SHA256:" | sed 's/^[[:space:]]*/Release key /' >&2 || true
 elif [ -n "${ANDROID_DEBUG_KEYSTORE_BASE64:-}" ]; then
 	if [ "$ENVIRONMENT" = "production" ]; then
 		echo "::warning::No release key (secret ANDROID_KEYSTORE_BASE64): the production APK is signed with the shared debug key and the release is marked as test only."

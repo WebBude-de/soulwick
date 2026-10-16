@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Installs the Android SDK packages the Godot 4.7 APK export needs (release.yml; same as the build
 # PC, docs/MULTIPLAYER.md §3d): platform-tools, build-tools 35.0.1 and 36.1.0, platforms 35 and 36.
-# No NDK, CMake or Gradle (the "Android" preset has use_gradle_build=false).
+# No NDK, CMake or Gradle (the "Android" preset has use_gradle_build=false). The Gradle build of the
+# Google Play bundle ("Android AAB" preset) adds the NDK of the Godot template through
+# EXTRA_PACKAGES="ndk;29.0.14206865" (android/build/config.gradle, ndkVersion); Gradle itself comes
+# with the template (gradlew).
 #
 # Uses the SDK in $ANDROID_HOME when it has the command-line tools (GitHub's Ubuntu runners have
 # one preinstalled), otherwise downloads the command-line tools into $RUNNER_TEMP/android-sdk.
@@ -12,6 +15,10 @@ set -euo pipefail
 CMDLINE_TOOLS_URL="${CMDLINE_TOOLS_URL:-https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip}"
 BUILD_TOOLS="36.1.0"
 PACKAGES=("platform-tools" "build-tools;35.0.1" "build-tools;$BUILD_TOOLS" "platforms;android-35" "platforms;android-36")
+if [ -n "${EXTRA_PACKAGES:-}" ]; then
+	read -r -a extra <<< "$EXTRA_PACKAGES"
+	PACKAGES+=("${extra[@]}")
+fi
 
 sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
 sdkmanager="$sdk/cmdline-tools/latest/bin/sdkmanager"

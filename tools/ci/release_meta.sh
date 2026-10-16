@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Decides version, server environment, tag and pre-release flag of a release run (release.yml,
-# docs/RELEASES.md). Writes key=value lines to $GITHUB_OUTPUT (or stdout when it is not set).
+# docs/RELEASE.md). Writes key=value lines to $GITHUB_OUTPUT (or stdout when it is not set).
 #
 # Input (environment):
 #   EVENT            push | workflow_dispatch
@@ -19,6 +19,12 @@
 #   - Manual run: environment and pre-release from the form; the tag is v<version> for a full
 #     release and v<version>-<dev|rc>.<run> for a pre-release (created by the release job).
 #   - Every development build is a pre-release: it talks to the test servers.
+#   - store_code: Android versionCode of the Google Play bundle and iOS build number. Every upload
+#     to a store needs a new, bigger number, also for test builds of one version:
+#     (major*10000 + minor*100 + patch) * 100 + slot, slot = 99 for a full release (v0.9.1),
+#     the trailing number of a pre-release tag (v0.9.1-beta.3 -> 3, v0.9.1-dev.17 -> 17, at most 98),
+#     otherwise 1. 0.9.1 -> 90199, 0.9.1-beta.3 -> 90103. The APK keeps the short code (0.9.1 -> 901),
+#     so APKs built on the PC still install as updates.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -67,7 +73,20 @@ case "$environment" in
 esac
 [ "$environment" = "development" ] && prerelease=true
 
-echo "Soulwick $version: tag $tag, environment $environment, pre-release $prerelease" >&2
+base_code="$(echo "$version" | awk -F. '{ print $1 * 10000 + $2 * 100 + $3 }')"
+suffix="${tag#v"$version"}"
+if [ -z "$suffix" ]; then
+	slot=99
+else
+	slot="$(echo "$suffix" | sed -n 's/.*[^0-9]\([0-9][0-9]*\)$/\1/p')"
+	slot="${slot:-1}"
+	slot="$((10#$slot))"
+	[ "$slot" -ge 1 ] || slot=1
+	[ "$slot" -le 98 ] || slot=98
+fi
+store_code="$((base_code * 100 + slot))"
+
+echo "Soulwick $version: tag $tag, environment $environment, pre-release $prerelease, store code $store_code" >&2
 out="${GITHUB_OUTPUT:-/dev/stdout}"
 {
 	echo "version=$version"
@@ -75,4 +94,5 @@ out="${GITHUB_OUTPUT:-/dev/stdout}"
 	echo "prerelease=$prerelease"
 	echo "tag=$tag"
 	echo "create_tag=$create_tag"
+	echo "store_code=$store_code"
 } >> "$out"

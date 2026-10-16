@@ -1145,6 +1145,18 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `ui/touch/touch_overlay.gd`, `ui/touch/touch_stick.gd` (neu), `ui/touch/touch_art.gd` (optional `touch_stick_aim_base.png`, SPRITES_V10 §1), `player/input/touch_input.gd`, `player/input/touch_state.gd`, `tests/unit/test_touch_input.gd`; Doku der alten Zielhilfe in `docs/MULTIPLAYER.md` und `docs/ROADMAP_CROSSPLAY.md` nachziehen (Multiplayer-Sitzung).
 - **Ersetzt:** die Touch-Zielhilfe aus MP1/CP0 (Angriffsknopf mit Zielhilfe).
 
+### D-156 – Store-Builds vorbereitet: Play (AAB), iOS, Steam, Signaturen
+
+- **Status:** VERBINDLICH (Projektmitglied 16.10.2026: „vorbereitet für iOS, Android, Linux, macOS, Windows-Release und Stores und Steam … GitHub Actions für Release der Builds“) · Umsetzung **VORGESCHLAGEN** (Claude) · ergänzt D-148
+- **Beschluss:**
+  - `release.yml` baut zusätzlich ein signiertes **AAB** für Google Play (Gradle, Build-Vorlage je Lauf neu, `android/` wird nicht versioniert), ein **Xcode-Projekt** für iOS (mit Signatur-Secrets Archiv, IPA, optional TestFlight), signiert und notarisiert **macOS** und signiert **Windows** (empfohlen Azure Trusted Signing, sonst PFX) und lädt nach **Steam** auf einen Beta-Branch (steamcmd, nie `default`). Jeder dieser Schritte läuft nur mit seinen Secrets und wird sonst übersprungen, ohne den Lauf rot zu färben.
+  - Store-Build-Nummer: `(Major·10000 + Minor·100 + Patch)·100 + Zähler` (v0.9.1 → 90199, v0.9.1-beta.3 → 90103); die APK behält die lokale Nummer (901), damit lokal gebaute APKs Updates bleiben.
+  - Store-Presets (Android AAB, iOS) setzt `tools/ci/store_presets.py` nur auf die Arbeitskopie; die echte Team-ID steht nie im Repo.
+  - Konten, Secrets und Schritte: `docs/STORES.md`; Store-Grafiken: SPRITES_V11.
+- **OFFEN (Projektmitglied):** welche Konten wann (Apple Developer 99 USD/Jahr, Google Play 25 USD, Steam Direct 100 USD, Azure-Signatur ca. 10 USD/Monat); eigener Steam-Branch für development; Geschäftsmodell und Preis (CP0 Frage 1); Altersfreigabe; Datenschutz-Angaben mit dem Plattform-Team bestätigen.
+- **Folgen:** `.github/workflows/release.yml`, `ci.yml` (actionlint, shellcheck), `.github/actions/setup-godot`, `tools/ci/*`, `tools/steam/*`, `tools/export_build.sh`/`.ps1`, `docs/RELEASE.md`, `docs/STORES.md`, `.gitignore` (`/android/`). Ungetestet ohne Mac und echte Konten: Notarisierung, IPA/TestFlight, echte Uploads zu Play und Steam.
+- **Ersetzt:** keine.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

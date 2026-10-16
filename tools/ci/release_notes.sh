@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Writes the GitHub release notes (release.yml, docs/RELEASES.md): short install guide per system
+# Writes the GitHub release notes (release.yml, docs/RELEASE.md): short install guide per system
 # plus the commits since the previous tag. Needs a checkout with history (fetch-depth: 0) and tags.
 #
 #   TAG=v0.9.1 VERSION=0.9.1 ENVIRONMENT=development PRERELEASE=true ANDROID_TEST_SIGNED=false \
@@ -17,6 +17,9 @@ VERSION="${VERSION:?VERSION missing}"
 ENVIRONMENT="${ENVIRONMENT:-development}"
 PRERELEASE="${PRERELEASE:-true}"
 ANDROID_TEST_SIGNED="${ANDROID_TEST_SIGNED:-false}"
+# true when the Windows exe is signed / the macOS app notarized (release.yml, docs/STORES.md).
+WINDOWS_SIGNED="${WINDOWS_SIGNED:-false}"
+MACOS_NOTARIZED="${MACOS_NOTARIZED:-false}"
 REPO_URL="${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-WebBude-de/soulwick}"
 MAX_COMMITS="${MAX_COMMITS:-150}"
 name="Soulwick-$VERSION-$ENVIRONMENT"
@@ -65,9 +68,17 @@ commit_count="$(git rev-list --no-merges --count "$range")"
 	echo
 	echo "| System | Datei | So geht's |"
 	echo "| --- | --- | --- |"
-	echo "| Windows 10/11 | \`$name-windows.zip\` | Entpacken, \`Soulwick.exe\` starten. Warnt Windows SmartScreen („Unbekannter Herausgeber“): **Weitere Informationen → Trotzdem ausführen** (das Spiel ist nicht signiert). |"
+	if [ "$WINDOWS_SIGNED" = "true" ]; then
+		echo "| Windows 10/11 | \`$name-windows.zip\` | Entpacken, \`Soulwick.exe\` starten (signiert von WebBude). Warnt SmartScreen trotzdem (neue Signaturen brauchen etwas Zeit): **Weitere Informationen → Trotzdem ausführen**. |"
+	else
+		echo "| Windows 10/11 | \`$name-windows.zip\` | Entpacken, \`Soulwick.exe\` starten. Warnt Windows SmartScreen („Unbekannter Herausgeber“): **Weitere Informationen → Trotzdem ausführen** (das Spiel ist nicht signiert). |"
+	fi
 	echo "| Linux (x86_64) | \`$name-linux.zip\` | Entpacken, \`./Soulwick.x86_64\` starten (falls nötig vorher \`chmod +x Soulwick.x86_64\`). |"
-	echo "| macOS (Intel und Apple Silicon) | \`$name-macos.zip\` | Entpacken, \`Soulwick.app\` nach *Programme* ziehen. Das Spiel ist nicht von Apple beglaubigt: beim ersten Start **Rechtsklick → Öffnen**; ab macOS 15 stattdessen *Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen*. |"
+	if [ "$MACOS_NOTARIZED" = "true" ]; then
+		echo "| macOS (Intel und Apple Silicon) | \`$name-macos.zip\` | Entpacken, \`Soulwick.app\` nach *Programme* ziehen und starten (von Apple beglaubigt). |"
+	else
+		echo "| macOS (Intel und Apple Silicon) | \`$name-macos.zip\` | Entpacken, \`Soulwick.app\` nach *Programme* ziehen. Das Spiel ist nicht von Apple beglaubigt: beim ersten Start **Rechtsklick → Öffnen**; ab macOS 15 stattdessen *Systemeinstellungen → Datenschutz & Sicherheit → Trotzdem öffnen*. |"
+	fi
 	echo "| Android 7+ | \`$name-android.apk\` | APK aufs Handy laden und antippen. Fragt Android nach **Installation aus unbekannten Quellen**, für die App, die die Datei öffnet (Dateien, Chrome …), „Dieser Quelle vertrauen“ einschalten. Warnt Play Protect: **Trotzdem installieren**. Updates einfach drüber installieren. |"
 	echo
 	echo "Zusammen spielen: im Hauptmenü **Online spielen** (oder im Dorf das Gildengebäude), Raum erstellen und den Raumcode an Freunde schicken. PC, Mac und Handy spielen zusammen, wenn alle diese Version haben."

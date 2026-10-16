@@ -1,0 +1,23 @@
+// SteamPipe app build for Soulwick (template). tools/steam/steam_upload.sh fills the ${...} values
+// and writes the result next to the content; nothing here is secret. docs/STORES.md "Steam".
+//
+//   ${STEAM_APP_ID}        App ID from Steamworks (repository variable STEAM_APP_ID)
+//   ${BUILD_DESC}          shown in Steamworks -> SteamPipe -> Builds (version, environment, tag)
+//   ${STEAM_BRANCH}        branch that gets the build ("beta"; must exist in Steamworks, never "default")
+//   ${STEAM_PREVIEW}       1 = dry run (checks the files, uploads nothing)
+//   ${STEAM_DEPOT_*}       depot IDs (default App ID + 1, + 2, + 3)
+"AppBuild"
+{
+	"AppID" "${STEAM_APP_ID}"
+	"Desc" "${BUILD_DESC}"
+	"ContentRoot" "${CONTENT_ROOT}"
+	"BuildOutput" "${BUILD_OUTPUT}"
+	"SetLive" "${STEAM_BRANCH}"
+	"Preview" "${STEAM_PREVIEW}"
+	"Depots"
+	{
+		"${STEAM_DEPOT_WINDOWS}" "depot_build_windows.vdf"
+		"${STEAM_DEPOT_LINUX}" "depot_build_linux.vdf"
+		"${STEAM_DEPOT_MACOS}" "depot_build_macos.vdf"
+	}
+}

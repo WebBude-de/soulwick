@@ -24,3 +24,6 @@ docs/feedback/*
 
 # Exported game builds (tools/export_build.ps1 / .sh, MP4)
 builds/
+
+# Android build template (installed fresh per export, D-156)
+/android/

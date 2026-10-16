@@ -26,7 +26,8 @@ if [ "$status" -ne 0 ]; then
 	echo "::error::The exported Linux build did not boot cleanly (exit $status)." >&2
 	exit 1
 fi
-if echo "$log" | grep -Eq "SCRIPT ERROR|Parse Error|Failed to load"; then
+# Here-string: with pipefail, "echo | grep -q" on a long log can fail with SIGPIPE.
+if grep -Eq "SCRIPT ERROR|Parse Error|Failed to load" <<< "$log"; then
 	echo "::error::The exported Linux build reported errors while booting (see above)." >&2
 	exit 1
 fi

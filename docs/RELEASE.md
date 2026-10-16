@@ -1,22 +1,34 @@
 # Releases und Builds
 
-> **Stand:** 16.10.2026 · Entscheidung: [D-148](DECISIONS.md) · Workflows: [`.github/workflows/`](../.github/workflows/) · Hilfsskripte: [`tools/ci/`](../tools/ci/)
+> **Stand:** 16.10.2026 · Entscheidung: [D-148](DECISIONS.md) · Workflows: [`.github/workflows/`](../.github/workflows/) · Hilfsskripte: [`tools/ci/`](../tools/ci/), [`tools/steam/`](../tools/steam/) · Stores, Signaturen, Konten: [STORES.md](STORES.md)
 
-Windows-, Linux-, macOS- und Android-Builds baut **GitHub Actions** und legt sie als **GitHub-Release** ins Repo. Die **Browser-Version** baut und hostet Dokploy selbst (`Dockerfile`, `deploy/web/`, D-148); sie ist nicht Teil dieser Pipeline. Lokal geht dasselbe mit `tools/export_build.sh` bzw. `tools/export_build.ps1` (§7).
+Windows-, Linux-, macOS- und Android-Builds baut **GitHub Actions** und legt sie als **GitHub-Release** ins Repo. Dieselbe Pipeline ist für die Stores vorbereitet (Google-Play-Bundle, iOS, Steam, Signaturen für Windows und macOS); diese Schritte laufen nur, wenn ihre Secrets gesetzt sind ([STORES.md](STORES.md)). Die **Browser-Version** baut und hostet Dokploy selbst (`Dockerfile`, `deploy/web/`, D-148); sie ist nicht Teil dieser Pipeline. Lokal geht dasselbe mit `tools/export_build.sh` bzw. `tools/export_build.ps1` (§7).
 
 ## 1. Was die Pipeline macht
 
 | Workflow | Auslöser | Ergebnis |
 | --- | --- | --- |
-| `ci.yml` | Push auf `main`/`dev`, jeder Pull Request, „Run workflow“ | `validate_project.gd` + GUT (Linux, headless, ohne Ton) |
+| `ci.yml` | Push auf `main`/`dev`, jeder Pull Request, „Run workflow“ | `validate_project.gd` + GUT (Linux, headless, ohne Ton); `actionlint` und `shellcheck` für Workflows und Skripte |
 | `release.yml` | Tag `v*` oder „Run workflow“ | Prüfen → Exporte → GitHub-Release mit allen Dateien |
 
-Ablauf von `release.yml` (alles auf `ubuntu-latest`):
+Ablauf von `release.yml` (auf `ubuntu-latest`, iOS und macOS-Signatur auf `macos-latest`):
 
 1. **Version und Tests:** Version aus `project.godot` lesen und mit dem Tag vergleichen (Abbruch bei Abweichung, wie im PowerShell-Skript), Umgebung festlegen, `validate_project.gd` und GUT.
 2. **Desktop** (parallel zu 3): Godot 4.7.2 und die Export-Vorlagen von den offiziellen Godot-Releases laden (SHA-512 geprüft, danach im Cache), Projekt importieren, `tools/export_build.sh` für Windows, Linux und macOS, dann **Boot-Check**: das Linux-ZIP entpacken und `Soulwick.x86_64 --headless --audio-driver Dummy --quit-after 300 -- offline` starten; Skript- oder Ladefehler brechen ab.
 3. **Android:** JDK 17 (Temurin), Android-SDK (platform-tools, build-tools 35.0.1 und 36.1.0, platforms 35 und 36; kein NDK, kein Gradle), Signaturschlüssel aus den Secrets (§4), Export, danach `apksigner verify` und `aapt dump badging` (Paket, Version, Architekturen im Log).
 4. **Release:** Dateien einsammeln, Prüfsummen, Release-Notizen (Anleitung + Commits seit dem letzten Tag), Release anlegen.
+
+Zusätzlich, je nach Secrets (`tools/ci/store_flags.sh` entscheidet und schreibt eine Übersicht in die Lauf-Zusammenfassung; ohne Secrets übersprungen, der Lauf bleibt grün):
+
+| Job | Läuft, wenn | Ergebnis |
+| --- | --- | --- |
+| Windows-Signatur (im Desktop-Job) | `AZURE_SIGNING_*` oder `WINDOWS_SIGN_PFX_*` | signierte `Soulwick.exe` im Windows-ZIP |
+| `macos_sign` | Developer-ID-Zertifikat + API-Schlüssel | notarisierte App im macOS-ZIP (ersetzt das ad-hoc signierte) |
+| `android_aab` | `ANDROID_KEYSTORE_*` | `Soulwick-<v>-<env>-android.aab` (Artefakt), mit `PLAY_SERVICE_ACCOUNT_JSON` Upload in Play „Interner Test“ |
+| `ios` | **immer** | Xcode-Projekt (Artefakt); mit Apple-Secrets signierte IPA, mit API-Schlüssel Upload zu TestFlight |
+| `steam` | `STEAM_USERNAME`, `STEAM_CONFIG_VDF`, Variable `STEAM_APP_ID` | Windows, Linux, macOS per SteamPipe auf den Beta-Branch |
+
+AAB, IPA und Xcode-Projekt kommen **nicht** ins öffentliche Release (sie sind nur für die Stores), sondern liegen 30 Tage als Artefakte am Lauf (`store-android-aab`, `store-ios-ipa`, `store-ios-xcode`).
 
 Dateien im Release (`<v>` = Version, `<env>` = Umgebung):
 
@@ -75,7 +87,7 @@ Regeln:
 
 ## 4. Einmalig in GitHub einrichten
 
-Settings → **Secrets and variables → Actions**. Secrets erscheinen nie im Log (GitHub maskiert sie); die Pipeline legt den Schlüssel nur im temporären Ordner des Läufers ab, nie im Repo.
+Settings → **Secrets and variables → Actions**. Secrets erscheinen nie im Log (GitHub maskiert sie); die Pipeline legt den Schlüssel nur im temporären Ordner des Läufers ab, nie im Repo. Hier stehen die Secrets für die APK; alle weiteren (Google Play, Apple, Windows-Signatur, Steam) mit Anleitung in [STORES.md](STORES.md).
 
 | Art | Name | Inhalt | Nötig für |
 | --- | --- | --- | --- |
@@ -136,6 +148,10 @@ Hinterlegen: Base64 wie oben (`soulwick-release.p12` statt `debug.keystore`) als
 | Downloads | SHA-512 aus den Godot-Releases | veränderter oder kaputter Download |
 | Boot-Check | `tools/ci/boot_check.sh` (Linux-ZIP) | Exit-Code ≠ 0, `SCRIPT ERROR`, `Parse Error`, `Failed to load` |
 | APK-Signatur | `apksigner verify` | ungültiger Signatur |
+| AAB | `tools/ci/check_aab.sh` (bundletool, jarsigner) | falsches Paket, falscher `versionCode`, `targetSdk` unter der Play-Vorgabe, fehlende Signatur |
+| Windows-Signatur | `tools/ci/sign_windows.sh` (jsign, Zeitstempel) | Signatur oder Zeitstempel schlägt fehl |
+| macOS-Notarisierung | `tools/ci/macos_sign.sh` (`codesign --verify`, `notarytool`, `spctl`) | Apple lehnt ab (Protokoll im Lauf) |
+| Workflows, Skripte | `ci.yml`: `actionlint`, `shellcheck` | Fehler in YAML oder Shell |
 
 Der Windows-Build wird auf dem Linux-Läufer exportiert und dort nicht gestartet; lokal startet `tools/export_build.ps1` ihn wie bisher einmal headless.
 
@@ -147,13 +163,18 @@ Ohne Apple-Konto ist der Build nur **ad-hoc signiert** (Godots eingebaute Signat
 - ab macOS 15: einmal öffnen (wird blockiert), dann *Systemeinstellungen → Datenschutz & Sicherheit → „Trotzdem öffnen“*,
 - oder im Terminal: `xattr -cr /Applications/Soulwick.app`.
 
-Notarisieren (keine Warnung) braucht ein Apple-Developer-Konto (99 €/Jahr) und kommt erst mit einem Store-Release (D-148).
+Notarisieren (keine Warnung) braucht ein Apple-Developer-Konto (99 €/Jahr). Die Pipeline ist dafür vorbereitet (Job `macos_sign`): Sobald die Secrets aus [STORES.md](STORES.md) §2 gesetzt sind, ist das macOS-ZIP signiert und notarisiert, und die Release-Notizen lassen diesen Hinweis weg.
 
 ## 7. Lokal bauen
+
+**Nur schnell die EXE testen:** `powershell -ExecutionPolicy Bypass -File tools/export_build.ps1` (Windows, Umgebung development) baut `builds\development\<version>\windows\Soulwick.exe` und startet sie einmal headless zur Probe. Danach die EXE doppelklicken; der Ordner `builds/` ist nicht versioniert.
 
 ```bash
 # Git Bash / Linux / macOS
 GODOT="C:/Tools/Godot/Godot_v4.7.2-stable_win64.exe" tools/export_build.sh development "" "windows linux macos"
+# Store-Formate: Xcode-Projekt (geht auf jedem Rechner) und Google-Play-Bundle (Gradle, Release-Schlüssel nötig)
+GODOT=... tools/export_build.sh development "" ios
+GODOT=... VERSION_CODE=90101 GODOT_ANDROID_KEYSTORE_RELEASE_PATH=... tools/export_build.sh development "" android-aab
 ```
 
 ```powershell
@@ -163,10 +184,6 @@ powershell -ExecutionPolicy Bypass -File tools/export_build.ps1 -Env development
 
 Die Export-Vorlagen von Godot 4.7.2 müssen installiert sein (Editor → Export-Vorlagen verwalten). Android braucht zusätzlich JDK 17 und das Android-SDK ([MULTIPLAYER.md](MULTIPLAYER.md) §3d). Die Dateien landen in `builds/<env>/<version>/` (nicht versioniert).
 
-## 8. Noch nicht in der Pipeline
+## 8. Stores
 
-- **iOS:** braucht einen Mac mit Xcode und ein Apple-Konto (D-119, CP7: später über einen Cloud-Mac).
-- **Google Play:** `.aab` statt `.apk` und Upload (CP7); bis dahin APK zum Selbst-Installieren.
-- **Signieren:** Windows (Code-Signing-Zertifikat) und macOS (Notarisierung) kosten Geld; ohne sie warnen die Systeme beim ersten Start.
-- **Steam:** eigener Upload-Weg (CP4/CP7).
-- **Browser-Version:** über Dokploy, nicht hier (D-148).
+Vorbereitet, aber erst mit Konten und Secrets aktiv: Google Play (AAB, interner Test), App Store (IPA, TestFlight), Steam (Beta-Branch), Signaturen für Windows und macOS. Konten, Kosten, Secrets, Schritte bis zur Veröffentlichung, fehlende Grafiken, Altersfreigabe und Datenschutz-Angaben: [STORES.md](STORES.md). Steamworks im Spiel (GodotSteam, Einladungen, Erfolge) gehört zu [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP6/MP10. Die **Browser-Version** läuft über Dokploy, nicht hier (D-148).

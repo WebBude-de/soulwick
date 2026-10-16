@@ -9,14 +9,15 @@ STARTEN
   macOS:   ZIP entpacken, Soulwick.app in "Programme" ziehen. Der Build ist nicht von
            Apple beglaubigt: beim ersten Start Rechtsklick -> "Oeffnen" -> "Oeffnen"
            (oder im Terminal: xattr -cr /Applications/Soulwick.app).
-  Browser: ohne Download über https://playsoulwick.com spielen (Knopf „Im Browser spielen“).
+  Browser: ohne Download ueber https://playsoulwick.com spielen (Knopf "Im Browser spielen").
 
 ONLINE (Koop ueber Raumcode)
   Kein Konto, kein Schluessel noetig: Beim ersten Online-Spiel bekommt dieser PC
   automatisch ein Gastkonto. Es haengt an dieser Installation; Spielstand und
   Gastkonto liegen unter %APPDATA%\Godot\app_userdata\Soulwick (nicht loeschen).
 
-  Dann: Spielstand anlegen (der Name wird dein Online-Name), im Dorf ins Gildengebaeude.
+  Dann: beim ersten Start Name und Figur waehlen (gilt auch online), im Dorf ins
+  Gildengebaeude.
   Host: "Raum erstellen" und den 6-stelligen Raumcode an die anderen schicken.
   Alle anderen: Raumcode eingeben, "Raum beitreten". Host drueckt "Starten".
   Keine Portfreigabe, kein VPN, keine Zusatzsoftware.

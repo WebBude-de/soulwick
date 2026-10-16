@@ -1,0 +1,21 @@
+// SteamPipe depot build (template), one per platform: tools/steam/steam_upload.sh writes
+// depot_build_windows.vdf, depot_build_linux.vdf and depot_build_macos.vdf from it.
+//
+//   ${DEPOT_ID}       depot of the platform (Steamworks -> SteamPipe -> Depots; the operating
+//                     system is set per depot there)
+//   ${DEPOT_CONTENT}  folder with the unpacked release zip of the platform
+// Launch options in Steamworks (Installation -> General): Windows "Soulwick.exe", Linux
+// "Soulwick.x86_64" (Steam Linux Runtime 3.0), macOS "Soulwick.app".
+"DepotBuild"
+{
+	"DepotID" "${DEPOT_ID}"
+	"ContentRoot" "${DEPOT_CONTENT}"
+	"FileMapping"
+	{
+		"LocalPath" "*"
+		"DepotPath" "."
+		"Recursive" "1"
+	}
+	// The readme of the zip explains SmartScreen and "unknown sources"; Steam players do not need it.
+	"FileExclusion" "LIESMICH.txt"
+}

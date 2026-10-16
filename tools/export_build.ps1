@@ -135,7 +135,7 @@ try {
 			$presets = [regex]::Replace($OriginalPresets, '(?m)^version/code=\d+', "version/code=$VersionCode")
 			[System.IO.File]::WriteAllText($PresetsFile, $presets, $Utf8)
 			Write-Host "Exporting $($target.Preset) ($Environment, $Version, code $VersionCode) -> $Apk"
-			& $Godot --headless --path $Root --export-release $target.Preset $Apk | Out-Host
+			& $Godot --headless --audio-driver Dummy --path $Root --export-release $target.Preset $Apk | Out-Host
 			if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Apk)) { throw "Export of $($target.Preset) failed (exit $LASTEXITCODE)." }
 			[System.IO.File]::WriteAllText($PresetsFile, $OriginalPresets, $Utf8)
 			# apksigner's v4 side file is only for adb incremental installs; friends get the APK alone.
@@ -151,7 +151,7 @@ try {
 			$Zip = Join-Path $OutDir "Soulwick-$Version-$Environment-macos.zip"
 			if (Test-Path $Zip) { Remove-Item -Force $Zip }
 			Write-Host "Exporting $($target.Preset) ($Environment, $Version) -> $Zip"
-			& $Godot --headless --path $Root --export-release $target.Preset $Zip | Out-Host
+			& $Godot --headless --audio-driver Dummy --path $Root --export-release $target.Preset $Zip | Out-Host
 			if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Zip)) { throw "Export of $($target.Preset) failed (exit $LASTEXITCODE)." }
 			Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
 			$archive = [System.IO.Compression.ZipFile]::Open($Zip, [System.IO.Compression.ZipArchiveMode]::Update)
@@ -172,7 +172,7 @@ try {
 		$Binary = Join-Path $PlatformDir $target.Binary
 		Write-Host "Exporting $($target.Preset) ($Environment, $Version) -> $Binary"
 		# Godot is a GUI-subsystem exe: without the pipe PowerShell would not wait for the export.
-		& $Godot --headless --path $Root --export-release $target.Preset $Binary | Out-Host
+		& $Godot --headless --audio-driver Dummy --path $Root --export-release $target.Preset $Binary | Out-Host
 		if ($LASTEXITCODE -ne 0 -or -not (Test-Path $Binary)) { throw "Export of $($target.Preset) failed (exit $LASTEXITCODE)." }
 		# The web folder is served as it is (GitHub Pages); it gets no readme.
 		if ($platform -ne "web") {
@@ -189,7 +189,7 @@ try {
 			try {
 				$env:APPDATA = $BootData
 				$ErrorActionPreference = "Continue"
-				$bootLog = & $Binary --headless --quit-after 300 -- offline 2>&1 | Out-String
+				$bootLog = & $Binary --headless --audio-driver Dummy --quit-after 300 -- offline 2>&1 | Out-String
 				$bootExit = $LASTEXITCODE
 				Write-Host $bootLog
 			} finally {

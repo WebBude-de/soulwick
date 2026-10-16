@@ -15,19 +15,21 @@ INSTALLIEREN (Android 7 oder neuer, 64-Bit-Handy)
   deinstallieren (der Build wurde mit einem anderen Schluessel signiert; der Spielstand
   auf dem Handy geht dabei verloren).
 
-STEUERUNG (Touch)
-  Linke Bildschirmhaelfte: Daumen auflegen und ziehen = laufen (Stick wandert mit).
-  Rechts unten: Schwert = angreifen (gedrueckt halten = weiter angreifen; zielt
-  automatisch auf den naechsten Gegner, sonst in Laufrichtung), Stern = Spezialangriff,
-  Doppelpfeil = Dash (in Seitenansicht: Pfeil hoch = springen, weiterer Doppelpfeil =
-  Seit-Dash), Kreis mit Punkt = benutzen (Tuer, Truhe, Haendler), Kreispfeile = Waffe
-  wechseln. Oben in der Mitte: Liste = Upgrade-Uebersicht, Pause.
+STEUERUNG (Touch, zwei Sticks)
+  Links: Daumen auflegen und ziehen = laufen (der Stick wandert mit).
+         Stern daneben = Spezialangriff (in Ziel- bzw. Blickrichtung).
+  Rechts: zweiter Stick = zielen. Weiter ziehen = automatisch in diese Richtung
+         angreifen (alle Waffen), wenig ziehen = nur umdrehen.
+         Knoepfe um den Ziel-Stick: Doppelpfeil = Dash (in der Seitenansicht: Pfeil
+         hoch = springen, weiterer Doppelpfeil = Seit-Dash), Kreis mit Punkt = benutzen
+         (Tuer, Truhe, Haendler), Kreispfeile = Waffe wechseln.
+  Oben in der Mitte: Liste = Upgrade-Uebersicht, Pause.
   Menues bedient man durch Antippen.
 
 ONLINE (Koop ueber Raumcode)
   Kein Konto noetig: Beim ersten Online-Spiel bekommt dieses Handy automatisch ein
   Gastkonto (haengt an dieser Installation; bei Deinstallation weg).
-  Spielstand anlegen (der Name wird dein Online-Name), im Dorf ins Gildengebaeude.
+  Beim ersten Start Name und Figur waehlen (gilt auch online), im Dorf ins Gildengebaeude.
   Host: "Raum erstellen" und den 6-stelligen Raumcode an die anderen schicken.
   Alle anderen: Raumcode eingeben, "Raum beitreten". Host drueckt "Starten".
   Handy und PC spielen zusammen, wenn alle dieselbe Version haben.
@@ -35,4 +37,4 @@ ONLINE (Koop ueber Raumcode)
 
 RUECKMELDUNG
   Handy-Modell, Ruckeln (wann?), Abbrueche mit Uhrzeit, ob die Knoepfe gut liegen,
-  ob du Angriff/Zielhilfe magst, Spass.
+  wie sich Zielen und Auto-Angriff mit dem rechten Stick anfuehlen, Spass.

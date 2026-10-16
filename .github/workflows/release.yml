@@ -1,5 +1,6 @@
 # Builds Soulwick for Windows, Linux, macOS and Android and publishes them as a GitHub release
-# (docs/RELEASES.md). The browser version is built and hosted by Dokploy (deploy/), not here.
+# (docs/RELEASE.md); prepares the store builds (docs/STORES.md): Google Play bundle, iOS Xcode
+# project / IPA, Steam upload. The browser version is built and hosted by Dokploy (deploy/), not here.
 #
 #   git tag v0.9.1 && git push origin v0.9.1         -> release v0.9.1
 #   git tag v0.9.1-beta.1 && git push origin ...     -> pre-release v0.9.1-beta.1 (test servers)
@@ -11,7 +12,11 @@
 # Development stays the default until the production servers run and the project member switches
 # (D-148): a build talks only to the servers of its environment, so a production build before
 # then would be offline. Every development build is a pre-release.
-# Android signing: tools/ci/android_signing.sh (secrets in docs/RELEASES.md §3).
+#
+# Optional, only with secrets (tools/ci/store_flags.sh decides; without them the steps are skipped
+# and the run stays green): Windows signature, macOS signature + notarization, Google Play bundle
+# (+ upload to "internal testing"), signed iOS IPA (+ TestFlight), Steam upload to a beta branch.
+# Secrets and variables: docs/STORES.md. Android APK signing: tools/ci/android_signing.sh.
 name: Release
 
 on:
@@ -28,6 +33,10 @@ on:
         description: Mark as pre-release (development builds always are)
         type: boolean
         default: true
+      store_upload:
+        description: Upload to Steam beta, Play internal testing and TestFlight (when their secrets are set)
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -37,8 +46,10 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  # One template list for both export jobs, so they share one cache entry.
-  GODOT_TEMPLATES: windows_release_x86_64.exe linux_release.x86_64 macos.zip android_release.apk
+  # One template list for the Linux export jobs, so they share one cache entry.
+  GODOT_TEMPLATES: windows_release_x86_64.exe linux_release.x86_64 macos.zip android_release.apk android_source.zip
+  # NDK of the Godot 4.7.2 Android build template (android/build/config.gradle, ndkVersion).
+  ANDROID_NDK_PACKAGE: ndk;29.0.14206865
 
 jobs:
   prepare:
@@ -51,6 +62,14 @@ jobs:
       prerelease: ${{ steps.meta.outputs.prerelease }}
       tag: ${{ steps.meta.outputs.tag }}
       create_tag: ${{ steps.meta.outputs.create_tag }}
+      store_code: ${{ steps.meta.outputs.store_code }}
+      aab: ${{ steps.flags.outputs.aab }}
+      play_upload: ${{ steps.flags.outputs.play_upload }}
+      ios_sign: ${{ steps.flags.outputs.ios_sign }}
+      testflight: ${{ steps.flags.outputs.testflight }}
+      macos_sign: ${{ steps.flags.outputs.macos_sign }}
+      windows_sign: ${{ steps.flags.outputs.windows_sign }}
+      steam: ${{ steps.flags.outputs.steam }}
     steps:
       - uses: actions/checkout@v5
       - name: Version, environment and tag
@@ -63,6 +82,24 @@ jobs:
           RELEASE_ENV: ${{ vars.RELEASE_ENV }}
           RUN_NUMBER: ${{ github.run_number }}
         run: bash tools/ci/release_meta.sh
+      - name: Signing and store secrets
+        id: flags
+        env:
+          EVENT: ${{ github.event_name }}
+          INPUT_STORE_UPLOAD: ${{ inputs.store_upload }}
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          MACOS_DEVELOPER_ID_CERT_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERT_BASE64 }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          STEAM_APP_ID: ${{ vars.STEAM_APP_ID }}
+        run: bash tools/ci/store_flags.sh
       - name: Tag must be new (manual run)
         if: steps.meta.outputs.create_tag == 'true'
         env:
@@ -107,18 +144,68 @@ jobs:
           GODOT: ${{ steps.godot.outputs.godot }}
           # The boot check below runs on the zip, explicitly without sound.
           SKIP_BOOT_TEST: "1"
+          # Authenticode signature of Soulwick.exe (tools/ci/sign_windows.sh), only with secrets.
+          WINDOWS_SIGN: ${{ needs.prepare.outputs.windows_sign == 'true' && '1' || '0' }}
+          AZURE_SIGNING_ENDPOINT: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          WINDOWS_SIGN_PFX_BASE64: ${{ secrets.WINDOWS_SIGN_PFX_BASE64 }}
+          WINDOWS_SIGN_PFX_PASSWORD: ${{ secrets.WINDOWS_SIGN_PFX_PASSWORD }}
         run: bash tools/export_build.sh "$ENVIRONMENT" "$VERSION" "windows linux macos"
       - name: Boot check (Linux build)
         run: bash tools/ci/boot_check.sh "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-linux.zip"
       - uses: actions/upload-artifact@v4
         with:
           name: release-desktop
-          path: ${{ env.OUT_DIR }}/Soulwick-*.zip
+          path: |
+            ${{ env.OUT_DIR }}/Soulwick-*-windows.zip
+            ${{ env.OUT_DIR }}/Soulwick-*-linux.zip
+          if-no-files-found: error
+          compression-level: 0
+      # Without notarization the ad-hoc signed zip goes into the release as it is.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.prepare.outputs.macos_sign == 'true' && 'macos-unsigned' || 'release-macos' }}
+          path: ${{ env.OUT_DIR }}/Soulwick-*-macos.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  macos_sign:
+    name: Sign and notarize macOS
+    needs: [prepare, desktop]
+    if: needs.prepare.outputs.macos_sign == 'true'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-unsigned
+          path: dist
+      - name: Sign, notarize, staple
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          MACOS_DEVELOPER_ID_CERT_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_CERT_BASE64 }}
+          MACOS_DEVELOPER_ID_CERT_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_CERT_PASSWORD }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: |
+          for zip in dist/Soulwick-*-macos.zip; do
+            bash tools/ci/macos_sign.sh "$zip"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: dist/Soulwick-*-macos.zip
           if-no-files-found: error
           compression-level: 0
 
   android:
-    name: Export Android
+    name: Export Android APK
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -169,9 +256,160 @@ jobs:
           if-no-files-found: error
           compression-level: 0
 
+  android_aab:
+    name: Google Play bundle (AAB)
+    needs: prepare
+    if: needs.prepare.outputs.aab == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      STORE_CODE: ${{ needs.prepare.outputs.store_code }}
+      OUT_DIR: builds/${{ needs.prepare.outputs.environment }}/${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK and NDK
+        env:
+          EXTRA_PACKAGES: ${{ env.ANDROID_NDK_PACKAGE }}
+        run: bash tools/ci/android_sdk.sh
+      - name: Upload key
+        env:
+          REQUIRE_RELEASE_KEY: "1"
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: bash tools/ci/android_signing.sh
+      - id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: ${{ env.GODOT_TEMPLATES }}
+      # Gradle wrapper, plugin and libraries of the Godot template (about 500 MB, same for every run).
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-godot-4.7.2-${{ runner.os }}
+      - name: Export AAB (Gradle)
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+          VERSION_CODE: ${{ env.STORE_CODE }}
+        run: bash tools/export_build.sh "$ENVIRONMENT" "$VERSION" android-aab
+      - name: Check AAB
+        run: bash tools/ci/check_aab.sh "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-android.aab" "$STORE_CODE"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-android-aab
+          path: ${{ env.OUT_DIR }}/Soulwick-*-android.aab
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Upload to Google Play (internal testing)
+        if: needs.prepare.outputs.play_upload == 'true'
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_TRACK: ${{ vars.PLAY_TRACK || 'internal' }}
+          PLAY_RELEASE_STATUS: ${{ vars.PLAY_RELEASE_STATUS || 'completed' }}
+          PLAY_RELEASE_NAME: ${{ needs.prepare.outputs.tag }}
+        run: bash tools/ci/play_upload.sh "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-android.aab"
+
+  ios:
+    name: iOS (Xcode project, IPA with secrets)
+    needs: prepare
+    runs-on: macos-latest
+    timeout-minutes: 60
+    # Without Apple secrets this job only prepares the Xcode project; a problem there must not
+    # turn the release red (the GitHub release does not wait for it).
+    continue-on-error: ${{ needs.prepare.outputs.ios_sign != 'true' }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      OUT_DIR: builds/${{ needs.prepare.outputs.environment }}/${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: ios.zip
+      - name: Export Xcode project
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+          VERSION_CODE: ${{ needs.prepare.outputs.store_code }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: bash tools/export_build.sh "$ENVIRONMENT" "$VERSION" ios
+      - uses: actions/upload-artifact@v4
+        with:
+          name: store-ios-xcode
+          path: ${{ env.OUT_DIR }}/Soulwick-*-ios-xcode.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+      - name: Archive, sign, IPA (and TestFlight)
+        if: needs.prepare.outputs.ios_sign == 'true'
+        env:
+          IOS_UPLOAD: ${{ needs.prepare.outputs.testflight == 'true' && '1' || '0' }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DISTRIBUTION_CERT_BASE64: ${{ secrets.IOS_DISTRIBUTION_CERT_BASE64 }}
+          IOS_DISTRIBUTION_CERT_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERT_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_BASE64: ${{ secrets.IOS_PROVISIONING_PROFILE_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+        run: bash tools/ci/ios_build.sh "$OUT_DIR/ios" "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-ios.ipa"
+      - if: needs.prepare.outputs.ios_sign == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: store-ios-ipa
+          path: ${{ env.OUT_DIR }}/Soulwick-*-ios.ipa
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  steam:
+    name: Steam upload (beta branch)
+    needs: [prepare, desktop, macos_sign]
+    # Waits for the notarized macOS build when there is one; skipped without Steam secrets.
+    if: >-
+      !cancelled() && needs.prepare.outputs.steam == 'true' && needs.desktop.result == 'success' &&
+      (needs.macos_sign.result == 'success' || needs.macos_sign.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: SteamPipe upload
+        env:
+          STEAM_USERNAME: ${{ secrets.STEAM_USERNAME }}
+          STEAM_CONFIG_VDF: ${{ secrets.STEAM_CONFIG_VDF }}
+          STEAM_APP_ID: ${{ vars.STEAM_APP_ID }}
+          STEAM_DEPOT_WINDOWS: ${{ vars.STEAM_DEPOT_WINDOWS }}
+          STEAM_DEPOT_LINUX: ${{ vars.STEAM_DEPOT_LINUX }}
+          STEAM_DEPOT_MACOS: ${{ vars.STEAM_DEPOT_MACOS }}
+          # development builds may go to their own branch (variable STEAM_BRANCH_DEVELOPMENT).
+          STEAM_BRANCH: ${{ needs.prepare.outputs.environment == 'development' && (vars.STEAM_BRANCH_DEVELOPMENT || vars.STEAM_BRANCH || 'beta') || (vars.STEAM_BRANCH || 'beta') }}
+          # 1 = dry run (steamcmd checks everything, uploads nothing).
+          STEAM_PREVIEW: ${{ vars.STEAM_PREVIEW || '0' }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+          ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: bash tools/steam/steam_upload.sh dist
+
   release:
     name: GitHub release
-    needs: [prepare, desktop, android]
+    needs: [prepare, desktop, macos_sign, android]
+    if: >-
+      !cancelled() && needs.desktop.result == 'success' && needs.android.result == 'success' &&
+      (needs.macos_sign.result == 'success' || needs.macos_sign.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -184,12 +422,15 @@ jobs:
       PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
       CREATE_TAG: ${{ needs.prepare.outputs.create_tag }}
       ANDROID_TEST_SIGNED: ${{ needs.android.outputs.test_signed }}
+      WINDOWS_SIGNED: ${{ needs.prepare.outputs.windows_sign }}
+      MACOS_NOTARIZED: ${{ needs.macos_sign.result == 'success' }}
       WEB_PLAY_URL: ${{ vars.WEB_PLAY_URL }}
     steps:
       # Whole history and tags: the notes list the commits since the previous tag.
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+      # Store-only files (AAB, iOS) are artifacts of their jobs, not part of the public release.
       - uses: actions/download-artifact@v4
         with:
           pattern: release-*
