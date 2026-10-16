@@ -1057,6 +1057,27 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Status:** VERBINDLICH (Projektmitglied 16.10.2026: „etwas, das mehr schießt, nicht viel Damage, sondern slowt; stationär“) · Werte **TESTWERT**
 - **Beschluss:** Stationäre Türme je Biom (Knochenturm, Schleimspeier, Schattenauge, Glutkessel) in normalen Kampfräumen ohne Arena, Variante oder Modus ab Raum 4 (Raum 4–14: 40 % ein Turm; ab 15: 50 %, davon 30 % ein zweiter; ab 30: 60 %, davon 45 % ein zweiter), an Wänden oder Ecken, nie an Türen und nie im Weg. Sie tauchen aus dem Boden auf, zählen für das Säubern (Welle 1) und geben 1 Münze. Schuss auf den nächsten lebenden Spieler in Sicht und Reichweite (300 px): 0,6 s Aufleuchten mit Ziellinie, Kugel 150 px/s, 0,5 HP, Verlangsamung −35 % für 1,5 s (frischt auf, stapelt nicht, nur bei wirksamen Treffern), Abklingzeit 1,8 s (mit der Tiefe bis ×0,75). Auch in der Seitenansicht (50 % der Abschnitte, 8 Kacheln Sicht). Zufall aus Seed + Raumnummer, nicht aus dem Dungeon-RNG. Im Koop rechnet der Host, die Verlangsamung reist mit dem Treffer.
 - **Folgen:** `enemies/turret/**`, `components/combat/slow_status.gd`, `DamageData.slow_*`, Haken in `room_controller.gd` und `player.gd`, Grafiken SPRITES_V10 §5.
+- **Nachtrag 16.10.2026 – Türme entschärft (Claude, Balance delegiert; Zahlen TESTWERT):** Anlass D-154 Offen (1): Tod in Raum 16–29 22–25 % (Schleimspeier), in 46–59 Glutkessel 4 von 10 Toden. **Ursache war kein Zahlenproblem, sondern ein Platzierungsfehler:** `TurretPlacement.populate` rechnete die Kachelmitte mit `tiles.to_global` um; die `RoomTiles`-Ebene ist ×2 skaliert, der Turm stand also beim doppelten Abstand vom Raumursprung, meist **außerhalb des Raums** (z. B. Kachel 37/9 in einem 19×8-Raum). Dort war er nicht erreichbar, der Raum wurde nie sauber (im Spiel ein Soft-Lock, im Bot 77–89 % der Turmräume im 240-s-Zeitlimit), und wo er Sicht hatte, schoss er minutenlang. Der Schleimspeier traf am häufigsten, weil 16–29 das erste Biom mit zweitem Turm ist und fast jeder Run es betritt – alle vier Türme hatten dieselben Zahlen.
+  - **Behoben:** Position über `room.to_global` (wie alle anderen `tile_center`-Nutzer). Der Test `test_enemy_turret.gd` Zeile 456 und 460 spiegelt den alten Fehler (`room.tiles.to_local`) und muss auf `room.to_local` (in einer Kopie geprüft: 28/28 grün).
+  - **Zahlen (alt → neu):** Schaden aller vier Türme (`enemies/data/turret_*.tres`) **0,25 → 0,1**: jeder Treffer bleibt 0,5 HP bis Raum 90 (vorher 1,0 ab Raum 51 und 1,5 ab Raum 76, das traf vor allem den Glutkessel). Verlangsamung −35 % für **1,5 → 2,0 s** (`TurretRules.SLOW_DURATION`), damit der Druck aus dem Bremsen kommt statt aus Schaden. Unverändert: Takt (0,6 s + 1,8 s, bis ×0,75), Kugel 150 px/s, Reichweite 300 px, Chancen und Abstände der Platzierung, Seitenansicht (`SideRules`).
+- **Nachtrag – Messung** (`balance_sim.gd` mit einem Mess-Wrapper, der nur Spalten ergänzt: Turmschaden, Türme je Raum, Zeit verlangsamt; `hazards=1 falls=1 nav=1 smart=1`, Seeds 201–210 × 2 Runs × Schwert/Bogen/Stab = 60 Runs je Spalte; alles in einer festen Kopie des Arbeitsstands vom 16.10. früh, also mit Gegnerzahl 4–7, Arena-Tiefe 45 und Rissen `MAX_ALIVE` 4 / Takt 8 s aus dem D-154-Nachtrag):
+
+| Messung | vorher (Fehler, alte Werte) | nur Platzierung behoben | **nachher** (behoben + neue Werte) | Vergleich ohne Türme |
+| --- | --- | --- | --- | --- |
+| Median Räume (Schwert / Bogen / Stab) | 42,5 (38 / 37 / 45) | 45 (43,5 / 47 / 45) | **45 (44 / 48,5 / 45)** | 45 (41 / 45 / 45) |
+| Ende in Raum 40–80 · vor Raum 40 | 27/60 · 27 | 31/60 · 18 | **28/60 · 21** | 29/60 · 20 |
+| Tod R16–29 · Boss 30 · R31–44 · Boss 45 · R46–59 · Boss 60 | 21 · 0 · 38 · 36 · 22 · 21 % | 8 · 11 · 23 · 32 · 20 · 20 % | **14 · 10 · 24 · 26 · 23 · 30 %** | 14 · 0 · 28 · 42 · 19 · 18 % |
+| Tode durch Turm (letzter Treffer) | 13/60 (Schleimspeier 5, Schattenauge 4, Glutkessel 2, Knochenturm 2) | 1/60 | **1/60** (Schleimspeier) | – |
+| Turmräume im 240-s-Zeitlimit | 77–89 % | 0–3 % | **0–3 %** | – |
+| Tod in normalen Räumen R16–29 mit 0 / 1 / 2 Türmen | 0 / 1,5 / 16 % | 0,9 / 0 / 0 % | **1,0 / 0 / 0 %** | 1,0 % |
+| Turmschaden je Turmraum (Krypta / Schleim / Schatten / Glut) · Anteil am Gesamtschaden | 0,45 / 0,72 / 0,59 / 0,90 · 10 % | 0,08 / 0,23 / 0,08 / 0,21 · 2,2 % | **0,08 / 0,10 / 0,05 / 0,12 · 1,4 %** | – |
+| Verlangsamt je Turmraum | 0,7–1,8 s | 0,2–0,4 s | **0,2–0,5 s** | – |
+| Nach Raum 15/30/45: HP · Schild · Gold | 6/6/6 · 0/0/1,25 · 47/76/140 | 6/6/6 · 0/0,25/1 · 45/76/104 | **6/6/6 · 0/0,25/1,25 · 45/78/122** | 6/6/6 · 0/0/0 · 43/72/114 |
+| Gold beim Tod (Median) | 104 | 155 | **149** (2–3 Shop-Käufe) | 123 |
+| Standard (`runs=3 seed=7`, ohne Mess-Flags): Schwert · Bogen · Stab · Tank | 32·45·58 · 17·40·58 · 28·80·85 · 51·60 (6 von 11 Toden Turm) | 16·60·75 · 36·90·90 · 80·81·85 · 60·60 | **41·57·60 · 43·85·90 · 80·85·90 · 60·60** (1 Turmtod) | – |
+
+- **Bewertung:** Mit richtiger Platzierung töten Türme im Bot praktisch nicht mehr (Tod in Turmräumen wie in Räumen ohne Turm); die Abschnittswerte schwanken zwischen den Spalten um ±6 Punkte (Rauschen bei 60 Runs). Boss 2 (10–11 %) und Boss 3 (26–32 %) liegen über den Zielen ~4 % / ~12 %, aber in allen Spalten gleich, auch ohne Türme (keine Türme in Bossräumen, alle kommen mit 6 HP an) – das gehört zu den Boss-Werten (D-154), nicht zu den Türmen. Der Bot sieht jedes Geschoss und weicht mit 0,8 aus; Menschen im Dunkeln werden öfter getroffen, deshalb bleibt der Schaden auf dem Minimum und die Wirkung im Bremsen.
+- **Offen:** (1) Fühlen sich Türme im Spiel jetzt zu harmlos an (Bot nur 0,2–0,5 s verlangsamt je Turmraum), wären die nächsten Stellschrauben Abklingzeit 1,8 → 1,5 s oder −40 % statt −35 %, nicht Schaden. (2) Eine Prüfung „Turm steht innerhalb des Bodens“ in `test_enemy_turret.gd` hätte den Fehler gefunden.
 
 ### D-152 – Ein Charakter pro Konto, Spielstände sind Welten
 
@@ -1087,6 +1108,32 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Dazu (Messung B):** Boss 45: Schaden im Median 7,5 → 5,8, Siegzeit 68 → 40 s; Boss 30 0–2,5 Schaden. Nach Raum 15/30/45 (B): HP 6/6/6, Schild 0/0/6 → 0/0/1, Gold 43/84/164 → 46/86/146, Gold beim Tod 104 → 136 (2–3 Shop-Käufe). Kurve damit: Boss 2 leicht (4 %), Boss 3 spürbar schwerer (12 %, im Spiel zusätzlich dunkel), Boss 4 noch etwas schwerer (21 % allein). **Puffer** für die härtere Dunkelheit (D-150): Der Bot sieht weder Dunkelheit noch Blenden; Bot-Tod am Schattenlord liegt deshalb bewusst niedrig, weniger Beschwörungen und kürzeres Blenden helfen nur Menschen.
 - **Offen:** (1) Die Türme (D-151) sind inzwischen verdrahtet und kosten am meisten: Tod in Raum 16–29 stieg ohne Balanceänderung von 2–7 % auf 22–25 % (Schleimspeier), in 46–59 töten Glutkessel (4 von 10 Toden); Messung B liegt deshalb im Median unter dem Ziel 40–80. Turmwerte gehören zu D-151 (eigene Messung nötig). (2) Ohne Zugriff blieben: Gegnerzahl ab Raum 30 (`RoomSequence.get_enemy_count_range` 5–8 → Vorschlag 4–7) und drei Arena-Wellen ab Raum 30 (`WaveRules.ARENA_DEEP_FROM_ROOM` 30 → Vorschlag 45); beides ist der größte verbleibende Sprung bei Raum 31. (3) Beschwörungsrisse bleiben der tödlichste Kampfraum (bis 33 % Tod je Rissraum in 31–44, wenn der Bot sie nicht zuerst schließt). (4) Neu messen, wenn Türme und Dunkelheit fertig sind.
 - **Ersetzt:** Faktoren ×1,18/×1,14 aus D-074 (KONZEPT_ENDLOS §3); Boss-Werte aus D-089 (Schattenlord 340 HP) und D-118 (Königin 1,25, Schattenlord 1,1 s); Glutgolem-Schaden 2,0 (D-076).
+- **Nachtrag 16.10.2026 (Claude):** Offene Punkte (2) und (3) umgesetzt, alles TESTWERTE (Zahlen, alt → neu):
+  - Gegner je Welle ab Raum 30 **5–8 → 4–7** (`RoomSequence.get_enemy_count_range`).
+  - Drei Arena-Wellen erst ab Raum **45 statt 30** (`WaveRules.ARENA_DEEP_FROM_ROOM`); im Schattenreich 31–44 also zwei Wellen.
+  - **Risse schließen** (`RiftRules`): höchstens **4 statt 6** lebende Gegner gleichzeitig (`MAX_ALIVE`), Takt je Riss **9 statt 6 s** (`PUSH_INTERVAL`; die Design-Antwort nannte „alle 6 s“ und „weniger als sechs“), erste Welle des Raums **×0,6 statt ×0,7** (`FIRST_WAVE_FACTOR`). Unverändert: Bodenquellen nach dem ersten Riss (+1), Risszahl (die Riss-Grundrisse bringen 3–4 Wandrisse mit, `COUNT` gilt nur ohne Plan), 40 s für den Kristall, Riss-HP 30.
+- **Nachtrag – Messung Risse** (`balance_sim.gd` in einer Mess-Kopie, die die Modus-Historie je Raum zurücksetzt, damit `vt.only=rifts vt.chance=0.5` jeden zweiten normalen Kampfraum zum Rissraum macht; `god_until=30 max_rooms=44 hazards=1 falls=1 nav=1`, Seeds 301–308 × 2 Runs je Waffe; Tod und Schaden (HP + Schild) je betretenem Raum in 31–44):
+
+| Raumart R31–44 | Schwert vorher | Schwert nachher | Bogen vorher | Bogen nachher | Bogen `smart=1` nachher |
+| --- | --- | --- | --- | --- | --- |
+| Risse | 3/57 = 5 % · 1,54 · 30 s | 1/71 = 1 % · 0,62 · 24 s | 4/51 = 8 % · 5,69 · 172 s (22 Zeitlimits) | 4/59 = 7 % · 1,73 · 100 s (3) | 1/66 = 2 % · 1,48 · 62 s |
+| Arena | 0/29 = 0 % · 0,83 | 0/24 = 0 % · 0,50 | 1/26 = 4 % · 0,73 | 1/21 = 5 % · 1,07 | 0/22 = 0 % · 0,55 |
+
+- **Nachtrag – Zwischenstand Takt 8 s:** Schwert Risse 0/68 · 0,97, Bogen 3/68 = 4 % · 1,74 (Takt 8 → 9 s half dem Bogen kaum; entscheidend ist `MAX_ALIVE`).
+- **Nachtrag – Messung ganzer Runs** (`balance_sim.gd` ohne Änderung, `hazards=1 falls=1 nav=1`, Seeds 101–108 × 2 Runs, Schwert 16 + Bogen 16, mit Türmen; Gegnerzahl 4–7 und Arena-Tiefe 45 sind in beiden Spalten schon gesetzt, isoliert nicht gemessen):
+
+| Messung | vorher (nur Risse alt) | nachher |
+| --- | --- | --- |
+| Median erreichte Räume (Schwert / Bogen) | 42,5 (43,5 / 42) | 45 (45 / 43) |
+| Ende in Raum 40–80 | 16/32 | 17/32 |
+| Tod je Raumbereich (Runs, die ihn betreten) | 1–15: 0 % · 16–29: 19 % · 30: 8 % · 31–44: 38 % · 45: 20 % · 46–59: 25 % · 60: 22 % | 3 % · 13 % · 4 % · 35 % · 29 % · 17 % · 30 % |
+| Rissräume 31–44 (natürlich, kleine Zahl) | 2/13 = 15 % · Schaden 1,88 | 1/14 = 7 % · 1,29 |
+| Arena 31–44 | 1/41 = 2 % · 0,72 | 0/45 = 0 % · 0,70 |
+| Nach Raum 15/30/45: HP · Schild · Gold | 5,4/5,4/5,7 · 1,4/2,8/2,8 · 53/100/190 | 5,5/5,4/5,3 · 1,7/2,6/2,8 · 53/88/209 |
+| Gold beim Tod | 158 | 181 (2–3 Shop-Käufe) |
+
+- **Nachtrag – Ergebnis:** Risse sind in 31–44 beim Schwert und beim Bogen, der die Risse angeht (`smart=1`, wie ein Mensch mit der Aufgabenleiste), so tödlich wie eine Arena (1–2 % gegen 0–5 %). Nur der Bogen-Bot, der Risse ignoriert und immer den nächsten Gegner beschießt, bleibt bei 7 % und 1,7 × Arena-Schaden; `MAX_ALIVE` 3 würde das senken, widerspricht aber dem Playtest „mehr los“ (D-118), deshalb nicht. Der Tod in 31–44 insgesamt bleibt bei rund 35 %: Er kommt jetzt aus normalen Räumen (Schattenauge 5 von 9 Toden) und dem Schattenlord, nicht aus den Rissen.
+- **Nachtrag – Ersetzt:** Gegnerzahl ab Raum 30 aus D-118 (5–8), drei Arena-Wellen ab Raum 30 aus D-118, Riss-Takt 6 s, „weniger als sechs“ und erste Welle ×0,7 aus der Design-Antwort zu R4b.
 
 ### D-155 – Touch: zwei Sticks (laufen links, zielen und angreifen rechts)
 

@@ -449,15 +449,18 @@ func test_populate_places_tracked_turrets_in_a_plain_combat_room() -> void:
 	assert_eq(room.get_alive_enemy_count(), before + turrets.size(), "they count for clearing the room")
 	var doors: Array[Vector2i] = [room.tiles.get_entrance_inside_tile()]
 	doors.append_array(room.tiles.get_exit_inside_tiles())
+	var floor_mask := room.tiles.get_floor_mask()
 	for turret: Enemy in turrets:
 		assert_true(turret is Turret)
 		assert_eq(turret.get_parent(), room.enemy_container)
 		assert_true(turret.is_hidden_in_source(), "comes out of the ground")
-		var tile := RoomTiles.local_to_tile(room.tiles.to_local(turret.global_position))
+		var tile := RoomTiles.local_to_tile(room.to_local(turret.global_position))
+		assert_true(floor_mask.has(tile), "stands on a floor tile of the room (%s)" % tile)
+		assert_true(room.tiles.get_floor_rect().has_point(room.to_local(turret.global_position)), "inside the room")
 		assert_true(room.tiles.is_navigation_blocked(tile), "others walk around it")
 		for door in doors:
 			assert_gte(Vector2(tile - door).length(), TurretPlacement.DOOR_CLEARANCE, "not at a door")
-	var tile := RoomTiles.local_to_tile(room.tiles.to_local(turrets[0].global_position))
+	var tile := RoomTiles.local_to_tile(room.to_local(turrets[0].global_position))
 	turrets[0].health.take_damage(INF)
 	assert_eq(room.get_alive_enemy_count(), before + turrets.size() - 1)
 	await wait_seconds(Enemy.DEATH_DISSOLVE_TIME + Enemy.DEATH_ANIMATION_MAX_TIME + 0.2)

@@ -65,11 +65,13 @@ func test_arena_only_for_arena_kind_from_room_six() -> void:
 	assert_false(WaveRules.is_arena(RoomSequence.RoomType.BOSS, arena, 15))
 
 
-func test_arena_has_two_waves_and_three_from_room_thirty() -> void:
+func test_arena_has_two_waves_and_three_from_room_forty_five() -> void:
 	assert_eq(WaveRules.get_wave_count(6, true), 2)
-	assert_eq(WaveRules.get_wave_count(16, true), 2, "two waves up to room 29 (D-118)")
+	assert_eq(WaveRules.get_wave_count(16, true), 2, "two waves up to room 44 (D-154 follow-up: 30 -> 45)")
 	assert_eq(WaveRules.get_wave_count(29, true), 2)
-	assert_eq(WaveRules.get_wave_count(31, true), 3)
+	assert_eq(WaveRules.get_wave_count(31, true), 2)
+	assert_eq(WaveRules.get_wave_count(44, true), 2)
+	assert_eq(WaveRules.get_wave_count(46, true), 3)
 	assert_eq(WaveRules.get_wave_count(61, true), 3)
 	# Normal rooms keep D-074.
 	assert_eq(WaveRules.get_wave_count(16, false), RoomSequence.get_wave_count(16))

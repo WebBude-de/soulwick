@@ -7,17 +7,18 @@ extends RefCounted
 const COUNT := Vector2i(2, 3)  # TESTWERT
 ## Co-op (D-109, set in MP5): extra rifts per additional player.
 const PER_EXTRA_PLAYER := 1  # TESTWERT
-## Every open rift sends one enemy every this many seconds (design answer: "im Takt alle 6 s") while
-## fewer than MAX_ALIVE enemies live.
-const PUSH_INTERVAL := 6.0  # TESTWERT
-const MAX_ALIVE := 6  # TESTWERT
+## Every open rift sends one enemy every this many seconds while fewer than MAX_ALIVE enemies live
+## (design answer: "im Takt alle 6 s", fewer than six; D-154 follow-up 16.10.2026: 6 s -> 9 s and
+## 6 -> 4, rift rooms were the deadliest fights in rooms 31-44).
+const PUSH_INTERVAL := 9.0  # TESTWERT
+const MAX_ALIVE := 4  # TESTWERT
 ## The first push waits a little, rifts take turns (s).
 const FIRST_DELAY := 2.0
 const STAGGER := 0.8
 ## Readable summon of a rift without a wall source: it glows and a circle marks the spot this long.
 const WIND_UP := 0.7
-## The room's own first wave is smaller; the rifts bring the rest.
-const FIRST_WAVE_FACTOR := 0.7  # TESTWERT
+## The room's own first wave is smaller; the rifts bring the rest (D-154 follow-up: 0.7 -> 0.6).
+const FIRST_WAVE_FACTOR := 0.6  # TESTWERT
 ## Once the first rift is closed the floor sources (vents) join in: this many per push.
 const VENT_PUSH := 1  # TESTWERT
 ## Rifts stand at least this many tiles apart and this far from the doors (rooms without plan rifts).

@@ -3,9 +3,10 @@ extends RoomMode
 ## Minigame "Risse schließen" (KONZEPT_RAEUME_V2 §3.7, design answer 01_raumarten.md, R4b; replaces
 ## the summoning rifts of D-114): "Zerstöre die Risse, aus denen Gegner kommen."
 ##   Intro:  camera on the rifts in the walls (the plan's wall rifts, '!'), banner "Schließe die Risse".
-##   Fight:  every rift has health and a bar (SummoningRift) and sends one enemy every 6 s through its
-##           wall rift (the room's SpawnSource: warning, the enemy steps out of the wall) while fewer
-##           than six enemies live. Once the first rift is closed the floor sources join in. Task bar:
+##   Fight:  every rift has health and a bar (SummoningRift) and sends one enemy every
+##           RiftRules.PUSH_INTERVAL seconds through its wall rift (the room's SpawnSource: warning,
+##           the enemy steps out of the wall) while fewer than RiftRules.MAX_ALIVE enemies live.
+##           Once the first rift is closed the floor sources join in. Task bar:
 ##           rifts open, a bar of the rifts' remaining health, the time for the crystal.
 ##   End:    all rifts closed = success; then the rest must be beaten (the rifts count for the room
 ##           like any enemy). Bonus chest; every rift closed within 40 s = +1 soul crystal.
@@ -144,7 +145,7 @@ func get_source_of(rift: SummoningRift) -> SpawnSource:
 	return _rift_sources.get(rift)
 
 
-## Living enemies that are not rifts (the rule "fewer than six").
+## Living enemies that are not rifts (the rule "fewer than RiftRules.MAX_ALIVE").
 func get_alive_minions() -> int:
 	var count := 0
 	for enemy in get_living_enemies():

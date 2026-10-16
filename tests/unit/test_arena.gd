@@ -74,12 +74,13 @@ func test_rooms_one_to_five_and_normal_kinds_are_no_arena() -> void:
 
 
 func test_arena_plans_two_waves_and_three_deeper() -> void:
+	# Three waves from WaveRules.ARENA_DEEP_FROM_ROOM (D-154 follow-up: room 30 -> 45).
 	var room := _room()
 	room.activate()
 	assert_eq(room.get_wave_progress(), Vector2i(1, 2))
 	for size in room.get_wave_sizes():
 		assert_gte(size, WaveRules.ARENA_MIN_WAVE_SIZE)
-	var deep := _room(true, 0, 31)
+	var deep := _room(true, 0, 46)
 	deep.activate()
 	assert_eq(deep.get_wave_progress().y, 3)
 
@@ -107,7 +108,7 @@ func test_next_wave_starts_when_the_wave_is_cleared() -> void:
 
 
 func test_room_counts_as_cleared_only_after_the_last_wave() -> void:
-	var room := _room(true, 0, 31, _fixed_count(2))
+	var room := _room(true, 0, 46, _fixed_count(2))
 	watch_signals(room)
 	room.activate()
 	for wave in range(1, 4):

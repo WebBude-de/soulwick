@@ -90,7 +90,7 @@ static func get_enemy_count_range(room_index: int) -> Vector2i:
 		return Vector2i(4, 5)
 	if room_index < 30:
 		return Vector2i(4, 6)
-	return Vector2i(5, 8)
+	return Vector2i(4, 7)  # TESTWERT (D-154 follow-up: 5-8 -> 4-7, jump at room 31 too steep)
 
 
 ## Number of enemy waves in a normal combat room: more pressure deeper down (D-074).

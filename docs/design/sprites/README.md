@@ -15,6 +15,6 @@ Briefings für Claude Design: welche Grafik fehlt, mit Dateiname, Größe, Frame
 | [SPRITES_V7.md](SPRITES_V7.md) | geliefert | Seitentüren und Abgrund-Nachträge (A4, A10) |
 | [SPRITES_V8.md](SPRITES_V8.md) | **offen** (Deko-Gruppen geliefert) | Räume v2: Bosstor je Biom, Gänge, Dorf-Eingang v2, Aufgabenleiste, Minispiel-Objekte, Quellen |
 | [SPRITES_V9.md](SPRITES_V9.md) | **teilweise offen** (§1 Nachlieferung, §6) | Makeover-Welle A: Fels-Innenecken, Tunnel-Tore, Wasser, Seitenansicht (Doppelsprung, Wandrutschen) |
-| [SPRITES_V10.md](SPRITES_V10.md) | **offen** | Touch-Steuerung und Eingabe-Symbole |
+| [SPRITES_V10.md](SPRITES_V10.md) | **offen** (§8 App-Icons geliefert 16.10.2026) | Touch-Steuerung, Eingabe-Symbole, Türme, Seitenansicht, Figuren und Lobby, App-Icons |
 
 Antworten und Lieferlisten von Claude Design liegen daneben in [claude_design_antwort/](../claude_design_antwort/README.md) (`SPRITES_V8_vorschlag.md`, `SPRITES_V9_lieferung.md`); diese Dateinamen nicht ändern, der Code und die Werkzeuge verweisen darauf.

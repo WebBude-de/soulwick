@@ -7,8 +7,11 @@ stepped violet glow behind the crystal and a faint warm glow at the candle, all 
 pixel grid (whole-number nearest-neighbour scaling, no smooth gradients). The motif keeps inside the
 middle ~70 % so round and squircle masks (Android) never cut it. Replace the files with drawn icons
 of the same size and name if wanted (briefing in docs/WEB_BUILD.md §8).
+Since 16.10.2026 drawn icons from Claude Design are in place: the script then only writes with
+--force, so a run never replaces them by accident.
 """
 import math
+import sys
 from pathlib import Path
 
 from PIL import Image
@@ -93,6 +96,9 @@ def render(m: Image.Image, size: int) -> Image.Image:
 
 
 def main():
+    if not "--force" in sys.argv and any((OUT_DIR / f"icon_{size}.png").exists() for size in (144, 180, 512)):
+        print("icons exist (drawn ones are kept); use --force to replace them with generated ones")
+        return
     logo = Image.open(SOURCE).convert("RGBA")
     m = motif(logo)
     OUT_DIR.mkdir(parents=True, exist_ok=True)

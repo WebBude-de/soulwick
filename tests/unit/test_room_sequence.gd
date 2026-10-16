@@ -26,7 +26,7 @@ func test_enemy_count_range() -> void:
 	assert_eq(RoomSequence.get_enemy_count_range(1), Vector2i(2, 4), "busy start, weak enemies")
 	assert_eq(RoomSequence.get_enemy_count_range(6), Vector2i(4, 5))
 	assert_eq(RoomSequence.get_enemy_count_range(16), Vector2i(4, 6))
-	assert_eq(RoomSequence.get_enemy_count_range(31), Vector2i(5, 8))
+	assert_eq(RoomSequence.get_enemy_count_range(31), Vector2i(4, 7))
 
 
 func test_biomes_and_boss_tiers() -> void:

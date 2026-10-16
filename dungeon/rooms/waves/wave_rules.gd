@@ -13,7 +13,7 @@ const ARENA_FROM_ROOM := 10
 ## waves a normal room of the same depth already has (D-074).
 const ARENA_WAVES := 2
 const ARENA_WAVES_DEEP := 3
-const ARENA_DEEP_FROM_ROOM := 30  # TESTWERT (D-118: 15 -> 30, like the second wave of normal rooms)
+const ARENA_DEEP_FROM_ROOM := 45  # TESTWERT (D-118: 15 -> 30; D-154 follow-up: 30 -> 45)
 ## An arena wave of one would call the next wave at once. TESTWERT (D-118: 2 -> 3)
 const ARENA_MIN_WAVE_SIZE := 3
 ## Each arena wave rolls the normal count of the room (D-074) times this factor, never below the
