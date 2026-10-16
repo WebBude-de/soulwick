@@ -7,6 +7,7 @@ extends LocalKeyboardMouseInput
 ## that way); without it the player looks where it walks, otherwise keeps the last direction, and
 ## does not attack. The special (left button) goes off in that same direction; while it is held the
 ## aim stick does not attack, so the special is not blocked by a running swing.
+## With a ranged weapon the aim stick snaps onto a visible enemy in a narrow cone (TouchAimAssist).
 
 ## Move stick deflection below this does not turn the aim (thumb resting on the stick).
 const AIM_MOVE_THRESHOLD := 0.3
@@ -63,6 +64,8 @@ func poll(body: Node2D) -> void:
 	_was_attacking = attacking
 	var origin := body.global_position if in_tree else Vector2.ZERO
 	aim_direction = choose_aim(aim_stick, move, _last_aim)
+	if in_tree:
+		aim_direction = TouchAimAssist.apply(body, aim_stick, aim_direction)
 	_last_aim = aim_direction
 	aim_point = origin + aim_direction * 64.0
 
