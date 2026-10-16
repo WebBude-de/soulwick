@@ -23,9 +23,11 @@ const LOST_TARGET_RETRY := 0.3
 const MIN_COOLDOWN_FACTOR := 0.75
 ## The shot flies this many times the sight range before it fades.
 const SHOT_DISTANCE_FACTOR := 1.6
-## What a hit does to the player: speed x0.65 (-35 %) for 1.5 s, refreshed, never stacked.
-const SLOW_FACTOR := 0.65
-const SLOW_DURATION := 1.5
+## What a hit does to the player: speed x0.65 (-35 %) for 2.0 s, refreshed, never stacked.
+## The damage stays the minimum hit (turret data damage 0.1 = 0.5 up to room 90): it slows, it
+## does not kill.
+const SLOW_FACTOR := 0.65  # TESTWERT (D-151)
+const SLOW_DURATION := 2.0  # TESTWERT (D-151 follow-up: 1.5 -> 2.0, pressure through the slow instead of damage)
 
 var sight_range := 300.0
 var charge_time := 0.6

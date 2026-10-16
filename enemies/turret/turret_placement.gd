@@ -65,7 +65,10 @@ static func populate(room: RoomController) -> Array[Enemy]:
 	for tile in spots:
 		var turret := Turret.create(data, room.room_index)
 		var container := room.enemy_container
-		turret.position = container.to_local(tiles.to_global(RoomTiles.tile_center(tile)))
+		# Tile centres are in room space (like every other RoomTiles.tile_center user); the RoomTiles
+		# layer itself is scaled, so tiles.to_global would put the turret at twice the offset, mostly
+		# outside the room where nobody can reach it and the room never clears (D-151 follow-up).
+		turret.position = container.to_local(room.to_global(RoomTiles.tile_center(tile)))
 		turret.arena = room.get_arena()
 		if room.context != null and room.context.economy != null:
 			turret.gold_drop = roundi(room.context.economy.get_gold_drop(data, room.room_index, false) * MetaProgression.get_gold_multiplier())
