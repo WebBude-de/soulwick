@@ -1,11 +1,13 @@
 class_name TouchOverlay
 extends CanvasLayer
-## On-screen touch controls (CP2): a floating stick on the left half moves, round buttons on the
-## right attack (held = keeps attacking, aim assist in TouchInput), use the special, dash (in a
-## side-view segment: jump plus a horizontal dash), interact and switch the weapon; small buttons at
-## the top open the upgrade overview and the pause menu. Symbols only, no text.
+## On-screen touch controls (CP2, two sticks): a floating stick on the left moves, the special button
+## sits right next to it (the left thumb leaves the stick for it, the player stops briefly); the aim
+## stick on the right turns the player and attacks on its own while it is deflected (TouchInput).
+## Round buttons around the aim stick dash (in a side-view segment: jump plus a horizontal dash),
+## interact and switch the weapon; small buttons at the top open the upgrade overview and the pause
+## menu. Symbols only, no text.
 ## Looks: sprites from art/ui/touch/ via TouchArt (briefing SPRITES_V10 §1) with the drawing below
-## as placeholder; the attack button shows the active weapon, dash and special their cooldown.
+## as placeholder; the aim stick's knob shows the active weapon, dash and special their cooldown.
 ## Writes into a TouchState (the device's shared one); visible only while touch is in use and a local
 ## player that can act polls it, so menus, pauses and the main menu get every tap (emulated mouse).
 ## Lives under the root window (ensure()), across scene changes.
@@ -14,11 +16,14 @@ const LAYER := 25
 ## Stick reach in viewport pixels and the dead zone as a share of it.
 const STICK_RADIUS := 90.0
 const STICK_DEAD_ZONE := 0.18
+## Dead zone of the aim stick: a resting thumb neither turns nor attacks (TESTWERT).
+const AIM_DEAD_ZONE := 0.2
 ## Left share of the screen that starts the stick (below the top bar).
 const STICK_ZONE_WIDTH := 0.45
+## Right share of the screen that starts the aim stick (below the top bar, buttons first).
+const AIM_ZONE_WIDTH := 0.45
 const TOP_BAR_HEIGHT := 110.0
 const MARGIN := 28.0
-const ATTACK_RADIUS := 74.0
 const BUTTON_RADIUS := 50.0
 const SMALL_RADIUS := 34.0
 ## Event buttons: no PlayerInput action, an InputEventAction for the menus instead.
@@ -38,6 +43,8 @@ const COLOR_COOLDOWN := Color(0.02, 0.02, 0.05, 0.55)
 const TINT_PRESSED := Color(1.25, 1.1, 0.8)
 const TINT_DISABLED := Color(0.55, 0.53, 0.62, 0.8)
 const KNOB_RADIUS := 34.0
+## Special button relative to the resting move stick: up and to the right, one thumb move away.
+const SPECIAL_OFFSET := Vector2(178, -82)
 
 static var _instance: TouchOverlay = null
 
@@ -49,9 +56,9 @@ var _view: Control
 var _shown := false
 var _side_view := false
 var _layout_size := Vector2.ZERO
-var _stick_finger := -1
-var _stick_origin := Vector2.ZERO
-var _stick_point := Vector2.ZERO
+## Left stick (movement) and right stick (aim and auto-attack).
+var _move_stick := TouchStick.new(STICK_RADIUS, STICK_DEAD_ZONE)
+var _aim_stick := TouchStick.new(STICK_RADIUS, AIM_DEAD_ZONE)
 var _finger_button: Dictionary[int, StringName] = {}
 ## Colour of the placeholder glyph being drawn (dimmed while cooling down).
 var _ink := COLOR_GLYPH
@@ -114,31 +121,32 @@ func set_shown(value: bool) -> void:
 		_release_everything()
 
 
-## Places the buttons in rect (the visible area inside the safe area, viewport coordinates).
+## Places sticks and buttons in rect (the visible area inside the safe area, viewport coordinates).
+## Left: move stick, special right next to it. Right: aim stick, the other buttons in an arc above
+## and left of it (thumb reach from the bottom right corner).
 func layout(rect: Rect2) -> void:
 	_layout_size = rect.size
 	_side_view = state.side_view
 	buttons.clear()
-	var attack := rect.end - Vector2(MARGIN + ATTACK_RADIUS, MARGIN + ATTACK_RADIUS)
-	var large := TouchArt.Size.LARGE
 	var normal := TouchArt.Size.NORMAL
 	var small := TouchArt.Size.SMALL
-	_add(PlayerInput.ATTACK, attack, ATTACK_RADIUS, Glyph.SWORD, TouchArt.ICON_ATTACK, large)
+	var move_center := _default_stick_center(rect)
+	var aim := _default_aim_center(rect)
+	_move_stick.set_rest(move_center)
+	_aim_stick.set_rest(aim)
+	_add(PlayerInput.SPECIAL, move_center + SPECIAL_OFFSET, BUTTON_RADIUS, Glyph.STAR, TouchArt.ICON_SPECIAL, normal)
 	if _side_view:
-		_add(PlayerInput.DASH, attack + Vector2(-172, 22), BUTTON_RADIUS, Glyph.JUMP, TouchArt.ICON_JUMP, normal)
+		_add(PlayerInput.DASH, aim + Vector2(-195, 45), BUTTON_RADIUS, Glyph.JUMP, TouchArt.ICON_JUMP, normal)
+		_add(PlayerInput.SIDE_DASH, aim + Vector2(-170, -125), BUTTON_RADIUS, Glyph.SIDE_DASH, TouchArt.ICON_SIDE_DASH, normal)
+		_add(PlayerInput.SWITCH_WEAPON, aim + Vector2(-345, -30), SMALL_RADIUS + 6.0, Glyph.SWAP, TouchArt.ICON_SWITCH, small)
 	else:
-		_add(PlayerInput.DASH, attack + Vector2(-172, 22), BUTTON_RADIUS, Glyph.DASH, TouchArt.ICON_DASH, normal)
-	_add(PlayerInput.SPECIAL, attack + Vector2(-128, -118), BUTTON_RADIUS, Glyph.STAR, TouchArt.ICON_SPECIAL, normal)
-	_add(PlayerInput.INTERACT, attack + Vector2(6, -176), BUTTON_RADIUS, Glyph.HAND, TouchArt.ICON_INTERACT, normal)
-	_add(PlayerInput.SWITCH_WEAPON, attack + Vector2(-252, -96), SMALL_RADIUS + 6.0, Glyph.SWAP, TouchArt.ICON_SWITCH, small)
-	if _side_view:
-		_add(PlayerInput.SIDE_DASH, attack + Vector2(-300, 30), BUTTON_RADIUS, Glyph.SIDE_DASH, TouchArt.ICON_SIDE_DASH, normal)
+		_add(PlayerInput.DASH, aim + Vector2(-195, 45), BUTTON_RADIUS, Glyph.DASH, TouchArt.ICON_DASH, normal)
+		_add(PlayerInput.SWITCH_WEAPON, aim + Vector2(-170, -120), SMALL_RADIUS + 6.0, Glyph.SWAP, TouchArt.ICON_SWITCH, small)
+	_add(PlayerInput.INTERACT, aim + Vector2(-30, -190), BUTTON_RADIUS, Glyph.HAND, TouchArt.ICON_INTERACT, normal)
 	# Top centre: the HUD uses the corners (hearts left, room and gold right).
 	var top := Vector2(rect.get_center().x, rect.position.y + MARGIN * 0.5 + SMALL_RADIUS)
 	_add(OVERVIEW, top + Vector2(-SMALL_RADIUS * 1.4, 0), SMALL_RADIUS, Glyph.LIST, TouchArt.ICON_MENU, small, true)
 	_add(PAUSE, top + Vector2(SMALL_RADIUS * 1.4, 0), SMALL_RADIUS, Glyph.PAUSE, TouchArt.ICON_PAUSE, small, true)
-	if _stick_finger < 0:
-		_stick_origin = _default_stick_center(rect)
 
 
 func _add(action: StringName, center: Vector2, radius: float, glyph: Glyph, icon: StringName,
@@ -173,44 +181,48 @@ func handle_touch(index: int, position: Vector2, pressed: bool) -> bool:
 			_finger_button[index] = button.action
 			_press_button(button)
 			return true
-		if _stick_finger < 0 and _in_stick_zone(position):
-			_stick_finger = index
-			_stick_origin = position
-			_stick_point = position
-			state.move = Vector2.ZERO
+		if not _move_stick.is_held() and _in_stick_zone(position):
+			state.move = _move_stick.begin(index, position)
+			return true
+		if not _aim_stick.is_held() and _in_aim_zone(position):
+			state.aim = _aim_stick.begin(index, position, _aim_stick.is_on_ring(position))
 			return true
 		return false
 	if _finger_button.has(index):
 		_release_button(_finger_button[index])
 		_finger_button.erase(index)
 		return true
-	if index == _stick_finger:
-		_stick_finger = -1
-		_stick_origin = _default_stick_center(_screen_rect())
+	if index == _move_stick.finger:
+		_move_stick.end()
 		state.move = Vector2.ZERO
+		return true
+	if index == _aim_stick.finger:
+		_aim_stick.end()
+		state.aim = Vector2.ZERO
 		return true
 	return false
 
 
 ## A finger moved; true if the overlay used it.
 func handle_drag(index: int, position: Vector2) -> bool:
-	if index == _stick_finger:
-		var offset := position - _stick_origin
-		# The stick follows a thumb that leaves its ring (floating stick).
-		if offset.length() > STICK_RADIUS:
-			_stick_origin = position - offset.normalized() * STICK_RADIUS
-		_stick_point = position
-		state.move = stick_vector(position - _stick_origin)
+	# Both sticks follow a thumb that leaves their ring (floating sticks).
+	if index == _move_stick.finger:
+		state.move = _move_stick.drag(position)
+		return true
+	if index == _aim_stick.finger:
+		state.aim = _aim_stick.drag(position)
 		return true
 	return _finger_button.has(index)
 
 
-## Stick offset (viewport pixels) → movement of length 0..1 with dead zone.
+## Move stick offset (viewport pixels) → movement of length 0..1 with dead zone.
 static func stick_vector(offset: Vector2) -> Vector2:
-	var strength := clampf(offset.length() / STICK_RADIUS, 0.0, 1.0)
-	if strength < STICK_DEAD_ZONE:
-		return Vector2.ZERO
-	return offset.normalized() * remap(strength, STICK_DEAD_ZONE, 1.0, 0.0, 1.0)
+	return TouchStick.vector(offset, STICK_RADIUS, STICK_DEAD_ZONE)
+
+
+## Aim stick offset (viewport pixels) → aim of length 0..1 with its dead zone.
+static func aim_vector(offset: Vector2) -> Vector2:
+	return TouchStick.vector(offset, STICK_RADIUS, AIM_DEAD_ZONE)
 
 
 ## The button under position (slightly generous), or {}.
@@ -222,7 +234,21 @@ func button_at(position: Vector2) -> Dictionary:
 
 
 func is_stick_held() -> bool:
-	return _stick_finger >= 0
+	return _move_stick.is_held()
+
+
+func is_aim_held() -> bool:
+	return _aim_stick.is_held()
+
+
+## Resting centre of the aim stick (layout; tests, screenshots).
+func get_aim_rest() -> Vector2:
+	return _aim_stick.rest
+
+
+## Resting centre of the move stick (layout; tests, screenshots).
+func get_stick_rest() -> Vector2:
+	return _move_stick.rest
 
 
 func _press_button(button: Dictionary) -> void:
@@ -251,7 +277,8 @@ func _release_everything() -> void:
 	for index in _finger_button.keys():
 		_release_button(_finger_button[index])
 	_finger_button.clear()
-	_stick_finger = -1
+	_move_stick.end()
+	_aim_stick.end()
 	state.release_all()
 
 
@@ -260,9 +287,19 @@ func _in_stick_zone(position: Vector2) -> bool:
 	return position.x < rect.position.x + rect.size.x * STICK_ZONE_WIDTH and position.y > rect.position.y + TOP_BAR_HEIGHT
 
 
+func _in_aim_zone(position: Vector2) -> bool:
+	var rect := _screen_rect()
+	return position.x > rect.end.x - rect.size.x * AIM_ZONE_WIDTH and position.y > rect.position.y + TOP_BAR_HEIGHT
+
+
 func _default_stick_center(rect: Rect2) -> Vector2:
 	# Above the weapon panel of the HUD (bottom left).
 	return Vector2(rect.position.x + MARGIN + STICK_RADIUS + 90.0, rect.end.y - 240.0)
+
+
+func _default_aim_center(rect: Rect2) -> Vector2:
+	# Bottom right corner: free in touch mode (the HUD hides its keyboard hint line there).
+	return rect.end - Vector2(MARGIN + STICK_RADIUS + 50.0, MARGIN + STICK_RADIUS + 50.0)
 
 
 ## A modal is open (pause menu, shop, upgrade choice; in a group game too, where nothing pauses).
@@ -298,25 +335,24 @@ func _screen_rect() -> Rect2:
 # placeholder below. Missing state frames (pressed, disabled) tint the normal frame.
 
 func _draw_controls() -> void:
-	_draw_stick()
+	_draw_stick(_move_stick, TouchArt.texture(TouchArt.STICK_BASE), true)
+	_draw_stick(_aim_stick, TouchArt.aim_base(), false)
+	_draw_aim_icon()
 	for button in buttons:
 		_draw_button(button)
 
 
-func _draw_stick() -> void:
-	var held := _stick_finger >= 0
-	var base := TouchArt.texture(TouchArt.STICK_BASE)
+func _draw_stick(stick: TouchStick, base: Texture2D, with_arrows: bool) -> void:
+	var held := stick.is_held()
 	if base != null:
-		_draw_centered(base, _stick_origin, TouchArt.PIXEL)
+		_draw_centered(base, stick.origin, TouchArt.PIXEL)
 	else:
-		_view.draw_circle(_stick_origin, STICK_RADIUS, COLOR_FILL)
-		_view.draw_arc(_stick_origin, STICK_RADIUS, 0.0, TAU, 48, COLOR_STICK, 3.0, true)
-	var arrows := TouchArt.texture(TouchArt.STICK_ARROWS)
+		_view.draw_circle(stick.origin, STICK_RADIUS, COLOR_FILL)
+		_view.draw_arc(stick.origin, STICK_RADIUS, 0.0, TAU, 48, COLOR_STICK, 3.0, true)
+	var arrows := TouchArt.texture(TouchArt.STICK_ARROWS) if with_arrows else null
 	if arrows != null:
-		_draw_centered(arrows, _stick_origin, TouchArt.PIXEL)
-	var knob := _stick_origin
-	if held:
-		knob = _stick_origin + (_stick_point - _stick_origin).limit_length(STICK_RADIUS)
+		_draw_centered(arrows, stick.origin, TouchArt.PIXEL)
+	var knob := stick.knob()
 	var knob_texture := TouchArt.texture(TouchArt.STICK_KNOB + TouchArt.PRESSED) if held else null
 	var knob_tint := Color.WHITE
 	if knob_texture == null:
@@ -326,6 +362,17 @@ func _draw_stick() -> void:
 		_draw_centered(knob_texture, knob, TouchArt.PIXEL, knob_tint)
 	else:
 		_view.draw_circle(knob, KNOB_RADIUS, COLOR_RING if held else COLOR_STICK)
+
+
+## The aim stick attacks: its knob carries the icon of the active weapon (sword glyph as placeholder).
+func _draw_aim_icon() -> void:
+	var knob := _aim_stick.knob()
+	var icon := TouchArt.attack_icon(state.weapon_type)
+	if icon != null:
+		_draw_centered(icon, knob, TouchArt.ICON_PIXELS[TouchArt.Size.NORMAL])
+	else:
+		_ink = COLOR_GLYPH
+		_draw_glyph(Glyph.SWORD, knob, KNOB_RADIUS * 0.6)
 
 
 func _draw_button(button: Dictionary) -> void:
@@ -360,8 +407,6 @@ func _draw_button(button: Dictionary) -> void:
 
 
 func _icon_texture(button: Dictionary) -> Texture2D:
-	if button.icon == TouchArt.ICON_ATTACK:
-		return TouchArt.attack_icon(state.weapon_type)
 	return TouchArt.icon(button.icon)
 
 

@@ -1,18 +1,26 @@
 class_name TouchInput
 extends LocalKeyboardMouseInput
 ## The local player on a device with a touch screen (CP2): reads the on-screen controls of the
-## TouchOverlay (stick, buttons) while a finger is in use, otherwise keyboard and mouse exactly like
-## LocalKeyboardMouseInput. Aim has no mouse here: aim assist points at the nearest enemy in range,
-## otherwise along the stick, otherwise keeps the last direction.
+## TouchOverlay (two sticks, buttons) while a finger is in use, otherwise keyboard and mouse exactly
+## like LocalKeyboardMouseInput. Two-stick aim (Projektmitglied 16.10.2026): while the aim stick is
+## deflected the player looks that way and attacks on its own (every weapon; bow and staff shoot
+## that way); without it the player looks where it walks, otherwise keeps the last direction, and
+## does not attack. The special (left button) goes off in that same direction; while it is held the
+## aim stick does not attack, so the special is not blocked by a running swing.
 
-## Aim assist range in world pixels around the player (TESTWERT, CP0 question 5; touch only).
-const AIM_ASSIST_RADIUS := 200.0
-## Stick deflection below this does not turn the aim (thumb resting on the stick).
+## Move stick deflection below this does not turn the aim (thumb resting on the stick).
 const AIM_MOVE_THRESHOLD := 0.3
-const ENEMY_GROUP: StringName = &"enemies"
+## Aim stick deflection (after its dead zone, 0..1) from which the player attacks on its own
+## (TESTWERT); below it the stick only turns the aim, e.g. to line up the special.
+const AUTO_ATTACK_THRESHOLD := 0.25
+## A tap on the special stays requested this many physics frames (TESTWERT, 0.25 s at 60 fps), so a
+## quick tap during a running swing is not lost: the auto-attack pauses and the special follows.
+const SPECIAL_BUFFER_FRAMES := 15
 
 var state: TouchState
 var _last_aim := Vector2.RIGHT
+var _was_attacking := false
+var _special_buffer := 0
 
 
 ## Wraps the plain keyboard/mouse input of this machine into a TouchInput when a touch screen exists
@@ -36,17 +44,25 @@ func poll(body: Node2D) -> void:
 		read_button_state(body, state)
 	if not state.is_active():
 		aim_direction = Vector2.ZERO
+		_was_attacking = false
+		_special_buffer = 0
 		super.poll(body)
 		return
 	move = state.move.limit_length(1.0)
+	var aim_stick := state.aim.limit_length(1.0)
 	for action in ACTIONS:
 		var down := state.went_down(action)
 		_pressed[action] = down or state.is_held(action)
 		_just_pressed[action] = down
 	state.consume_presses()
+	_special_buffer = SPECIAL_BUFFER_FRAMES if _just_pressed[SPECIAL] else maxi(0, _special_buffer - 1)
+	_pressed[SPECIAL] = _pressed[SPECIAL] or _special_buffer > 0
+	var attacking := wants_auto_attack(aim_stick, _pressed[SPECIAL]) or _pressed[ATTACK]
+	_just_pressed[ATTACK] = _just_pressed[ATTACK] or (attacking and not _was_attacking)
+	_pressed[ATTACK] = attacking
+	_was_attacking = attacking
 	var origin := body.global_position if in_tree else Vector2.ZERO
-	var target := nearest_enemy_direction(body, origin, AIM_ASSIST_RADIUS) if in_tree else Vector2.ZERO
-	aim_direction = choose_aim(target, move, _last_aim)
+	aim_direction = choose_aim(aim_stick, move, _last_aim)
 	_last_aim = aim_direction
 	aim_point = origin + aim_direction * 64.0
 
@@ -77,45 +93,19 @@ static func _share(left: float, total: float) -> float:
 	return clampf(left / total, 0.0, 1.0) if total > 0.0 and left > 0.0 else 0.0
 
 
-## Aim of this frame: an assisted target first, then the stick, then the previous aim.
-static func choose_aim(target_direction: Vector2, stick: Vector2, last_aim: Vector2) -> Vector2:
-	if target_direction != Vector2.ZERO:
-		return target_direction.normalized()
-	if stick.length() >= AIM_MOVE_THRESHOLD:
-		return stick.normalized()
+## Aim of this frame: the aim stick first, then the move stick, then the previous aim.
+static func choose_aim(aim_stick: Vector2, move_stick: Vector2, last_aim: Vector2) -> Vector2:
+	if aim_stick != Vector2.ZERO:
+		return aim_stick.normalized()
+	if move_stick.length() >= AIM_MOVE_THRESHOLD:
+		return move_stick.normalized()
 	return last_aim if last_aim != Vector2.ZERO else Vector2.RIGHT
 
 
-## Index of the closest point within radius of origin, -1 if none.
-static func pick_nearest(origin: Vector2, points: Array[Vector2], radius: float) -> int:
-	var best := -1
-	var best_distance := radius * radius
-	for i in points.size():
-		var distance := origin.distance_squared_to(points[i])
-		if distance <= best_distance:
-			best_distance = distance
-			best = i
-	return best
-
-
-## Direction to the nearest living, visible enemy within radius; Vector2.ZERO if none.
-static func nearest_enemy_direction(body: Node2D, origin: Vector2, radius: float) -> Vector2:
-	var points: Array[Vector2] = []
-	for node in body.get_tree().get_nodes_in_group(ENEMY_GROUP):
-		if not is_instance_valid(node) or not node is Node2D:
-			continue
-		var enemy := node as Node2D
-		if not enemy.is_visible_in_tree():
-			continue
-		if enemy.has_method(&"is_dead") and enemy.call(&"is_dead"):
-			continue
-		if enemy.has_method(&"is_emerging") and enemy.call(&"is_emerging"):
-			continue
-		points.append(enemy.global_position)
-	var index := pick_nearest(origin, points, radius)
-	if index < 0 or points[index].is_equal_approx(origin):
-		return Vector2.ZERO
-	return (points[index] - origin).normalized()
+## The aim stick attacks on its own while it is deflected far enough, except while the special is
+## held (the special gets the next free moment instead of a new swing).
+static func wants_auto_attack(aim_stick: Vector2, special_held: bool) -> bool:
+	return not special_held and aim_stick.length() >= AUTO_ATTACK_THRESHOLD
 
 
 func _is_side_view(body: Node2D) -> bool:

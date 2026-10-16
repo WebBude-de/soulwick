@@ -1,6 +1,6 @@
 class_name TouchState
 extends RefCounted
-## What the on-screen touch controls of this device report (CP2): stick vector and held buttons.
+## What the on-screen touch controls of this device report (CP2): both stick vectors and held buttons.
 ## The TouchOverlay writes it from InputEventScreenTouch/Drag, the TouchInput of the local player
 ## reads it once per physics frame. One device has one touch screen, so there is one shared state
 ## (shared()); tests create their own.
@@ -18,6 +18,8 @@ var forced := false
 var touched := false
 ## Stick movement, length 0..1.
 var move := Vector2.ZERO
+## Aim stick (right), length 0..1 after its dead zone; Vector2.ZERO = not aiming.
+var aim := Vector2.ZERO
 ## Written by TouchInput for the overlay: the local player is in a side-view segment (jump button).
 var side_view := false
 ## Written by TouchInput: the local player can act (alive, not locked by a menu or an intro).
@@ -77,11 +79,12 @@ func consume_presses() -> void:
 	_went_down.clear()
 
 
-## Nothing held, stick centred (overlay hidden, fingers lost).
+## Nothing held, sticks centred (overlay hidden, fingers lost).
 func release_all() -> void:
 	_held.clear()
 	_went_down.clear()
 	move = Vector2.ZERO
+	aim = Vector2.ZERO
 
 
 ## Share of the cooldown of action that is left (0 = ready).

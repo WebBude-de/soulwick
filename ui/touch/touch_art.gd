@@ -6,7 +6,8 @@ extends RefCounted
 ## drawn at whole screen pixels per art pixel with nearest filtering.
 ##
 ## Names: button frames touch_btn_large / touch_btn / touch_btn_small (+ _pressed, _disabled),
-## stick touch_stick_base, touch_stick_knob (+ _pressed), touch_stick_arrows (optional),
+## stick touch_stick_base, touch_stick_knob (+ _pressed), touch_stick_arrows (optional), aim stick
+## touch_stick_aim_base (optional, else touch_stick_base; the knob is shared),
 ## cooldown touch_cooldown_8f (8 frames, frame 1 = just used, frame 8 = almost ready),
 ## icons icon_<id> (ids below), weapon icons icon_attack_<weapon> (sword, bow, staff, dagger,
 ## hammer) with the HUD item icons art/ui/icon_<weapon>.png and icon_attack as fallbacks.
@@ -30,6 +31,8 @@ const DISABLED := "_disabled"
 const STICK_BASE := "touch_stick_base"
 const STICK_KNOB := "touch_stick_knob"
 const STICK_ARROWS := "touch_stick_arrows"
+## Optional own base of the aim stick (right); without it the aim stick uses STICK_BASE.
+const STICK_AIM_BASE := "touch_stick_aim_base"
 const STICK_BASE_ART_SIZE := 60
 const STICK_KNOB_ART_SIZE := 24
 const COOLDOWN := "touch_cooldown_8f"
@@ -63,6 +66,12 @@ static var _cache: Dictionary[String, Texture2D] = {}
 ## art/ui/touch/<name>.png, or null while it does not exist.
 static func texture(art_name: String) -> Texture2D:
 	return _load(DIR + art_name + ".png")
+
+
+## Base of the aim stick: its own file if there is one, else the move stick's base; null = draw it.
+static func aim_base() -> Texture2D:
+	var own := texture(STICK_AIM_BASE)
+	return own if own != null else texture(STICK_BASE)
 
 
 ## Button frame of a size in a state ("", PRESSED, DISABLED); null = draw it.

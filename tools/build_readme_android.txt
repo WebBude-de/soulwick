@@ -2,7 +2,7 @@ Soulwick {version} ({env}) - Android-Testversion fuer Freunde / Android test bui
 ==========================================================================================
 
 INSTALLIEREN (Android 7 oder neuer, 64-Bit-Handy)
-  1. Die Datei Soulwick-{version}-{env}.apk aufs Handy holen (Messenger, Mail, Cloud, USB).
+  1. Die APK-Datei von Soulwick {version} (Soulwick-{version}-…apk) aufs Handy holen (Messenger, Mail, Cloud, USB).
   2. Antippen. Android fragt: "Installation aus unbekannten Quellen erlauben?"
      -> "Einstellungen" -> fuer die App, mit der du die Datei oeffnest (z. B. Dateien,
      Chrome, WhatsApp), "Dieser Quelle vertrauen" / "Aus dieser Quelle zulassen" einschalten.

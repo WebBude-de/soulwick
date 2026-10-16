@@ -79,7 +79,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 | Screenshots (Fenster) | `godot --path . -s tools/screenshots.gd -- <ordner>` |
 | Texte (fehlende Übersetzungen) | `python tools/i18n_check.py <ordner>` |
 | Nach neuen Dateien/Grafiken/Texten | `godot --headless --path . --import` |
-| Builds (Windows, Linux, macOS, Web) | `tools/export_build.sh development "" "windows linux macos web"`; Releases per Tag `v*` über GitHub Actions ([docs/RELEASE.md](docs/RELEASE.md)) |
+| Builds (Windows, Linux, macOS, Android) | `tools/export_build.sh development "" "windows linux macos"`; Releases per Tag `v*` über GitHub Actions ([docs/RELEASE.md](docs/RELEASE.md)); Browser-Version per `Dockerfile` auf Dokploy ([docs/WEB_BUILD.md](docs/WEB_BUILD.md)) |
 
 **Plattform** (im Root von `../soulwick-platform`, Bun 1.3, Node 24, Docker): `bun install`, `bun run services:up` (lokales Postgres), `bun run check` (Biome), `bun run typecheck`, `bun run test`, `bun run build`; lokal starten mit `bun dev`. Details in der dortigen README.
 

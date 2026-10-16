@@ -132,7 +132,7 @@ Hinterlegen: Base64 wie oben (`soulwick-release.p12` statt `debug.keystore`) als
 | --- | --- | --- |
 | Version = Tag | `tools/ci/release_meta.sh` | Abweichung, Tag ohne `v`, unbekannte Umgebung |
 | Alle Dateien laden | `validate_project.gd` | Lade-/Parse-Fehler |
-| Unit-Tests | GUT | rotem Test |
+| Unit-Tests | GUT (≈ 8 Minuten; Systemsprache Deutsch über `LANG=de_DE.UTF-8`, weil einige Tests die deutschen Texte der Sprache „auto“ erwarten) | rotem Test |
 | Downloads | SHA-512 aus den Godot-Releases | veränderter oder kaputter Download |
 | Boot-Check | `tools/ci/boot_check.sh` (Linux-ZIP) | Exit-Code ≠ 0, `SCRIPT ERROR`, `Parse Error`, `Failed to load` |
 | APK-Signatur | `apksigner verify` | ungültiger Signatur |
