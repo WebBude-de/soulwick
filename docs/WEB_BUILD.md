@@ -10,6 +10,10 @@
 | `development` | `dev` | `https://game-dev.playsoulwick.com` | `SOULWICK_ENV=development` (Standard) |
 | `production` | `production` | `https://game.playsoulwick.com` | `SOULWICK_ENV=production` |
 
+**Übergang (D-157):** Bis die Produktiv-Server laufen, hängt `game.playsoulwick.com` als **zweite Domain** an
+derselben development-App (Test-Server `api-dev`/`play-dev`), damit Desktop- und Browser-Spieler zusammen spielen.
+Dafür bei `soulwick-api` (development) `https://game.playsoulwick.com` zusätzlich in `CORS_ORIGINS` eintragen.
+
 ## 1. Was wo liegt
 
 | Datei | Zweck |

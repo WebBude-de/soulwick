@@ -44,6 +44,12 @@ Die Dateien liegen danach unter **Releases** im Repo (`https://github.com/WebBud
 
 ## 2. Eine Version veröffentlichen
 
+**Automatisch bei jedem Push auf `dev` (D-157):** Die Pipeline baut Windows, Linux, macOS und Android gegen die
+Test-Server und veröffentlicht sie als Vorabversion `v<version>-dev.<Lauf>` (z. B. `v0.9.1-dev.42`). Ohne
+Store-Uploads. Es bleiben die neuesten 5 Dev-Vorabversionen stehen (`DEV_RELEASES_KEPT`), ältere samt Tag werden
+gelöscht. Reine Doku- und Web-Änderungen (`docs/`, `*.md`, `deploy/`, `Dockerfile`) starten keinen Build. Ein
+neuer Push bricht einen noch laufenden Dev-Build ab.
+
 **Mit Tag (normaler Weg):**
 
 1. `application/config/version` in `project.godot` setzen (z. B. `0.9.1`), committen, per Pull Request nach `main` bringen.

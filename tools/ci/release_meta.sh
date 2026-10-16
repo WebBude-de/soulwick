@@ -4,6 +4,7 @@
 #
 # Input (environment):
 #   EVENT            push | workflow_dispatch
+#   REF_TYPE         tag | branch (github.ref_type); a branch push is a dev build (D-157)
 #   TAG              pushed tag (github.ref_name), e.g. v0.9.1 or v0.9.1-beta.1
 #   INPUT_ENV        workflow_dispatch: development | production
 #   INPUT_PRERELEASE workflow_dispatch: true | false
@@ -18,6 +19,8 @@
 #   - Tag with suffix (v0.9.1-beta.1): always development.
 #   - Manual run: environment and pre-release from the form; the tag is v<version> for a full
 #     release and v<version>-<dev|rc>.<run> for a pre-release (created by the release job).
+#   - Push to the dev branch: environment development, pre-release, tag v<version>-dev.<run>
+#     (created by the release job), like a manual development run (D-157).
 #   - Every development build is a pre-release: it talks to the test servers.
 #   - store_code: Android versionCode of the Google Play bundle and iOS build number. Every upload
 #     to a store needs a new, bigger number, also for test builds of one version:
@@ -40,7 +43,12 @@ version="$(sed -n 's/^config\/version="\([^"]*\)".*/\1/p' "$ROOT/project.godot" 
 echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "application/config/version '$version' is not of the form X.Y.Z."
 
 prerelease=false
-if [ "$EVENT" = "push" ]; then
+if [ "$EVENT" = "push" ] && [ "${REF_TYPE:-tag}" = "branch" ]; then
+	environment=development
+	prerelease=true
+	tag="v$version-dev.${RUN_NUMBER:-0}"
+	create_tag=true
+elif [ "$EVENT" = "push" ]; then
 	tag="${TAG:-}"
 	case "$tag" in v*) ;; *) fail "Release tags start with v (got '$tag')." ;; esac
 	tag_version="${tag#v}"

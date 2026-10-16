@@ -6,6 +6,9 @@
 #   git tag v0.9.1-beta.1 && git push origin ...     -> pre-release v0.9.1-beta.1 (test servers)
 #   Actions -> Release -> Run workflow               -> release with the chosen environment; the tag
 #                                                       (v<version> or v<version>-dev.<run>) is created
+#   git push origin dev                              -> pre-release v<version>-dev.<run> (test servers),
+#                                                       no store uploads; only the newest
+#                                                       DEV_RELEASES_KEPT dev pre-releases stay (D-157)
 #
 # The tag without "v" and suffix must equal application/config/version in project.godot.
 # Server environment of a tag without suffix: repository variable RELEASE_ENV, default development.
@@ -22,6 +25,16 @@ name: Release
 on:
   push:
     tags: ["v*"]
+    # Every push to dev publishes a test build (D-157). Path filters only apply to branch pushes:
+    # docs and the browser build (Dokploy) alone do not start a release.
+    branches: [dev]
+    paths-ignore:
+      - "docs/**"
+      - "**/*.md"
+      - "deploy/**"
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/ci.yml"
   workflow_dispatch:
     inputs:
       env:
@@ -43,13 +56,16 @@ permissions:
 
 concurrency:
   group: release-${{ github.ref }}
-  cancel-in-progress: false
+  # A newer push to dev replaces a dev build still running; tag and manual releases always finish.
+  cancel-in-progress: ${{ github.ref_type == 'branch' && github.event_name == 'push' }}
 
 env:
   # One template list for the Linux export jobs, so they share one cache entry.
   GODOT_TEMPLATES: windows_release_x86_64.exe linux_release.x86_64 macos.zip android_release.apk android_source.zip
   # NDK of the Godot 4.7.2 Android build template (android/build/config.gradle, ndkVersion).
   ANDROID_NDK_PACKAGE: ndk;29.0.14206865
+  # Dev pre-releases (push to dev) kept on GitHub; older ones and their tags are deleted.
+  DEV_RELEASES_KEPT: 5
 
 jobs:
   prepare:
@@ -76,6 +92,7 @@ jobs:
         id: meta
         env:
           EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
           TAG: ${{ github.ref_name }}
           INPUT_ENV: ${{ inputs.env }}
           INPUT_PRERELEASE: ${{ inputs.prerelease }}
@@ -86,6 +103,7 @@ jobs:
         id: flags
         env:
           EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
           INPUT_STORE_UPLOAD: ${{ inputs.store_upload }}
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
@@ -462,3 +480,14 @@ jobs:
           gh release create "$TAG" dist/* "${args[@]}"
           echo "### Release $TAG" >> "$GITHUB_STEP_SUMMARY"
           echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove old dev pre-releases
+        if: github.event_name == 'push' && github.ref_type == 'branch'
+        run: |
+          # Newest first; keeps DEV_RELEASES_KEPT builds of the dev branch (tags v*-dev.N).
+          gh release list --limit 100 --json tagName,createdAt --jq 'sort_by(.createdAt) | reverse | .[].tagName' \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+-dev\.[0-9]+$' \
+            | tail -n +"$((DEV_RELEASES_KEPT + 1))" \
+            | while read -r old; do
+              echo "Deleting $old"
+              gh release delete "$old" --yes --cleanup-tag
+            done

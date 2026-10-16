@@ -6,6 +6,7 @@
 #
 # Input (environment, from secrets and variables):
 #   EVENT, INPUT_STORE_UPLOAD       push | workflow_dispatch; form field "store_upload"
+#   REF_TYPE                        tag | branch; a push to dev never uploads to stores (D-157)
 #   ANDROID_KEYSTORE_BASE64         -> aab (Google Play bundle, signed with the upload key)
 #   PLAY_SERVICE_ACCOUNT_JSON       -> play_upload (internal test track)
 #   APPLE_TEAM_ID, IOS_DISTRIBUTION_CERT_BASE64, IOS_PROVISIONING_PROFILE_BASE64 -> ios_sign (.ipa)
@@ -22,6 +23,9 @@ flag() { if "$@"; then echo true; else echo false; fi; }
 
 store_upload=true
 if [ "${EVENT:-push}" = "workflow_dispatch" ] && [ "${INPUT_STORE_UPLOAD:-true}" != "true" ]; then
+	store_upload=false
+fi
+if [ "${EVENT:-push}" = "push" ] && [ "${REF_TYPE:-tag}" = "branch" ]; then
 	store_upload=false
 fi
 

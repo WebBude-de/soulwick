@@ -1178,6 +1178,16 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `.github/workflows/release.yml`, `ci.yml` (actionlint, shellcheck), `.github/actions/setup-godot`, `tools/ci/*`, `tools/steam/*`, `tools/export_build.sh`/`.ps1`, `docs/RELEASE.md`, `docs/STORES.md`, `.gitignore` (`/android/`). Ungetestet ohne Mac und echte Konten: Notarisierung, IPA/TestFlight, echte Uploads zu Play und Steam.
 - **Ersetzt:** keine.
 
+### D-157 – Jeder Push auf dev wird eine Testversion; Browser-Version auch auf game.playsoulwick.com
+
+- **Status:** VERBINDLICH (Projektmitglied 16.10.2026: „auf dem Dev-Branch die ganzen Releases automatisch über GitHub-Actions … game.playsoulwick.com die Browser-Version ausrollen, sodass ich am PC und mein Kollege auf der Web-Version zusammen spielen können“) · Umsetzung **VORGESCHLAGEN** (Claude)
+- **Beschluss:**
+  - `release.yml` läuft bei jedem Push auf `dev` (außer reine Doku-/Web-Änderungen) und veröffentlicht Windows, Linux, macOS und Android als Vorabversion `v<version>-dev.<Lauf>` gegen die Test-Server, ohne Store-Uploads. Die neuesten 5 Dev-Vorabversionen bleiben, ältere werden samt Tag gelöscht. Ein neuer Push bricht einen laufenden Dev-Build ab. Tags `v*` und der manuelle Start bleiben wie in D-148/D-156.
+  - Die Browser-Version läuft zusätzlich unter **`game.playsoulwick.com`** – vorerst derselbe development-Build wie `game-dev` (Test-Server `api-dev`/`play-dev`), damit Desktop- und Browser-Spieler gemeinsam spielen können. In Dokploy: zweite Domain an der App `soulwick-game`, `https://game.playsoulwick.com` in `CORS_ORIGINS` der API (development). Ein eigener production-Build (`SOULWICK_ENV=production`) ersetzt das erst, wenn die Produktiv-Server laufen.
+- **OFFEN:** Produktiv-Server und production-Build der Browser-Version (D-148, docs/LAUNCH.md).
+- **Folgen:** `.github/workflows/release.yml`, `tools/ci/release_meta.sh`, `tools/ci/store_flags.sh`, `docs/RELEASE.md`, `docs/WEB_BUILD.md`, `docs/LAUNCH.md`.
+- **Ergänzt:** D-148, D-156.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
