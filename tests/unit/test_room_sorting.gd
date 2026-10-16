@@ -72,6 +72,45 @@ func test_lips_collide_lower_and_hide_who_stands_behind() -> void:
 		assert_gt(sprite.position.y, drawn, "sorted below its top")
 
 
+## Bug report 16.10.2026 (slime grotto, "wrong texture"): a room is painted in its template's crypt
+## tileset when it enters the tree and gets its biome right after (RoomController._ready ->
+## use_tileset). The lip sprites and puddles must follow the new biome, not keep the crypt pictures.
+func test_lips_and_puddles_follow_the_biome_tileset() -> void:
+	# Without setup the room gets the biome of room 0 in its _ready, after the tiles painted in the
+	# template's crypt tileset.
+	var room := (load("res://dungeon/rooms/combat/lichtfeuer_halle_slime_grotto.tscn") as PackedScene).instantiate() as RoomController
+	add_child_autofree(room)
+	await get_tree().process_frame
+	var tiles := room.tiles
+	if not tiles.is_terrain_drawn():
+		pending("no terrain art")
+		return
+	_assert_biome_pictures(tiles)
+	tiles.use_tileset(load("res://dungeon/environment/slime_grotto_tileset.tres") as TileSet)
+	await get_tree().process_frame
+	assert_eq(WallAutotile.biome_of(tiles.tile_set), &"slime_grotto")
+	_assert_biome_pictures(tiles)
+
+
+## Every lip sprite shows the rock of the tiles' current tileset, every puddle its biome's water.
+func _assert_biome_pictures(tiles: RoomTiles) -> void:
+	var biome := WallAutotile.biome_of(tiles.tile_set)
+	var rock := (tiles.tile_set.get_source(RockTerrain.rock_source(RockTerrain.Look.CAVE)) as TileSetAtlasSource).texture
+	var node := tiles.get_lips()
+	assert_not_null(node)
+	if node == null:
+		return
+	assert_gt(node.get_child_count(), 5, "the room has lips")
+	for sprite: Sprite2D in node.get_children():
+		assert_eq(sprite.texture, rock, "%s: the rock of %s" % [sprite.name, biome])
+	for child in tiles.get_children(true):
+		if not String(child.name).begins_with(RoomTiles.PUDDLES_NAME) or child.is_queued_for_deletion():
+			continue
+		for puddle: AnimatedProp in child.get_children():
+			var tile := Vector2i((puddle.position / float(tiles.tile_set.tile_size.x)).round())
+			assert_eq(puddle.strip, WaterArt.small_puddle_strip(biome, absi(hash(tile))), "%s: water of %s" % [tile, biome])
+
+
 func test_graves_sort_at_the_stone_and_flat_sources_lie_low() -> void:
 	var grave := SpawnSource.create_floor(SpawnSourceRules.Kind.GRAVE, Vector2(100, 200))
 	add_child_autofree(grave)

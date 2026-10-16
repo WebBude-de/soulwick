@@ -298,6 +298,8 @@ var _zone_layer: TileMapLayer = null
 var _overlay_layer: TileMapLayer = null
 var _rock_layer: TileMapLayer = null
 var _puddles: Node2D = null
+## Tiles of the puddles last painted (use_tileset paints them again in the new biome's water).
+var _puddle_tiles: Array[Vector2i] = []
 var _lips: Node2D = null
 ## Floor cells whose rock south of it is no lip (door corridors and the cells around door tiles,
 ## abysses), built at each paint.
@@ -937,10 +939,15 @@ func use_tileset(new_tileset: TileSet) -> void:
 			(layer as TileMapLayer).tile_set = new_tileset
 	if had_terrain != terrain and is_inside_tree():
 		paint()
-	# The rock faces and the water take the biome's colours (a held paint draws them later).
+	# The rock faces, the water, the lips and the puddles take the biome's colours (a held paint
+	# draws them later). Lips and puddles are sprites holding the old biome's pictures: a room
+	# painted in the template's crypt tileset before its biome came kept crypt rock on its block
+	# tops (bug report 16.10.2026, slime grotto).
 	if is_inside_tree() and not _paint_held:
 		_paint_cliffs()
 		_paint_water()
+		_paint_lips()
+		_paint_puddles(_puddle_tiles.duplicate())
 
 
 func get_backdrop() -> TileMapLayer:
@@ -1464,6 +1471,7 @@ func _paint_puddles(puddles: Array[Vector2i]) -> void:
 	if _puddles != null:
 		_puddles.queue_free()
 		_puddles = null
+	_puddle_tiles = puddles.duplicate()
 	if puddles.is_empty() or Engine.is_editor_hint():
 		return
 	_puddles = Node2D.new()
