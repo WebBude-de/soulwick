@@ -4,8 +4,11 @@ extends RefCounted
 ## straight (its old steering). Only when tiles block the line (walls, pillars, inner walls, later
 ## abysses) it asks its NavigationAgent2D for a path over the navigation of the room tiles
 ## (navigation layer of the dungeon tilesets, tools/build_tilesets.gd) and walks the waypoints.
-## Obstacles outside the navigation (crates, doors, other bodies) stay with the old steering, unless
-## tiles block the line behind them (a torch stand in front of a wall: _is_navigation_obstacle).
+## Obstacles outside the navigation (doors, other bodies on navigable floor) stay with the old
+## steering, unless tiles block the line behind them (a torch stand in front of a wall:
+## _is_navigation_obstacle). Solid props on tiles without navigation (D-115) count as tiles.
+## Two floor tiles touching only at a corner are joined by the tile navigation through that point;
+## such paths are asked again around the corner (_close_corner_leaks).
 ## Tile navigation has no agent radius, so paths touch wall corners. The follower therefore moves
 ## every turning point away from its corner by the body radius and only skips to the next waypoint
 ## once the body (circle cast) can reach it without touching a wall.
@@ -37,10 +40,25 @@ const STUCK_DISTANCE := 6.0
 ## Bodies outside the navigation (props) the sight check looks past to find tiles behind them.
 ## TESTWERT
 const LOOK_PAST_BODIES := 2
+## A solid prop takes the navigation off its tiles (D-115): the sight check probes this far into a
+## body it touched; without navigation there, the body is a hole of the navigation like a wall
+## (px). TESTWERT
+const HOLE_PROBE_DEPTH := 3.0
+## Walk casts use the body radius minus this much: a cast ignores bodies its shape already overlaps
+## at the start, and a body pressed into a corner overlaps the walls there by a fraction of a pixel,
+## so a full-size cast walked "free" straight through them (px). TESTWERT
+const CAST_INSET := 1.0
+## Two floor tiles that touch only at a corner (a pillar and a blocked prop tile diagonally between
+## them) are connected by the tile navigation through that point, a passage no body fits through.
+## A path point this close to such a corner is a leak (px). TESTWERT
+const CORNER_LEAK_TOLERANCE := 2.0
+## At most this many leaks of one path are closed by asking again without one of the two tiles.
+const MAX_LEAK_REPAIRS := 3
 
 ## Statistics for tools and tests.
 var path_requests := 0
 var sight_checks := 0
+var leak_repairs := 0
 
 var _body: CharacterBody2D
 var _agent: NavigationAgent2D
@@ -186,6 +204,27 @@ func snap_to_navigation(point: Vector2) -> Vector2:
 	return NavigationServer2D.map_get_closest_point(_get_map(), point)
 
 
+## Would the body circle (centre body_centre) stand free of walls, pillars and props there?
+## (Teleport targets: a point snapped to the navigation edge can still overlap a pillar.)
+func fits_at(body_centre: Vector2) -> bool:
+	_cast_shape.radius = _radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = _cast_shape
+	query.transform = Transform2D(0.0, body_centre)
+	query.collision_mask = _walk_mask()
+	query.exclude = [_body.get_rid()]
+	return _body.get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
+
+
+## Would a projectile from from reach to without hitting a wall (same ray as Projectile)? Uncached,
+## for points the enemy does not stand on (teleport targets).
+func is_shot_free(from: Vector2, to: Vector2) -> bool:
+	var ray := PhysicsRayQueryParameters2D.create(from, to, PhysicsLayers.WORLD)
+	ray.collide_with_areas = false
+	ray.exclude = [_body.get_rid()]
+	return _body.get_world_2d().direct_space_state.intersect_ray(ray).is_empty()
+
+
 ## Hook for RoomController (integrator): gives a room's tile layer its own navigation map.
 ## Stacked rooms share one corridor tile, so in the shared world map their floor polygons overlap
 ## and Godot warns about edge errors on every map change. With one map per room the warning is
@@ -232,12 +271,92 @@ func _request_path(from: Vector2, goal: Vector2) -> void:
 	# Computes the path right away (the agent queries lazily).
 	_agent.get_next_path_position()
 	path_requests += 1
-	_waypoints = clear_corners(_agent.get_current_navigation_path(), _radius + CORNER_CLEARANCE)
+	var raw_path := _close_corner_leaks(map, _agent.get_current_navigation_path(), goal)
+	_waypoints = clear_corners(raw_path, _radius + CORNER_CLEARANCE)
 	for i in _waypoints.size():
 		_waypoints[i] = _push_out_of_walls(_waypoints[i])
 	_waypoint_index = 0
 	_skip_reachable_waypoints(from)
 	_lookahead_left = LOOKAHEAD_INTERVAL
+
+
+## The tile navigation has one region per tile and joins regions whose edges touch, even in a
+## single point: two floor tiles diagonal to each other between two closed tiles (saeulenkreis: a
+## pillar and the tile of a decoration group) form a passage of zero width. A path through such a
+## corner leads the body into the gap, where it hangs (the shadow lord behind the pillar). The path
+## is asked again without the region of one of the two tiles (never the one of start or goal), so it
+## goes around; without a better path the old one stays.
+func _close_corner_leaks(map: RID, path: PackedVector2Array, goal: Vector2) -> PackedVector2Array:
+	var tiles := _tiles if _tiles != null and is_instance_valid(_tiles) and _tiles.is_inside_tree() else null
+	if tiles == null or tiles.tile_set == null or path.size() < 3:
+		return path
+	var kept: Array[RID] = [
+		NavigationServer2D.map_get_closest_point_owner(map, path[0]),
+		NavigationServer2D.map_get_closest_point_owner(map, path[path.size() - 1]),
+	]
+	var excluded: Array[RID] = []
+	for _repair in MAX_LEAK_REPAIRS:
+		var leak := find_corner_leak(map, tiles, path)
+		if leak.is_empty():
+			return path
+		var region := RID()
+		for cell in leak:
+			var owner := NavigationServer2D.map_get_closest_point_owner(map, tiles.to_global(tiles.map_to_local(cell)))
+			if owner.is_valid() and not kept.has(owner) and not excluded.has(owner):
+				region = owner
+				break
+		if not region.is_valid():
+			return path
+		excluded.append(region)
+		var query := NavigationPathQueryParameters2D.new()
+		query.map = map
+		query.start_position = path[0]
+		query.target_position = goal
+		query.navigation_layers = _agent.navigation_layers
+		query.pathfinding_algorithm = _agent.pathfinding_algorithm
+		query.path_postprocessing = _agent.path_postprocessing
+		query.simplify_path = _agent.simplify_path
+		query.simplify_epsilon = _agent.simplify_epsilon
+		query.excluded_regions = excluded
+		var result := NavigationPathQueryResult2D.new()
+		NavigationServer2D.query_path(query, result)
+		if result.path.size() < 2:
+			return path
+		path = result.path
+		leak_repairs += 1
+	return path
+
+
+## The two floor cells of the first corner leak on path (see _close_corner_leaks), or an empty
+## array. A cell is floor when the navigation map covers its centre. Static for tests.
+static func find_corner_leak(map: RID, tiles: TileMapLayer, path: PackedVector2Array) -> Array[Vector2i]:
+	var none: Array[Vector2i] = []
+	if tiles == null or tiles.tile_set == null:
+		return none
+	var size := Vector2(tiles.tile_set.tile_size)
+	for i in range(1, path.size() - 1):
+		var local := tiles.to_local(path[i])
+		var corner := Vector2i((local / size).round())
+		if path[i].distance_to(tiles.to_global(Vector2(corner) * size)) > CORNER_LEAK_TOLERANCE:
+			continue
+		var north_west := corner + Vector2i(-1, -1)
+		var north_east := corner + Vector2i(0, -1)
+		var south_west := corner + Vector2i(-1, 0)
+		var south_east := corner
+		var nw := _is_floor_cell(map, tiles, north_west)
+		var ne := _is_floor_cell(map, tiles, north_east)
+		var sw := _is_floor_cell(map, tiles, south_west)
+		var se := _is_floor_cell(map, tiles, south_east)
+		if nw and se and not ne and not sw:
+			return [north_west, south_east] as Array[Vector2i]
+		if ne and sw and not nw and not se:
+			return [north_east, south_west] as Array[Vector2i]
+	return none
+
+
+static func _is_floor_cell(map: RID, tiles: TileMapLayer, cell: Vector2i) -> bool:
+	var centre := tiles.to_global(tiles.map_to_local(cell))
+	return NavigationServer2D.map_get_closest_point(map, centre).distance_to(centre) < 1.0
 
 
 ## Shortcut: while the body can walk straight to the waypoint after the current one, take it.
@@ -279,7 +398,7 @@ func _can_walk(from: Vector2, to: Vector2) -> bool:
 ## players and enemies (walls, props, later abysses: A4 adds the pit layer to the enemy mask).
 ## Returns the fraction where the body first touches something, or -1.0 when the way is free.
 func _walk_cast(from: Vector2, to: Vector2, exclude: Array[RID] = []) -> float:
-	_cast_shape.radius = _radius
+	_cast_shape.radius = maxf(1.0, _radius - CAST_INSET)
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _cast_shape
 	query.transform = Transform2D(0.0, from)
@@ -300,10 +419,12 @@ func _walk_mask() -> int:
 
 
 ## Does a part of the tile navigation (a TileMapLayer: walls, pillars, inner walls, abysses) block
-## the way from -> goal, first touched at fraction? Crates, doors, torch stands and other bodies are
-## not part of it; the old steering walks around those. But such a body may stand in front of a wall
-## or an abyss (a torch stand inside a wall cup, a crystal at a chasm): then the steering alone walks
-## into the tiles behind it, so the cast looks past up to LOOK_PAST_BODIES of them.
+## the way from -> goal, first touched at fraction? A body on tiles without navigation counts too:
+## solid props take the navigation off their tiles (D-115, a decoration group, a crate), so the path
+## knows the way around them. Doors, test walls and other bodies on navigable floor are not part of
+## it; the old steering walks around those. But such a body may stand in front of a wall or an abyss
+## (a torch stand inside a wall cup, a crystal at a chasm): then the steering alone walks into the
+## tiles behind it, so the cast looks past up to LOOK_PAST_BODIES of them.
 func _is_navigation_obstacle(from: Vector2, goal: Vector2, fraction: float) -> bool:
 	_cast_shape.radius = _radius
 	var query := PhysicsShapeQueryParameters2D.new()
@@ -319,13 +440,25 @@ func _is_navigation_obstacle(from: Vector2, goal: Vector2, fraction: float) -> b
 		var contact := space.get_rest_info(query)
 		if contact.is_empty():
 			return false
-		if instance_from_id(int(contact["collider_id"])) is TileMapLayer:
+		if instance_from_id(int(contact["collider_id"])) is TileMapLayer or _is_navigation_hole(contact):
 			return true
 		passed.append(contact["rid"])
 		fraction = _walk_cast(from, goal, passed)
 		if fraction < 0.0:
 			return false
 	return false
+
+
+## Is the body of a rest contact a hole in the navigation (a solid prop on blocked tiles)? Probes a
+## little inside it: the contact normal points out of the touched body.
+func _is_navigation_hole(contact: Dictionary) -> bool:
+	if not _has_navigation():
+		return false
+	var normal: Vector2 = contact["normal"]
+	if normal == Vector2.ZERO:
+		return false
+	var inside: Vector2 = contact["point"] - normal * HOLE_PROBE_DEPTH
+	return NavigationServer2D.map_get_closest_point(_get_map(), inside).distance_to(inside) > 1.0
 
 
 func _refresh_sight(from: Vector2, goal: Vector2) -> void:

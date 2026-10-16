@@ -73,6 +73,12 @@ const ELITE_NAMES := {Elite.SWIFT: "Flink", Elite.ARMORED: "Gepanzert", Elite.VO
 const LEAP_TIME := 0.5
 const TELEPORT_MIN_DISTANCE := 200.0
 const TELEPORT_MAX_DISTANCE := 330.0
+## Tries for a teleport target (_teleport_destination).
+const TELEPORT_ATTEMPTS := 12
+## A ranged teleporter (shadow lord) that chased this long without a free shot (behind pillars,
+## hanging at one) teleports right away instead of waiting for its turn in the pattern, which only
+## comes with attacks (s). TESTWERT
+const STUCK_TELEPORT_AFTER := 4.0
 const FUSE_BEEP_INTERVAL := 0.15
 const ERUPTION_RANGE := 420.0
 const ERUPTION_DELAY := 0.75
@@ -127,6 +133,8 @@ var extra_summon_data: EnemyData = null
 ## Nearest living player, or a decoy the enemy was sent after (soul flame, A7).
 var _target: Node2D = null
 var _attack_count := 0
+## Seconds chased without a free shot since the last attack started (STUCK_TELEPORT_AFTER).
+var _chase_without_shot := 0.0
 var _visual_scale := 1.0
 var _sprite_scale := 1.0
 var _shadow: DropShadow = null
@@ -635,6 +643,10 @@ func _process_chase() -> void:
 	if next == Action.SPECIAL and _special_in_range(distance):
 		_start_telegraph(direction, next)
 		return
+	if _is_stuck_without_shot():
+		# No free shot for a while (behind pillars): out of turn to a spot with a free shot.
+		_start_telegraph(direction, Action.SPECIAL)
+		return
 
 	match data.attack_kind:
 		EnemyData.AttackKind.MELEE:
@@ -658,6 +670,17 @@ func _process_chase() -> void:
 				velocity = _firing_position_direction(direction) * speed
 			else:
 				_start_telegraph(direction, Action.NORMAL)
+
+
+## Ranged teleporters count the time they chase without a free shot (STUCK_TELEPORT_AFTER).
+func _is_stuck_without_shot() -> bool:
+	if data.attack_kind != EnemyData.AttackKind.RANGED or data.special != EnemyData.Special.TELEPORT:
+		return false
+	if _navigation.has_free_shot(_body_shape.global_position, _target.global_position):
+		_chase_without_shot = 0.0
+		return false
+	_chase_without_shot += get_physics_process_delta_time()
+	return _chase_without_shot >= STUCK_TELEPORT_AFTER
 
 
 ## Walking direction towards the target: straight with the old steering while the way is free,
@@ -736,7 +759,9 @@ func _steer(direction: Vector2) -> Vector2:
 
 
 func _is_blocked(direction: Vector2) -> bool:
-	_steer_shape.radius = (_body_shape.shape as CircleShape2D).radius
+	# Slightly smaller than the body: the cast ignores what it already overlaps, and a body pressed
+	# against a wall overlaps it by a fraction of a pixel (EnemyNavigation.CAST_INSET).
+	_steer_shape.radius = maxf(1.0, (_body_shape.shape as CircleShape2D).radius - EnemyNavigation.CAST_INSET)
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _steer_shape
 	query.transform = Transform2D(0.0, _body_shape.global_position)
@@ -799,6 +824,7 @@ func _special_in_range(distance: float) -> bool:
 
 
 func _start_telegraph(direction: Vector2, action: Action) -> void:
+	_chase_without_shot = 0.0
 	_attack_direction = direction
 	_action = action
 	_enter_state(State.TELEGRAPH)
@@ -997,19 +1023,42 @@ func _land() -> void:
 func _teleport() -> void:
 	var destination := global_position
 	if _target != null:
-		for attempt in 12:
-			var candidate := _target.global_position + Vector2.from_angle(randf() * TAU) * randf_range(TELEPORT_MIN_DISTANCE, TELEPORT_MAX_DISTANCE)
-			if arena.size == Vector2.ZERO or arena.grow(-48.0).has_point(candidate):
-				destination = candidate
-				break
-		# Never into a pillar or an inner wall: nearest walkable point (unchanged without navigation).
-		destination = _navigation.snap_to_navigation(destination)
+		destination = _teleport_destination()
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
 	global_position = destination
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
 	Sfx.play_at(self, &"teleport", global_position)
 	create_tween().tween_property(_sprite, "modulate:a", 1.0, 0.25)
 	ability_used.emit(self, &"teleport")
+
+
+## Where a teleport lands: around the target inside the arena, on the nearest walkable point (never
+## in a pillar or an inner wall), where the whole body fits and, if one of the tries offers it, with
+## a free shot at the target. A point snapped to the navigation edge could still overlap a pillar,
+## and one behind a pillar left the shadow lord hanging there (saeulenkreis). Without a fitting try
+## the first snapped one (the old behaviour), without any try inside the arena the own place.
+func _teleport_destination() -> Vector2:
+	var body_offset := _body_shape.global_position - global_position
+	var first := Vector2.INF
+	var fitting := Vector2.INF
+	for attempt in TELEPORT_ATTEMPTS:
+		var candidate := _target.global_position + Vector2.from_angle(randf() * TAU) * randf_range(TELEPORT_MIN_DISTANCE, TELEPORT_MAX_DISTANCE)
+		if arena.size != Vector2.ZERO and not arena.grow(-48.0).has_point(candidate):
+			continue
+		candidate = _navigation.snap_to_navigation(candidate)
+		if first == Vector2.INF:
+			first = candidate
+		if not _navigation.fits_at(candidate + body_offset):
+			continue
+		if _navigation.is_shot_free(candidate, _target.global_position):
+			return candidate
+		if fitting == Vector2.INF:
+			fitting = candidate
+	if fitting != Vector2.INF:
+		return fitting
+	if first != Vector2.INF:
+		return first
+	return _navigation.snap_to_navigation(global_position)
 
 
 ## Delayed blasts with visible warning circles: the first exactly on center, the rest around it.

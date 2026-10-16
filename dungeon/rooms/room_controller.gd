@@ -705,15 +705,10 @@ func _markers_in(node_name: String) -> Array[Marker2D]:
 	return result
 
 
-## A prop that blocks walking: a body itself (crate, barrel, rubble) or one carried as a direct child
-## (light pedestal, A3).
+## A prop that blocks walking: a body itself (crate, barrel, rubble) or one carried below it (light
+## pedestal, A3; a plan crystal or torch stand: DecoProp -> LightIsland -> Blocker), PropBodies.
 static func is_solid_prop(prop: Node) -> bool:
-	if prop is StaticBody2D:
-		return true
-	for child in prop.get_children():
-		if child is StaticBody2D:
-			return true
-	return false
+	return PropBodies.is_solid(prop)
 
 
 func _on_prop_removed(blocked: Array[Vector2i]) -> void:

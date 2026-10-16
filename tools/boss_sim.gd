@@ -101,6 +101,7 @@ func _run() -> void:
 	await _check_slime_pack(room, player)
 	await _check_flanking(room, player)
 	await _check_spawn_sources(room, player)
+	await _check_pillar_circle(dungeon, room, player)
 
 	# Elites: every kind spawns, glows, shows its badge and the volatile one explodes on death.
 	for kind in [1, 2, 3]:
@@ -483,6 +484,74 @@ func _check_spawn_sources(room: Node, player: Node) -> void:
 	champion.health.take_damage(INF)
 	player.hurtbox.set_invulnerable(&"source_check", false)
 	await _frames(60)
+
+
+## The shadow lord's own room (saeulenkreis, 16.10.2026): with the player above, below or inside the
+## pocket between the east pillar and the decoration group, the boss hung at the pillar without a
+## shot (the tile navigation led through a corner gap, the group counted as no obstacle) and the
+## balance bot's fights ran into the time limit. Now it must keep attacking and never stand still.
+const PILLAR_ROOM := "res://dungeon/rooms/boss/saeulenkreis.tscn"
+const PILLAR_SPOTS: Array[Vector2i] = [Vector2i(18, 1), Vector2i(18, 8), Vector2i(19, 4)]
+const PILLAR_FRAMES := 60 * 15
+
+
+func _check_pillar_circle(dungeon: Node, room1: Node, player: Node) -> void:
+	var boss_type: int = load("res://dungeon/room_sequence.gd").RoomType.BOSS
+	var room: Node = load(PILLAR_ROOM).instantiate()
+	room.setup(45, boss_type, -1, false, room1.context)
+	room.position = Vector2(0, -30000)
+	dungeon.room_container.add_child(room)
+	var tiles: Node = room.get_node("Tiles")
+	await _navigation_synced(tiles, 0)
+	# The tile layer hands its cells to the navigation map a little after the first sync.
+	await _frames(30)
+	player.hurtbox.set_invulnerable(&"pillar_check", true)
+	for spot in PILLAR_SPOTS:
+		player.health.reset(99999.0)
+		player.global_position = room.to_global((Vector2(spot) + Vector2(0.5, 0.5)) * 64.0)
+		var boss := _spawn(load("res://enemies/data/boss_shadow_lord.tres"), room, player, 45)
+		boss.position = Vector2(672, 96)
+		boss.arena = room.get_arena()
+		room.enemy_container.add_child(boss)
+		var attacks := 0
+		var last_count := 0
+		var last_attack := 0.0
+		var gap := 0.0
+		var anchor: Vector2 = boss.global_position
+		var anchor_time := 0.0
+		var stand := 0.0
+		for i in PILLAR_FRAMES:
+			await physics_frame
+			if not is_instance_valid(boss) or boss.is_dead():
+				break
+			var time := i / 60.0
+			if boss._attack_count != last_count:
+				last_count = boss._attack_count
+				attacks += 1
+				gap = maxf(gap, time - last_attack)
+				last_attack = time
+			if boss._state != 1 or boss.global_position.distance_to(anchor) > 20.0:
+				anchor = boss.global_position
+				anchor_time = time
+			stand = maxf(stand, time - anchor_time)
+			# Only the boss: its shadows would block shots and stand in its way.
+			for child in room.enemy_container.get_children():
+				if child != boss and child.has_method("is_dead") and not child.is_dead():
+					child.health.take_damage(INF)
+			if player.health.get_health() < 1000.0:
+				player.health.reset(99999.0)
+		gap = maxf(gap, PILLAR_FRAMES / 60.0 - last_attack)
+		print("Saeulenkreis, player at %s: %d attacks, longest gap %.1f s, longest stand %.1f s" % [spot, attacks, gap, stand])
+		_check(attacks >= 5, "shadow lord keeps attacking in saeulenkreis (player at %s)" % spot)
+		_check(gap <= 6.0, "shadow lord never goes 6 s without an attack (player at %s)" % spot)
+		_check(stand <= 2.0, "shadow lord never hangs at a pillar for 2 s (player at %s)" % spot)
+		if is_instance_valid(boss) and not boss.is_dead():
+			boss.health.take_damage(INF)
+		await _frames(60)
+	player.hurtbox.set_invulnerable(&"pillar_check", false)
+	player.global_position = room1.to_global(room1.get_node("Tiles").get_floor_rect().get_center())
+	room.queue_free()
+	await _frames(10)
 
 
 func _spawn(data: Resource, room: Node, player: Node, room_index: int, champion := false) -> Node:
