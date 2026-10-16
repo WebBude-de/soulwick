@@ -16,7 +16,7 @@
 | `.dockerignore` | Schickt nur das Nötige in den Build (ohne `.git`, `.godot`, `builds`, `docs`, `tests`, `_inbox`, `art/web` …). |
 | `deploy/web/shell.html` | Eigene Startseite (Godot „Custom HTML Shell“): dunkel, Pixel-Logo, Ladebalken, „Klicken/Tippen zum Starten“ (der Klick erlaubt den Ton), Knopf **„Als App installieren“**, iOS-Hinweis, Fehlermeldung, Wechsel auf neue Versionen. Texte DE/EN nach Browsersprache. |
 | `deploy/web/offline.html` | Offline-Seite der installierten App (DE/EN). |
-| `deploy/web/icons/icon_144/180/512.png` | **Platzhalter**-App-Icons (aus `art/ui/logo_square.png`, ganzzahlig skaliert); neu erzeugen mit `python deploy/web/make_icons.py`. Echte Icons: §8. |
+| `deploy/web/icons/icon_144/180/512.png` | App-Icons, erzeugt aus `art/ui/logo_square.png` (Kerze und Kristall ohne Rahmen, gestuftes violettes Leuchten, ganzzahlig skaliert); neu erzeugen mit `python deploy/web/make_icons.py`. Gezeichnete Icons: §8. |
 | `deploy/web/nginx.conf` | Header, MIME, Kompression, Caching (§5). |
 | `deploy/web/web_preset.py` | Setzt die Web-Werte im Preset „Web“ (§3); idempotent. Das Dockerfile ruft es auf seiner **Kopie** auf. |
 | `deploy/web/fetch_template.py` | Holt aus dem offiziellen Vorlagen-Archiv (1,3 GB) per HTTP-Range nur `web_nothreads_release.zip` (10 MB) und prüft SHA-512. |
@@ -163,8 +163,8 @@ und den Ordner mit einem Server ausliefern, der `.wasm` als `application/wasm` s
 
 ## 8. Grafik-Briefing: App-Icons
 
-Platzhalter: `deploy/web/icons/icon_144.png`, `icon_180.png`, `icon_512.png` (Logo 64 px ×2 bzw. ×7 auf
-`#15131f`). Echte Icons mit **gleichem Namen** ablegen; das Preset bleibt gleich.
+Heute: `deploy/web/icons/icon_144.png`, `icon_180.png`, `icon_512.png`, erzeugt von `make_icons.py` aus
+`logo_square` (Motiv ×2 bzw. ×6 auf `#15131f`, ca. 70 % Höhe). Gezeichnete Icons optional mit **gleichem Namen** ablegen; das Preset bleibt gleich.
 
 | Datei | Größe | Wofür | Beschreibung |
 | --- | --- | --- | --- |

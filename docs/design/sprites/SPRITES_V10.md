@@ -256,7 +256,7 @@ Nach dem Ablegen: `godot --headless --path . --import`.
 
 ## 8. App-Icons der Browser-Version (`deploy/web/icons/`)
 
-Die Browser-Version (game-dev/game.playsoulwick.com) lässt sich als App installieren (PWA, D-148). Heute sind die Icons hochskalierte Platzhalter aus `art/ui/logo_square.png`. Echte Icons mit **genau diesen Namen** ablegen; Ausführlich in [WEB_BUILD.md §8](../../WEB_BUILD.md).
+Die Browser-Version (game-dev/game.playsoulwick.com) lässt sich als App installieren (PWA, D-148). **Optional:** Heute erzeugt `deploy/web/make_icons.py` brauchbare Icons aus `art/ui/logo_square.png`. Gezeichnete Icons mit **genau diesen Namen** ablegen; Ausführlich in [WEB_BUILD.md §8](../../WEB_BUILD.md).
 
 | Datei | Größe | Wofür | Beschreibung |
 | --- | --- | --- | --- |
