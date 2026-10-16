@@ -29,8 +29,8 @@ Bis eigene Tiles vorhanden sind, werden Biome durch **Einfärbung** des Krypta-T
 | Größe | Alt | Neu |
 | --- | --- | --- |
 | Gegner pro Kampfraum | 1–3, ab 25: 2–3 | R1–3: 1–2 · R4–14: 2–3 · R15–29: 2–4 · R30+: 3–5 |
-| Gegner-HP je 5er-Block | ×1,20 | ×1,18 (mehr Gegner gleichen aus) |
-| Gegner-Schaden je Block | ×1,10 | **×1,14** |
+| Gegner-HP je 5er-Block | ×1,20 | ×1,18 (mehr Gegner gleichen aus), seit D-154 ×1,16 |
+| Gegner-Schaden je Block | ×1,10 | **×1,14**, seit D-154 ×1,12 |
 | Angriffstempo je Block | – | Abklingzeit −3 % (min. 55 %), Telegraph −1,5 % (min. 70 %) |
 | Lauftempo je Block | – | +2 % (max. +40 %) |
 | Elite-Chance | 12 % + 1 %/Block | 12 % + **2 %**/Block, max. 50 % |
