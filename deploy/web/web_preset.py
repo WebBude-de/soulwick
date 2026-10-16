@@ -16,6 +16,8 @@ OPTIONS = {
     # Godot's default favicon is the engine logo: the page links the app icons itself.
     "html/export_icon": "false",
     "html/custom_html_shell": '"res://deploy/web/shell.html"',
+    # Phones: tapping a LineEdit (name, world, guild code) opens the on-screen keyboard.
+    "html/experimental_virtual_keyboard": "true",
     "progressive_web_app/enabled": "true",
     "progressive_web_app/ensure_cross_origin_isolation_headers": "true",
     "progressive_web_app/offline_page": '"res://deploy/web/offline.html"',
