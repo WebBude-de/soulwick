@@ -77,15 +77,23 @@ RUN --mount=type=cache,id=soulwick-godot-import,target=/project/.godot,sharing=l
 	test -s /out/index.html && test -s /out/index.pck && test -s /out/index.wasm
 
 # Font of the start page (SIL OFL, licence next to it); boot splash of the engine is not used.
-# Pre-compressed copies for nginx (brotli_static, gzip_static). robots.txt: development stays out
-# of search engines.
+# 404 page; service worker patched (offline start from "/", font and icons cached:
+# deploy/web/patch_service_worker.py). Pre-compressed copies for nginx (brotli_static,
+# gzip_static). robots.txt and X-Robots-Tag: only production may appear in search engines.
 RUN set -eu; \
 	cd /out; \
 	rm -f index.png; \
-	mkdir -p fonts; \
+	mkdir -p fonts /nginx; \
 	cp /project/art/fonts/PixelifySans-Variable.ttf /project/art/fonts/OFL-PixelifySans.txt fonts/; \
-	if [ "$SOULWICK_ENV" = production ]; then printf 'User-agent: *\nAllow: /\n' > robots.txt; \
-	else printf 'User-agent: *\nDisallow: /\n' > robots.txt; fi; \
+	cp /project/deploy/web/404.html 404.html; \
+	python3 /project/deploy/web/patch_service_worker.py /out; \
+	if [ "$SOULWICK_ENV" = production ]; then \
+		printf 'User-agent: *\nAllow: /\n' > robots.txt; \
+		printf '# production: no extra headers\n' > /nginx/soulwick-env.conf; \
+	else \
+		printf 'User-agent: *\nDisallow: /\n' > robots.txt; \
+		printf 'add_header X-Robots-Tag "noindex, nofollow" always;\n' > /nginx/soulwick-env.conf; \
+	fi; \
 	files="$(find . -type f \( -name '*.wasm' -o -name '*.pck' -o -name '*.js' -o -name '*.html' -o -name '*.json' -o -name '*.ttf' \))"; \
 	echo "$files" | xargs -P "$(nproc)" -n 1 gzip -9 -k -n; \
 	echo "$files" | xargs -P "$(nproc)" -n 1 brotli -q 9 -k; \
@@ -95,6 +103,7 @@ RUN set -eu; \
 FROM alpine:3.22 AS runtime
 RUN apk add --no-cache nginx nginx-mod-http-brotli
 COPY deploy/web/nginx.conf /etc/nginx/nginx.conf
+COPY --from=export /nginx/soulwick-env.conf /etc/nginx/soulwick-env.conf
 COPY --from=export /out /usr/share/nginx/html
 RUN nginx -t
 EXPOSE 80

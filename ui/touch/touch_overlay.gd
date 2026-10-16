@@ -311,7 +311,9 @@ static func _is_desktop_input(event: InputEvent) -> bool:
 	if event is InputEventKey:
 		# Phones send keys for system buttons (back); only a desktop keyboard switches back.
 		return event.pressed and not OS.has_feature("mobile")
-	if event is InputEventMouseButton or event is InputEventMouseMotion:
+	# Only mouse buttons: in the browser every finger drag also arrives as a mouse motion with
+	# device 32 instead of DEVICE_ID_EMULATION, which would hide the touch controls mid-move.
+	if event is InputEventMouseButton:
 		return event.device != InputEvent.DEVICE_ID_EMULATION
 	return false
 

@@ -314,7 +314,7 @@ static func engine_key_name(key: InputEventKey) -> String:
 	var code := key.keycode
 	if code == KEY_NONE and key.physical_keycode != KEY_NONE:
 		code = key.physical_keycode
-		if DisplayServer.get_name() != "headless":
+		if DisplayServer.get_name() not in ["headless", "Web"]:
 			var local := DisplayServer.keyboard_get_keycode_from_physical(key.physical_keycode)
 			if local != KEY_NONE:
 				code = local

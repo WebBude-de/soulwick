@@ -15,6 +15,7 @@
 | 6 | [DECISIONS.md](DECISIONS.md) | alle Produkt-Entscheidungen (D-Nummern), bei Widerspruch maßgeblich |
 
 Nachschlagen: [GLOSSAR.md](GLOSSAR.md) (Begriffe Deutsch ↔ Englisch), [HANDOUT.md](HANDOUT.md) (Palette, Maßstab, Namensregeln für Grafik und Code), [RELEASE.md](RELEASE.md) (Releases über GitHub Actions: Windows, Linux, macOS, Android; Secrets, development/production).
+Browser-Version: [WEB_BUILD.md](WEB_BUILD.md) (Docker-Image, App-Installation, Messwerte) und [LAUNCH.md](LAUNCH.md) (Launch-Checkliste für Produktion: Cloudflare, Dokploy, Rechtstexte, Smoke-Test).
 Stores und Signaturen: [STORES.md](STORES.md) (Google Play, App Store, Steam, Windows- und macOS-Signatur: Konten, Kosten, Secrets, Schritte bis zur Veröffentlichung, Store-Grafiken, Altersfreigabe, Datenschutz-Angaben).
 
 ## Roadmaps

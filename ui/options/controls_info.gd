@@ -116,8 +116,8 @@ static func event_text(event: InputEvent) -> String:
 	if code == KEY_NONE and key.physical_keycode != KEY_NONE:
 		code = key.physical_keycode
 		# Physical bindings: show the letter of the player's keyboard layout (QWERTZ, AZERTY …).
-		# The headless display server (tests, tools) has no keyboard layout.
-		if DisplayServer.get_name() != "headless":
+		# The headless display server (tests, tools) and the web one have no keyboard layout.
+		if DisplayServer.get_name() not in ["headless", "Web"]:
 			var local := DisplayServer.keyboard_get_keycode_from_physical(key.physical_keycode)
 			if local != KEY_NONE:
 				code = local

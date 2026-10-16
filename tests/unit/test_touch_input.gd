@@ -465,3 +465,17 @@ func test_player_reports_weapon_and_cooldowns_to_the_touch_state() -> void:
 	assert_true(player.try_dash(Vector2.RIGHT))
 	TouchInput.read_button_state(player, state)
 	assert_gt(state.cooldown_share(PlayerInput.DASH), 0.0, "cooling down after a dash")
+
+
+func test_a_browser_finger_drag_keeps_the_touch_controls() -> void:
+	# The web build reports finger drags as mouse motion with device 32, not DEVICE_ID_EMULATION.
+	var drag := InputEventMouseMotion.new()
+	drag.device = 32
+	assert_false(TouchOverlay._is_desktop_input(drag), "a finger drag is no desktop input")
+	var click := InputEventMouseButton.new()
+	click.device = 0
+	click.pressed = true
+	assert_true(TouchOverlay._is_desktop_input(click), "a real mouse click switches back")
+	var tap := InputEventMouseButton.new()
+	tap.device = InputEvent.DEVICE_ID_EMULATION
+	assert_false(TouchOverlay._is_desktop_input(tap), "an emulated tap does not")

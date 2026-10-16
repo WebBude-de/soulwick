@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#15131f">
+<meta name="robots" content="noindex">
+<title>Soulwick</title>
+<!-- Error page of nginx (deploy/web/nginx.conf, docs/WEB_BUILD.md): a path that does not exist.
+     Links absolute to "/", the page can be served under any path. Same look as offline.html. -->
+<style>
+@font-face {
+	font-family: "Pixelify Sans";
+	src: url("/fonts/PixelifySans-Variable.ttf") format("truetype");
+	font-weight: 400 700;
+	font-display: swap;
+}
+
+html, body {
+	margin: 0;
+	height: 100%;
+	background: radial-gradient(ellipse at 50% 45%, #15131f 0%, #0b0a11 78%);
+	color: #e9e4d2;
+	font-family: "Pixelify Sans", "Courier New", monospace;
+}
+
+main {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 24px 16px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+h1 {
+	margin: 0;
+	font-size: 26px;
+	color: #f2cf4a;
+	text-shadow: 3px 3px 0 #1c1a2b;
+}
+
+p {
+	margin: 0;
+	max-width: 420px;
+	font-size: 17px;
+	line-height: 1.45;
+	color: #b9b3c9;
+}
+
+a {
+	display: inline-block;
+	margin-top: 12px;
+	font-size: 17px;
+	padding: 9px 18px;
+	color: #15131f;
+	background: #f2cf4a;
+	text-decoration: none;
+	box-shadow: 0 6px 0 0 #1c1a2b;
+}
+
+a:hover,
+a:focus-visible {
+	background: #ffe27a;
+	outline: none;
+}
+</style>
+</head>
+<body>
+<main>
+	<h1 id="title">This path leads nowhere</h1>
+	<p id="text">The page you are looking for does not exist. The dungeon starts here:</p>
+	<a href="/" id="home">Play Soulwick</a>
+</main>
+<script>
+(function () {
+	'use strict';
+	const lang = String((navigator.languages && navigator.languages[0]) || navigator.language || 'en').toLowerCase();
+	if (lang.startsWith('de')) {
+		document.documentElement.lang = 'de';
+		document.getElementById('title').textContent = 'Dieser Gang führt ins Leere';
+		document.getElementById('text').textContent = 'Die Seite gibt es nicht. Der Dungeon beginnt hier:';
+		document.getElementById('home').textContent = 'Soulwick spielen';
+	}
+}());
+</script>
+</body>
+</html>
