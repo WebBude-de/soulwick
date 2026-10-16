@@ -253,3 +253,15 @@ Krone und Ping-Balken gibt es schon (`art/ui/icon_host.png`, `icon_ping_good.png
 | §7c Spiegel | `world/village/village_mirror.gd` | Datei da → Grafik, sonst gezeichneter Platzhalter. |
 
 Nach dem Ablegen: `godot --headless --path . --import`.
+
+## 8. App-Icons der Browser-Version (`deploy/web/icons/`)
+
+Die Browser-Version (game-dev/game.playsoulwick.com) lässt sich als App installieren (PWA, D-148). Heute sind die Icons hochskalierte Platzhalter aus `art/ui/logo_square.png`. Echte Icons mit **genau diesen Namen** ablegen; Ausführlich in [WEB_BUILD.md §8](../../WEB_BUILD.md).
+
+| Datei | Größe | Wofür | Beschreibung |
+| --- | --- | --- | --- |
+| `icon_512.png` | 512×512 | Android-Startbildschirm, Desktop-App | Kerze mit violettem Seelen-Kristall (wie `logo_square`) in Pixel-Art, auf 128×128 gezeichnet und ×4 skaliert (nearest neighbor). Motiv in der mittleren **80 %** (Android schneidet rund zu), Hintergrund vollflächig `#15131f` mit leichtem violettem Schein hinter der Flamme, **keine Transparenz**, kein Text. |
+| `icon_180.png` | 180×180 | iOS Home-Bildschirm | Gleiches Motiv, 60×60 Pixel-Art ×3; ohne eigene Ecken oder Rahmen (iOS rundet selbst), keine Transparenz. |
+| `icon_144.png` | 144×144 | Favicon, App-Liste | Gleiches Motiv, 48×48 Pixel-Art ×3; muss auch auf 32 px (Browser-Tab) erkennbar bleiben. |
+
+Nach dem Ablegen baut Dokploy die Browser-Version beim nächsten Push neu; kein Godot-Import nötig.

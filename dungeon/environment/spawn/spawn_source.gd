@@ -192,6 +192,12 @@ func play(start_delay: float, count: int) -> void:
 	_timeline.tween_callback(settle)
 
 
+## The tween of the current push (null before the first one). Tests and tools pause it and step it
+## by hand (Tween.custom_step), so the timeline does not depend on the frame times of the machine.
+func get_timeline() -> Tween:
+	return _timeline
+
+
 ## Puts enemy (already in the tree) into this source: hidden at the hold point for wait seconds,
 ## then it comes out (place: its turn at this source, queued enemies stand a little apart).
 ## room: the node the spot coordinates belong to (the SpawnSources node at the room origin).

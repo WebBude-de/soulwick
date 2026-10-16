@@ -5,8 +5,9 @@ extends RefCounted
 ## player's SpriteFrames and the character's clothing masks (CharacterData.tint_masks), once and only
 ## in memory, so the character colours keep working without touching art/ or characters/. Delivered
 ## strips are taken by name; missing ones fall back to frames that exist (placeholders). Hook for the
-## art round: put the same animations into art/characters/player/player_frames.tres and
-## characters/hero.tres, then ensure() finds them and does nothing.
+## art round: put the same animations into art/characters/player/player_frames.tres and the
+## characters (characters/wick.tres, ember.tres, moss.tres, frost.tres), then ensure() finds them
+## and does nothing.
 ## Squash, stretch and the salto turn of the double jump are not frames: SidePlayerFx scales and
 ## turns the sprite.
 

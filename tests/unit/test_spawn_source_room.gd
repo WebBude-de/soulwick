@@ -8,6 +8,8 @@ const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")
 const Kind := SpawnSourceRules.Kind
+## Fixed step for the hand-stepped push timeline (s): one frame at 60 fps.
+const TIMELINE_STEP := 1.0 / 60.0
 
 var _old_save_path: String
 
@@ -193,7 +195,6 @@ func test_a_wave_comes_out_of_several_sources_away_from_the_player() -> void:
 	var player := _player_at(room, Vector2(480, 288))
 	var sources := _sources(room)
 	watch_signals(sources)
-	var started := Time.get_ticks_usec()
 	var enemies := sources.spawn_wave(room.spawner, 4, room.enemy_container, room.context, room.get_arena())
 	assert_eq(enemies.size(), 4)
 	var used := sources.get_last_sources()
@@ -203,20 +204,55 @@ func test_a_wave_comes_out_of_several_sources_away_from_the_player() -> void:
 		assert_true(enemy.is_hidden_in_source(), "nobody stands there yet")
 		assert_true(enemy.is_in_intro())
 		assert_gte(enemy.global_position.distance_to(player.global_position), SpawnSourceRules.MIN_PLAYER_DISTANCE - SpawnSourceRules.QUEUE_SPREAD * 2.0)
-	# The source timelines are idle tweens: wait for process frames. Physics frames can come in a
-	# burst after the slow spawn frame, before any tween step ran (seen in the full run).
-	await wait_process_frames(2)
-	assert_eq(used[0].phase, SpawnSource.Phase.WARN, "the first source warns at once")
-	# The tweens run on the frame time: after a slow frame they may already be past the stagger.
-	if (Time.get_ticks_usec() - started) / 1000000.0 < SpawnSourceRules.SOURCE_STAGGER:
-		assert_eq(used[1].phase, SpawnSource.Phase.IDLE, "the next one a moment later")
-	await wait_seconds((used.size() - 1) * SpawnSourceRules.SOURCE_STAGGER + 0.05)
+	# The timelines (source pushes, enemy emerges) are tweens on the frame time: under load one slow
+	# frame jumped past the stagger or the whole warning and the test flickered. Paused and stepped
+	# by hand in fixed steps, the same push plays the same way on every machine.
+	var tweens: Array[Tween] = []
 	for source in used:
-		assert_eq(source.phase, SpawnSource.Phase.WARN, "every source warns before anyone comes out")
-	await wait_seconds(SpawnSourceRules.release_time(used.size(), 2))
+		assert_not_null(source.get_timeline(), "every used source plays a push")
+		tweens.append(source.get_timeline())
+	var out_at := {}
+	var clock := [0.0]
+	for enemy in enemies:
+		# Enemy.begin_emerge keeps its timeline here (no getter in the hotspot enemy_base.gd).
+		var emerge: Tween = enemy.get(&"_emerge_tween")
+		assert_not_null(emerge, "every enemy waits on its emerge timeline")
+		tweens.append(emerge)
+		enemy.intro_ended.connect(func(out: Enemy) -> void: out_at[out] = clock[0])
+	for tween in tweens:
+		tween.pause()
+	var warned_at := {}
+	var opened_at := {}
+	var per_source := ceili(float(enemies.size()) / float(used.size()))
+	var end_time := SpawnSourceRules.release_time(used.size(), per_source) + 0.5
+	while clock[0] < end_time:
+		clock[0] += TIMELINE_STEP
+		for tween in tweens:
+			if tween.is_valid():
+				tween.custom_step(TIMELINE_STEP)
+		for source in used:
+			if source.phase == SpawnSource.Phase.WARN and not warned_at.has(source):
+				warned_at[source] = clock[0]
+			elif source.phase == SpawnSource.Phase.OPEN and not opened_at.has(source):
+				opened_at[source] = clock[0]
+		if clock[0] <= TIMELINE_STEP:
+			assert_eq(used[0].phase, SpawnSource.Phase.WARN, "the first source warns at once")
+			assert_eq(used[1].phase, SpawnSource.Phase.IDLE, "the next one a moment later")
+	assert_eq(warned_at.size(), used.size(), "every source warned")
+	assert_eq(opened_at.size(), used.size(), "every source opened")
+	for i in range(1, used.size()):
+		assert_almost_eq(float(warned_at[used[i]]) - float(warned_at[used[i - 1]]), SpawnSourceRules.SOURCE_STAGGER, TIMELINE_STEP * 1.5, "the sources light up one after the other")
+	var last_warning: float = warned_at.values().max()
+	var first_opening: float = opened_at.values().min()
+	assert_lt(last_warning, first_opening, "every source warns before anyone comes out")
+	for source in used:
+		assert_almost_eq(float(opened_at[source]) - float(warned_at[source]), SpawnSourceRules.WARN_TIME, TIMELINE_STEP * 1.5, "the whole warning plays")
+	assert_eq(out_at.size(), enemies.size(), "everyone came out")
 	for enemy in enemies:
 		assert_true(enemy.visible)
 		assert_false(enemy.is_in_intro(), "fights once out")
+		assert_gte(float(out_at.get(enemy, 0.0)), SpawnSourceRules.WARN_TIME + SpawnSourceRules.EMERGE_TIME - TIMELINE_STEP, "nobody out before warning and rise")
+		assert_lte(float(out_at.get(enemy, INF)), SpawnSourceRules.release_time(used.size(), per_source) + TIMELINE_STEP * 1.5, "everyone out in time")
 	assert_signal_emit_count(sources, "enemy_emerged", 4)
 
 

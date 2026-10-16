@@ -4,7 +4,8 @@ extends RefCounted
 ## straight (its old steering). Only when tiles block the line (walls, pillars, inner walls, later
 ## abysses) it asks its NavigationAgent2D for a path over the navigation of the room tiles
 ## (navigation layer of the dungeon tilesets, tools/build_tilesets.gd) and walks the waypoints.
-## Obstacles outside the navigation (crates, doors, other bodies) stay with the old steering.
+## Obstacles outside the navigation (crates, doors, other bodies) stay with the old steering, unless
+## tiles block the line behind them (a torch stand in front of a wall: _is_navigation_obstacle).
 ## Tile navigation has no agent radius, so paths touch wall corners. The follower therefore moves
 ## every turning point away from its corner by the body radius and only skips to the next waypoint
 ## once the body (circle cast) can reach it without touching a wall.
@@ -33,6 +34,9 @@ const STRAIGHT_TOLERANCE := 12.0
 ## crate on the path): the enemy steps aside for a moment (Enemy._follow_path). TESTWERT
 const STUCK_TIME := 0.35
 const STUCK_DISTANCE := 6.0
+## Bodies outside the navigation (props) the sight check looks past to find tiles behind them.
+## TESTWERT
+const LOOK_PAST_BODIES := 2
 
 ## Statistics for tools and tests.
 var path_requests := 0
@@ -274,14 +278,16 @@ func _can_walk(from: Vector2, to: Vector2) -> bool:
 ## Circle cast of the body from from to to against everything the body collides with except
 ## players and enemies (walls, props, later abysses: A4 adds the pit layer to the enemy mask).
 ## Returns the fraction where the body first touches something, or -1.0 when the way is free.
-func _walk_cast(from: Vector2, to: Vector2) -> float:
+func _walk_cast(from: Vector2, to: Vector2, exclude: Array[RID] = []) -> float:
 	_cast_shape.radius = _radius
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _cast_shape
 	query.transform = Transform2D(0.0, from)
 	query.motion = to - from
 	query.collision_mask = _walk_mask()
-	query.exclude = [_body.get_rid()]
+	var excluded: Array[RID] = [_body.get_rid()]
+	excluded.append_array(exclude)
+	query.exclude = excluded
 	var result := _body.get_world_2d().direct_space_state.cast_motion(query)
 	if result.size() < 2 or result[0] >= 1.0:
 		return -1.0
@@ -293,20 +299,33 @@ func _walk_mask() -> int:
 	return mask if mask != 0 else PhysicsLayers.WORLD
 
 
-## Is the thing the body would touch at fraction of the way from -> goal part of the tile
-## navigation (a TileMapLayer: walls, pillars, inner walls, abysses)? Crates, doors and other bodies
-## are not; the old steering walks around those.
+## Does a part of the tile navigation (a TileMapLayer: walls, pillars, inner walls, abysses) block
+## the way from -> goal, first touched at fraction? Crates, doors, torch stands and other bodies are
+## not part of it; the old steering walks around those. But such a body may stand in front of a wall
+## or an abyss (a torch stand inside a wall cup, a crystal at a chasm): then the steering alone walks
+## into the tiles behind it, so the cast looks past up to LOOK_PAST_BODIES of them.
 func _is_navigation_obstacle(from: Vector2, goal: Vector2, fraction: float) -> bool:
 	_cast_shape.radius = _radius
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = _cast_shape
-	query.transform = Transform2D(0.0, from.lerp(goal, fraction))
 	query.collision_mask = _walk_mask()
-	query.exclude = [_body.get_rid()]
-	var contact := _body.get_world_2d().direct_space_state.get_rest_info(query)
-	if contact.is_empty():
-		return false
-	return instance_from_id(int(contact["collider_id"])) is TileMapLayer
+	var space := _body.get_world_2d().direct_space_state
+	var passed: Array[RID] = []
+	for _attempt in LOOK_PAST_BODIES + 1:
+		var excluded: Array[RID] = [_body.get_rid()]
+		excluded.append_array(passed)
+		query.exclude = excluded
+		query.transform = Transform2D(0.0, from.lerp(goal, fraction))
+		var contact := space.get_rest_info(query)
+		if contact.is_empty():
+			return false
+		if instance_from_id(int(contact["collider_id"])) is TileMapLayer:
+			return true
+		passed.append(contact["rid"])
+		fraction = _walk_cast(from, goal, passed)
+		if fraction < 0.0:
+			return false
+	return false
 
 
 func _refresh_sight(from: Vector2, goal: Vector2) -> void:

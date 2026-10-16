@@ -37,12 +37,37 @@ const CASES := [
 ]
 const CASE_FRAMES := 60 * 20
 const PHASE_TWO_AFTER := 90
+## Longest wait for the navigation map after a tile change (frames, see _navigation_synced).
+const NAVIGATION_WAIT_FRAMES := 180
 
 var _failures: Array[String] = []
+## Dungeon seed of this run: room 1 is a random template, so a failure is only reproducible with the
+## same seed (`-- seed=N`; 0 or missing = a random one, printed at the start).
+var _dungeon_seed := 0
+var _seed_pending := true
 
 
 func _init() -> void:
+	for arg in OS.get_cmdline_user_args():
+		if arg.begins_with("seed="):
+			_dungeon_seed = int(arg.substr(5))
+	if _dungeon_seed == 0:
+		randomize()
+		_dungeon_seed = 1 + randi() % 1000000
+	# The global RNG too (elite traits of champions): one seed repeats the whole run.
+	seed(_dungeon_seed)
+	print("Boss sim dungeon seed %d (repeat with -- seed=%d)" % [_dungeon_seed, _dungeon_seed])
+	node_added.connect(_on_node_added)
 	process_frame.connect(_run, CONNECT_ONE_SHOT)
+
+
+## Sets the seed on the DungeonManager before its _ready builds the dungeon (like balance_sim).
+func _on_node_added(node: Node) -> void:
+	if not _seed_pending or node.get_script() == null:
+		return
+	if node.get_script().get_global_name() == &"DungeonManager":
+		node.seed_value = _dungeon_seed
+		_seed_pending = false
 
 
 func _run() -> void:
@@ -58,6 +83,7 @@ func _run() -> void:
 	var dungeon: Node = controller.get_world()
 	var player: Node = controller.get_player()
 	var room: Node = dungeon.get_room(1)
+	print("Room 1: %s" % room.scene_file_path)
 	# Clear the regular encounter first.
 	for enemy in room.enemy_container.get_children():
 		if enemy.has_method("is_dead"):
@@ -163,22 +189,62 @@ func _run_case(case: Dictionary, room: Node, player: Node) -> void:
 	await _frames(120)
 
 
-## A wall between enemy and player: the enemy must walk around it (steering).
+## Bare floor for the checks: no inner walls, pillars, abysses or bridges, no solid props. Left-over
+## abysses turned the wall check into another test (brueckenkreuz: the test wall, a body outside the
+## navigation, stands on the bridge the path leads over), and torch stands and crystals hide their
+## blocker one level deeper (DecoProp -> LightIsland -> Blocker), where RoomController.is_solid_prop
+## does not look (wachposten: a torch stand inside the U-wall).
 func _clear_floor(room: Node) -> void:
 	var tiles: Node = room.get_node("Tiles")
 	tiles.wall_rects.clear()
 	tiles.pillar_tiles.clear()
+	var no_rects: Array[Rect2i] = []
+	tiles.pit_rects = no_rects
+	tiles.bridge_rects = no_rects.duplicate()
+	var runtime_pits: Array[Vector2i] = tiles.get_runtime_pit_tiles()
+	if not runtime_pits.is_empty():
+		tiles.remove_pit_tiles(runtime_pits)
+	var iteration := _navigation_iteration(tiles)
 	tiles.paint()
 	var props: Array[Node] = room.get_node("Props").get_children()
 	for child in room.get_children():
 		if child.has_method(&"get_built_nodes"):
 			props.append_array(child.call(&"get_built_nodes"))
 	for prop in props:
-		if is_instance_valid(prop) and room.is_solid_prop(prop):
+		if is_instance_valid(prop) and (room.is_solid_prop(prop) or _has_solid_body(prop)):
 			prop.queue_free()
 	await _frames(5)
+	# The room's own navigation map follows the repaint only after its next sync.
+	await _navigation_synced(tiles, iteration)
 
 
+func _has_solid_body(node: Node) -> bool:
+	for child in node.get_children():
+		if child is StaticBody2D or _has_solid_body(child):
+			return true
+	return false
+
+
+## Iteration id of the navigation map of the tiles (grows with every sync that changed the map).
+func _navigation_iteration(tiles: Node) -> int:
+	var map: RID = tiles.get_navigation_map()
+	return NavigationServer2D.map_get_iteration_id(map) if map.is_valid() else 0
+
+
+## Waits until the navigation map of the tiles was rebuilt after a tile change made at iteration
+## before, at most NAVIGATION_WAIT_FRAMES: changed tiles reach the map only on a later sync of the
+## NavigationServer, which runs asynchronously and can take longer than a fixed few frames under
+## load. Then a few frames more, so path queries see the new map.
+func _navigation_synced(tiles: Node, before: int) -> void:
+	var map: RID = tiles.get_navigation_map()
+	for i in NAVIGATION_WAIT_FRAMES:
+		if not map.is_valid() or NavigationServer2D.map_get_iteration_id(map) > before:
+			break
+		await physics_frame
+	await _frames(3)
+
+
+## A wall between enemy and player: the enemy must walk around it (steering).
 func _check_obstacle_avoidance(room: Node, player: Node) -> void:
 	player.health.reset(99999.0)
 	var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
@@ -223,12 +289,15 @@ func _check_u_wall(room: Node, player: Node) -> void:
 	for y in range(bar - depth, bar):
 		cup.append(Vector2i(center - 3, y))
 		cup.append(Vector2i(center + 3, y))
+	var iteration := _navigation_iteration(tiles)
 	for y in size.y:
 		for x in size.x:
 			var cell := Vector2i(x, y)
-			saved[cell] = tiles.get_cell_atlas_coords(cell)
+			# Whole cell: cave rooms paint their floor from another source (RockTerrain).
+			saved[cell] = [tiles.get_cell_source_id(cell), tiles.get_cell_atlas_coords(cell), tiles.get_cell_alternative_tile(cell)]
 			tiles.set_cell(cell, 0, Vector2i(6, 2) if cup.has(cell) else Vector2i(0, 0))
-	await _frames(3)
+	# The enemies path over the navigation of the cup, not over the old floor.
+	await _navigation_synced(tiles, iteration)
 	# Invulnerable instead of refilled: no hit stops while the enemies find their way.
 	player.hurtbox.set_invulnerable(&"u_wall", true)
 	player.global_position = room.to_global((Vector2(center, size.y - 1) + Vector2(0.5, 0.5)) * 64.0)
@@ -261,9 +330,10 @@ func _check_u_wall(room: Node, player: Node) -> void:
 		enemy.health.take_damage(INF)
 		await _frames(60)
 	player.hurtbox.set_invulnerable(&"u_wall", false)
+	iteration = _navigation_iteration(tiles)
 	for cell in saved:
-		tiles.set_cell(cell, 0, saved[cell])
-	await _frames(3)
+		tiles.set_cell(cell, saved[cell][0], saved[cell][1], saved[cell][2])
+	await _navigation_synced(tiles, iteration)
 
 
 ## Slime pack (KONZEPT_RAEUME_V2 §6): four slimes in room 10 form one pack, hop one after another
