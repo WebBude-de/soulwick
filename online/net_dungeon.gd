@@ -11,7 +11,9 @@ extends Node
 ## and builds both ways of a branch room once both states arrived (R5: up to four live rooms, the
 ## ways dark behind their doors, never started on a client). The host's group chooses the way
 ## (branch_chosen_net); room_signature checks every slot, every way and the chosen way. The host decides when a room starts
-## (exit rule: all living players inside, or 10 s after the first one, stragglers are teleported),
+## (exit rule since the online test of 15.10.2026: only once every living player stands in it - no
+## countdown, nobody is teleported; meanwhile room_wait tells every machine who is in and who is
+## missing: "Warte auf <Name> ..." inside, "<Name> wartet im naechsten Raum" with an arrow outside),
 ## when it is cleared and when the exit opens; clients follow (activate_slot, room_completed_net,
 ## exit_opened). Enemies, enemy projectiles, pickups and crates: NetEnemies (online/net_enemies.gd).
 ## Rooms from plans (R1-R3, D-131-D-133): a client's room never spawns (RoomController.remote_encounter,
@@ -21,8 +23,8 @@ extends Node
 ## into a RoomObjective). Room intros play on every machine, but each one locks only its own player.
 ## Room modes (minigames R4, D-135..D-137): NetModes (online/net_modes.gd).
 ## Makeover (M2, M4, M5; D-140, D-143, D-144): the gate behind a started room shuts only at the host,
-## once every living player is inside, and the clients follow (gate_closed); stragglers the exit rule
-## brings in land past the gate; a player who gets up behind a shut gate joins the team. The camera of
+## once every living player is inside, and the clients follow (gate_closed); downed players the room
+## start brings in land past the gate; a player who gets up behind a shut gate joins the team. The camera of
 ## the local player follows the group (CoopRules.camera_group). Side-view segments: NetSide.
 ##
 ## Players: HP, shield, weapons, upgrades and dash are per player and live at the host's copy of
@@ -42,10 +44,21 @@ const REMOTE_MENU := &"menu_remote"
 const CLIENT_INVULNERABLE := &"net_client"
 const STATE_FIELDS := 5
 const COUNTDOWN_COLOR := Color(1.0, 0.85, 0.4)
+## Translation keys of the room-change hints (localization/translations.csv, "%s" = the names).
+const WAIT_TEXT_KEYS: Array[StringName] = [&"NET_WAIT_FOR_MATES", &"NET_MATES_WAIT_FOR_YOU", &"NET_MATES_WAIT_FOR_YOU_MANY"]
+## TESTWERTE: the arrow to the next room sits this far (UI px) from the local player and hides
+## within this distance (world px) of the room's entrance.
+const WAIT_ARROW_DISTANCE := 46.0
+const WAIT_ARROW_HIDE_DISTANCE := 40.0
 const DOWNED_COLOR := Color(1.0, 0.45, 0.4)
 const SHOP_SCRIPT_SUFFIX := "shop_content.gd"
 ## Slots the DungeonManager prepares in its _ready (from the seed alone, before any message).
 const INITIAL_SLOTS := 2
+## Upgrade round (host): extra seconds for a client's pick to arrive after its time limit, and the
+## longest the host waits for all picks after its own (a client's choice may first wait in its
+## dialog queue; D-126 TESTWERTE).
+const PICK_GRACE := 3.0
+const PICK_WAIT_MAX := 2.0 * CoopRules.UPGRADE_TIMEOUT + PICK_GRACE
 
 var run: NetRun = null
 var dm: DungeonManager = null
@@ -73,6 +86,15 @@ var side: NetSide = null
 ## shut gate, most targets the local group camera had at once.
 var gates_closed := 0
 var gates_closed_early := 0
+## Room change (host): living players outside a starting room (must stay 0: the room waits for them,
+## nobody is teleported), downed ones brought in, the longest wait for the last player (s). Every
+## machine: wait hints shown (a player waits for others or others wait for him), frames the arrow to
+## the next room was shown.
+var living_teleports := 0
+var downed_gathered := 0
+var max_room_wait := 0.0
+var wait_hints := 0
+var wait_arrow_frames := 0
 var rejoins := 0
 var max_camera_targets := 0
 
@@ -86,12 +108,22 @@ var _ready_peers: Dictionary[int, bool] = {}
 var _start_msec := 0
 var _waiting_room: RoomController = null
 var _wait_time := 0.0
-var _countdown_shown := -1
+## Host: the last wait state sent (room_wait).
+var _wait_sent := ""
+## Every machine: the wait for the next room as the host decided it (slot -1 = none), its hint.
+var _wait_slot := -1
+var _wait_hint := CoopRules.WaitHint.NONE
+var _wait_arrow: Polygon2D = null
 ## Host: signature of every prepared slot and branch way (Vector2i(slot, way), way -1 = the slot's
 ## room; catch-up for late clients).
 var _signatures: Dictionary[Vector2i, String] = {}
 ## Host: upgrade picks per slot {slot: {peer: true}}.
 var _picks: Dictionary[int, Dictionary] = {}
+## Host: when a client's timed upgrade choice appeared, per slot {slot: {peer: ticks msec}} (it may
+## wait in the client's dialog queue first, and its clock only starts then), and the slots whose
+## round is over (a late pick_done or pick_started for them is ignored).
+var _pick_starts: Dictionary[int, Dictionary] = {}
+var _picks_closed: Dictionary[int, bool] = {}
 ## Revive progress per peer (host computes, clients show).
 var _revive: Dictionary[int, float] = {}
 var _state_left := 0.0
@@ -120,6 +152,10 @@ var _countdown_layer: CanvasLayer = null
 var _countdown_label: Label = null
 ## Host: last wave state sent per slot (wave, total, alive, alive in the wave).
 var _progress_sent: Dictionary[int, Vector4i] = {}
+## Client: loadouts of players this machine has not spawned yet (peer -> loadout arguments).
+var _pending_loadouts: Dictionary[int, Array] = {}
+## Test and tool counters: loadouts applied to a player's copy (client).
+var loadouts_applied := 0
 
 
 static func create(owner_run: NetRun, dungeon: DungeonManager) -> NetDungeon:
@@ -213,8 +249,10 @@ func detach() -> void:
 		modes.detach()
 	if side != null:
 		side.detach()
-	_show_countdown_text("")
+	_apply_wait(-1, [], [])
 	set_physics_process(false)
+	if _wait_arrow != null:
+		_wait_arrow.visible = false
 
 
 func is_detached() -> bool:
@@ -313,7 +351,6 @@ func allow_room_entry(room: RoomController) -> bool:
 	if _waiting_room != room:
 		_waiting_room = room
 		_wait_time = 0.0
-		_countdown_shown = -1
 	return false
 
 
@@ -406,10 +443,17 @@ func on_player_spawned(player: Player) -> void:
 			player.health.health_changed.connect(_on_local_health_changed)
 			player.weapon_controller.weapon_changed.connect(_on_local_weapon_changed)
 			player.died.connect(_on_local_downed)
+		var peer := peer_of(player)
+		if _pending_loadouts.has(peer):
+			var args: Array = _pending_loadouts[peer]
+			_pending_loadouts.erase(peer)
+			_apply_loadout_deferred.call_deferred(peer, args)
 	_assign_managers.call_deferred()
 
 
 ## Every player picks their own upgrade (D-126): the local one here; the host waits for everybody.
+## The choice goes through DungeonUI's dialog queue: it may wait behind another dialog (chest, pause
+## menu), and its clock (CoopRules.UPGRADE_TIMEOUT, then the first card) only starts once it is shown.
 func offer_upgrade(title: String) -> void:
 	upgrade_rounds += 1
 	var slot := dm.get_active_slot()
@@ -418,9 +462,12 @@ func offer_upgrade(title: String) -> void:
 	if player != null and is_instance_valid(player) and player.is_alive():
 		var offer := dm.upgrade_manager.roll_offer(dm.context.get_owned_weapons(), dm.context.rng)
 		if not offer.is_empty():
-			var timer := get_tree().create_timer(CoopRules.UPGRADE_TIMEOUT, false)
-			timer.timeout.connect(_auto_pick.bind(offer[0]))
-			choice = await dm.ui.choose_upgrade(offer, title)
+			var on_shown := _on_upgrade_dialog_shown.bind(slot, offer)
+			if not is_host:
+				dm.ui.dialog_shown.connect(on_shown)
+			choice = await dm.ui.choose_upgrade(offer, title, 1, CoopRules.UPGRADE_TIMEOUT)
+			if is_instance_valid(dm) and dm.ui != null and dm.ui.dialog_shown.is_connected(on_shown):
+				dm.ui.dialog_shown.disconnect(on_shown)
 	if _detached or not is_instance_valid(dm):
 		return
 	if choice != null:
@@ -430,10 +477,33 @@ func offer_upgrade(title: String) -> void:
 		_send_host(&"pick_done", [slot])
 		return
 	_mark_pick(slot, multiplayer.get_unique_id())
-	var deadline := Time.get_ticks_msec() + int((CoopRules.UPGRADE_TIMEOUT + 3.0) * 1000.0)
-	while not _detached and Time.get_ticks_msec() < deadline and not _all_picked(slot):
+	var wait_start := Time.get_ticks_msec()
+	while not _detached and Time.get_ticks_msec() < _pick_deadline(slot, wait_start) and not _all_picked(slot):
 		await get_tree().physics_frame
+	_picks_closed[slot] = true
+	_picks.erase(slot)
+	_pick_starts.erase(slot)
 	_show_countdown_text("")
+
+
+## Host: how long to wait for the clients' picks of slot (ticks msec). Normally the client's own time
+## limit plus PICK_GRACE after the host has picked; a client whose choice appeared later (it waited in
+## its dialog queue) gets its full time from then on, but the host never waits longer than
+## PICK_WAIT_MAX in all.
+func _pick_deadline(slot: int, wait_start: int) -> int:
+	var per_choice := int((CoopRules.UPGRADE_TIMEOUT + PICK_GRACE) * 1000.0)
+	var deadline := wait_start + per_choice
+	var starts: Dictionary = _pick_starts.get(slot, {})
+	for peer: int in starts:
+		deadline = maxi(deadline, int(starts[peer]) + per_choice)
+	return mini(deadline, wait_start + int(PICK_WAIT_MAX * 1000.0))
+
+
+## Client: its timed upgrade choice of slot is on screen now: the host counts its time from here.
+func _on_upgrade_dialog_shown(modal: Modal, slot: int, offer: Array[UpgradeData]) -> void:
+	if modal == null or modal.auto_finish_after <= 0.0 or not offer.has(modal.auto_finish_result):
+		return
+	_send_host(&"pick_started", [slot])
 
 
 # --- Host: rooms ---
@@ -451,6 +521,7 @@ func _physics_process(delta: float) -> void:
 			_send_states()
 	_update_revive_labels()
 	_update_tunnel_tags()
+	_update_wait_arrow()
 
 
 func _tick_gate(delta: float) -> void:
@@ -459,26 +530,39 @@ func _tick_gate(delta: float) -> void:
 		return
 	if not is_instance_valid(room) or room.state != RoomController.State.PREPARED:
 		_waiting_room = null
-		_show_countdown(0, 0)
+		_send_wait(-1, [], [])
 		return
 	if not _clients_ready():
 		_show_countdown_text(Loc.t(&"NET_WAITING_PLAYERS"))
 		return
-	var living := dm.get_living_players()
+	# Only living players count: downed ones are brought in at the start, a player who left is gone.
+	# No countdown and no teleport: the room waits for the last one (online test 15.10.2026).
 	var rect := room.get_arena()
-	var present := 0
-	for player in living:
-		if player.is_protected() or rect.has_point(player.global_position):
-			present += 1
+	var inside: Array[int] = []
+	var missing: Array[int] = []
+	for player in dm.get_living_players():
+		if rect.has_point(player.global_position):
+			inside.append(peer_of(player))
+		else:
+			missing.append(peer_of(player))
 	_wait_time += delta
-	if CoopRules.should_start_room(living.size(), present, _wait_time):
+	max_room_wait = maxf(max_room_wait, _wait_time)
+	if CoopRules.should_start_room(inside.size() + missing.size(), inside.size()):
 		_start_room(room)
 		return
-	var left := ceili(CoopRules.EXIT_COUNTDOWN - _wait_time)
-	if left != _countdown_shown:
-		_countdown_shown = left
-		_show_countdown(room.slot_index, left)
-		_send(&"countdown", [room.slot_index, left])
+	_send_wait(room.slot_index, inside, missing)
+
+
+## Host: who is in the next room and who is still missing, to every machine when it changes.
+func _send_wait(slot: int, inside: Array[int], missing: Array[int]) -> void:
+	inside.sort()
+	missing.sort()
+	var key := "%d|%s|%s" % [slot, inside, missing]
+	if key == _wait_sent:
+		return
+	_wait_sent = key
+	_send(&"room_wait", [slot, PackedInt32Array(inside), PackedInt32Array(missing)])
+	_apply_wait(slot, inside, missing)
 
 
 ## The wave state of the running fight in the active room, whenever it changes (R3: the clients'
@@ -604,29 +688,36 @@ func _clients_ready() -> bool:
 func _start_room(room: RoomController) -> void:
 	_waiting_room = null
 	_wait_time = 0.0
-	_countdown_shown = -1
-	_show_countdown(0, 0)
-	_send(&"countdown", [room.slot_index, 0])
-	_gather_players(room)
+	_send_wait(-1, [], [])
+	_gather_downed(room)
 	_send(&"activate_slot", [room.slot_index, room.room_index])
 	rooms_activated += 1
 	dm.enter_room(room)
 	_share_shop(room)
 
 
-## Stragglers (and downed players) come along into the room that starts.
-func _gather_players(room: RoomController) -> void:
+## Downed players lying outside come along into the room that starts (D-128); every living player
+## walked in himself (the room waits for him, _tick_gate).
+func _gather_downed(room: RoomController) -> void:
 	# M2: past the gate, so it can shut behind them at once (GateCloser counts INSIDE_MARGIN in).
 	var inside := room.get_arena().grow(-GateCloser.INSIDE_MARGIN)
+	var floor_rect := room.get_arena()
 	var start := room.get_player_start()
 	var index := 0
 	for player in _all_players():
-		if not inside.has_point(player.global_position):
-			player.global_position = gather_point(room, start + WorldController.get_spawn_offset(index), start)
-			index += 1
+		if inside.has_point(player.global_position):
+			continue
+		if not player.is_downed():
+			if not floor_rect.has_point(player.global_position):
+				# Must never happen (the room starts only with everybody in); counted for the tools.
+				living_teleports += 1
+			continue
+		player.global_position = gather_point(room, start + WorldController.get_spawn_offset(index), start)
+		index += 1
+		downed_gathered += 1
 
 
-## Where a straggler lands: point if it is walkable floor well inside the room, else the room's start.
+## Where a downed player lands: point if it is walkable floor well inside the room, else the room's start.
 static func gather_point(room: RoomController, point: Vector2, start: Vector2) -> Vector2:
 	var inside := room.get_arena().grow(-GateCloser.INSIDE_MARGIN)
 	if not inside.has_point(point):
@@ -742,7 +833,8 @@ func _send_pot() -> void:
 
 func _on_player_hit_host(result: DamageResult, damage: DamageData, player: Player) -> void:
 	_send(&"player_hit", [peer_of(player), result.shield_damage, result.health_damage, damage.stun_duration,
-			damage.blind_duration, player.health.get_health(), player.shield.get_shield()])
+			damage.blind_duration, damage.slow_factor, damage.slow_duration, player.health.get_health(),
+			player.shield.get_shield()])
 
 
 func _on_weapons_changed_host(player: Player) -> void:
@@ -806,8 +898,19 @@ func on_client_ready(peer: int) -> void:
 
 @rpc("any_peer", "call_remote", "reliable")
 func pick_done(slot: int) -> void:
-	if is_host:
+	# A pick after the host stopped waiting (the round is over) changes nothing.
+	if is_host and not _picks_closed.has(slot):
 		_mark_pick(slot, multiplayer.get_remote_sender_id())
+
+
+## Client -> host: the client's timed upgrade choice of slot appeared (after its dialog queue).
+@rpc("any_peer", "call_remote", "reliable")
+func pick_started(slot: int) -> void:
+	if not is_host or _picks_closed.has(slot):
+		return
+	if not _pick_starts.has(slot):
+		_pick_starts[slot] = {}
+	_pick_starts[slot][multiplayer.get_remote_sender_id()] = Time.get_ticks_msec()
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -829,7 +932,9 @@ func submit_weapon(slot: int, path: String) -> void:
 		return
 	var weapon := load(path) as WeaponData
 	if weapon != null and player.weapon_controller.get_weapon(slot) != weapon:
-		player.weapon_controller.equip_weapon(weapon, slot)
+		if not player.weapon_controller.equip_weapon(weapon, slot):
+			# Refused (same type in the other slot at the host): the client gets the host's loadout back.
+			_broadcast_loadout(player)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -1000,10 +1105,16 @@ func exit_opened(slot: int) -> void:
 		room.open_exit()
 
 
+## Who is in the next room and who is still missing (peers of living players; slot -1 = no wait).
 @rpc("authority", "call_remote", "reliable")
-func countdown(slot: int, seconds_left: int) -> void:
-	if not is_host:
-		_show_countdown(slot, seconds_left)
+func room_wait(slot: int, inside: PackedInt32Array, missing: PackedInt32Array) -> void:
+	if is_host or _detached:
+		return
+	var inside_peers: Array[int] = []
+	inside_peers.assign(inside)
+	var missing_peers: Array[int] = []
+	missing_peers.assign(missing)
+	_apply_wait(slot, inside_peers, missing_peers)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -1025,8 +1136,10 @@ func player_states(data: PackedFloat32Array) -> void:
 			_apply_vitals(player, data[i + 1], data[i + 2], data[i + 3])
 
 
+## The client rebuilds the hit; the statuses (stun, blind, slow) then come through Player._on_hit_received.
 @rpc("authority", "call_remote", "reliable")
-func player_hit(peer: int, shield_damage: float, health_damage: float, stun: float, blind: float, health: float, shield: float) -> void:
+func player_hit(peer: int, shield_damage: float, health_damage: float, stun: float, blind: float, slow_factor: float,
+		slow_duration: float, health: float, shield: float) -> void:
 	var player := _player_of(peer)
 	if is_host or player == null or _detached:
 		return
@@ -1038,6 +1151,8 @@ func player_hit(peer: int, shield_damage: float, health_damage: float, stun: flo
 	var damage := DamageData.new()
 	damage.stun_duration = stun
 	damage.blind_duration = blind
+	damage.slow_factor = slow_factor
+	damage.slow_duration = slow_duration
 	if not player.is_downed():
 		player.hurtbox.hit_received.emit(result, damage)
 	if player.is_local:
@@ -1061,9 +1176,25 @@ func player_revived(peer: int, health: float) -> void:
 
 @rpc("authority", "call_remote", "reliable")
 func loadout(peer: int, weapons: Array, active_slot: int, stacks: Dictionary) -> void:
-	var player := _player_of(peer)
-	if is_host or player == null:
+	if is_host:
 		return
+	var player := _player_of(peer)
+	if player == null:
+		# The player's spawn may come after this message: kept until on_player_spawned.
+		_pending_loadouts[peer] = [weapons, active_slot, stacks]
+		return
+	_apply_loadout(player, weapons, active_slot, stacks)
+
+
+func _apply_loadout_deferred(peer: int, args: Array) -> void:
+	var player := _player_of(peer)
+	if player != null and not _detached and args.size() == 3:
+		_apply_loadout(player, args[0], int(args[1]), args[2])
+
+
+## Client: weapons and upgrade stacks of a player as the host has them (D-081: per player).
+func _apply_loadout(player: Player, weapons: Array, _active_slot: int, stacks: Dictionary) -> void:
+	loadouts_applied += 1
 	_applying_loadout = true
 	var manager := manager_for(player)
 	var before := manager.get_all_stacks()
@@ -1075,8 +1206,10 @@ func loadout(peer: int, weapons: Array, active_slot: int, stacks: Dictionary) ->
 		if path.is_empty() or (current != null and current.resource_path == path) or not ResourceLoader.exists(path):
 			continue
 		controller.equip_weapon(load(path) as WeaponData, slot)
-	if not player.is_local and controller.get_active_slot() != active_slot and controller.get_weapon(active_slot) != null:
-		controller.switch_weapon()
+	# The active slot is not taken from here (active_slot stays for the record): a copy's slot comes
+	# only with its synced state (NetPlayerState held bits, applied every frame), the own player
+	# decides its own. Two sources - this reliable message and the unreliable sync - arrived out of
+	# order in the online smoke test and flipped the copy's weapon back and forth.
 	if player.is_local:
 		# New stacks from the host (shop): the usual signals for HUD and statistics.
 		for id: Variant in stacks:
@@ -1138,7 +1271,7 @@ func run_over(reason: int, gold: int, earned: int, crystals: int, room_number: i
 	RunManager.sync_from_host(gold, earned, crystals)
 	RunManager.sync_room(room_number)
 	_host_end = true
-	_show_countdown_text("")
+	_apply_wait(-1, [], [])
 	dm.end_run(reason as RunManager.EndReason)
 
 
@@ -1279,15 +1412,6 @@ func _on_primary_upgrade(upgrade: UpgradeData, stacks: int) -> void:
 		_on_local_upgrade(upgrade, stacks)
 
 
-func _auto_pick(upgrade: UpgradeData) -> void:
-	if dm == null or dm.ui == null:
-		return
-	for child in dm.ui.get_children():
-		var modal := child as Modal
-		if modal != null and modal.pause_reason == GameManager.PAUSE_UPGRADE_CHOICE:
-			modal.finish(upgrade)
-
-
 ## M2 tunnels (PassageCover): the rock over a passage lies above the characters, so every player
 ## in it - local or remote - is hidden on every machine; his name tag (z 30) goes with him. The
 ## revive label stays (a downed mate must be found). Runs on host and clients.
@@ -1335,6 +1459,11 @@ static func peer_of(player: Node) -> int:
 		return 0
 	var state := player.get_node_or_null(NodePath(NetPlayerState.NODE_NAME)) as NetPlayerState
 	return state.peer_id if state != null else 0
+
+
+## The player of peer in this world (null if not spawned here yet). NetSide and tools.
+func player_of(peer: int) -> Player:
+	return _player_of(peer)
 
 
 func _player_of(peer: int) -> Player:
@@ -1395,10 +1524,79 @@ func _build_countdown() -> void:
 	_countdown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_countdown_label.visible = false
 	_countdown_layer.add_child(_countdown_label)
+	# Arrow to the next room for a straggler (points along +x, rotated towards the entrance).
+	_wait_arrow = Polygon2D.new()
+	_wait_arrow.name = "WaitArrow"
+	var size := UiKit.px(11.0)
+	_wait_arrow.polygon = PackedVector2Array([Vector2(size, 0.0), Vector2(-size * 0.7, -size * 0.75),
+			Vector2(-size * 0.3, 0.0), Vector2(-size * 0.7, size * 0.75)])
+	_wait_arrow.color = COUNTDOWN_COLOR
+	_wait_arrow.visible = false
+	_countdown_layer.add_child(_wait_arrow)
 
 
-func _show_countdown(_slot: int, seconds_left: int) -> void:
-	_show_countdown_text(Loc.t(&"NET_EXIT_COUNTDOWN", [seconds_left]) if seconds_left > 0 else "")
+## Every machine: the hint for its own player while the group waits for the next room - inside
+## "Warte auf <Namen> ...", outside "<Name> wartet im naechsten Raum - beeil dich!" plus the arrow.
+func _apply_wait(slot: int, inside: Array[int], missing: Array[int]) -> void:
+	_wait_slot = slot
+	_wait_hint = CoopRules.wait_hint(multiplayer.get_unique_id(), inside, missing) if slot >= 0 else CoopRules.WaitHint.NONE
+	var text := ""
+	match _wait_hint:
+		CoopRules.WaitHint.WAIT_FOR_MATES:
+			text = wait_text(&"NET_WAIT_FOR_MATES", _names_of(missing))
+		CoopRules.WaitHint.MATES_WAIT_FOR_YOU:
+			text = wait_text(&"NET_MATES_WAIT_FOR_YOU" if inside.size() == 1 else &"NET_MATES_WAIT_FOR_YOU_MANY", _names_of(inside))
+	if _wait_hint != CoopRules.WaitHint.NONE:
+		wait_hints += 1
+	_show_countdown_text(text)
+
+
+## The text of a wait hint (WAIT_TEXT_KEYS) with the names filled in.
+static func wait_text(key: StringName, names: String) -> String:
+	var text := Loc.t(key)
+	return text % names if text.contains("%s") else text
+
+
+## "Anna, Ben" for the players of peers (name tags; "P2" without a name).
+func _names_of(peers: Array[int]) -> String:
+	var names: Array[String] = []
+	for peer in peers:
+		var name_text := NetPlayers.display_name_of(_player_of(peer))
+		names.append(name_text if not name_text.is_empty() else "P%d" % peer)
+	return ", ".join(names)
+
+
+## The current wait hint of this machine (tools, tests).
+func get_wait_hint() -> CoopRules.WaitHint:
+	return _wait_hint
+
+
+## The arrow from the local player to the next room's entrance while the others wait there.
+func _update_wait_arrow() -> void:
+	if _wait_arrow == null:
+		return
+	var show := false
+	if _wait_hint == CoopRules.WaitHint.MATES_WAIT_FOR_YOU:
+		var local := _local_player()
+		var room := dm.get_room_at_slot(_wait_slot) if dm != null else null
+		if local != null and room != null and local.is_alive() and not local.is_side_view():
+			var target := room.to_global(RoomTiles.tile_center(room.get_entrance_tile()))
+			var offset := target - local.global_position
+			if offset.length() > WAIT_ARROW_HIDE_DISTANCE:
+				var direction := offset.normalized()
+				_wait_arrow.position = local.get_global_transform_with_canvas().origin + direction * UiKit.px(WAIT_ARROW_DISTANCE)
+				_wait_arrow.rotation = direction.angle()
+				show = true
+	_wait_arrow.visible = show
+	if show:
+		wait_arrow_frames += 1
+
+
+func _local_player() -> Player:
+	for player in _all_players():
+		if player.is_local:
+			return player
+	return null
 
 
 func _show_countdown_text(text: String) -> void:

@@ -1,11 +1,17 @@
 class_name MainMenu
 extends Control
-## Main menu (MM1, docs/design screen 13, art/ui/menu/menu.json): night scene with the save's
-## character, logo and tagline, menu list on a darkened left edge, gold/crystals bottom left, record
-## and version bottom right. Sub panels on the right: Spielstände (slots), Neuer Spielstand
-## (name, character, clothing colour), Optionen (OptionsView: sound, display, keys). "Online /
-## Gilde" is a greyed-out placeholder. The colour can be changed later in the village (Zuhause,
-## "Umkleiden").
+## Main menu (MM1, docs/design screen 13, art/ui/menu/menu.json): night scene with the player's
+## figure, logo and tagline, menu list on a darkened left edge, gold/crystals of the world
+## "Weiterspielen" bottom left, record and version bottom right. Sub panels on the right: Welten
+## (save slots, D-152: a slot is a world), Neue Welt (only its name), Figur (ProfilePanel: name and
+## look of the player, the same in every world and online), Optionen (OptionsView: sound, display,
+## keys) and "Online spielen" (OnlinePanel, D-147: quick game and guilds, the same menu as the
+## village's guild building; it needs a world to start in). Name and look can also be changed in the
+## village (mirror, Zuhause) and in the lobby.
+## First start (D-152): without a profile the menu opens "Wie heißt du?" (ProfilePanel, first_start)
+## before anything else; the name of the save slots of older builds is suggested once.
+## Creating or joining a room from here loads the save like "Weiterspielen" and hands the wish to
+## the village of the new game (LobbyClient.request_launch); the room starts there as before.
 ##
 ## Opening the menu copies the save of older builds into slot 1 once (SaveManager). When a slot is
 ## loaded or created, play_requested is emitted after a short fade; scenes/main.gd starts the game.
@@ -39,12 +45,15 @@ const FADE_TIME := 0.35
 
 const ENTRY_CONTINUE := &"continue"
 const ENTRY_SLOTS := &"slots"
+const ENTRY_PROFILE := &"profile"
 const ENTRY_ONLINE := &"online"
 const ENTRY_OPTIONS := &"options"
 const ENTRY_QUIT := &"quit"
 
 ## Run the online version check when the menu opens (tests switch it off: no network).
 static var online_check := true
+## Open "Wie heißt du?" when the player has no profile yet (tests that do not care switch it off).
+static var ask_profile_on_start := true
 
 var _background: MenuBackground = null
 var _list: MenuList = null
@@ -93,6 +102,8 @@ func _ready() -> void:
 	create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
 	refresh()
 	_start_online_check()
+	if ask_profile_on_start and PlayerProfile.current().needs_setup():
+		open_profile(true)
 
 
 ## Re-reads slots: entry texts, currencies, record and the figure in the scene.
@@ -110,9 +121,22 @@ func refresh() -> void:
 		_list.set_entry(ENTRY_CONTINUE, &"MENU_NEW_GAME", &"MENU_NEW_GAME_HINT")
 		_show_slot_info({})
 	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
+	_list.set_entry(ENTRY_PROFILE, &"MENU_PROFILE", PlayerProfile.current().get_display_name())
+	_refresh_online_entry(slot > 0)
 	if _keys_label != null:
 		_keys_label.text = tr(&"MENU_KEYS") % build_text(_environment_tag())
 	_show_online_status()
+
+
+## "Online spielen": open with a save (its name and look go online), locked while this build is
+## too old for the API.
+func _refresh_online_entry(has_save: bool) -> void:
+	if _online_status == OnlineVersionCheck.Status.OUTDATED:
+		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"ONLINE_UPDATE_SHORT", false)
+	elif not has_save:
+		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_NEEDS_SAVE", false)
+	else:
+		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_HINT", true)
 
 
 func get_list() -> MenuList:
@@ -172,6 +196,10 @@ func activate(id: StringName) -> void:
 				open_create(free if free > 0 else 1)
 		ENTRY_SLOTS:
 			open_slots()
+		ENTRY_PROFILE:
+			open_profile(false)
+		ENTRY_ONLINE:
+			open_online()
 		ENTRY_OPTIONS:
 			_open_panel(OptionsPanel.new())
 		ENTRY_QUIT:
@@ -191,15 +219,44 @@ func open_slots() -> SlotPanel:
 func open_create(slot: int) -> CreateSlotPanel:
 	var panel := CreateSlotPanel.create(slot)
 	panel.confirmed.connect(_on_create_confirmed, CONNECT_DEFERRED)
-	panel.character_changed.connect(func(data: CharacterData) -> void: _background.set_character(data, Color(0, 0, 0, 0)))
-	panel.color_changed.connect(_background.set_character_color)
 	_open_panel(panel)
 	# Back from the create panel returns to the slot list.
 	panel.closed.disconnect(close_panel)
-	panel.closed.connect(func() -> void:
-		_show_active_look()
-		open_slots().select_slot(slot), CONNECT_DEFERRED)
+	panel.closed.connect(func() -> void: open_slots().select_slot(slot), CONNECT_DEFERRED)
 	return panel
+
+
+## "Figur" / first start "Wie heißt du?" (D-152): name and look of the player; the scene figure
+## follows the editor live.
+func open_profile(first_start := false) -> ProfilePanel:
+	var panel := ProfilePanel.create(first_start)
+	panel.look_changed.connect(_background.set_look)
+	_open_panel(panel)
+	panel.closed.connect(func() -> void: _background.set_look(PlayerProfile.current().look), CONNECT_DEFERRED)
+	if not first_start:
+		_list.select_id(ENTRY_PROFILE)
+	return panel
+
+
+## "Online spielen": quick game and guilds (D-147).
+func open_online() -> OnlinePanel:
+	var panel := OnlinePanel.new()
+	panel.launch_requested.connect(_on_online_launch, CONNECT_DEFERRED)
+	_open_panel(panel)
+	_list.select_id(ENTRY_ONLINE)
+	return panel
+
+
+## A room from the online menu: the save of "Weiterspielen" is loaded and the game starts; its
+## village creates or joins the room (LobbyClient.take_launch in VillageUI).
+func _on_online_launch(launch: Dictionary) -> void:
+	var slot := SaveManager.get_continue_slot()
+	if _starting or slot <= 0:
+		return
+	LobbyClient.request_launch(str(launch.get("action", "")), str(launch.get("mode", LobbyClient.MODE_QUICK)),
+			str(launch.get("guild_id", "")), str(launch.get("guild_name", "")), str(launch.get("code", "")),
+			str(launch.get("guild_tag", "")))
+	play_slot(slot)
 
 
 func play_slot(slot: int) -> void:
@@ -219,11 +276,10 @@ func close_panel() -> void:
 	refresh()
 
 
-func _on_create_confirmed(slot: int, profile_name: String, character_id: StringName, color: Color) -> void:
+func _on_create_confirmed(slot: int, world_name: String) -> void:
 	if _starting:
 		return
-	# Transparent colour = the character's default; it can be changed later at home (village).
-	if SaveManager.create_slot(slot, profile_name, character_id, color) != OK:
+	if SaveManager.create_slot(slot, world_name) != OK:
 		push_warning("MainMenu: could not create slot %d." % slot)
 		return
 	_start()
@@ -264,12 +320,8 @@ func _start() -> void:
 	tween.tween_callback(play_requested.emit)
 
 
-func _show_active_look() -> void:
-	var slot := SaveManager.get_continue_slot()
-	_show_slot_info(SaveManager.get_slot_summary(slot) if slot > 0 else {})
-
-
-## Bottom-left currencies, bottom-right record and the scene figure of a slot summary ({} = none).
+## Bottom-left world name and currencies, bottom-right record of a slot summary ({} = none); the
+## scene figure is the player's profile (D-152).
 func _show_slot_info(summary: Dictionary) -> void:
 	var exists: bool = summary.get("exists", false)
 	_currency.visible = exists
@@ -279,8 +331,8 @@ func _show_slot_info(summary: Dictionary) -> void:
 		_profile_label.text = summary.get("name", "")
 	var record: int = summary.get("deepest_room", 0)
 	_record_label.text = (tr(&"MENU_RECORD") % record) if record > 0 else tr(&"MENU_NO_RECORD")
-	var data := CharacterCatalog.get_character(summary.get("character", CharacterCatalog.DEFAULT_ID))
-	_background.set_character(data, summary.get("color", Color(0, 0, 0, 0)))
+	if not _panel is ProfilePanel:
+		_background.set_look(PlayerProfile.current().look)
 
 
 # --- Building ---
@@ -328,9 +380,12 @@ func _build_list() -> void:
 	add_child(_list)
 	_list.add_entry(ENTRY_CONTINUE, &"MENU_CONTINUE")
 	_list.add_entry(ENTRY_SLOTS, &"MENU_SLOTS")
-	_list.add_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"COMMON_SOON", false)
+	_list.add_entry(ENTRY_PROFILE, &"MENU_PROFILE")
+	_list.add_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_HINT")
 	_list.add_entry(ENTRY_OPTIONS, &"MENU_OPTIONS", &"MENU_OPTIONS_HINT")
-	_list.add_entry(ENTRY_QUIT, &"MENU_QUIT")
+	# A browser tab cannot close itself; the player closes the tab.
+	if not OS.has_feature("web"):
+		_list.add_entry(ENTRY_QUIT, &"MENU_QUIT")
 	_list.activated.connect(activate)
 
 
@@ -417,8 +472,6 @@ func _start_online_check() -> void:
 
 func _on_online_checked(status: OnlineVersionCheck.Status) -> void:
 	_online_status = status
-	if status == OnlineVersionCheck.Status.OUTDATED:
-		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"ONLINE_UPDATE_SHORT", false)
 	refresh()
 
 

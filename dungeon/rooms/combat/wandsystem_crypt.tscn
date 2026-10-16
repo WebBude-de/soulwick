@@ -2,9 +2,8 @@
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
 [ext_resource type="PackedScene" path="res://dungeon/rooms/ingredients/explosive_barrel.tscn" id="2_explosive"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="3_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="4_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="5_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
 
 [node name="WandsystemCrypt" instance=ExtResource("1_base")]
 room_kind = 0
@@ -50,11 +49,8 @@ position = Vector2(544, 288)
 
 [node name="Niche1" type="Node2D" parent="Props"]
 position = Vector2(288, 0)
-script = ExtResource("4_deco")
+script = ExtResource("3_deco")
 item = &"wall_niche"
-
-[node name="Torch1" parent="Props" instance=ExtResource("3_torch")]
-position = Vector2(896, -64)
 
 [node name="Explosive1" parent="Props" instance=ExtResource("2_explosive")]
 position = Vector2(544, 56)
@@ -62,27 +58,28 @@ metadata/min_room = 3
 
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(64, 376)
-script = ExtResource("4_deco")
+script = ExtResource("3_deco")
 item = &"group_1"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(0, 5), Vector2i(1, 5)])
+blocked_tiles = Array[Vector2i]([Vector2i(1, 5)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Ambience" type="Node2D" parent="."]
 
 [node name="Mist1" type="Node2D" parent="Ambience"]
 position = Vector2(290, 354)
-script = ExtResource("4_deco")
+script = ExtResource("3_deco")
 item = &"mist"
 flip = true
 
 [node name="Mist2" type="Node2D" parent="Ambience"]
 position = Vector2(290, 98)
-script = ExtResource("4_deco")
+script = ExtResource("3_deco")
 item = &"mist"
 flip = true
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("5_scatter")
+script = ExtResource("4_scatter")
 allowed = Array[int]([])

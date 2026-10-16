@@ -209,6 +209,10 @@ func test_ui_shows_banner_countdown_and_card() -> void:
 	var card := ui.get_room_intro_card()
 	assert_not_null(card, "first time: the explanation card from the start")
 	assert_eq(card.genre, goal.genre)
+	# Recorded when it happens: "go" comes up to 0.3 s before the check below and the card frees
+	# itself 0.4 s after it starts to fade, so reading card._finishing then could hit a freed card.
+	var card_finished := [false]
+	card.finished.connect(func() -> void: card_finished[0] = true)
 	await wait_seconds(RoomIntro.DOOR_TIME + 0.1)
 	var banner := ui.get_banner()
 	assert_not_null(banner)
@@ -221,7 +225,7 @@ func test_ui_shows_banner_countdown_and_card() -> void:
 	assert_eq(ui.get_banner(), banner, "the intro banner stays while the intro runs")
 	await wait_seconds(RoomIntro.COUNTDOWN_FROM * RoomIntro.COUNTDOWN_STEP + 0.1)
 	assert_eq(ui.get_countdown().get_text(), "Los!")
-	assert_true(card._finishing, "the card fades with go")
+	assert_true(card_finished[0], "the card fades with go")
 	await wait_seconds(DungeonUI.INTRO_BANNER_AFTER + 0.8)
 	assert_ne(ui.get_banner(), banner, "the intro banner is gone after go")
 

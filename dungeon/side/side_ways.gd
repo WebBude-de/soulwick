@@ -2,7 +2,7 @@ class_name SideWays
 extends RefCounted
 ## Where the dungeon runs through side segments (M5): the one call the room chain needs. For the way
 ## from a room to the next one it asks SideRules (after the campfire, the ladder way of a branch,
-## 10 % after a rest room; never before the boss, never twice in a row, never when switched off),
+## 18 % after a rest room (SideRules.AFTER_REST_CHANCE); never before the boss, never twice in a row, never when switched off),
 ## draws the layout of the next room's biome with the segment's own RNG (derived from the run seed
 ## and the slot, the dungeon stream stays untouched) and puts a SideGate into the corridor.
 ## DungeonManager hook: see the M5 report (_plan_side_way, _on_side_gate_passed).

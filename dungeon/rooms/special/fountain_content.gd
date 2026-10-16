@@ -10,13 +10,18 @@ var _interactable: Interactable = null
 var _sprite: AnimatedProp = null
 
 
-func _on_setup() -> void:
+func _on_prepare() -> void:
 	add_light(170.0, Vector2(0, -30))
 	_sprite = add_animated(FOUNTAIN_STRIP, Vector2i(32, 40), 6.0, Vector2(16, 38))
 	add_blocker(Vector2(52, 28), Vector2(0, -12))
 	_interactable = add_interactable(DungeonTexts.t(&"FOUNTAIN_PROMPT", [DamageNumber.format_amount(get_heal_amount(context.player))]), 56.0, Vector2(0, -20))
 	_interactable.interacted.connect(_on_interacted)
 	add_caption(DungeonTexts.t(&"ROOM_FOUNTAIN_TITLE"), Vector2(0, -96))
+
+
+## The prompt names the heal of the player as they enter (a pact curse may have halved it since).
+func _on_setup() -> void:
+	_interactable.prompt = DungeonTexts.t(&"FOUNTAIN_PROMPT", [DamageNumber.format_amount(get_heal_amount(context.player))])
 
 
 ## Heal for this player: the full amount, halved by the fountain curse (in 0.5 steps).

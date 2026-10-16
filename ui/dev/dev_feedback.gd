@@ -1,16 +1,18 @@
 class_name DevFeedback
 extends Node
-## Dev feedback tool for local graphics/UI reviews: F9 grabs the current frame (before anything of
-## the tool is drawn), freezes the game through the regular pause system (pause reason
-## &"dev_feedback", D-043) and opens DevFeedbackOverlay. There the developer marks rectangles and
-## types notes; saving writes screenshot, marked copy, note.json with context
-## (DevFeedbackContext) and a line in index.md under root_dir (DevFeedbackStore). Evaluate the
-## notes with tools/collect_feedback.py (docs/feedback/README.md).
-## Debug builds only (editor, local runs); in release exports the node is never created
-## (is_enabled). No autoload (AGENTS.md §6.5): GameManager._ready() calls install() once.
-## Headless runs (tools, GUT, bot) carry the node but F9 is ignored there; tests drive open() and
-## the overlay directly and point root_dir at a test folder, so nothing ever touches the real
-## feedback folder or the save game.
+## Bug report tool (beta: for every player while bug reports are switched on, see is_enabled):
+## the key # (German keyboard; the same physical key elsewhere, F9 as a second key) or the small
+## touch button at the top right (DevFeedbackTouchButton, temporary) grabs the current frame
+## (before anything of the tool is drawn), freezes the game through the regular pause system
+## (pause reason &"dev_feedback", D-043) and opens DevFeedbackOverlay. There the player marks
+## rectangles and types notes; sending writes screenshot, marked copy, note.json with context
+## (DevFeedbackContext) and a line in index.md under root_dir (DevFeedbackStore), and queues the
+## report for the platform API (DevFeedbackOutbox, POST /bug-reports, in the background).
+## Evaluate with tools/collect_feedback.py (docs/feedback/README.md).
+## No autoload (AGENTS.md §6.5): GameManager._ready() calls install() once; with the switch off no
+## node is created. Headless runs (tools, GUT, bot) carry the node but ignore the keys and send
+## nothing on their own; tests drive open(), the overlay and the outbox directly and point root_dir
+## at a test folder, so nothing ever touches the real feedback folder or the save game.
 
 signal opened
 ## saved_dir: folder of the written note, "" when discarded or failed.
@@ -18,29 +20,75 @@ signal closed(saved_dir: String)
 
 const PAUSE_REASON := &"dev_feedback"
 const NODE_NAME := &"DevFeedback"
+## Second key on every layout.
 const TRIGGER_KEY := KEY_F9
+## The # key: its label on a German keyboard, and its physical place (US backslash, the ISO key
+## next to Enter) so other layouts have a sensible key at the same spot.
+const HASH_KEY := KEY_NUMBERSIGN
+const HASH_PHYSICAL_KEY := KEY_BACKSLASH
 const TOAST_LAYER := 121
 const TOAST_SECONDS := 2.4
+const SENT_TOAST_SECONDS := 1.6
+## Switch (project setting, optional): true/false beats the environment rule. Not in project.godot
+## yet: without it, the environment decides.
+const SETTING_ENABLED := "soulwick/beta/bug_reports"
+## Command-line switch after "--": bug_reports=0 or bug_reports=1 (strongest).
+const ARG_ENABLED := "bug_reports"
 
 ## Where the notes go (user://dev_feedback = %APPDATA%/Godot/app_userdata/Soulwick/dev_feedback).
 static var root_dir := "user://dev_feedback"
-## -1: follow OS.is_debug_build(); 0: force off (release check in tests); 1: force on.
-static var debug_override := -1
+## The privacy notice was confirmed on this installation (own file, never the save game; tests
+## point it elsewhere).
+static var consent_path := "user://bug_report_consent.cfg"
+## -1: follow the switch (is_enabled); 0: force off (tests); 1: force on.
+static var enabled_override := -1
 ## The pause is released this many frames after the overlay closed, so the key or click that
 ## closed it is no longer "just pressed" when the game runs again. Tests set 0 (synchronous).
 static var release_delay_frames := 2
+
+static var _enabled_cache := -1
+
+var outbox: DevFeedbackOutbox = null
+## TEMPORÄR (Beta): the bug button for phones.
+var touch_button: DevFeedbackTouchButton = null
+## Touch in use, for tests (-1 = ask TouchState and the own finger detection).
+var touch_override := -1
 
 var _overlay: DevFeedbackOverlay = null
 var _image: Image = null
 var _toast_layer: CanvasLayer = null
 var _toast_tween: Tween = null
 var _last_saved_dir := ""
+## A finger touched the screen since the last keyboard or real mouse input (the TouchOverlay only
+## reports touches during a run; the button is wanted in the menus too).
+var _finger_seen := false
+var _opening := false
 
 
+## Bug reports on? Command line bug_reports=0/1, else the project setting soulwick/beta/bug_reports,
+## else on in every environment except production (editor = local, development exports on,
+## production exports off as long as nothing else is decided).
 static func is_enabled() -> bool:
-	if debug_override >= 0:
-		return debug_override == 1
-	return OS.is_debug_build()
+	if enabled_override >= 0:
+		return enabled_override == 1
+	if _enabled_cache < 0:
+		var args := OnlineConfig.parse_args(OS.get_cmdline_user_args())
+		var setting: Variant = ProjectSettings.get_setting(SETTING_ENABLED, null)
+		var on := resolve_enabled(str(args.get(ARG_ENABLED, "")), setting, OnlineConfig.build_environment())
+		_enabled_cache = 1 if on else 0
+	return _enabled_cache == 1
+
+
+## Pure rule of is_enabled() (tests).
+static func resolve_enabled(arg: String, setting: Variant, environment: String) -> bool:
+	match arg.strip_edges().to_lower():
+		"1", "true", "on", "yes":
+			return true
+		"0", "false", "off", "no":
+			return false
+	if typeof(setting) == TYPE_BOOL:
+		return setting
+	return environment != OnlineConfig.ENV_PRODUCTION
 
 
 ## Hangs one DevFeedback under the tree root (deferred: the root is still setting up its children
@@ -59,18 +107,54 @@ static func install(tree_root: Node) -> DevFeedback:
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	if outbox == null:
+		outbox = DevFeedbackOutbox.new()
+		outbox.name = "Outbox"
+	outbox.root_dir = root_dir
+	outbox.auto_send = DisplayServer.get_name() != "headless"
+	if not outbox.sent.is_connected(_on_report_sent):
+		outbox.sent.connect(_on_report_sent)
+	if outbox.get_parent() == null:
+		add_child(outbox)
+	if touch_button == null:
+		touch_button = DevFeedbackTouchButton.new()
+		touch_button.name = "TouchButton"
+		touch_button.tapped.connect(_on_touch_button)
+		add_child(touch_button)
+
+
+func _process(_delta: float) -> void:
+	if touch_button != null:
+		touch_button.set_wanted(wants_touch_button())
+		if touch_button.visible:
+			touch_button.update_place(get_tree().root, self)
+
+
+## TEMPORÄR (Beta): the bug button is shown while touch is in use and the overlay is closed.
+func wants_touch_button() -> bool:
+	return is_enabled() and not is_open() and not _opening and is_touch_active()
+
+
+func is_touch_active() -> bool:
+	if touch_override >= 0:
+		return touch_override == 1
+	return _finger_seen or TouchState.shared().is_active()
 
 
 func _input(event: InputEvent) -> void:
+	_track_touch(event)
 	if _overlay != null or DisplayServer.get_name() == "headless":
 		return
 	if handle_event(event):
 		get_viewport().set_input_as_handled()
 
 
-## F9 opens the overlay; true when the event was used.
+## # or F9 opens the overlay; true when the event was used. # is left alone while a text field
+## has the focus (guild names, player name), F9 always works.
 func handle_event(event: InputEvent) -> bool:
 	if not is_trigger(event) or not is_enabled() or is_open():
+		return false
+	if not _is_f9(event) and _text_field_focused():
 		return false
 	return open()
 
@@ -79,7 +163,45 @@ static func is_trigger(event: InputEvent) -> bool:
 	if not (event is InputEventKey):
 		return false
 	var key := event as InputEventKey
-	return key.pressed and not key.echo and (key.keycode == TRIGGER_KEY or key.physical_keycode == TRIGGER_KEY)
+	if not key.pressed or key.echo:
+		return false
+	if _is_f9(key):
+		return true
+	return key.keycode == HASH_KEY or key.key_label == HASH_KEY or key.unicode == 35 or key.physical_keycode == HASH_PHYSICAL_KEY
+
+
+static func _is_f9(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	return key != null and (key.keycode == TRIGGER_KEY or key.physical_keycode == TRIGGER_KEY)
+
+
+func _text_field_focused() -> bool:
+	var focus := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	return focus is LineEdit or focus is TextEdit
+
+
+func _track_touch(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if (event as InputEventScreenTouch).pressed:
+			_finger_seen = true
+	elif event is InputEventKey:
+		if event.is_pressed() and not OS.has_feature("mobile"):
+			_finger_seen = false
+	elif event is InputEventMouseButton:
+		if event.device != InputEvent.DEVICE_ID_EMULATION:
+			_finger_seen = false
+
+
+## TEMPORÄR (Beta): the bug button; hidden for one drawn frame so the screenshot does not show it.
+func _on_touch_button() -> void:
+	if is_open() or _opening or not is_enabled():
+		return
+	_opening = true
+	touch_button.set_wanted(false)
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
+	_opening = false
+	open(null, true)
 
 
 func is_open() -> bool:
@@ -94,8 +216,9 @@ func get_last_saved_dir() -> String:
 	return _last_saved_dir
 
 
-## Freezes the game and shows the overlay; image = null grabs the current frame.
-func open(image: Image = null) -> bool:
+## Freezes the game and shows the overlay; image = null grabs the current frame. touch: true/false
+## picks the phone layout (finger marks, no auto focus on the text field); null = is_touch_active().
+func open(image: Image = null, touch: Variant = null) -> bool:
 	if is_open() or not is_enabled() or not is_inside_tree():
 		return false
 	_image = image if image != null else capture_frame()
@@ -106,11 +229,28 @@ func open(image: Image = null) -> bool:
 	_overlay = DevFeedbackOverlay.new()
 	_overlay.name = "Overlay"
 	_overlay.setup(_image, get_viewport().get_visible_rect().size)
+	_overlay.touch_mode = bool(touch) if touch != null else is_touch_active()
+	_overlay.needs_consent = not has_consent()
+	_overlay.consent_given.connect(store_consent)
 	_overlay.submitted.connect(_on_submitted)
 	_overlay.cancelled.connect(_on_cancelled)
 	add_child(_overlay)
 	opened.emit()
 	return true
+
+
+## The privacy notice of the first send was confirmed here already.
+static func has_consent() -> bool:
+	var file := ConfigFile.new()
+	return file.load(consent_path) == OK and bool(file.get_value("bug_reports", "consent", false))
+
+
+static func store_consent() -> void:
+	var file := ConfigFile.new()
+	file.set_value("bug_reports", "consent", true)
+	file.set_value("bug_reports", "time", Time.get_datetime_string_from_system(false, true))
+	if file.save(consent_path) != OK:
+		push_warning("DevFeedback: cannot write %s" % consent_path)
 
 
 ## The frame as the player sees it; a grey placeholder where nothing is rendered (headless).
@@ -134,11 +274,20 @@ func save_note(note: Dictionary) -> String:
 	var dir := DevFeedbackStore.save(root_dir, _image, record)
 	_last_saved_dir = dir
 	if dir.is_empty():
-		_show_toast("Speichern fehlgeschlagen (siehe Ausgabe)", Color("#ff8a80"))
-	else:
-		_show_toast("Notiz gespeichert (#%d)" % int(record.get("id", 0)), Color("#5fcd62"))
-		print("[DevFeedback] Notiz gespeichert: %s" % ProjectSettings.globalize_path(dir))
+		_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SAVE_FAILED"), Color("#ff8a80"))
+		return dir
+	_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SAVED"), Color("#5fcd62"))
+	print("[DevFeedback] Meldung gespeichert: %s" % ProjectSettings.globalize_path(dir))
+	queue_upload(dir.get_file(), record)
 	return dir
+
+
+## Puts the saved report into the outbox (DevFeedbackOutbox sends it in the background).
+func queue_upload(folder: String, record: Dictionary) -> bool:
+	if outbox == null:
+		return false
+	outbox.root_dir = root_dir
+	return outbox.enqueue(folder, DevFeedbackUpload.build_body(record, _image))
 
 
 ## note.json content: the overlay note in image pixels and relative units plus the context.
@@ -241,7 +390,11 @@ func _close(saved_dir: String) -> void:
 	GameManager.release_pause(PAUSE_REASON)
 
 
-func _show_toast(text: String, color: Color) -> void:
+func _on_report_sent(_folder: String, _report_id: String) -> void:
+	_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SENT"), Color("#b9b3c9"), SENT_TOAST_SECONDS, 14)
+
+
+func _show_toast(text: String, color: Color, seconds := TOAST_SECONDS, font_size := 18) -> void:
 	if _toast_layer == null:
 		_toast_layer = CanvasLayer.new()
 		_toast_layer.name = "Toast"
@@ -262,7 +415,7 @@ func _show_toast(text: String, color: Color) -> void:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_color_override(&"font_color", color)
-	label.add_theme_font_size_override(&"font_size", 18)
+	label.add_theme_font_size_override(&"font_size", font_size)
 	panel.add_child(label)
 	_toast_layer.add_child(panel)
 	panel.position = Vector2(16, 16)
@@ -270,6 +423,6 @@ func _show_toast(text: String, color: Color) -> void:
 		_toast_tween.kill()
 	_toast_tween = create_tween()
 	_toast_tween.set_ignore_time_scale(true)
-	_toast_tween.tween_interval(TOAST_SECONDS)
+	_toast_tween.tween_interval(seconds)
 	_toast_tween.tween_property(panel, ^"modulate:a", 0.0, 0.4)
 	_toast_tween.tween_callback(panel.queue_free)

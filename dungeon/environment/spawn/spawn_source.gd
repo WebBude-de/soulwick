@@ -41,7 +41,12 @@ const COLORS := {
 ## Flat sources lie on the floor and draw below everything standing; graves and sarcophagi stand
 ## and sort by their foot line, a little behind the enemy that rises in front of them.
 const FLAT_KINDS: Array[int] = [SpawnSourceRules.Kind.PUDDLE, SpawnSourceRules.Kind.RIFT, SpawnSourceRules.Kind.VENT]
+## Characters sort by their body centre (Player.FEET_OFFSET above the feet), so standing art sorts
+## that much higher too; a grave by the foot of its stone at the top of the mound (the mound is flat:
+## a player standing on it is in front, playtest 15.10.2026 note 21). World px above the pivot
+## (TESTWERT).
 const STAND_SORT_LIFT := 3.0
+const FOOT_ABOVE_PIVOT := {SpawnSourceRules.Kind.GRAVE: 18.0}
 ## Rest glimmer: brightness pulse of the art (no light of its own - the vision overlay draws a
 ## limited number of lights). TESTWERTE
 const GLIMMER_STRENGTH := 0.22
@@ -124,8 +129,8 @@ func _ready() -> void:
 		if FLAT_KINDS.has(kind):
 			z_index = -1
 		else:
-			# Sorts a hair behind an enemy standing on the pivot, so the enemy rises in front.
-			position.y -= STAND_SORT_LIFT
+			# Sorts at the foot line of the art (sort_lift); everything drawn moves back down.
+			position.y -= sort_lift()
 		_build_sprite()
 	_show_frame()
 
@@ -207,7 +212,7 @@ func bring(enemy: Enemy, room: Node2D, wait: float, place: int) -> void:
 ## Warning: light, sound and the warning frames (grate rattles, wall cracks).
 func warn() -> void:
 	_set_phase(Phase.WARN, SpawnSourceRules.WARN_TIME)
-	Sfx.play_at(self, SpawnSourceRules.sound_for(kind), global_position, -3.0)
+	Sfx.play_at(self, SpawnSourceRules.sound_for(kind), get_pivot_global(), -3.0)
 	if _breach != null:
 		if kind == SpawnSourceRules.Kind.GATE:
 			_breach.rattle(SpawnSourceRules.WARN_TIME)
@@ -230,10 +235,10 @@ func open(first: bool) -> void:
 			_breach.lift(GATE_LIFT_TIME)
 		_breach.burst(first)
 		return
-	Burst.spawn(self, global_position, DUST_COLOR, 10, 80.0, 0.5, 3.0)
-	Burst.spawn(self, global_position, get_color(), 6, 60.0, 0.6, 2.5)
+	Burst.spawn(self, get_pivot_global(), DUST_COLOR, 10, 80.0, 0.5, 3.0)
+	Burst.spawn(self, get_pivot_global(), get_color(), 6, 60.0, 0.6, 2.5)
 	if first:
-		LightSource.flash(self, global_position, OPEN_FLASH_RADIUS, 0.3)
+		LightSource.flash(self, get_pivot_global(), OPEN_FLASH_RADIUS, 0.3)
 
 
 ## Rest after a push: rest frame, the light fades, the grate goes down.
@@ -314,8 +319,21 @@ func _build_sprite() -> void:
 	_sprite.offset = SpriteStrip.pivot_offset(frame_size, art["pivot"])
 	_sprite.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
 	if not FLAT_KINDS.has(kind):
-		_sprite.position.y = STAND_SORT_LIFT
+		_sprite.position.y = sort_lift()
 	add_child(_sprite)
+
+
+## How far above its pivot a standing source sorts (world px): a hair behind an enemy rising on the
+## pivot, at the foot line of the stone for graves. Zero for flat and wall sources.
+func sort_lift() -> float:
+	if is_wall_source() or FLAT_KINDS.has(kind):
+		return 0.0
+	return Player.FEET_OFFSET.y + float(FOOT_ABOVE_PIVOT.get(kind, 0.0)) + STAND_SORT_LIFT
+
+
+## The pivot (where the enemy appears) in global coordinates.
+func get_pivot_global() -> Vector2:
+	return to_global(Vector2(0.0, sort_lift()))
 
 
 func _build_wall() -> void:
@@ -348,6 +366,7 @@ func _ensure_light() -> void:
 	_light.flicker = 0.12
 	if &"color" in _light:
 		_light.set(&"color", get_color())
+	_light.position.y = sort_lift()
 	add_child(_light)
 
 
@@ -365,35 +384,37 @@ func _fade_light() -> void:
 func _draw() -> void:
 	if is_wall_source():
 		return
+	# Drawn at the pivot (the node sorts sort_lift above it).
+	var floor_offset := Vector2(0.0, sort_lift())
 	var color := get_color()
 	if phase == Phase.WARN:
 		# Pulsing ring on the floor: readable even before the light has grown.
 		var t := clampf(_phase_time / _phase_length, 0.0, 1.0)
 		var pulse := 0.5 + 0.5 * sin(_phase_time * 14.0)
-		draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, RING_SQUASH))
+		draw_set_transform(floor_offset, 0.0, Vector2(1.0, RING_SQUASH))
 		draw_circle(Vector2.ZERO, RING_RADIUS * (0.7 + 0.3 * t), Color(color, 0.12 + 0.18 * t))
 		draw_arc(Vector2.ZERO, RING_RADIUS * (0.8 + 0.4 * t), 0.0, TAU, 28, Color(color, 0.35 + 0.4 * pulse), 2.0)
 		draw_set_transform(Vector2.ZERO)
 	if _sprite == null:
-		_draw_placeholder(color)
+		_draw_placeholder(color, floor_offset)
 
 
 ## Drawn stand-in while the art is missing.
-func _draw_placeholder(color: Color) -> void:
+func _draw_placeholder(color: Color, floor_offset := Vector2.ZERO) -> void:
 	var glow := Color(color, 0.25 + _glimmer())
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2(1.0, RING_SQUASH))
+	draw_set_transform(floor_offset, 0.0, Vector2(1.0, RING_SQUASH))
 	match kind:
 		SpawnSourceRules.Kind.GRAVE:
 			draw_circle(Vector2(0, -4), 22.0, Color("4a3d33"))
-			draw_set_transform(Vector2.ZERO)
-			draw_rect(Rect2(-9, -40 + STAND_SORT_LIFT, 18, 26), Color("6b6275"))
-			draw_rect(Rect2(-9, -40 + STAND_SORT_LIFT, 18, 3), Color("8d8498"))
+			draw_set_transform(floor_offset)
+			draw_rect(Rect2(-9, -40, 18, 26), Color("6b6275"))
+			draw_rect(Rect2(-9, -40, 18, 3), Color("8d8498"))
 			draw_circle(Vector2(0, -6), 6.0, glow)
 		SpawnSourceRules.Kind.SARCOPHAGUS:
-			draw_set_transform(Vector2.ZERO)
-			draw_rect(Rect2(-24, -66 + STAND_SORT_LIFT, 48, 66), Color("4b4655"))
-			draw_rect(Rect2(-20, -62 + STAND_SORT_LIFT, 40, 58), Color("6b6275"))
-			draw_line(Vector2(0, -56 + STAND_SORT_LIFT), Vector2(0, -16 + STAND_SORT_LIFT), glow, 3.0)
+			draw_set_transform(floor_offset)
+			draw_rect(Rect2(-24, -66, 48, 66), Color("4b4655"))
+			draw_rect(Rect2(-20, -62, 40, 58), Color("6b6275"))
+			draw_line(Vector2(0, -56), Vector2(0, -16), glow, 3.0)
 		SpawnSourceRules.Kind.PUDDLE:
 			draw_circle(Vector2.ZERO, 24.0, Color(color.darkened(0.55), 0.85))
 			draw_circle(Vector2(-4, -2), 12.0, glow)

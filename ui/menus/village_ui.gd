@@ -1,10 +1,12 @@
 class_name VillageUI
 extends CanvasLayer
 ## Village building dialogs (D-078): Schmiede (permanent upgrades), Handelsposten (Proviant only,
-## no crystal exchange since D-087), Chronik (statistics), Gilde (rooms with a room code on the relay,
-## MP2: create, join, player list; guild rooms in preparation)
-## and Zuhause with the wardrobe (MM1: clothing colour of the save's character, live preview).
-## Created by Village; every dialog is a Modal and pauses the village while open.
+## no crystal exchange since D-087), Chronik (statistics), Gilde (the online menu of D-147, OnlineMenu:
+## quick game with a room code on the relay and the player's guilds with guild rooms; the same menu
+## as "Online spielen" in the main menu) and Zuhause with the profile editor (D-152: name, figure and
+## colours of the player, the same editor as the mirror next to it, the first start and the lobby).
+## Created by Village; every dialog is a Modal and pauses the village while open (single player
+## only: in a room the world runs on, GameMode.pauses_for_menus).
 ## D-087: on the first visit a building explains itself (show_intro, "Verstanden"), its role
 ## sentence stays as dialog subtitle and the info button next to the title shows the explanation again.
 ## Locked forge upgrades (MetaUnlocks) are not shown; one line with a lock says when more open.
@@ -16,9 +18,8 @@ const PAUSE_VILLAGE_INTRO: StringName = &"village_intro"
 const CARD_WIDTH := 240.0
 const INTRO_TEXT_WIDTH := 440.0
 const NPC_PORTRAIT_SCALE := 3.0
-## Wardrobe preview scale (whole number, character frames are 32 px) and swatch size in px.
-const WARDROBE_PREVIEW_SCALE := 5
-const WARDROBE_SWATCH := 44.0
+## Width of the profile editor in the village dialogs (mockup px).
+const PROFILE_EDITOR_WIDTH := 262.0
 const GOLD_ICON: Texture2D = preload("res://art/ui/gold_icon.png")
 const CRYSTAL_ICON: Texture2D = preload("res://art/ui/crystal_icon.png")
 const INFO_ICON: Texture2D = preload("res://art/ui/icon_info.png")
@@ -67,8 +68,8 @@ var _body: VBoxContainer = null
 var _currencies: HBoxContainer = null
 var _notice_root: Control = null
 var _notice: Control = null
-## Room code typed in the guild dialog (kept across rebuilds).
-var _room_code_input := ""
+## The online menu of the open guild dialog (null otherwise).
+var _online_menu: OnlineMenu = null
 
 
 func _ready() -> void:
@@ -211,252 +212,137 @@ func _build_chronicle(body: VBoxContainer, _refresh: Callable) -> void:
 
 # --- Gilde ---
 
-func open_guild() -> void:
-	await _open(VillageBuildings.GUILD, _build_guild)
+## skip_intro: opened by a room wish of the main menu (the explanation waits for the next visit).
+func open_guild(skip_intro := false) -> void:
+	await _open(VillageBuildings.GUILD, _build_guild, skip_intro)
+	_online_menu = null
 
 
+## The online menu (D-147). It rebuilds itself on lobby and guild changes, so the dialog body is
+## built only once; Esc goes back inside the menu first (Modal.input_handler).
 func _build_guild(body: VBoxContainer, _refresh: Callable) -> void:
 	var lobby := LobbyClient.of(self)
 	if lobby == null:
 		return
-	for lobby_signal: Signal in [lobby.state_changed, lobby.room_changed, lobby.error]:
-		if not lobby_signal.is_connected(_on_lobby_changed):
-			lobby_signal.connect(_on_lobby_changed)
-	body.add_child(_section_title(Loc.t(&"LOBBY_QUICK_TITLE")))
-	if lobby.is_in_room():
-		_build_room(body, lobby)
-	else:
-		_build_room_entry(body, lobby)
-	var status := _lobby_status(lobby)
-	if not status.is_empty():
-		var status_label := _centered(UiKit.label(status, 16, UiKit.MUTED_COLOR if lobby.is_busy() else Color(1.0, 0.55, 0.35)))
-		status_label.name = "LobbyStatus"
-		body.add_child(status_label)
-	if lobby.is_in_room():
-		# R8: dialogs stay short (D-139); the guild teaser only matters before a room exists.
-		return
-	# Guild rooms follow with MP8.
-	var guild_row := UiKit.hbox(10)
-	guild_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	guild_row.add_child(UiKit.label(Loc.t(&"LOBBY_GUILD_TITLE"), 18, UiKit.MUTED_COLOR))
-	var badge := UiKit.label(Loc.t(&"VILLAGE_UI_IN_PREPARATION"), 14, Color(1.0, 0.55, 0.35))
-	badge.uppercase = true
-	badge.tooltip_text = Loc.t(&"LOBBY_GUILD_HINT")
-	badge.mouse_filter = Control.MOUSE_FILTER_PASS
-	guild_row.add_child(badge)
-	body.add_child(guild_row)
+	_online_menu = OnlineMenu.create(lobby, null, OnlineMenu.DEFAULT_WIDTH, OnlineMenu.VILLAGE_CONTENT_HEIGHT)
+	body.add_child(_online_menu)
+	if _open_modal != null:
+		_open_modal.input_handler = _online_menu.handle_input
 
 
-## Quick game, not in a room: create one, or type a room code (6 characters, upper case, only the
-## unambiguous alphabet) and join.
-func _build_room_entry(body: VBoxContainer, lobby: LobbyClient) -> void:
-	body.add_child(UiKit.wrapped_label(Loc.t(&"LOBBY_QUICK_HINT"), 560.0, 14, UiKit.MUTED_COLOR))
-	var actions := UiKit.hbox(10)
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	var create := UiKit.button(Loc.t(&"LOBBY_CREATE"), func() -> void:
-		lobby.resume_dialog = true
-		lobby.create_room())
-	create.name = "CreateRoom"
-	create.disabled = lobby.is_busy()
-	actions.add_child(create)
-	var code := LineEdit.new()
-	code.name = "RoomCode"
-	code.placeholder_text = Loc.t(&"LOBBY_CODE_PLACEHOLDER")
-	code.max_length = RelayProtocol.ROOM_CODE_LENGTH
-	code.custom_minimum_size = Vector2(150, 0)
-	code.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	code.text = _room_code_input
-	code.editable = not lobby.is_busy()
-	actions.add_child(code)
-	var join := UiKit.button(Loc.t(&"LOBBY_JOIN"), func() -> void:
-		lobby.resume_dialog = true
-		lobby.join_room(_room_code_input))
-	join.name = "JoinRoom"
-	join.disabled = lobby.is_busy() or not RelayProtocol.is_valid_code(_room_code_input)
-	actions.add_child(join)
-	code.text_changed.connect(func(text: String) -> void:
-		var normalized := RelayProtocol.normalize_code(text)
-		if normalized != text:
-			code.text = normalized
-			code.caret_column = normalized.length()
-		_room_code_input = normalized
-		join.disabled = lobby.is_busy() or not RelayProtocol.is_valid_code(normalized))
-	code.text_submitted.connect(func(_text: String) -> void:
-		if not join.disabled:
-			join.pressed.emit())
-	body.add_child(actions)
-
-
-## In a room: the code large, the players in their co-op colour, leave (and Start for MP3).
-func _build_room(body: VBoxContainer, lobby: LobbyClient) -> void:
-	var peers := lobby.get_room_peers()
-	var code_box := UiKit.vbox(2)
-	code_box.add_child(_centered(UiKit.label(Loc.t(&"LOBBY_ROOM_CODE"), 14, UiKit.MUTED_COLOR)))
-	var code := _centered(UiKit.label(lobby.get_room_code(), 44, UiKit.ACCENT_COLOR))
-	code.name = "RoomCodeLabel"
-	code_box.add_child(code)
-	var host_name := str(peers[0].get("name", "")) if not peers.is_empty() and peers[0] is Dictionary else ""
-	var hint := Loc.t(&"LOBBY_SHARE_HINT") if lobby.is_host() else Loc.t(&"LOBBY_JOINED_HINT", [host_name])
-	code_box.add_child(_centered(UiKit.label(hint, 14, UiKit.MUTED_COLOR)))
-	body.add_child(code_box)
-
-	var max_players := int(lobby.room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))
-	body.add_child(_section_title(Loc.t(&"LOBBY_PLAYERS", [peers.size(), max_players])))
-	# Two columns (P1 P2 / P3 P4): the dialog stays short (R8, D-139).
-	var list := _grid(2)
-	list.name = "LobbyPlayers"
-	list.add_theme_constant_override("h_separation", 28)
-	list.add_theme_constant_override("v_separation", 4)
-	for i in max_players:
-		if i < peers.size() and peers[i] is Dictionary:
-			list.add_child(UiKit.label(_peer_line(i, peers[i], lobby), 16, NetPlayers.color_for(i)))
-		else:
-			list.add_child(UiKit.label("P%d  %s" % [i + 1, Loc.t(&"LOBBY_FREE_SLOT")], 16, UiKit.MUTED_COLOR))
-	var frame := UiKit.panel(&"dark")
-	frame.add_child(list)
-	body.add_child(frame)
-
-	var actions := UiKit.hbox(10)
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	if lobby.is_host():
-		var start := UiKit.button(Loc.t(&"LOBBY_START"), lobby.start_run)
-		start.name = "StartRun"
-		# Until the relay confirmed the end of the last run (end_run -> run_ended) the room is closed.
-		start.disabled = lobby.is_busy() or lobby.is_run_started()
-		start.tooltip_text = Loc.t(&"LOBBY_START_HINT")
-		actions.add_child(start)
-	else:
-		actions.add_child(UiKit.label(Loc.t(&"LOBBY_WAIT_FOR_HOST"), 14, UiKit.MUTED_COLOR))
-	var leave := UiKit.button(Loc.t(&"LOBBY_CLOSE_ROOM" if lobby.is_host() else &"LOBBY_LEAVE"), lobby.leave)
-	leave.name = "LeaveRoom"
-	leave.disabled = lobby.is_busy()
-	actions.add_child(leave)
-	body.add_child(actions)
-
-
-## "P2  Name (Host, du) · PC" for one RoomPeer.
-func _peer_line(index: int, peer: Dictionary, lobby: LobbyClient) -> String:
-	var peer_id := int(peer.get("peerId", 0))
-	var tags: Array[String] = []
-	if peer_id == RelayProtocol.HOST_PEER_ID:
-		tags.append(Loc.t(&"LOBBY_HOST"))
-	if peer_id == lobby.get_peer_id():
-		tags.append(Loc.t(&"LOBBY_YOU"))
-	var peer_name := str(peer.get("name")) if peer.get("name") != null else "?"
-	var platform: String = {"android": "Android", "ios": "iOS"}.get(str(peer.get("platform", "")), "PC")
-	var line := "P%d  %s" % [index + 1, peer_name]
-	if not tags.is_empty():
-		line += " (%s)" % ", ".join(tags)
-	return "%s · %s" % [line, platform]
-
-
-func _lobby_status(lobby: LobbyClient) -> String:
-	match lobby.state:
-		LobbyClient.State.LOGGING_IN:
-			return Loc.t(&"LOBBY_STATUS_LOGGING_IN")
-		LobbyClient.State.CONNECTING:
-			return Loc.t(&"LOBBY_STATUS_CONNECTING")
-		LobbyClient.State.LEAVING:
-			return Loc.t(&"LOBBY_STATUS_LEAVING")
-	return LobbyClient.error_text(lobby.last_error) if not lobby.last_error.is_empty() else ""
-
-
-func _on_lobby_changed(_value: Variant = null) -> void:
-	if _body != null and _build == _build_guild:
-		_request_refresh()
+## The online menu of the open guild dialog (null if none), for tests and tools.
+func get_online_menu() -> OnlineMenu:
+	return _online_menu if _online_menu != null and is_instance_valid(_online_menu) else null
 
 
 ## After a room was entered or ended the village is reloaded: reopen the room dialog for the
 ## player who opened it, or explain why the room closed.
 func _resume_lobby() -> void:
+	# "Online spielen" in the main menu: create or join the room now and show it.
+	if LobbyClient.has_pending_launch():
+		var launch := LobbyClient.take_launch()
+		var client := LobbyClient.of(self)
+		if client != null:
+			client.run_launch(launch)
+			open_guild(true)
+		return
 	var lobby := LobbyClient.find(self)
 	if lobby == null:
 		return
+	# Guild runs: "+21 Gold für [DOCHT]" once the report was answered (now or later, D-147).
+	if lobby.net_run != null:
+		if not lobby.net_run.guild_payout_noticed.is_connected(_on_guild_payout):
+			lobby.net_run.guild_payout_noticed.connect(_on_guild_payout)
+		var payout := lobby.net_run.take_payout_notice()
+		if not payout.is_empty():
+			_on_guild_payout(payout)
 	var notice := lobby.take_notice()
 	if not notice.is_empty():
 		var lines: Array[String] = [Loc.t(StringName(notice))]
 		show_notice(Loc.t(&"LOBBY_SESSION_ENDED"), lines)
 	elif lobby.is_in_room() and lobby.resume_dialog:
 		lobby.resume_dialog = false
-		open_guild()
+		# Reopened by itself: the explanation waits for a visit of the player's own.
+		open_guild(true)
 
 
-# --- Zuhause: wardrobe (MM1) ---
+## A guild run paid into the guild treasury: a short notice at the top (the host's run report).
+func _on_guild_payout(payout: Dictionary) -> void:
+	var lobby := LobbyClient.find(self)
+	if lobby != null and lobby.net_run != null:
+		# Shown now: not again on the next village load.
+		lobby.net_run.take_payout_notice()
+	var lines: Array[String] = [NetRun.payout_text(payout)]
+	if int(payout.get("treasury", -1)) >= 0:
+		lines.append(Loc.t(&"GUILD_RUN_TREASURY_NOW", [int(payout.treasury)]))
+	show_notice(Loc.t(&"GUILD_TREASURY"), lines, UiKit.GOLD_ICON)
+
+
+# --- Zuhause and the mirror: the profile editor (D-152) ---
 
 func open_home() -> void:
 	await _open(VillageBuildings.HOME, _build_home)
 
 
-## Clothing colour of the loaded save: big live preview, one swatch per colour (also keys 1-9).
-## A click puts it on and saves; the player in the village follows via SaveManager.profile_changed.
-func _build_home(body: VBoxContainer, refresh: Callable) -> void:
-	var data := CharacterCatalog.get_active()
-	if data == null:
-		return
-	var current := data.get_color_index(SaveManager.get_character_color())
-	var row := UiKit.hbox(24)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	body.add_child(row)
-	var stage := UiKit.panel(&"dark")
-	stage.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	var preview := CharacterPreview.create(WARDROBE_PREVIEW_SCALE)
-	preview.name = "WardrobePreview"
-	stage.add_child(preview)
-	preview.set_character(data, SaveManager.get_character_color())
-	row.add_child(stage)
-
-	var side := UiKit.vbox(10)
-	side.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(side)
-	side.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_WARDROBE"), 22, UiKit.ACCENT_COLOR))
-	side.add_child(UiKit.label("%s · %s" % [data.display_name, data.get_color_name(current)], 16, UiKit.MUTED_COLOR))
-	var swatches := _grid(3)
-	swatches.name = "Swatches"
-	side.add_child(swatches)
+## Name, figure and colours of the player (ProfileEditor). Saving closes the dialog; the player in
+## the village follows via SaveManager.profile_changed (in a room the others see it too, NetPlayers).
+func _build_home(body: VBoxContainer, _refresh: Callable) -> void:
+	var editor := _profile_editor()
+	editor.show_cancel = false
+	body.add_child(editor)
 	var modal := _open_modal
-	for i in data.color_choices.size():
-		var choose := func() -> void:
-			# Same sounds as the colour choice when creating a save slot (UX1, UiSound).
-			if put_on_color(i):
-				UiSound.toggle(self)
-			else:
-				UiSound.error(self)
-			refresh.call()
-		var swatch := Button.new()
-		swatch.name = "Swatch%d" % (i + 1)
-		swatch.focus_mode = Control.FOCUS_NONE
-		swatch.custom_minimum_size = Vector2.ONE * WARDROBE_SWATCH
-		swatch.tooltip_text = "%s [%d]" % [data.get_color_name(i), i + 1]
-		swatch.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		var style := StyleBoxFlat.new()
-		style.bg_color = data.color_choices[i]
-		style.border_color = UiKit.COLOR_GOLD if i == current else UiKit.COLOR_SHADOW
-		style.set_border_width_all(5 if i == current else 2)
-		for state in ["normal", "hover", "pressed"]:
-			swatch.add_theme_stylebox_override(state, style)
-		# Hovering previews the colour, leaving shows the worn one again.
-		swatch.mouse_entered.connect(func() -> void:
-			UiSound.hover(swatch)
-			preview.set_color(data.color_choices[i]))
-		swatch.mouse_exited.connect(func() -> void: preview.set_color(SaveManager.get_character_color()))
-		swatch.pressed.connect(choose)
-		swatches.add_child(swatch)
-		if modal != null and i < 9:
-			modal.hotkeys[KEY_1 + i] = choose
-	side.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_WARDROBE_NOTE", [mini(9, data.color_choices.size())]), 14, UiKit.MUTED_COLOR))
+	if modal != null:
+		modal.input_handler = editor.handle_input
+		editor.saved.connect(modal.finish)
+		editor.cancelled.connect(modal.finish)
 
 
-## Puts on colour index of the active character and saves. Returns false if it was already worn.
+## The mirror next to Zuhause (VillageMirror): the same editor without the building around it.
+func open_mirror() -> void:
+	if is_dialog_open():
+		return
+	_busy = true
+	var modal := Modal.create(PAUSE_VILLAGE_DIALOG)
+	modal.name = "MirrorModal"
+	_open_modal = modal
+	modal.content.add_child(_title(Loc.t(&"MIRROR_TITLE")))
+	var subtitle := _centered(UiKit.label(Loc.t(&"MIRROR_SUBTITLE"), 16, UiKit.MUTED_COLOR))
+	subtitle.name = "Subtitle"
+	modal.content.add_child(subtitle)
+	var editor := _profile_editor()
+	modal.content.add_child(editor)
+	modal.input_handler = editor.handle_input
+	# Esc goes through the editor (cancel), so a running save is never cut off.
+	modal.cancel_allowed = false
+	editor.saved.connect(modal.finish)
+	editor.cancelled.connect(modal.finish)
+	await modal.open(self)
+	_open_modal = null
+	_busy = false
+
+
+func _profile_editor() -> ProfileEditor:
+	var profile := PlayerProfile.current()
+	var editor := ProfileEditor.create(profile.player_name, profile.look, false, PROFILE_EDITOR_WIDTH)
+	return editor
+
+
+## Puts on outfit colour index (PlayerLook palette) and saves the profile; false if it was already
+## worn or the index is invalid. Kept for tools (screenshots) from the MM1 wardrobe.
 func put_on_color(index: int) -> bool:
-	var data := CharacterCatalog.get_active()
-	if data == null or index < 0 or index >= data.color_choices.size():
+	var profile := PlayerProfile.current()
+	if index < 0 or index >= PlayerLook.COLOR_COUNT or PlayerLook.get_index(profile.look, PlayerLook.OUTFIT) == index:
 		return false
-	var color := data.color_choices[index]
-	if SaveManager.has_character_color() and SaveManager.get_character_color() == color:
-		return false
-	SaveManager.set_character_color(color)
-	SaveManager.save_game()
+	profile.set_color(PlayerLook.OUTFIT, index)
+	profile.save()
 	return true
+
+
+## The editor of the open mirror or Zuhause dialog (null if none), for tests and tools.
+func get_profile_editor() -> ProfileEditor:
+	if _open_modal == null or not is_instance_valid(_open_modal):
+		return null
+	return _open_modal.find_child("ProfileEditor", true, false) as ProfileEditor
 
 
 # --- Explanation (D-087) ---
@@ -501,7 +387,7 @@ func _npc_portrait(building_id: StringName) -> Control:
 		var own := CharacterPreview.create(int(NPC_PORTRAIT_SCALE))
 		own.name = "OwnPortrait"
 		frame.add_child(own)
-		own.set_character(CharacterCatalog.get_active(), SaveManager.get_character_color())
+		own.set_look(PlayerProfile.current().look)
 		return frame
 	var holder := Control.new()
 	holder.custom_minimum_size = Vector2(32, 32) * NPC_PORTRAIT_SCALE
@@ -591,11 +477,11 @@ func _lock_row(text: String) -> Control:
 ## Opens one building: on the first visit its explanation, then the dialog with title (+ info
 ## button), the role sentence as subtitle, currency bar, a body built by build(body, refresh) and
 ## rebuilt whenever refresh is called (after purchases), and a close button. One at a time.
-func _open(building_id: StringName, build: Callable) -> void:
+func _open(building_id: StringName, build: Callable, skip_intro := false) -> void:
 	if is_dialog_open():
 		return
 	_busy = true
-	if VillageBuildings.needs_intro(building_id):
+	if VillageBuildings.needs_intro(building_id) and not skip_intro:
 		await show_intro(building_id)
 	var modal := Modal.create(PAUSE_VILLAGE_DIALOG)
 	modal.name = "BuildingModal"
@@ -653,6 +539,8 @@ func _rebuild() -> void:
 			row.remove_child(child)
 			child.queue_free()
 	_fill_currencies(_currencies)
+	# Gold and crystals do not count online (D-081): the guild dialog shows none.
+	_currencies.visible = _build != _build_guild
 	_build.call(_body, _request_refresh)
 
 

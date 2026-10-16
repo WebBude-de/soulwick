@@ -208,10 +208,38 @@ static func side_mouth_image() -> Image:
 	return image
 
 
+## The notch of a side gate (G2, playtest 15.10.2026, notes 5.3 and 18): the dark of the tunnel over
+## its floor, drawn for an east wall (the room on the left, the passage running on to the right): clear
+## at the mouth, from NOTCH_FADE_FROM of its depth darkening to NOTCH_ALPHA_DEEP at the back. TESTWERTE
+const NOTCH_FADE_FROM := 0.12
+const NOTCH_FADE_TO := 0.85
+const NOTCH_ALPHA_DEEP := 0.96
+
+
+static func side_notch_image() -> Image:
+	var image := Image.create_empty(32, 32, false, Image.FORMAT_RGBA8)
+	for x in 32:
+		var t := clampf((float(x) + 0.5) / 32.0, 0.0, 1.0)
+		var u := clampf((t - NOTCH_FADE_FROM) / (NOTCH_FADE_TO - NOTCH_FADE_FROM), 0.0, 1.0)
+		var a := NOTCH_ALPHA_DEEP * u * u * (3.0 - 2.0 * u)
+		for y in 32:
+			image.set_pixel(x, y, Color(TUNNEL_COLOR, a))
+	return image
+
+
+static func get_side_notch() -> Texture2D:
+	var key := "side_notch"
+	if not _cache.has(key):
+		_cache[key] = ImageTexture.create_from_image(side_notch_image())
+	return _cache[key]
+
+
 ## The opening of a frame (art px of the frame): every see-through pixel inside the arch, reached
-## from the bottom centre without leaving the arch. The arch's side pillars bound it below; above the
-## pillars' tops (a cave mouth keeps only a band) the search stays between the leftmost and rightmost
-## pillar pixel of the row, so it never runs round the outside. Cached.
+## from the bottom centre without leaving the arch: a pixel counts while the frame has an opaque
+## pixel above it in its column and left and right of it in its row (G2, playtest 15.10.2026 #25:
+## an ornament hanging in the middle of the arch, the boss gate's skull, no longer cuts the opening
+## off below it). A row with the arch on one side only (a pillar foot left out, a shadow row) takes
+## the missing side from the nearest row that has both; rows without any arch stay outside. Cached.
 static func passage_mask(style: DoorStyle) -> Dictionary[Vector2i, bool]:
 	var key := "passage_%s" % style.get_key()
 	if _cache.has(key):
@@ -224,22 +252,21 @@ static func passage_mask(style: DoorStyle) -> Dictionary[Vector2i, bool]:
 	var size := frame.get_size()
 	var start := Vector2i(size.x / 2, size.y - 1)
 	if frame.get_pixelv(start).a <= 0.05:
-		# Per row: the opaque arch pixels left and right of the centre bound the opening.
+		var centre := size.x / 2
+		# Per row the outermost opaque pixels left and right of the centre (-1 / size.x: none).
 		var bounds: Dictionary[int, Vector2i] = {}
 		for y in size.y:
 			var left := -1
 			var right := size.x
-			for x in range(size.x / 2, -1, -1):
+			for x in centre:
 				if frame.get_pixel(x, y).a > 0.05:
 					left = x
 					break
-			for x in range(size.x / 2, size.x):
+			for x in range(size.x - 1, centre - 1, -1):
 				if frame.get_pixel(x, y).a > 0.05:
 					right = x
 					break
 			bounds[y] = Vector2i(left, right)
-		# A row with the arch on one side only (a pillar foot left out, a shadow row) takes the missing
-		# side from the nearest row that has it; rows without any arch stay outside.
 		for y in size.y:
 			var row: Vector2i = bounds[y]
 			if (row.x < 0) == (row.y >= size.x):
@@ -254,14 +281,22 @@ static func passage_mask(style: DoorStyle) -> Dictionary[Vector2i, bool]:
 					var found: Vector2i = bounds[near]
 					bounds[y] = Vector2i(found.x if row.x < 0 else row.x, found.y if row.y >= size.x else row.y)
 					break
+		# The first opaque row of every column (size.y: none).
+		var tops: Array[int] = []
+		for x in size.x:
+			var top := size.y
+			for y in size.y:
+				if frame.get_pixel(x, y).a > 0.05:
+					top = y
+					break
+			tops.append(top)
 		var stack: Array[Vector2i] = [start]
 		while not stack.is_empty():
 			var point: Vector2i = stack.pop_back()
-			if point.y < 0 or point.y >= size.y or mask.has(point):
+			if point.x < 0 or point.y < 0 or point.x >= size.x or point.y >= size.y or mask.has(point):
 				continue
 			var row: Vector2i = bounds[point.y]
-			# A row without arch on one side (above the arch) is outside the opening.
-			if row.x < 0 or row.y >= size.x or point.x <= row.x or point.x >= row.y:
+			if row.x < 0 or row.y >= size.x or point.x <= row.x or point.x >= row.y or tops[point.x] >= point.y:
 				continue
 			if frame.get_pixelv(point).a > 0.05:
 				continue
@@ -416,8 +451,9 @@ static func opening_width(style: DoorStyle) -> int:
 	return count
 
 
-## The part of a frame above its door tile (rows 0 .. leaf_offset.y): the frame as it is, its open
-## passage filled with the tunnel dark (fading towards the door tile). null for nothing above.
+## The part of a frame above its door tile (rows 0 .. leaf_offset.y): the frame as it is, its opening
+## see-through (the dark of the tunnel is a sprite of its own, opening_top_image, so a player in the
+## arch can be drawn between them, G2). null for nothing above.
 static func frame_top_image(style: DoorStyle) -> Image:
 	var rows := style.leaf_offset.y
 	if rows <= 0:
@@ -426,16 +462,47 @@ static func frame_top_image(style: DoorStyle) -> Image:
 	if frame.is_compressed():
 		frame.decompress()
 	frame.convert(Image.FORMAT_RGBA8)
-	var image := frame.get_region(Rect2i(0, 0, frame.get_width(), rows))
-	if get_delivered_shade(style) != null:
-		# The delivered inner shadow darkens the opening (DoorView).
-		return image
-	# The opening of the arch itself, not a rectangle (44.png).
-	for point: Vector2i in passage_mask(style):
-		if point.y < rows:
-			var t := float(point.y) / float(maxi(1, rows - 1))
-			image.set_pixelv(point, Color(TUNNEL_COLOR, lerpf(TUNNEL_ALPHA_TOP, TUNNEL_ALPHA_BOTTOM, t)))
-	return image
+	return frame.get_region(Rect2i(0, 0, frame.get_width(), rows))
+
+
+## The dark of the tunnel in the opening above the door tile (frame-sized, rows 0 .. leaf_offset.y):
+## the delivered inner shadow, else the opening of the arch itself (not a rectangle, 44.png) fading
+## from TUNNEL_ALPHA_TOP to TUNNEL_ALPHA_BOTTOM towards the door tile. null for nothing above.
+static func opening_top_image(style: DoorStyle) -> Image:
+	var rows := style.leaf_offset.y
+	if rows <= 0:
+		return null
+	var delivered := get_delivered_shade(style)
+	if delivered != null:
+		return rows_of(delivered, 0, rows)
+	if passage_mask(style).is_empty():
+		return null
+	return opening_image(style, 0, func(row: int) -> float:
+		if row >= rows:
+			return 0.0
+		var t := float(row) / float(maxi(1, rows - 1))
+		return lerpf(TUNNEL_ALPHA_TOP, TUNNEL_ALPHA_BOTTOM, t))
+
+
+## Copy of image (one tile piece, its top-left at piece_pos in door-local world px, drawn at
+## piece_scale world px per image px) with every pixel over the opening of the frame made
+## transparent (G2): through the hole a player in the arch shows under the rock over the passage.
+## The frame stands at -leaf_offset * pixel_scale. Returns the copy and the number of pixels cut.
+static func cut_opening(image: Image, style: DoorStyle, piece_pos: Vector2, piece_scale: float, pixel_scale: float) -> Dictionary:
+	var result := image.duplicate() as Image
+	if result.is_compressed():
+		result.decompress()
+	result.convert(Image.FORMAT_RGBA8)
+	var mask := passage_mask(style)
+	var cut := 0
+	for y in result.get_height():
+		for x in result.get_width():
+			var world := piece_pos + (Vector2(x, y) + Vector2(0.5, 0.5)) * piece_scale
+			var art := Vector2i((world / pixel_scale).floor()) + style.leaf_offset
+			if mask.has(art):
+				result.set_pixel(x, y, Color(0, 0, 0, 0))
+				cut += 1
+	return {"image": result, "cut": cut}
 
 
 ## Sides of the light cone: from this share of its half width outwards it fades to nothing (L1,

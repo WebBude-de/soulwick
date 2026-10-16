@@ -38,8 +38,12 @@ func test_decoration_groups_use_the_biome_art_and_block_their_tiles() -> void:
 				continue
 			groups += 1
 			assert_true(entry.allows_biome(deco.biome), "%s: group in the room's biome (%s)" % [entry.id, deco.biome])
+			# The picture covers 2 (large: 3) tiles; only those under its standing part block
+			# (solid_span, playtest 15.10.2026 notes 22/24).
 			var size := 3 if String(deco.item).begins_with("group_large") else 2
-			assert_eq(deco.blocked_tiles.size(), size, "%s: %s stands on %d tiles" % [entry.id, deco.item, size])
+			assert_between(deco.blocked_tiles.size(), 1, size, "%s: %s blocks 1..%d tiles" % [entry.id, deco.item, size])
+			if not deco.is_water_group():
+				assert_ne(deco.solid_span, Vector2.ZERO, "%s: %s solid part measured" % [entry.id, deco.item])
 		room.free()
 	assert_gt(groups, 100, "groups in the plans")
 	# The picture is the delivered file of the biome, no placeholder.

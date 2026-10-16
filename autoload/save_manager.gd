@@ -1,11 +1,15 @@
 extends Node
 ## Owns permanent progress only (permanent gold and crystals, unlocks, village upgrade levels,
-## pending one-run boosts, statistics, the slot profile) plus the global settings. Never stores run
+## pending one-run boosts, statistics, the world's name) plus the global settings. Never stores run
 ## state (D-040).
-## Save format (D-059, extended by D-078, D-087 and MM1): ConfigFile with [meta] version and sections
-## [progress], [meta_upgrades], [boosts], [stats], [seen], [profile]. Older versions are migrated on
-## load (the untouched file is kept once as *.v<old>.bak before); missing, unreadable, newer or invalid
-## files fall back to a fresh state and a broken file is kept as *.bak.
+## Save format (D-059, extended by D-078, D-087, MM1 and D-152): ConfigFile with [meta] version and
+## sections [progress], [meta_upgrades], [boosts], [stats], [seen], [world] (name), [profile]
+## (created, last_played) and, in migrated files only, [legacy_profile]. Older versions are migrated
+## on load (the untouched file is kept once as *.v<old>.bak before); missing, unreadable, newer or
+## invalid files fall back to a fresh state and a broken file is kept as *.bak.
+## D-152: a slot is a world ("Welt 1"), the player's name and look live in the account profile
+## (PlayerProfile, profile.cfg), not in the slot. The old per-slot name, character and colour stay
+## in [legacy_profile] for the one-time suggestion of the first start (PlayerProfile.legacy_suggestion).
 ##
 ## Save slots (MM1): every slot is one such file, saves_dir/slot_<n>.cfg. save_path always points at
 ## the loaded file, so load_game()/save_game() and all getters work as before (tests and tools only
@@ -22,13 +26,13 @@ signal meta_changed
 signal seen_changed(id: StringName)
 ## Another slot was loaded, created or the loaded slot was deleted.
 signal slot_changed(slot: int)
-## Name, character or clothing colour of the loaded save changed (e.g. at home in the village).
+## The player's profile (PlayerProfile: name, figure, colours) changed, or another profile was loaded.
 ## Hook for the player sprite: re-apply CharacterCatalog.apply_active(sprite).
 signal profile_changed
 ## An unlock id was stored for the first time (enemy hints, village events of MetaUnlocks, …).
 signal content_unlocked(id: StringName)
 
-const SAVE_VERSION := 3
+const SAVE_VERSION := 4
 const SETTINGS_VERSION := 1
 ## The save file of builds before slots (MM1); imported into a slot, kept as it is.
 const DEFAULT_SAVE_PATH := "user://savegame.cfg"
@@ -62,6 +66,9 @@ const V3_LEVEL_RULES := {
 ## their announcements ("Neu freigeschaltet" is not shown for them).
 const V3_UNLOCKED_EVENTS: Array[String] = ["event_first_run", "event_first_crystal", "event_first_boss"]
 const V3_ANNOUNCED_IDS: Array[String] = ["unlock_first_run", "unlock_first_crystal", "unlock_first_boss"]
+# --- Migration v3 -> v4 (D-152). Frozen. ---
+## [profile] keys that named the player in MM1 saves; v4 keeps them in [legacy_profile].
+const V4_LEGACY_PROFILE_KEYS: Array[String] = ["name", "character", "color"]
 
 ## The loaded save file. Overridable for tests and tools (they never touch the real save).
 var save_path := DEFAULT_SAVE_PATH
@@ -84,11 +91,11 @@ var _stats: Dictionary[StringName, Variant] = {}
 var _seen: Dictionary[StringName, bool] = {}
 ## True for saves written before the [seen] section existed: they count as "everything seen" (D-087).
 var _seen_all := false
-## Slot profile (MM1, [profile]): name, character, clothing colour (alpha 0 = character default),
-## creation and last save time (unix seconds, 0 = unknown).
-var _profile_name := ""
-var _character_id: StringName = &""
-var _character_color := Color(0, 0, 0, 0)
+## The world's own name ([world] name, D-152), "" = "Welt <n>".
+var _world_name := ""
+## [legacy_profile] of a migrated MM1 slot: name, character, color as stored (kept on save).
+var _legacy_profile: Dictionary = {}
+## Creation and last save time ([profile], unix seconds, 0 = unknown).
 var _created_at := 0
 var _last_played := 0
 
@@ -184,15 +191,14 @@ func load_game() -> Error:
 	if typeof(seen) == TYPE_PACKED_STRING_ARRAY:
 		for id in seen:
 			_seen[StringName(id)] = true
-	# The profile only labels the slot: invalid entries fall back to defaults. Volumes in an old
+	# Name and times only label the world: invalid entries fall back to defaults. Volumes in an old
 	# [settings] section are ignored here; they are global now (load_settings migrates them once).
-	var profile_name: Variant = config.get_value("profile", "name", "")
-	if typeof(profile_name) == TYPE_STRING:
-		_profile_name = String(profile_name)
-	var character: Variant = config.get_value("profile", "character", "")
-	if typeof(character) == TYPE_STRING or typeof(character) == TYPE_STRING_NAME:
-		_character_id = StringName(character)
-	_character_color = SaveSlots.parse_color(config.get_value("profile", "color", ""))
+	var world_name: Variant = config.get_value("world", "name", "")
+	if typeof(world_name) == TYPE_STRING:
+		_world_name = String(world_name)
+	if config.has_section("legacy_profile"):
+		for key in config.get_section_keys("legacy_profile"):
+			_legacy_profile[key] = config.get_value("legacy_profile", key)
 	var created: Variant = config.get_value("profile", "created", 0)
 	_created_at = maxi(0, created) if typeof(created) == TYPE_INT else 0
 	var last_played: Variant = config.get_value("profile", "last_played", 0)
@@ -210,10 +216,13 @@ func load_game() -> Error:
 ## "everything seen" (D-087). This is additive: save_game() always writes [seen], so the section is
 ## missing only in older files and the version number did not have to change.
 ## [profile] (MM1) is additive too: a missing section means default name, character and colour, so
-## it needs no migration step. [profile] and [seen] are never removed by a migration.
+## it needs no migration step. [seen] is never removed by a migration.
 ## v2 -> v3 (B2, D-087): forge levels are converted to the shorter table (V3_LEVEL_RULES), and the
 ## save counts as "everything unlocked": all village events (V3_UNLOCKED_EVENTS) are added and their
 ## announcements marked as shown. Invalid values are left alone (load_game() rejects them).
+## v3 -> v4 (D-152): the slot is a world. Name, character and colour of [profile] move to
+## [legacy_profile] (the player's profile takes them once, PlayerProfile.legacy_suggestion); the world
+## has no name of its own yet ("Welt <n>"). created/last_played stay in [profile].
 static func migrate(config: ConfigFile) -> int:
 	var from_version: int = config.get_value("meta", "version", SAVE_VERSION)
 	if from_version < 2:
@@ -226,6 +235,8 @@ static func migrate(config: ConfigFile) -> int:
 		config.set_value("seen", "ids", PackedStringArray())
 	if from_version < 3:
 		_migrate_to_v3(config)
+	if from_version < 4:
+		_migrate_to_v4(config)
 	config.set_value("meta", "version", SAVE_VERSION)
 	return from_version
 
@@ -243,6 +254,14 @@ static func _migrate_to_v3(config: ConfigFile) -> void:
 	if typeof(seen) != TYPE_PACKED_STRING_ARRAY:
 		seen = PackedStringArray()
 	config.set_value("seen", "ids", _with_ids(seen, V3_ANNOUNCED_IDS))
+
+
+static func _migrate_to_v4(config: ConfigFile) -> void:
+	for key in V4_LEGACY_PROFILE_KEYS:
+		if config.has_section_key("profile", key):
+			if not config.has_section_key("legacy_profile", key):
+				config.set_value("legacy_profile", key, config.get_value("profile", key))
+			config.erase_section_key("profile", key)
 
 
 ## Forge level of a v2 save converted to v3 (D-087): ceil(old effect / new step), at most the new
@@ -303,11 +322,11 @@ func save_game() -> Error:
 	_last_played = int(Time.get_unix_time_from_system())
 	if _created_at <= 0:
 		_created_at = _last_played
-	config.set_value("profile", "name", _profile_name)
-	config.set_value("profile", "character", String(_character_id))
-	config.set_value("profile", "color", _character_color.to_html(false) if _character_color.a > 0.0 else "")
+	config.set_value("world", "name", _world_name)
 	config.set_value("profile", "created", _created_at)
 	config.set_value("profile", "last_played", _last_played)
+	for key: String in _legacy_profile:
+		config.set_value("legacy_profile", key, _legacy_profile[key])
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(save_path.get_base_dir()))
 	var err := config.save(save_path)
 	if err != OK:
@@ -457,49 +476,79 @@ func mark_seen(id: StringName) -> bool:
 	return true
 
 
-# --- Slot profile (MM1) ---
+# --- World name (D-152) and the player's profile ---
 
-## Stored profile name; empty for saves without one (see get_display_name()).
-func get_profile_name() -> String:
-	return _profile_name
+## The world's own name; "" while it has none (see get_world_display_name()).
+func get_world_name() -> String:
+	return _world_name
 
 
-## Name for menus: the profile name or "Spielstand <n>".
-func get_display_name() -> String:
-	if not _profile_name.strip_edges().is_empty():
-		return _profile_name
+## Name for menus: the world's name or "Welt <n>".
+func get_world_display_name() -> String:
+	if not _world_name.strip_edges().is_empty():
+		return _world_name
 	return SaveSlots.default_name(maxi(1, get_active_slot()))
 
 
+## Renames the loaded world (memory only; the caller saves). Empty = back to "Welt <n>".
+func set_world_name(text: String) -> void:
+	var slot := maxi(1, get_active_slot())
+	var cleaned := SaveSlots.sanitize_name(text, slot)
+	_world_name = "" if cleaned == SaveSlots.default_name(slot) else cleaned
+
+
+## Renames a world (slot list). The loaded world is renamed in memory and saved, another one only in
+## its file ([world] name; a file of an older version gets it on its next migration). Empty = back
+## to "Welt <n>". Returns the write result.
+func rename_slot(slot: int, text: String) -> Error:
+	if not has_slot(slot):
+		return ERR_FILE_NOT_FOUND
+	var cleaned := SaveSlots.sanitize_name(text, slot)
+	var stored := "" if cleaned == SaveSlots.default_name(slot) else cleaned
+	if save_path == slot_path(slot):
+		_world_name = stored
+		return save_game()
+	var config := ConfigFile.new()
+	if config.load(slot_path(slot)) != OK:
+		return ERR_FILE_CORRUPT
+	config.set_value("world", "name", stored)
+	return config.save(slot_path(slot))
+
+
+## [legacy_profile] of the loaded world ({} for new worlds), see PlayerProfile.legacy_suggestion().
+func get_legacy_profile() -> Dictionary:
+	return _legacy_profile.duplicate()
+
+
+## The player's name (PlayerProfile, D-152); before D-152 this was the slot's name.
+func get_display_name() -> String:
+	return PlayerProfile.current().get_display_name()
+
+
+## The player's chosen name ("" before the first start), PlayerProfile.
+func get_profile_name() -> String:
+	return PlayerProfile.current().player_name
+
+
+## Figure of the player's profile (older one-figure code: online profile, menus).
 func get_character_id() -> StringName:
-	return _character_id if _character_id != &"" else CharacterCatalog.DEFAULT_ID
+	return PlayerLook.get_character(PlayerProfile.current().look)
 
 
-## Clothing colour of the loaded save; the character's default when none was picked.
+## Outfit colour of the player's profile (older one-colour code).
 func get_character_color() -> Color:
-	if _character_color.a > 0.0:
-		return _character_color
-	var data := CharacterCatalog.get_character(get_character_id())
-	return data.default_color if data != null else Color.WHITE
+	return PlayerLook.outfit_color(PlayerProfile.current().look)
 
 
-## Sets the profile of the loaded save (memory only; the caller decides when to save).
-## A colour with alpha 0 means "the character's default colour".
-func set_profile(profile_name: String, character_id: StringName, color := Color(0, 0, 0, 0)) -> void:
-	_profile_name = profile_name
-	_character_id = character_id
-	_character_color = Color(color, 1.0) if color.a > 0.0 else Color(0, 0, 0, 0)
-	profile_changed.emit()
-
-
-## Changes only the clothing colour (wardrobe at home, memory only; the caller saves).
+## Puts on the nearest outfit colour of the palette (older wardrobe API, memory only).
 func set_character_color(color: Color) -> void:
-	set_profile(_profile_name, _character_id, color)
+	PlayerProfile.current().set_color(PlayerLook.OUTFIT, PlayerLook.nearest_index(PlayerLook.OUTFIT, color))
 
 
-## True once a clothing colour was picked (else the character's default is used).
+## True once an outfit colour other than the figure's start colour is worn.
 func has_character_color() -> bool:
-	return _character_color.a > 0.0
+	var look := PlayerProfile.current().look
+	return PlayerLook.get_index(look, PlayerLook.OUTFIT) != int(PlayerLook.default_colors(PlayerLook.get_character(look))["outfit"])
 
 
 func get_last_played() -> int:
@@ -562,8 +611,10 @@ func load_slot(slot: int) -> Error:
 	return err
 
 
-## Starts a fresh save in an empty slot (no explanations seen, D-087) and writes it.
-func create_slot(slot: int, profile_name: String, character_id: StringName, color := Color(0, 0, 0, 0)) -> Error:
+## Starts a fresh world in an empty slot (no explanations seen, D-087) and writes it. world_name ""
+## = "Welt <n>". The figure is the player's profile (D-152); the last two parameters are ignored
+## (kept for older tools).
+func create_slot(slot: int, world_name := "", _character_id: StringName = &"", _color := Color(0, 0, 0, 0)) -> Error:
 	if slot < 1 or slot > SaveSlots.SLOT_COUNT:
 		return ERR_PARAMETER_RANGE_ERROR
 	if has_slot(slot):
@@ -571,7 +622,8 @@ func create_slot(slot: int, profile_name: String, character_id: StringName, colo
 	save_path = slot_path(slot)
 	_reset()
 	_created_at = int(Time.get_unix_time_from_system())
-	set_profile(SaveSlots.sanitize_name(profile_name, slot), character_id, color)
+	var cleaned := SaveSlots.sanitize_name(world_name, slot)
+	_world_name = "" if cleaned == SaveSlots.default_name(slot) else cleaned
 	var err := save_game()
 	_remember_slot(slot)
 	slot_changed.emit(slot)
@@ -649,6 +701,8 @@ func set_storage_root(root: String) -> void:
 	legacy_save_path = root.path_join("savegame.cfg")
 	save_path = legacy_save_path
 	load_settings()
+	# The player's profile lives next to the settings (PlayerProfile.default_path).
+	PlayerProfile.reset()
 
 
 # --- Global settings (MM1: user://settings.cfg, not per slot) ---
@@ -749,9 +803,8 @@ func _reset() -> void:
 	_stats.clear()
 	_seen.clear()
 	_seen_all = false
-	_profile_name = ""
-	_character_id = &""
-	_character_color = Color(0, 0, 0, 0)
+	_world_name = ""
+	_legacy_profile = {}
 	_created_at = 0
 	_last_played = 0
 	permanent_gold_changed.emit(_permanent_gold)

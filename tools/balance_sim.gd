@@ -29,7 +29,8 @@ extends SceneTree
 ##   smart=0           1 = go for summoning rifts first when no enemy is close
 ##   god_until=0       N > 0 = invulnerable up to room N, normal from room N + 1 (boss tests)
 ##   bosshits=0        1 = print damage taken in boss rooms by boss state/action (BOSSHITS line)
-##   debug=0           1 = every hit, 2 = position trace, 3 = zone trace, 5 = rift rooms
+##   debug=0           1 = every hit, 2 = position trace, 3 = zone trace, 5 = rift rooms,
+##                     6 = boss trace every 5 s (health, phase, distance, player health)
 ##   audio=0           0 = no sound effects and no music (default). The bot runs far faster than
 ##                     real time; Godot frees replaced audio bus data two frames later while its
 ##                     mixer thread may still read it, so many positional sounds at a high frame
@@ -532,6 +533,10 @@ func _bot_step(room: Node) -> void:
 			if String(enemy.data.id) == "summoning_rift":
 				rifts_hp.append("%.0f@%s" % [enemy.health.get_health(), enemy.global_position.round()])
 		print("    rift r%d t=%.0f pos=%s target=%s alive=%d rifts=%s" % [room.room_index, _time, pos.round(), (String(target.data.id) + "@" + str(target.global_position.round())) if target != null else "-", enemies.size(), rifts_hp])
+	if int(opt.debug) == 6 and Engine.get_physics_frames() % 300 == 0:
+		for enemy in enemies:
+			if enemy.data.is_boss:
+				print("    boss r%d t=%.0f hp=%.0f/%.0f phase=%d state=%d dist=%.0f player=%.1f+%.1f target=%s alive=%d" % [room.room_index, _time, enemy.health.get_health(), enemy.health.get_max_health(), enemy.phase, enemy._state, pos.distance_to(enemy.global_position), player.health.get_health(), player.shield.get_shield(), String(target.data.id) if target != null else "-", enemies.size()])
 	if int(opt.debug) == 2 and Engine.get_physics_frames() % 30 == 0:
 		var blocked := 0
 		for i in DIRECTIONS:

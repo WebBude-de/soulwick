@@ -79,8 +79,11 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 | Screenshots (Fenster) | `godot --path . -s tools/screenshots.gd -- <ordner>` |
 | Texte (fehlende Übersetzungen) | `python tools/i18n_check.py <ordner>` |
 | Nach neuen Dateien/Grafiken/Texten | `godot --headless --path . --import` |
+| Builds (Windows, Linux, macOS, Web) | `tools/export_build.sh development "" "windows linux macos web"`; Releases per Tag `v*` über GitHub Actions ([docs/RELEASE.md](docs/RELEASE.md)) |
 
 **Plattform** (im Root von `../soulwick-platform`, Bun 1.3, Node 24, Docker): `bun install`, `bun run services:up` (lokales Postgres), `bun run check` (Biome), `bun run typecheck`, `bun run test`, `bun run build`; lokal starten mit `bun dev`. Details in der dortigen README.
+
+**Leise laufen (Projektmitglied 16.10.2026):** Agenten und Werkzeuge starten Godot nie mit Ton und nie im Vordergrund, weil das Projektmitglied oft parallel spielt. Jeder Lauf mit `--audio-driver Dummy`; Fensterläufe (Screenshots) zusätzlich mit der Umgebungsvariable `SOULWICK_QUIET=1` (alle Busse stumm, Fenster bekommt keinen Fokus und liegt fast ganz außerhalb des Bildschirms, `components/quiet_run.gd`). Bash: `SOULWICK_QUIET=1 godot --audio-driver Dummy --path . -s tools/screenshots.gd -- <ordner>`. Wann immer möglich `--headless`. Browser-Tests des Web-Builds (Playwright/Chromium) immer stumm: `--mute-audio`, möglichst headless. Der normale Spielstart bleibt unverändert.
 
 Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. check + typecheck + test (Plattform). Bei Kampf- und Gegneränderungen zusätzlich combat_sim und boss_sim, bei Raumänderungen smoke_test.
 

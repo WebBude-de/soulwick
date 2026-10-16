@@ -10,9 +10,11 @@
 
 [resource]
 script = ExtResource("1_data")
-id = &"hero"
-display_name = "Lichtträger"
-description = "Ausgewogen und zäh – der Held, mit dem alles begann."
+id = &"moss"
+display_name = "CHARACTER_MOSS"
+description = "CHARACTER_MOSS_DESC"
+art_frames_path = "res://art/characters/moss/moss_frames.tres"
+placeholder_mark = &"moss"
 sprite_frames = ExtResource("2_frames")
 tint_masks = Dictionary[StringName, Texture2D]({
 &"dash": ExtResource("5_mask_dash"),

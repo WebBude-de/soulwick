@@ -1,5 +1,6 @@
 # Claude Design 15, als Hoehle: zwei Gruben an den Waenden, eine dritte mit Haengebruecke vor dem
-# Eingang, Kante zum Hineinstossen, Kristall als Ziel.
+# Eingang, Kante zum Hineinstossen, Kristall als Ziel. Gruben mit zwei Kacheln Boden zur Wand und
+# ohne Eckkontakt untereinander (Playtest 15.10.2026: keine Front neben dem Abgrund, keine Spitzen).
 role: combat
 mode: clear
 biomes: shadow_realm, ember_forge, crypt
@@ -11,11 +12,11 @@ xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxx##N#T###N###N#Txxxx
 xxxx.....i.........xxxx
-xxxx...............xxxx
-xxxx~~~~...C...~~~~xxxx
+xx...................xx
+xx..~~~~...C...~~~~..xx
 xx..~~~~.......~~~~..xx
-xx......~~~=~~~......xx
-xx..i...~~~=~~~...i..xx
+xx.......~~=~~.......xx
+xx..i....~~=~~....i..xx
 xxxx........@.i....xxxx
 xxxxx.............xxxxx
 xxxxxxxxxxxSxxxxxxxxxxx

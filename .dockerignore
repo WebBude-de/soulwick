@@ -1,0 +1,23 @@
+# Build context of the soulwick-game image (Dockerfile, docs/WEB_BUILD.md): only what the Godot
+# import and the "Web" export need. tools/ stays (audio generators for clones without Git LFS).
+.git
+.github
+.claude
+.vscode
+.gitignore
+.gitattributes
+.gutconfig.json
+Dockerfile
+.dockerignore
+# Import cache: rebuilt in the image (cache mount); a Windows cache would not fit anyway.
+.godot
+.userdata
+builds
+docs
+tests
+_inbox
+# Website graphics (soulwick-platform), not part of the game
+art/web
+**/__pycache__
+**/*.pyc
+*.md

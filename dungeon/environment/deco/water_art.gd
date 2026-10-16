@@ -8,7 +8,10 @@ extends RefCounted
 ## middle, a light reflection under the north shore, short ripples and glints that move over four
 ## frames (a slow shimmer). Collision and slowing stay on the tile grid (ShallowWater).
 ## Shapes come from the tiles and a seed derived from their position (never the dungeon RNG), so a
-## template always looks the same. Built once per shape and cached.
+## template always looks the same. Built once per shape and cached. A pool takes a few hundred ms of
+## pixel work (G4 measurement 15.10.2026: 270-400 ms per room, the biggest stall on entering), so
+## rooms ask for it with request_pool: the picture is built on a worker thread and handed over on the
+## main thread (ShallowWater fades it in); pool_strip stays the blocking way for tools and tests.
 ## Until shallow_water_edge / puddle art is delivered (SPRITES_V9) this is the look.
 
 ## Water colours per biome (TESTWERTE, look): shore line, rim, body, deep middle, ripples, glints,
@@ -49,8 +52,17 @@ const GLINT_STRENGTH := 0.85
 ## Small puddle (DecoProp, one 32x32 frame, pivot (16, 18)): ellipse half axes and centre (art px).
 const PUDDLE_CENTER := Vector2(16.0, 19.0)
 const PUDDLE_RADII := Vector2(11.0, 7.0)
+## Smallest puddle (scatter overlay, replaces the old overlay sprite; playtest 15.10.2026 note 13):
+## centre and half axes in its 32 px frame (TESTWERTE, look).
+const SMALL_PUDDLE_CENTER := Vector2(16.0, 17.0)
+const SMALL_PUDDLE_RADII := Vector2(11.0, 6.5)
 
 static var _cache: Dictionary[String, Texture2D] = {}
+## Pools being built on a worker thread: key -> {"task": task id, "done": Array[Callable]}.
+static var _pending: Dictionary[String, Dictionary] = {}
+## The delivered glitter, read once on the main thread (workers only use the image).
+static var _glint: Image = null
+static var _glint_read := false
 
 
 static func palette(biome_id: StringName) -> Dictionary:
@@ -60,10 +72,62 @@ static func palette(biome_id: StringName) -> Dictionary:
 ## A pool over tiles (one connected area, layer cells): a strip of FRAMES frames, each as large as the
 ## tiles' bounding box (art px), to be drawn at the box's top-left tile.
 static func pool_strip(tiles: Array[Vector2i], biome_id: StringName) -> Texture2D:
-	var box := bounds(tiles)
-	var key := "pool:%s:%s" % [biome_id, ",".join(tiles.map(func(t: Vector2i) -> String: return "%d.%d" % [t.x, t.y]))]
+	var key := pool_key(tiles, biome_id)
 	if _cache.has(key):
 		return _cache[key]
+	_read_glint()
+	var texture := ImageTexture.create_from_image(pool_image(tiles, biome_id))
+	_cache[key] = texture
+	return texture
+
+
+## The pool picture without blocking: the cached strip right away; otherwise null, the strip is built
+## on a worker thread and done(texture) is called on the main thread once it is ready (requests for
+## the same shape share one build). A done of a freed object is skipped.
+static func request_pool(tiles: Array[Vector2i], biome_id: StringName, done: Callable) -> Texture2D:
+	var key := pool_key(tiles, biome_id)
+	if _cache.has(key):
+		return _cache[key]
+	if _pending.has(key):
+		(_pending[key]["done"] as Array).append(done)
+		return null
+	_read_glint()
+	var own: Array[Vector2i] = tiles.duplicate()
+	var entry := {"task": -1, "done": [done]}
+	_pending[key] = entry
+	entry["task"] = WorkerThreadPool.add_task(func() -> void:
+		var image := pool_image(own, biome_id)
+		WaterArt._finish_pool.call_deferred(key, image))
+	return null
+
+
+## Is a pool picture still being built on a worker thread?
+static func is_building() -> bool:
+	return not _pending.is_empty()
+
+
+## Main thread: the worker's picture becomes the cached texture, the waiting callers get it.
+static func _finish_pool(key: String, image: Image) -> void:
+	var entry: Dictionary = _pending.get(key, {})
+	_pending.erase(key)
+	if entry.has("task") and int(entry["task"]) >= 0:
+		WorkerThreadPool.wait_for_task_completion(int(entry["task"]))
+	var texture: Texture2D = _cache.get(key)
+	if texture == null:
+		texture = ImageTexture.create_from_image(image)
+		_cache[key] = texture
+	for done: Callable in entry.get("done", []):
+		if done.is_valid():
+			done.call(texture)
+
+
+static func pool_key(tiles: Array[Vector2i], biome_id: StringName) -> String:
+	return "pool:%s:%s" % [biome_id, ",".join(tiles.map(func(t: Vector2i) -> String: return "%d.%d" % [t.x, t.y]))]
+
+
+## The pool strip as an image (pure pixel work, safe on a worker thread once _read_glint ran).
+static func pool_image(tiles: Array[Vector2i], biome_id: StringName) -> Image:
+	var box := bounds(tiles)
 	var water: Dictionary[Vector2i, bool] = {}
 	for tile in tiles:
 		water[tile] = true
@@ -75,28 +139,42 @@ static func pool_strip(tiles: Array[Vector2i], biome_id: StringName) -> Texture2
 		for x in size.x:
 			var point := Vector2(box.position * TILE) + Vector2(x + 0.5, y + 0.5)
 			depth[y * size.x + x] = edge_distance(point, water) - wobble(point, seed_value)
-	var texture := _paint(depth, size, biome_id, seed_value)
-	_cache[key] = texture
-	return texture
+	return _paint(depth, size, biome_id, seed_value)
 
 
 ## A small round puddle in one 32 px frame (DecoProp item puddle, FRAMES frames).
 static func puddle_strip(biome_id: StringName, seed_value: int) -> Texture2D:
-	var key := "puddle:%s:%d" % [biome_id, seed_value % 8]
+	return ellipse_strip(biome_id, seed_value, Vector2i(TILE, TILE), PUDDLE_CENTER, PUDDLE_RADII)
+
+
+## The smallest puddle (a scatter overlay of a plan, RoomTiles): one 32 px frame, centred on the tile.
+static func small_puddle_strip(biome_id: StringName, seed_value: int) -> Texture2D:
+	return ellipse_strip(biome_id, seed_value, Vector2i(TILE, TILE), SMALL_PUDDLE_CENTER, SMALL_PUDDLE_RADII)
+
+
+## A pond in a frame of size (DecoProp groups that are a pool of water, e.g. the slime grotto's
+## pond): FRAMES frames side by side.
+static func pond_strip(biome_id: StringName, seed_value: int, size: Vector2i, center: Vector2, radii: Vector2) -> Texture2D:
+	return ellipse_strip(biome_id, seed_value, size, center, radii)
+
+
+## Water inside a wobbled ellipse (center, radii in art px) in frames of size.
+static func ellipse_strip(biome_id: StringName, seed_value: int, size: Vector2i, center: Vector2, radii: Vector2) -> Texture2D:
+	var shape_seed := seed_value % 8
+	var key := "ellipse:%s:%d:%s:%s:%s" % [biome_id, shape_seed, size, center, radii]
 	if _cache.has(key):
 		return _cache[key]
-	var size := Vector2i(TILE, TILE)
 	var depth := PackedFloat32Array()
 	depth.resize(size.x * size.y)
-	var shape_seed := seed_value % 8
 	for y in size.y:
 		for x in size.x:
 			var point := Vector2(x + 0.5, y + 0.5)
 			# Distance inside the ellipse (scaled to its small axis), wobbled inwards only.
-			var local := (point - PUDDLE_CENTER) / PUDDLE_RADII
-			var inside := (1.0 - local.length()) * PUDDLE_RADII.y
+			var local := (point - center) / radii
+			var inside := (1.0 - local.length()) * radii.y
 			depth[y * size.x + x] = inside - absf(wobble(point * 1.6, shape_seed)) * 0.6
-	var texture := _paint(depth, size, biome_id, shape_seed)
+	_read_glint()
+	var texture := ImageTexture.create_from_image(_paint(depth, size, biome_id, shape_seed))
 	_cache[key] = texture
 	return texture
 
@@ -190,7 +268,7 @@ static func _hash01(cell: Vector2i, seed_value: int) -> float:
 
 
 ## Colours from the depth field, then FRAMES frames of ripples and glints side by side.
-static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringName, seed_value: int) -> Texture2D:
+static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringName, seed_value: int) -> Image:
 	var colors := palette(biome_id)
 	var base := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
 	var water_pixels: Array[Vector2i] = []
@@ -216,7 +294,7 @@ static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringNa
 				water_pixels.append(Vector2i(x, y))
 			base.set_pixel(x, y, color)
 	var strip := Image.create_empty(size.x * FRAMES, size.y, false, Image.FORMAT_RGBA8)
-	var glint_art := _glint_image()
+	var glint_art := _glint
 	var rng := RandomNumberGenerator.new()
 	var ripples := maxi(1, int(water_pixels.size() * RIPPLES_PER_100 / 100.0))
 	var glints := maxi(1, int(water_pixels.size() * GLINTS_PER_100 / 100.0))
@@ -252,7 +330,15 @@ static func _paint(depth: PackedFloat32Array, size: Vector2i, biome_id: StringNa
 					if rng.randi() % FRAMES == frame:
 						image.set_pixelv(pixel, colors["glint"])
 		strip.blit_rect(image, Rect2i(Vector2i.ZERO, size), Vector2i(frame * size.x, 0))
-	return ImageTexture.create_from_image(strip)
+	return strip
+
+
+## Reads the delivered glitter once (main thread; the pixel work only uses the image).
+static func _read_glint() -> void:
+	if _glint_read:
+		return
+	_glint_read = true
+	_glint = _glint_image()
 
 
 ## The delivered glitter strip (water_glint_4f, SPRITES_V9 §3), null without the file.

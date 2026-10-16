@@ -3,8 +3,12 @@ extends SceneTree
 ## the plan rules (SideLayout.check), the door is reached by jumping and climbing within
 ## SideRules.MAX_SEGMENT_SECONDS, the golden coin is fetched with the double jump on the way, the
 ## player never falls into a pit, enemies, spikes and crumbling ledges are only counted. The player is invulnerable for the check (it measures the way, not the fight).
+## Round 3: every turret mount is set up (the game sets them up in SideRules.TURRET_CHANCE of the
+## segments) and its shots are counted, pools count the players they slowed. hits=1 lets the player
+## take hits (health stays high): turret slows and spikes act on the run, and the bot must still
+## make it without falling into a pit.
 ## Usage (repo root):
-##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- [plan=<id>] [mirror=0|1]
+##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- [plan=<id>] [mirror=0|1] [hits=1]
 ##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- dungeon
 ##     (the hook path in the real dungeon: SideWays.plan puts a gate between room 1 and 2, the
 ##     player walks in, SideTransit runs the segment with the autopilot, room 2 starts afterwards)
@@ -16,11 +20,12 @@ const SAVE_PATH := "user://side_check_save.cfg"
 const SETTINGS_PATH := "user://side_check_settings.cfg"
 const PLAYER_SCENE_PATH := "res://player/player.tscn"
 const SHOT_BIOMES := [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
-const SHOT_PLANS := [&"crypt_steps", &"grotto_pools", &"shadow_rift", &"ember_anvils"]
+const SHOT_PLANS := [&"crypt_cistern", &"grotto_spores", &"shadow_rift", &"ember_quench"]
 
 var _failures: Array[String] = []
 var _shots_dir := ""
 var _dungeon_mode := false
+var _take_hits := false
 
 
 func _init() -> void:
@@ -39,6 +44,8 @@ func _run() -> void:
 			_shots_dir = arg.trim_prefix("shots=")
 		elif arg == "dungeon":
 			_dungeon_mode = true
+		elif arg == "hits=1":
+			_take_hits = true
 	var save_manager := root.get_node("SaveManager")
 	save_manager.save_path = SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
@@ -93,7 +100,8 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	var player: Node = (load(PLAYER_SCENE_PATH) as PackedScene).instantiate()
 	world.add_child(player)
 	player.health.reset(99999.0)
-	player.hurtbox.set_invulnerable(&"side_check", true)
+	if not _take_hits:
+		player.hurtbox.set_invulnerable(&"side_check", true)
 	var segment: Node2D = (load("res://dungeon/side/side_segment.gd") as GDScript).new()
 	segment.setup(layout, 1, null, hash(plan_id))
 	world.add_child(segment)
@@ -103,19 +111,28 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	var bot: Variant = (load("res://dungeon/side/side_bot.gd") as GDScript).drive(segment, player)
 	var max_frames := int(70.0 * Engine.physics_ticks_per_second)
 	var frames := 0
+	var slowed_frames := 0
 	while not segment.is_finished and frames < max_frames:
 		await physics_frame
 		frames += 1
+		for pool: Node in segment.get_pools():
+			if pool.is_slowing(player):
+				slowed_frames += 1
+	var turret_shots := 0
+	for turret: Node in segment.get_turrets():
+		if is_instance_valid(turret):
+			turret_shots += turret.shots
 	var seconds := frames / float(Engine.physics_ticks_per_second)
 	var falls: int = player.side_motion.pit_falls
 	var crumbled := 0
 	for crumble: Node in segment.get_crumbles():
 		crumbled += crumble.crumble_count
-	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze" % [
+	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze, %d Türme (%d Schüsse), %d Becken (%.1f s gebremst), %d Stacheln" % [
 		name, "Tür erreicht" if segment.is_finished else "Tür NICHT erreicht", seconds,
 		segment.coins_taken, segment.coins_total, "ja" if segment.golden_coin_taken else "nein", segment.gold_earned,
 		bot.jumps, player.side_motion.double_jumps, " (Pflicht)" if layout.way_needs_double_jump() else "",
-		player.side_motion.wall_jumps, crumbled, falls]
+		player.side_motion.wall_jumps, crumbled, falls, segment.get_turrets().size(), turret_shots,
+		segment.get_pools().size(), slowed_frames / float(Engine.physics_ticks_per_second), segment.get_spikes().size()]
 	print(line)
 	if not segment.is_finished:
 		_failures.append("%s: door not reached (bot at %s)" % [name, segment.to_local(player.get_feet_position())])
@@ -123,6 +140,8 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 		_failures.append("%s: %.1f s > 45 s" % [name, seconds])
 	if falls > 0:
 		_failures.append("%s: %d falls into a pit" % [name, falls])
+	if segment.get_turrets().size() != layout.turrets.size():
+		_failures.append("%s: %d of %d turrets built" % [name, segment.get_turrets().size(), layout.turrets.size()])
 	if not segment.golden_coin_taken:
 		_failures.append("%s: golden coin not reached with the double jump" % name)
 	segment.remove_players()

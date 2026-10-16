@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(4, -1), Vector2i(12, -1), Vector2i(21
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(10, 1, 0), Vector3i(10, 2, 0), Vector3i(10, 3, 0), Vector3i(10, 5, 0), Vector3i(10, 6, 0), Vector3i(11, 1, 0), Vector3i(11, 2, 0), Vector3i(11, 3, 0), Vector3i(11, 4, 0), Vector3i(11, 5, 0), Vector3i(11, 6, 0), Vector3i(12, 1, 0), Vector3i(12, 2, 0), Vector3i(12, 4, 0), Vector3i(12, 5, 0), Vector3i(12, 6, 0), Vector3i(12, 7, 1), Vector3i(12, 8, 1), Vector3i(13, 1, 0), Vector3i(13, 2, 0), Vector3i(13, 3, 0), Vector3i(13, 4, 0), Vector3i(13, 5, 0), Vector3i(13, 6, 0), Vector3i(13, 7, 1), Vector3i(13, 8, 1), Vector3i(13, 9, 1), Vector3i(14, 1, 0), Vector3i(14, 2, 0), Vector3i(14, 3, 0), Vector3i(14, 5, 0), Vector3i(14, 6, 0), Vector3i(14, 7, 1), Vector3i(14, 8, 1), Vector3i(15, 6, 1), Vector3i(15, 7, 1), Vector3i(16, 6, 1), Vector3i(16, 7, 1), Vector3i(17, 6, 1)])
-overlay_cells = Array[Vector3i]([Vector3i(1, 5, 3), Vector3i(4, 1, 10), Vector3i(4, 3, 2), Vector3i(4, 6, 1), Vector3i(5, 1, 9), Vector3i(6, 1, 5), Vector3i(7, 4, 1), Vector3i(7, 6, 10), Vector3i(7, 8, 13), Vector3i(11, 1, 10), Vector3i(12, 0, 13), Vector3i(16, 8, 10), Vector3i(17, 4, 1), Vector3i(18, 8, 2), Vector3i(19, 8, 0), Vector3i(20, 5, 9), Vector3i(20, 8, 13), Vector3i(21, 1, 10), Vector3i(21, 5, 2), Vector3i(21, 8, 0), Vector3i(22, 1, 9), Vector3i(22, 3, 8), Vector3i(22, 7, 5), Vector3i(23, 5, 8)])
+overlay_cells = Array[Vector3i]([Vector3i(1, 5, 3), Vector3i(4, 1, 10), Vector3i(4, 3, 2), Vector3i(4, 6, 1), Vector3i(5, 1, 9), Vector3i(5, 8, 5), Vector3i(6, 6, 2), Vector3i(6, 8, 5), Vector3i(7, 2, 10), Vector3i(7, 4, 13), Vector3i(7, 6, 1), Vector3i(7, 8, 5), Vector3i(9, 9, 9), Vector3i(11, 1, 13), Vector3i(12, 0, 0), Vector3i(15, 1, 13), Vector3i(16, 9, 13), Vector3i(17, 6, 2), Vector3i(19, 2, 5), Vector3i(20, 2, 11), Vector3i(20, 3, 13), Vector3i(20, 5, 10), Vector3i(20, 6, 13), Vector3i(21, 0, 8), Vector3i(21, 3, 9), Vector3i(21, 5, 0), Vector3i(22, 1, 5), Vector3i(22, 3, 8), Vector3i(22, 4, 5), Vector3i(22, 7, 8)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(608, 416)
@@ -50,16 +50,16 @@ position = Vector2(992, 160)
 position = Vector2(800, 288)
 
 [node name="Spawn10" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(480, 608)
-
-[node name="Spawn11" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(1120, 608)
-
-[node name="Spawn12" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(224, 160)
 
-[node name="Spawn13" type="Marker2D" parent="SpawnPoints"]
+[node name="Spawn11" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(608, 160)
+
+[node name="Spawn12" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(1312, 224)
+
+[node name="Spawn13" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(416, 544)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(800, 224)
@@ -134,12 +134,6 @@ metadata/tile = Vector2i(14, 4)
 metadata/built = true
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(256, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
-[node name="Torch3" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(1344, -64)
 
 [node name="Crystal1" type="Node2D" parent="Props"]
@@ -161,51 +155,57 @@ position = Vector2(352, 56)
 script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Group2" type="Node2D" parent="Props"]
-position = Vector2(1344, 56)
+position = Vector2(1184, 632)
 script = ExtResource("3_deco")
-item = &"group_3"
+item = &"group_large_2"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(20, 0), Vector2i(21, 0)])
+blocked_tiles = Array[Vector2i]([Vector2i(17, 9), Vector2i(18, 9), Vector2i(19, 9)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Group3" type="Node2D" parent="Props"]
-position = Vector2(1216, 632)
+position = Vector2(416, 632)
 script = ExtResource("3_deco")
-item = &"group_1"
-blocked_tiles = Array[Vector2i]([Vector2i(18, 9), Vector2i(19, 9)])
+item = &"group_large_1"
+blocked_tiles = Array[Vector2i]([Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Group4" type="Node2D" parent="Props"]
-position = Vector2(384, 632)
-script = ExtResource("3_deco")
-item = &"group_2"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(5, 9), Vector2i(6, 9)])
-biome = &"crypt"
-
-[node name="Group5" type="Node2D" parent="Props"]
 position = Vector2(960, 632)
 script = ExtResource("3_deco")
 item = &"group_2"
+flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(14, 9), Vector2i(15, 9)])
+solid_span = Vector2(-52, 54)
+biome = &"crypt"
+
+[node name="Group5" type="Node2D" parent="Props"]
+position = Vector2(1344, 312)
+script = ExtResource("3_deco")
+item = &"group_1"
+blocked_tiles = Array[Vector2i]([Vector2i(20, 4)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Group6" type="Node2D" parent="Props"]
-position = Vector2(1344, 312)
+position = Vector2(704, 56)
 script = ExtResource("3_deco")
-item = &"group_3"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(20, 4), Vector2i(21, 4)])
+item = &"group_2"
+blocked_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(11, 0)])
+solid_span = Vector2(-52, 54)
 biome = &"crypt"
 
 [node name="Group7" type="Node2D" parent="Props"]
-position = Vector2(704, 56)
+position = Vector2(960, 56)
 script = ExtResource("3_deco")
 item = &"group_1"
-blocked_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(11, 0)])
+blocked_tiles = Array[Vector2i]([Vector2i(14, 0)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]

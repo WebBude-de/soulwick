@@ -10,8 +10,13 @@ extends Node
 ## a solo village with a notice. Lives under the game scene like OnlineSession (of(), no autoload).
 ## The shared run (MP3, "Starten") lives in the child NetRun (online/net_run.gd) and, inside the
 ## dungeon, in NetDungeon. A room has any number of runs: the host's start closes it for joins, its
-## end_run (back in the village) opens it again; run_ended reaches every member. Not here yet: guild
-## rooms beyond passing mode/guildId (MP8).
+## end_run (back in the village) opens it again; run_ended reaches every member.
+## Guild rooms (D-147): create_room(MODE_GUILD, guild_id); the relay lets only members of that guild
+## join (not_guild_member). In a guild room the session is GameMode GUILD with the guild id, the run
+## report goes out with mode guild (the API pays the treasury from it). Not here yet: the guild
+## forge (MP8).
+## The main menu has no game scene to hold a room: it stores the wish with request_launch() and the
+## village of the started game runs it (take_launch(), VillageUI).
 
 signal state_changed(state: State)
 ## The room snapshot changed (RoomInfo of the contract; {} when not in a room).
@@ -42,6 +47,11 @@ const ERROR_BUSY := "busy"
 const ERROR_UPDATE_REQUIRED := "update_required"
 ## The session expired or was revoked and no new login was possible (API 401 / relay 4001).
 const ERROR_UNAUTHORIZED := "unauthorized"
+## A guild room without a guild id.
+const ERROR_NO_GUILD := "no_guild"
+## Launch wishes of the main menu (request_launch): create a room, join one by code.
+const LAUNCH_CREATE := "create"
+const LAUNCH_JOIN := "join"
 ## TESTWERT: seconds from connecting until the room must be entered.
 const CONNECT_TIMEOUT := 10.0
 ## TESTWERT: seconds to wait for the relay's confirmation of a leave.
@@ -61,6 +71,15 @@ var runs_ended := 0
 var reload_world := true
 ## Set by the UI that started create/join: reopen the room dialog in the reloaded village.
 var resume_dialog := false
+## Display name of the guild of a guild room this machine created or joined from the guild menu
+## ("" if unknown, e.g. joined by room code).
+var room_guild_name := ""
+## Tag of that guild ("" if unknown), e.g. for "+21 Gold für [DOCHT]" after a guild run.
+var room_guild_tag := ""
+
+## The main menu's wish for the next game scene ({} if none): {action, mode, guild_id, guild_name,
+## guild_tag, code}. Static: it has to survive the scene change (no autoload, D-044).
+static var _pending_launch: Dictionary = {}
 
 var _session: OnlineSession = null
 var _connect_left := 0.0
@@ -122,6 +141,40 @@ static func error_text(code: String) -> String:
 	return text if text != String(key) else Loc.t(&"LOBBY_ERR_GENERIC", [code])
 
 
+## Main menu: remember to create a room (mode quick or guild with its id) or to join one by code
+## once the game's village is loaded (VillageUI runs it, run_launch()).
+static func request_launch(action: String, mode := MODE_QUICK, guild_id := "", guild_name := "", code := "", guild_tag := "") -> void:
+	_pending_launch = {"action": action, "mode": mode, "guild_id": guild_id, "guild_name": guild_name, "guild_tag": guild_tag, "code": code}
+
+
+static func has_pending_launch() -> bool:
+	return not _pending_launch.is_empty()
+
+
+## Takes the main menu's wish ({} if none); it runs only once.
+static func take_launch() -> Dictionary:
+	var launch := _pending_launch
+	_pending_launch = {}
+	return launch
+
+
+## Runs a launch wish of the main menu (take_launch()): create or join, the room dialog reopens
+## in the village of the room (resume_dialog).
+func run_launch(launch: Dictionary) -> void:
+	resume_dialog = true
+	match str(launch.get("action", "")):
+		LAUNCH_CREATE:
+			room_guild_name = str(launch.get("guild_name", ""))
+			room_guild_tag = str(launch.get("guild_tag", ""))
+			await create_room(str(launch.get("mode", MODE_QUICK)), str(launch.get("guild_id", "")))
+		LAUNCH_JOIN:
+			await join_room(str(launch.get("code", "")))
+			# Joined from a guild's page: its name and tag are known (only if it is that guild room).
+			if is_guild_room():
+				room_guild_name = str(launch.get("guild_name", ""))
+				room_guild_tag = str(launch.get("guild_tag", ""))
+
+
 func _enter_tree() -> void:
 	add_to_group(GROUP)
 
@@ -154,6 +207,21 @@ func get_room_code() -> String:
 	return str(room.get("code", ""))
 
 
+## Mode of the current room ("quick" or "guild"; "" outside a room).
+func get_room_mode() -> String:
+	return str(room.get("mode", MODE_QUICK)) if is_in_room() else ""
+
+
+## Guild id of a guild room ("" for quick rooms and outside).
+func get_room_guild_id() -> String:
+	var id: Variant = room.get("guildId", null)
+	return str(id) if id != null and get_room_mode() == MODE_GUILD else ""
+
+
+func is_guild_room() -> bool:
+	return get_room_mode() == MODE_GUILD
+
+
 ## The relay has a run of this room in progress (started; no joins until the host's end_run).
 func is_run_started() -> bool:
 	return is_in_room() and bool(room.get("started", false))
@@ -181,13 +249,21 @@ func take_notice() -> String:
 	return key
 
 
-## Host a room (mode quick, or guild with guild_id; guild rooms are only passed on, MP8).
+## Host a room (mode quick, or guild with guild_id: only members of that guild may join, D-147).
 func create_room(mode := MODE_QUICK, guild_id := "") -> void:
+	if mode == MODE_GUILD and guild_id.is_empty():
+		_fail(ERROR_NO_GUILD)
+		return
+	if mode != MODE_GUILD:
+		room_guild_name = ""
+		room_guild_tag = ""
 	await _enter(RelayProtocol.create(mode, guild_id))
 
 
 ## Join a room by its 6-character code (case and spaces do not matter).
 func join_room(code: String) -> void:
+	room_guild_name = ""
+	room_guild_tag = ""
 	var normalized := RelayProtocol.normalize_code(code)
 	if not RelayProtocol.is_valid_code(normalized):
 		_fail(ERROR_INVALID_CODE)
@@ -350,13 +426,21 @@ func _on_room_entered(new_room: Dictionary, _peer_id: int) -> void:
 	_set_state(State.IN_ROOM)
 	var controller := _controller()
 	if controller != null:
-		var mode := GameMode.quick(1, [0])
+		var mode := create_session_mode()
 		mode.network = self
 		controller.set_game_mode(mode)
 		if reload_world:
 			controller.load_world(controller.village_scene)
 	peer.set_delivering(true)
 	room_changed.emit(room)
+
+
+## The session of the current room: a guild run for guild rooms (GameMode GUILD with the guild
+## id: run report mode guild, D-147), else a quick game (D-081: no village upgrades either way).
+func create_session_mode() -> GameMode:
+	if is_guild_room() and not get_room_guild_id().is_empty():
+		return GameMode.guild(1, [0], get_room_guild_id())
+	return GameMode.quick(1, [0])
 
 
 func _on_room_updated(new_room: Dictionary) -> void:
@@ -416,7 +500,10 @@ func _on_connection_closed(code: int, reason: String) -> void:
 				_fail(ERROR_RELAY_UNREACHABLE)
 	elif state == State.IN_ROOM or state == State.LEAVING:
 		push_warning("Relay connection closed (%d %s)." % [code, reason])
-		_end_session.call_deferred(RelayProtocol.CLOSED_SHUTDOWN if code == RelayProtocol.CLOSE_SHUTDOWN else "disconnected")
+		# The peer knows why (room_closed reason, own silence check), else the relay's close code
+		# says it (shutdown, timeout, slow_consumer, rate_limited, banned or disconnected).
+		var end_reason := peer.end_reason if peer != null and not peer.end_reason.is_empty() else RelayProtocol.end_reason_for_close(code)
+		_end_session.call_deferred(end_reason)
 
 
 ## Back to a solo village; a notice explains why unless the player left on purpose.
@@ -428,6 +515,8 @@ func _end_session(reason: String) -> void:
 	_pending_notice = "" if left_on_purpose else String(error_key(reason))
 	_close_peer()
 	room = {}
+	room_guild_name = ""
+	room_guild_tag = ""
 	_set_state(State.IDLE)
 	var controller := _controller()
 	if controller != null:

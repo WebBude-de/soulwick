@@ -65,6 +65,29 @@ const HARD_LANDING_SPEED := 900.0
 const CRUMBLE_DELAY := 0.6
 const CRUMBLE_RESPAWN := 3.0
 
+# --- Round 3 (16.10.2026): towers, pools, spike rhythm (TESTWERTE) ---
+## Share of segments whose plan mounts its turret(s) ("T"); one draw per segment (SidePlans.pick).
+const TURRET_CHANCE := 0.5
+## A turret mount keeps at least this many columns away from the start and the door.
+const TURRET_MIN_DISTANCE := 6
+## Side turret: sight in tiles, telegraph (the eye lights up) and pause between shots in seconds,
+## shot speed (slow, px/s). Depth scales telegraph and cadence like every enemy (TurretRules).
+## Damage and the slow come from the biome's turret data and TurretRules (as in the rooms); a hit
+## never blocks the jump.
+const TURRET_SIGHT_TILES := 8.0
+const TURRET_CHARGE_TIME := 0.8
+const TURRET_COOLDOWN := 2.4
+const TURRET_FIRST_DELAY := 1.2
+const TURRET_SHOT_SPEED := 160.0
+const TURRET_HEALTH_FACTOR := 1.0
+## Water / slime pools ("w"): running speed while the feet are in it (jumping stays the same).
+const POOL_SLOW_FACTOR := 0.6
+## Out of a pool a plain jump reaches only this far (columns), the double jump POOL_REACH_DOUBLE.
+const POOL_REACH := 1
+const POOL_REACH_DOUBLE := 3
+## Spike runs ("^^^") fire as a wave: each trap of a run this much later than its neighbour.
+const SPIKE_WAVE_STEP := 0.3
+
 # --- Pits (decision of the team member, 15.10.2026) ---
 ## Falling out of the segment costs what an abyss in a room costs (D-115: a whole heart past the
 ## shield, may kill, ChasmRules.fall_damage), then back on the last platform.
@@ -83,7 +106,10 @@ const GOLDEN_COIN_COINS := 2
 const ENEMY_GOLD := 0
 
 # --- Where segments sit (TESTWERTE) ---
-const AFTER_REST_CHANCE := 0.1
+## Round 3 (16.10.2026, team member: "kann gern minimal öfter kommen"): 0.1 -> 0.18. With two
+## eligible rest rooms per biome (room 4 and 9; room 14 leads into the boss) that is about 0.29
+## instead of 0.16 surprise segments per biome, on top of the campfire one and the ladder ways.
+const AFTER_REST_CHANCE := 0.18
 ## The jump hint ("Springen: Leertaste") on the first few segments of a save.
 const JUMP_HINT_TIMES := 3
 ## Save statistic counting the segments entered (SaveManager.add_stat).

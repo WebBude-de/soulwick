@@ -1,7 +1,9 @@
 extends GutTest
-## Main menu (MM1): imports the old save into slot 1, entries and placeholders, keyboard navigation,
-## creating a fresh slot with a character, deleting only after confirmation, global volume. Runs in a
-## test folder (SaveManager.set_storage_root), never on the real save.
+## Main menu (MM1, D-152): imports the old save into slot 1, entries and placeholders, keyboard
+## navigation, worlds (create with a name, rename, delete only after confirmation), the player's
+## profile (first start "Wie heißt du?" with the old slot name as suggestion, "Figur"), global volume.
+## Runs in a test folder (SaveManager.set_storage_root, the profile lives there too), never on the
+## real save or profile.
 
 const ROOT := "user://test_main_menu"
 const OLD_SAVE := "[meta]\nversion=2\n[progress]\npermanent_gold=77\npermanent_crystals=4\n[stats]\ndeepest_room=31\nplay_time=600.0\n[seen]\nall=true\nids=PackedStringArray()\n[settings]\nvolume_music=0.4\n"
@@ -33,6 +35,9 @@ func before_each() -> void:
 	SaveManager.load_game()
 	# The asserts read German texts; English is the default on English systems (D-111).
 	GameOptions.set_language(&"de")
+	# Most tests start with a profile; the first-start tests wipe it again.
+	assert_true(PlayerProfile.current().path.begins_with(ROOT), "the profile lives in the test folder")
+	PlayerProfile.current().complete_setup("Kerze", PlayerLook.default_look())
 
 
 func after_each() -> void:
@@ -50,6 +55,7 @@ func after_all() -> void:
 	SaveManager.set_volume(&"Music", _old_music)
 	SaveManager.set_volume(&"SFX", _old_sfx)
 	SaveManager.load_game()
+	PlayerProfile.reset()
 	TranslationServer.set_locale(_old_locale)
 
 
@@ -88,18 +94,51 @@ func test_menu_imports_old_save_and_offers_continue() -> void:
 	assert_eq(SaveManager.get_slot_summary(1)["gold"], 77)
 	var list := menu.get_list()
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_CONTINUE), "Weiterspielen")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_CONTINUE), "Spielstand 1")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_CONTINUE), "Welt 1", "D-152: the world's name, not the player's")
 	assert_eq(list.get_entry_hint(MainMenu.ENTRY_SLOTS), "1 / 3 belegt")
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_CONTINUE)
 
 
-func test_online_guild_is_a_disabled_placeholder() -> void:
+func test_online_needs_a_save() -> void:
 	var list := _menu().get_list()
-	assert_eq(list.get_entry_text(MainMenu.ENTRY_ONLINE), "Online / Gilde")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "bald")
+	assert_eq(list.get_entry_text(MainMenu.ENTRY_ONLINE), "Online spielen")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "Welt nötig")
 	assert_false(list.is_entry_enabled(MainMenu.ENTRY_ONLINE))
 	var version := str(ProjectSettings.get_setting("application/config/version", ""))
 	assert_eq(MainMenu.version_text(), ("v" + version) if not version.is_empty() else MainMenu.FALLBACK_VERSION)
+
+
+func test_online_opens_the_online_menu_with_a_save() -> void:
+	SaveManager.create_slot(1, "Kerze", &"hero")
+	var menu := _menu()
+	var list := menu.get_list()
+	assert_true(list.is_entry_enabled(MainMenu.ENTRY_ONLINE), "D-147: Online spielen is open with a save")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "Schnell · Gilden")
+	menu.activate(MainMenu.ENTRY_ONLINE)
+	var panel := menu.get_open_panel() as OnlinePanel
+	assert_not_null(panel, "opens the online menu")
+	await wait_physics_frames(2)
+	assert_not_null(panel.find_child("CreateRoom", true, false), "quick game first")
+	assert_true(_press(panel, KEY_ESCAPE))
+	await wait_physics_frames(2)
+	assert_null(menu.get_open_panel(), "Esc closes it")
+
+
+func test_a_room_from_the_main_menu_starts_the_game_with_the_wish() -> void:
+	SaveManager.create_slot(2, "Kerze", &"hero")
+	var menu := _menu()
+	watch_signals(menu)
+	var panel := menu.open_online()
+	await wait_physics_frames(2)
+	panel.launch_requested.emit({"action": LobbyClient.LAUNCH_CREATE, "mode": LobbyClient.MODE_GUILD, "guild_id": "g-1", "guild_name": "Lichtwacht"})
+	await wait_physics_frames(2)
+	assert_true(menu.is_starting(), "the save starts like Weiterspielen")
+	assert_eq(SaveManager.get_active_slot(), 2)
+	assert_true(LobbyClient.has_pending_launch())
+	var launch := LobbyClient.take_launch()
+	assert_eq(launch.get("mode"), LobbyClient.MODE_GUILD)
+	assert_eq(launch.get("guild_id"), "g-1")
+	assert_false(LobbyClient.has_pending_launch(), "taken once")
 
 
 func test_keyboard_skips_disabled_entries_and_wraps() -> void:
@@ -107,7 +146,10 @@ func test_keyboard_skips_disabled_entries_and_wraps() -> void:
 	assert_true(_press(list, KEY_DOWN))
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_SLOTS)
 	_press(list, KEY_DOWN)
-	assert_eq(list.get_selected_id(), MainMenu.ENTRY_OPTIONS, "Online / Gilde is skipped")
+	assert_eq(list.get_selected_id(), MainMenu.ENTRY_PROFILE)
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_PROFILE), "Kerze", "the player's name")
+	_press(list, KEY_DOWN)
+	assert_eq(list.get_selected_id(), MainMenu.ENTRY_OPTIONS, "Online spielen (no save) is skipped")
 	_press(list, KEY_S)
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_QUIT, "S works like the down arrow")
 	_press(list, KEY_DOWN)
@@ -125,38 +167,16 @@ func test_without_any_save_the_first_entry_starts_a_new_game() -> void:
 	assert_eq(panel.slot, 1)
 
 
-func test_create_panel_offers_characters_and_their_colours() -> void:
+func test_new_world_asks_only_for_its_name() -> void:
 	var menu := _menu()
 	var panel := menu.open_create(2)
 	await wait_physics_frames(2)
-	assert_eq(panel.get_character().id, CharacterCatalog.DEFAULT_ID)
-	assert_eq(panel.get_card_count(), CharacterCatalog.all().size() + CreateSlotPanel.LOCKED_CARDS, "hero plus 'bald' cards")
 	assert_eq(panel.find_children("*", "LineEdit", true, false).size(), 1, "one name field")
-	assert_eq(panel.get_color_count(), panel.get_character().color_choices.size(), "same colours as the wardrobe")
-	assert_eq(panel.get_color(), panel.get_character().default_color, "starts with the default colour")
-	assert_eq(panel.get_row(), CreateSlotPanel.Row.NAME)
-	panel.handle_input(MenuInput.key_event(KEY_DOWN))
-	assert_eq(panel.get_row(), CreateSlotPanel.Row.CHARACTER)
-	panel.handle_input(MenuInput.key_event(KEY_DOWN))
-	assert_eq(panel.get_row(), CreateSlotPanel.Row.COLOR)
-	panel.handle_input(MenuInput.key_event(KEY_RIGHT))
-	assert_eq(panel.get_color_index(), 1, "→ picks the next colour")
-	panel.handle_input(MenuInput.key_event(KEY_3))
-	assert_eq(panel.get_color_index(), 2, "number keys pick directly")
-
-
-func test_creating_a_slot_with_a_colour_saves_it() -> void:
-	var menu := _menu()
-	var panel := menu.open_create(3)
-	await wait_physics_frames(2)
-	assert_true(panel.pick_color(1))
-	var picked := panel.get_color()
-	panel.confirm()
-	await wait_physics_frames(2)
-	assert_eq(SaveManager.get_active_slot(), 3)
-	assert_true(SaveManager.has_character_color())
-	assert_true(SaveManager.get_character_color().is_equal_approx(picked))
-	assert_true((SaveManager.get_slot_summary(3)["color"] as Color).is_equal_approx(picked), "stored in the slot")
+	assert_eq((panel.find_child("WorldName", true, false) as LineEdit).placeholder_text, "Welt 2")
+	assert_eq(panel.find_children("*", "CharacterPreview", true, false).size(), 1, "the player's figure comes along")
+	assert_eq(panel.get_world_name(), "Welt 2", "empty name = Welt 2")
+	panel.set_world_name("Nebeltal")
+	assert_eq(panel.get_world_name(), "Nebeltal")
 
 
 func test_creating_a_slot_starts_a_fresh_game() -> void:
@@ -165,14 +185,14 @@ func test_creating_a_slot_starts_a_fresh_game() -> void:
 	watch_signals(menu)
 	var panel := menu.open_create(2)
 	await wait_physics_frames(2)
-	panel.set_profile_name("  Lena  ")
+	panel.set_world_name("  Lena  ")
 	panel.confirm()
 	await wait_seconds(MainMenu.FADE_TIME + 0.3)
 	assert_signal_emitted(menu, "play_requested")
 	assert_eq(SaveManager.get_active_slot(), 2)
-	assert_eq(SaveManager.get_profile_name(), "Lena")
-	assert_eq(SaveManager.get_character_id(), CharacterCatalog.DEFAULT_ID)
-	assert_false(SaveManager.has_character_color(), "colour is picked later at home")
+	assert_eq(SaveManager.get_world_name(), "Lena", "the world's name")
+	assert_eq(SaveManager.get_slot_summary(2)["name"], "Lena")
+	assert_eq(PlayerProfile.current().player_name, "Kerze", "the player stays who they are (D-152)")
 	assert_eq(SaveManager.get_permanent_gold(), 0)
 	for id in VillageBuildings.ALL:
 		assert_true(VillageBuildings.needs_intro(id), "fresh slot explains %s (D-087)" % id)
@@ -251,3 +271,97 @@ func test_escape_closes_panels_and_reactivates_the_list() -> void:
 	await wait_physics_frames(2)
 	assert_null(menu.get_open_panel())
 	assert_true(menu.get_list().active)
+
+
+# --- D-152: the player's profile ---
+
+func _wipe_profile() -> void:
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(PlayerProfile.current().path))
+	PlayerProfile.reset()
+
+
+func test_first_start_asks_for_the_name_and_cannot_be_skipped() -> void:
+	_wipe_profile()
+	var menu := _menu()
+	await wait_physics_frames(2)
+	var panel := menu.get_open_panel() as ProfilePanel
+	assert_not_null(panel, "Wie heißt du? opens by itself")
+	assert_true(panel.first_start)
+	assert_false(menu.get_list().active, "the menu waits")
+	assert_true(_press(panel, KEY_ESCAPE), "Esc is swallowed")
+	await wait_physics_frames(2)
+	assert_eq(menu.get_open_panel(), panel, "Esc does not skip the first start")
+	var editor := panel.editor
+	editor.set_player_name("A")
+	editor.confirm()
+	await wait_physics_frames(2)
+	assert_eq(menu.get_open_panel(), panel, "a one-letter name is refused")
+	assert_string_contains(editor.get_message(), "mindestens 2")
+	editor.set_player_name("Mira")
+	editor.change_character(1)
+	editor.pick_color(PlayerLook.HAIR, 3)
+	editor.confirm()
+	await wait_physics_frames(3)
+	assert_null(menu.get_open_panel(), "saved: the menu is free")
+	var profile := PlayerProfile.current()
+	assert_false(profile.needs_setup())
+	assert_eq(profile.player_name, "Mira")
+	assert_eq(PlayerLook.get_character(profile.look), &"ember")
+	assert_eq(PlayerLook.get_index(profile.look, PlayerLook.HAIR), 3)
+	assert_true(FileAccess.file_exists(profile.path), "written to profile.cfg")
+	assert_eq(menu.get_list().get_entry_hint(MainMenu.ENTRY_PROFILE), "Mira")
+
+
+func test_first_start_suggests_the_name_of_an_old_slot_once() -> void:
+	_wipe_profile()
+	# A slot of an older build (v3) named the player: Test, hero, red clothes.
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SaveManager.saves_dir))
+	var file := FileAccess.open(SaveManager.slot_path(1), FileAccess.WRITE)
+	file.store_string("[meta]\nversion=3\n[progress]\npermanent_gold=5\n[seen]\nall=true\nids=PackedStringArray()\n[profile]\nname=\"Test\"\ncharacter=\"hero\"\ncolor=\"e0463a\"\n")
+	file.close()
+	var menu := _menu()
+	await wait_physics_frames(2)
+	var panel := menu.get_open_panel() as ProfilePanel
+	assert_not_null(panel)
+	assert_eq(panel.editor.get_player_name(), "Test", "the old slot's name is the suggestion")
+	assert_eq(PlayerLook.get_character(panel.editor.get_look()), &"wick", "hero is wick now")
+	assert_eq(PlayerLook.get_index(panel.editor.get_look(), PlayerLook.OUTFIT), 1, "red clothes kept")
+	assert_eq(menu.get_list().get_entry_hint(MainMenu.ENTRY_CONTINUE), "Welt 1", "the slot is a world now")
+
+
+func test_figure_entry_opens_the_editor_and_the_scene_follows() -> void:
+	var menu := _menu()
+	menu.activate(MainMenu.ENTRY_PROFILE)
+	var panel := menu.get_open_panel() as ProfilePanel
+	assert_not_null(panel)
+	await wait_physics_frames(2)
+	assert_false(panel.first_start)
+	var hero := menu.get_background().get_hero()
+	var before := hero.sprite_frames
+	panel.editor.change_character(1)
+	assert_ne(hero.sprite_frames, before, "the scene figure shows the new look at once")
+	assert_true(_press(panel, KEY_ESCAPE))
+	await wait_physics_frames(2)
+	assert_null(menu.get_open_panel(), "Esc goes back without saving")
+	assert_eq(PlayerLook.get_character(PlayerProfile.current().look), &"wick", "nothing saved")
+
+
+func test_slot_panel_renames_a_world() -> void:
+	SaveManager.create_slot(1, "", &"")
+	SaveManager.create_slot(2, "Zwei")
+	var menu := _menu()
+	var panel := menu.open_slots()
+	await wait_physics_frames(2)
+	panel.select_slot(1)
+	assert_true(_press(panel, KEY_R))
+	await wait_physics_frames(2)
+	assert_true(panel.is_renaming())
+	panel.confirm_rename("  Sumpfland ")
+	await wait_physics_frames(2)
+	assert_false(panel.is_renaming())
+	assert_eq(SaveManager.get_slot_summary(1)["name"], "Sumpfland")
+	panel.select_slot(1)
+	panel.request_rename()
+	panel.confirm_rename("")
+	assert_eq(SaveManager.get_slot_summary(1)["name"], "Welt 1", "empty = default name again")
+	assert_eq(SaveManager.get_slot_summary(2)["name"], "Zwei", "other worlds untouched")

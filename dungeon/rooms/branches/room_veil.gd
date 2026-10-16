@@ -143,36 +143,50 @@ static func make_shape_texture(rect: Rect2i, floor_mask: Dictionary, room_size: 
 				alpha[(origin.y + py) * size.x + origin.x + px] = 1.0
 	alpha = _blur(alpha, size, EDGE_PIXELS / 2)
 	alpha = _blur(alpha, size, EDGE_PIXELS / 2)
-	var image := Image.create_empty(size.x, size.y, false, Image.FORMAT_RGBA8)
+	# Written as raw RGBA8 bytes (set_pixel per pixel cost most of a frame, playtest #14).
+	var bytes := PackedByteArray()
+	bytes.resize(size.x * size.y * 4)
+	bytes.fill(255)
+	var i := 0
 	for y in size.y:
+		var edge_y := mini(y, size.y - 1 - y)
 		for x in size.x:
-			var a := alpha[y * size.x + x]
+			var a := alpha[i]
 			# Nothing at the sheet's border, whatever the shape.
-			var edge := mini(mini(x, size.x - 1 - x), mini(y, size.y - 1 - y))
+			var edge := mini(mini(x, size.x - 1 - x), edge_y)
 			a *= clampf((float(edge) + 0.5) / EDGE_PIXELS, 0.0, 1.0)
-			image.set_pixel(x, y, Color(1, 1, 1, a * a * (3.0 - 2.0 * a)))
-	return ImageTexture.create_from_image(image)
+			bytes[i * 4 + 3] = int(clampf(a * a * (3.0 - 2.0 * a) * 255.0, 0.0, 255.0))
+			i += 1
+	return ImageTexture.create_from_image(Image.create_from_data(size.x, size.y, false, Image.FORMAT_RGBA8, bytes))
 
 
-## Box blur of a w x h field with the given radius (one pass).
+## Box blur of a w x h field with the given radius (one pass): a running sum along the rows, then
+## along the columns. Same result as the plain 2D mean over the clipped square (it separates).
 static func _blur(values: PackedFloat32Array, size: Vector2i, radius: int) -> PackedFloat32Array:
+	return _blur_axis(_blur_axis(values, size, radius, true), size, radius, false)
+
+
+static func _blur_axis(values: PackedFloat32Array, size: Vector2i, radius: int, along_x: bool) -> PackedFloat32Array:
 	var out := PackedFloat32Array()
 	out.resize(values.size())
-	for y in size.y:
-		for x in size.x:
-			var total := 0.0
-			var count := 0
-			for dy in range(-radius, radius + 1):
-				var yy := y + dy
-				if yy < 0 or yy >= size.y:
-					continue
-				for dx in range(-radius, radius + 1):
-					var xx := x + dx
-					if xx < 0 or xx >= size.x:
-						continue
-					total += values[yy * size.x + xx]
-					count += 1
-			out[y * size.x + x] = total / float(maxi(1, count))
+	var length := size.x if along_x else size.y
+	var lines := size.y if along_x else size.x
+	var step := 1 if along_x else size.x
+	var line_step := size.x if along_x else 1
+	for line in lines:
+		var base := line * line_step
+		var total := 0.0
+		# Window [k - radius, k + radius], clipped to the line.
+		for k in mini(radius, length - 1) + 1:
+			total += values[base + k * step]
+		for k in length:
+			var low := maxi(0, k - radius)
+			var high := mini(length - 1, k + radius)
+			out[base + k * step] = total / float(high - low + 1)
+			if k + radius + 1 < length:
+				total += values[base + (k + radius + 1) * step]
+			if k - radius >= 0:
+				total -= values[base + (k - radius) * step]
 	return out
 
 

@@ -3,7 +3,8 @@ extends RefCounted
 ## One parsed side-segment plan (M5): the cells of an ASCII plan (SidePlans) plus the questions the
 ## segment, the player motion and the tools ask about it - where is rock, a ledge, a ladder, where
 ## can a player stand, which stand spots a 2.5-tile jump (or a double jump) connects. check() holds
-## the plan rules.
+## the plan rules. Round 3: turret mounts ("T", on a floor, a ceiling or a wall), water / slime
+## pools ("w", slow running, shorter jumps out of them), spike runs ("^^", fired as a wave).
 ## Cell (column, row); row 0 is the ceiling. A stand cell is an air cell with something to stand on
 ## below it; the feet of a player standing there are at feet_of(cell).
 
@@ -21,6 +22,11 @@ const SKELETON := "k"
 const SPIKES := "^"
 const CHEST := "C"
 const TORCH := "t"
+## A turret mount (round 3): the turret stands on the floor below, hangs from the rock above or sits
+## on a rock wall beside the cell; set up only when turrets_enabled (SideRules.TURRET_CHANCE).
+const TURRET := "T"
+## Water or slime of a pool (round 3): air to walk and jump in, running slowed; rock below.
+const POOL := "w"
 const AIR := "."
 
 ## Planning reach of a jump in whole tiles (SideRules: 2.5 tiles high, about 2.7 tiles far on the
@@ -46,6 +52,11 @@ const PIT_RANGE := Vector2i(1, 2)
 ## Coins per plan (TESTWERT round 2: 6-7 coins + the golden coin pay about a combat room).
 const COIN_RANGE := Vector2i(6, 8)
 const ENEMY_RANGE := Vector2i(1, 3)
+## Spike traps per plan (round 3: runs of 2-3 fire as a wave) and turret mounts per plan.
+const SPIKE_RANGE := Vector2i(1, 3)
+const TURRET_RANGE := Vector2i(1, 2)
+## Line of sight: sample step along a line (px).
+const SIGHT_STEP := 16.0
 
 var plan_id: StringName = &""
 var biome_id: StringName = &""
@@ -61,12 +72,17 @@ var slimes: Array[Vector2i] = []
 var skeletons: Array[Vector2i] = []
 var spikes: Array[Vector2i] = []
 var torches: Array[Vector2i] = []
+var turrets: Array[Vector2i] = []
+## Pools: Vector3i(first column, last column, row) per run of "w".
+var pools: Array[Vector3i] = []
 ## Ladder column -> Vector2i(top row, bottom row).
 var ladders: Dictionary[int, Vector2i] = {}
 ## Crumbling ledges: Vector3i(first column, last column, row) per run.
 var crumbles: Array[Vector3i] = []
 ## The niche chest is set up (SideWays: only on the ladder way of a branch; tests and tools: yes).
 var chest_enabled := true
+## The turret mounts are set up (SidePlans.pick: SideRules.TURRET_CHANCE; tests and tools: yes).
+var turrets_enabled := true
 
 ## Jump graphs without (false) and with (true) the double jump.
 var _edges: Dictionary[bool, Dictionary] = {}
@@ -100,6 +116,14 @@ static func parse(plan_rows: PackedStringArray, id: StringName = &"") -> SideLay
 					layout.spikes.append(cell)
 				TORCH:
 					layout.torches.append(cell)
+				TURRET:
+					layout.turrets.append(cell)
+				POOL:
+					if column == 0 or line[column - 1] != POOL:
+						var pool_end := column
+						while pool_end + 1 < line.length() and line[pool_end + 1] == POOL:
+							pool_end += 1
+						layout.pools.append(Vector3i(column, pool_end, row))
 				LADDER:
 					var span: Vector2i = layout.ladders.get(column, Vector2i(row, row))
 					layout.ladders[column] = Vector2i(mini(span.x, row), maxi(span.y, row))
@@ -123,6 +147,8 @@ func mirrored() -> SideLayout:
 	var layout := SideLayout.parse(flipped, plan_id)
 	layout.biome_id = biome_id
 	layout.is_mirrored = not is_mirrored
+	layout.chest_enabled = chest_enabled
+	layout.turrets_enabled = turrets_enabled
 	return layout
 
 
@@ -157,6 +183,39 @@ func is_blocking(cell: Vector2i) -> bool:
 
 func is_ladder(cell: Vector2i) -> bool:
 	return char_at(cell) == LADDER
+
+
+func is_pool(cell: Vector2i) -> bool:
+	return char_at(cell) == POOL
+
+
+## Global-free question for the segment: a local point (feet) is in the water of a pool.
+func is_in_pool(local: Vector2) -> bool:
+	return is_pool(cell_at(local + Vector2(0, -2)))
+
+
+## Which way a turret on cell looks out of its mount: UP standing on the floor, DOWN hanging from
+## the rock above, RIGHT / LEFT on a rock wall to the left / right; ZERO without a mount.
+func turret_normal(cell: Vector2i) -> Vector2i:
+	if is_blocking(cell + Vector2i.DOWN):
+		return Vector2i.UP
+	if is_rock(cell + Vector2i.UP):
+		return Vector2i.DOWN
+	if is_rock(cell + Vector2i.LEFT):
+		return Vector2i.RIGHT
+	if is_rock(cell + Vector2i.RIGHT):
+		return Vector2i.LEFT
+	return Vector2i.ZERO
+
+
+## No rock between two local points (ledges and everything else let sight and shots through).
+func line_clear(from: Vector2, to: Vector2) -> bool:
+	var distance := from.distance_to(to)
+	var steps := maxi(1, ceili(distance / SIGHT_STEP))
+	for i in range(1, steps):
+		if is_rock(cell_at(from.lerp(to, float(i) / steps))):
+			return false
+	return true
 
 
 ## The top cell of a ladder: its upper edge is a one-way step.
@@ -367,6 +426,9 @@ func _jump_connects(a: Vector2i, b: Vector2i, double := false) -> bool:
 		reach = DOUBLE_REACH_BY_RISE[rise] if rise >= 0 else DOUBLE_REACH_DROP
 	else:
 		reach = REACH_BY_RISE[rise] if rise >= 0 else REACH_DROP + mini(REACH_DROP_EXTRA_MAX, -rise)
+	if is_pool(a):
+		# Running in water is slow: a jump out of a pool carries less far (SideRules.POOL_REACH*).
+		reach = mini(reach, SideRules.POOL_REACH_DOUBLE if double else SideRules.POOL_REACH)
 	if columns > reach:
 		return false
 	# Straight up under solid rock is impossible (ledges can be jumped through from below).
@@ -414,8 +476,20 @@ func check() -> PackedStringArray:
 	var enemies := slimes.size() + skeletons.size()
 	if enemies < ENEMY_RANGE.x or enemies > ENEMY_RANGE.y:
 		errors.append("%s: %d enemies" % [plan_id, enemies])
-	if spikes.size() != 1:
+	if spikes.size() < SPIKE_RANGE.x or spikes.size() > SPIKE_RANGE.y:
 		errors.append("%s: %d spike traps" % [plan_id, spikes.size()])
+	if turrets.size() < TURRET_RANGE.x or turrets.size() > TURRET_RANGE.y:
+		errors.append("%s: %d turret mounts" % [plan_id, turrets.size()])
+	for turret in turrets:
+		if turret_normal(turret) == Vector2i.ZERO:
+			errors.append("%s: turret at %s has no mount" % [plan_id, turret])
+		if absi(turret.x - start.x) < SideRules.TURRET_MIN_DISTANCE or absi(turret.x - door.x) < SideRules.TURRET_MIN_DISTANCE:
+			errors.append("%s: turret at %s too close to the start or the door" % [plan_id, turret])
+	for pool in pools:
+		for column in range(pool.x, pool.y + 1):
+			if not is_blocking(Vector2i(column, pool.z + 1)):
+				errors.append("%s: pool at %d, %d without a floor" % [plan_id, column, pool.z])
+				break
 	if not reach.has(door):
 		errors.append("%s: door not reachable" % plan_id)
 	for column in ladders:
@@ -437,6 +511,10 @@ func check() -> PackedStringArray:
 	for item in items:
 		if not _item_in_reach(item, reach, ITEM_REACH_ROWS):
 			errors.append("%s: %s at %s out of reach" % [plan_id, char_at(item), item])
+	# A turret can be hit: it stands in reach, at worst with the double jump (ceiling mounts).
+	for turret in turrets:
+		if not _item_in_reach(turret, reach, ITEM_REACH_ROWS_DOUBLE):
+			errors.append("%s: turret at %s out of reach" % [plan_id, turret])
 	# The golden coin needs the double jump: out of a plain jump's reach, in a double jump's.
 	if golden_coin.x >= 0:
 		if not _item_in_reach(golden_coin, reach, ITEM_REACH_ROWS_DOUBLE):
@@ -446,7 +524,7 @@ func check() -> PackedStringArray:
 	for run in crumbles:
 		for column in range(run.x, run.y + 1):
 			var above := char_at(Vector2i(column, run.z - 1))
-			if above in [SLIME, SKELETON, SPIKES, CHEST, DOOR, START]:
+			if above in [SLIME, SKELETON, SPIKES, CHEST, DOOR, START, TURRET]:
 				errors.append("%s: something stands on the crumbling ledge at %d" % [plan_id, column])
 	return errors
 

@@ -20,6 +20,9 @@ extends RefCounted
 ## rock ring and its backdrop wherever the cave room's rock lies (never next to its own floor or
 ## corridors, so its walls still block), so no rectangle of the other rock shows between them.
 ## Corridor and gate tiles carry no loose decoration (M1 overlays) of either room.
+## Rock both rooms border (the row between the next room's floor and this room's wall front, G2) is
+## drawn from both floors, so it has its edges towards both - the same pieces the rock over the
+## passage draws (PassageCover), no line that stops where the passage begins (playtest 15.10.2026).
 ## Tiles only, no RNG, no gameplay state.
 
 ## Erased cells on a room's RoomTiles: {instance id of the owner room: {layer name: {cell: [source,
@@ -28,6 +31,14 @@ const META_ERASED := &"passage_seam_erased"
 ## Child layers that never take part in the seam of the walls (the rock ring below every room).
 const SKIPPED_LAYERS: Array[StringName] = [&"Backdrop", &"BiomeBlendBackdrop"]
 const BACKDROP_LAYER := &"Backdrop"
+## Rock pieces redrawn from both floors (_mend_shared_rock): {instance id of the other room: {cell:
+## [source, atlas, alt]}} on the rock layer, put back by release.
+const META_MENDED := &"passage_seam_mended"
+## The cave rock layer of RoomTiles (RoomTiles.ROCK_NAME).
+const ROCK_LAYER := &"Rock"
+## Rock this close (tiles, Chebyshev) to the other room's floor may change with it (its fronts count
+## as open for the rock above them).
+const MEND_REACH := 2
 ## M1's layer of loose decoration on the floor (pebbles, tufts, bones): none in corridors.
 const OVERLAY_LAYER := &"Overlays"
 
@@ -69,7 +80,64 @@ static func join(first: Node2D, second: Node2D) -> int:
 	erased += _clear_corridors(first, second) + _clear_corridors(second, first)
 	if is_cave_look(first_tiles) != is_cave_look(second_tiles):
 		erased += _yield_to_cave(second, first) if is_cave_look(first_tiles) else _yield_to_cave(first, second)
+	_mend_shared_rock(first, second)
+	_mend_shared_rock(second, first)
 	return erased
+
+
+## The rock pieces room keeps near other's floor, drawn from both floors (RockTerrain.piece_for over
+## the union): the row between the two rooms gets its light edges towards both, like the rock over
+## the passage. Returns the number of changed pieces; release puts the old ones back.
+static func _mend_shared_rock(room: Node2D, other: Node2D) -> int:
+	var tiles := _tiles_of(room)
+	var other_tiles := _tiles_of(other)
+	if tiles == null or other_tiles == null or not tiles.is_terrain_drawn():
+		return 0
+	var rock: TileMapLayer = _layers_of(tiles).get(ROCK_LAYER)
+	if rock == null:
+		return 0
+	var shift := origin_of(other) - origin_of(room)
+	var own := tiles.get_floor_mask()
+	# Without the door corridors: the passage between the rooms lies under the rock (PassageCover),
+	# the other ways get theirs or are closed (sealed entrance).
+	var union: Dictionary[Vector2i, bool] = own.duplicate()
+	for tile in tiles.get_door_corridor_tiles():
+		union.erase(tile)
+	var other_corridors: Dictionary = {}
+	for tile in other_tiles.get_door_corridor_tiles():
+		other_corridors[tile] = true
+	var near_other: Dictionary = {}
+	for tile: Vector2i in other_tiles.get_floor_mask():
+		if not other_corridors.has(tile):
+			union[tile + shift] = true
+		for dy in range(-MEND_REACH, MEND_REACH + 1):
+			for dx in range(-MEND_REACH, MEND_REACH + 1):
+				near_other[tile + shift + Vector2i(dx, dy)] = true
+	var source := RockTerrain.rock_source(tiles.get_look())
+	var blend: TileMapLayer = tiles.get_blend_layer() if tiles.has_biome_blend() else null
+	var mended: Dictionary = tiles.get_meta(META_MENDED, {})
+	var cells: Dictionary = mended.get(other.get_instance_id(), {})
+	var count := 0
+	for cell: Vector2i in rock.get_used_cells():
+		# Fillets lie on floor cells (corridors included); only the rock itself near the other room.
+		if own.has(cell) or union.has(cell) or other_corridors.has(cell - shift) or not near_other.has(cell) or rock.get_cell_source_id(cell) != source:
+			continue
+		if RockTerrain.is_enclosed(cell, union):
+			continue
+		var piece := RockTerrain.piece_for(cell, union)
+		if piece == rock.get_cell_atlas_coords(cell):
+			continue
+		if not cells.has(cell):
+			cells[cell] = [source, rock.get_cell_atlas_coords(cell), rock.get_cell_alternative_tile(cell)]
+		rock.set_cell(cell, source, piece)
+		# A room between two biomes draws its rock twice (RoomTiles blend layer): both get the piece.
+		if blend != null and blend.get_cell_source_id(cell) == source:
+			blend.set_cell(cell, source, piece)
+		count += 1
+	if not cells.is_empty():
+		mended[other.get_instance_id()] = cells
+		tiles.set_meta(META_MENDED, mended)
+	return count
 
 
 ## Is a room drawn in M1's cave look (rock terrain) rather than as a built room?
@@ -154,6 +222,7 @@ static func release(gone: Node, others: Array) -> void:
 		if room == null or not is_instance_valid(room) or room == gone:
 			continue
 		var tiles := _tiles_of(room)
+		_unmend(tiles, key)
 		if tiles == null or not tiles.has_meta(META_ERASED):
 			continue
 		var origin := origin_of(room)
@@ -176,6 +245,37 @@ static func release(gone: Node, others: Array) -> void:
 				var entry: Array = cells[cell]
 				layer.set_cell(cell, entry[0], entry[1], entry[2])
 		erased.erase(key)
+
+
+## Puts back the rock pieces tiles drew from the floor of the room with instance id key.
+static func _unmend(tiles: RoomTiles, key: int) -> void:
+	if tiles == null or not tiles.has_meta(META_MENDED):
+		return
+	var mended: Dictionary = tiles.get_meta(META_MENDED)
+	if not mended.has(key):
+		return
+	var rock: TileMapLayer = _layers_of(tiles).get(ROCK_LAYER)
+	var blend: TileMapLayer = tiles.get_blend_layer() if tiles.has_biome_blend() else null
+	if rock != null:
+		var cells: Dictionary = mended[key]
+		for cell: Vector2i in cells:
+			var entry: Array = cells[cell]
+			rock.set_cell(cell, entry[0], entry[1], entry[2])
+			if blend != null and blend.get_cell_source_id(cell) == entry[0]:
+				blend.set_cell(cell, entry[0], entry[1], entry[2])
+	mended.erase(key)
+
+
+## Rock pieces of room drawn from other's floor too (room-local), empty if none.
+static func get_mended(room: Node, other: Node) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var tiles := _tiles_of(room)
+	if tiles == null or other == null or not tiles.has_meta(META_MENDED):
+		return cells
+	var mended: Dictionary = tiles.get_meta(META_MENDED)
+	for cell: Vector2i in mended.get(other.get_instance_id(), {}):
+		cells.append(cell)
+	return cells
 
 
 static func _in_other_body(world: Vector2i, room: Node, bodies: Dictionary) -> bool:

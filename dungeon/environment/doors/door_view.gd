@@ -18,15 +18,31 @@ extends Node2D
 ## in front of the crown with a dark tunnel inside. Over a side door the next room's wall covers the
 ## corridor tile. The players walk under it (it turns see-through while one is below). The sign
 ## hangs on the lintel. Not for the boss gate.
+## G2 (playtest 15.10.2026): the arch of a north gate keeps its look while a player walks through; the
+## player himself darkens with the depth (ARCH_VISIBLE_ENTRY .. ARCH_VISIBLE_DEEP) and is seen only
+## through the opening (the rock and the wall around it are drawn over him, cut to the opening), until
+## he is hidden under the closed crown. A side gate is a notch in the side wall drawn by the terrain
+## (rounded corners), running into the dark of the tunnel. A blocked entrance is closed by the room's
+## own wall with rubble at its foot (no cut-off corridor). In a room between two biomes (campfire) the
+## rock over a passage takes the look of the wall around it (the biome blend).
 ## Positions are world px relative to the door's tile origin (top-left of the door tile).
 
 ## The rock over the passage (PassageCover) lies above the characters.
 const LINTEL_Z := 1
 ## Door views whose passage is a tunnel (is_in_tunnel).
 const TUNNEL_GROUP := &"door_tunnels"
-## The shade in the opening of a north gate comes up this fast (alpha per second) once a player
-## walks in: hidden in the tunnel within about a tenth of a second.
+## A player in a passage darkens or brightens this fast (colour share per second).
 const SHADE_FADE_SPEED := 8.0
+## G2 (Projektmitglied 15.10.2026, notes 8 and 20: "Schatten nicht abdunkeln ... Spieler einfach dunkel
+## machen"): share of a player's colour in the arch of a north gate, where he steps in and where the
+## crown begins; the arch itself keeps its look. Under the crown he is hidden. TESTWERTE
+const ARCH_VISIBLE_ENTRY := 0.6
+const ARCH_VISIBLE_DEEP := 0.45
+## The rock over a side passage while nobody is in it: under the characters, so a player beside the
+## wall is never cut by it (G2 note 19); while one is in the passage it lies over him (LINTEL_Z).
+const SIDE_COVER_LOW_Z := -3
+## The closed side gate lies on the mouth of the notch, under the players in front of it.
+const SIDE_LEAF_Z := -1
 ## The fronts beside a north gate, the floor seen in its opening (above the fronts, below the gate).
 const FRONT_PATCH_Z := -2
 const OPENING_FLOOR_Z := -1
@@ -36,6 +52,9 @@ const LINTEL_UNDER_ALPHA := 1.0
 const LINTEL_FADE_SPEED := 4.0
 ## Tools may switch the see-through off (1.0) to compare.
 static var lintel_under_alpha := LINTEL_UNDER_ALPHA
+## Tile sheets as images (cut pieces, _sheet_image), per texture RID; a few biomes' worth at most.
+const SHEET_CACHE_MAX := 8
+static var _sheets: Dictionary = {}
 ## The first share of the light cone fades in from its start edge (no hard edge at the door, 31.png).
 const CONE_FADE_IN := 0.45
 ## Glow strengths (alpha of the additive overlay). Kept low for long sessions. TESTWERTE.
@@ -69,6 +88,8 @@ const CONE_PATH := "res://art/environment/doors/door_glow.png"
 const CONE_SCALE := 1.5
 ## L1 (15.10.2026): 0.8 glared on light floors and showed hard cut edges. TESTWERT
 const CONE_ALPHA := 0.5
+## G2 (note 5.3): the way of a side door is seen from the side; its cone a little stronger. TESTWERT
+const SIDE_CONE_ALPHA := 0.65
 const CONE_PULSE := 0.12
 const CONE_PULSE_SPEED := 1.3
 const CONE_FADE_TIME := 0.6
@@ -90,11 +111,18 @@ const MOUTH_DECO := [
 	{"cell": &"tuft", "pos": Vector2(-34, 50), "scale": 1.4, "flip": false},
 ]
 const MOUTH_DECO_Z := -9
-## Rubble in an entrance that leads nowhere any more (DecoProp items).
+## Rubble in an entrance that leads nowhere any more (DecoProp items), spilled over the wall line in
+## front of the closed gap: "along" world px along the wall from the middle of the door tile, "inward"
+## world px into the room from the wall line. TESTWERTE
 const BLOCKED_RUBBLE := [
-	{"item": &"rubble_2", "pos": Vector2(30, 40)},
-	{"item": &"rubble_1", "pos": Vector2(18, 54)},
+	{"item": &"rubble_2", "along": -8.0, "inward": 4.0},
+	{"item": &"rubble_1", "along": 14.0, "inward": -2.0},
+	{"item": &"rubble_1", "along": -24.0, "inward": -4.0},
 ]
+## The wall drawn over a blocked entrance (PassageCover.sealed_plan): above the floor and its decals,
+## below the rubble and the characters.
+const SEAL_Z := -6
+const RUBBLE_Z := -5
 ## The mode symbol hangs this far above the arch (world px) and a little lighter than the mode
 ## colour, so dark modes (Lichtfeuer, Flamme) read on the rock.
 const MODE_SYMBOL_GAP := 2.0
@@ -138,7 +166,20 @@ var _lintel: Array[Sprite2D] = []
 ## The top of the frame over the cover, the tunnel fade and shade.
 var _lintel_extras: Array[Sprite2D] = []
 var _passage_rects: Array[Rect2] = []
-var _tunnel_shade: Sprite2D = null
+## Players darkened by this passage: instance id -> player (restored when they leave it).
+var _dimmed: Dictionary = {}
+## The side passage's rock lies over the players (somebody is in it).
+var _side_over := false
+## The dark of the tunnel above the door tile (DoorArt.opening_top_image).
+var _shade_top: Sprite2D = null
+## Crown pieces over the opening of a north gate and their twins with the opening cut out (G2): while
+## a player stands in the arch the full piece lies under him and the cut twin over him.
+var _crown_full: Array[Sprite2D] = []
+var _crown_cut: Array[Sprite2D] = []
+var _arch_view := false
+## The wall over a blocked entrance (_build_seal), built once the room's tiles are there.
+var _seal: Array[Sprite2D] = []
+var _seal_pending := false
 var _glow_strength := 0.0
 var _time := randf() * 10.0
 
@@ -288,8 +329,19 @@ func get_passage_rects() -> Array[Rect2]:
 	return _passage_rects
 
 
-## Is this world point inside the passage of any gate with a tunnel? Things a player carries (the relic)
-## hide with the player under the rock (pure optics).
+## Door-local rectangles where a player is hidden under the rock: the passage without the door tile
+## (the arch of a north gate or the notch of a side gate shows him, G2).
+func get_hidden_rects() -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for rect in _passage_rects:
+		if rect.position != Vector2.ZERO:
+			rects.append(rect)
+	return rects
+
+
+## Is this world point inside the passage of any gate with a tunnel, where the rock hides a player?
+## Things a player carries (the relic) hide with him (pure optics); in the arch or the notch of a gate
+## he is seen (G2), so they are too.
 static func is_in_tunnel(tree: SceneTree, point: Vector2) -> bool:
 	if tree == null:
 		return false
@@ -298,7 +350,7 @@ static func is_in_tunnel(tree: SceneTree, point: Vector2) -> bool:
 		if view == null or not view.is_inside_tree():
 			continue
 		var local := view.to_local(point)
-		for rect: Rect2 in view.get_passage_rects():
+		for rect: Rect2 in view.get_hidden_rects():
 			if rect.grow(-4.0).has_point(local):
 				return true
 	return false
@@ -312,7 +364,11 @@ func _build_lintel() -> void:
 	_lintel.clear()
 	_lintel_extras.clear()
 	_passage_rects.clear()
-	_tunnel_shade = null
+	_shade_top = null
+	_crown_full.clear()
+	_crown_cut.clear()
+	_arch_view = false
+	_side_over = false
 	if not is_inside_tree() or _lintel_rooms.size() < 2:
 		return
 	var rooms: Array = []
@@ -328,46 +384,70 @@ func _build_lintel() -> void:
 		_passage_rects.append(Rect2(Vector2(cell - door_cell) * TILE, Vector2.ONE * TILE))
 	if not _passage_rects.is_empty():
 		add_to_group(TUNNEL_GROUP)
-	# A north gate keeps its door tile (arch and gate), a side gate lies in the closed side wall.
-	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, not _is_side()):
-		var piece := _cover_sprite(entry, door_cell)
+	# A side gate is a notch in the side wall: its door tile stays floor, the terrain draws the wall
+	# round it (G2 note 18). A north gate shows its arch and gate on the door tile: there the front is
+	# drawn only around the opening (no floor of the door tile beside the arch).
+	var north := not _is_side()
+	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, not north, not north):
+		var cell: Vector2i = entry["cell"]
+		var on_door := north and cell == door_cell
+		var piece := _cover_sprite(entry, door_cell, on_door)
 		if piece == null:
 			continue
-		if not _is_side() and (entry["cell"] as Vector2i).y == door_cell.y:
+		if not north:
+			piece.z_index = SIDE_COVER_LOW_Z
+			# In front of a player in the notch: the rock deeper in the passage and below the notch;
+			# its wall face above stays behind him (seen from the front).
+			var rel := cell - door_cell
+			piece.set_meta(&"over_player", rel.x * outward.x + rel.y * outward.y > 0 or rel.y > 0)
+		elif cell.y == door_cell.y:
 			# The fronts beside a north gate stay behind its torches, the opening and the players.
 			piece.z_index = FRONT_PATCH_Z
+		elif north:
+			# Over the opening: a twin with the opening cut out, shown while a player is in the arch.
+			var cut := _cover_sprite(entry, door_cell, true)
+			if cut != null:
+				cut.name = "LintelCut%d" % _crown_cut.size()
+				cut.visible = false
+				_lintel_extras.append(cut)
+				_crown_cut.append(cut)
+				_crown_full.append(piece)
 		_lintel.append(piece)
 	if _is_side():
-		_build_side_mouth()
+		for entry: Dictionary in PassageCover.notch_floor(rooms, door_cell, outward):
+			var floor_piece := _cover_sprite(entry, door_cell)
+			if floor_piece != null:
+				floor_piece.name = "NotchFloor%d" % _lintel_extras.size()
+				floor_piece.z_index = SIDE_COVER_LOW_Z - 1
+				_lintel_extras.append(floor_piece)
+		_build_side_notch()
 	else:
 		_build_frame_top()
 
 
-## The opening of a side passage in the closed side wall: a dark slot over its light edge with a
-## little shadow on the floor (DoorArt.side_mouth_image), above the cover, under the leaf.
-func _build_side_mouth() -> void:
-	var mouth := Sprite2D.new()
-	mouth.name = "SideMouth"
-	mouth.texture = DoorArt.get_side_mouth(style)
-	mouth.centered = false
-	mouth.scale = Vector2.ONE * PIXEL_SCALE
-	var width := float(mouth.texture.get_width()) * PIXEL_SCALE
-	var shadow := float(DoorArt.SIDE_MOUTH_SHADOW) * PIXEL_SCALE
-	# East wall: the floor lies left of the door tile; west wall: mirrored, the floor on the right.
-	mouth.flip_h = side == RoomTiles.DoorSide.WEST
-	mouth.position = Vector2(TILE + shadow - width if mouth.flip_h else -shadow, 0.0)
-	mouth.z_index = LINTEL_Z
-	add_child(mouth)
-	_lintel_extras.append(mouth)
+## The dark of the tunnel in the notch of a side gate (DoorArt.side_notch_image): clear at the mouth,
+## dark where the passage runs on into the rock; over the players, so one walking in fades into it.
+func _build_side_notch() -> void:
+	var notch := Sprite2D.new()
+	notch.name = "SideNotch"
+	notch.texture = DoorArt.get_side_notch()
+	notch.centered = false
+	notch.scale = Vector2.ONE * TILE / float(notch.texture.get_width())
+	# Drawn for an east wall (the room on the left); a west wall mirrors it.
+	notch.flip_h = side == RoomTiles.DoorSide.WEST
+	notch.z_index = LINTEL_Z + 1
+	add_child(notch)
+	_lintel_extras.append(notch)
 
 
-func get_side_mouth() -> Sprite2D:
-	return get_node_or_null(^"SideMouth") as Sprite2D
+func get_side_notch() -> Sprite2D:
+	return get_node_or_null(^"SideNotch") as Sprite2D
 
 
 ## One cover piece as a sprite above the characters: the atlas region of the owner room's tileset,
-## its rock material (world-space stones) and its biome tint.
-func _cover_sprite(entry: Dictionary, door_cell: Vector2i) -> Sprite2D:
+## its rock material (world-space stones) and its biome tint. cut_opening: the opening of the frame is
+## cut out of the piece (DoorArt.cut_opening); null if the piece does not reach into it.
+func _cover_sprite(entry: Dictionary, door_cell: Vector2i, cut_opening := false) -> Sprite2D:
 	var tiles := (entry["room"] as Node).get_node_or_null("Tiles") as RoomTiles
 	var atlas: Vector3i = entry["atlas"]
 	if tiles == null or tiles.tile_set == null or not tiles.tile_set.has_source(atlas.z):
@@ -376,57 +456,101 @@ func _cover_sprite(entry: Dictionary, door_cell: Vector2i) -> Sprite2D:
 	if source == null or source.texture == null or not source.has_tile(Vector2i(atlas.x, atlas.y)):
 		return null
 	var region := Rect2(source.get_tile_texture_region(Vector2i(atlas.x, atlas.y)))
+	var piece_pos := Vector2((entry["cell"] as Vector2i) - door_cell) * TILE
+	var piece_scale := TILE / region.size.x
 	var piece := Sprite2D.new()
 	piece.name = "Lintel%d" % _lintel.size()
-	# The region of the sheet, clipped at its edges: no seam of the neighbouring piece between two
-	# cover tiles at any zoom.
-	piece.texture = source.texture
-	piece.region_enabled = true
-	piece.region_rect = region
-	piece.region_filter_clip_enabled = true
+	if not _set_piece_texture(piece, source, region, cut_opening, piece_pos, piece_scale):
+		piece.free()
+		return null
 	piece.material = tiles.material
 	piece.modulate = tiles.modulate
 	piece.centered = false
-	piece.scale = Vector2.ONE * TILE / region.size.x
-	piece.position = Vector2((entry["cell"] as Vector2i) - door_cell) * TILE
+	piece.scale = Vector2.ONE * piece_scale
+	piece.position = piece_pos
 	piece.z_index = LINTEL_Z
 	add_child(piece)
+	# A room between two biomes (campfire, A6): the second look over it through the same world-space
+	# mask as the room's blend layer, so the rock matches the wall around it (G2 note 27).
+	var blend := tiles.get_blend_layer() if tiles.has_biome_blend() else null
+	if blend != null and blend.tile_set != null and blend.tile_set.has_source(atlas.z):
+		var blend_source := blend.tile_set.get_source(atlas.z) as TileSetAtlasSource
+		if blend_source != null and blend_source.texture != null and blend_source.has_tile(Vector2i(atlas.x, atlas.y)):
+			var twin := Sprite2D.new()
+			twin.name = "Blend"
+			var blend_region := Rect2(blend_source.get_tile_texture_region(Vector2i(atlas.x, atlas.y)))
+			if _set_piece_texture(twin, blend_source, blend_region, cut_opening, piece_pos, piece_scale):
+				twin.material = blend.material
+				twin.modulate = blend.modulate
+				twin.centered = false
+				twin.scale = region.size / blend_region.size
+				piece.add_child(twin)
+			else:
+				twin.free()
 	return piece
+
+
+## The texture of a cover piece: the region of the sheet, or with the opening of the frame cut out
+## (DoorArt.cut_opening). False if a cut piece does not reach into the opening.
+func _set_piece_texture(sprite: Sprite2D, source: TileSetAtlasSource, region: Rect2, cut_opening: bool, piece_pos: Vector2, piece_scale: float) -> bool:
+	if cut_opening:
+		var sheet := _sheet_image(source.texture)
+		if sheet == null or style == null:
+			return false
+		var cut := DoorArt.cut_opening(sheet.get_region(Rect2i(region)), style, piece_pos, piece_scale, PIXEL_SCALE)
+		if int(cut["cut"]) == 0:
+			return false
+		sprite.texture = ImageTexture.create_from_image(cut["image"])
+		return true
+	# The region of the sheet, clipped at its edges: no seam of the neighbouring piece between two
+	# cover tiles at any zoom.
+	sprite.texture = source.texture
+	sprite.region_enabled = true
+	sprite.region_rect = region
+	sprite.region_filter_clip_enabled = true
+	return true
 
 
 ## The part of the frame above the door tile drawn over the cover, its passage a dark tunnel: the
 ## arch or mouth keeps its shape in front of the closed crown (36.png). Below it the dark runs on
-## softly into the door tile (no hard shadow edge, 39.png), and a shade fills the opening while a
-## player walks through (hidden in the tunnel, 42.png).
+## softly into the door tile (no hard shadow edge, 39.png). Nothing in the opening changes while a
+## player walks through (G2 note 20: he darkens himself, _dim_players).
 func _build_frame_top() -> void:
 	if style == null or _frame == null:
 		return
-	# The delivered inner shadow (V9): its part over the crown above the cover, under the top of the
-	# frame; its part over the door tile on the floor, under the gate and the players.
+	# The dark of the tunnel over the crown above the cover, under the top of the frame (the delivered
+	# inner shadow of V9 or the opening's own); its part over the door tile on the floor, under the
+	# gate and the players.
 	var delivered := DoorArt.get_delivered_shade(style)
-	if delivered != null:
-		_opening_sprite("ShadeTop", DoorArt.rows_of(delivered, 0, style.leaf_offset.y), LINTEL_Z + 1)
+	var top_shade := DoorArt.opening_top_image(style)
+	if top_shade != null:
+		_shade_top = _opening_sprite("ShadeTop", top_shade, LINTEL_Z + 1)
 	var image := DoorArt.frame_top_image(style)
 	if image != null:
 		var top := _opening_sprite("FrameTop", image, LINTEL_Z + 1)
 		top.modulate = _frame.modulate
 	# Everything seen in the opening is cut to the arch (44.png): the floor where the arch is wider
 	# than the door tile, the soft dark at its top, the shade that hides a player in the arch.
-	var floor_image := _door_floor_image()
+	var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles
+	var floor_image := _door_floor_image(Vector2i.ZERO)
 	if floor_image != null:
 		var opening_floor := _opening_sprite("OpeningFloor", DoorArt.opening_floor_image(style, floor_image), OPENING_FLOOR_Z)
-		var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles
 		opening_floor.material = tiles.material
 		opening_floor.modulate = tiles.modulate
+		# The floor of the second biome where the room blends into it (campfire).
+		var blend_floor := _door_floor_image(Vector2i.ZERO, true)
+		if blend_floor != null:
+			var twin := Sprite2D.new()
+			twin.name = "Blend"
+			twin.texture = ImageTexture.create_from_image(DoorArt.opening_floor_image(style, blend_floor))
+			twin.centered = false
+			twin.material = tiles.get_blend_layer().material
+			twin.modulate = tiles.get_blend_layer().modulate
+			opening_floor.add_child(twin)
 	if delivered != null:
 		_opening_sprite("ShadeFloor", DoorArt.rows_of(delivered, style.leaf_offset.y, delivered.get_height()), OPENING_FLOOR_Z)
 	else:
 		_opening_sprite("TunnelFade", DoorArt.tunnel_fade_image(style), 0)
-	var shade_image := DoorArt.tunnel_shade_image(style)
-	if shade_image != null:
-		# Over the top of the frame too (same layer, drawn after it; the arch itself stays in front).
-		_tunnel_shade = _opening_sprite("TunnelShade", shade_image, LINTEL_Z + 1)
-		_tunnel_shade.modulate.a = 0.0
 
 
 ## A frame-sized sprite on the frame's place (art px at the pixel scale).
@@ -443,16 +567,22 @@ func _opening_sprite(node_name: String, image: Image, z: int) -> Sprite2D:
 	return sprite
 
 
-## The floor tile the door's room paints on the door tile (art px), null without one.
-func _door_floor_image() -> Image:
+## The floor tile the door's room paints on the door tile (plus offset tiles; art px), null without one.
+## blend: the same tile in the room's second biome (biome blend), null without a blend.
+func _door_floor_image(offset: Vector2i, blend := false) -> Image:
 	var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles if not _lintel_rooms.is_empty() and is_instance_valid(_lintel_rooms[0]) else null
 	if tiles == null or tiles.tile_set == null:
 		return null
-	var cell := tiles.local_to_map(tiles.to_local(global_position + Vector2.ONE * TILE * 0.5))
+	var tile_set := tiles.tile_set
+	if blend:
+		if not tiles.has_biome_blend() or tiles.get_blend_layer().tile_set == null:
+			return null
+		tile_set = tiles.get_blend_layer().tile_set
+	var cell := tiles.local_to_map(tiles.to_local(global_position + Vector2.ONE * TILE * 0.5)) + offset
 	var source_id := tiles.get_cell_source_id(cell)
-	if source_id == -1 or not tiles.tile_set.has_source(source_id):
+	if source_id == -1 or not tile_set.has_source(source_id):
 		return null
-	var source := tiles.tile_set.get_source(source_id) as TileSetAtlasSource
+	var source := tile_set.get_source(source_id) as TileSetAtlasSource
 	if source == null or source.texture == null:
 		return null
 	var sheet := source.texture.get_image()
@@ -464,31 +594,181 @@ func _door_floor_image() -> Image:
 	return sheet.get_region(source.get_tile_texture_region(tiles.get_cell_atlas_coords(cell)))
 
 
-## Is a living player in the passage (door tile or corridor; only_door: in the door tile)?
-func _player_in_passage(only_door := false) -> bool:
-	if _passage_rects.is_empty() or not is_inside_tree():
-		return false
-	var rects := _passage_rects.slice(0, 1) if only_door else _passage_rects
+func _update_lintel(delta: float) -> void:
+	if _lintel.is_empty():
+		return
+	var in_arch := _arch_depths()
+	var beyond := _player_in_passage_beyond_door()
+	var under := beyond or not in_arch.is_empty()
+	if _is_side():
+		_set_side_over(under)
+	else:
+		# G2: the rock over the arch is cut to the opening while players stand in the arch only (one
+		# further in would show through the cut).
+		_set_arch_view(not in_arch.is_empty() and not beyond)
+		_dim_players(delta)
+	var target := lintel_under_alpha if under else 1.0
+	for piece in _lintel + _crown_cut:
+		if piece.z_index >= LINTEL_Z:
+			piece.modulate.a = move_toward(piece.modulate.a, target, delta * LINTEL_FADE_SPEED)
+
+
+## Share of a player's colour seen in the arch (G2) at depth 0 (where he steps in from the room) .. 1
+## (where the crown begins).
+static func arch_visibility(depth: float) -> float:
+	return lerpf(ARCH_VISIBLE_ENTRY, ARCH_VISIBLE_DEEP, clampf(depth, 0.0, 1.0))
+
+
+## Depths (0 at the room side .. 1 at the crown) of the living players whose feet stand in the door
+## tile of a north gate (the sprite rises from the feet: once they are under the crown, all of him
+## is); empty for a side gate (its door tile lies under the rock).
+func _arch_depths() -> Array[float]:
+	var depths: Array[float] = []
+	if _is_side() or _passage_rects.is_empty() or not is_inside_tree():
+		return depths
+	var rect: Rect2 = _passage_rects[0]
 	for player in EnemyTargeting.living_players(get_tree()):
-		var local := to_local(player.global_position)
-		for rect: Rect2 in rects:
-			if rect.grow(-4.0).has_point(local):
+		var feet := to_local(player.global_position + Player.FEET_OFFSET)
+		if _in_door_lane(rect, feet):
+			depths.append(clampf(1.0 - (feet.y - rect.position.y) / rect.size.y, 0.0, 1.0))
+	return depths
+
+
+## Is a living player in the passage beyond the arch (his feet under the crown; for a side gate
+## anywhere in it, its door tile lies in the closed side wall)?
+func _player_in_passage_beyond_door() -> bool:
+	var first := 0 if _is_side() else 1
+	if _passage_rects.size() <= first or not is_inside_tree():
+		return false
+	for player in EnemyTargeting.living_players(get_tree()):
+		var feet := to_local(player.global_position + Player.FEET_OFFSET)
+		for i in range(first, _passage_rects.size()):
+			if _in_door_lane(_passage_rects[i], feet):
 				return true
 	return false
 
 
-func _update_lintel(delta: float) -> void:
-	if _lintel.is_empty():
+## point inside rect, a little in from its sides along the way (the feet of a player brushing past
+## the door).
+func _in_door_lane(rect: Rect2, point: Vector2) -> bool:
+	if _is_side():
+		return point.x >= rect.position.x and point.x < rect.end.x and point.y > rect.position.y + 4.0 and point.y < rect.end.y - 4.0
+	return point.y >= rect.position.y and point.y < rect.end.y and point.x > rect.position.x + 4.0 and point.x < rect.end.x - 4.0
+
+
+## Players in the arch (on): they are seen only through the opening - the full crown pieces over the
+## opening lie under them with the dark of the tunnel, the cut twins above them, and the fronts
+## around the opening, the frame and its torches are drawn over them (G2 note 20: nothing of a player,
+## his weapon neither, reaches past the arch). Off: everything as it was.
+func _set_arch_view(on: bool) -> void:
+	if on == _arch_view:
 		return
-	var under := _player_in_passage()
-	var target := lintel_under_alpha if under else 1.0
+	_arch_view = on
+	var door_row_y := 0.0
 	for piece in _lintel:
-		if piece.z_index >= LINTEL_Z:
-			piece.modulate.a = move_toward(piece.modulate.a, target, delta * LINTEL_FADE_SPEED)
-	if _tunnel_shade != null:
-		# Only while a player is in the arch itself; behind it the rock hides him.
-		var shade_target := lintel_under_alpha if _player_in_passage(true) else 0.0
-		_tunnel_shade.modulate.a = move_toward(_tunnel_shade.modulate.a, shade_target, delta * SHADE_FADE_SPEED)
+		if is_equal_approx(piece.position.y, door_row_y):
+			piece.z_index = LINTEL_Z if on else FRONT_PATCH_Z
+	for sprite: Node2D in [_frame, _glow]:
+		if sprite != null:
+			sprite.z_index = LINTEL_Z + 1 if on else 0
+	for torch in _torches:
+		torch.z_index = LINTEL_Z + 1 if on else 0
+	# A cave mouth opens no higher than its door tile: nothing to cut, the crown stays over him.
+	for i in _crown_cut.size():
+		var full := _crown_full[i]
+		full.z_index = FRONT_PATCH_Z if on else LINTEL_Z
+		if on:
+			full.modulate.a = 1.0
+		_crown_cut[i].visible = on
+		_crown_cut[i].modulate.a = full.modulate.a
+	if _shade_top != null and not _crown_cut.is_empty():
+		_shade_top.z_index = OPENING_FLOOR_Z if on else LINTEL_Z + 1
+
+
+## G2 note 20: a player in the passage of a north gate darkens with the depth (arch_visibility; under
+## the crown the deepest share) and brightens again once he is out of it. Optics only, per player:
+## the colour of his node, which nothing else sets.
+func _dim_players(delta: float) -> void:
+	if _passage_rects.is_empty() or not is_inside_tree():
+		return
+	var seen: Dictionary = {}
+	for player in EnemyTargeting.living_players(get_tree()):
+		var feet := to_local(player.global_position + Player.FEET_OFFSET)
+		var depth := -1.0
+		for i in _passage_rects.size():
+			if _in_door_lane(_passage_rects[i], feet):
+				var rect: Rect2 = _passage_rects[i]
+				depth = clampf(1.0 - (feet.y - rect.position.y) / rect.size.y, 0.0, 1.0) if i == 0 else 1.0
+				break
+		if depth < 0.0:
+			continue
+		seen[player.get_instance_id()] = true
+		_dimmed[player.get_instance_id()] = player
+		_shade_player(player, arch_visibility(depth), delta)
+	for id: int in _dimmed.keys():
+		if seen.has(id):
+			continue
+		var player := _dimmed[id] as Node2D
+		if not is_instance_valid(player):
+			_dimmed.erase(id)
+			continue
+		if _shade_player(player, 1.0, delta):
+			_dimmed.erase(id)
+
+
+## Moves a player's colour towards share (grey level); true once it is there.
+static func _shade_player(player: Node2D, share: float, delta: float) -> bool:
+	var value := move_toward(player.modulate.r, share, delta * SHADE_FADE_SPEED)
+	player.modulate = Color(value, value, value, player.modulate.a)
+	return is_equal_approx(value, share)
+
+
+## Gives every player this passage darkened his colour back (the door leaves the tree).
+func _restore_players() -> void:
+	for id: int in _dimmed.keys():
+		var player := _dimmed[id] as Node2D
+		if is_instance_valid(player):
+			player.modulate = Color(1, 1, 1, player.modulate.a)
+	_dimmed.clear()
+
+
+func _exit_tree() -> void:
+	_restore_players()
+
+
+## A player in the side passage (on): its rock lies over him; else under the characters, so nobody
+## beside the wall is cut by it (G2 note 19).
+func _set_side_over(on: bool) -> void:
+	if on == _side_over:
+		return
+	_side_over = on
+	for piece in _lintel:
+		var over: bool = on and bool(piece.get_meta(&"over_player", true))
+		piece.z_index = LINTEL_Z if over else SIDE_COVER_LOW_Z
+		if over:
+			piece.modulate.a = 1.0
+
+
+## Are players standing in the arch (seen through the opening, the rock over it cut to it, G2)?
+func is_arch_view() -> bool:
+	return _arch_view
+
+
+## Image of a tile sheet (decompressed, RGBA8), cached per texture.
+static func _sheet_image(texture: Texture2D) -> Image:
+	if texture == null:
+		return null
+	var key := texture.get_rid()
+	if not _sheets.has(key):
+		if _sheets.size() >= SHEET_CACHE_MAX:
+			_sheets.clear()
+		var image := texture.get_image()
+		if image != null:
+			if image.is_compressed():
+				image.decompress()
+			image.convert(Image.FORMAT_RGBA8)
+		_sheets[key] = image
+	return _sheets[key]
 
 
 ## The way behind this branch door was not taken (D-105): the sign fades, the torch and the light
@@ -521,8 +801,9 @@ func _is_side() -> bool:
 
 
 ## West/east wall door (A10): the leaf seen from above in the corridor (mirrored for the east wall),
-## the sign above it. M2: the corridor behind it is one tile, the wall of the next room; the side wall
-## runs closed over the door tile and the corridor (PassageCover) and the leaf lies on it. No torch
+## the sign above it. M2: the corridor behind it is one tile, the wall of the next room; G2: the door
+## tile is a notch in the side wall (PassageCover, open door tile) running into the dark of the
+## tunnel, the rest of the passage lies under the rock, the leaf closes the notch's mouth. No torch
 ## and no torch light in a passage (40.png): the way light shows the way.
 func _apply_side_style() -> void:
 	if _leaf != null:
@@ -537,8 +818,8 @@ func _apply_side_style() -> void:
 		_leaf.flip_h = side == RoomTiles.DoorSide.EAST
 		_leaf.position = Vector2(-SIDE_LEAF_SHIFT if side == RoomTiles.DoorSide.EAST else SIDE_LEAF_SHIFT, 0.0)
 		_leaf.modulate = Color.WHITE
-		# On the closed side wall, above the rock over the passage.
-		_leaf.z_index = LINTEL_Z + 1
+		# On the mouth of the notch, above its floor and under the players in front of it.
+		_leaf.z_index = SIDE_LEAF_Z
 	set_symbol(style.symbol)
 	_build_way_light()
 	if style.glow_mode == DoorStyle.GLOW_THREAT:
@@ -611,14 +892,20 @@ func get_mouth_deco() -> Array[Sprite2D]:
 	return _mouth_deco
 
 
-## Rubble in a blocked entrance (shown while the entrance is shut, see show_state).
+## Rubble in a blocked entrance (shown while the entrance is shut, see show_state): over the wall line
+## in front of the closed gap, above the wall drawn over it.
 func _build_rubble() -> void:
+	var inward := get_inward()
+	var along := Vector2(absf(inward.y), absf(inward.x))
+	var wall_line := Vector2(TILE * 0.5, TILE * 0.5) + inward * TILE * 0.5
 	for entry: Dictionary in BLOCKED_RUBBLE:
 		var prop := DecoProp.new()
 		prop.name = String(entry["item"]).to_pascal_case()
 		prop.item = entry["item"]
-		prop.position = entry["pos"]
+		prop.position = wall_line + along * float(entry["along"]) + inward * float(entry["inward"])
 		prop.visible = false
+		# DecoProp puts floor decals under everything in its _ready.
+		prop.ready.connect(func() -> void: prop.z_index = RUBBLE_Z, CONNECT_ONE_SHOT)
 		add_child(prop)
 		_rubble.append(prop)
 
@@ -627,12 +914,58 @@ func get_rubble() -> Array[Node2D]:
 	return _rubble
 
 
+## The wall drawn over a blocked entrance (empty while it is open or before it was built).
+func get_seal() -> Array[Sprite2D]:
+	return _seal
+
+
+## Closes a blocked entrance with the room's own wall (PassageCover.sealed_plan): the wall line runs
+## straight past the gap, its corridor turns back into rock. Needs the room's tiles (the door's
+## parent); false while they are not there yet.
+func _build_seal() -> bool:
+	_free_sprites(_seal)
+	var door := get_parent() as Node2D
+	var room := door.get_parent() as Node2D if door != null else null
+	var tiles := room.get_node_or_null("Tiles") as RoomTiles if room != null else null
+	if tiles == null or tiles.tile_set == null or not is_inside_tree():
+		return false
+	var door_tile := tiles.local_to_map(tiles.to_local(global_position + Vector2.ONE * TILE * 0.5))
+	for entry: Dictionary in PassageCover.sealed_plan(room, door_tile, -Vector2i(get_inward())):
+		var piece := _cover_sprite(entry, door_tile)
+		if piece == null:
+			continue
+		piece.name = "Seal%d" % _seal.size()
+		piece.z_index = SEAL_Z
+		_seal.append(piece)
+	return true
+
+
+## Shows or hides the wall over a blocked entrance; it is built once the room's tiles are there.
+func _show_seal(shut: bool) -> void:
+	_seal_pending = false
+	if not is_entrance:
+		return
+	if shut and _seal.is_empty() and not _build_seal():
+		_seal_pending = true
+	for piece in _seal:
+		piece.visible = shut
+
+
+func _free_sprites(sprites: Array[Sprite2D]) -> void:
+	for sprite in sprites:
+		if is_instance_valid(sprite):
+			remove_child(sprite)
+			sprite.free()
+	sprites.clear()
+
+
 ## Shows a state without effects (setup, streaming).
 func show_state(open: bool) -> void:
 	_door_open = open
 	_cone_share = 1.0 if open else CONE_CLOSED_SHARE
 	for piece in _rubble:
 		piece.visible = not open
+	_show_seal(not open)
 	if _leaf == null or _leaf.sprite_frames == null:
 		return
 	if open:
@@ -677,6 +1010,8 @@ func _process(delta: float) -> void:
 	if style == null:
 		return
 	_time += delta
+	if _seal_pending:
+		_show_seal(true)
 	_update_lintel(delta)
 	var target := _target_glow()
 	if style.glow_mode == DoorStyle.GLOW_FLICKER:
@@ -696,9 +1031,13 @@ func _process(delta: float) -> void:
 		var share_target := 1.0 if _door_open else CONE_CLOSED_SHARE
 		_cone_share = move_toward(_cone_share, share_target, delta * (1.0 - CONE_CLOSED_SHARE) / CONE_SHARE_TIME)
 		if _cone != null:
-			_cone.modulate.a = (CONE_ALPHA + CONE_PULSE * sin(_time * CONE_PULSE_SPEED)) * _cone_share
+			_cone.modulate.a = (_cone_alpha() + CONE_PULSE * sin(_time * CONE_PULSE_SPEED)) * _cone_share
 		if _way_light != null:
 			_way_light.intensity = WAY_LIGHT_INTENSITY * _cone_share
+
+
+func _cone_alpha() -> float:
+	return SIDE_CONE_ALPHA if _is_side() else CONE_ALPHA
 
 
 ## Share of the way's light shown right now (CONE_CLOSED_SHARE shut, 1 open).
@@ -825,7 +1164,7 @@ func _build_way_light() -> void:
 		var additive := CanvasItemMaterial.new()
 		additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 		_cone.material = additive
-		_cone.modulate = Color(style.way_color, CONE_ALPHA * _cone_share)
+		_cone.modulate = Color(style.way_color, _cone_alpha() * _cone_share)
 		add_child(_cone)
 	_way_light = LightSource.new()
 	_way_light.name = "WayLight"
@@ -883,4 +1222,10 @@ func _clear() -> void:
 	_lintel.clear()
 	_lintel_extras.clear()
 	_passage_rects.clear()
-	_tunnel_shade = null
+	_shade_top = null
+	_crown_full.clear()
+	_crown_cut.clear()
+	_arch_view = false
+	_side_over = false
+	_seal.clear()
+	_seal_pending = false

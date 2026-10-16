@@ -1,9 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
 
 [node name="TropfsteinhoehleCrypt" instance=ExtResource("1_base")]
 room_kind = 0
@@ -98,51 +97,51 @@ metadata/objective_kind = &"light_crystal"
 metadata/tile = Vector2i(4, 4)
 metadata/built = true
 
-[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
 [node name="Crystal1" type="Node2D" parent="Props"]
 position = Vector2(288, 312)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"light_crystal"
 tint = Color(1, 0.85, 0.6, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(4, 4)])
 
 [node name="Puddle1" type="Node2D" parent="Props"]
 position = Vector2(800, 166)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"puddle"
 tint = Color(0.75, 0.82, 1, 1)
 biome = &"crypt"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(804, 164)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"drip"
 
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(704, 504)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_1"
-blocked_tiles = Array[Vector2i]([Vector2i(10, 7), Vector2i(11, 7)])
+blocked_tiles = Array[Vector2i]([Vector2i(10, 7)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Group2" type="Node2D" parent="Props"]
 position = Vector2(1024, 440)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(15, 6), Vector2i(16, 6)])
+solid_span = Vector2(-52, 54)
 biome = &"crypt"
 
 [node name="Group3" type="Node2D" parent="Props"]
 position = Vector2(320, 56)
-script = ExtResource("3_deco")
-item = &"group_3"
-blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+script = ExtResource("2_deco")
+item = &"group_1"
+blocked_tiles = Array[Vector2i]([Vector2i(4, 0)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("4_scatter")
+script = ExtResource("3_scatter")
 allowed = Array[int]([])

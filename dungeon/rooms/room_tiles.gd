@@ -34,7 +34,8 @@ extends TileMapLayer
 ## (AbyssAutotile), carries no navigation and is solid on the pit physics layer only: enemies are
 ## blocked, the player falls (PlayerFall), projectiles fly over it. A bridge cell shows the bridge
 ## art on this layer and the abyss below it on a child layer ("AbyssUnder"). The north edge of every
-## abyss (floor or wall right above the pit) gets the biome's rock face (abyss_cliff_<biome>, R1).
+## abyss (floor or wall right above the pit) gets a rock face: in terrain rooms the face sinks into the
+## void below the abyss's own rim (AbyssFace, playtest 15.10.2026), else abyss_cliff_<biome> (R1).
 ## Room plans (R1, D-120, tools/generate_room_templates.py) add: shallow water (water_rects, floor
 ## with a slowing overlay, ShallowWater), moss tiles around drips, the places of the cracked secret
 ## wall (secret_cracks, plan cell 'q') and the wall fronts holding a fixture (front_fixtures: torch,
@@ -48,7 +49,12 @@ extends TileMapLayer
 ## set, seamless floor), WALL = masonry (the biome's set with brick fronts on its tile floor). Floor
 ## zones (zone_cells: slab, cobble, dirt, rubble with frayed edges) and scatter overlays
 ## (overlay_cells) lie on two draw-only child layers between floor and rock; the generator fixes both
-## per template (no dungeon RNG). plateau_tiles, ladder_tiles and stair_tiles only carry the plan's
+## per template (no dungeon RNG). Puddle overlays are drawn as water like the pools (WaterArt). Solid
+## cells collide with their outer corners rounded like the rock (RockTerrain.solid_corners). A lip
+## (rock with floor north of it, RockTerrain.is_lip) collides only from RockTerrain.LIP_WALK down and
+## is drawn a second time as a y-sorted sprite in the room ("RockLips"), sorted at the foot of its
+## block: a character that walks a bit behind it is hidden by it, one in front of the block is not
+## (playtest 15.10.2026, note 17). plateau_tiles, ladder_tiles and stair_tiles only carry the plan's
 ## height markers for M3; until then they are rock. Without the terrain art (editor, old tilesets)
 ## the walls fall back to the WallAutotile pieces above.
 
@@ -88,7 +94,9 @@ const MAX_DASH_GAP := 1
 ## Atlas sources of the abyss (tools/build_tilesets.gd): delivered pieces, bridges, combined pieces.
 const SOURCE_ABYSS := 2
 const SOURCE_BRIDGE := 3
-const SOURCE_ABYSS_PIECES := AbyssAutotile.SOURCE_ID
+## The combined pieces with round rim corners (AbyssRims, playtest 15.10.2026); AbyssAutotile's own
+## source stays the fallback.
+const SOURCE_ABYSS_PIECES := AbyssRims.SOURCE_ID
 ## Bridge art (bridge_tiles.png): plank runs and the west / north end; east and south are flipped.
 const BRIDGE_H := Vector2i(0, 0)
 const BRIDGE_V := Vector2i(1, 0)
@@ -116,6 +124,13 @@ enum RockStyle { WALL, BLOB }
 const ZONES_NAME := "Zones"
 const OVERLAYS_NAME := "Overlays"
 const ROCK_NAME := "Rock"
+## Small overlay puddles drawn as water (WaterArt), a child node in the layer's space.
+const PUDDLES_NAME := "Puddles"
+## The lip sprites, a y-sorted child of the room (the layer's parent).
+const LIPS_NAME := "RockLips"
+## Characters sort by their body centre, this far above their feet (Player.FEET_OFFSET): a lip sorts
+## that far above the foot line of its block.
+const LIP_SORT_FEET := 16.0
 ## Outward direction of each side (from the floor through the door).
 const SIDE_DIRECTIONS: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 ## No second exit (branch_exit.x).
@@ -277,6 +292,11 @@ var _look := RockTerrain.Look.MASONRY
 var _zone_layer: TileMapLayer = null
 var _overlay_layer: TileMapLayer = null
 var _rock_layer: TileMapLayer = null
+var _puddles: Node2D = null
+var _lips: Node2D = null
+## Floor cells whose rock south of it is no lip (door corridors and the cells around door tiles,
+## abysses), built at each paint.
+var _not_lips: Dictionary[Vector2i, bool] = {}
 
 
 func _ready() -> void:
@@ -803,6 +823,8 @@ func get_backdrop_north_rows() -> int:
 ## follows later moves of the room.
 func set_biome_blend(next_tileset: TileSet, next_tint: Color, from_row: float, to_row: float) -> void:
 	_blend_rows = Vector2(from_row, to_row)
+	# The lip sprites get the next biome's rock in the same blend (_paint_lips, after the layers).
+	call_deferred(&"_paint_lips")
 	if _blend_material == null:
 		_blend_material = ShaderMaterial.new()
 		_blend_material.shader = BLEND_SHADER
@@ -888,6 +910,10 @@ func _update_blend_range() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_update_blend_range()
+	elif what == NOTIFICATION_PREDELETE:
+		# Lips that never reached the room (freed before the deferred attach) go with the layer.
+		if _lips != null and is_instance_valid(_lips) and not _lips.is_inside_tree():
+			_lips.free()
 
 
 ## Swaps the tileset (biome art). All tilesets share the same atlas layout.
@@ -895,6 +921,7 @@ func use_tileset(new_tileset: TileSet) -> void:
 	# The wall pieces of the new biome must exist before the cells point at them.
 	WallAutotile.ensure_source(new_tileset)
 	AbyssAutotile.ensure_source(new_tileset)
+	AbyssRims.ensure_source(new_tileset)
 	# The cave pieces too (same source ids and layout in every biome); without them the room
 	# falls back to masonry on the next paint.
 	var had_terrain := _terrain_active
@@ -926,10 +953,12 @@ func paint() -> void:
 	for layer in [_zone_layer, _overlay_layer, _rock_layer]:
 		if layer != null:
 			(layer as TileMapLayer).clear()
+	_paint_puddles([])
 	_look = _look_of_style()
 	_terrain_active = false
 	if WallAutotile.ensure_source(tile_set):
 		AbyssAutotile.ensure_source(tile_set)
+		AbyssRims.ensure_source(tile_set)
 		_terrain_active = RockTerrain.ensure_sources(tile_set) and RockTerrain.has_look(tile_set, _look)
 		_paint_from_mask(rng)
 		if _terrain_active:
@@ -940,6 +969,7 @@ func paint() -> void:
 	_paint_mist()
 	_paint_cliffs()
 	_paint_water()
+	_paint_lips()
 
 
 ## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
@@ -966,6 +996,7 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 ## with edges, enclosed rock as the plain wall-top tile (the rock shader turns it into stones).
 func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 	var floor_mask := get_floor_mask()
+	_not_lips = _lip_blockers()
 	var rect := _get_painted_rect()
 	var parts := get_painted_parts()
 	for y in range(rect.position.y, rect.end.y):
@@ -1119,6 +1150,7 @@ static func tile_bounds(tiles: Array[Vector2i]) -> Rect2i:
 ## The second brick pattern is picked from the tile position instead of the paint RNG.
 func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 	var floor_mask := get_floor_mask()
+	_not_lips = _lip_blockers()
 	for tile: Vector2i in area:
 		if not is_painted(tile):
 			continue
@@ -1142,6 +1174,7 @@ func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 		else:
 			set_cell(tile, SOURCE_WALL, piece)
 	if _terrain_active:
+		_paint_lips()
 		# Fillets of the changed cells and of the floor around them.
 		for tile: Vector2i in area:
 			for offset: Vector2i in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i(-1, -1), Vector2i(1, -1)]:
@@ -1229,12 +1262,15 @@ func get_overlay_layer() -> TileMapLayer:
 ## Solid tile with the terrain: this layer gets the invisible solid tile (collision, no navigation),
 ## the rock layer the piece of the mass; enclosed rock is left to the backdrop.
 func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
-	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.SOLID)
+	# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
+	# characters walk a bit behind it.
+	var lip := RockTerrain.is_lip(tile, floor_mask, _not_lips)
+	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip))
 	_ensure_cave_layers()
 	if RockTerrain.is_enclosed(tile, floor_mask):
 		_rock_layer.erase_cell(tile)
 	else:
-		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask, get_cliff_faces()))
+		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask))
 
 
 ## Rounded rock in the lower corners of a floor cell between two edges (RockTerrain fillets), on
@@ -1292,12 +1328,127 @@ func _paint_ground_details() -> void:
 				same |= 1 << i
 		_zone_layer.set_cell(tile, zone_source, RockTerrain.zone_coords(zones[tile], same))
 	if tile_set.has_source(RockTerrain.SOURCE_OVERLAY):
+		var puddles: Array[Vector2i] = []
 		for cell in overlay_cells:
 			var tile := Vector2i(cell.x, cell.y)
 			if not _plain_ground(tile, floor_mask):
 				continue
+			if cell.z % RockTerrain.FLIP_BIT == RockTerrain.Overlay.PUDDLE:
+				puddles.append(tile)
+				continue
 			var flip := TileSetAtlasSource.TRANSFORM_FLIP_H if cell.z & RockTerrain.FLIP_BIT else 0
 			_overlay_layer.set_cell(tile, RockTerrain.SOURCE_OVERLAY, Vector2i(cell.z % RockTerrain.FLIP_BIT, 0), flip)
+		_paint_puddles(puddles)
+
+
+## Floor cells north of rock that is no lip: door corridors and every cell next to a door tile (the
+## door's art lies there), abysses (nobody stands there).
+func _lip_blockers() -> Dictionary[Vector2i, bool]:
+	var blockers: Dictionary[Vector2i, bool] = {}
+	for tile in get_door_corridor_tiles():
+		blockers[tile] = true
+	var doors: Array[Vector2i] = [get_entrance_door()]
+	doors.append_array(get_exit_doors())
+	for slot in door_slots:
+		doors.append(slot)
+	for door in doors:
+		var door_tile := door_tile_of(door.x, door.y, room_size)
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				blockers[door_tile + Vector2i(dx, dy)] = true
+	for tile in get_pit_tiles():
+		blockers[tile] = true
+	return blockers
+
+
+## The lips once more as sprites in the room's y-sort (the room is this layer's parent), sorted at the
+## foot line of their block: the front below a lip, else the lip itself. Same piece, same material.
+## Only with the terrain and inside a room (not in the editor).
+func _paint_lips() -> void:
+	if _lips != null and is_instance_valid(_lips):
+		for child in _lips.get_children():
+			child.free()
+	var room := get_parent() as Node2D
+	if Engine.is_editor_hint() or not _terrain_active or _rock_layer == null or room == null or not is_inside_tree():
+		return
+	var source := tile_set.get_source(RockTerrain.rock_source(_look)) as TileSetAtlasSource
+	if source == null:
+		return
+	# A room between two biomes: the next biome's piece on top, in the blend's mask (set_biome_blend).
+	var blend_source: TileSetAtlasSource = null
+	if _blend_layer != null and _blend_layer.tile_set != null and _blend_layer.tile_set.has_source(RockTerrain.rock_source(_look)):
+		blend_source = _blend_layer.tile_set.get_source(RockTerrain.rock_source(_look)) as TileSetAtlasSource
+	var floor_mask := get_floor_mask()
+	if _lips == null or not is_instance_valid(_lips):
+		_lips = Node2D.new()
+		_lips.name = LIPS_NAME
+		_lips.y_sort_enabled = true
+		# Deferred: paint() runs while the room is still adding its children.
+		_attach_lips.call_deferred()
+	var art_tile := float(tile_set.tile_size.x)
+	for tile: Vector2i in floor_mask:
+		var lip := tile + Vector2i.DOWN
+		if _rock_layer.get_cell_source_id(lip) < 0 or not RockTerrain.is_lip(lip, floor_mask, _not_lips):
+			continue
+		var foot := float(lip.y + (2 if WallAutotile.is_front(lip + Vector2i.DOWN, floor_mask) else 1)) * art_tile
+		var sort_y := foot * scale.y - LIP_SORT_FEET
+		var region := Rect2(Vector2(_rock_layer.get_cell_atlas_coords(lip)) * art_tile, Vector2.ONE * art_tile)
+		var at := position + Vector2(float(lip.x) * art_tile * scale.x, sort_y)
+		var offset := Vector2(0.0, (float(lip.y) * art_tile * scale.y - sort_y) / scale.y)
+		_lips.add_child(_lip_sprite(source.texture, region, at, offset, material, modulate))
+		if blend_source != null:
+			# Same sort position: drawn right after (above) the old biome's piece.
+			_lips.add_child(_lip_sprite(blend_source.texture, region, at, offset, _blend_material, _blend_layer.modulate))
+
+
+func _lip_sprite(texture: Texture2D, region: Rect2, at: Vector2, offset: Vector2, look: Material, tint: Color) -> Sprite2D:
+	var sprite := Sprite2D.new()
+	sprite.texture = texture
+	sprite.region_enabled = true
+	sprite.region_rect = region
+	sprite.centered = false
+	sprite.material = look
+	sprite.modulate = tint
+	sprite.scale = scale
+	sprite.position = at
+	sprite.offset = offset
+	return sprite
+
+
+## Puts the lip sprites into the room (deferred from _paint_lips; skipped if the layer is gone).
+func _attach_lips() -> void:
+	var room := get_parent() as Node2D
+	if _lips != null and is_instance_valid(_lips) and not _lips.is_inside_tree() and room != null:
+		room.add_child(_lips)
+
+
+func get_lips() -> Node2D:
+	return _lips
+
+
+## Small puddles of the overlays in the same water as the pools (WaterArt, playtest 15.10.2026 note
+## 13: "the water looks so different"), not the old overlay sprite. Shape from the tile, no RNG.
+func _paint_puddles(puddles: Array[Vector2i]) -> void:
+	if _puddles != null:
+		_puddles.queue_free()
+		_puddles = null
+	if puddles.is_empty() or Engine.is_editor_hint():
+		return
+	_puddles = Node2D.new()
+	_puddles.name = PUDDLES_NAME
+	add_child(_puddles, false, Node.INTERNAL_MODE_BACK)
+	var art_tile := float(tile_set.tile_size.x)
+	var biome := WallAutotile.biome_of(tile_set)
+	for tile in puddles:
+		var puddle := AnimatedProp.new()
+		puddle.frame_size = Vector2i(WaterArt.TILE, WaterArt.TILE)
+		puddle.fps = WaterArt.FPS
+		puddle.pivot = Vector2.ZERO
+		puddle.strip = WaterArt.small_puddle_strip(biome, absi(hash(tile)))
+		puddle.position = Vector2(tile) * art_tile
+		puddle.scale = Vector2.ONE * art_tile / float(WaterArt.TILE)
+		_puddles.add_child(puddle)
+		puddle.frame = absi(hash(tile)) % WaterArt.FRAMES
 
 
 func _plain_ground(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
@@ -1333,11 +1484,13 @@ func _erase_ground_details(tile: Vector2i) -> void:
 ## Abyss piece of a pit tile on layer (bridges count as abyss for the rim).
 func _set_abyss_cell(layer: TileMapLayer, tile: Vector2i) -> void:
 	var piece := AbyssAutotile.cell_for(tile, _is_abyss)
-	if piece == AbyssAutotile.VOID or layer.tile_set == null or not layer.tile_set.has_source(SOURCE_ABYSS_PIECES):
+	if piece == AbyssAutotile.VOID or layer.tile_set == null or not layer.tile_set.has_source(AbyssAutotile.SOURCE_ID):
 		var variants := AbyssAutotile.ART_VOID
 		layer.set_cell(tile, SOURCE_ABYSS, variants[absi(hash(tile)) % variants.size()])
-	else:
+	elif layer.tile_set.has_source(SOURCE_ABYSS_PIECES):
 		layer.set_cell(tile, SOURCE_ABYSS_PIECES, piece)
+	else:
+		layer.set_cell(tile, AbyssAutotile.SOURCE_ID, piece)
 
 
 func _is_abyss(tile: Vector2i) -> bool:
@@ -1443,26 +1596,26 @@ func _paint_cliffs() -> void:
 			child.queue_free()
 	if Engine.is_editor_hint() or tile_set == null or not has_pits():
 		return
-	# A cave's abyss falls away under the same rock face as its walls (M1).
-	var texture: Texture2D = RockTerrain.cliff_texture(WallAutotile.biome_of(tile_set)) if _terrain_active and _look == RockTerrain.Look.CAVE else null
-	if texture == null:
-		var path := CLIFF_ART_PATH % WallAutotile.biome_of(tile_set)
-		if not ResourceLoader.exists(path):
-			path = CLIFF_ART_PATH % "crypt"
-		if not ResourceLoader.exists(path):
-			return
-		texture = load(path) as Texture2D
 	if _cliffs == null:
 		_cliffs = Node2D.new()
 		_cliffs.name = CLIFF_NAME
 		add_child(_cliffs, false, Node.INTERNAL_MODE_BACK)
 	var art_tile := float(tile_set.tile_size.x)
-	var floor_mask := get_floor_mask()
+	# Terrain rooms (both looks): the face sinks into the void below the abyss's own rim (AbyssFace,
+	# playtest 15.10.2026), one picture per abyss piece.
+	if _terrain_active and _paint_abyss_faces(art_tile):
+		return
+	var path := CLIFF_ART_PATH % WallAutotile.biome_of(tile_set)
+	if not ResourceLoader.exists(path):
+		path = CLIFF_ART_PATH % "crypt"
+	if not ResourceLoader.exists(path):
+		return
+	var texture := load(path) as Texture2D
 	for tile in get_pit_tiles():
 		if not _has_cliff(tile):
 			continue
-		var left := _has_cliff(tile + Vector2i.LEFT) or _is_rock_face(tile + Vector2i.LEFT, floor_mask)
-		var right := _has_cliff(tile + Vector2i.RIGHT) or _is_rock_face(tile + Vector2i.RIGHT, floor_mask)
+		var left := _has_cliff(tile + Vector2i.LEFT)
+		var right := _has_cliff(tile + Vector2i.RIGHT)
 		var piece := 3
 		if left and right:
 			piece = 1
@@ -1479,27 +1632,37 @@ func _paint_cliffs() -> void:
 		_cliffs.add_child(sprite)
 
 
+## The faces of a terrain room over every cliff tile (AbyssFace); false without the art.
+func _paint_abyss_faces(art_tile: float) -> bool:
+	var biome := WallAutotile.biome_of(tile_set)
+	for tile in get_cliff_tiles():
+		var piece := AbyssAutotile.cell_for(tile, _is_abyss)
+		# A face ends softly beside abyss without a face (an inner corner of the abyss).
+		var fade_left := is_pit(tile + Vector2i.LEFT) and not _has_cliff(tile + Vector2i.LEFT)
+		var fade_right := is_pit(tile + Vector2i.RIGHT) and not _has_cliff(tile + Vector2i.RIGHT)
+		var texture := AbyssFace.texture_for(tile_set, biome, piece.x, piece.y, fade_left, fade_right)
+		if texture == null:
+			return false
+		var sprite := Sprite2D.new()
+		sprite.texture = texture
+		sprite.centered = false
+		sprite.position = Vector2(tile) * art_tile
+		_cliffs.add_child(sprite)
+	return true
+
+
 ## A pit tile with solid ground or a wall right north of it (no other pit, no bridge).
 func _has_cliff(tile: Vector2i) -> bool:
 	return is_pit(tile) and not _is_abyss(tile + Vector2i.UP)
 
 
-## Abyss tiles whose cliff is the cave's rock face (cave look): a rock front beside one runs on into
-## it and the cliff into the front, one face without a seam (M1, playtest 15.10.2026).
-func get_cliff_faces() -> Dictionary[Vector2i, bool]:
-	var faces: Dictionary[Vector2i, bool] = {}
-	if not _terrain_active or _look != RockTerrain.Look.CAVE:
-		return faces
-	_update_pit_sets()
-	for tile: Vector2i in _pit_set:
+## Pit tiles that show a rock face (the north edge of every abyss), sorted.
+func get_cliff_tiles() -> Array[Vector2i]:
+	var cliffs: Array[Vector2i] = []
+	for tile in get_pit_tiles():
 		if _has_cliff(tile):
-			faces[tile] = true
-	return faces
-
-
-## Is the tile a solid rock front (the cave's face) a cliff beside it runs on into?
-func _is_rock_face(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
-	return _terrain_active and _look == RockTerrain.Look.CAVE and not floor_mask.has(tile) and WallAutotile.is_front(tile, floor_mask)
+			cliffs.append(tile)
+	return cliffs
 
 
 ## Shallow water overlay and its slow area (ShallowWater), runtime only.

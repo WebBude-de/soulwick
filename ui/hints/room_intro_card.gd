@@ -60,7 +60,8 @@ func _ready() -> void:
 	eyebrow.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(eyebrow)
 	var text := RoomGenre.get_intro(genre)
-	box.add_child(UiKit.wrapped_text(text, WIDTH - 12.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	# Key names in the text ("Leertaste") show as input symbols, on a phone as touch buttons (G3).
+	box.add_child(GlyphText.wrapped(text, WIDTH - 12.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	_bar = ProgressBar.new()
 	_bar.show_percentage = false
 	_bar.max_value = 1.0

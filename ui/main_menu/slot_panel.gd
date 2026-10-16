@@ -1,9 +1,12 @@
 class_name SlotPanel
 extends MenuPanel
-## "Spielstände": one card per slot with name, character, record room, gold/crystals, play time and
-## last played. Enter plays a used slot or opens "Neuer Spielstand" for an empty one, Del asks before
-## deleting, Esc goes back. Mouse: hover selects a card, click = Enter, buttons below.
-## Texts are translation keys (D-111); the cards are rebuilt on a language change.
+## "Welten" (D-152: a save slot is a world, like the maps of Minecraft): one card per slot with the
+## world's name ("Welt 1" or its own), record room, gold/crystals, play time and last played. The
+## player's figure is the same in every world, so the cards show the world, not a character.
+## Enter plays a used slot or opens "Neue Welt" for an empty one, R renames (inline field, Enter
+## saves, Esc cancels), Del asks before deleting, Esc goes back. Mouse: click selects, a second
+## click plays, buttons below. Texts are translation keys (D-111); the cards are rebuilt on a
+## language change.
 
 signal play_requested(slot: int)
 signal create_requested(slot: int)
@@ -15,11 +18,16 @@ const CARD_HEIGHT := 42.0
 const PREVIEW_SCALE := 2
 const FOOTER_NORMAL: StringName = &"SLOTS_FOOTER"
 const FOOTER_CONFIRM: StringName = &"SLOTS_FOOTER_CONFIRM"
+const FOOTER_RENAME: StringName = &"SLOTS_FOOTER_RENAME"
+## Optional world icon (16×16, SPRITES_V10 §7); without it the card shows the slot number.
+const WORLD_ICON_PATH := "res://art/ui/icon_world.png"
 
 var _summaries: Array[Dictionary] = []
 var _cards: Array[Button] = []
 var _selected := 0
 var _confirm_delete := false
+var _renaming := false
+var _rename_edit: LineEdit = null
 var _cards_box: VBoxContainer = null
 var _actions: HBoxContainer = null
 
@@ -53,6 +61,7 @@ func refresh() -> void:
 		_cards.append(card)
 	_selected = clampi(_selected, 0, _summaries.size() - 1)
 	_confirm_delete = false
+	_renaming = false
 	_update_state()
 
 
@@ -74,7 +83,14 @@ func is_confirming_delete() -> bool:
 	return _confirm_delete
 
 
+func is_renaming() -> bool:
+	return _renaming
+
+
 func handle_input(event: InputEvent) -> bool:
+	if _renaming:
+		# The field has the keys (_input); arrows do nothing meanwhile.
+		return MenuInput.is_up(event) or MenuInput.is_down(event)
 	if _confirm_delete:
 		if MenuInput.is_accept(event):
 			confirm_delete()
@@ -95,6 +111,10 @@ func handle_input(event: InputEvent) -> bool:
 	if MenuInput.is_delete(event):
 		request_delete()
 		return true
+	var key := event as InputEventKey
+	if key != null and key.pressed and not key.echo and (key.keycode == KEY_R or key.keycode == KEY_F2):
+		request_rename()
+		return true
 	if MenuInput.is_back(event):
 		close()
 		return true
@@ -109,6 +129,48 @@ func activate_selected() -> void:
 		play_requested.emit(slot)
 	else:
 		create_requested.emit(slot)
+
+
+## Shows the name field for the selected world (only used slots).
+func request_rename() -> void:
+	if not _summaries[_selected].get("exists", false) or _summaries[_selected].get("broken", false):
+		UiSound.error(self)
+		return
+	Sfx.play_ui(self, &"ui_open")
+	_renaming = true
+	_update_state()
+
+
+## Saves the typed name (empty = "Welt <n>") and leaves the field.
+func confirm_rename(text: String) -> void:
+	if not _renaming:
+		return
+	_renaming = false
+	if SaveManager.rename_slot(get_selected_slot(), text) == OK:
+		UiSound.play(self, UiSound.CONFIRM)
+	else:
+		UiSound.error(self)
+	refresh()
+
+
+func cancel_rename() -> void:
+	if not _renaming:
+		return
+	UiSound.back(self)
+	_renaming = false
+	_update_state()
+
+
+## The rename field gets Enter and Esc before the menu (typing W/A/S/D stays in the field).
+func _input(event: InputEvent) -> void:
+	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit) or not _rename_edit.has_focus():
+		return
+	if MenuInput.is_enter(event):
+		get_viewport().set_input_as_handled()
+		confirm_rename(_rename_edit.text)
+	elif MenuInput.is_back(event):
+		get_viewport().set_input_as_handled()
+		cancel_rename()
 
 
 func request_delete() -> void:
@@ -140,7 +202,7 @@ func cancel_delete() -> void:
 
 
 func _select(index: int, by_key := false) -> void:
-	if _confirm_delete or index == _selected:
+	if _confirm_delete or _renaming or index == _selected:
 		return
 	_selected = index
 	if by_key:
@@ -174,6 +236,28 @@ func _rebuild_actions() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	var used: bool = not _summaries.is_empty() and _summaries[_selected].get("exists", false)
+	_rename_edit = null
+	if _renaming:
+		_rename_edit = LineEdit.new()
+		_rename_edit.name = "RenameEdit"
+		_rename_edit.max_length = SaveSlots.NAME_MAX_LENGTH
+		_rename_edit.text = str(_summaries[_selected].get("world_name", ""))
+		_rename_edit.placeholder_text = SaveSlots.default_name(get_selected_slot())
+		_rename_edit.custom_minimum_size.x = UiKit.px(110)
+		_rename_edit.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_CARD_NAME))
+		_rename_edit.add_theme_color_override("font_color", UiKit.COLOR_TEXT)
+		_rename_edit.add_theme_color_override("font_placeholder_color", UiKit.COLOR_DISABLED)
+		_rename_edit.add_theme_color_override("caret_color", UiKit.COLOR_GOLD)
+		_rename_edit.add_theme_stylebox_override("normal", UiKit.padded_style(&"gold", 2, 4))
+		_rename_edit.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		_actions.add_child(_rename_edit)
+		var field := _rename_edit
+		_actions.add_child(MenuPanel.action_button(&"SLOTS_RENAME_SAVE", "Enter", func() -> void: confirm_rename(field.text), true))
+		_actions.add_child(MenuPanel.action_button(&"COMMON_CANCEL", "Esc", cancel_rename))
+		set_footer(FOOTER_RENAME)
+		field.grab_focus()
+		field.caret_column = field.text.length()
+		return
 	if _confirm_delete:
 		var delete := MenuPanel.action_button(&"SLOTS_DELETE", "Enter", confirm_delete, true)
 		delete.add_theme_color_override("font_color", UiKit.COLOR_DANGER_SOFT)
@@ -183,6 +267,11 @@ func _rebuild_actions() -> void:
 		set_footer(FOOTER_CONFIRM)
 		return
 	_actions.add_child(MenuPanel.action_button(&"SLOTS_PLAY" if used else &"SLOTS_CREATE", "Enter", activate_selected, true))
+	var rename_button := MenuPanel.action_button(&"SLOTS_RENAME", "R", request_rename)
+	rename_button.name = "RenameButton"
+	rename_button.disabled = not used
+	rename_button.modulate.a = 1.0 if used else 0.45
+	_actions.add_child(rename_button)
 	var delete_button := MenuPanel.action_button(&"SLOTS_DELETE", &"KEY_DELETE", request_delete)
 	delete_button.disabled = not used
 	delete_button.modulate.a = 1.0 if used else 0.45
@@ -225,12 +314,7 @@ func _build_card(index: int) -> Button:
 
 	var exists: bool = summary.get("exists", false)
 	if exists:
-		var preview := CharacterPreview.create(PREVIEW_SCALE)
-		preview.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(preview)
-		var data := CharacterCatalog.get_character(summary.get("character", CharacterCatalog.DEFAULT_ID))
-		var color: Color = summary.get("color", Color(0, 0, 0, 0))
-		preview.set_character(data, color if color.a > 0.0 else data.default_color)
+		row.add_child(_world_badge(slot))
 	else:
 		var plus := UiKit.text_label("+", UiKit.SIZE_TITLE_LARGE, UiKit.COLOR_DISABLED, true)
 		plus.custom_minimum_size = Vector2.ONE * CharacterPreview.FRAME_SIZE * PREVIEW_SCALE
@@ -261,10 +345,8 @@ func _build_card(index: int) -> Button:
 		info.add_child(UiKit.text_label(&"SLOTS_BROKEN", UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT))
 		info.add_child(UiKit.text_label(&"SLOTS_BROKEN_NOTE", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 	else:
-		var data := CharacterCatalog.get_character(summary.get("character", CharacterCatalog.DEFAULT_ID))
 		var record: int = summary.get("deepest_room", 0)
-		var line := "%s · %s · %s" % [
-			data.display_name if data != null else "",
+		var line := "%s · %s" % [
 			(tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN"),
 			SaveSlots.format_play_time(summary.get("play_time", 0.0))]
 		info.add_child(UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
@@ -290,6 +372,25 @@ func _build_card(index: int) -> Button:
 		card.add_child(warning)
 	_set_children_ignore_mouse(card)
 	return card
+
+
+## The world's mark on its card: the world icon (once it exists) or the slot number, framed.
+func _world_badge(slot: int) -> Control:
+	var frame := UiKit.panel(&"dark")
+	frame.name = "WorldBadge"
+	frame.custom_minimum_size = Vector2.ONE * CharacterPreview.FRAME_SIZE * PREVIEW_SCALE
+	frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	if ResourceLoader.exists(WORLD_ICON_PATH):
+		var icon := UiKit.pixel_icon(load(WORLD_ICON_PATH) as Texture2D, 16.0)
+		icon.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		frame.add_child(icon)
+	else:
+		var number := UiKit.text_label(str(slot), UiKit.SIZE_TITLE_LARGE, UiKit.COLOR_GOLD, true)
+		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		number.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		frame.add_child(number)
+	return frame
 
 
 static func _set_children_ignore_mouse(node: Node) -> void:

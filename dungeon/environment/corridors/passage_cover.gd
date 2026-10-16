@@ -11,7 +11,10 @@ extends RefCounted
 ## The passage: the door tile and every tile outward up to the floor of the room behind (its longer
 ## entrance corridor of D-117 included). The cover: every passage tile with its neighbours across
 ## (three wide); for a north gate not the door tile itself (the arch and the gate show there), only
-## the fronts beside it.
+## the fronts beside it. Above a side passage the rock tile over its upper wall is a front only in
+## the rooms' own drawing (the passage below it is their floor); since a front counts as open for
+## the rock around it (RockTerrain.mask_for), the rock around that tile is drawn again too (G2,
+## playtest 15.10.2026: no line or tick where the cover meets the wall).
 ## Tiles only, no RNG, no gameplay state.
 
 ## A passage is never longer than this many tiles (door tile, corridor, D-117 extra).
@@ -67,6 +70,16 @@ static func cover_cells(passage: Array[Vector2i], outward: Vector2i, keep_door: 
 			var cell: Vector2i = passage[i] + across * a
 			if not closed.has(cell) and not cells.has(cell):
 				cells.append(cell)
+	# The rock over a tile that is a front only because the passage below it was floor.
+	for cell in passage:
+		var front := cell + Vector2i.UP
+		if closed.has(front) or passage.has(front):
+			continue
+		for dy in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				var near: Vector2i = front + Vector2i(dx, dy)
+				if not closed.has(near) and not passage.has(near) and not cells.has(near):
+					cells.append(near)
 	return cells
 
 
@@ -100,20 +113,28 @@ static func piece_of(cell: Vector2i, tiles: RoomTiles, closed: Dictionary[Vector
 
 
 ## Every piece of the cover: [{"cell": world tile, "room": owner room, "atlas": Vector3i}].
-static func plan(rooms: Array, door_cell: Vector2i, outward: Vector2i, keep_door: bool) -> Array[Dictionary]:
+## open_door: the door tile stays floor (a side gate's notch, G2 playtest 15.10.2026 note 18): the
+## terrain draws the wall round it with its own corners, the rest of the passage is closed.
+static func plan(rooms: Array, door_cell: Vector2i, outward: Vector2i, keep_door: bool, open_door := false) -> Array[Dictionary]:
 	var pieces: Array[Dictionary] = []
 	if rooms.size() < 2:
 		return pieces
 	var passage := passage_cells(door_cell, outward, rooms[1])
 	var closed := closed_floor(rooms, passage)
+	if open_door:
+		closed[door_cell] = true
+	# The look of a cover tile follows the room whose own floor is nearest - its door corridors do not
+	# count (a corridor reaching into the other room must not pull that room's wall into its look,
+	# G2 note 27: a campfire's exit under the next biome's rock).
 	var floors: Array = []
 	for room: Node2D in rooms:
 		var own: Dictionary[Vector2i, bool] = {}
 		var tiles := _tiles_of(room)
 		if tiles != null:
 			var origin := PassageSeam.origin_of(room)
+			var corridors := tiles.get_door_corridor_tiles()
 			for tile in tiles.get_floor_mask():
-				if closed.has(tile + origin):
+				if closed.has(tile + origin) and not corridors.has(tile):
 					own[tile + origin] = true
 		floors.append(own)
 	for cell in cover_cells(passage, outward, keep_door, closed):
@@ -121,6 +142,79 @@ static func plan(rooms: Array, door_cell: Vector2i, outward: Vector2i, keep_door
 		var atlas := piece_of(cell, _tiles_of(owner), closed)
 		if atlas.z >= 0:
 			pieces.append({"cell": cell, "room": owner, "atlas": atlas})
+	return pieces
+
+
+## The door tile of a side gate's notch as the notch would draw it: the floor the rooms paint there
+## and, where the notch's wall meets it, the rounded rock in its lower corners (RockTerrain fillet) -
+## over whatever the rooms drew there for their corridor (G2 note 18: no edge of the corridor left in
+## the notch). [{"cell", "room", "atlas"}], the floor first.
+static func notch_floor(rooms: Array, door_cell: Vector2i, outward: Vector2i) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	if rooms.size() < 2:
+		return pieces
+	var passage := passage_cells(door_cell, outward, rooms[1])
+	var closed := closed_floor(rooms, passage)
+	closed[door_cell] = true
+	for room: Node2D in rooms:
+		var tiles := _tiles_of(room)
+		if tiles == null:
+			continue
+		var local := door_cell - PassageSeam.origin_of(room)
+		var source := tiles.get_cell_source_id(local)
+		if source < 0:
+			continue
+		var coords := tiles.get_cell_atlas_coords(local)
+		pieces.append({"cell": door_cell, "room": room, "atlas": Vector3i(coords.x, coords.y, source)})
+		if tiles.is_terrain_drawn():
+			var bits := RockTerrain.fillet_bits(door_cell, closed)
+			if bits > 0:
+				var fillet := RockTerrain.fillet_coords(bits)
+				pieces.append({"cell": door_cell, "room": room, "atlas": Vector3i(fillet.x, fillet.y, RockTerrain.rock_source(tiles.get_look()))})
+		break
+	return pieces
+
+
+## Room-local tiles of a blocked entrance (nothing lies behind it any more): its door tile and every
+## corridor tile of the room outward from it.
+static func sealed_cells(tiles: RoomTiles, door_tile: Vector2i, outward: Vector2i) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = [door_tile]
+	if tiles == null:
+		return cells
+	var floor_mask := tiles.get_floor_mask()
+	for k in range(1, MAX_DEPTH + 1):
+		var cell := door_tile + outward * k
+		if not floor_mask.has(cell):
+			break
+		cells.append(cell)
+	return cells
+
+
+## The rock over a blocked entrance (G2, playtest 15.10.2026: room 1 ended in a cut-off corridor): the
+## room's wall drawn again as if the gap and its corridor were not there, in room-local tiles -
+## every tile around them (the end of the corridor included) that is no floor, so the wall line runs
+## straight past the gap and no edge of the old corridor is left in the rock.
+## [{"cell": room-local tile, "room": room, "atlas": Vector3i}].
+static func sealed_plan(room: Node2D, door_tile: Vector2i, outward: Vector2i) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	var tiles := _tiles_of(room)
+	if tiles == null:
+		return pieces
+	var passage := sealed_cells(tiles, door_tile, outward)
+	var closed := tiles.get_floor_mask()
+	for cell in passage:
+		closed.erase(cell)
+	var cells: Array[Vector2i] = []
+	for cell in passage:
+		for dy in [-1, 0, 1]:
+			for dx in [-1, 0, 1]:
+				var near: Vector2i = cell + Vector2i(dx, dy)
+				if not closed.has(near) and not cells.has(near):
+					cells.append(near)
+	for cell in cells:
+		var atlas := piece_of(cell, tiles, closed)
+		if atlas.z >= 0:
+			pieces.append({"cell": cell, "room": room, "atlas": atlas})
 	return pieces
 
 

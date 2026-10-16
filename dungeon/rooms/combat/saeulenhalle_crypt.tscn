@@ -82,9 +82,6 @@ metadata/floor_tile = Vector2i(12, 6)
 metadata/wall_side = -1
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(192, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(832, -64)
 
 [node name="Bones1" type="Node2D" parent="Props"]
@@ -110,6 +107,7 @@ script = ExtResource("3_deco")
 item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(2, 1), Vector2i(3, 1), Vector2i(4, 1)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]

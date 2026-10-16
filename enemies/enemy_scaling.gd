@@ -1,15 +1,18 @@
 class_name EnemyScaling
 extends RefCounted
-## Room-based difficulty scaling (D-011, retuned D-074), k(room) = floor((room - 1) / 5):
-##   HP       = base * 1.18^k * (champion factor)
-##   damage   = base * 1.14^k * (champion factor)
+## Room-based difficulty scaling (D-011, retuned D-074, D-154), k(room) = floor((room - 1) / 5):
+##   HP       = base * 1.16^k * (champion factor)
+##   damage   = base * 1.12^k * (champion factor)
 ##   cooldown = base * max(0.55, 1 - 0.03 k), telegraph * max(0.7, 1 - 0.015 k)
 ##   speed    = base * min(1.5, 1 + 0.03 k)
 ## The same formula continues endlessly (D-063).
 
 const ROOMS_PER_BLOCK := 5
-const HEALTH_FACTOR_PER_BLOCK := 1.18
-const DAMAGE_FACTOR_PER_BLOCK := 1.14
+## TESTWERT (D-154: 1.18 -> 1.16, playtest "too steep from the third boss on"; flattens mostly the
+## deep blocks: room 45 x3.28 instead of x3.76, room 15 nearly unchanged).
+const HEALTH_FACTOR_PER_BLOCK := 1.16
+## TESTWERT (D-154: 1.14 -> 1.12; a normal hit in room 41-45 1.5 instead of 2, room 56-60 2.5 instead of 3).
+const DAMAGE_FACTOR_PER_BLOCK := 1.12
 ## Minibosses are champions: tougher than a plain enemy (D-077).
 const MINIBOSS_HEALTH_FACTOR := 3.0
 const MINIBOSS_DAMAGE_FACTOR := 1.5

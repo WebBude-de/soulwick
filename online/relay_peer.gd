@@ -15,6 +15,11 @@ extends MultiplayerPeerExtension
 ## member then gets run_ended and a room_state with started false.
 ## room_closed (left, host_left, kicked, expired, shutdown) or a closed socket end the session:
 ## peer_disconnected for everybody, status DISCONNECTED (D-123: host gone = session over).
+## Keepalive: once welcomed the peer sends its own ping every RelayProtocol.HEARTBEAT_SECONDS
+## (round trip in last_rtt_msec) and declares the connection dead after SILENCE_TIMEOUT_SECONDS
+## without any data (end reason "timeout"). A socket closed in a room ends the session with
+## RelayProtocol.end_reason_for_close(code) (shutdown, timeout, slow_consumer, … or disconnected),
+## a room_closed that arrived together with the close wins.
 
 signal welcomed(info: Dictionary)
 ## Created (peer_id 1) or joined (peer_id >= 2).
@@ -65,6 +70,14 @@ var _pending_events: Array = []
 var _delivering := false
 ## A leave was sent: game packets are dropped until the room_closed confirmation.
 var _leaving := false
+## Round trip of the last heartbeat (ms), -1 before the first pong.
+var last_rtt_msec := -1
+## Why the last session ended on this peer (room_closed reason or end_reason_for_close), "" if none.
+var end_reason := ""
+## Tests move the clock forward with this (ms added to Time.get_ticks_msec()).
+var time_offset_msec := 0
+var _last_received_msec := 0
+var _next_heartbeat_msec := 0
 
 
 ## Connects and sends hello; action (RelayProtocol.create/join) follows the welcome.
@@ -78,6 +91,8 @@ func open(url: String, hello: Dictionary, action: Dictionary) -> Error:
 	_action = action
 	_status = MultiplayerPeer.CONNECTION_CONNECTING
 	phase = Phase.CONNECTING
+	end_reason = ""
+	_last_received_msec = _now_msec()
 	var error: Error = socket.connect_to_url(url)
 	if error != OK:
 		phase = Phase.CLOSED
@@ -139,20 +154,62 @@ func _poll() -> void:
 		_flush_events()
 		return
 	socket.poll()
+	if phase == Phase.CLOSED:
+		# Only finishes a close handshake; the session is already over.
+		_flush_events()
+		return
 	var ready_state: int = socket.get_ready_state()
 	if ready_state == WebSocketPeer.STATE_OPEN and phase == Phase.CONNECTING:
 		phase = Phase.HELLO
+		_last_received_msec = _now_msec()
 		send_control(_hello)
-	if ready_state == WebSocketPeer.STATE_OPEN or ready_state == WebSocketPeer.STATE_CLOSING:
-		while socket.get_available_packet_count() > 0:
-			var packet: PackedByteArray = socket.get_packet()
-			if socket.was_string_packet():
-				_handle_text(packet.get_string_from_utf8())
-			else:
-				_handle_binary(packet)
-	elif ready_state == WebSocketPeer.STATE_CLOSED and phase != Phase.CLOSED:
+	if ready_state != WebSocketPeer.STATE_CONNECTING:
+		# Also when already CLOSED: a room_closed that came with the close frame still counts.
+		_read_packets()
+	if ready_state == WebSocketPeer.STATE_CLOSED:
 		_on_socket_closed(socket.get_close_code(), socket.get_close_reason())
+	elif ready_state == WebSocketPeer.STATE_OPEN:
+		_keep_alive()
 	_flush_events()
+
+
+func _read_packets() -> void:
+	var count: int = socket.get_available_packet_count()
+	if count <= 0:
+		return
+	_last_received_msec = _now_msec()
+	for _i in count:
+		if phase == Phase.CLOSED:
+			return
+		var packet: PackedByteArray = socket.get_packet()
+		if socket.was_string_packet():
+			_handle_text(packet.get_string_from_utf8())
+		else:
+			_handle_binary(packet)
+
+
+## Heartbeat ping and the silence check (only after welcome: before it the relay wants hello).
+func _keep_alive() -> void:
+	if phase != Phase.LOBBY and phase != Phase.ENTERING and phase != Phase.IN_ROOM:
+		return
+	var now := _now_msec()
+	if now - _last_received_msec >= int(RelayProtocol.SILENCE_TIMEOUT_SECONDS * 1000.0):
+		var silent := float(now - _last_received_msec) / 1000.0
+		socket.close(1000, "no data from the relay")
+		_on_socket_closed(RelayProtocol.CLOSE_ABNORMAL, "no data from the relay for %.0f s" % silent, RelayProtocol.END_TIMEOUT)
+		return
+	if now >= _next_heartbeat_msec:
+		_next_heartbeat_msec = now + int(RelayProtocol.HEARTBEAT_SECONDS * 1000.0)
+		send_control(RelayProtocol.ping(now))
+
+
+func _now_msec() -> int:
+	return Time.get_ticks_msec() + time_offset_msec
+
+
+## Seconds since the relay last sent anything (diagnostics).
+func get_silence_seconds() -> float:
+	return float(_now_msec() - _last_received_msec) / 1000.0
 
 
 func _close() -> void:
@@ -273,6 +330,7 @@ func _handle_text(text: String) -> void:
 			if max_frame > RelayProtocol.FRAME_HEADER_BYTES:
 				_max_packet_size = max_frame - RelayProtocol.FRAME_HEADER_BYTES
 			phase = Phase.LOBBY
+			_next_heartbeat_msec = _now_msec() + int(RelayProtocol.HEARTBEAT_SECONDS * 1000.0)
 			welcomed.emit(message)
 			if not _action.is_empty():
 				phase = Phase.ENTERING
@@ -299,6 +357,7 @@ func _handle_text(text: String) -> void:
 		"room_closed":
 			var reason := str(message.get("reason", RelayProtocol.CLOSED_LEFT))
 			if phase == Phase.IN_ROOM:
+				end_reason = reason
 				_end_session()
 				phase = Phase.LOBBY
 				_flush_events()
@@ -306,7 +365,9 @@ func _handle_text(text: String) -> void:
 		"error":
 			relay_error.emit(str(message.get("code", "internal")), str(message.get("message", "")), str(message.get("request", "")))
 		"pong":
-			pass
+			var sent: Variant = message.get("t")
+			if sent is float or sent is int:
+				last_rtt_msec = maxi(0, _now_msec() - int(sent))
 		_:
 			push_warning("RelayPeer: unknown control message type '%s'." % message.get("type", ""))
 
@@ -380,15 +441,21 @@ func _peer_down(id: int) -> void:
 	_pending_events.append([false, id])
 
 
-func _on_socket_closed(code: int, reason: String) -> void:
+## forced_reason: the game itself gave up on the connection (silence), else the close code decides.
+func _on_socket_closed(code: int, reason: String, forced_reason := "") -> void:
 	close_code = code
 	close_reason = reason
 	var was_in_room := phase == Phase.IN_ROOM
+	if was_in_room:
+		end_reason = forced_reason if not forced_reason.is_empty() else RelayProtocol.end_reason_for_close(code)
+		# In godot.log of every player: the evening's report can match it to the relay log.
+		push_warning("RelayPeer: connection to room %s lost at %s: close %d '%s' -> %s; last data %.1f s ago, rtt %d ms." % [
+			room_code, Time.get_datetime_string_from_system(), code, reason, end_reason, get_silence_seconds(), last_rtt_msec])
 	_end_session()
 	phase = Phase.CLOSED
 	_flush_events()
 	if was_in_room:
-		room_left.emit(RelayProtocol.CLOSED_SHUTDOWN if code == RelayProtocol.CLOSE_SHUTDOWN else "disconnected")
+		room_left.emit(end_reason)
 	connection_closed.emit(code, reason)
 
 

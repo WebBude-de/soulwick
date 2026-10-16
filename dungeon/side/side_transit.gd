@@ -32,7 +32,8 @@ var _on_finished: Callable
 var _layer: CanvasLayer = null
 var _black: ColorRect = null
 var _title: Label = null
-var _subtitle: Label = null
+## Rich text: key names in the hint become input symbols (GlyphText; touch: the jump and dash buttons).
+var _subtitle: RichTextLabel = null
 var _saved_lighting: LightingProfile = null
 
 
@@ -72,7 +73,7 @@ func _ready() -> void:
 	_black.add_child(box)
 	_title = _label(TITLE_SIZE, UiKit.COLOR_GOLD)
 	box.add_child(_title)
-	_subtitle = _label(SUBTITLE_SIZE, UiKit.COLOR_TEXT_SOFT)
+	_subtitle = _rich_label(SUBTITLE_SIZE, UiKit.COLOR_TEXT_SOFT)
 	box.add_child(_subtitle)
 
 
@@ -94,12 +95,12 @@ func _run() -> void:
 	var subtitle := DungeonTexts.t(&"SIDE_DESCENT_SUB")
 	if hint:
 		subtitle += " · " + jump_hint_text()
-	_subtitle.text = subtitle
+	GlyphText.apply(_subtitle, subtitle)
 	await get_tree().create_timer(SideRules.BANNER_TIME_WITH_HINT if hint else SideRules.BANNER_TIME, false).timeout
 	if not is_inside_tree():
 		return
 	_title.text = ""
-	_subtitle.text = ""
+	_subtitle.clear()
 	_lock(false)
 	await _fade(0.0)
 	if not is_inside_tree() or segment == null:
@@ -188,6 +189,17 @@ func _fade(alpha: float) -> void:
 	var tween := create_tween()
 	tween.tween_property(_black, "modulate:a", alpha, SideRules.FADE_TIME)
 	await tween.finished
+
+
+## The subtitle: GlyphText's rich label in the size and outline of the title line, centred.
+func _rich_label(font_size: int, color: Color) -> RichTextLabel:
+	var label := GlyphText.rich_label(UiKit.SIZE_BODY, color)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	label.add_theme_font_size_override(&"normal_font_size", font_size)
+	label.add_theme_color_override(&"font_outline_color", Color.BLACK)
+	label.add_theme_constant_override(&"outline_size", 4)
+	return label
 
 
 func _label(font_size: int, color: Color) -> Label:

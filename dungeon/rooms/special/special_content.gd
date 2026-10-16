@@ -2,20 +2,62 @@ class_name SpecialContent
 extends Node2D
 ## Base for the content of special rooms (D-005): shop, weapon choice, fountain, upgrade altar, portal.
 ## All offers are optional; nothing blocks the exit. Children are built in code from art/ sprites.
+## Two steps (playtest 15.10.2026 #9, "nothing pops up", R5): prepare() builds what is seen when the
+## room is prepared, so the merchant, altar or fountain already stands there under the room's veil;
+## setup() makes it usable when the room is entered (shop offers depend on what the players own by
+## then). Interactables wait until setup(). Captions show only near a player anyway (WorldCaption).
 
 var context: DungeonContext = null
 var room: RoomController = null
+var _prepared := false
+var _is_set_up := false
+## Interactables built by prepare(): disabled until the room is entered.
+var _waiting: Array[Interactable] = []
 
 
-func setup(dungeon_context: DungeonContext, owner_room: RoomController) -> void:
+## Builds the visible part (sprites, lights, blockers, captions, interactables) while the room is
+## prepared. Rolls that decide what is shown (which weapons, pact or plain altar) happen here with
+## the dungeon RNG, inside the slot's captured RNG range (identical on every machine).
+func prepare(dungeon_context: DungeonContext, owner_room: RoomController) -> void:
+	if _prepared:
+		return
+	_prepared = true
 	context = dungeon_context
 	room = owner_room
 	# Each sprite sorts by its own base line against the player (not the whole content at once).
 	y_sort_enabled = true
+	_on_prepare()
+
+
+## Makes the content usable when the room is entered (prepares it first if that has not happened).
+func setup(dungeon_context: DungeonContext, owner_room: RoomController) -> void:
+	if _is_set_up:
+		return
+	prepare(dungeon_context, owner_room)
+	context = dungeon_context
+	room = owner_room
+	_is_set_up = true
+	for interactable in _waiting:
+		if is_instance_valid(interactable):
+			interactable.enabled = true
+	_waiting.clear()
 	_on_setup()
 
 
-## Override: build sprites, blockers and interactables.
+func is_prepared() -> bool:
+	return _prepared
+
+
+func is_set_up() -> bool:
+	return _is_set_up
+
+
+## Override: build what is seen (no player state that may change before the room is entered).
+func _on_prepare() -> void:
+	pass
+
+
+## Override: the part that needs the room to be entered (offers, prompts with player state).
 func _on_setup() -> void:
 	pass
 
@@ -85,6 +127,9 @@ func add_interactable(prompt: String, radius := 40.0, center := Vector2.ZERO) ->
 	interactable.add_child(collision)
 	interactable.position = center
 	add_child(interactable)
+	if _prepared and not _is_set_up:
+		interactable.enabled = false
+		_waiting.append(interactable)
 	return interactable
 
 

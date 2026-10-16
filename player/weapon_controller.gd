@@ -204,20 +204,35 @@ func equip_weapon(weapon: WeaponData, slot: int) -> bool:
 	_slots[slot] = weapon
 	_special_cooldowns[slot] = 0.0
 	weapon_changed.emit(slot, weapon)
-	EventBus.weapon_changed.emit(slot, weapon)
+	if _is_local_owner():
+		EventBus.weapon_changed.emit(slot, weapon)
 	return true
 
 
 func switch_weapon() -> bool:
-	var next_slot := (_active_slot + 1) % MAX_WEAPON_SLOTS
-	if _slots[next_slot] == null:
+	return set_active_slot((_active_slot + 1) % MAX_WEAPON_SLOTS)
+
+
+## Makes slot the active one (no effect if it already is or holds no weapon). Group games set the
+## active slot of a remote player's copy with this (state from its owner's machine, never a replayed
+## toggle), so every copy holds the weapon its owner holds.
+func set_active_slot(slot: int) -> bool:
+	if slot < 0 or slot >= MAX_WEAPON_SLOTS or slot == _active_slot or _slots[slot] == null:
 		return false
 	cancel_attack()
 	reset_combo()
-	_active_slot = next_slot
+	_active_slot = slot
 	active_slot_changed.emit(_active_slot)
-	EventBus.weapon_changed.emit(_active_slot, _slots[_active_slot])
+	if _is_local_owner():
+		EventBus.weapon_changed.emit(_active_slot, _slots[_active_slot])
 	return true
+
+
+## Global weapon events (EventBus) belong to the player at this machine; copies of remote players
+## (group game) change their weapons silently. Standalone controllers (tests) count as local.
+func _is_local_owner() -> bool:
+	var player := get_parent() as Player
+	return player == null or player.is_local
 
 
 ## A swing is active or a slam/nova is still winding up.
@@ -322,7 +337,7 @@ func get_effective_damage(weapon: WeaponData, context_multiplier := 1.0) -> floa
 	return StatCalculator.compute_raw_damage(
 		weapon.base_damage,
 		_modifier(UpgradeData.Effect.DAMAGE_FLAT, weapon),
-		_modifier(UpgradeData.Effect.DAMAGE_PERCENT, weapon) + MetaProgression.get_damage_bonus(),
+		_modifier(UpgradeData.Effect.DAMAGE_PERCENT, weapon) + get_meta_damage_bonus(),
 		context_multiplier)
 
 
@@ -361,6 +376,15 @@ func get_projectile_count(weapon: WeaponData) -> int:
 ## Radius of the staff's "Arkane Nova"; grows with "Größere Explosion" like the orb.
 func get_nova_radius(weapon: WeaponData) -> float:
 	return get_effective_aoe_radius(weapon) * NOVA_RADIUS_MULTIPLIER
+
+
+## Village damage bonus (Schärfe) of this run: only where the session takes the local save's upgrades
+## (single player, D-081). Quick games start without it - and the host must never add its own save's
+## level to the attacks of the other players' copies.
+func get_meta_damage_bonus() -> float:
+	if GameMode.of(self).get_meta_source() != GameMode.MetaSource.LOCAL:
+		return 0.0
+	return MetaProgression.get_damage_bonus()
 
 
 func _modifier(effect: UpgradeData.Effect, weapon: WeaponData) -> float:

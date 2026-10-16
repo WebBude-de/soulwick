@@ -10,6 +10,13 @@ extends Node
 ## at the relay (15 min, only in memory, see ensure_relay_token). A 401 on any authenticated call
 ## drops the session token, the next ensure_login() logs in again.
 ## Single player never needs any of this; every failure only changes the status.
+## Account profile (D-152): the login sends the player's name and look (PlayerProfile; the API only
+## uses them when the account is created). Afterwards sync_profile() decides who wins: what was
+## changed here and not sent yet (dirty) goes up with PATCH /me, otherwise the server's profile is
+## taken (a profile that never met this account is sent up once). push_profile() sends a change made
+## in the game (editor in the menu, lobby, village); a refused name change (429
+## name_change_limited) keeps the server's name and sends the look alone (profile_hint() says when
+## the name can change again).
 
 signal state_changed(state: State)
 
@@ -27,6 +34,14 @@ const FALLBACK_NAME := "Spieler"
 ## Allowed in PlayerName (contracts common.ts): letters, digits, space, _ . -; 2–24 characters.
 const NAME_MIN := 2
 const NAME_MAX := 24
+## Errors of PATCH /me (contracts player.ts).
+const NAME_CHANGE_LIMITED := "name_change_limited"
+const VALIDATION_ERROR := "validation_error"
+
+## Take part in the profile sync of D-152 (login body with the look, sync after the login). Off in
+## runs started with a script (tests, tools) unless they switch it on: their fake servers and test
+## accounts must not change a profile on disk.
+static var profile_sync_enabled := not PlayerProfile.is_script_run()
 
 var config: OnlineConfig = null
 var api: ApiClient = null
@@ -173,6 +188,27 @@ func ensure_relay_token() -> ApiResult:
 	return result
 
 
+## One authenticated API call for menus (coroutine, D-147 guilds): logs in first if needed, then
+## calls fn with the ApiClient. A 401 (session expired or revoked) has dropped the session token:
+## logs in once more and repeats the call. A build too old for the API (OnlineVersionCheck) sends
+## nothing. fn: Callable(api: ApiClient) -> ApiResult, e.g. func(api): return await api.get_my_guilds().
+func call_api(fn: Callable) -> ApiResult:
+	if OnlineVersionCheck.is_locked():
+		return ApiResult.failure(ApiResult.UPDATE_REQUIRED, "Game too old for the API")
+	var login := await ensure_login()
+	if not login.ok:
+		return login
+	if not public_config.is_empty() and OnlineVersionCheck.apply_config(public_config) == OnlineVersionCheck.Status.OUTDATED:
+		return ApiResult.failure(ApiResult.UPDATE_REQUIRED, "Game too old for the API")
+	var result: ApiResult = await fn.call(api)
+	if result.status == 401:
+		login = await ensure_login()
+		if not login.ok:
+			return login
+		result = await fn.call(api)
+	return result
+
+
 ## Fetches GET /public/config (coroutine) and takes its relay URL unless one was set explicitly.
 func refresh_public_config() -> ApiResult:
 	var result := await api.get_public_config()
@@ -190,6 +226,7 @@ func _login() -> ApiResult:
 		if me.ok and me.data is Dictionary:
 			_accept(str(stored.token), int(stored.expires_at), me.data)
 			await refresh_public_config()
+			await sync_profile()
 			return me
 		if me.error == ApiResult.BANNED:
 			return me
@@ -198,16 +235,18 @@ func _login() -> ApiResult:
 			api.token = ""
 			return me
 		api.token = ""
-	# With a dev key the test login, otherwise the guest account of this installation.
+	# With a dev key the test login, otherwise the guest account of this installation. Name and look
+	# of the profile only count when the account is created (D-152).
 	var login: ApiResult
+	var look := get_login_appearance()
 	if api.dev_key.is_empty():
-		login = await api.login_device(get_login_name(), config.get_device_id())
+		login = await api.login_device(get_login_name(), config.get_device_id(), look)
 	else:
-		login = await api.login_dev(get_login_name(), config.get_device_id())
+		login = await api.login_dev(get_login_name(), config.get_device_id(), look)
 		# A dev key from local testing does not fit another server: fall back to the guest account.
 		# A ban stays a ban (403 banned), never a way around it.
 		if not login.ok and login.status in [401, 403, 404] and login.error != ApiResult.BANNED:
-			login = await api.login_device(get_login_name(), config.get_device_id())
+			login = await api.login_device(get_login_name(), config.get_device_id(), look)
 	if not login.ok:
 		return login
 	var body: Dictionary = login.data if login.data is Dictionary else {}
@@ -219,6 +258,7 @@ func _login() -> ApiResult:
 	_accept(new_token, expires, self_data)
 	config.store_session(new_token, expires, get_player_id(), get_player_name())
 	await refresh_public_config()
+	await sync_profile()
 	return login
 
 
@@ -269,13 +309,147 @@ func _accept(new_token: String, expires_at: int, self_data: Dictionary) -> void:
 	api.token = new_token
 
 
-## Name for a new account: name= override, else the save's profile name, made valid for the API.
+## Name for a new account: name= override, else the player's profile name (D-152; before the first
+## start the name of an older save slot), made valid for the API. Instance N > 1 without a profile
+## of its own gets " N" (several windows on one PC).
 func get_login_name() -> String:
-	var raw := config.name_override if not config.name_override.is_empty() else SaveManager.get_display_name()
-	var name_text := sanitize_name(raw)
-	if config.instance > 1 and config.name_override.is_empty():
+	if not config.name_override.is_empty():
+		return sanitize_name(config.name_override)
+	var profile := PlayerProfile.current()
+	var raw := profile.player_name
+	if raw.is_empty():
+		raw = str(PlayerProfile.legacy_suggestion().get("name", ""))
+	var name_text := sanitize_name(raw if not raw.is_empty() else profile.get_display_name())
+	if config.instance > 1 and profile.player_name.is_empty():
 		name_text = sanitize_name("%s %d" % [name_text.left(NAME_MAX - 2), config.instance])
 	return name_text
+
+
+## Look for a new account: the profile's, once the player chose one ({} = the server's default).
+func get_login_appearance() -> Dictionary:
+	var profile := PlayerProfile.current()
+	return profile.look.duplicate(true) if profile_sync_enabled and profile.is_set_up else {}
+
+
+# --- Account profile (D-152) ---
+
+## After a login (coroutine): who wins between this machine's profile and the account's.
+## - No profile here yet (no first start): the server's name and look are taken.
+## - Changed here and not sent (dirty), or the profile never met this account: sent up (PATCH /me).
+## - Otherwise the server wins (changed on another device); an account without a look gets ours.
+func sync_profile() -> void:
+	if not profile_sync_enabled or player.is_empty():
+		return
+	var profile := PlayerProfile.current()
+	var server_look: Variant = player.get("appearance", null)
+	if profile.needs_setup():
+		profile.take_server_profile(player)
+		return
+	if profile.synced_player_id != get_player_id():
+		profile.name_dirty = profile.name_dirty or profile.player_name != get_player_name()
+		profile.look_dirty = profile.look_dirty or not (server_look is Dictionary and PlayerLook.equals(server_look, profile.look))
+	elif not profile.name_dirty and not profile.look_dirty:
+		if server_look is Dictionary or profile.player_name != get_player_name():
+			profile.take_server_profile(player)
+			if server_look is Dictionary:
+				return
+		profile.look_dirty = true
+	var result := await push_profile(true)
+	if not result.ok and result.error != NAME_CHANGE_LIMITED and result.error != VALIDATION_ERROR:
+		push_warning("OnlineSession: profile not synced (%s), next login tries again." % result.error)
+
+
+## Sends what the server does not know yet (coroutine, PATCH /me): the name if it changed, the look
+## if it changed. ok without a request when nothing is dirty. 429 name_change_limited: the name goes
+## back to the server's (profile.name_locked_until is set) and the look is sent alone. 400
+## validation_error on the name: back to the server's name too. Network errors keep everything
+## dirty for the next login. direct: send with the current token without call_api (used inside the
+## login itself, where call_api would wait for the running login).
+func push_profile(direct := false) -> ApiResult:
+	var profile := PlayerProfile.current()
+	if not profile_sync_enabled:
+		return ApiResult.success(200, player)
+	var body := {}
+	var name_locked := profile.name_dirty and profile.get_name_wait_seconds() > 0
+	if profile.name_dirty and not name_locked:
+		body["name"] = profile.player_name
+	if profile.look_dirty:
+		body["appearance"] = profile.look.duplicate(true)
+	var refused: ApiResult = null
+	if name_locked:
+		# Known from an earlier answer: do not ask again, keep the server's name.
+		refused = ApiResult.failure(NAME_CHANGE_LIMITED, "Name change limit", 429)
+		refused.retry_after_seconds = profile.get_name_wait_seconds()
+		_keep_server_name(profile)
+	if body.is_empty():
+		return refused if refused != null else ApiResult.success(200, player)
+	var result := await _patch_me(body, direct)
+	if result.ok:
+		_take_player(result.data)
+		profile.mark_synced(get_player_id(), body.has("name"), body.has("appearance"))
+		return refused if refused != null else result
+	if body.has("name") and (result.error == NAME_CHANGE_LIMITED or result.error == VALIDATION_ERROR):
+		if result.error == NAME_CHANGE_LIMITED:
+			profile.name_locked_until = int(Time.get_unix_time_from_system()) + retry_seconds(result)
+		_keep_server_name(profile)
+		# The look of a refused request was not applied either: send it alone.
+		if body.has("appearance"):
+			var look_only := await _patch_me({"appearance": body["appearance"]}, direct)
+			if look_only.ok:
+				_take_player(look_only.data)
+				profile.mark_synced(get_player_id(), false, true)
+	return result
+
+
+func _patch_me(body: Dictionary, direct: bool) -> ApiResult:
+	if direct:
+		return await api.update_profile(body)
+	return await call_api(func(client: ApiClient) -> ApiResult: return await client.update_profile(body))
+
+
+## Seconds of a 429 answer: Retry-After header, else retryAfter in the body (0 if neither).
+static func retry_seconds(result: ApiResult) -> int:
+	if result.retry_after_seconds > 0:
+		return result.retry_after_seconds
+	if result.data is Dictionary:
+		var value: Variant = result.data.get("retryAfter", 0)
+		if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+			return maxi(0, int(value))
+	return 0
+
+
+## A line for the player about a push_profile() result ("" = nothing to say): when the name can be
+## changed again, an invalid name, or that the server is not reachable (saved here, sent later).
+static func profile_hint(result: ApiResult) -> String:
+	if result == null or result.ok:
+		return ""
+	match result.error:
+		NAME_CHANGE_LIMITED:
+			var seconds := retry_seconds(result)
+			if seconds <= 0:
+				return Loc.t(&"PROFILE_NAME_LIMITED_SOON")
+			if seconds < 3600:
+				return Loc.t(&"PROFILE_NAME_LIMITED_MINUTES", [maxi(1, ceili(seconds / 60.0))])
+			return Loc.t(&"PROFILE_NAME_LIMITED_HOURS", [ceili(seconds / 3600.0)])
+		VALIDATION_ERROR:
+			return Loc.t(&"PROFILE_NAME_INVALID")
+	return Loc.t(&"PROFILE_SAVED_OFFLINE")
+
+
+func _keep_server_name(profile: PlayerProfile) -> void:
+	var server_name := get_player_name()
+	if server_name.length() >= NAME_MIN and profile.player_name != server_name:
+		profile.player_name = server_name.left(NAME_MAX)
+		SaveManager.profile_changed.emit()
+	profile.name_dirty = false
+	profile.save()
+
+
+## A PlayerSelf from PATCH /me replaces the cached one (name, appearance, guilds).
+func _take_player(data: Variant) -> void:
+	if data is Dictionary and not (data as Dictionary).is_empty():
+		player = data
+		config.store_session(token, token_expires_at, get_player_id(), get_player_name())
 
 
 ## Keeps letters, digits, space, _ . - and trims to 2..24 characters ("Spieler" if too short).

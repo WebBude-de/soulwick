@@ -90,6 +90,11 @@ Fragen 2, 3 und 4 sowie der Publisher sind seit dem 14.10.2026 entschieden (Proj
 - [ ] Leistung: Sicht-Shader, Nachbearbeitung und Partikel auf einem Mittelklasse-Android messen (`perf_check.gd`); Zielwert 60 fps, mindestens 50 fps (TESTWERT); Stufe „Mobil“ in den Optionen (weniger Partikel, einfachere Schatten); Bildrate auf 60 begrenzen (Akku).
 - [ ] Automatischer Test: `smoke_test.gd` steuert den Bot über das Eingabe-Objekt (nicht über `Input`), damit Touch und Maus denselben Weg nehmen.
 
+**Stand 15.10.2026 (Prototyp für Freunde, Details [MULTIPLAYER.md](MULTIPLAYER.md) §3d „Android-Testversion“):**
+
+- Android-SDK (platform-tools, build-tools 35.0.1 und 36.1.0, platforms android-35/36) und Debug-Schlüssel auf dem Build-PC eingerichtet; Vorlage „Android“ in `export_presets.cfg` (arm64-v8a, INTERNET, Querformat); `tools/export_build.ps1 -Env development -Platforms android` baut `builds/development/0.9.0/Soulwick-0.9.0-development.apk` (≈ 46 MB). Nachweis: `aapt dump badging` → `com.webbude.soulwick`, `versionCode 900`, `versionName 0.9.0`, `INTERNET`, `arm64-v8a`, minSdk 24, targetSdk 36; `apksigner verify` ok. Renderer für Mobil: **`gl_compatibility`** statt Mobile (breitere Geräteunterstützung), Shader laden ohne Fehler (Fensterlauf am PC). Offen im Punkt: `.aab`, Upload-Schlüssel (CP7), Lauf auf einem echten Gerät.
+- Touch-Minimum gebaut (`TouchInput`, `TouchOverlay`): schwebender Stick, Angriff halten mit Zielhilfe (nächster Gegner im Umkreis 200 px, TESTWERT, noch **nicht** auf den Lichtkreis begrenzt), Spezial, Dash bzw. Springen und Seit-Dash in der Seitenansicht, Benutzen, Waffe wechseln, Upgrade-Übersicht, Pause; Menüs per Tippen; Overlay nur bei Touch; sichere Bereiche. 15 Unit-Tests in `tests/unit/test_touch_input.gd` grün. Offen: Gerätetest, kein zweiter Stick, HUD-Skalierung und Tastaturhinweise der HUD, `perf_check.gd`, Stufe „Mobil“.
+
 **Fertig, wenn:** ein Run über 10 Räume auf einem Android-Gerät mit Touch spielbar ist (≥ 50 fps), das Projektmitglied das Spielgefühl als „gut genug“ einstuft und CP0 Frage 5 damit beantwortet ist.
 
 **Koop-Check:** Eingaben nur über das Eingabe-Objekt (MP1); Zielhilfe als Eigenschaft des Spielers; keine neuen `get_first_node_in_group(&"player")`; kein `Engine.time_scale`.
@@ -174,6 +179,8 @@ Fragen 2, 3 und 4 sowie der Publisher sind seit dem 14.10.2026 entschieden (Proj
 - [ ] **iOS später:** Cloud-Mac (Codemagic oder GitHub-Actions-macOS), Apple-Zertifikate und Profile; erst nach Android.
 - [ ] **Konten und Kosten (WebBude):** Steam Direct 100 USD je App (30 Tage Wartezeit nach der Zahlung, Store-Seite mindestens 2 Wochen „Demnächst“ vor dem Release), Steuer- und Bankdaten bei Steam; Google Play 25 USD einmalig als **Organisationskonto** (D-U-N-S-Nummer nötig; erspart die Testpflicht neuer Privatkonten mit 12 Testern über 14 Tage); Apple Developer Program 99 USD/Jahr (später).
 - [ ] **Store-Pflichten** (zusammen mit CP4): Konto löschen in der App **und** als Web-Seite (Google; Plattform P15); Datenschutz-Angaben (Google „Datensicherheit“, Apple „App-Datenschutz“); IARC-Altersfreigabe; Melden und Filtern von Spieler- und Gildennamen (nutzergenerierte Inhalte); Zielgruppe in der Play Console **ab 13** angeben, sonst greifen die Familien-Richtlinien (USK 6 ist nur die Freigabe, nicht die Zielgruppe); Datenschutzerklärung (eRecht24) um Steam-, Google- und Apple-IDs und Relay-Verbindungsdaten ergänzen.
+
+**Stand 15.10.2026:** lokal statt CI: `tools/export_build.ps1`/`.sh` bauen Windows, Linux und jetzt auch Android (`.apk`, `version/code` aus der Version, Signatur über `GODOT_ANDROID_KEYSTORE_RELEASE_*` bzw. für `development` den lokalen Debug-Schlüssel, `production` verlangt den echten Schlüssel). Noch keine CI, kein `.aab`, kein Upload-Schlüssel.
 
 **Fertig, wenn:** ein CI-Lauf auf `dev` ohne Handarbeit einen Windows-Build im Steam-Beta-Branch und einen Android-Build in der Play-Spur „Interner Test“ ablegt, keine Schlüsseldatei im Repo liegt, der Dedicated-Server-Export als Artefakt entsteht und das Projektmitglied die Konten- und Kostenliste für WebBude bestätigt hat.
 

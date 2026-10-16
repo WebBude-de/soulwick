@@ -153,6 +153,7 @@ script = ExtResource("2_deco")
 item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(13, 7), Vector2i(14, 7), Vector2i(15, 7)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -160,14 +161,16 @@ position = Vector2(288, 504)
 script = ExtResource("2_deco")
 item = &"group_large_2"
 blocked_tiles = Array[Vector2i]([Vector2i(3, 7), Vector2i(4, 7), Vector2i(5, 7)])
+solid_span = Vector2(-84, 86)
 biome = &"crypt"
 
 [node name="Group3" type="Node2D" parent="Props"]
 position = Vector2(1088, 120)
 script = ExtResource("2_deco")
-item = &"group_3"
+item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(16, 1), Vector2i(17, 1)])
+solid_span = Vector2(-52, 54)
 biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]

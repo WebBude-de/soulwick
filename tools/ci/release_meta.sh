@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+# Decides version, server environment, tag and pre-release flag of a release run (release.yml,
+# docs/RELEASES.md). Writes key=value lines to $GITHUB_OUTPUT (or stdout when it is not set).
+#
+# Input (environment):
+#   EVENT            push | workflow_dispatch
+#   TAG              pushed tag (github.ref_name), e.g. v0.9.1 or v0.9.1-beta.1
+#   INPUT_ENV        workflow_dispatch: development | production
+#   INPUT_PRERELEASE workflow_dispatch: true | false
+#   RELEASE_ENV      repository variable: environment of a tag without suffix (default development)
+#   RUN_NUMBER       github.run_number (unique tag of manual pre-releases)
+#
+# Rules:
+#   - The version is application/config/version in project.godot. A pushed tag without "v" and
+#     without suffix must equal it (same check as tools/export_build.*), otherwise the run stops.
+#   - Tag without suffix (v0.9.1): environment = RELEASE_ENV, default development. Development stays
+#     the default until the production servers run and the project member switches (D-148).
+#   - Tag with suffix (v0.9.1-beta.1): always development.
+#   - Manual run: environment and pre-release from the form; the tag is v<version> for a full
+#     release and v<version>-<dev|rc>.<run> for a pre-release (created by the release job).
+#   - Every development build is a pre-release: it talks to the test servers.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+EVENT="${EVENT:-workflow_dispatch}"
+
+fail() {
+	echo "::error::$1" >&2
+	exit 1
+}
+
+version="$(sed -n 's/^config\/version="\([^"]*\)".*/\1/p' "$ROOT/project.godot" | head -n 1)"
+[ -n "$version" ] || fail "project.godot has no application/config/version."
+echo "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || fail "application/config/version '$version' is not of the form X.Y.Z."
+
+prerelease=false
+if [ "$EVENT" = "push" ]; then
+	tag="${TAG:-}"
+	case "$tag" in v*) ;; *) fail "Release tags start with v (got '$tag')." ;; esac
+	tag_version="${tag#v}"
+	base="${tag_version%%-*}"
+	[ "$base" = "$version" ] || fail "Tag $tag does not match application/config/version $version in project.godot. Set the version first or fix the tag."
+	if [ "$tag_version" != "$base" ]; then
+		prerelease=true
+		environment=development
+	else
+		environment="${RELEASE_ENV:-development}"
+	fi
+	create_tag=false
+else
+	environment="${INPUT_ENV:-development}"
+	case "${INPUT_PRERELEASE:-true}" in true|false) prerelease="${INPUT_PRERELEASE:-true}" ;; *) fail "prerelease must be true or false." ;; esac
+	[ "$environment" = "development" ] && prerelease=true
+	if [ "$prerelease" = "true" ]; then
+		suffix=rc
+		[ "$environment" = "development" ] && suffix=dev
+		tag="v$version-$suffix.${RUN_NUMBER:-0}"
+	else
+		tag="v$version"
+	fi
+	create_tag=true
+fi
+
+case "$environment" in
+	development|production) ;;
+	*) fail "Unknown environment '$environment' (RELEASE_ENV or form: development | production)." ;;
+esac
+[ "$environment" = "development" ] && prerelease=true
+
+echo "Soulwick $version: tag $tag, environment $environment, pre-release $prerelease" >&2
+out="${GITHUB_OUTPUT:-/dev/stdout}"
+{
+	echo "version=$version"
+	echo "environment=$environment"
+	echo "prerelease=$prerelease"
+	echo "tag=$tag"
+	echo "create_tag=$create_tag"
+} >> "$out"

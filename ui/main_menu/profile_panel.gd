@@ -1,0 +1,58 @@
+class_name ProfilePanel
+extends MenuPanel
+## "Wie heißt du?" (first start) and "Figur" in the main menu (D-152): the ProfileEditor in a menu
+## panel. The first start cannot be skipped (Esc does nothing); it suggests the name and colour of
+## the save slots of older builds once (PlayerProfile.legacy_suggestion), otherwise the profile.
+## The scene figure behind the menu follows the editor (look_changed).
+
+signal saved
+signal look_changed(look: Dictionary)
+
+const WIDTH := 262.0
+
+var first_start := false
+var editor: ProfileEditor = null
+
+
+static func create(is_first_start := false) -> ProfilePanel:
+	var panel := ProfilePanel.new()
+	panel.first_start = is_first_start
+	return panel
+
+
+func _ready() -> void:
+	set_width(WIDTH)
+	if first_start:
+		add_header(&"PROFILE_FIRST_EYEBROW", &"PROFILE_FIRST_TITLE")
+	else:
+		add_header(&"PROFILE_EYEBROW", &"PROFILE_TITLE")
+	var profile := PlayerProfile.current()
+	var start_name := profile.player_name
+	var start_look := profile.look
+	if profile.needs_setup():
+		var suggestion := PlayerProfile.legacy_suggestion()
+		if not suggestion.is_empty():
+			start_name = str(suggestion.get("name", ""))
+			start_look = suggestion.get("look", start_look)
+	if first_start:
+		var intro := UiKit.wrapped_text(tr(&"PROFILE_FIRST_HINT"), WIDTH - MenuPanel.PADDING.y * 2.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		intro.name = "Intro"
+		content.add_child(intro)
+	editor = ProfileEditor.create(start_name, start_look, first_start, WIDTH - MenuPanel.PADDING.y * 2.0)
+	editor.saved.connect(_on_saved)
+	editor.cancelled.connect(close)
+	editor.look_changed.connect(look_changed.emit)
+	content.add_child(editor)
+	set_footer(&"PROFILE_FOOTER_FIRST" if first_start else &"PROFILE_FOOTER")
+
+
+func handle_input(event: InputEvent) -> bool:
+	if editor.handle_input(event):
+		return true
+	# The first start has no way back; every other key is swallowed so the menu list stays put.
+	return first_start and event.is_action_type()
+
+
+func _on_saved() -> void:
+	saved.emit()
+	closed.emit()

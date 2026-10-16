@@ -1,6 +1,6 @@
 class_name DevFeedbackStore
 extends RefCounted
-## Writes one dev feedback note (DevFeedback, F9) into its own folder under the feedback root:
+## Writes one bug report (DevFeedback, # or F9) into its own folder under the feedback root:
 ## screenshot.png (the frame as it was), marked.png (the frame with the numbered rectangles and
 ## strokes burnt in) and note.json (text, categories, marks, context), and appends one line to the
 ## running index.md. Folder names: <YYYY-MM-DD_HH-MM-SS>_<nr>, nr counts up across all notes.
@@ -88,7 +88,7 @@ static func append_index(root_dir: String, record: Dictionary) -> void:
 	if exists:
 		file.seek_end()
 	else:
-		file.store_string("# Dev-Feedback\n\nEine Zeile je Notiz (F9 im Spiel). Auswerten: `python tools/collect_feedback.py`.\n\n")
+		file.store_string("# Dev-Feedback\n\nEine Zeile je Meldung (# oder F9 im Spiel). Auswerten: `python tools/collect_feedback.py`.\n\n")
 		file.store_string("| Zeit | Kategorien | Ort | Text | Ordner |\n| --- | --- | --- | --- | --- |\n")
 	file.store_string(index_line(record) + "\n")
 	file.close()

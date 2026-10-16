@@ -91,7 +91,9 @@ func open_pause_menu() -> void:
 		_add_pause_button(modal, _pause_button(&"GAME_UI_ABORT_RUN", &"GAME_UI_ABORT_RUN_HINT", [payout], modal.finish.bind(&"abort"), true))
 	else:
 		_add_pause_button(modal, _pause_button(&"GAME_UI_MAIN_MENU", &"GAME_UI_MAIN_MENU_HINT", [], modal.finish.bind(&"main_menu")))
-	_add_pause_button(modal, _pause_button(&"GAME_UI_QUIT", &"GAME_UI_QUIT_HINT" if in_dungeon else &"", [], modal.finish.bind(&"quit")))
+	# A browser tab cannot close itself.
+	if not OS.has_feature("web"):
+		_add_pause_button(modal, _pause_button(&"GAME_UI_QUIT", &"GAME_UI_QUIT_HINT" if in_dungeon else &"", [], modal.finish.bind(&"quit")))
 	var footer := UiKit.text_label(_pause_footer_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_pause_texts.append([footer, &"", []])

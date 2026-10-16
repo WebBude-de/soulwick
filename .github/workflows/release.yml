@@ -1,0 +1,223 @@
+# Builds Soulwick for Windows, Linux, macOS and Android and publishes them as a GitHub release
+# (docs/RELEASES.md). The browser version is built and hosted by Dokploy (deploy/), not here.
+#
+#   git tag v0.9.1 && git push origin v0.9.1         -> release v0.9.1
+#   git tag v0.9.1-beta.1 && git push origin ...     -> pre-release v0.9.1-beta.1 (test servers)
+#   Actions -> Release -> Run workflow               -> release with the chosen environment; the tag
+#                                                       (v<version> or v<version>-dev.<run>) is created
+#
+# The tag without "v" and suffix must equal application/config/version in project.godot.
+# Server environment of a tag without suffix: repository variable RELEASE_ENV, default development.
+# Development stays the default until the production servers run and the project member switches
+# (D-148): a build talks only to the servers of its environment, so a production build before
+# then would be offline. Every development build is a pre-release.
+# Android signing: tools/ci/android_signing.sh (secrets in docs/RELEASES.md §3).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      env:
+        description: Server environment (development = test servers, always a pre-release)
+        type: choice
+        options: [development, production]
+        default: development
+      prerelease:
+        description: Mark as pre-release (development builds always are)
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  # One template list for both export jobs, so they share one cache entry.
+  GODOT_TEMPLATES: windows_release_x86_64.exe linux_release.x86_64 macos.zip android_release.apk
+
+jobs:
+  prepare:
+    name: Version and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      environment: ${{ steps.meta.outputs.environment }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+      tag: ${{ steps.meta.outputs.tag }}
+      create_tag: ${{ steps.meta.outputs.create_tag }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Version, environment and tag
+        id: meta
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          INPUT_ENV: ${{ inputs.env }}
+          INPUT_PRERELEASE: ${{ inputs.prerelease }}
+          RELEASE_ENV: ${{ vars.RELEASE_ENV }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: bash tools/ci/release_meta.sh
+      - name: Tag must be new (manual run)
+        if: steps.meta.outputs.create_tag == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          if git ls-remote --exit-code --tags origin "refs/tags/$TAG" >/dev/null; then
+            echo "::error::Tag $TAG exists already. Raise application/config/version or run as pre-release."
+            exit 1
+          fi
+      - id: godot
+        uses: ./.github/actions/setup-godot
+      - name: Validate project
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+        run: '"$GODOT" --headless --audio-driver Dummy --path . -s tools/validate_project.gd'
+      - name: Unit tests (GUT)
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+          # Some tests expect the German texts of language "auto" (system language), as on the
+          # team's PCs; Godot reads the system language from LANG on Linux.
+          LANG: de_DE.UTF-8
+        run: '"$GODOT" --headless --audio-driver Dummy --path . -s addons/gut/gut_cmdln.gd -gexit'
+
+  desktop:
+    name: Export Windows, Linux, macOS
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      OUT_DIR: builds/${{ needs.prepare.outputs.environment }}/${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: ${{ env.GODOT_TEMPLATES }}
+      - name: Export
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+          # The boot check below runs on the zip, explicitly without sound.
+          SKIP_BOOT_TEST: "1"
+        run: bash tools/export_build.sh "$ENVIRONMENT" "$VERSION" "windows linux macos"
+      - name: Boot check (Linux build)
+        run: bash tools/ci/boot_check.sh "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-linux.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop
+          path: ${{ env.OUT_DIR }}/Soulwick-*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+  android:
+    name: Export Android
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      test_signed: ${{ steps.signing.outputs.test_signed }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      OUT_DIR: builds/${{ needs.prepare.outputs.environment }}/${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v5
+      # Before Godot starts: the editor takes JAVA_HOME and ANDROID_HOME as its Android paths.
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Android SDK
+        run: bash tools/ci/android_sdk.sh
+      - name: Signing key
+        id: signing
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_DEBUG_KEYSTORE_BASE64: ${{ secrets.ANDROID_DEBUG_KEYSTORE_BASE64 }}
+        run: bash tools/ci/android_signing.sh
+      - id: godot
+        uses: ./.github/actions/setup-godot
+        with:
+          templates: ${{ env.GODOT_TEMPLATES }}
+      - name: Export
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+        run: |
+          bash tools/export_build.sh "$ENVIRONMENT" "$VERSION" android
+          # Release file names: Soulwick-<version>-<env>-<platform>.<ext>
+          mv "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT.apk" "$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-android.apk"
+      - name: Check APK
+        run: |
+          apk="$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-android.apk"
+          "$ANDROID_BUILD_TOOLS/apksigner" verify --print-certs "$apk" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          "$ANDROID_BUILD_TOOLS/aapt" dump badging "$apk" | grep -E "^(package|sdkVersion|targetSdkVersion|native-code):"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-android
+          path: ${{ env.OUT_DIR }}/Soulwick-*-android.apk
+          if-no-files-found: error
+          compression-level: 0
+
+  release:
+    name: GitHub release
+    needs: [prepare, desktop, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      VERSION: ${{ needs.prepare.outputs.version }}
+      ENVIRONMENT: ${{ needs.prepare.outputs.environment }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      CREATE_TAG: ${{ needs.prepare.outputs.create_tag }}
+      ANDROID_TEST_SIGNED: ${{ needs.android.outputs.test_signed }}
+      WEB_PLAY_URL: ${{ vars.WEB_PLAY_URL }}
+    steps:
+      # Whole history and tags: the notes list the commits since the previous tag.
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          merge-multiple: true
+          path: dist
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum Soulwick-* > "Soulwick-$VERSION-$ENVIRONMENT-SHA256SUMS.txt"
+      - name: Release notes
+        run: bash tools/ci/release_notes.sh "$RUNNER_TEMP/notes.md"
+      - name: Create release
+        run: |
+          title="Soulwick $TAG"
+          [ "$ENVIRONMENT" = "development" ] && title="$title (Testversion)"
+          # A test-signed APK (no release key) marks the whole release as test only.
+          if [ "$ANDROID_TEST_SIGNED" = "true" ]; then
+            PRERELEASE=true
+            [ "$ENVIRONMENT" = "development" ] || title="$title (nur Test)"
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            # Re-run of the same tag: replace the files and the text.
+            gh release upload "$TAG" dist/* --clobber
+            gh release edit "$TAG" --title "$title" --notes-file "$RUNNER_TEMP/notes.md" --prerelease="$PRERELEASE"
+            exit 0
+          fi
+          args=(--title "$title" --notes-file "$RUNNER_TEMP/notes.md")
+          if [ "$CREATE_TAG" = "true" ]; then args+=(--target "$GITHUB_SHA"); else args+=(--verify-tag); fi
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); else args+=(--latest); fi
+          gh release create "$TAG" dist/* "${args[@]}"
+          echo "### Release $TAG" >> "$GITHUB_STEP_SUMMARY"
+          echo "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/releases/tag/$TAG" >> "$GITHUB_STEP_SUMMARY"

@@ -2,7 +2,8 @@ class_name Village
 extends Node2D
 ## Village world: start and return point of every run (PRD 3). Besides the dungeon entrance it
 ## has four enterable buildings (D-078): Schmiede, Handelsposten, Chronik and Gilde, plus the
-## player's Zuhause with the wardrobe (MM1, "Umkleiden"). Pressing E at a door opens that
+## player's Zuhause ("Umkleiden") and the mirror next to it (D-152): both open the profile editor
+## (name and look of the player, VillageMirror, VillageUI.open_mirror / open_home). Pressing E at a door opens that
 ## building's dialog (VillageUI). A building that has not explained itself yet
 ## (D-087) shows a bobbing info marker above its door sign until the explanation was seen.
 ## Locked buildings (MetaUnlocks, D-087: Chronik after the first run, Handelsposten with the first
@@ -48,6 +49,8 @@ const RESCUED_LANTERN_RADIUS := 110.0
 const RESCUED_LANTERN_INTENSITY := 0.8
 ## Chronicle board next to the chronicle's door (world px from the door, art bottom centre).
 const BOARD_OFFSET := Vector2(-78, 0)
+## TESTWERT: the mirror stands right of the home's door (world px from the home's origin).
+const MIRROR_OFFSET := Vector2(112, 6)
 
 @onready var _entrance: Interactable = $Buildings/DungeonEntrance/Interactable
 @onready var _ground: VillageTiles = $Ground
@@ -71,6 +74,7 @@ func _ready() -> void:
 	_entrance.interacted.connect(_on_entrance_used)
 	_add_missing_signs()
 	_add_chronicle_board()
+	_add_mirror()
 	_populate_rescued()
 	# Sort buildings, decoration and NPCs by their base line against the player's feet.
 	SortLift.lift_props(_buildings)
@@ -343,6 +347,29 @@ func _add_chronicle_board() -> void:
 		tally.offset = board.offset
 		board.add_child(tally)
 	chronicle.add_child(board)
+
+
+## The mirror next to Zuhause (D-152): opens the profile editor.
+func _add_mirror() -> void:
+	var home := _buildings.get_node_or_null(^"Home") as Node2D
+	if home == null or _buildings.get_node_or_null(^"Mirror") != null:
+		return
+	var mirror := VillageMirror.create()
+	mirror.position = home.position + MIRROR_OFFSET
+	_buildings.add_child(mirror)
+	mirror.used.connect(func(_player: Player) -> void: open_mirror())
+
+
+## Opens the profile editor of the mirror (nothing while another dialog is open).
+func open_mirror() -> void:
+	if ui.is_dialog_open():
+		return
+	Sfx.play_ui(self, &"ui_click")
+	await ui.open_mirror()
+
+
+func get_mirror() -> VillageMirror:
+	return _buildings.get_node_or_null(^"Mirror") as VillageMirror
 
 
 ## Number of chalk marks on the chronicle board (0 = empty), for tests.

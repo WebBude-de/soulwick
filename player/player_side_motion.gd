@@ -14,6 +14,10 @@ extends Node
 ## (SidePlayerFx), the body animation comes from get_animation().
 ## Inputs are read in exactly one place (_read_input): the player's own input object (MP1: keyboard
 ## at this machine, RemoteInput for network players and bots), or input_source when a bot drives.
+## Group game (co-op): the host decides every player's moves. A copy of another machine's player
+## (moves_from_remote) never decides a jump, a wall slide or a landing itself; it moves with the
+## host's velocity, takes the moves as events (apply_remote_move: the same signals, so salto and dust
+## show on every machine) and the air state from the synced bits (apply_remote_air_state).
 
 signal jumped(player: Player)
 signal double_jumped(player: Player)
@@ -48,6 +52,10 @@ const DOUBLE_JUMP_ANIMATION_TIME := 0.32
 const WALL_GRACE_TIME := 0.1
 
 
+## Moves the host sends for the copies at the other machines (NetSide.side_move_net).
+enum Move { JUMP, DOUBLE_JUMP, WALL_JUMP, LAND }
+
+
 ## One frame of side-view input, read from the player's input object; a bot fills the same fields
 ## (input_source).
 class SideInput:
@@ -78,6 +86,10 @@ var wall_side := 0
 ## Double jumps and wall jumps during this segment (tools, tests).
 var double_jumps := 0
 var wall_jumps := 0
+## Network copy of a player who runs at another machine: jumps, double jumps, wall jumps, wall
+## slides and landings come from the host (apply_remote_move, apply_remote_air_state), not from the
+## replayed input; set by NetPlayerState. False for the player at this machine and at the host.
+var moves_from_remote := false
 
 var _player: Player = null
 var _world: SideSegment = null
@@ -167,6 +179,58 @@ func apply_remote_state(climbing: bool, in_pit: bool, remote_facing: float) -> v
 			_start_climbing(ladder)
 	elif not climbing and _climbing:
 		_stop_climbing()
+
+
+## Network copy: a move the host decided for this player (Move), with the velocity right after it,
+## the facing and (LAND) the fall speed. Same state changes and signals as at the host, so the looks
+## (SidePlayerFx: stretch, salto, dust, landing) play on every machine.
+func apply_remote_move(move: Move, remote_velocity: Vector2, remote_facing: float, fall_speed := 0.0) -> void:
+	if not _active or _player == null:
+		return
+	if remote_facing != 0.0:
+		facing = signf(remote_facing)
+	match move:
+		Move.JUMP:
+			_player.velocity = remote_velocity
+			_stop_climbing()
+			_jumping = true
+			_on_floor = false
+			jumped.emit(_player)
+		Move.DOUBLE_JUMP:
+			_player.velocity = remote_velocity
+			air_jumps_left = maxi(0, air_jumps_left - 1)
+			has_double_jumped = true
+			double_jumps += 1
+			_jumping = true
+			_on_floor = false
+			_double_jump_left = DOUBLE_JUMP_ANIMATION_TIME
+			double_jumped.emit(_player)
+		Move.WALL_JUMP:
+			_player.velocity = remote_velocity
+			_jumping = true
+			_on_floor = false
+			_reset_air_jumps()
+			_set_wall_sliding(false, 0)
+			wall_jumps += 1
+			wall_jumped.emit(_player)
+		Move.LAND:
+			_land_left = LAND_ANIMATION_TIME
+			_double_jump_left = 0.0
+			_jumping = false
+			landed.emit(_player, fall_speed)
+
+
+## Network copy: the air state of the host's copy (synced 30/s): wall slide and its side, double jump
+## used. Starts and ends the slide look (wall_slide_changed) where the host's player slides.
+func apply_remote_air_state(sliding: bool, remote_wall_side: int, double_jumped: bool) -> void:
+	if not _active or _player == null:
+		return
+	if double_jumped != has_double_jumped:
+		has_double_jumped = double_jumped
+		air_jumps_left = SideRules.AIR_JUMPS - (1 if double_jumped else 0)
+	if sliding:
+		wall_side = signi(remote_wall_side)
+	_set_wall_sliding(sliding, wall_side if sliding else 0)
 
 
 ## Feet position the next pit returns to (global), INF before the first platform.
@@ -360,6 +424,12 @@ func _run_and_jump(input: SideInput, delta: float) -> void:
 	var acceleration := SideRules.GROUND_ACCELERATION if _on_floor else SideRules.AIR_ACCELERATION
 	velocity.x = move_toward(velocity.x, target, acceleration * delta)
 	velocity.y = minf(velocity.y + gravity_for(velocity.y) * delta, SideRules.MAX_FALL_SPEED)
+	if moves_from_remote:
+		# A copy: the host decides jumps and slides (apply_remote_move / apply_remote_air_state).
+		if is_wall_sliding:
+			velocity.y = minf(velocity.y, SideRules.WALL_SLIDE_SPEED)
+		_player.velocity = velocity
+		return
 	# Wall slide: in the air, falling, pressing into a rock wall.
 	_wall_grace = maxf(0.0, _wall_grace - delta)
 	if _wall_grace <= 0.0:
@@ -448,7 +518,7 @@ func _climb(input: SideInput, delta: float) -> void:
 		_player.velocity = Vector2.ZERO
 		_stop_climbing()
 		return
-	if input.jump_just_pressed:
+	if input.jump_just_pressed and not moves_from_remote:
 		_stop_climbing()
 		_player.velocity = Vector2(input.axis.x * _player.move_speed, -SideRules.JUMP_VELOCITY * 0.8)
 		_jumping = true
@@ -512,7 +582,7 @@ func _after_move(falling_speed: float, delta: float) -> void:
 	_land_left = maxf(0.0, _land_left - delta)
 	_double_jump_left = maxf(0.0, _double_jump_left - delta)
 	# Rock walls (ledges and ladder steps are one-way and never count as walls).
-	if not _on_floor and not _climbing and _player.is_on_wall():
+	if not _on_floor and not _climbing and not moves_from_remote and _player.is_on_wall():
 		var normal := _player.get_wall_normal()
 		if absf(normal.x) > 0.7:
 			wall_side = -int(signf(normal.x))
@@ -523,7 +593,7 @@ func _after_move(falling_speed: float, delta: float) -> void:
 		_wall_grace = 0.0
 		_reset_air_jumps()
 		_double_jump_left = 0.0
-		if not was_on_floor and not _climbing:
+		if not was_on_floor and not _climbing and not moves_from_remote:
 			_land_left = LAND_ANIMATION_TIME
 			if _air_time >= LAND_EFFECT_AIR_TIME:
 				landed.emit(_player, maxf(falling_speed, _fall_speed))

@@ -27,9 +27,11 @@ var _menus_open := false
 func _ready() -> void:
 	# Must keep running while the tree is paused so pause reasons can be released.
 	process_mode = Node.PROCESS_MODE_ALWAYS
-	# Dev feedback tool (F9: screenshot, marks, note), debug builds only, no autoload of its own.
-	if OS.is_debug_build():
-		DevFeedback.install(get_tree().root)
+	# Agent and tool runs with SOULWICK_QUIET=1: no sound, window off-screen and never focused.
+	QuietRun.apply(get_tree())
+	# Bug report tool (# or F9, touch button; beta), on while DevFeedback.is_enabled() (not in
+	# production builds), no autoload of its own.
+	DevFeedback.install(get_tree().root)
 
 
 func request_pause(reason: StringName) -> void:

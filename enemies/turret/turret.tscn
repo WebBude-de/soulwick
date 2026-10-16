@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://enemies/enemy_base.tscn" id="1_base"]
+[ext_resource type="Script" path="res://enemies/turret/turret.gd" id="2_turret"]
+
+[node name="Turret" instance=ExtResource("1_base")]
+script = ExtResource("2_turret")
+
+[node name="TelegraphCircle" parent="." index="0"]
+z_index = 1
+
+[node name="TelegraphLine" parent="." index="1"]
+position = Vector2(0, -24)

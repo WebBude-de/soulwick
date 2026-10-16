@@ -23,6 +23,9 @@ var local_player_ids: Array[int] = [0]
 ## Online session (MP2): the LobbyClient of a relay room, or null for a session at this machine.
 ## When set, the world's players come from the network (attach_world) instead of the spawn order.
 var network: Object = null
+## Guild run (D-080, D-147): the API id of the guild whose room this is ("" otherwise). Only
+## members may join (the relay checks), the run report carries it (POST /runs mode guild).
+var guild_id := ""
 
 
 static func solo() -> GameMode:
@@ -34,8 +37,10 @@ static func quick(count: int, local_ids: Array[int] = [0]) -> GameMode:
 	return create(Kind.QUICK, count, local_ids)
 
 
-static func guild(count: int, local_ids: Array[int] = [0]) -> GameMode:
-	return create(Kind.GUILD, count, local_ids)
+static func guild(count: int, local_ids: Array[int] = [0], owner_guild_id := "") -> GameMode:
+	var mode := create(Kind.GUILD, count, local_ids)
+	mode.guild_id = owner_guild_id
+	return mode
 
 
 static func create(mode_kind: Kind, count: int, local_ids: Array[int]) -> GameMode:
@@ -120,6 +125,17 @@ func get_meta_source() -> MetaSource:
 		Kind.GUILD:
 			return MetaSource.GUILD
 	return MetaSource.LOCAL
+
+
+## RunMode of the API for the run report (contracts common.ts): "solo", "quick" or "guild". A guild
+## session without a guild id reports as "quick" (the API needs the id for guild runs).
+func get_run_mode_name() -> String:
+	match kind:
+		Kind.QUICK:
+			return "quick"
+		Kind.GUILD:
+			return "guild" if not guild_id.is_empty() else "quick"
+	return "solo"
 
 
 ## Input object for a new player: keyboard and mouse for the primary local player, RemoteInput for

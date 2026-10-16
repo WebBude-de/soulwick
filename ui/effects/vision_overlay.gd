@@ -7,7 +7,8 @@ extends CanvasLayer
 ## R6: the drawn look follows a LightingProfile (ambient cap, drawn radius scale). The logical values
 ## from set_vision stay the gameplay truth; the profile only lifts the unlit environment and widens
 ## the drawn circles, except in rooms that are dark on purpose (LightingProfile.deep()).
-## Also owns the PostProcess pass (layer 3) and forwards the bound player to it.
+## Also owns the PostProcess pass (layer 3) and forwards the bound player to it, and the
+## DarknessVisibility that fades enemies outside the drawn light of the local player (optics only).
 ## L1: glow halos around the sources, flickering/breathing source brightness, mist in the light and
 ## the biome grade (BiomeGrade: shadow/highlight tint, vignette) are drawn in the same single pass;
 ## LightingQuality low switches them off. With more lights on screen than the shader takes, the
@@ -62,6 +63,7 @@ var _hurt := 0.0
 var _dark_color := DEFAULT_DARK_COLOR
 var _target_dark_color := DEFAULT_DARK_COLOR
 var _post_process: PostProcess = null
+var _darkness_visibility: DarknessVisibility = null
 ## Look of the current room (R6) and its smoothed values.
 var _profile: LightingProfile = LightingProfile.for_biome(&"")
 var _ambient := 1.0
@@ -88,6 +90,10 @@ func _ready() -> void:
 	_post_process = PostProcess.new()
 	_post_process.name = "PostProcess"
 	add_child(_post_process)
+	_darkness_visibility = DarknessVisibility.new()
+	_darkness_visibility.name = "DarknessVisibility"
+	_darkness_visibility.overlay = self
+	add_child(_darkness_visibility)
 	_snap_profile()
 	_grade = _effective_grade()
 
@@ -164,6 +170,15 @@ func get_post_process() -> PostProcess:
 	return _post_process
 
 
+func get_darkness_visibility() -> DarknessVisibility:
+	return _darkness_visibility
+
+
+## The local player whose light is drawn (null before bind_player).
+func get_bound_player() -> Player:
+	return _player if _player != null and is_instance_valid(_player) else null
+
+
 func blind(duration: float) -> void:
 	_blind_left = maxf(_blind_left, duration)
 
@@ -181,6 +196,21 @@ func get_visual_radius() -> float:
 ## The darkness of the unlit environment as drawn (after the ambient cap).
 func get_visual_darkness() -> float:
 	return _visual_darkness
+
+
+## Soft edge of the player's circle as drawn, in world px.
+func get_visual_softness() -> float:
+	return LightingProfile.SOFTNESS_PX * _player_scale * _softness_scale
+
+
+## Drawn player radius = logical radius * this (R6).
+func get_player_scale() -> float:
+	return _player_scale
+
+
+## Drawn source radius = LightSource.radius * this (R6).
+func get_source_scale() -> float:
+	return _source_scale
 
 
 func _process(delta: float) -> void:
@@ -212,7 +242,7 @@ func _process(delta: float) -> void:
 	_material.set_shader_parameter(&"screen_size", screen)
 	_material.set_shader_parameter(&"darkness", _visual_darkness)
 	_material.set_shader_parameter(&"vision_radius", drawn_radius * zoom)
-	_material.set_shader_parameter(&"softness", LightingProfile.SOFTNESS_PX * _player_scale * _softness_scale * zoom)
+	_material.set_shader_parameter(&"softness", get_visual_softness() * zoom)
 	_material.set_shader_parameter(&"hurt", _hurt)
 	_material.set_shader_parameter(&"dark_color", _dark_color)
 	_material.set_shader_parameter(&"pixel_size", PIXEL_SIZE)
@@ -309,8 +339,9 @@ func _update_lights(canvas: Transform2D, zoom: float, screen: Vector2) -> void:
 			var light: LightSource = entry[0]
 			var pos: Vector2 = entry[1]
 			var r: float = entry[2]
-			# Lights of a room still under its veil stay dim (they would shine through the rock).
-			packed.append(Vector4(pos.x, pos.y, r, light.get_draw_intensity() * light.get_veil_factor()))
+			# Lights of a room still under its veil stay dim (they would shine through the rock); an
+			# enemy's glow fades with the enemy (DarknessVisibility).
+			packed.append(Vector4(pos.x, pos.y, r, light.get_draw_intensity() * light.get_veil_factor() * light.draw_factor))
 			var color := light.get_draw_color()
 			colors.append(Vector4(color.r, color.g, color.b, LightPalette.tint_strength(color)))
 			halos.append(light.get_halo())
@@ -332,7 +363,7 @@ static func pick_lights(nodes: Array, canvas: Transform2D, radius_scale: float, 
 	var visible_lights: Array = []
 	for node in nodes:
 		var light := node as LightSource
-		if light == null or not light.is_lit():
+		if light == null or not light.is_lit() or light.draw_factor <= 0.01:
 			continue
 		var pos := canvas * light.global_position
 		var r := light.get_current_radius() * radius_scale

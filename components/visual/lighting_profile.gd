@@ -13,17 +13,24 @@ extends RefCounted
 ##
 ## All numbers are TESTWERTE (R6).
 
-## Unlit environment of a normal combat room per biome: darkness 0.55 = 45 % visible (measured on the
-## Claude-Design mockups: unlit floor about 40-55 % of the lit floor).
+## Unlit environment of a normal combat room per biome: darkness 0.62 = 38 % visible. R6 started at
+## 0.53-0.6 (Claude-Design mockups: unlit floor about 40-55 % of the lit floor); +0.06 since enemies
+## outside the light fade out (DarknessVisibility, Projektmitglied 15.10.2026), so the outside reads
+## as dark too. TESTWERT
 const BIOME_AMBIENT := {
-	&"crypt": 0.56,
-	&"slime_grotto": 0.53,
-	&"shadow_realm": 0.6,
-	&"ember_forge": 0.54,
+	&"crypt": 0.62,
+	&"slime_grotto": 0.59,
+	&"shadow_realm": 0.66,
+	&"ember_forge": 0.6,
 }
-const DEFAULT_AMBIENT := 0.56
-## Darker variants of the normal room ("Dunkler Raum" event).
-const EXTRA_DARK_AMBIENT_BONUS := 0.12
+const DEFAULT_AMBIENT := 0.62
+## Darker variants of the normal room ("Finsternis", RoomController.is_extra_dark). TESTWERT
+const EXTRA_DARK_AMBIENT_BONUS := 0.16
+## Finsternis draws a small, crisp circle: the logical radius (190 px) unscaled and a narrower soft
+## edge, so the drawn light ends near the gameplay light (115 px lit; half light at ~138 px instead of ~156 px,
+## full light to ~85 px instead of ~36 px). TESTWERT
+const EXTRA_DARK_PLAYER_SCALE := 1.0
+const EXTRA_DARK_SOFTNESS_SCALE := 0.7
 ## Room kinds (RoomSequence.RoomKind): offset on the biome ambient. Arena: enemies come from all
 ## gates, so the whole hall reads a bit better.
 const KIND_AMBIENT_OFFSET := {0: 0.0, 1: -0.03, 2: 0.0}
@@ -138,7 +145,7 @@ static func for_situation(biome_id: StringName, room_type: int, room_kind := 0, 
 		return create(MINIBOSS_AMBIENT)
 	var value := biome_ambient(biome_id) + float(KIND_AMBIENT_OFFSET.get(room_kind, 0.0))
 	if extra_dark:
-		value += EXTRA_DARK_AMBIENT_BONUS
+		return create(value + EXTRA_DARK_AMBIENT_BONUS, EXTRA_DARK_PLAYER_SCALE, SOURCE_RADIUS_SCALE, EXTRA_DARK_SOFTNESS_SCALE)
 	return create(value)
 
 

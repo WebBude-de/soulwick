@@ -1,8 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
 
 [node name="AltarApsisShadowRealm" instance=ExtResource("1_base")]
 
@@ -48,28 +47,22 @@ position = Vector2(416, 160)
 metadata/objective_kind = &"upgrade_altar"
 metadata/tile = Vector2i(6, 2)
 
-[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(128, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(640, -64)
-
 [node name="Candles1" type="Node2D" parent="Props"]
 position = Vector2(162, 98)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"candles"
 
 [node name="Bones1" type="Node2D" parent="Props"]
 position = Vector2(162, 116)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"bones_1"
 
 [node name="Candles2" type="Node2D" parent="Props"]
 position = Vector2(674, 98)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"candles"
 
 [node name="Bones2" type="Node2D" parent="Props"]
 position = Vector2(674, 116)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"bones_1"

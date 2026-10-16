@@ -161,7 +161,7 @@ Der MVP ist abgenommen, wenn ein regulärer Run vom Dorf aus möglich ist, Spiel
 
 ### 7.2 Gilden und Ranglisten
 
-- **Gilde** (D-080): gründen, per Einladungscode beitreten, jederzeit verlassen; eine Gilde je Spieler, höchstens 30 Mitglieder; Gilden-Runs nur mit Mitgliedern. Gildenkasse und Gilden-Schmiede auf dem Server (Vorschlag D-081); Schnelles Spiel hat keine Meta-Boni und keine Auszahlung.
+- **Gilde** (D-080): gründen, per Einladungscode beitreten, jederzeit verlassen; bis zu 5 Gilden je Spieler, höchstens 30 Mitglieder (D-147); Gilden-Runs nur mit Mitgliedern. Gildenkasse und Gilden-Schmiede auf dem Server (Vorschlag D-081); Schnelles Spiel hat keine Meta-Boni und keine Auszahlung.
 - **Ranglisten** (D-082): Solo, Gruppe und Gilden, gewertet nach höchstem Raum, bei Gleichstand nach Zeit; Allzeit und Monats-Saison.
 - **Server** (D-083, D-119): eigener Server mit API, Datenbank und Relay im Repo `soulwick-platform`. Das Spiel bleibt ohne Server spielbar; jeder Aufruf darf scheitern.
 - **Datenschutz:** nur Plattform-IDs, Name, Gilde und Run-Berichte; Löschen auf Wunsch (Details im Plattform-PRD).

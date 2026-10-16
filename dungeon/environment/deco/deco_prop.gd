@@ -53,6 +53,13 @@ const ITEMS := {
 	&"group_large_1": {"path": "res://art/environment/deco/deco_group_large_%s_1.png", "frame": Vector2i(96, 64), "pivot": Vector2(48, 63), "layer": Layer.STANDING, "solid": Vector2(168, 30), "shadow": false},
 	&"group_large_2": {"path": "res://art/environment/deco/deco_group_large_%s_2.png", "frame": Vector2i(96, 64), "pivot": Vector2(48, 63), "layer": Layer.STANDING, "solid": Vector2(168, 30), "shadow": false},
 }
+## Decoration groups whose picture is a pool of water (the slime grotto's pond, deco_groups_<biome>.json
+## "Tümpel"): drawn as the rooms' own water (WaterArt) so every pool and puddle looks alike
+## (playtest 15.10.2026 note 13); biome -> item -> [centre, half axes] of the pond in the 64x48 frame
+## (art px, TESTWERTE, look). It stays solid like the group and lies flat on the floor.
+const WATER_GROUPS := {
+	&"slime_grotto": {&"group_3": [Vector2(32, 38), Vector2(28, 8.5)]},
+}
 ## Fog wisps drift this slowly (px per second, water_fog.json).
 const DRIFT_SPEED := 4.0
 ## Free-standing lights built as LightIsland (A3 ingredient look, LightQuery counts them).
@@ -77,6 +84,10 @@ const PLACEHOLDER := Color(0.42, 0.4, 0.46)
 ## Biome of the room (generator): the puddle's water palette (WaterArt), the decoration group's
 ## art and the colours of soft wall pieces.
 @export var biome: StringName = &""
+## Solid part of a decoration group along x (world px from the origin, as drawn unflipped; zero =
+## the item's whole footprint): the generator measures the art's standing parts, so flat bits beside
+## them (candles, bones, a puddle) do not block (playtest 15.10.2026, notes 22 and 24).
+@export var solid_span := Vector2.ZERO
 
 var sprite: Node2D = null
 var light: LightSource = null
@@ -107,13 +118,24 @@ func _ready() -> void:
 		light.position = Vector2(0, -float(data.get("light_y", 16.0)))
 		light.ground_offset = -light.position
 		add_child(light)
-	match int(data.get("layer", Layer.STANDING)):
+	var layer := int(data.get("layer", Layer.STANDING))
+	if is_water_group():
+		layer = Layer.FLOOR
+	match layer:
 		Layer.FLOOR:
 			z_index = FLOOR_Z
 		Layer.WALL:
 			z_index = WALL_Z
 		_:
-			SortLift.lift(self)
+			# Groups sort by the back of their solid foot (flat bits lie in front of it): a character
+			# beside the group whose feet are south of that line is drawn in front (playtest
+			# 15.10.2026, note 23).
+			SortLift.lift(self, Player.FEET_OFFSET.y + (footprint.y if String(item).begins_with("group_") else 0.0))
+
+
+## Is this a decoration group drawn as water (WATER_GROUPS)?
+func is_water_group() -> bool:
+	return WATER_GROUPS.has(biome) and (WATER_GROUPS[biome] as Dictionary).has(item)
 
 
 ## Is this a solid prop (blocks walking)?
@@ -133,7 +155,17 @@ static func has_item(id: StringName) -> bool:
 func _build_sprite(data: Dictionary) -> void:
 	var frame: Vector2i = data["frame"]
 	var frames: int = data.get("frames", 1)
-	var texture := _puddle_texture() if item == &"puddle" else _art_texture(data, frame * Vector2i(frames, 1))
+	var texture: Texture2D = null
+	if item == &"puddle":
+		texture = _puddle_texture()
+	elif is_water_group():
+		var pond: Array = WATER_GROUPS[biome][item]
+		texture = WaterArt.pond_strip(biome, absi(int(position.x) * 7 + int(position.y) * 13), frame, pond[0], pond[1])
+		frames = WaterArt.FRAMES
+		data = data.duplicate()
+		data["fps"] = WaterArt.FPS
+	else:
+		texture = _art_texture(data, frame * Vector2i(frames, 1))
 	var pivot: Vector2 = data["pivot"]
 	var art_scale: float = data.get("scale", 1.0)
 	if frames > 1 and still_frame < 0:
@@ -200,6 +232,9 @@ func _build_body(footprint: Vector2, shadow := true) -> void:
 	var collision := CollisionShape2D.new()
 	collision.shape = shape
 	collision.position = Vector2(0, -footprint.y * 0.5)
+	if solid_span != Vector2.ZERO:
+		shape.size.x = absf(solid_span.y - solid_span.x)
+		collision.position.x = (solid_span.x + solid_span.y) * 0.5 * (-1.0 if flip else 1.0)
 	body.add_child(collision)
 	add_child(body)
 	if shadow:

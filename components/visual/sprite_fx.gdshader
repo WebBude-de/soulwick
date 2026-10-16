@@ -13,6 +13,14 @@ uniform vec4 dissolve_edge : source_color = vec4(1.0, 0.55, 0.2, 1.0);
 uniform vec4 outline_color : source_color = vec4(0.0, 0.0, 0.0, 0.0);
 uniform float outline_pulse = 0.0;
 
+// Modulate alpha (modulate * self_modulate) of the item: transparent texels lose it in COLOR, so
+// the outline reads it from the vertex stage (an enemy hidden in the dark takes its outline along).
+varying float modulate_alpha;
+
+void vertex() {
+	modulate_alpha = COLOR.a;
+}
+
 float pixel_hash(vec2 p) {
 	return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
 }
@@ -35,7 +43,7 @@ void fragment() {
 			+ texture(TEXTURE, UV + vec2(0.0, px.y)).a + texture(TEXTURE, UV - vec2(0.0, px.y)).a;
 		if (around > 0.0) {
 			float pulse = 1.0 - outline_pulse * (0.5 + 0.5 * sin(TIME * 6.0));
-			c = vec4(outline_color.rgb, outline_color.a * pulse);
+			c = vec4(outline_color.rgb, outline_color.a * pulse * modulate_alpha);
 		}
 	}
 	c.rgb = mix(c.rgb, flash_color.rgb, flash * step(0.01, c.a));

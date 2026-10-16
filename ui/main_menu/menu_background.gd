@@ -108,7 +108,18 @@ func _ready() -> void:
 
 	resized.connect(_layout)
 	_layout()
-	set_character(CharacterCatalog.get_character(CharacterCatalog.DEFAULT_ID), Color(0, 0, 0, 0))
+	set_look(PlayerProfile.current().look)
+
+
+## Shows the player's figure in its colours in front of the entrance (D-152, PlayerLook).
+func set_look(look: Dictionary) -> void:
+	var data := CharacterCatalog.get_character(PlayerLook.get_character(look))
+	if data == null:
+		return
+	data.apply_look(_hero, look)
+	_hero.play(&"idle")
+	_weapon.texture = data.menu_weapon
+	_weapon.offset = -data.menu_weapon_pivot
 
 
 ## Shows data in front of the entrance; a transparent colour means the character's default.

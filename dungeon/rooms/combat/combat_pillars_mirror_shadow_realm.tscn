@@ -98,8 +98,9 @@ flip = true
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(320, 56)
 script = ExtResource("2_deco")
-item = &"group_3"
+item = &"group_2"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+solid_span = Vector2(-54, 48)
 biome = &"shadow_realm"
 
 [node name="Ambience" type="Node2D" parent="."]
@@ -114,6 +115,7 @@ flip = true
 position = Vector2(674, 482)
 script = ExtResource("2_deco")
 item = &"mist"
+flip = true
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true

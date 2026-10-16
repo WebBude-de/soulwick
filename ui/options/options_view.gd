@@ -733,7 +733,10 @@ func _rebuild_actions_now() -> void:
 ## One line per entry (key chip, caption, muted note on the right) so the page fits the screen.
 func _control_row(id: StringName) -> Control:
 	var row := UiKit.hbox(int(UiKit.px(6)))
-	row.add_child(key_chip(ControlsInfo.key_text(id), KEY_WIDTH))
+	# Key symbols like the HUD (mouse, space, W A S D), in a column of the old chip width.
+	var keys := KeyCap.row_for_control(id, UiKit.ART_SCALE)
+	keys.custom_minimum_size.x = UiKit.px(KEY_WIDTH)
+	row.add_child(keys)
 	var caption := UiKit.text_label(ControlsInfo.caption(id), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true)
 	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(caption)

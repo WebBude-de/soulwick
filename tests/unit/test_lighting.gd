@@ -33,7 +33,7 @@ func after_each() -> void:
 
 func test_dungeon_darkness_is_capped_to_the_biome_ambient() -> void:
 	var ambient := LightingProfile.biome_ambient(&"crypt")
-	assert_between(ambient, 0.45, 0.6, "about half of the environment stays visible")
+	assert_between(ambient, 0.5, 0.7, "a good third of the environment stays visible")
 	assert_almost_eq(LightingProfile.visual_darkness(0.97, ambient), ambient, 0.0001)
 
 

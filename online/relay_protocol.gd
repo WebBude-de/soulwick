@@ -27,7 +27,9 @@ const MODE_UNRELIABLE := 0
 const MODE_UNRELIABLE_ORDERED := 1
 const MODE_RELIABLE := 2
 
-## WebSocket close codes of the relay.
+## WebSocket close codes of the relay (RELAY_CLOSE_CODES). -1 = closed without a close frame
+## (connection cut: deploy behind the proxy, WLAN gone, Cloudflare).
+const CLOSE_ABNORMAL := -1
 const CLOSE_SHUTDOWN := 1001
 const CLOSE_TIMEOUT := 4000
 const CLOSE_UNAUTHORIZED := 4001
@@ -42,6 +44,23 @@ const CLOSED_HOST_LEFT := "host_left"
 const CLOSED_EXPIRED := "expired"
 const CLOSED_KICKED := "kicked"
 const CLOSED_SHUTDOWN := "shutdown"
+const CLOSED_BY_ADMIN := "closed_by_admin"
+
+## Session end reasons of the game itself when the socket closes in a room (LobbyClient shows
+## LOBBY_ERR_<REASON>): the relay's close code says why (end_reason_for_close).
+const END_DISCONNECTED := "disconnected"
+const END_TIMEOUT := "timeout"
+const END_SLOW_CONSUMER := "slow_consumer"
+const END_RATE_LIMITED := "rate_limited"
+const END_BANNED := "banned"
+
+## TESTWERT: seconds between the game's own heartbeat pings once welcomed (the relay answers pong).
+## Keeps the line busy through menus and loading screens (Cloudflare drops after 100 s silence)
+## and measures the round trip.
+const HEARTBEAT_SECONDS := 20.0
+## TESTWERT: no data at all from the relay for this long = the connection is dead (the relay pings
+## every 15 s and answers every heartbeat). Catches half-open connections the OS does not notice.
+const SILENCE_TIMEOUT_SECONDS := 50.0
 
 ## Error codes of the relay contract (RelayErrorCode); unknown ones are passed on unchanged.
 const ERROR_CODES: Array[String] = [
@@ -125,6 +144,27 @@ static func create(mode: String, guild_id := "") -> Dictionary:
 
 static func join(code: String) -> Dictionary:
 	return {"type": "join", "code": code}
+
+
+## Application heartbeat; the relay answers {"type": "pong", "t": t}.
+static func ping(t: int) -> Dictionary:
+	return {"type": "ping", "t": t}
+
+
+## Why a session ends when the relay connection closes while in a room.
+static func end_reason_for_close(code: int) -> String:
+	match code:
+		CLOSE_SHUTDOWN:
+			return CLOSED_SHUTDOWN
+		CLOSE_TIMEOUT:
+			return END_TIMEOUT
+		CLOSE_SLOW_CONSUMER:
+			return END_SLOW_CONSUMER
+		CLOSE_RATE_LIMITED:
+			return END_RATE_LIMITED
+		CLOSE_BANNED:
+			return END_BANNED
+	return END_DISCONNECTED
 
 
 ## Host only: the run is over, the room goes back to the lobby (joins and start work again).

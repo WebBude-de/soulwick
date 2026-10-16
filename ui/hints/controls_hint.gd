@@ -31,8 +31,8 @@ const DONE_LINGER := 0.9
 ## Mouse travel (px) that counts as "aimed".
 const AIM_DISTANCE := 60.0
 ## Layout in mockup pixels.
-const WIDTH := 124.0
-const KEY_WIDTH := 46.0
+const WIDTH := 112.0
+const KEY_WIDTH := 38.0
 const EDGE_MARGIN := 8.0
 
 var _stage := -1
@@ -45,9 +45,10 @@ var _list: VBoxContainer = null
 var _eyebrow: Label = null
 
 
-## True while the save has not seen the card yet.
+## True while the save has not seen the card yet. The card teaches keyboard and mouse: not while
+## the touch controls are in use (G3); it stays unseen and comes on the next keyboard run.
 static func should_show() -> bool:
-	return not SaveManager.has_seen(SEEN_ID)
+	return not SaveManager.has_seen(SEEN_ID) and not TouchState.shared().is_active()
 
 
 func _ready() -> void:
@@ -62,7 +63,8 @@ func _ready() -> void:
 	box.add_child(_eyebrow)
 	_list = UiKit.vbox(int(UiKit.px(3)))
 	box.add_child(_list)
-	var footer := UiKit.text_label(&"HINT_CONTROLS_FOOTER", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	# "Alle Tasten: [Esc] → Optionen" with the Esc symbol (G3).
+	var footer := GlyphText.line(Loc.t(&"HINT_CONTROLS_FOOTER"), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	box.add_child(footer)
 	minimum_size_changed.connect(_layout)
 	get_viewport().size_changed.connect(_layout)
@@ -145,7 +147,7 @@ func _show_stage(stage: int) -> void:
 	_eyebrow.text = Loc.t(&"HINT_CONTROLS_STEP", [stage + 1, STAGES.size()]).to_upper()
 	for id: StringName in STAGES[stage]:
 		var row := UiKit.hbox(int(UiKit.px(5)))
-		row.add_child(OptionsView.key_chip(ControlsInfo.key_text(id), KEY_WIDTH))
+		row.add_child(_key_cell(id))
 		var caption := UiKit.text_label(Loc.t(CAPTIONS[id]) if CAPTIONS.has(id) else ControlsInfo.caption(id), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		row.add_child(caption)
@@ -154,6 +156,19 @@ func _show_stage(stage: int) -> void:
 		_rows[id] = row
 		row.modulate.a = 0.0
 		row.create_tween().tween_property(row, "modulate:a", 1.0, 0.25).set_delay(0.06 * _rows.size())
+
+
+## Key caps of a control with input symbols (G3: mouse buttons, space … as pictures), left in a
+## cell of KEY_WIDTH so the captions line up.
+func _key_cell(id: StringName) -> Control:
+	var cell := HBoxContainer.new()
+	cell.name = "Keys"
+	cell.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	cell.custom_minimum_size.x = UiKit.px(KEY_WIDTH)
+	var caps := KeyCap.row_for_control(id, KeyCap.HUD_PIXEL)
+	caps.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	cell.add_child(caps)
+	return cell
 
 
 func _matches(id: StringName, event: InputEvent) -> bool:

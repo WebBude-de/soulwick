@@ -47,6 +47,9 @@ const VEIL_SEARCH_DEPTH := 10
 		_draw_color_resolved = false
 ## Strength of the glow halo around the light as drawn (L1); negative = from LightPalette.
 @export var halo := -1.0
+## Drawn brightness factor set from outside, optics only: an enemy hidden in the dark takes its glow
+## with it (DarknessVisibility). Never read by the gameplay side.
+var draw_factor := 1.0
 
 # Visual randomness only (D-088): never the dungeon RNG.
 var _seed := randf() * 100.0

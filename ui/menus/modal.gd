@@ -9,8 +9,15 @@ extends Control
 ## after another (deal), an optional accent stripe in the mode/dialog colour runs down the left
 ## inner edge of the panel (accent), and no dialog is taller than UiKit.DIALOG_MAX_HEIGHT_RATIO of
 ## the screen (fits_screen, checked by the tests). Choosing stays instant: finish() returns at once.
+## Input guard: for INPUT_GUARD after opening, clicks and keys are swallowed, so a click or key
+## meant for the dialog before (or a quick double click) never picks in this one; a click has to
+## begin after the guard. Open dialogs are counted (open_count) so DungeonUI can queue the next
+## one until they are closed.
 
 signal finished(result: Variant)
+
+## Seconds after opening in which clicks and keys are ignored (real time, TESTWERT).
+const INPUT_GUARD := 0.25
 
 const DIM_COLOR := UiKit.COLOR_OVERLAY
 ## Gap between content rows in mockup pixels (ui_spec dialog.gap; R8 tighter, dialogs max 60 %).
@@ -48,11 +55,27 @@ var accent := Color(0, 0, 0, 0):
 		if frame != null:
 			frame.queue_redraw()
 
+## Input guard of this dialog in seconds (INPUT_GUARD; 0 = none).
+var input_guard := INPUT_GUARD
+## Optional (result) -> bool: finish() ignores results it rejects, e.g. a pick meant for another
+## dialog (null always passes: a dialog freed or closed from outside).
+var result_filter: Callable = Callable()
+## > 0: the dialog closes itself with auto_finish_result this many seconds after it appeared
+## (group games: an upgrade choice must not hold a player forever). The clock starts on show.
+var auto_finish_after := 0.0
+var auto_finish_result: Variant = null
+
 var _done := false
 var _dim: ColorRect = null
 var _footer: Label = null
 ## Controls that pop in one after another once the panel is up (cards of a row).
 var _deal: Array[Control] = []
+## Full-screen catcher on top while the input guard runs (swallows clicks and hover).
+var _guard_blocker: Control = null
+var _shown_ms := -1
+
+## Instance ids of the dialogs on screen (any screen), see open_count().
+static var _open_ids: Dictionary = {}
 
 
 static func create(reason: StringName, panel_kind := &"normal") -> Modal:
@@ -62,12 +85,59 @@ static func create(reason: StringName, panel_kind := &"normal") -> Modal:
 	return modal
 
 
+## Number of dialogs open right now (shown and not finished yet).
+static func open_count() -> int:
+	for id: int in _open_ids.keys():
+		if not is_instance_id_valid(id):
+			_open_ids.erase(id)
+	return _open_ids.size()
+
+
 func open(parent: Node) -> Variant:
+	show_on(parent)
+	return await finished
+
+
+## Shows the dialog under parent without waiting for it (open() = show_on() + await finished).
+func show_on(parent: Node) -> void:
+	if _done:
+		return
 	parent.add_child(self)
+	_open_ids[get_instance_id()] = true
+	_shown_ms = Time.get_ticks_msec()
 	GameManager.request_pause(pause_reason)
 	Sfx.play_ui(self, &"ui_open")
+	_start_input_guard()
 	_animate_in()
-	return await finished
+	if auto_finish_after > 0.0:
+		var timer := get_tree().create_timer(auto_finish_after, true, false, true)
+		timer.timeout.connect(_on_auto_finish)
+
+
+## true while clicks and keys are still swallowed after opening.
+func is_input_guarded() -> bool:
+	return _shown_ms >= 0 and input_guard > 0.0 and Time.get_ticks_msec() - _shown_ms < int(input_guard * 1000.0)
+
+
+func _start_input_guard() -> void:
+	if input_guard <= 0.0:
+		return
+	_guard_blocker = Control.new()
+	_guard_blocker.name = "InputGuard"
+	_guard_blocker.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_guard_blocker.mouse_filter = Control.MOUSE_FILTER_STOP
+	add_child(_guard_blocker)
+
+
+func _process(_delta: float) -> void:
+	if _guard_blocker != null and not is_input_guarded():
+		_guard_blocker.queue_free()
+		_guard_blocker = null
+
+
+func _on_auto_finish() -> void:
+	if not _done:
+		finish(auto_finish_result)
 
 
 ## Lets these controls pop in one after another once the dialog opens (call before open()).
@@ -96,8 +166,12 @@ func _animate_in() -> void:
 func finish(result: Variant = null) -> void:
 	if _done:
 		return
+	if result != null and result_filter.is_valid() and not result_filter.call(result):
+		return
 	_done = true
-	GameManager.release_pause(pause_reason)
+	_open_ids.erase(get_instance_id())
+	if _shown_ms >= 0:
+		GameManager.release_pause(pause_reason)
 	finished.emit(result)
 	queue_free()
 
@@ -210,6 +284,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		# Hidden under a dialog opened on top of it (pause menu -> options).
 		return
+	if is_input_guarded():
+		# Just opened: a key still meant for the dialog before must not pick here.
+		if event.is_action_type():
+			get_viewport().set_input_as_handled()
+		return
 	if input_handler.is_valid() and input_handler.call(event):
 		get_viewport().set_input_as_handled()
 		return
@@ -235,6 +314,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _exit_tree() -> void:
 	# Never leave a stale pause reason behind, e.g. when the world is freed with the dialog open.
+	_open_ids.erase(get_instance_id())
 	if not _done:
 		_done = true
-		GameManager.release_pause(pause_reason)
+		if _shown_ms >= 0:
+			GameManager.release_pause(pause_reason)

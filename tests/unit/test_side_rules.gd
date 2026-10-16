@@ -23,14 +23,15 @@ func test_never_before_the_boss_never_twice_never_when_skipped() -> void:
 	assert_true(SideRules.allows_ladder_way(false, false, false))
 
 
-func test_after_a_rest_room_about_one_in_ten() -> void:
+func test_after_a_rest_room_about_one_in_six() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 77
 	var hits := 0
 	for i in 2000:
 		if SideRules.roll_reason(false, false, true, false, false, false, rng) == SideRules.Reason.AFTER_REST:
 			hits += 1
-	assert_between(hits, 150, 250, "about 10 %% (%d of 2000)" % hits)
+	assert_between(hits, 300, 420, "about 18 %% (%d of 2000, round 3: a little more often)" % hits)
+	assert_almost_eq(SideRules.AFTER_REST_CHANCE, 0.18, 0.001)
 
 
 func test_only_the_rest_case_draws() -> void:
@@ -106,16 +107,22 @@ func test_segment_rng_is_derived_and_stable() -> void:
 	assert_ne(c.randi(), first, "another slot, another segment")
 
 
-func test_pick_draws_one_of_eight_layouts_of_the_biome() -> void:
+func test_pick_draws_one_of_twelve_layouts_of_the_biome() -> void:
 	var seen := {}
+	var turrets := 0
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
-	for i in 200:
+	for i in 400:
 		var layout := SidePlans.pick(&"shadow_realm", rng)
 		assert_eq(layout.biome_id, &"shadow_realm")
 		assert_true(SidePlans.ids_for(&"shadow_realm").has(layout.plan_id))
 		seen["%s_%s" % [layout.plan_id, layout.is_mirrored]] = true
-	assert_eq(seen.size(), 8, "four plans, each plain and mirrored")
+		if layout.turrets_enabled:
+			turrets += 1
+	assert_eq(seen.size(), 12, "six plans, each plain and mirrored")
+	assert_between(turrets, 150, 250, "turrets in about half of the segments (%d of 400)" % turrets)
+	assert_true(SidePlans.build(&"crypt_steps").turrets_enabled, "tools and tests build with turrets")
+	assert_true(SidePlans.build(&"crypt_steps", true).turrets_enabled, "mirroring keeps the flag")
 	var again := RandomNumberGenerator.new()
 	again.seed = 9
 	var other := RandomNumberGenerator.new()

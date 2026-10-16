@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#15131f">
+<title>Soulwick</title>
+<!-- Offline page of the "Web" export preset (progressive_web_app/offline_page, docs/WEB_BUILD.md):
+     shown by the installed app when the game files are not stored yet and there is no connection. -->
+<style>
+html, body {
+	margin: 0;
+	height: 100%;
+	background: radial-gradient(ellipse at 50% 45%, #15131f 0%, #0b0a11 78%);
+	color: #e9e4d2;
+	font-family: "Pixelify Sans", "Courier New", monospace;
+}
+
+main {
+	min-height: 100%;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 14px;
+	padding: 24px 16px;
+	box-sizing: border-box;
+	text-align: center;
+}
+
+h1 {
+	margin: 0;
+	font-size: 26px;
+	color: #f2cf4a;
+	text-shadow: 3px 3px 0 #1c1a2b;
+}
+
+p {
+	margin: 0;
+	max-width: 420px;
+	font-size: 17px;
+	line-height: 1.45;
+	color: #b9b3c9;
+}
+
+button {
+	margin-top: 12px;
+	font: inherit;
+	font-size: 17px;
+	padding: 9px 18px;
+	color: #15131f;
+	background: #f2cf4a;
+	border: 0;
+	cursor: pointer;
+	box-shadow: 0 6px 0 0 #1c1a2b;
+}
+</style>
+</head>
+<body>
+<main>
+	<h1 id="title">You are offline</h1>
+	<p id="text">The candle needs a connection to light up for the first time. Check your internet and try again.</p>
+	<button type="button" id="retry">Try again</button>
+</main>
+<script>
+(function () {
+	'use strict';
+	const lang = String((navigator.languages && navigator.languages[0]) || navigator.language || 'en').toLowerCase();
+	if (lang.startsWith('de')) {
+		document.documentElement.lang = 'de';
+		document.getElementById('title').textContent = 'Du bist offline';
+		document.getElementById('text').textContent = 'Die Kerze braucht beim ersten Mal eine Verbindung. Prüfe dein Internet und versuch es noch einmal.';
+		document.getElementById('retry').textContent = 'Noch einmal versuchen';
+	}
+	document.getElementById('retry').addEventListener('click', () => window.location.reload());
+}());
+</script>
+</body>
+</html>

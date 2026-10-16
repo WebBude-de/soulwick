@@ -9,6 +9,10 @@ extends CanvasLayer
 ## R8: values that change hop once (hearts, shield, gold, crystals); the weapon block sits in one
 ## panel_dark with the slots, the active weapon's name and values, and its keys as key caps
 ## ([Q] Bogen · [RMB] Wirbelschlag · [Space] Dash) with the cooldown bars next to them.
+## G3 (playtest note #12): the HUD is compact. Its pixel art (frames, hearts, icons, key caps) is
+## drawn at HUD_PIXEL screen pixels per art pixel instead of UiKit.ART_SCALE, the weapon block has
+## two short lines, and keys are KeyCaps with input symbols (mouse buttons, space, tab …) from the
+## current binding. The hint line bottom right uses the same caps.
 
 const HEART_TEXTURES: Array[Texture2D] = [
 	preload("res://art/ui/heart_empty.png"),
@@ -28,8 +32,12 @@ const HP_PER_HEART := 2.0
 ## huge max HP) one heart plus "×N" (hearts left) keeps the HUD readable and cheap.
 const HEARTS_PER_ROW := 10
 const HEART_ROWS := 2
-## Heart size on screen (16 mockup px, whole multiple of the 16 px art).
-const HEART_SIZE := 16.0 * UiKit.ART_SCALE
+## Screen pixels per art pixel in the HUD (dialogs: UiKit.ART_SCALE). TESTWERT (G3).
+const HUD_PIXEL: int = KeyCap.HUD_PIXEL
+## Heart size on screen: the 16 px art at HUD_PIXEL.
+const HEART_SIZE := 16.0 * HUD_PIXEL
+## Size of the 16 px icons (shield, gold, crystal, weapons) on screen.
+const ICON_SIZE := 16.0 * HUD_PIXEL
 ## Translation keys (D-111): the hint label gets the key as text, Godot translates it live.
 const CONTROLS_HINT: StringName = &"HUD_CONTROLS_HINT"
 ## After the first-run controls card (ControlsHint) the key line shrinks to this (UX1); all keys are
@@ -44,22 +52,47 @@ const GROUP: StringName = &"hud"
 ## they would overlap (R3, 07_ui.md).
 const TOP_CENTER_GROUP: StringName = &"hud_top_center"
 
-# Layout in mockup pixels (ui_spec.json "hud").
+# Layout in mockup pixels (ui_spec.json "hud"; G3 values TESTWERT).
 const STATUS_POSITION := Vector2(6, 6)
-const HEART_GAP := 2.0
+const HEART_GAP := 1.0
 const EDGE_MARGIN := 8.0
 ## Room/cycle line top: the height of the task bar (07_ui.md).
 const ROOM_LINE_TOP := 4.0
 const ROOM_LINE_GAP := 3.0
 const WEAPON_MARGIN := 6.0
-const SLOT_SIZE := 28.0
-const SLOT_GAP := 4.0
-const SLOT_ICON_SIZE := 16.0
+## Padding inside the HUD frames (vertical, horizontal).
+const FRAME_PADDING := Vector2(3, 4)
+const SLOT_GAP := 2.0
+## Free art pixels between a slot's rim and its icon.
+const SLOT_PADDING := 1
 const INACTIVE_SLOT_ALPHA := 0.8
-const SMALL_ICON_SIZE := 12.0
+## The frames are a little see-through, the scene shows under them.
+const FRAME_ALPHA := 0.9
 const HINT_MAX_WIDTH := 200.0
-const DASH_BAR_SIZE := Vector2(18, 2)
-const SPECIAL_BAR_SIZE := Vector2(18, 2)
+const KEY_PAIR_GAP := 2.0
+const KEY_ROW_GAP := 5.0
+const HINT_ENTRY_GAP := 5.0
+const DASH_BAR_WIDTH := 12.0
+const SPECIAL_BAR_WIDTH := 12.0
+## Hint line entries: [ControlsInfo id, caption key suffix (HINT_KEY_PREFIX + suffix), English
+## fallback, German fallback]. The keys are new in G3; until localization has them the fallbacks show.
+## The full line shows until the first-run controls card was seen (UX1), then the short one.
+const HINT_KEY_PREFIX := "HUD_HINT_"
+const HINT_ENTRIES_FULL: Array[Array] = [
+	[ControlsInfo.MOVE, "MOVE", "move", "bewegen"],
+	[ControlsInfo.AIM, "AIM", "aim", "zielen"],
+	[ControlsInfo.ATTACK, "ATTACK", "attack", "angreifen"],
+	[ControlsInfo.DASH, "DASH", "dash", "Dash"],
+	[ControlsInfo.SPECIAL, "SPECIAL", "special", "Spezial"],
+	[ControlsInfo.SWITCH, "SWITCH", "weapon", "Waffe"],
+	[ControlsInfo.INTERACT, "USE", "use", "benutzen"],
+	[ControlsInfo.OVERVIEW, "UPGRADES", "upgrades", "Upgrades"],
+	[ControlsInfo.PAUSE, "PAUSE", "pause", "Pause"],
+]
+const HINT_ENTRIES_SHORT: Array[Array] = [
+	[ControlsInfo.OVERVIEW, "UPGRADES", "upgrades", "Upgrades"],
+	[ControlsInfo.PAUSE, "PAUSE_OPTIONS", "pause and options", "Pause und Optionen"],
+]
 ## Hop of a changed value (scale).
 const BUMP_SCALE := 1.3
 const CHRONICLE_REFRESH := 1.0
@@ -101,7 +134,12 @@ var _special_key_bar: ProgressBar = null
 ## Last shown fill of every heart (quarter steps) and values, so only changes hop.
 var _heart_fills: Array[int] = []
 var _last_values := {}
+## Plain text of the hint line (tools and tests read it; _hint_row shows it with key caps).
 var _hint_label: Label
+var _hint_row: HFlowContainer
+var _hint_full := false
+## Touch controls in use (TouchState): no keyboard hints, the weapon keys show the touch buttons.
+var _touch := false
 var _currency_frame: PanelContainer
 var _village_gold: Label
 var _village_crystals: Label
@@ -168,7 +206,52 @@ func set_dungeon_mode(enabled: bool) -> void:
 
 ## Full key line until the save has seen the first-run controls card, then the short one.
 func _refresh_hint() -> void:
-	_hint_label.text = CONTROLS_HINT_SHORT if SaveManager.has_seen(ControlsHint.SEEN_ID) else CONTROLS_HINT
+	var full := not SaveManager.has_seen(ControlsHint.SEEN_ID)
+	_hint_label.text = CONTROLS_HINT if full else CONTROLS_HINT_SHORT
+	if full == _hint_full and _hint_row.get_child_count() > 0:
+		return
+	_hint_full = full
+	_build_hint_entries()
+
+
+## Key caps + short captions of the hint line ([Tab] Upgrades · [Esc] Pause und Optionen).
+func _build_hint_entries() -> void:
+	for child in _hint_row.get_children():
+		_hint_row.remove_child(child)
+		child.queue_free()
+	for entry: Array in (HINT_ENTRIES_FULL if _hint_full else HINT_ENTRIES_SHORT):
+		var pair := UiKit.hbox(int(UiKit.px(KEY_PAIR_GAP)))
+		pair.add_child(KeyCap.row_for_control(entry[0], HUD_PIXEL))
+		var caption := UiKit.text_label(hud_text(StringName(HINT_KEY_PREFIX + String(entry[1])), entry[2], entry[3]), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		pair.add_child(caption)
+		_hint_row.add_child(pair)
+
+
+## Text of a new translation key with a fallback per language until localization has the key (G3).
+static func hud_text(key: StringName, english: String, german: String) -> String:
+	return DataTexts.text_or(key, german if Loc.current_language() == &"de" else english)
+
+
+## Touch controls switched on or off (TouchState, read only): the hint line is for keyboards and
+## hides, the weapon keys show the touch buttons. The touch buttons sit bottom right, the compact
+## weapon block bottom left stays clear of them.
+func _check_touch() -> void:
+	var touch := TouchState.shared().is_active()
+	if touch == _touch:
+		return
+	set_touch_mode(touch)
+
+
+func set_touch_mode(enabled: bool) -> void:
+	_touch = enabled
+	_hint_row.visible = not enabled
+	if _player != null and is_instance_valid(_player):
+		_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
+
+
+func is_touch_mode() -> bool:
+	return _touch
 
 
 ## Hook for the dungeon: rooms until the next regular heal (-1 hides the hint).
@@ -186,6 +269,7 @@ func set_room_mode(mode_name: String) -> void:
 
 
 func _process(delta: float) -> void:
+	_check_touch()
 	if not _dungeon_mode:
 		_chronicle_timer -= delta
 		if _chronicle_timer <= 0.0:
@@ -201,14 +285,13 @@ func _process(delta: float) -> void:
 # --- Builders ---
 
 func _build_status(root: Control) -> void:
-	var frame := UiKit.panel(&"dark")
+	var frame := hud_frame()
 	frame.position = UiKit.pxv(STATUS_POSITION.x, STATUS_POSITION.y)
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(frame)
 	_status_frame = frame
-	var box := UiKit.vbox(int(UiKit.px(3)))
+	var box := UiKit.vbox(int(UiKit.px(2)))
 	frame.add_child(box)
-	var heart_row := UiKit.hbox(int(UiKit.px(4)))
+	var heart_row := UiKit.hbox(int(UiKit.px(3)))
 	box.add_child(heart_row)
 	_hearts = GridContainer.new()
 	_hearts.columns = HEARTS_PER_ROW
@@ -219,16 +302,16 @@ func _build_status(root: Control) -> void:
 	_heart_count_label = _value_label(UiKit.COLOR_DANGER_SOFT)
 	_heart_count_label.visible = false
 	heart_row.add_child(_heart_count_label)
-	var row := UiKit.hbox(int(UiKit.px(4)))
-	row.add_child(UiKit.pixel_icon(SHIELD_ICON, SMALL_ICON_SIZE))
+	var row := UiKit.hbox(int(UiKit.px(2)))
+	row.add_child(UiKit.icon(SHIELD_ICON, ICON_SIZE))
 	_shield_label = _value_label(UiKit.COLOR_TEXT)
-	_shield_label.custom_minimum_size.x = UiKit.px(14)
+	_shield_label.custom_minimum_size.x = UiKit.px(9)
 	row.add_child(_shield_label)
-	row.add_child(UiKit.pixel_icon(GOLD_ICON, SMALL_ICON_SIZE))
+	row.add_child(UiKit.icon(GOLD_ICON, ICON_SIZE))
 	_gold_label = _value_label(UiKit.COLOR_GOLD)
-	_gold_label.custom_minimum_size.x = UiKit.px(14)
+	_gold_label.custom_minimum_size.x = UiKit.px(9)
 	row.add_child(_gold_label)
-	_crystal_icon = UiKit.pixel_icon(CRYSTAL_ICON, SMALL_ICON_SIZE)
+	_crystal_icon = UiKit.icon(CRYSTAL_ICON, ICON_SIZE)
 	row.add_child(_crystal_icon)
 	_crystal_label = _value_label(UiKit.COLOR_CRYSTAL)
 	row.add_child(_crystal_label)
@@ -242,20 +325,20 @@ func _build_room(root: Control) -> void:
 	box.offset_right = -UiKit.px(EDGE_MARGIN)
 	box.offset_top = UiKit.px(ROOM_LINE_TOP)
 	root.add_child(box)
-	_room_label = UiKit.text_label(Loc.t(&"HUD_ROOM", [1]), UiKit.SIZE_VALUE, UiKit.COLOR_TEXT, true)
+	_room_label = UiKit.text_label(Loc.t(&"HUD_ROOM", [1]), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true)
 	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(_room_label)
-	_room_detail = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+	_room_detail = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 	_room_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(_room_detail)
 	_room_box = box
 
 
+## Weapon block (G3): two small slots, then two short lines: name + values, and the keys as caps
+## with captions and cooldown bars ([Q] Bogen · [RMB] Wirbelschlag ▬ · [Space] Dash ▬).
 func _build_weapons(root: Control) -> void:
-	var frame := UiKit.panel(&"dark")
+	var frame := hud_frame()
 	frame.name = "WeaponBlock"
-	frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 4, 5))
-	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_LEFT)
 	frame.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	frame.offset_left = UiKit.px(WEAPON_MARGIN)
@@ -268,7 +351,7 @@ func _build_weapons(root: Control) -> void:
 		var slot_frame := PanelContainer.new()
 		slot_frame.name = "Slot%d" % (slot + 1)
 		slot_frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		slot_frame.custom_minimum_size = Vector2.ONE * UiKit.px(SLOT_SIZE)
+		slot_frame.custom_minimum_size = Vector2.ONE * slot_size()
 		slot_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(slot_frame)
 		_weapon_panels.append(slot_frame)
@@ -281,35 +364,83 @@ func _build_weapons(root: Control) -> void:
 	row.add_child(text)
 	var head := UiKit.hbox(int(UiKit.px(4)))
 	text.add_child(head)
-	_weapon_name = UiKit.text_label("", UiKit.SIZE_CARD_NAME, UiKit.COLOR_TEXT, true)
+	_weapon_name = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_TEXT, true)
 	_weapon_name.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(_weapon_name)
-	_weapon_stats = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+	_weapon_stats = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 	_weapon_stats.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	head.add_child(_weapon_stats)
-	_weapon_keys = UiKit.hbox(int(UiKit.px(5)))
+	_weapon_keys = UiKit.hbox(int(UiKit.px(KEY_ROW_GAP)))
 	_weapon_keys.name = "Keys"
 	text.add_child(_weapon_keys)
 	# Plain text of the key line (tools and tests read it; the key caps show it).
 	_weapon_hint = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_DISABLED)
 	_weapon_hint.visible = false
 	text.add_child(_weapon_hint)
-	_dash_bar = _cooldown_bar(UiKit.COLOR_SHIELD, DASH_BAR_SIZE)
-	_add_key(_key_name(ControlsInfo.DASH), Loc.t(&"HUD_DASH")).add_child(_dash_bar)
+	_dash_bar = _cooldown_bar(UiKit.COLOR_SHIELD, DASH_BAR_WIDTH)
+	_add_key(ControlsInfo.DASH, Loc.t(&"HUD_DASH")).add_child(_dash_bar)
 
 
+## Hint line bottom right: key caps with short captions, wrapping right-aligned (G3).
 func _build_hint(root: Control) -> void:
 	_hint_label = UiKit.text_label(CONTROLS_HINT, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
-	_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
-	_hint_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	_hint_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_hint_label.offset_left = -UiKit.px(WEAPON_MARGIN + HINT_MAX_WIDTH)
-	_hint_label.offset_right = -UiKit.px(WEAPON_MARGIN)
-	_hint_label.offset_bottom = -UiKit.px(WEAPON_MARGIN)
-	_hint_label.offset_top = _hint_label.offset_bottom - UiKit.px(20)
+	_hint_label.visible = false
 	root.add_child(_hint_label)
+	_hint_row = HFlowContainer.new()
+	_hint_row.name = "HintLine"
+	_hint_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_hint_row.alignment = FlowContainer.ALIGNMENT_END
+	_hint_row.last_wrap_alignment = FlowContainer.LAST_WRAP_ALIGNMENT_END
+	_hint_row.add_theme_constant_override("h_separation", int(UiKit.px(HINT_ENTRY_GAP)))
+	_hint_row.add_theme_constant_override("v_separation", int(UiKit.px(2)))
+	_hint_row.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_hint_row.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	_hint_row.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	_hint_row.offset_left = -UiKit.px(WEAPON_MARGIN + HINT_MAX_WIDTH)
+	_hint_row.offset_right = -UiKit.px(WEAPON_MARGIN)
+	_hint_row.offset_bottom = -UiKit.px(WEAPON_MARGIN)
+	_hint_row.offset_top = _hint_row.offset_bottom
+	root.add_child(_hint_row)
+
+
+## Compact HUD frame: panel_dark at HUD_PIXEL (thin rim), slightly see-through.
+static func hud_frame() -> PanelContainer:
+	var frame := PanelContainer.new()
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.add_theme_stylebox_override("panel", hud_frame_style())
+	frame.self_modulate.a = FRAME_ALPHA
+	return frame
+
+
+static var _frame_style: StyleBoxTexture = null
+
+
+static func hud_frame_style() -> StyleBoxTexture:
+	if _frame_style == null:
+		_frame_style = StyleBoxTexture.new()
+		_frame_style.texture = UiKit.upscale(UiKit.PANEL_DARK_TEXTURE, HUD_PIXEL)
+		_frame_style.set_texture_margin_all(UiKit.PANEL_BORDER * HUD_PIXEL)
+		_frame_style.content_margin_left = UiKit.px(FRAME_PADDING.y)
+		_frame_style.content_margin_right = UiKit.px(FRAME_PADDING.y)
+		_frame_style.content_margin_top = UiKit.px(FRAME_PADDING.x)
+		_frame_style.content_margin_bottom = UiKit.px(FRAME_PADDING.x)
+	return _frame_style
+
+
+## Weapon slot: icon plus padding and a one-art-pixel rim, in screen pixels.
+static func slot_size() -> float:
+	return ICON_SIZE + float((SLOT_PADDING + 1) * 2 * HUD_PIXEL)
+
+
+## Slot rim: gold for the active weapon, grey otherwise (no nine-patch, it would be too thick).
+static func slot_style(active: bool) -> StyleBoxFlat:
+	var style := StyleBoxFlat.new()
+	style.bg_color = UiKit.COLOR_BG
+	style.border_color = UiKit.COLOR_GOLD if active else UiKit.COLOR_EMPTY_SLOT
+	style.anti_aliasing = false
+	style.set_border_width_all(HUD_PIXEL)
+	style.set_content_margin_all((SLOT_PADDING + 1) * HUD_PIXEL)
+	return style
 
 
 func _build_village(root: Control) -> void:
@@ -350,16 +481,17 @@ func _chronicle_entry(parent: Control, texture: Texture2D) -> Label:
 
 
 func _value_label(color: Color) -> Label:
-	var result := UiKit.text_label("0", UiKit.SIZE_VALUE, color, true)
+	var result := UiKit.text_label("0", UiKit.SIZE_KEY_HINT, color, true)
 	result.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return result
 
 
-func _cooldown_bar(color: Color, spec_size: Vector2) -> ProgressBar:
+## Thin cooldown bar: width in mockup pixels, one HUD art pixel high (0 width = stretch).
+func _cooldown_bar(color: Color, width: float) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.max_value = 1.0
 	bar.show_percentage = false
-	bar.custom_minimum_size = UiKit.pxv(spec_size.x, spec_size.y)
+	bar.custom_minimum_size = Vector2(UiKit.px(width), HUD_PIXEL)
 	bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar.add_theme_stylebox_override("fill", UiKit.bar_style(color))
@@ -485,6 +617,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and _room_label != null:
 		_on_room_changed(RunManager.get_current_room())
 		_refresh_chronicle()
+		_build_hint_entries()
 		if _player != null and is_instance_valid(_player):
 			_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
 
@@ -507,16 +640,16 @@ func _on_weapons_changed() -> void:
 			child.queue_free()
 		_special_bars[slot] = null
 		var active := slot == active_slot
-		frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold" if active else &"normal", 0, 0))
+		frame.add_theme_stylebox_override("panel", slot_style(active))
 		frame.modulate.a = 1.0 if active else INACTIVE_SLOT_ALPHA
 		var weapon := controller.get_weapon(slot)
 		if weapon == null:
-			var empty := UiKit.text_label("[%d]" % (slot + 1), UiKit.SIZE_BODY, UiKit.COLOR_DISABLED)
+			var empty := UiKit.text_label("%d" % (slot + 1), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 			empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			empty.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 			frame.add_child(empty)
 			continue
-		var icon := UiKit.pixel_icon(weapon.icon, SLOT_ICON_SIZE)
+		var icon := UiKit.icon(weapon.icon, ICON_SIZE)
 		icon.modulate = weapon.tint
 		frame.add_child(icon)
 		if weapon.special_name != "":
@@ -542,46 +675,48 @@ func _refresh_weapon_text(controller: WeaponController, active_slot: int) -> voi
 		var other := controller.get_weapon(slot)
 		if slot != active_slot and other != null:
 			hints.append(Loc.t(&"HUD_KEY_SWITCH", [DataTexts.weapon_name(other)]))
-			_add_key(_key_name(ControlsInfo.SWITCH), DataTexts.weapon_name(other))
+			_add_key(ControlsInfo.SWITCH, DataTexts.weapon_name(other))
 	if weapon != null and weapon.special_name != "":
 		hints.append(Loc.t(&"HUD_KEY_SPECIAL", [DataTexts.weapon_special_name(weapon)]))
-		var special := _add_key(_key_name(ControlsInfo.SPECIAL), DataTexts.weapon_special_name(weapon))
-		_special_key_bar = _cooldown_bar(UiKit.COLOR_GOLD, SPECIAL_BAR_SIZE)
+		var special := _add_key(ControlsInfo.SPECIAL, DataTexts.weapon_special_name(weapon))
+		_special_key_bar = _cooldown_bar(UiKit.COLOR_GOLD, SPECIAL_BAR_WIDTH)
 		special.add_child(_special_key_bar)
 	hints.append(Loc.t(&"HUD_KEY_DASH"))
-	var dash := _add_key(_key_name(ControlsInfo.DASH), Loc.t(&"HUD_DASH"))
+	var dash := _add_key(ControlsInfo.DASH, Loc.t(&"HUD_DASH"))
 	dash.add_child(_dash_bar)
 	_weapon_hint.text = " · ".join(hints)
 
 
-## Key cap + caption in the key line; returns the pair (cooldown bars go behind the caption).
-func _add_key(key: String, caption: String) -> HBoxContainer:
-	var pair := UiKit.hbox(int(UiKit.px(2)))
-	if not key.is_empty():
-		pair.add_child(UiChip.key(key))
-	var label := UiKit.text_label(caption, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+## Key cap (symbol of the bound key) + caption in the key line; returns the pair (cooldown bars go
+## behind the caption).
+func _add_key(control_id: StringName, caption: String) -> HBoxContainer:
+	var pair := UiKit.hbox(int(UiKit.px(KEY_PAIR_GAP)))
+	var actions := ControlsInfo.actions(control_id)
+	if _touch:
+		# Touch: the symbol of the on-screen button (same as on the TouchOverlay), no keys.
+		var touch_glyph := InputGlyphs.touch_id(control_id)
+		if touch_glyph != &"":
+			pair.add_child(KeyCap.for_name(String(touch_glyph), HUD_PIXEL))
+	elif not actions.is_empty():
+		pair.add_child(KeyCap.for_action(actions[0], HUD_PIXEL))
+	var label := UiKit.text_label(caption, UiKit.SIZE_EYEBROW, UiKit.COLOR_TEXT_SOFT)
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	pair.add_child(label)
 	_weapon_keys.add_child(pair)
 	return pair
 
 
-## First key of a control (ControlsInfo), e.g. "Q", "RMT", "Leertaste".
-static func _key_name(id: StringName) -> String:
-	var actions := ControlsInfo.actions(id)
-	return ControlsInfo.action_key(actions[0]) if not actions.is_empty() else ""
-
-
 ## Thin cooldown bar along the bottom edge of a slot; full when the special is ready again.
 func _build_special_bar(slot: int) -> Control:
 	var holder := Control.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var bar := _cooldown_bar(UiKit.COLOR_GOLD, Vector2(0, 2))
+	var bar := _cooldown_bar(UiKit.COLOR_GOLD, 0.0)
 	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bar.offset_left = UiKit.px(5)
-	bar.offset_right = -UiKit.px(5)
-	bar.offset_bottom = -UiKit.px(4)
-	bar.offset_top = bar.offset_bottom - UiKit.px(2)
+	# On the free pixel row between icon and rim.
+	bar.offset_left = 0.0
+	bar.offset_right = 0.0
+	bar.offset_bottom = SLOT_PADDING * HUD_PIXEL
+	bar.offset_top = bar.offset_bottom - HUD_PIXEL
 	holder.add_child(bar)
 	_special_bars[slot] = bar
 	return holder

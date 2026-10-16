@@ -3,7 +3,9 @@ extends GutTest
 ## platforms, pits, ladder, coins, golden coin, enemies, spikes, start and door reachable with a
 ## 2.5-tile jump, no dead end, every item in reach); parsing, mirroring, the jump graph and the
 ## coordinates the segment uses. Round 2: the double jump (golden coin in every plan, on the way in
-## half of them), crumbling ledges in the other half.
+## half of them), crumbling ledges in the other half. Round 3: six plans per biome, a turret mount in
+## every plan (floor, ceiling or wall, away from start and door), pools that slow and shorten jumps,
+## spike runs.
 
 const MINI := [
 	"##########",
@@ -16,14 +18,14 @@ const MINI := [
 ]
 
 
-func test_every_biome_has_four_plans() -> void:
+func test_every_biome_has_six_plans() -> void:
 	for biome in [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]:
 		var ids := SidePlans.ids_for(biome)
-		assert_eq(ids.size(), 4, "four plans for %s" % biome)
+		assert_eq(ids.size(), 6, "six plans for %s" % biome)
 		for id in ids:
 			assert_eq(SidePlans.biome_of(id), biome)
 			assert_false(SidePlans.get_rows(id).is_empty(), "%s has rows" % id)
-	assert_eq(SidePlans.all_ids().size(), 16)
+	assert_eq(SidePlans.all_ids().size(), 24)
 
 
 func test_every_plan_and_its_mirror_follows_the_rules() -> void:
@@ -42,7 +44,8 @@ func test_plan_numbers_stay_in_the_ranges() -> void:
 		assert_between(layout.count_pits(), 1, 2, "%s pits" % id)
 		assert_between(layout.coins.size(), SideLayout.COIN_RANGE.x, SideLayout.COIN_RANGE.y, "%s coins" % id)
 		assert_between(layout.slimes.size() + layout.skeletons.size(), 1, 3, "%s enemies" % id)
-		assert_eq(layout.spikes.size(), 1, "%s spike trap" % id)
+		assert_between(layout.spikes.size(), 1, 3, "%s spike traps" % id)
+		assert_between(layout.turrets.size(), 1, 2, "%s turret mounts" % id)
 		assert_true(layout.golden_coin.x >= 0, "%s golden coin" % id)
 		assert_false(layout.ladders.is_empty(), "%s ladder" % id)
 		assert_gt(layout.door.x, layout.start.x, "%s runs to the right" % id)
@@ -139,7 +142,8 @@ func test_half_the_plans_need_the_double_jump_on_the_way_half_have_crumbling_led
 	for biome in SidePlans.BIOME_PLANS:
 		var biome_way := 0
 		var biome_crumble := 0
-		for id in SidePlans.ids_for(biome):
+		# The four plans of rounds 1-2 (round 3 added two per biome with pools and spike runs).
+		for id in SidePlans.ids_for(biome).slice(0, 4):
 			var layout := SidePlans.build(id)
 			if layout.way_needs_double_jump():
 				biome_way += 1
@@ -190,3 +194,86 @@ func test_double_jump_graph_reaches_higher_and_further() -> void:
 	assert_eq(layout.find_path(start, high, false), [] as Array[Vector2i], "no way without the double jump")
 	assert_false(layout.find_path(start, high, true).is_empty())
 	assert_true(layout.neighbours(start, true).has(far))
+
+
+# --- Round 3: turrets, pools, spike runs ---
+
+func test_turret_mounts_sit_on_rock_away_from_start_and_door() -> void:
+	var kinds := {}
+	for id in SidePlans.all_ids():
+		for mirrored in [false, true]:
+			var layout := SidePlans.build(id, mirrored)
+			for turret in layout.turrets:
+				var normal := layout.turret_normal(turret)
+				assert_ne(normal, Vector2i.ZERO, "%s: turret %s has a mount" % [id, turret])
+				kinds[normal] = true
+				assert_gte(absi(turret.x - layout.start.x), SideRules.TURRET_MIN_DISTANCE, "%s: not at the start" % id)
+				assert_gte(absi(turret.x - layout.door.x), SideRules.TURRET_MIN_DISTANCE, "%s: not at the door" % id)
+	assert_true(kinds.has(Vector2i.UP), "turrets standing on a floor")
+	assert_true(kinds.has(Vector2i.DOWN), "turrets hanging from the ceiling")
+	assert_true(kinds.has(Vector2i.LEFT) or kinds.has(Vector2i.RIGHT), "turrets on a wall")
+
+
+func test_turret_normal_follows_the_rock() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"########",
+		"#..T...#",
+		"#....T##",
+		"#.T....#",
+		"########",
+	]), &"mounts")
+	assert_eq(layout.turrets.size(), 3)
+	assert_eq(layout.turret_normal(Vector2i(3, 1)), Vector2i.DOWN, "hangs from the ceiling")
+	assert_eq(layout.turret_normal(Vector2i(5, 2)), Vector2i.LEFT, "sits on the wall to its right")
+	assert_eq(layout.turret_normal(Vector2i(2, 3)), Vector2i.UP, "stands on the floor")
+	assert_eq(layout.turret_normal(Vector2i(2, 2)), Vector2i.ZERO, "free air has no mount")
+	assert_true(layout.is_standable(Vector2i(2, 3)), "a floor turret does not block the way")
+
+
+func test_round_three_plans_have_a_pool_and_a_spike_run() -> void:
+	for biome in SidePlans.BIOME_PLANS:
+		var ids := SidePlans.ids_for(biome)
+		for id in ids.slice(4):
+			var layout := SidePlans.build(id)
+			assert_eq(layout.pools.size(), 1, "%s: a pool" % id)
+			assert_gte(layout.spikes.size(), 2, "%s: a spike run" % id)
+			assert_eq(layout.turrets.size(), 2 if id != &"shadow_mire" else 1, "%s: turret mounts" % id)
+			assert_eq(layout.check(), PackedStringArray(), "%s follows the rules" % id)
+
+
+func test_pools_parse_slow_and_shorten_jumps() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"##############",
+		"#............#",
+		"#............#",
+		"#S...........#",
+		"####www#######",
+		"##############",
+	]), &"pool")
+	assert_eq(layout.pools, [Vector3i(4, 6, 4)] as Array[Vector3i])
+	assert_true(layout.is_pool(Vector2i(5, 4)))
+	assert_false(layout.is_blocking(Vector2i(5, 4)), "water is no floor")
+	assert_true(layout.is_standable(Vector2i(5, 4)), "the pool's bottom is")
+	assert_true(layout.is_in_pool(SideLayout.feet_of(Vector2i(5, 4))))
+	var water := Vector2i(6, 4)
+	assert_true(layout.neighbours(water, false).has(Vector2i(7, 3)), "out of the pool, one column over")
+	assert_false(layout.neighbours(water, false).has(Vector2i(9, 3)), "no long jump out of the water")
+	assert_true(layout.neighbours(Vector2i(7, 3), false).has(Vector2i(10, 3)), "the same jump from dry ground")
+	var floating := SideLayout.parse(PackedStringArray(["#########", "#S.www.D#", "#.......#"]), &"floating")
+	var errors := ",".join(floating.check())
+	assert_string_contains(errors, "without a floor")
+
+
+func test_line_of_sight_stops_at_rock_not_at_ledges() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"##########",
+		"#........#",
+		"#...#....#",
+		"#..===...#",
+		"#........#",
+		"##########",
+	]), &"sight")
+	var from := SideLayout.cell_center(Vector2i(1, 2))
+	assert_false(layout.line_clear(from, SideLayout.cell_center(Vector2i(7, 2))), "the rock block")
+	assert_true(layout.line_clear(SideLayout.cell_center(Vector2i(1, 1)), SideLayout.cell_center(Vector2i(7, 1))), "above it")
+	assert_true(layout.line_clear(SideLayout.cell_center(Vector2i(2, 4)), SideLayout.cell_center(Vector2i(4, 2)) + Vector2(-60, 0)), "through a ledge")

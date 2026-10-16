@@ -3,6 +3,9 @@ extends GutTest
 ## ledges one-way), coins, golden coin, ladders with top steps, spike trap, enemies, chest, door,
 ## camera inside the segment; the side enemies take hits like enemies (EventBus, gold); the transit
 ## fades in, hands the players over, gives them back and puts them into the next room.
+## Round 3: pools slow the running (and let go), spike runs fire as a wave, a client's trap waits for
+## the host, turrets only when the layout sets them up, the biome dressing is the same on every
+## machine, and the doorway behind the start.
 
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const STEP := 1.0 / 60.0
@@ -246,3 +249,119 @@ func test_dust_spawns_and_frees_itself() -> void:
 		if child is SideDust:
 			left += 1
 	assert_eq(left, 0, "placeholder dust is gone after its lifetime")
+
+
+
+# --- Round 3 ---
+
+const POOL_PLAN := [
+	"##############",
+	"#............#",
+	"#............#",
+	"#S..........D#",
+	"####www#######",
+	"##############",
+]
+
+
+func test_pool_slows_running_and_lets_go() -> void:
+	var layout := SideLayout.parse(PackedStringArray(POOL_PLAN), &"pool")
+	layout.biome_id = &"slime_grotto"
+	var segment := SideSegment.new()
+	segment.setup(layout, 1, null, 3)
+	add_child_autofree(segment)
+	segment.global_position = Vector2(0, 7000)
+	var player := PLAYER_SCENE.instantiate() as Player
+	player.is_local = false
+	add_child_autofree(player)
+	segment.add_player(player)
+	var pool := segment.get_pools()[0]
+	var base_speed := player.move_speed
+	player.side_motion.place_at(segment.to_global(SideLayout.feet_of(Vector2i(5, 4))))
+	await wait_physics_frames(3)
+	assert_true(pool.is_slowing(player), "feet in the water")
+	assert_almost_eq(player.move_speed, base_speed * SideRules.POOL_SLOW_FACTOR, 0.5, "running slowed")
+	player.side_motion.place_at(segment.get_start_feet())
+	await wait_physics_frames(3)
+	assert_false(pool.is_slowing(player))
+	assert_almost_eq(player.move_speed, base_speed, 0.01, "full speed on dry ground")
+	player.side_motion.place_at(segment.to_global(SideLayout.feet_of(Vector2i(5, 4))))
+	await wait_physics_frames(3)
+	segment.remove_players()
+	assert_almost_eq(player.move_speed, base_speed, 0.01, "leaving the segment takes the slow away")
+
+
+func test_spike_run_fires_as_a_wave() -> void:
+	var layout := SideLayout.parse(PackedStringArray([
+		"##############",
+		"#............#",
+		"#S...^^^....D#",
+		"##############",
+	]), &"wave")
+	layout.biome_id = &"crypt"
+	var segment := SideSegment.new()
+	segment.setup(layout, 1, null, 5)
+	add_child_autofree(segment)
+	var spikes := segment.get_spikes()
+	assert_eq(spikes.size(), 3)
+	for trap in spikes:
+		trap.set_physics_process(false)
+	var fired_at := [-1, -1, -1]
+	for frame in 300:
+		for i in spikes.size():
+			spikes[i]._physics_process(STEP)
+			if fired_at[i] < 0 and spikes[i].is_active():
+				fired_at[i] = frame
+	assert_true(fired_at[0] >= 0 and fired_at[1] > fired_at[0] and fired_at[2] > fired_at[1], "left to right: %s" % [fired_at])
+	assert_almost_eq((fired_at[1] - fired_at[0]) * STEP, SideRules.SPIKE_WAVE_STEP, 0.05)
+
+
+func test_remote_spikes_wait_for_the_host() -> void:
+	var spikes := SideSpikes.new()
+	add_child_autofree(spikes)
+	spikes.setup(0.1)
+	spikes.remote_controlled = true
+	spikes.set_physics_process(false)
+	watch_signals(spikes)
+	for i in 30:
+		spikes._physics_process(STEP)
+	assert_eq(spikes.phase, SideSpikes.Phase.IDLE, "no own phase change while the host is in time")
+	spikes.apply_remote_phase(SideSpikes.Phase.WARN)
+	assert_eq(spikes.phase, SideSpikes.Phase.WARN)
+	spikes.apply_remote_phase(SideSpikes.Phase.ACTIVE)
+	assert_true(spikes.is_active())
+	assert_signal_emit_count(spikes, "phase_changed", 2)
+	for i in ceili((SideSpikes.ACTIVE_TIME + SideSpikes.REMOTE_GRACE + 0.1) / STEP):
+		spikes._physics_process(STEP)
+	assert_eq(spikes.phase, SideSpikes.Phase.IDLE, "a lost message does not keep the spikes out forever")
+
+
+func test_turrets_only_when_the_layout_sets_them_up() -> void:
+	var layout := SidePlans.build(&"crypt_cistern")
+	assert_eq(layout.turrets.size(), 2)
+	var with := SideSegment.new()
+	with.setup(layout, 1, null, 7)
+	add_child_autofree(with)
+	assert_eq(with.get_turrets().size(), 2, "both mounts set up")
+	var plain := SidePlans.build(&"crypt_cistern")
+	plain.turrets_enabled = false
+	var without := SideSegment.new()
+	without.setup(plain, 1, null, 7)
+	add_child_autofree(without)
+	assert_eq(without.get_turrets().size(), 0, "no turrets in this segment")
+
+
+func test_dressing_is_the_same_on_every_machine() -> void:
+	for plan in [&"crypt_steps", &"grotto_spores", &"shadow_rift", &"ember_quench"]:
+		var a := _segment(plan)
+		var b := _segment(plan)
+		var decor_a := a.get_node("Decor") as SideDecor
+		var decor_b := b.get_node("Decor") as SideDecor
+		assert_gt(decor_a.prop_count, 0, "%s: props on the floor" % plan)
+		assert_eq(decor_a.prop_count, decor_b.prop_count, "%s: the same props" % plan)
+		assert_eq(decor_a.hang_count, decor_b.hang_count, "%s: the same hangings" % plan)
+		assert_not_null(a.get_node_or_null("Ambience"), "%s: air particles" % plan)
+		assert_not_null(a.get_node_or_null("Entrance"), "%s: the doorway behind the start" % plan)
+		assert_not_null(a.get_node_or_null("Backdrop/Middle"), "%s: the middle parallax layer" % plan)
+		for cell in decor_a.free_floor_cells():
+			assert_false(a.layout.spikes.has(cell) or cell == a.layout.start or cell == a.layout.door, "%s: props keep the way readable" % plan)

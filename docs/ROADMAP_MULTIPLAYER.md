@@ -184,10 +184,13 @@ Steam ist **kein Transport** (D-119, Plattform P-017): Auch Steam-Spieler verbin
 
 ## MP8 – Dauerhafte Gilden (D-080, D-081)
 
-- [ ] API: Gilde gründen (Name, Kürzel), beitreten per **Einladungscode**, verlassen, Mitglieder ansehen, Gründer kann Mitglieder entfernen und den Code erneuern. Höchstens eine Gilde je Spieler, max. 30 Mitglieder.
-- [ ] Gildengebäude: Tab „Gilde“ mit Mitgliederliste, Einladungscode zum Kopieren (für Discord), Gilden-Schmiede, Gildenkasse.
-- [ ] **Gilden-Run:** Host startet im Modus `GUILD`; nur Mitglieder dürfen beitreten (Prüfung über den Server); Meta-Boni aus der Gilden-Schmiede.
-- [ ] Run-Ende: Auszahlung in die Gildenkasse nach 50-/100-%-Regel; Gilden-Schmiede kauft aus der Kasse. Gleichzeitige Käufe mit Versionsprüfung (kein doppeltes Abbuchen).
+- [x] API: Gilde gründen (Name, Kürzel), beitreten per **Einladungscode**, verlassen, Mitglieder ansehen, Gründer kann Mitglieder entfernen und den Code erneuern. ~~Höchstens eine Gilde je Spieler~~ bis zu **5 Gilden** je Spieler (D-147), max. 30 Mitglieder. (Plattform-Repo, API 1.1.0; 16.10.2026 alle Gilden-Routen live über das Spiel geprüft, siehe [MULTIPLAYER.md](MULTIPLAYER.md) §3f.)
+- [x] **Online-Menü** (D-147) im Hauptmenü („Online spielen“) und im Gildengebäude: Anmeldung beim Öffnen (offline: Hinweis + „Erneut versuchen“), Schnelles Spiel (Raum erstellen/beitreten, Ping) + Gilden (Karten mit Kürzel, Name, Rolle, Mitgliedern, Gildenkasse; ohne Gilde zwei große Knöpfe; gründen und beitreten mit Fehlern am Feld; Gilde mit Mitgliedern, Rolle und Beitrittsdatum, Ernennen/Absetzen, Entfernen, Einladungscode kopieren/erneuern für Gründer/Offiziere, Gildenkasse, verlassen mit Bestätigung und Gründer-Hinweis; Gilden-Raum erstellen und per Code beitreten). 16.10.2026: `tests/unit/test_online_menu.gd` (35 Tests) und Live-Test gegen lokale API 1.1.0 + Relay (drei Spielprozesse, alle Routen); [MULTIPLAYER.md](MULTIPLAYER.md) §3f.
+- [ ] Gildengebäude: Gilden-Schmiede.
+- [x] **Gilden-Raum:** Host startet im Modus `GUILD` (`create_room("guild", guildId)`, Sitzung `GameMode.GUILD` mit `guild_id`); nur Mitglieder dürfen beitreten (Relay fragt die API, Nicht-Mitglied bekommt `not_guild_member`). 16.10.2026 live geprüft (Mitglied drin, Nicht-Mitglied abgewiesen).
+- [ ] Meta-Boni aus der Gilden-Schmiede im Gilden-Run.
+- [x] Run-Ende: Run-Bericht `mode: guild` mit `guildId`, `endReason`, `remainingGold`, `reportId` (`NetRun`); die API zahlt nach der 50-/100-%-Regel in die Gildenkasse, alle im Raum sehen „+X Gold für [KÜRZEL]“ im Dorf. 16.10.2026 live: 42 Gold aufgegeben → +21, Kasse 1250 → 1271 bei Host und Mitglied.
+- [ ] Gilden-Schmiede kauft aus der Kasse. Gleichzeitige Käufe mit Versionsprüfung (kein doppeltes Abbuchen).
 - [ ] Später mit Steam: Mitglieder direkt aus der Freundesliste einladen.
 
 **Fertig, wenn:** Drei Personen eine Gilde gründen bzw. beitreten, einen Gilden-Run spielen und die Gildenkasse danach für alle gleich ist.

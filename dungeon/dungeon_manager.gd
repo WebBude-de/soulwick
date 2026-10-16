@@ -23,6 +23,13 @@ extends Node2D
 ## no way back). Where two joined rooms paint over each other each keeps its own floor and walls
 ## (PassageSeam); when a room is unloaded its neighbour gets its cells back and blocks its entrance,
 ## which now leads nowhere (Door.block).
+## No hitch on entry (playtest 15.10.2026 #14): entering a room only lights it up and starts it; the
+## next room is built one frame later, covered (veil, seam) the frame after, then signed (door signs,
+## corridor), then its side way is planned (_pending, one job per frame). The steps keep the order they
+## had and nothing draws from the dungeon RNG in between, so the stream stays the same. Whoever asks
+## for a room that is still pending (get_room_at_slot, the next entry, the branch choice, the network,
+## tests) gets it built at once (finish_preparing). First-time work (the plan catalog, the rock pieces
+## of every biome tileset) is done while the dungeon loads (_warm_up).
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
@@ -119,6 +126,15 @@ var _last_side_slot := -1
 var _layout_cache: Dictionary[String, Vector3i] = {}
 ## Every player of this run in spawn order (MP1); context.player is the first local one.
 var _players: Array[Player] = []
+## Preparation left over from the last entry (#14): one job per frame, in order.
+var _pending: Array[Callable] = []
+var _job_running := false
+## Resources warmed up at the start and kept for the run (biome tilesets with their rock pieces).
+var _warm: Array[Resource] = []
+## Branch ways built over several frames: the chain state they all start from, the state each built
+## way left behind.
+var _ways_base: ChainState = null
+var _ways_built: Array[ChainState] = []
 ## Shared run over the relay (MP3): the NetDungeon of a relay room, null otherwise. Host: hears about
 ## every slot before it is prepared and decides when a room starts; client: preparing, starting,
 ## completing and opening rooms follow the host. Hooks only, the logic is in online/net_dungeon.gd.
@@ -162,9 +178,26 @@ func _ready() -> void:
 	RunManager.start_run()
 	GameManager.set_phase(GameManager.Phase.DUNGEON)
 	upgrade_manager.upgrade_acquired.connect(_on_upgrade_acquired)
+	_warm_up()
 	var first := _prepare_slot(1)
 	_player_spawn.global_position = first.get_player_start()
 	_prepare_slot(2)
+
+
+## First-time work of later rooms done while the dungeon loads (#14, the entry of the first rest room
+## and the first room of every biome hitched): the plan catalog (rest, miniboss, boss and campfire
+## templates) and the wall, abyss and rock pieces of every biome tileset (kept for the run, so the
+## pieces are not built again). No dungeon RNG.
+func _warm_up() -> void:
+	RoomCatalog.load_plans()
+	for biome_id in RoomCatalog.BIOME_IDS:
+		var tileset := RoomController._load_biome_tileset(biome_id)
+		if tileset == null:
+			continue
+		WallAutotile.ensure_source(tileset)
+		AbyssAutotile.ensure_source(tileset)
+		RockTerrain.ensure_sources(tileset)
+		_warm.append(tileset)
 
 
 ## Called by the WorldController after it created a player for this world (D-041), once per
@@ -217,11 +250,15 @@ func get_rooms_until_heal() -> int:
 ## Live room with this room number (null if not prepared or already unloaded). Behind a branch
 ## room: null until the group has chosen its way (both ways: get_branch_ways).
 func get_room(index: int) -> RoomController:
-	return _rooms.get(RoomSequence.get_slot_for_room(index))
+	var slot := RoomSequence.get_slot_for_room(index)
+	if slot > _active_slot:
+		finish_preparing()
+	return _rooms.get(slot)
 
 
 ## Both ways of the active branch room, built and dark (index = exit index); empty otherwise.
 func get_branch_ways() -> Array[RoomController]:
+	finish_preparing()
 	return _branch_ways.duplicate()
 
 
@@ -233,11 +270,72 @@ func get_live_room_limit() -> int:
 ## Live campfire behind boss room after_room (null if not prepared, unloaded or no boss room).
 func get_campfire(after_room: int) -> RoomController:
 	var slot := RoomSequence.get_campfire_slot_after(after_room)
+	if slot > _active_slot:
+		finish_preparing()
 	return _rooms.get(slot) if slot > 0 else null
 
 
 func get_room_at_slot(slot: int) -> RoomController:
+	if slot > _active_slot:
+		finish_preparing()
 	return _rooms.get(slot)
+
+
+## Is part of the next room's preparation still waiting for a later frame (#14)?
+func is_preparing() -> bool:
+	return not _pending.is_empty()
+
+
+## Runs the preparation left over from the last entry right now, in its order. Inside a job it does
+## nothing: the job's own steps must not overtake it.
+func finish_preparing() -> void:
+	if _job_running:
+		return
+	while not _pending.is_empty():
+		_run_job(_pending.pop_front())
+	_update_pending_hook()
+
+
+## One job per frame. SceneTree.process_frame comes while a menu pauses the game too, so the order of
+## the dungeon RNG never depends on a pause.
+func _run_pending_job() -> void:
+	if not _pending.is_empty() and not _job_running:
+		_run_job(_pending.pop_front())
+	_update_pending_hook()
+
+
+func _run_job(job: Callable) -> void:
+	_job_running = true
+	job.call()
+	_job_running = false
+
+
+## A job after everything queued so far.
+func _queue_job(job: Callable) -> void:
+	_pending.append(job)
+	_update_pending_hook()
+
+
+## The next step of the running job: before everything else queued (keeps the old order).
+func _queue_next(job: Callable) -> void:
+	_pending.push_front(job)
+	_update_pending_hook()
+
+
+func _update_pending_hook() -> void:
+	if not is_inside_tree():
+		return
+	var tree := get_tree()
+	var hooked := tree.process_frame.is_connected(_run_pending_job)
+	if _pending.is_empty() and hooked:
+		tree.process_frame.disconnect(_run_pending_job)
+	elif not _pending.is_empty() and not hooked:
+		tree.process_frame.connect(_run_pending_job)
+
+
+func _exit_tree() -> void:
+	if get_tree().process_frame.is_connected(_run_pending_job):
+		get_tree().process_frame.disconnect(_run_pending_job)
 
 
 func get_live_room_count() -> int:
@@ -264,6 +362,8 @@ func end_run(reason: RunManager.EndReason) -> void:
 	if net != null and not net.allow_end_run(reason):
 		return
 	_run_ending = true
+	_pending.clear()
+	_update_pending_hook()
 	RunManager.end_run(reason)
 
 
@@ -272,7 +372,9 @@ func end_run(reason: RunManager.EndReason) -> void:
 ## option: the way of a branch room (D-105) - it decides the special type or the variant of this
 ## room (safe way: none); the usual draws still happen, so the stream stays in step. via_exit >= 0:
 ## one of the ways of a branch room, built behind that exit before the choice (R5, _branch_ways).
-func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> RoomController:
+## staged: the dressing (_dress_way, no dungeon RNG) follows in the next frames, then the job then; until
+## it is covered the room stays hidden (#14).
+func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1, staged := false, then := Callable()) -> RoomController:
 	var is_way := via_exit >= 0
 	if _rooms.has(slot) and not is_way:
 		return _rooms[slot]
@@ -330,6 +432,8 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> Ro
 		_branch_ways.append(room)
 	else:
 		_rooms[slot] = room
+	# Special contents stand in the room from now on (#9; same RNG place as the room's own draws).
+	room.prepare_special_content()
 	# Enemy themes and the quiet room (A3) for normal combat rooms; always three RNG draws.
 	if RoomSequence.is_normal_combat(room_type):
 		var plan := EncounterVariation.roll(index, room_type, context.rng, room.room_kind)
@@ -350,7 +454,11 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> Ro
 		previous.set_next_room(room)
 		if is_campfire:
 			previous.make_way_for_campfire()
-	_dress_way(previous, room, previous_exit, option, via_exit)
+	if staged:
+		room.visible = false
+		_queue_next(_cover_staged.bind(previous, room, option, via_exit, then))
+	else:
+		_dress_way(previous, room, previous_exit, option, via_exit)
 
 	room.player_entered.connect(_on_player_entered_room, CONNECT_DEFERRED)
 	room.completed.connect(_on_room_completed)
@@ -365,12 +473,14 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1) -> Ro
 
 ## Prepares a slot from outside (MP3: a network client builds the slot the host announced).
 func prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
+	finish_preparing()
 	return _prepare_slot(slot, option)
 
 
 ## Builds both ways of an active branch room from outside (MP3: a network client, once the host's RNG
 ## state of every way arrived; R5).
 func prepare_branch_ways(room: RoomController) -> void:
+	finish_preparing()
 	if is_instance_valid(room) and room.is_branch_room() and _branch_ways.is_empty():
 		_prepare_branch_ways(room)
 
@@ -608,12 +718,24 @@ static func _exit_of(previous: RoomController, via_exit: int) -> Vector2i:
 ## A prepared room lies dark behind its door (RoomVeil, not the first room), the door of the room
 ## before it shows the way (DoorSigns) and the corridor between gets its style (CorridorDressing).
 ## Where the two rooms overlap each keeps its own floor and walls (PassageSeam, M2).
-func _dress_way(previous: RoomController, room: RoomController, previous_exit: Vector2i, option: BranchOption, via_exit: int) -> void:
+func _dress_way(previous: RoomController, room: RoomController, _previous_exit: Vector2i, option: BranchOption, via_exit: int) -> void:
+	_cover_way(previous, room)
+	_sign_way(previous, room, option, via_exit)
+
+
+## The veil over the room and the seam to the room before (what the eye needs first).
+func _cover_way(previous: RoomController, room: RoomController) -> void:
 	if room.slot_index > 1:
 		RoomVeil.attach(room)
+	if previous != null:
+		PassageSeam.join(previous, room)
+
+
+## The door of the room before shows the way (DoorSigns), the corridor between gets its style.
+func _sign_way(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int) -> void:
 	if previous == null:
 		return
-	PassageSeam.join(previous, room)
+	var previous_exit := _exit_of(previous, via_exit)
 	var doors := previous.get_exit_doors()
 	var door_index := via_exit if via_exit >= 0 else maxi(0, previous.get_chosen_branch())
 	if door_index < doors.size():
@@ -624,6 +746,25 @@ func _dress_way(previous: RoomController, room: RoomController, previous_exit: V
 	CorridorDressing.attach(room, other_door, _run_seed, room.room_index, biome.id if biome != null else &"")
 
 
+## Staged dressing (#14), step 1: veil and seam; the room shows from now on.
+func _cover_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
+	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	_cover_way(previous if is_instance_valid(previous) else null, room)
+	room.visible = true
+	_queue_next(_sign_staged.bind(previous, room, option, via_exit, then))
+
+
+## Step 2: door sign and corridor, then the job that follows the room (its side way).
+func _sign_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
+	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	if is_instance_valid(previous):
+		_sign_way(previous, room, option, via_exit)
+	if then.is_valid():
+		_queue_next(then)
+
+
 ## A branch room was entered: both ways are built now, dark behind the shut doors (R5). Each way
 ## starts from the same chain state; the state each one leaves is kept for the choice.
 ## Dungeon RNG state before the slot (way -1) or branch way was drawn; -1 if never prepared.
@@ -631,18 +772,33 @@ func get_slot_rng_state(slot: int, way := -1) -> int:
 	return _slot_rng_states.get(Vector2i(slot, way), -1)
 
 
-func _prepare_branch_ways(room: RoomController) -> void:
+func _prepare_branch_ways(room: RoomController, staged := false) -> void:
 	if _run_ending:
 		return
-	var base := _capture_chain()
-	var states: Array[ChainState] = []
+	_ways_base = _capture_chain()
+	_ways_built = []
 	_branch_room = room
 	for i in room.branch_options.size():
-		_restore_chain(base)
-		_prepare_slot(room.slot_index + 1, room.branch_options[i], i)
-		states.append(_capture_chain())
-	_way_states = states
-	_restore_chain(base)
+		if staged:
+			# One way per frame (#14), in the same order.
+			_queue_job(_prepare_way.bind(room, i, true))
+		else:
+			_prepare_way(room, i, false)
+
+
+## Way index of a branch room, from the common chain state. After the last way the states are kept
+## for the choice and the chain is back where it was before the ways.
+func _prepare_way(room: RoomController, index: int, staged: bool) -> void:
+	if _run_ending or not is_instance_valid(room) or room != _branch_room or _ways_base == null:
+		return
+	_restore_chain(_ways_base)
+	_prepare_slot(room.slot_index + 1, room.branch_options[index], index, staged)
+	_ways_built.append(_capture_chain())
+	if _ways_built.size() >= room.branch_options.size():
+		_way_states = _ways_built
+		_restore_chain(_ways_base)
+		_ways_base = null
+		_ways_built = []
 
 
 ## The way not chosen fades out and is freed; plain rock stays where it stood.
@@ -856,6 +1012,7 @@ func _on_branch_offered(_room: RoomController) -> void:
 func _on_branch_chosen(room: RoomController, index: int) -> void:
 	if not is_instance_valid(room) or _run_ending or index < 0 or index >= room.branch_options.size():
 		return
+	finish_preparing()
 	if room != _branch_room or index >= _branch_ways.size():
 		_prepare_slot(room.slot_index + 1, room.branch_options[index])
 		return
@@ -930,6 +1087,7 @@ func get_room_sizes() -> Array[RoomSequence.RoomSize]:
 
 # Deferred: runs outside physics callbacks, so freeing rooms is safe here.
 func _on_player_entered_room(room: RoomController) -> void:
+	finish_preparing()
 	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending:
 		return
 	# A way of a branch before the choice: its door is shut, nobody gets in (R5).
@@ -944,6 +1102,7 @@ func _on_player_entered_room(room: RoomController) -> void:
 ## The group moves into room: it becomes the active room, N-2 goes, N+1 (or both ways of a branch
 ## room) is prepared - unless prepare_next is false: a network client gets them from the host (MP3).
 func enter_room(room: RoomController, prepare_next := true) -> void:
+	finish_preparing()
 	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending or _branch_ways.has(room):
 		return
 	_active_slot = room.slot_index
@@ -962,16 +1121,34 @@ func enter_room(room: RoomController, prepare_next := true) -> void:
 		GateCloser.close_behind(_rooms.get(room.slot_index - 1), room)
 	else:
 		net.close_gate_behind(_rooms.get(room.slot_index - 1), room)
-	# A branch room builds both ways now, dark behind its doors (D-105, R5).
+	# A branch room builds both ways, dark behind its doors (D-105, R5), any other room the next one;
+	# from the next frame on (#14), in the same order as before.
 	if room.is_branch_room():
 		if prepare_next:
-			_prepare_branch_ways(room)
+			_prepare_branch_ways(room, true)
 	elif prepare_next:
-		_prepare_slot(room.slot_index + 1)
-		_plan_side_way(room, _rooms.get(room.slot_index + 1))
+		_queue_job(_prepare_next_of.bind(room))
 	if room.is_campfire():
 		_begin_campfire(room)
 	room_activated.emit(room)
+
+
+## The room after room (#14): built now, dressed in the next frames, then its side way is planned.
+func _prepare_next_of(room: RoomController) -> void:
+	if _run_ending or not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	var built_before := _rooms.has(room.slot_index + 1)
+	var next := _prepare_slot(room.slot_index + 1, null, -1, true, _plan_side_way_of.bind(room))
+	if next == null or built_before:
+		# Nothing new was built (a network client waits for the host, or it stood already): the side
+		# way right away, as before.
+		_plan_side_way_of(room)
+
+
+func _plan_side_way_of(room: RoomController) -> void:
+	if _run_ending or not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	_plan_side_way(room, _rooms.get(room.slot_index + 1))
 
 
 ## M5: the way from room to next may run through a side segment (SideRules: after the campfire,

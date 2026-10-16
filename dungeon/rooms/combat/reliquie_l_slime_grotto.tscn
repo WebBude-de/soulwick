@@ -125,12 +125,6 @@ metadata/objective_kind = &"relic_altar"
 metadata/tile = Vector2i(4, 8)
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(256, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
-[node name="Torch3" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(1344, -64)
 
 [node name="Group1" type="Node2D" parent="Props"]
@@ -139,6 +133,7 @@ script = ExtResource("3_deco")
 item = &"group_large_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(1, 6), Vector2i(2, 6), Vector2i(3, 6)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -147,6 +142,7 @@ script = ExtResource("3_deco")
 item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+solid_span = Vector2(-40, 40)
 biome = &"slime_grotto"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -154,6 +150,7 @@ position = Vector2(1440, 440)
 script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(21, 6), Vector2i(22, 6), Vector2i(23, 6)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group4" type="Node2D" parent="Props"]
@@ -161,6 +158,7 @@ position = Vector2(448, 632)
 script = ExtResource("3_deco")
 item = &"group_3"
 blocked_tiles = Array[Vector2i]([Vector2i(6, 9), Vector2i(7, 9)])
+solid_span = Vector2(-48, 50)
 biome = &"slime_grotto"
 
 [node name="Group5" type="Node2D" parent="Props"]
@@ -168,6 +166,7 @@ position = Vector2(992, 632)
 script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(14, 9), Vector2i(15, 9), Vector2i(16, 9)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group6" type="Node2D" parent="Props"]
@@ -175,6 +174,7 @@ position = Vector2(1120, 312)
 script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(16, 4), Vector2i(17, 4), Vector2i(18, 4)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Ingredients" type="Node2D" parent="."]

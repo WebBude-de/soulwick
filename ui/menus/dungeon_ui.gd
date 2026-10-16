@@ -21,6 +21,15 @@ extends CanvasLayer
 ## (WorldCaption, only near a player) never share the screen; banners of a room left behind and
 ## banners that waited too long are dropped.
 ## Layout follows docs/design screens 02-06, 10 and 11; sizes are mockup pixels (UiKit.px).
+## Modal dialogs run one after another (open_dialog): while a dialog is open (here or in GameUI),
+## the next one waits in a queue (first requested, first shown) and appears DIALOG_GAP after the
+## last one closed, under Modal's input guard, so a held key or a quick second click never picks
+## in the second dialog (bug: chest and upgrade choice opened inside each other). Only a dialog
+## opened from inside another (shop -> weapon slot) goes on top at once.
+
+## A dialog of open_dialog is on screen now (at once or after waiting in the queue). NetDungeon
+## tells the host when a client's timed upgrade choice really appeared.
+signal dialog_shown(modal: Modal)
 
 const BANNER_TIME := 2.2
 ## A newer banner waits until the current one was readable this long (real seconds, TESTWERT).
@@ -104,6 +113,10 @@ const CAMPFIRE_HEAL_HEIGHT := 34.0
 const CAMPFIRE_LIST_ROWS := 4
 const CAMPFIRE_LIST_HEIGHT := 70.0
 const NUMBER_KEYS: Array[Key] = [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6]
+## A queued dialog appears this long after the dialog before it closed (real seconds, TESTWERT).
+const DIALOG_GAP := 0.25
+## Pause reason held while dialogs wait in the queue: the world stays held between two dialogs.
+const PAUSE_DIALOG_QUEUE: StringName = &"dialog_queue"
 
 var context: DungeonContext = null
 ## Show a hint card the first time an enemy type / elite kind / champion appears.
@@ -144,6 +157,12 @@ var _hint_entry: Dictionary = {}
 var _controls_hint: ControlsHint = null
 ## Rooms whose genre was announced (instance id -> genre), so a room is named once.
 var _announced_rooms: Dictionary[int, StringName] = {}
+## Gap between two queued dialogs (DIALOG_GAP; tests may shorten it).
+var dialog_gap := DIALOG_GAP
+## Dialogs waiting for the one on screen, in request order (not in the tree yet).
+var _dialog_queue: Array[Modal] = []
+## Real time since when no dialog is open while the queue waits (-1 = a dialog is open).
+var _dialog_free_since_ms := -1
 
 
 func _ready() -> void:
@@ -159,8 +178,74 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	_pump_dialogs()
 	_pump_banners()
 	WorldCaption.update_all(get_tree(), get_banner() != null, _player_positions(), delta)
+
+
+func _exit_tree() -> void:
+	# Dialogs still waiting never come: free them and let go of the queue's pause.
+	for modal in _dialog_queue:
+		if is_instance_valid(modal):
+			modal.free()
+	_dialog_queue.clear()
+	GameManager.release_pause(PAUSE_DIALOG_QUEUE)
+
+
+# --- Dialog queue ---
+
+## Shows modal and returns its result. A dialog requested while another one is open (or others wait)
+## joins the queue and appears after them; the wait does not count against modal.auto_finish_after.
+## over_open_dialog: opened from inside the open dialog (shop -> weapon slot), shown on top at once.
+func open_dialog(modal: Modal, over_open_dialog := false) -> Variant:
+	if over_open_dialog or (_dialog_queue.is_empty() and Modal.open_count() == 0):
+		modal.show_on(self)
+		dialog_shown.emit(modal)
+		return await modal.finished
+	_dialog_queue.append(modal)
+	_dialog_free_since_ms = -1
+	GameManager.request_pause(PAUSE_DIALOG_QUEUE)
+	# Closed while still waiting (e.g. Tab on a queued overview): out of the queue.
+	modal.finished.connect(_drop_queued.bind(modal).unbind(1))
+	return await modal.finished
+
+
+## true while a dialog is open or waiting.
+func is_dialog_busy() -> bool:
+	return not _dialog_queue.is_empty() or Modal.open_count() > 0
+
+
+func get_dialog_queue_size() -> int:
+	return _dialog_queue.size()
+
+
+func _pump_dialogs() -> void:
+	if _dialog_queue.is_empty():
+		return
+	if Modal.open_count() > 0:
+		_dialog_free_since_ms = -1
+		return
+	var now := Time.get_ticks_msec()
+	if _dialog_free_since_ms < 0:
+		_dialog_free_since_ms = now
+	if now - _dialog_free_since_ms < int(dialog_gap * 1000.0):
+		return
+	var modal: Modal = _dialog_queue.pop_front()
+	_dialog_free_since_ms = -1
+	# Opened before the queue lets go of its pause: the world stays held from one dialog to the next.
+	modal.show_on(self)
+	if _dialog_queue.is_empty():
+		GameManager.release_pause(PAUSE_DIALOG_QUEUE)
+	dialog_shown.emit(modal)
+
+
+## A queued dialog finished before it was shown (also called when a shown one finishes: no-op then).
+func _drop_queued(modal: Modal) -> void:
+	if not _dialog_queue.has(modal):
+		return
+	_dialog_queue.erase(modal)
+	if _dialog_queue.is_empty():
+		GameManager.release_pause(PAUSE_DIALOG_QUEUE)
 
 
 ## Living players' positions (coop: all of them, D-088).
@@ -396,7 +481,8 @@ func _build_banner_plaque(entry: Dictionary) -> Control:
 	if entry.get("skip_hint", false):
 		var hint := UiKit.hbox(int(UiKit.px(3)))
 		hint.name = "SkipHint"
-		hint.add_child(UiChip.key(ControlsInfo.key_text(ControlsInfo.INTERACT)))
+		hint.add_child(KeyCap.for_name(String(InputGlyphs.TOUCH_INTERACT), UiKit.ART_SCALE) if InputGlyphs.is_touch()
+				else KeyCap.for_action(&"interact", UiKit.ART_SCALE))
 		hint.add_child(UiKit.text_label(_t(&"INTRO_SKIP"), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED))
 		text.add_child(hint)
 	plaque.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -737,7 +823,7 @@ func _show_next_hint() -> void:
 		row.add_child(UiKit.pixel_icon(EnemyBadges.get_texture(badge), 12.0))
 	var text := UiKit.vbox(0)
 	text.add_child(UiKit.text_label(hint["title"], UiKit.SIZE_CARD_NAME, color, true))
-	text.add_child(UiKit.wrapped_text(hint["text"], HINT_WIDTH, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	text.add_child(GlyphText.wrapped(hint["text"], HINT_WIDTH, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	row.add_child(text)
 	_hint_root.add_child(card)
 	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
@@ -1091,13 +1177,20 @@ func _filler() -> Control:
 ## picks the focused card.
 ## stack_gain: stacks the pick will gain (pact altar: more than one); the cards show the result.
 ## R8: compact cards in the category colour, dealt in one after another; a pick leaves a burst.
-func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1) -> UpgradeData:
+## time_limit > 0 (group games, CoopRules.UPGRADE_TIMEOUT): the first card is taken when the time
+## is up; the clock starts when the dialog appears, not while it waits in the dialog queue.
+## Only upgrades of this offer are accepted as a result (a pick meant for another dialog is ignored).
+func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1, time_limit := 0.0) -> UpgradeData:
 	if offer.is_empty():
 		return null
 	var subtitle := _t(&"UPGRADE_SUBTITLE") if stack_gain <= 1 else _t(&"UPGRADE_SUBTITLE_STACKS", [stack_gain])
 	var accent := UiKit.COLOR_MAGIC if stack_gain > 1 else UiKit.COLOR_GOLD
 	var modal := UiDialog.create_menu(GameManager.PAUSE_UPGRADE_CHOICE, UiDialog.WIDTH_WIDE, title, subtitle, _t(&"UPGRADE_EYEBROW"), accent)
 	modal.cancel_allowed = false
+	modal.result_filter = func(result: Variant) -> bool: return result is UpgradeData and offer.has(result)
+	if time_limit > 0.0:
+		modal.auto_finish_after = time_limit
+		modal.auto_finish_result = offer[0]
 	var row := UiKit.hbox(int(UiKit.px(CARD_GAP)))
 	row.name = "Cards"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1121,7 +1214,7 @@ func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1) -
 		[_t(&"MENU_KEY_ARROWS"), _t(&"MENU_HINT_MOVE")],
 		[_t(&"MENU_KEY_ENTER"), _t(&"MENU_HINT_CONFIRM")],
 	])
-	return await modal.open(self)
+	return await open_dialog(modal)
 
 
 ## One upgrade card (R8, chosen from two variants by screenshot): category band along the top
@@ -1280,7 +1373,7 @@ func open_shop(offers: Array[ShopOffer], player: Player) -> void:
 	modal.set_meta(&"refresh", refresh)
 	refresh.call()
 	modal.deal(cards)
-	await modal.open(self)
+	await open_dialog(modal)
 
 
 ## State of a shop offer for this player: &"sold", &"unavailable" (limit, HP full, owned),
@@ -1475,7 +1568,7 @@ func _on_buy_pressed(offer: ShopOffer, player: Player, modal: Modal) -> void:
 		slot = player.weapon_controller.find_free_slot()
 		if slot < 0:
 			# Choose the slot first; cancelling leaves gold and weapons untouched (atomic purchase).
-			slot = await choose_weapon_slot(offer.weapon, player)
+			slot = await choose_weapon_slot(offer.weapon, player, true)
 			if slot < 0:
 				return
 	context.economy.try_purchase(offer, player, context.upgrade_manager, slot)
@@ -1487,7 +1580,8 @@ func _on_buy_pressed(offer: ShopOffer, player: Player, modal: Modal) -> void:
 
 ## Returns the slot to replace, or -1 when cancelled. Shows effective stats of all three weapons.
 ## R8: the offer on a gold card, the two slots as cards in the weapon colour with their symbol tiles.
-func choose_weapon_slot(new_weapon: WeaponData, player: Player) -> int:
+## over_shop: asked from inside the open shop, so it goes on top instead of into the dialog queue.
+func choose_weapon_slot(new_weapon: WeaponData, player: Player, over_shop := false) -> int:
 	var controller := player.weapon_controller
 	var modal := UiDialog.create_menu(GameManager.PAUSE_WEAPON_CHOICE, WEAPON_PANEL_WIDTH, _t(&"WEAPON_TITLE"), _t(&"WEAPON_SUBTITLE"), _t(&"WEAPON_EYEBROW"),
 			UiKit.COLOR_WEAPON, UiKit.COLOR_GOLD, RoomGenre.get_icon(RoomGenre.WEAPON), true)
@@ -1525,7 +1619,7 @@ func choose_weapon_slot(new_weapon: WeaponData, player: Player) -> int:
 	modal.accept_action = _activate_focused.bind(cards)
 	var cancel := UiDialog.option_button(_t(&"MENU_CANCEL"), "", _t(&"MENU_KEY_ESC"), modal.finish.bind(-1))
 	modal.set_key_hints([[number_range(WeaponController.MAX_WEAPON_SLOTS), _t(&"MENU_HINT_REPLACE")]], true, cancel)
-	return await modal.open(self)
+	return await open_dialog(modal, over_shop)
 
 
 ## One comparison column: symbol tile + name, role eyebrow, effective values and, for a slot, its key.
@@ -1577,7 +1671,7 @@ func confirm(title: String, text: String, yes_text := "", no_text := "", details
 	], false)
 	modal.deal(buttons)
 	modal.set_key_hints([[_t(&"MENU_KEY_ENTER"), yes_text], [_t(&"MENU_KEY_ESC"), no_text]])
-	return await modal.open(self)
+	return await open_dialog(modal)
 
 
 ## Decision with equal options side by side (pact altar: "Extra-Upgrade" vs "Pakt schließen").
@@ -1616,7 +1710,7 @@ func choose_option(title: String, text: String, details: Array, options: Array, 
 	if allow_cancel:
 		keys.append([_t(&"MENU_KEY_ESC"), _t(&"MENU_HINT_LATER")])
 	modal.set_key_hints(keys)
-	return await modal.open(self)
+	return await open_dialog(modal)
 
 
 ## One option of choose_option as a card: key cap, title, sub line; the button inside carries the
@@ -1734,7 +1828,7 @@ func choose_campfire_rest(heal_amount: float, heal_possible: bool, upgrades: Arr
 		keys.append([_t(&"MENU_KEY_ENTER"), _t(&"CAMPFIRE_HEAL")])
 	keys.append([_t(&"MENU_KEY_ESC"), _t(&"MENU_HINT_LATER")])
 	modal.set_key_hints(keys)
-	return await modal.open(self)
+	return await open_dialog(modal)
 
 
 ## Life bar under the heal button: current HP in red, what healing adds as a lighter part, "4.5 / 6".
@@ -1792,7 +1886,7 @@ func show_upgrade_overview() -> void:
 		right.remove_child(stats)
 		left.add_child(stats)
 	modal.set_key_hints([[_t(&"MENU_KEY_TAB"), ""], [_t(&"MENU_KEY_ESC"), _t(&"MENU_HINT_CLOSE")]])
-	await modal.open(self)
+	await open_dialog(modal)
 	_overview = null
 
 

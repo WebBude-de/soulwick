@@ -1,0 +1,199 @@
+{
+  "notes": [
+    "Nur für die Website (apps/web/public/brand/sprites/web/). 16×16 Icons für Pixel-Chips, Ornamente kachelbar (divider 32×8 repeat-x)."
+  ],
+  "items": [
+    {
+      "name": "chip_pc",
+      "file": "chip_pc.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Plattform PC"
+    },
+    {
+      "name": "chip_mobile",
+      "file": "chip_mobile.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Plattform Mobil"
+    },
+    {
+      "name": "chip_crossplay",
+      "file": "chip_crossplay.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Crossplay"
+    },
+    {
+      "name": "chip_planned",
+      "file": "chip_planned.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Status „geplant“ (Uhr)"
+    },
+    {
+      "name": "chip_done",
+      "file": "chip_done.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Status „verfügbar“"
+    },
+    {
+      "name": "chip_lang",
+      "file": "chip_lang.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Sprachwahl"
+    },
+    {
+      "name": "chip_wishlist",
+      "file": "chip_wishlist.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Newsletter / Liste (kein Store-Logo)"
+    },
+    {
+      "name": "arrow_loop",
+      "file": "arrow_loop.png",
+      "frame_size": [
+        24,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        8
+      ],
+      "note": "Pfeil im Kern-Loop"
+    },
+    {
+      "name": "spark",
+      "file": "spark.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        4,
+        4
+      ],
+      "note": "Funken an Hover-Elementen"
+    },
+    {
+      "name": "divider",
+      "file": "divider.png",
+      "frame_size": [
+        32,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Abschnittstrenner, repeat-x"
+    },
+    {
+      "name": "divider_gold",
+      "file": "divider_gold.png",
+      "frame_size": [
+        32,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Trenner hervorgehoben"
+    },
+    {
+      "name": "cursor",
+      "file": "cursor.png",
+      "frame_size": [
+        12,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "Pixel-Cursor (optional, nur Desktop)"
+    }
+  ]
+}

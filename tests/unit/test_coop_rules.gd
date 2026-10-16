@@ -49,11 +49,30 @@ func test_scale_group_keeps_one_player_and_never_changes_the_original() -> void:
 	assert_almost_eq(swarm.count_factor, 1.5, 0.001, "the room's own group stays untouched")
 
 
-func test_room_starts_when_everybody_is_in_or_the_countdown_ran_out() -> void:
-	assert_true(CoopRules.should_start_room(2, 2, 0.0))
-	assert_false(CoopRules.should_start_room(2, 1, 9.9))
-	assert_true(CoopRules.should_start_room(2, 1, CoopRules.EXIT_COUNTDOWN))
-	assert_true(CoopRules.should_start_room(0, 0, 0.0), "nobody standing: nothing to wait for")
+func test_room_starts_only_when_everybody_is_in() -> void:
+	assert_true(CoopRules.should_start_room(2, 2))
+	assert_false(CoopRules.should_start_room(2, 1), "no countdown: the group waits for the last one")
+	assert_false(CoopRules.should_start_room(3, 0))
+	assert_true(CoopRules.should_start_room(1, 1))
+	assert_true(CoopRules.should_start_room(0, 0), "nobody standing: nothing to wait for")
+
+
+func test_wait_hint_per_machine() -> void:
+	var inside := [1]
+	var missing := [2, 3]
+	assert_eq(CoopRules.wait_hint(1, inside, missing), CoopRules.WaitHint.WAIT_FOR_MATES, "inside: waits for the others")
+	assert_eq(CoopRules.wait_hint(2, inside, missing), CoopRules.WaitHint.MATES_WAIT_FOR_YOU, "outside: the others wait")
+	assert_eq(CoopRules.wait_hint(4, inside, missing), CoopRules.WaitHint.NONE, "downed or gone: no hint")
+	assert_eq(CoopRules.wait_hint(1, inside, []), CoopRules.WaitHint.NONE, "everybody in: no hint")
+	assert_eq(CoopRules.wait_hint(2, [], missing), CoopRules.WaitHint.NONE, "nobody in yet: no hint")
+
+
+func test_wait_text_fills_in_the_names() -> void:
+	for key: StringName in NetDungeon.WAIT_TEXT_KEYS:
+		assert_true(Loc.has_key(key, &"de") and Loc.has_key(key, &"en"), "%s is translated" % key)
+		var text := NetDungeon.wait_text(key, "Anna, Ben")
+		assert_true(text.contains("Anna, Ben"), "%s names the players: %s" % [key, text])
+		assert_false(text.contains("%s"), "%s: nothing left to fill in" % key)
 
 
 func test_revive_needs_two_seconds_without_a_break() -> void:

@@ -1,9 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
 
 [node name="WachpostenMirrorSlimeGrotto" instance=ExtResource("1_base")]
 room_kind = 0
@@ -81,49 +80,47 @@ metadata/tile = Vector2i(14, 4)
 metadata/floor_tile = Vector2i(14, 4)
 metadata/wall_side = -1
 
-[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(320, -64)
-
 [node name="TorchStand1" type="Node2D" parent="Props"]
 position = Vector2(608, 248)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"torch_stand"
 tint = Color(0.6, 1, 0.65, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(9, 3)])
 
 [node name="RubbleBit1" type="Node2D" parent="Props"]
 position = Vector2(546, 162)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"rubble_2"
 flip = true
 
 [node name="Bones1" type="Node2D" parent="Props"]
 position = Vector2(546, 192)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"bones_2"
 flip = true
 
 [node name="Bones2" type="Node2D" parent="Props"]
 position = Vector2(354, 354)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"bones_1"
 
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(128, 376)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_3"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(1, 5), Vector2i(2, 5)])
+solid_span = Vector2(-48, 50)
 biome = &"slime_grotto"
 
 [node name="Ambience" type="Node2D" parent="."]
 
 [node name="Mist1" type="Node2D" parent="Ambience"]
 position = Vector2(418, 40)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"mist"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("4_scatter")
+script = ExtResource("3_scatter")
 allowed = Array[int]([])

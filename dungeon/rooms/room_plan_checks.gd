@@ -12,6 +12,8 @@ extends RefCounted
 ##   - spike traps only with a reason: a chest close by or a side passage;
 ##   - no one-tile slots between two solid or unwalkable things (rock, wall, abyss), no wall front
 ##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose;
+##   - no wall front beside an abyss, no abyss touching another abyss or rock only at a corner
+##     (playtest 15.10.2026);
 ##   - every wall torch (plan torches and door torches) hangs fully on one wall front, nothing of it
 ##     below the front in the floor (M1, playtest 15.10.2026).
 ## problems() returns readable lines, empty = fine.
@@ -156,6 +158,42 @@ static func slot_problems(tiles: RoomTiles) -> Array[String]:
 	for pit in tiles.get_pit_tiles():
 		if not floor_mask.has(pit + Vector2i.UP):
 			result.append("wall front right above the abyss at %s" % pit)
+	result.append_array(abyss_problems(tiles))
+	return result
+
+
+## Clean abyss edges (playtest 15.10.2026, notes 3, 5 and 6): no wall front beside an abyss tile,
+## and an abyss never touches another abyss or rock only at a corner (two rims pinched into one
+## point). The abyss of the plan (pit_rects with their bridges); holes made at runtime come and go.
+## Same rule as abyss_contact_problem in tools/generate_room_templates.py.
+static func abyss_problems(tiles: RoomTiles) -> Array[String]:
+	var result: Array[String] = []
+	var floor_mask := tiles.get_floor_mask()
+	var runtime: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_runtime_pit_tiles():
+		runtime[tile] = true
+	var abyss: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_pit_tiles():
+		if not runtime.has(tile):
+			abyss[tile] = true
+	var bridges: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_bridge_tiles():
+		abyss[tile] = true
+		bridges[tile] = true
+	for tile: Vector2i in abyss:
+		if not bridges.has(tile):
+			for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
+				if WallAutotile.is_front(tile + side, floor_mask):
+					result.append("wall front beside the abyss at %s" % tile)
+		for d: Vector2i in [Vector2i(-1, -1), Vector2i(1, -1), Vector2i(-1, 1), Vector2i(1, 1)]:
+			var a := tile + Vector2i(d.x, 0)
+			var b := tile + Vector2i(0, d.y)
+			if abyss.has(a) or abyss.has(b) or not floor_mask.has(a) or not floor_mask.has(b):
+				continue
+			if abyss.has(tile + d):
+				result.append("abyss tiles %s and %s touch only at a corner" % [tile, tile + d])
+			elif not floor_mask.has(tile + d):
+				result.append("abyss at %s touches rock %s only at a corner" % [tile, tile + d])
 	return result
 
 

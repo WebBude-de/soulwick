@@ -1,9 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
 
 [node name="GrotteShadowRealm" instance=ExtResource("1_base")]
 room_kind = 0
@@ -83,37 +82,36 @@ metadata/tile = Vector2i(3, 6)
 metadata/floor_tile = Vector2i(3, 6)
 metadata/wall_side = -1
 
-[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(704, -64)
-
 [node name="Puddle1" type="Node2D" parent="Props"]
 position = Vector2(800, 230)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"puddle"
 tint = Color(0.72, 0.6, 1, 1)
 biome = &"shadow_realm"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(796, 228)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"drip"
 
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(960, 504)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(14, 7), Vector2i(15, 7)])
+solid_span = Vector2(-48, 48)
 biome = &"shadow_realm"
 
 [node name="Group2" type="Node2D" parent="Props"]
 position = Vector2(320, 56)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+solid_span = Vector2(-54, 48)
 biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("4_scatter")
+script = ExtResource("3_scatter")
 allowed = Array[int]([])

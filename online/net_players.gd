@@ -14,8 +14,15 @@ extends Node
 ## keeps it until the host has the same world); then the synchronizers of all players become
 ## visible to it (MultiplayerSpawner spawns by synchronizer visibility, the synchronizer is rooted
 ## at the player). So host and clients can change worlds in any order without spawns getting lost.
+## Looks (D-152): every profile carries "look" (PlayerLook of the account profile, PlayerProfile)
+## next to the old character/color pair. A change of the own profile (editor in the lobby or the
+## village) goes to the host (request_look) and from there to every peer of this world (apply_look);
+## a peer that loads the world later gets all current looks once it is ready. The relay round trip
+## of every machine is shared the same way every PING_SHARE_SECONDS (lobby slots, D-152).
 
 signal players_changed
+## A player's look or name changed (lobby slots; pings are read with get_ping()).
+signal looks_changed
 
 const NODE_NAME := &"NetPlayers"
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
@@ -23,6 +30,8 @@ const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const PLAYER_COLORS: Array[Color] = [Color("#3690da"), Color("#e0463a"), Color("#5fcd62"), Color("#f2cf4a")]
 const NAME_TAG_OFFSET := Vector2(0, -62)
 const NAME_MAX := 24
+## TESTWERT: seconds between two ping reports (client -> host -> everybody).
+const PING_SHARE_SECONDS := 2.0
 
 ## The WorldController (register_player/unregister_player); may be null in tests.
 var controller: Node = null
@@ -35,6 +44,12 @@ var _by_peer: Dictionary[int, Player] = {}
 ## Host: peers whose world has this NetPlayers (they sent their profile), MP3.
 var _ready_peers: Dictionary[int, bool] = {}
 var _origin := Vector2.ZERO
+## Current look (PlayerLook) and name per peer, also for players not spawned here yet.
+var _looks: Dictionary[int, Dictionary] = {}
+var _names: Dictionary[int, String] = {}
+## Relay round trip in ms per peer (-1 unknown).
+var _pings: Dictionary[int, int] = {}
+var _ping_left := 0.0
 
 
 static func create(world_controller: Node, target_world: Node, profile: Dictionary) -> NetPlayers:
@@ -42,8 +57,21 @@ static func create(world_controller: Node, target_world: Node, profile: Dictiona
 	net.name = NODE_NAME
 	net.controller = world_controller
 	net.world = target_world
-	net.local_profile = profile
+	net.local_profile = with_own_look(profile)
 	return net
+
+
+## profile plus this player's look and name from the account profile (D-152); character and color
+## stay for older readers.
+static func with_own_look(profile: Dictionary) -> Dictionary:
+	var result := profile.duplicate()
+	var own := PlayerProfile.current()
+	result["look"] = own.look.duplicate(true)
+	result["character"] = String(own.look.character)
+	result["color"] = PlayerLook.outfit_color(own.look).to_html(false)
+	if not own.player_name.is_empty():
+		result["name"] = own.player_name
+	return result
 
 
 ## Colour of the index-th player (P1..P4).
@@ -60,6 +88,7 @@ func _ready() -> void:
 	_spawner.spawn_path = NodePath("../..")
 	_spawner.spawn_function = _build_player
 	add_child(_spawner)
+	SaveManager.profile_changed.connect(_on_own_profile_changed)
 	if multiplayer.is_server():
 		multiplayer.peer_disconnected.connect(_on_peer_disconnected)
 		_host_spawn(multiplayer.get_unique_id(), local_profile)
@@ -97,6 +126,27 @@ func get_ready_peers() -> Array[int]:
 	return ids
 
 
+## Look (PlayerLook) of peer's player: the own profile for this machine, {} if unknown.
+func get_look(peer_id: int) -> Dictionary:
+	if peer_id == multiplayer.get_unique_id():
+		return PlayerProfile.current().look.duplicate(true)
+	return _looks.get(peer_id, {}).duplicate(true)
+
+
+## Name of peer's player as this world knows it ("" if unknown).
+func get_player_name_of(peer_id: int) -> String:
+	if peer_id == multiplayer.get_unique_id() and not PlayerProfile.current().player_name.is_empty():
+		return PlayerProfile.current().player_name
+	return _names.get(peer_id, "")
+
+
+## Relay round trip of peer in ms (-1 unknown).
+func get_ping(peer_id: int) -> int:
+	if peer_id == multiplayer.get_unique_id():
+		return _own_rtt()
+	return _pings.get(peer_id, -1)
+
+
 ## Name of this world for the profiles ("Village", "Dungeon"): the same on every machine.
 func get_world_kind() -> String:
 	return String(world.name) if world != null else ""
@@ -107,13 +157,18 @@ func get_world_kind() -> String:
 func accept_profile(peer: int, profile: Dictionary) -> void:
 	if not multiplayer.is_server() or peer <= 0:
 		return
-	if not _ready_peers.has(peer):
+	var is_new := not _ready_peers.has(peer)
+	if is_new:
 		_ready_peers[peer] = true
 		for player in _by_peer.values():
 			_show_to(player, peer)
 	if _by_peer.has(peer):
+		if is_new:
+			_send_looks_to.call_deferred(peer)
 		return
 	_host_spawn(peer, profile)
+	if is_new:
+		_send_looks_to.call_deferred(peer)
 
 
 ## Client: sends the profile of this world again (the room's run number changed, NetRun.sync_runs).
@@ -143,12 +198,18 @@ func _host_spawn(peer: int, profile: Dictionary) -> void:
 	if index < 0:
 		push_warning("NetPlayers: no free player slot for peer %d." % peer)
 		return
+	var look := _profile_look(profile)
+	var player_name := str(profile.get("name", "")).left(NAME_MAX)
+	_looks[peer] = look
+	if not player_name.is_empty():
+		_names[peer] = player_name
 	var data := {
 		"peer": peer,
 		"index": index,
-		"name": str(profile.get("name", "")).left(NAME_MAX),
+		"name": player_name,
 		"character": str(profile.get("character", "")),
 		"color": str(profile.get("color", "")),
+		"look": look,
 		"pos": _origin + WorldController.get_spawn_offset(index),
 	}
 	var player := _spawner.spawn(data) as Player
@@ -207,13 +268,14 @@ func _build_player(data: Variant) -> Node:
 	player.player_id = index
 	player.is_local = peer == multiplayer.get_unique_id()
 	player.input = LocalKeyboardMouseInput.new() if player.is_local else RemoteInput.new()
-	var appearance := {}
-	if CharacterCatalog.has_character(StringName(str(info.get("character", "")))):
-		appearance["character"] = StringName(str(info.get("character", "")))
-	var color_text := str(info.get("color", ""))
-	if Color.html_is_valid(color_text):
-		appearance["color"] = Color.html(color_text)
-	# The own player follows the save (and the wardrobe) like in single player.
+	# The newest look known here wins over the spawn data (it may have changed since the spawn).
+	var appearance: Dictionary = _looks.get(peer, _profile_look(info))
+	_looks[peer] = appearance
+	var player_name: String = _names.get(peer, str(info.get("name", "")))
+	if not player_name.is_empty():
+		_names[peer] = player_name
+	info["name"] = player_name
+	# The own player follows the profile (and the editor) like in single player.
 	player.appearance = {} if player.is_local else appearance
 	var start: Vector2 = info.get("pos", Vector2.ZERO)
 	player.position = start
@@ -225,6 +287,137 @@ func _build_player(data: Variant) -> Node:
 	player.add_child(state)
 	player.add_child(_name_tag(str(info.get("name", "")), index))
 	return player
+
+
+## The look of a profile or spawn data: "look" (D-152), else the MM1 pair character + color.
+static func _profile_look(profile: Dictionary) -> Dictionary:
+	var look: Variant = profile.get("look", null)
+	if look is Dictionary:
+		return PlayerLook.normalize(look)
+	var color_text := str(profile.get("color", ""))
+	return PlayerLook.from_legacy(profile.get("character", ""), Color.html(color_text) if Color.html_is_valid(color_text) else Color(0, 0, 0, 0))
+
+
+# --- Looks and pings (D-152) ---
+
+## The own profile changed (editor): tell the others through the host.
+func _on_own_profile_changed() -> void:
+	if not is_inside_tree() or multiplayer.multiplayer_peer == null:
+		return
+	var own := with_own_look(local_profile)
+	if PlayerLook.equals(own.get("look", {}), local_profile.get("look", {})) and str(own.get("name", "")) == str(local_profile.get("name", "")):
+		return
+	local_profile = own
+	var me := multiplayer.get_unique_id()
+	var look: Dictionary = own.look
+	var player_name := str(own.get("name", "")).left(NAME_MAX)
+	if multiplayer.is_server():
+		_set_look(me, look, player_name)
+		for peer in _ready_peers:
+			apply_look.rpc_id(peer, me, look, player_name)
+	elif get_player_for_peer(RelayProtocol.HOST_PEER_ID) != null:
+		# The host's player is here, so the host has this world loaded too.
+		_set_look(me, look, player_name)
+		request_look.rpc_id(RelayProtocol.HOST_PEER_ID, look, player_name)
+
+
+## Client -> host: my new look and name. The host checks them and passes them on.
+@rpc("any_peer", "call_remote", "reliable")
+func request_look(look: Dictionary, player_name: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var sender := multiplayer.get_remote_sender_id()
+	if sender <= 0 or not _by_peer.has(sender):
+		return
+	var clean := PlayerLook.normalize(look)
+	var clean_name := OnlineSession.sanitize_name(player_name) if not player_name.strip_edges().is_empty() else ""
+	_set_look(sender, clean, clean_name)
+	for peer in _ready_peers:
+		if peer != sender:
+			apply_look.rpc_id(peer, sender, clean, clean_name)
+
+
+## Host -> everybody: the look and name of peer's player.
+@rpc("authority", "call_remote", "reliable")
+func apply_look(peer_id: int, look: Dictionary, player_name: String) -> void:
+	_set_look(peer_id, PlayerLook.normalize(look), player_name.left(NAME_MAX))
+
+
+## Host: a peer that just loaded this world gets every look and name known here.
+func _send_looks_to(peer_id: int) -> void:
+	if not is_inside_tree() or not multiplayer.is_server() or not _ready_peers.has(peer_id):
+		return
+	for look_peer in _looks:
+		if look_peer != peer_id:
+			apply_look.rpc_id(peer_id, look_peer, _looks[look_peer], _names.get(look_peer, ""))
+
+
+func _set_look(peer_id: int, look: Dictionary, player_name: String) -> void:
+	_looks[peer_id] = look
+	if not player_name.is_empty():
+		_names[peer_id] = player_name
+	var player := get_player_for_peer(peer_id)
+	if player != null:
+		if not player.is_local:
+			player.appearance = look
+			player._apply_appearance()
+		var tag := player.get_node_or_null(^"NameTag") as Label
+		if tag != null and not player_name.is_empty():
+			tag.text = player_name
+	looks_changed.emit()
+
+
+func _process(delta: float) -> void:
+	_ping_left -= delta
+	if _ping_left > 0.0:
+		return
+	_ping_left = PING_SHARE_SECONDS
+	if not is_inside_tree() or multiplayer.multiplayer_peer == null:
+		return
+	var me := multiplayer.get_unique_id()
+	var own := _own_rtt()
+	if own >= 0:
+		_pings[me] = own
+	if multiplayer.is_server():
+		if not _ready_peers.is_empty():
+			var shared := {}
+			for peer in _pings:
+				shared[peer] = _pings[peer]
+			for peer in _ready_peers:
+				share_pings.rpc_id(peer, shared)
+	elif own >= 0 and get_player_for_peer(RelayProtocol.HOST_PEER_ID) != null:
+		report_ping.rpc_id(RelayProtocol.HOST_PEER_ID, own)
+
+
+@rpc("any_peer", "call_remote", "unreliable")
+func report_ping(rtt_msec: int) -> void:
+	var sender := multiplayer.get_remote_sender_id()
+	if multiplayer.is_server() and _by_peer.has(sender):
+		_pings[sender] = clampi(rtt_msec, 0, 9999)
+
+
+@rpc("authority", "call_remote", "unreliable")
+func share_pings(pings: Dictionary) -> void:
+	var me := multiplayer.get_unique_id()
+	for peer: Variant in pings:
+		if int(peer) != me:
+			_pings[int(peer)] = clampi(int(pings[peer]), 0, 9999)
+
+
+## This machine's round trip to the relay (LobbyClient's RelayPeer), -1 unknown.
+func _own_rtt() -> int:
+	var lobby := LobbyClient.find(self)
+	if lobby == null or lobby.peer == null:
+		return -1
+	return lobby.peer.last_rtt_msec
+
+
+## The name a player of the session shows over its head ("" without a name tag: single player).
+static func display_name_of(player: Node) -> String:
+	if player == null or not is_instance_valid(player):
+		return ""
+	var tag := player.get_node_or_null(^"NameTag") as Label
+	return tag.text if tag != null else ""
 
 
 ## M2 tunnels: the name tag goes while its player is hidden under the rock (NetDungeon).

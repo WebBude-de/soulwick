@@ -107,4 +107,12 @@ func test_side_passage_closes_the_side_wall() -> void:
 	for cell in passage:
 		for a in [-1, 0, 1]:
 			assert_true(cells.has(cell + Vector2i(0, a)), "covered: %s" % (cell + Vector2i(0, a)))
-	assert_eq(cells.size(), 6)
+	# G2: the rock over the upper wall (a front only while the passage was floor) is drawn again.
+	var closed := PassageCover.closed_floor([first, second], passage)
+	for cell in passage:
+		var above := cell + Vector2i(0, -2)
+		if not closed.has(above):
+			assert_true(cells.has(above), "rock over the upper wall: %s" % above)
+	for cell in cells:
+		assert_false(closed.has(cell), "no floor covered: %s" % cell)
+		assert_lte(absi(cell.y - door_cell.y), 2, "only the passage and the rock right around it: %s" % cell)

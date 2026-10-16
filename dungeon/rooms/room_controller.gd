@@ -112,6 +112,8 @@ var _branch_choice: BranchChoice = null
 ## own; enemies, wave state (apply_remote_progress) and completion (complete_remotely) come over the
 ## network. The intro still plays, the fight counts as started when the host's has (D-126).
 var remote_encounter := false
+## Contents of a special room (its type's content, the portal), prepared with the room.
+var _special_contents: Array[SpecialContent] = []
 
 @onready var tiles: RoomTiles = $Tiles
 @onready var enemy_container: Node2D = $EnemyContainer
@@ -332,6 +334,8 @@ func start_encounter() -> void:
 			_sources.release_encounter(enemies)
 		for enemy in enemies:
 			_track_enemy(enemy, 1)
+	# Turrets in some normal combat rooms (D-151); TurretPlacement tracks them itself.
+	enemies.append_array(TurretPlacement.populate(self))
 	if enemies.is_empty():
 		# Broken template: never treat it as a cleared room (ARCHITECTURE 7.1).
 		push_error("Room %d: encounter could not be spawned, exit stays closed." % room_index)
@@ -830,15 +834,33 @@ func _build_campfire_content() -> void:
 		portal.setup(context, self)
 
 
-func _build_special_content() -> void:
+## Builds the contents of a special room (seen, not usable yet; SpecialContent.prepare). The
+## DungeonManager calls it right after the room entered the tree (playtest #9: merchant, altar,
+## fountain, trial course and portal stand there under the veil); activate() makes them usable and
+## builds them first for a room nobody prepared (tests).
+func prepare_special_content() -> void:
+	if room_type != RoomSequence.RoomType.SPECIAL:
+		return
+	if not _special_contents.is_empty():
+		return
 	var scene: PackedScene = SPECIAL_SCENES.get(special_type)
 	if scene != null:
 		var content := scene.instantiate() as SpecialContent
 		content.position = content_anchor.position
 		add_child(content)
-		content.setup(context, self)
+		content.prepare(context, self)
+		_special_contents.append(content)
 	if has_portal:
 		var portal := PORTAL_SCENE.instantiate() as SpecialContent
 		portal.position = portal_anchor.position
 		add_child(portal)
-		portal.setup(context, self)
+		portal.prepare(context, self)
+		_special_contents.append(portal)
+
+
+## The room was entered: its contents become usable (offers are rolled now, D-036).
+func _build_special_content() -> void:
+	prepare_special_content()
+	for content in _special_contents:
+		if is_instance_valid(content):
+			content.setup(context, self)

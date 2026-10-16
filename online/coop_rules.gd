@@ -14,9 +14,9 @@ const BOSS_HEALTH_PER_PLAYER := 0.7
 const REVIVE_TIME := 2.0
 const REVIVE_HEALTH := 2.0
 const REVIVE_RADIUS := 56.0
-## D-126 TESTWERTE: the next room starts when all living players stand in it, or this many seconds
-## after the first one entered (stragglers are teleported in).
-const EXIT_COUNTDOWN := 10.0
+## Room change (D-126, changed after the online test of 15.10.2026): the next room starts only once
+## every living player stands in it - no countdown, nobody is teleported (should_start_room). Downed
+## players do not count (they are brought in when it starts), a player who left counts no more.
 ## D-126 TESTWERT: seconds every player has for the upgrade choice; then the first card is taken.
 const UPGRADE_TIMEOUT := 30.0
 ## D-126 TESTWERT: the host starts room 1 at the latest this long after the run began, even if a
@@ -53,10 +53,27 @@ static func scale_group(group: EncounterGroup, players: int) -> EncounterGroup:
 	return scaled
 
 
-## The room may start: every living player stands in it (protected ones count as present), or the
-## countdown since the first entry ran out.
-static func should_start_room(living: int, present: int, waited: float) -> bool:
-	return present >= living or waited >= EXIT_COUNTDOWN
+## The room may start: every living player stands in it (present = living players inside its floor).
+## No time limit: the group waits for the last one.
+static func should_start_room(living: int, present: int) -> bool:
+	return present >= living
+
+
+## What the room-change hint of a machine says while the group waits for the next room.
+enum WaitHint { NONE, WAIT_FOR_MATES, MATES_WAIT_FOR_YOU }
+
+
+## The hint for local_peer while inside (peers of living players in the next room) wait for missing
+## (living players not in it yet): inside -> "Warte auf <Namen> …", missing -> "<Name> wartet im
+## nächsten Raum", nobody inside or nobody missing (or a downed player, in neither list) -> nothing.
+static func wait_hint(local_peer: int, inside: Array, missing: Array) -> WaitHint:
+	if inside.is_empty() or missing.is_empty():
+		return WaitHint.NONE
+	if inside.has(local_peer):
+		return WaitHint.WAIT_FOR_MATES
+	if missing.has(local_peer):
+		return WaitHint.MATES_WAIT_FOR_YOU
+	return WaitHint.NONE
 
 
 ## Revive progress after delta seconds: grows while a teammate is near, falls back to 0 otherwise.
@@ -114,18 +131,22 @@ static func rejoin_point(player_position: Vector2, room_floor: Rect2, gate_open:
 
 
 ## M2 tunnels (PassageCover): is point (world px, a player's position) inside the passage of one of
-## views (DoorView or anything with get_passage_rects(): view-local rects of the passage tiles)? The
-## same test DoorView makes for its tunnel shade. The rock lies above the characters on every
-## machine, so a player in there is hidden everywhere; NetDungeon hides his name tag with it.
+## views (DoorView or anything with get_hidden_rects()/get_passage_rects(): view-local rects)? Only
+## the part under the rock crown counts (get_hidden_rects); in the arch itself a player stays visible
+## in the shade. The rock lies above the characters on every machine, so a player in there is hidden
+## everywhere; NetDungeon hides his name tag with it.
 static func in_passage(point: Vector2, views: Array) -> bool:
 	for node: Variant in views:
 		if not is_instance_valid(node):
 			continue
 		var view := node as Node2D
-		if view == null or not view.is_inside_tree() or not view.has_method(&"get_passage_rects"):
+		if view == null or not view.is_inside_tree():
+			continue
+		var method := &"get_hidden_rects" if view.has_method(&"get_hidden_rects") else &"get_passage_rects"
+		if not view.has_method(method):
 			continue
 		var local := view.to_local(point)
-		for rect: Rect2 in view.call(&"get_passage_rects"):
+		for rect: Rect2 in view.call(method):
 			if rect.grow(-PASSAGE_INSET).has_point(local):
 				return true
 	return false

@@ -7,9 +7,13 @@ extends Node2D
 ## art tile per floor tile): one picture per connected pool, the slow area stays on the tile grid.
 ## Per-player state: the slow lives on the player (ToxicPuddle.apply_slow, one source per water
 ## area), so any number of players works (D-088).
+## The pictures are built on a worker thread (WaterArt.request_pool) and fade in when ready, so
+## preparing a room costs no frame time for them; the slow area is there at once.
 
 ## Speed while wading (TESTWERT).
 const SLOW_FACTOR := 0.7
+## A pool picture that arrives later fades in over this time (s).
+const FADE_IN := 0.25
 const Z := 1
 
 var _area: Area2D = null
@@ -34,10 +38,14 @@ func build(water_tiles: Array[Vector2i], art_tile: float, biome_id: StringName) 
 		sprite.frame_size = box.size * WaterArt.TILE
 		sprite.fps = WaterArt.FPS
 		sprite.pivot = Vector2.ZERO
-		sprite.strip = WaterArt.pool_strip(pool, biome_id)
 		sprite.position = Vector2(box.position) * art_tile
 		sprite.scale = Vector2.ONE * art_tile / float(WaterArt.TILE)
 		add_child(sprite)
+		var strip := WaterArt.request_pool(pool, biome_id, _show_pool.bind(sprite))
+		if strip != null:
+			sprite.strip = strip
+		else:
+			sprite.modulate.a = 0.0
 	for tile in water_tiles:
 		var shape := RectangleShape2D.new()
 		shape.size = Vector2.ONE * art_tile
@@ -73,6 +81,25 @@ static func pools(water_tiles: Array[Vector2i]) -> Array[Array]:
 		pool.sort()
 		result.append(pool)
 	return result
+
+
+## A pool picture built on a worker thread arrived (main thread).
+func _show_pool(strip: Texture2D, sprite: AnimatedProp) -> void:
+	if not is_instance_valid(sprite):
+		return
+	sprite.strip = strip
+	if sprite.is_inside_tree():
+		sprite.create_tween().tween_property(sprite, "modulate:a", 1.0, FADE_IN)
+	else:
+		sprite.modulate.a = 1.0
+
+
+## Are all pool pictures shown?
+func is_ready() -> bool:
+	for child in get_children():
+		if child is AnimatedProp and (child as AnimatedProp).strip == null:
+			return false
+	return true
 
 
 func is_slowing(player: Player) -> bool:

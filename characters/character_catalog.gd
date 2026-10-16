@@ -1,11 +1,16 @@
 class_name CharacterCatalog
 extends RefCounted
-## All playable characters (MM1). A new character = a CharacterData .tres in res://characters/ plus
-## one line in PATHS. The first entry is the default for saves without a character.
+## All playable figures (MM1, D-152: wick, ember, moss, frost = contracts PlayerCharacter). A new
+## figure = a CharacterData .tres in res://characters/ plus one line in PATHS (and the id in
+## PlayerLook.CHARACTERS and the contracts). The first entry is the default.
+## The figure of this player comes from the account profile (PlayerProfile), not from a save slot.
 
-const DEFAULT_ID := &"hero"
+const DEFAULT_ID := PlayerLook.DEFAULT_CHARACTER
 const PATHS: Array[String] = [
-	"res://characters/hero.tres",
+	"res://characters/wick.tres",
+	"res://characters/ember.tres",
+	"res://characters/moss.tres",
+	"res://characters/frost.tres",
 ]
 
 static var _cache: Array[CharacterData] = []
@@ -20,11 +25,12 @@ static func all() -> Array[CharacterData]:
 	return _cache
 
 
-## The character with id, or the default one for unknown ids (old saves, removed characters).
+## The figure with id (old ids such as "hero" are mapped), or the default one for unknown ids.
 static func get_character(id: StringName) -> CharacterData:
 	var characters := all()
+	var wanted: StringName = PlayerLook.LEGACY_IDS.get(id, id)
 	for data in characters:
-		if data.id == id:
+		if data.id == wanted:
 			return data
 	for data in characters:
 		if data.id == DEFAULT_ID:
@@ -39,14 +45,11 @@ static func has_character(id: StringName) -> bool:
 	return false
 
 
-## Character of the loaded save (SaveManager profile).
+## Figure of this player's profile.
 static func get_active() -> CharacterData:
-	return get_character(SaveManager.get_character_id())
+	return get_character(PlayerLook.get_character(PlayerProfile.current().look))
 
 
-## Hook for player.gd (integrator): recolour the player sprite with the loaded save's character
-## and clothing colour. One line in Player._ready(): CharacterCatalog.apply_active(_sprite)
+## Hook for player.gd: the player sprite in the profile's figure and colours (D-152).
 static func apply_active(sprite: AnimatedSprite2D) -> void:
-	var data := get_active()
-	if data != null:
-		data.apply_to(sprite, SaveManager.get_character_color())
+	PlayerLook.apply(sprite, PlayerProfile.current().look)

@@ -1,7 +1,7 @@
 class_name CharacterPreview
 extends Control
-## A character standing idle at a whole-number pixel scale, recoloured live (slot cards, create
-## dialog). The sprite is centred in the control; feet sit on the bottom edge.
+## A character standing idle at a whole-number pixel scale, recoloured live (profile editor, lobby
+## slots, village). The sprite is centred in the control; feet sit on the bottom edge.
 
 ## Frame size of character sprites in art pixels (HANDOUT: figures 32×32, feet at y = 29).
 const FRAME_SIZE := 32.0
@@ -35,6 +35,14 @@ func set_character(data: CharacterData, color: Color) -> void:
 	if data == null:
 		return
 	data.apply_to(_sprite, color)
+	if not _sprite.is_playing() or _sprite.animation != &"idle":
+		_sprite.play(&"idle")
+	_layout()
+
+
+## The figure and colours of a PlayerLook (D-152).
+func set_look(look: Dictionary) -> void:
+	PlayerLook.apply(_sprite, look)
 	if not _sprite.is_playing() or _sprite.animation != &"idle":
 		_sprite.play(&"idle")
 	_layout()

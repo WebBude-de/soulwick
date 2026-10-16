@@ -1,9 +1,8 @@
 [gd_scene format=3]
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="2_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="3_deco"]
-[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="4_scatter"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="2_deco"]
+[ext_resource type="Script" path="res://dungeon/rooms/ingredients/ingredient_scatter.gd" id="3_scatter"]
 
 [node name="TropfsteinhoehleShadowRealm" instance=ExtResource("1_base")]
 room_kind = 0
@@ -22,7 +21,7 @@ front_fixtures = Array[Vector2i]([Vector2i(12, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(5, 1, 1), Vector3i(5, 2, 1), Vector3i(6, 0, 1), Vector3i(6, 1, 1), Vector3i(6, 2, 1), Vector3i(7, 0, 1), Vector3i(7, 1, 1), Vector3i(7, 2, 1), Vector3i(7, 5, 1), Vector3i(8, 1, 1), Vector3i(8, 5, 1), Vector3i(8, 6, 1), Vector3i(8, 7, 1), Vector3i(9, 6, 1), Vector3i(9, 7, 1), Vector3i(10, 6, 1), Vector3i(11, 0, 2), Vector3i(12, 0, 2), Vector3i(13, 1, 2), Vector3i(14, 1, 2), Vector3i(16, 0, 2)])
-overlay_cells = Array[Vector3i]([Vector3i(3, 1, 13), Vector3i(4, 6, 8), Vector3i(5, 1, 11), Vector3i(5, 7, 11), Vector3i(6, 1, 9), Vector3i(10, 0, 0), Vector3i(11, 0, 0), Vector3i(11, 2, 10), Vector3i(12, 3, 2), Vector3i(12, 4, 13), Vector3i(12, 6, 11), Vector3i(13, 1, 10), Vector3i(13, 2, 2), Vector3i(13, 3, 10), Vector3i(15, 7, 0)])
+overlay_cells = Array[Vector3i]([Vector3i(3, 1, 13), Vector3i(4, 6, 8), Vector3i(5, 1, 11), Vector3i(5, 7, 11), Vector3i(6, 1, 9), Vector3i(10, 0, 0), Vector3i(10, 6, 0), Vector3i(11, 2, 2), Vector3i(12, 0, 13), Vector3i(12, 3, 10), Vector3i(12, 4, 11), Vector3i(12, 6, 13), Vector3i(13, 1, 2), Vector3i(13, 2, 2), Vector3i(13, 3, 2), Vector3i(14, 6, 5)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(736, 96)
@@ -98,51 +97,51 @@ metadata/objective_kind = &"light_crystal"
 metadata/tile = Vector2i(4, 4)
 metadata/built = true
 
-[node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
 [node name="Crystal1" type="Node2D" parent="Props"]
 position = Vector2(288, 312)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"light_crystal"
 tint = Color(0.85, 0.7, 1, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(4, 4)])
 
 [node name="Puddle1" type="Node2D" parent="Props"]
 position = Vector2(800, 166)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"puddle"
 tint = Color(0.72, 0.6, 1, 1)
 biome = &"shadow_realm"
 
 [node name="Drip1" type="Node2D" parent="Props"]
 position = Vector2(798, 164)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"drip"
 
 [node name="Group1" type="Node2D" parent="Props"]
 position = Vector2(320, 56)
-script = ExtResource("3_deco")
+script = ExtResource("2_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+solid_span = Vector2(-48, 48)
 biome = &"shadow_realm"
 
 [node name="Group2" type="Node2D" parent="Props"]
 position = Vector2(1024, 440)
-script = ExtResource("3_deco")
-item = &"group_3"
+script = ExtResource("2_deco")
+item = &"group_2"
 blocked_tiles = Array[Vector2i]([Vector2i(15, 6), Vector2i(16, 6)])
+solid_span = Vector2(-54, 48)
 biome = &"shadow_realm"
 
 [node name="Group3" type="Node2D" parent="Props"]
 position = Vector2(704, 504)
-script = ExtResource("3_deco")
-item = &"group_2"
+script = ExtResource("2_deco")
+item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(10, 7), Vector2i(11, 7)])
+solid_span = Vector2(-48, 48)
 biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]
 y_sort_enabled = true
-script = ExtResource("4_scatter")
+script = ExtResource("3_scatter")
 allowed = Array[int]([])

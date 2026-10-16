@@ -102,6 +102,7 @@ script = ExtResource("3_deco")
 item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(11, 0), Vector2i(12, 0)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -109,6 +110,7 @@ position = Vector2(704, 632)
 script = ExtResource("3_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(10, 9), Vector2i(11, 9)])
+solid_span = Vector2(-40, 40)
 biome = &"slime_grotto"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -117,6 +119,7 @@ script = ExtResource("3_deco")
 item = &"group_large_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(3, 0), Vector2i(4, 0), Vector2i(5, 0)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group4" type="Node2D" parent="Props"]
@@ -124,4 +127,5 @@ position = Vector2(96, 440)
 script = ExtResource("3_deco")
 item = &"group_large_2"
 blocked_tiles = Array[Vector2i]([Vector2i(0, 6), Vector2i(1, 6), Vector2i(2, 6)])
+solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"

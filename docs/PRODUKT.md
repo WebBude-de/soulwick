@@ -40,7 +40,7 @@ Alles davon ist **optional**: Das Spiel bleibt ohne Server spielbar, jeder Aufru
 | --- | --- | --- |
 | **Konto / Identität** | Anmeldung aus dem Spiel: Testphase mit Geräte-ID, später Steam, Google Play, Game Center. Ein Soulwick-Konto mit beliebig vielen Plattform-Identitäten (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort; Geräte verknüpfen per Code, Zusammenführen zweier Konten nach festen Regeln (D-121, D-122, Plattform P-014). Konto löschen in-App und per Web-Formular. | `apps/api` |
 | **Relay** | Räume mit Raumcode, leitet die Pakete zwischen Host und Clients weiter (D-119) | `apps/relay` (geplant) |
-| **Gilden** | gründen, Beitritt per Einladungscode, jederzeit verlassen; höchstens eine Gilde je Spieler, höchstens 30 Mitglieder; Gildenkasse und Gilden-Schmiede auf dem Server (D-080, D-081 als Vorschlag) | `apps/api`, im Spiel das Gildenhaus |
+| **Gilden** | gründen, Beitritt per Einladungscode, jederzeit verlassen; bis zu 5 Gilden je Spieler, höchstens 30 Mitglieder (D-147); Gildenkasse und Gilden-Schmiede auf dem Server (D-080, D-081 als Vorschlag) | `apps/api`, im Spiel das Gildenhaus |
 | **Run-Berichte und Ranglisten** | der Host meldet das Run-Ende; Plausibilitätsprüfung **markiert statt löscht**; Tafeln Spieler Solo, Spieler Gruppe, Gilden, jeweils Allzeit und Saison (D-082) | `apps/api`, Website, später im Spiel |
 | **Koop-Relay** | Räume mit Raumcode, leitet Pakete weiter, ohne sie zu lesen (D-119) | `apps/relay` |
 | **Website** | playsoulwick.com, Englisch und Deutsch: Landingpage, Spielseite, Ranglisten, Gildenseiten, Rechtstexte aus eRecht24 | `apps/web` |

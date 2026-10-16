@@ -134,12 +134,6 @@ metadata/tile = Vector2i(14, 4)
 metadata/built = true
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(256, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
-[node name="Torch3" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(1344, -64)
 
 [node name="Crystal1" type="Node2D" parent="Props"]
@@ -161,6 +155,7 @@ position = Vector2(1216, 632)
 script = ExtResource("3_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(18, 9), Vector2i(19, 9)])
+solid_span = Vector2(-52, 50)
 biome = &"ember_forge"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -168,6 +163,7 @@ position = Vector2(352, 56)
 script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0)])
+solid_span = Vector2(-86, 86)
 biome = &"ember_forge"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -176,6 +172,7 @@ script = ExtResource("3_deco")
 item = &"group_3"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(20, 0), Vector2i(21, 0)])
+solid_span = Vector2(-50, 46)
 biome = &"ember_forge"
 
 [node name="Group4" type="Node2D" parent="Props"]
@@ -184,6 +181,7 @@ script = ExtResource("3_deco")
 item = &"group_large_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9)])
+solid_span = Vector2(-86, 86)
 biome = &"ember_forge"
 
 [node name="Group5" type="Node2D" parent="Props"]
@@ -192,6 +190,7 @@ script = ExtResource("3_deco")
 item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(7, 4), Vector2i(8, 4)])
+solid_span = Vector2(-52, 48)
 biome = &"ember_forge"
 
 [node name="Group6" type="Node2D" parent="Props"]
@@ -200,6 +199,7 @@ script = ExtResource("3_deco")
 item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(14, 9), Vector2i(15, 9), Vector2i(16, 9)])
+solid_span = Vector2(-86, 86)
 biome = &"ember_forge"
 
 [node name="Group7" type="Node2D" parent="Props"]
@@ -208,6 +208,7 @@ script = ExtResource("3_deco")
 item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(11, 0)])
+solid_span = Vector2(-52, 48)
 biome = &"ember_forge"
 
 [node name="Ingredients" type="Node2D" parent="."]

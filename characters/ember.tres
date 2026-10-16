@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="CharacterData" format=3]
+
+[ext_resource type="Script" path="res://characters/character_data.gd" id="1_data"]
+[ext_resource type="SpriteFrames" path="res://art/characters/player/player_frames.tres" id="2_frames"]
+[ext_resource type="Texture2D" path="res://art/characters/player/player_tint_mask_idle_4f.png" id="3_mask_idle"]
+[ext_resource type="Texture2D" path="res://art/characters/player/player_tint_mask.png" id="4_mask_walk"]
+[ext_resource type="Texture2D" path="res://art/characters/player/player_tint_mask_dash_3f.png" id="5_mask_dash"]
+[ext_resource type="Texture2D" path="res://art/characters/player/player_tint_mask_death_6f.png" id="6_mask_death"]
+[ext_resource type="Texture2D" path="res://art/weapons/sword.png" id="7_sword"]
+
+[resource]
+script = ExtResource("1_data")
+id = &"ember"
+display_name = "CHARACTER_EMBER"
+description = "CHARACTER_EMBER_DESC"
+art_frames_path = "res://art/characters/ember/ember_frames.tres"
+placeholder_mark = &"ember"
+sprite_frames = ExtResource("2_frames")
+tint_masks = Dictionary[StringName, Texture2D]({
+&"dash": ExtResource("5_mask_dash"),
+&"death": ExtResource("6_mask_death"),
+&"idle": ExtResource("3_mask_idle"),
+&"walk": ExtResource("4_mask_walk")
+})
+base_color = Color(0.21176471, 0.5647059, 0.85490197, 1)
+default_color = Color(0.21176471, 0.5647059, 0.85490197, 1)
+color_choices = PackedColorArray(0.21176471, 0.5647059, 0.85490197, 1, 0.8784314, 0.27450982, 0.22745098, 1, 0.37254903, 0.8039216, 0.38431373, 1, 0.9490196, 0.8117647, 0.2901961, 1, 0.6509804, 0.43137255, 0.9411765, 1, 0.18431373, 0.7019608, 0.5686275, 1)
+color_names = PackedStringArray("Blau", "Rot", "Grün", "Gelb", "Violett", "Türkis")
+menu_weapon = ExtResource("7_sword")
+menu_weapon_pivot = Vector2(6, 16)

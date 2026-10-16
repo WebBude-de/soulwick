@@ -67,8 +67,8 @@ func test_outer_wall_follows_the_same_rule() -> void:
 	var tiles := _tiles_of(HALL)
 	var floor_mask := tiles.get_floor_mask()
 	var x := tiles.exit_x - 2
-	# North wall: front right above the floor, the crown above it runs into the front (no edge
-	# there, the front has its own light top), rock above that.
+	# North wall: front right above the floor (it draws its own light top line, playtest 15.10.2026),
+	# the crown above it runs into the front, rock above that.
 	assert_eq(RockTerrain.piece_for(Vector2i(x, -1), floor_mask), RockTerrain.front_coords(RockTerrain.Front.MIDDLE))
 	assert_eq(RockTerrain.mask_for(Vector2i(x, -2), floor_mask), RockTerrain.FULL, "crown over the front")
 	assert_true(RockTerrain.is_enclosed(Vector2i(x, -3), floor_mask), "rock above (the backdrop shows it)")
@@ -170,7 +170,8 @@ func test_walls_use_the_generated_pieces_in_every_biome() -> void:
 		var fronts := 0
 		for wall: Vector2i in tiles.get_wall_mass():
 			assert_eq(tiles.get_cell_source_id(wall), RockTerrain.SOURCE_GROUND, "%s: %s solid cell" % [biome, wall])
-			assert_eq(tiles.get_cell_atlas_coords(wall), RockTerrain.SOLID)
+			assert_true(RockTerrain.is_solid_cell(tiles.get_cell_source_id(wall), tiles.get_cell_atlas_coords(wall)))
+			assert_eq(tiles.get_cell_atlas_coords(wall).x, RockTerrain.solid_corners(wall, floor_mask), "%s: %s collision rounded like the art" % [biome, wall])
 			var data := tiles.get_cell_tile_data(wall)
 			assert_gt(data.get_collision_polygons_count(0), 0, "%s: walls collide (WORLD)" % biome)
 			assert_null(data.get_navigation_polygon(0), "%s: no navigation on walls" % biome)
@@ -195,7 +196,7 @@ func test_runtime_walls_repaint_and_block() -> void:
 	tiles.add_wall_rects(rects)
 	assert_false(tiles.is_walkable(Vector2i(1, 2)))
 	assert_false(tiles.is_walkable(Vector2i(2, 3)))
-	assert_eq(tiles.get_cell_atlas_coords(Vector2i(2, 2)), RockTerrain.SOLID, "the new wall collides")
+	assert_true(RockTerrain.is_solid_cell(tiles.get_cell_source_id(Vector2i(2, 2)), tiles.get_cell_atlas_coords(Vector2i(2, 2))), "the new wall collides")
 	var floor_mask := tiles.get_floor_mask()
 	var rock := tiles.get_rock_layer()
 	assert_eq(rock.get_cell_atlas_coords(Vector2i(2, 3)), RockTerrain.piece_for(Vector2i(2, 3), floor_mask), "its front is drawn")
@@ -216,7 +217,7 @@ func test_closed_niche_is_rock_until_the_wall_breaks() -> void:
 	for tile in site.niche:
 		assert_false(tiles.get_floor_mask().has(tile), "niche %s is not floor while sealed" % tile)
 		var source := tiles.get_cell_source_id(tile)
-		assert_true(source == -1 or tiles.get_cell_atlas_coords(tile) == RockTerrain.SOLID, "niche %s drawn as rock (no box in the rock)" % tile)
+		assert_true(source == -1 or RockTerrain.is_solid_cell(source, tiles.get_cell_atlas_coords(tile)), "niche %s drawn as rock (no box in the rock)" % tile)
 		assert_true(RockTerrain.is_enclosed(tile, tiles.get_floor_mask()), "niche %s is plain rock" % tile)
 	# The crack itself is a plain front before it breaks (the cracked art lies on top).
 	assert_true(WallAutotile.is_front(site.crack, tiles.get_floor_mask()))

@@ -32,7 +32,8 @@ var _chosen: Dictionary[int, bool] = {}
 var _choosing := false
 
 
-func _on_setup() -> void:
+## Pact or plain altar is rolled when the room is prepared: the altar stands there before anyone enters.
+func _on_prepare() -> void:
 	if forced_pact >= 0:
 		is_pact = forced_pact == 1
 	else:

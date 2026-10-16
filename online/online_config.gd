@@ -266,11 +266,13 @@ static func get_game_version() -> String:
 	return version if not version.is_empty() else "0.0.0"
 
 
-## Platform name of the relay contract (ClientPlatform): windows, linux, macos, android, ios.
+## Platform name of the relay contract (ClientPlatform): windows, linux, macos, android, ios, web.
 static func get_platform() -> String:
 	match OS.get_name():
 		"Windows":
 			return "windows"
+		"Web":
+			return "web"
 		"macOS":
 			return "macos"
 		"Android":

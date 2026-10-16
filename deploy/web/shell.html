@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#15131f">
+<meta name="color-scheme" content="dark">
+<meta name="description" content="Soulwick – a dark dungeon roguelite. Play right in your browser.">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Soulwick">
+<title>$GODOT_PROJECT_NAME</title>
+<!-- Custom HTML shell of the "Web" export preset (docs/WEB_BUILD.md). Icons come from the PWA
+     options of the preset (index.<size>x<size>.png); the font is copied next to the page by the
+     Dockerfile and falls back to a monospace font elsewhere. -->
+<link rel="icon" type="image/png" href="index.144x144.png">
+<link rel="apple-touch-icon" href="index.180x180.png">
+<style>
+@font-face {
+	font-family: "Pixelify Sans";
+	src: url("fonts/PixelifySans-Variable.ttf") format("truetype");
+	font-weight: 400 700;
+	font-display: swap;
+}
+
+:root {
+	--bg: #15131f;
+	--bg-deep: #0b0a11;
+	--panel: #221f31;
+	--edge: #3a3550;
+	--text: #e9e4d2;
+	--muted: #b9b3c9;
+	--dim: #7a7396;
+	--gold: #f2cf4a;
+	--gold-deep: #b8932a;
+	--soul: #a98cf5;
+	--shadow: #1c1a2b;
+	--danger: #e0463a;
+	--px: 3px;
+}
+
+html, body {
+	margin: 0;
+	padding: 0;
+	height: 100%;
+	background: var(--bg-deep);
+	color: var(--text);
+	overflow: hidden;
+	touch-action: none;
+	-webkit-tap-highlight-color: transparent;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+body {
+	font-family: "Pixelify Sans", "Courier New", monospace;
+}
+
+#canvas {
+	display: block;
+	margin: 0;
+	padding: 0;
+	border: 0;
+}
+
+#canvas:focus {
+	outline: none;
+}
+
+/* ---------------------------------------------------------------- start screen */
+
+#shell {
+	position: fixed;
+	inset: 0;
+	z-index: 10;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 28px;
+	padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+	box-sizing: border-box;
+	background:
+		radial-gradient(ellipse at 50% 42%, rgba(169, 140, 245, 0.10) 0%, rgba(21, 19, 31, 0) 38%),
+		radial-gradient(ellipse at 50% 45%, var(--bg) 0%, var(--bg-deep) 78%);
+	cursor: default;
+	transition: opacity 0.35s ease;
+}
+
+#shell.ready {
+	cursor: pointer;
+}
+
+#shell.leaving {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.logo-wrap {
+	position: relative;
+	display: flex;
+	justify-content: center;
+}
+
+.logo-wrap::before {
+	content: "";
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	width: 340px;
+	height: 220px;
+	transform: translate(-50%, -50%);
+	background: radial-gradient(ellipse, rgba(169, 140, 245, 0.22) 0%, rgba(169, 140, 245, 0) 65%);
+	animation: flicker 3.2s infinite steps(1);
+	pointer-events: none;
+}
+
+#logo {
+	position: relative;
+	width: 480px;
+	height: 144px;
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+	filter: drop-shadow(0 var(--px) 0 var(--shadow));
+}
+
+@media (max-width: 540px) {
+	#logo {
+		width: 320px;
+		height: 96px;
+	}
+	:root {
+		--px: 2px;
+	}
+}
+
+@keyframes flicker {
+	0% { opacity: 1; }
+	18% { opacity: 0.82; }
+	22% { opacity: 1; }
+	47% { opacity: 0.9; }
+	63% { opacity: 1; }
+	81% { opacity: 0.78; }
+	86% { opacity: 1; }
+}
+
+.loader {
+	width: min(360px, 82vw);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 12px;
+}
+
+.bar {
+	position: relative;
+	width: 100%;
+	height: 18px;
+	box-sizing: border-box;
+	background: var(--bg-deep);
+	box-shadow:
+		0 calc(-1 * var(--px)) 0 0 var(--edge),
+		0 var(--px) 0 0 var(--edge),
+		calc(-1 * var(--px)) 0 0 0 var(--edge),
+		var(--px) 0 0 0 var(--edge),
+		0 calc(2 * var(--px)) 0 0 var(--shadow);
+}
+
+.bar-fill {
+	position: absolute;
+	left: 3px;
+	top: 3px;
+	bottom: 3px;
+	width: 0;
+	max-width: calc(100% - 6px);
+	background:
+		repeating-linear-gradient(90deg, transparent 0 9px, rgba(0, 0, 0, 0.28) 9px 12px),
+		linear-gradient(180deg, var(--gold) 0 55%, var(--gold-deep) 55% 100%);
+	transition: width 0.2s linear;
+}
+
+.bar.indeterminate .bar-fill {
+	width: 30%;
+	animation: sweep 1.2s infinite linear;
+}
+
+@keyframes sweep {
+	from { left: 3px; }
+	to { left: 68%; }
+}
+
+#status {
+	min-height: 1.4em;
+	font-size: 18px;
+	color: var(--muted);
+	text-align: center;
+	text-shadow: 2px 2px 0 var(--shadow);
+	letter-spacing: 0.02em;
+}
+
+#start {
+	display: none;
+	font-size: 26px;
+	color: var(--gold);
+	text-shadow: var(--px) var(--px) 0 var(--shadow);
+	letter-spacing: 0.04em;
+	animation: pulse 1.6s infinite steps(2);
+}
+
+#start-sub {
+	display: none;
+	font-size: 15px;
+	color: var(--dim);
+	text-align: center;
+}
+
+#shell.ready .loader,
+#shell.failed .loader {
+	display: none;
+}
+
+#shell.ready #start,
+#shell.ready #start-sub {
+	display: block;
+}
+
+@keyframes pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.55; }
+}
+
+/* ---------------------------------------------------------------- failure */
+
+#failure {
+	display: none;
+	max-width: 440px;
+	text-align: center;
+	font-size: 18px;
+	line-height: 1.4;
+	color: var(--text);
+}
+
+#shell.failed #failure {
+	display: block;
+}
+
+#failure strong {
+	display: block;
+	margin-bottom: 8px;
+	font-size: 22px;
+	font-weight: 600;
+	color: var(--danger);
+	text-shadow: 2px 2px 0 var(--shadow);
+}
+
+/* ---------------------------------------------------------------- buttons */
+
+.btn {
+	font: inherit;
+	font-size: 17px;
+	color: var(--text);
+	background: var(--panel);
+	border: 0;
+	padding: 9px 18px;
+	cursor: pointer;
+	box-shadow:
+		0 calc(-1 * var(--px)) 0 0 var(--edge),
+		0 var(--px) 0 0 var(--edge),
+		calc(-1 * var(--px)) 0 0 0 var(--edge),
+		var(--px) 0 0 0 var(--edge),
+		0 calc(2 * var(--px)) 0 0 var(--shadow);
+	text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.btn:hover,
+.btn:focus-visible {
+	outline: none;
+	color: var(--gold);
+	box-shadow:
+		0 calc(-1 * var(--px)) 0 0 var(--gold-deep),
+		0 var(--px) 0 0 var(--gold-deep),
+		calc(-1 * var(--px)) 0 0 0 var(--gold-deep),
+		var(--px) 0 0 0 var(--gold-deep),
+		0 calc(2 * var(--px)) 0 0 var(--shadow);
+}
+
+.btn.primary {
+	color: var(--bg);
+	background: var(--gold);
+	text-shadow: none;
+}
+
+.btn.primary:hover,
+.btn.primary:focus-visible {
+	color: var(--bg);
+	background: #ffe27a;
+}
+
+.btn[hidden] {
+	display: none;
+}
+
+#install-btn {
+	position: fixed;
+	right: max(16px, env(safe-area-inset-right));
+	bottom: max(16px, env(safe-area-inset-bottom));
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	font-size: 16px;
+}
+
+#install-btn[hidden] {
+	display: none;
+}
+
+#install-btn svg {
+	width: 18px;
+	height: 18px;
+	shape-rendering: crispEdges;
+}
+
+#footer {
+	position: fixed;
+	left: max(16px, env(safe-area-inset-left));
+	bottom: max(18px, env(safe-area-inset-bottom));
+	font-size: 13px;
+	color: var(--dim);
+}
+
+#footer .heart {
+	color: var(--danger);
+}
+
+/* ---------------------------------------------------------------- install dialog */
+
+#install-panel {
+	position: fixed;
+	inset: 0;
+	z-index: 20;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 16px;
+	box-sizing: border-box;
+	background: rgba(11, 10, 17, 0.78);
+	cursor: default;
+}
+
+#install-panel[hidden] {
+	display: none;
+}
+
+.panel {
+	position: relative;
+	width: min(420px, 100%);
+	box-sizing: border-box;
+	padding: 22px 22px 20px;
+	background: var(--panel);
+	box-shadow:
+		0 calc(-1 * var(--px)) 0 0 var(--gold-deep),
+		0 var(--px) 0 0 var(--gold-deep),
+		calc(-1 * var(--px)) 0 0 0 var(--gold-deep),
+		var(--px) 0 0 0 var(--gold-deep),
+		0 calc(3 * var(--px)) 0 0 var(--shadow);
+	font-size: 17px;
+	line-height: 1.45;
+	color: var(--muted);
+}
+
+.panel h2 {
+	margin: 0 0 10px;
+	font-size: 22px;
+	font-weight: 600;
+	color: var(--gold);
+	text-shadow: 2px 2px 0 var(--shadow);
+}
+
+.panel p {
+	margin: 0 0 12px;
+}
+
+.panel ol {
+	margin: 0 0 12px;
+	padding-left: 1.4em;
+	color: var(--text);
+}
+
+.panel ol li {
+	margin-bottom: 4px;
+}
+
+.panel .share {
+	display: inline-block;
+	width: 14px;
+	height: 16px;
+	vertical-align: -2px;
+}
+
+.panel .actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 14px;
+	margin-top: 18px;
+}
+
+[data-when] {
+	display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.logo-wrap::before,
+	#start,
+	.bar.indeterminate .bar-fill {
+		animation: none;
+	}
+}
+</style>
+$GODOT_HEAD_INCLUDE
+</head>
+<body>
+<canvas id="canvas">Soulwick</canvas>
+
+<noscript>
+	<p style="padding: 24px; text-align: center;">Soulwick needs JavaScript. / Soulwick braucht JavaScript.</p>
+</noscript>
+
+<div id="shell" role="button" tabindex="0" aria-live="polite">
+	<div class="logo-wrap">
+		<img id="logo" alt="Soulwick" width="160" height="48" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAAAwCAYAAACWqXFuAAAWfmNhQlgAABZ+anVtYgAAAB5qdW1kYzJwYQARABCAAACqADibcQNjMnBhAAAAFlhqdW1iAAAAR2p1bWRjMm1hABEAEIAAAKoAOJtxA3VybjpjMnBhOmMxODA0OWExLWIxMzEtNDQ2Zi04ZjUyLTlhMmUzMDNkNWE4YwAAAAOTanVtYgAAAClqdW1kYzJhcwARABCAAACqADibcQNjMnBhLmFzc2VydGlvbnMAAAAAuGp1bWIAAABEanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5pbmdyZWRpZW50LnYzAAAAABhjMnNoAVvZb7bGIQiYruogQUx8MQAAAGxjYm9yo2lkYzpmb3JtYXRpaW1hZ2UvcG5namluc3RhbmNlSUR4LHhtcDppaWQ6ZjRlNGU3MzAtNzQwMi00YjY1LTk0OGMtYTY4Nzc2NTI4NGRibHJlbGF0aW9uc2hpcGhwYXJlbnRPZgAAAeJqdW1iAAAAQWp1bWRjYm9yABEAEIAAAKoAOJtxE2MycGEuYWN0aW9ucy52MgAAAAAYYzJzaOE18H4BfdhWMsTIi7b829IAAAGZY2JvcqJnYWN0aW9uc4KiZmFjdGlvbmtjMnBhLm9wZW5lZGpwYXJhbWV0ZXJzoWtpbmdyZWRpZW50c4GiY3VybHgtc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5pbmdyZWRpZW50LnYzZGhhc2hYIDNQvOtY+JaN8SDtb+TpjLW/OFGAsBy+VTeU5yHBATFUpGZhY3Rpb254HWNvbS5hbnRocm9waWMuY2xhdWRlLnByb3ZpZGVkanBhcmFtZXRlcnOheB9jb20uYW50aHJvcGljLm9yaWdpbi1jb25maWRlbmNlZ3Vua25vd25rZGVzY3JpcHRpb254ZkNsYXVkZSBwcm92aWRlZCB0aGlzIGZpbGUgYXQgdGhlIHJlcXVlc3Qgb2YgYSB1c2VyIGFuZCBtYXkgaGF2ZSBjcmVhdGVkIG9yIG1vZGlmaWVkIHRoZSBmaWxlIGNvbnRlbnRzLm1zb2Z0d2FyZUFnZW50oWRuYW1lZkNsYXVkZXJhbGxBY3Rpb25zSW5jbHVkZWT1AAAAyGp1bWIAAABAanVtZGNib3IAEQAQgAAAqgA4m3ETYzJwYS5oYXNoLmRhdGEAAAAAGGMyc2gAPiJ7i+/4KqTVirTIeOTpAAAAgGNib3KlY2FsZ2ZzaGEyNTZjcGFkTQAAAAAAAAAAAAAAAABkaGFzaFggJsO2EU6mTsVpqCh3UPpDN4t4gIyBXqVgAAkiw52PJEZkbmFtZW5qdW1iZiBtYW5pZmVzdGpleGNsdXNpb25zgaJlc3RhcnQYIWZsZW5ndGgZFooAAAI+anVtYgAAACdqdW1kYzJjbAARABCAAACqADibcQNjMnBhLmNsYWltLnYyAAAAAg9jYm9ypWNhbGdmc2hhMjU2aXNpZ25hdHVyZXhNc2VsZiNqdW1iZj0vYzJwYS91cm46YzJwYTpjMTgwNDlhMS1iMTMxLTQ0NmYtOGY1Mi05YTJlMzAzZDVhOGMvYzJwYS5zaWduYXR1cmVqaW5zdGFuY2VJRHgseG1wOmlpZDowMTA4ZjdlYy1mYTc5LTQ3NTEtODIwMS02YjI3MjY5N2QzNGRyY3JlYXRlZF9hc3NlcnRpb25zg6JjdXJseC1zZWxmI2p1bWJmPWMycGEuYXNzZXJ0aW9ucy9jMnBhLmluZ3JlZGllbnQudjNkaGFzaFggM1C861j4lo3xIO1v5OmMtb84UYCwHL5VN5TnIcEBMVSiY3VybHgqc2VsZiNqdW1iZj1jMnBhLmFzc2VydGlvbnMvYzJwYS5hY3Rpb25zLnYyZGhhc2hYIH2gwJA0HNptExQWpkQ6a0JfVUUQqtfwb5aYvpP9ULGoomN1cmx4KXNlbGYjanVtYmY9YzJwYS5hc3NlcnRpb25zL2MycGEuaGFzaC5kYXRhZGhhc2hYIANZlbdMpHyG799ZDNpzLdwFULy1vVWHnXORse0Ly4f0dGNsYWltX2dlbmVyYXRvcl9pbmZvo2RuYW1lb0FudGhyb3BpYyBGaWxlc2d2ZXJzaW9uZTEuMC4wa3NwZWNWZXJzaW9uZTIuNC4wAAAQOGp1bWIAAAAoanVtZGMyY3MAEQAQgAAAqgA4m3EDYzJwYS5zaWduYXR1cmUAAAAQCGNib3LShFkCEqIBJhghWQIKMIICBjCCAY2gAwIBAgIUQOWgCu7COdC+uIP6BkIFPWdVEwAwCgYIKoZIzj0EAwMwSTEXMBUGA1UEChMOQW50aHJvcGljLCBQQkMxLjAsBgNVBAMTJUFudGhyb3BpYyBDb250ZW50IENyZWRlbnRpYWxzIFJvb3QgQ0EwHhcNMjYwODA3MTg0MzU2WhcNMjgwODA2MTk0MzU2WjBEMRcwFQYDVQQKEw5BbnRocm9waWMsIFBCQzEpMCcGA1UEAxMgQW50aHJvcGljIENsYXVkZSBDb250ZW50IFNpZ25pbmcwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASYegpry1AYBRTVNL1CpTlbROnY3dey+UrsF9C3phYrATN3ZHf93Mo8RQN0KOUuOn19P4oWNFWe5n2/She9N7eTo1gwVjAOBgNVHQ8BAf8EBAMCB4AwFQYDVR0lBA4wDAYKKwYBBAGD6F4CATAMBgNVHRMBAf8EAjAAMB8GA1UdIwQYMBaAFM5R4gSBTmRbI/jjxM+aPpzB11zCMAoGCCqGSM49BAMDA2cAMGQCMDFzHRSeAXrSy1WOzkbhPZ6Km2wGTmZ/2gK18k8BQGXyqz88Rdrz6CTX9flAnYNVxgIwcF9c3fVhqmJKpi+UhasNUMko69cyX6STPfta3Q8EjyzDjzoyrol46FP6VFHhvUcJoWNwYWRZDZ4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA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">
+	</div>
+	<div class="loader">
+		<div class="bar indeterminate" id="bar"><div class="bar-fill" id="bar-fill"></div></div>
+		<div id="status" data-i18n="loading"></div>
+	</div>
+	<div id="start" data-i18n="start"></div>
+	<div id="start-sub" data-i18n="startSub"></div>
+	<div id="failure">
+		<strong data-i18n="failTitle"></strong>
+		<span id="failure-text"></span>
+		<div style="margin-top: 18px;"><button type="button" class="btn" id="reload-btn" data-i18n="reload"></button></div>
+	</div>
+	<button type="button" class="btn" id="install-btn" hidden>
+		<svg viewBox="0 0 9 9" aria-hidden="true"><path fill="currentColor" d="M4 0h1v5h1V4h1v1H6v1H5v1H4V6H3V5H2V4h1v1h1zM0 7h1v1h7V7h1v2H0z"/></svg>
+		<span data-i18n="install"></span>
+	</button>
+	<div id="footer">Made with <span class="heart">&#9829;</span> by WebBude</div>
+</div>
+
+<div id="install-panel" hidden>
+	<div class="panel" role="dialog" aria-modal="true" aria-labelledby="install-title">
+		<h2 id="install-title" data-i18n="installTitle"></h2>
+		<div data-when="prompt">
+			<p data-i18n="installPrompt"></p>
+		</div>
+		<div data-when="ios">
+			<p data-i18n="iosIntro"></p>
+			<ol>
+				<li><span data-i18n="iosStep1"></span> <svg class="share" viewBox="0 0 7 8" aria-hidden="true"><path fill="currentColor" d="M3 0h1v1h1v1H4v3H3V2H2V1h1zM0 3h2v1H1v3h5V4H5V3h2v5H0z"/></svg></li>
+				<li data-i18n="iosStep2"></li>
+				<li data-i18n="iosStep3"></li>
+			</ol>
+		</div>
+		<div data-when="other">
+			<p data-i18n="installOther"></p>
+		</div>
+		<div data-when="installed">
+			<p data-i18n="installDone"></p>
+		</div>
+		<div class="actions">
+			<button type="button" class="btn" id="install-close" data-i18n="close"></button>
+			<button type="button" class="btn primary" id="install-go" data-i18n="installNow" hidden></button>
+		</div>
+	</div>
+</div>
+
+<script src="$GODOT_URL"></script>
+<script>
+const GODOT_CONFIG = $GODOT_CONFIG;
+const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
+
+(function () {
+	'use strict';
+
+	// ------------------------------------------------------------ texts (player-facing, de + en)
+	const TEXTS = {
+		de: {
+			loading: 'Der Dungeon wird geladen …',
+			loadingPct: 'Der Dungeon wird geladen … %d %',
+			start: 'Klicken zum Starten',
+			startTouch: 'Tippen zum Starten',
+			startSub: 'Ton an für die volle Stimmung',
+			starting: 'Die Kerze wird entzündet …',
+			updating: 'Neue Version gefunden, einen Moment …',
+			failTitle: 'Das Spiel konnte nicht starten',
+			failUnsupported: 'Dein Browser kann Soulwick leider nicht abspielen. Probier eine aktuelle Version von Chrome, Edge, Firefox oder Safari.',
+			failGeneric: 'Beim Laden ist etwas schiefgegangen. Lade die Seite neu und versuch es noch einmal.',
+			reload: 'Neu laden',
+			install: 'Als App installieren',
+			installTitle: 'Soulwick als App',
+			installPrompt: 'Installiere Soulwick auf deinem Gerät: eigenes Fenster, Start direkt vom Startbildschirm oder Desktop, und beim nächsten Mal geht es schneller los.',
+			installNow: 'Jetzt installieren',
+			iosIntro: 'So holst du Soulwick auf deinen Home-Bildschirm:',
+			iosStep1: 'Tippe unten in Safari auf „Teilen“',
+			iosStep2: 'Wähle „Zum Home-Bildschirm“.',
+			iosStep3: 'Tippe auf „Hinzufügen“. Fertig!',
+			installOther: 'Dein Browser bietet das Installieren gerade nicht an. In Chrome oder Edge klappt es über den Knopf „Als App installieren“, auf dem iPhone und iPad in Safari über „Teilen“ → „Zum Home-Bildschirm“.',
+			installDone: 'Soulwick ist installiert. Du findest es jetzt bei deinen Apps.',
+			close: 'Schließen',
+		},
+		en: {
+			loading: 'Loading the dungeon …',
+			loadingPct: 'Loading the dungeon … %d %',
+			start: 'Click to start',
+			startTouch: 'Tap to start',
+			startSub: 'Sound on for the full atmosphere',
+			starting: 'Lighting the candle …',
+			updating: 'New version found, one moment …',
+			failTitle: 'The game could not start',
+			failUnsupported: 'Your browser cannot run Soulwick. Try a current version of Chrome, Edge, Firefox or Safari.',
+			failGeneric: 'Something went wrong while loading. Reload the page and try again.',
+			reload: 'Reload',
+			install: 'Install as app',
+			installTitle: 'Soulwick as an app',
+			installPrompt: 'Install Soulwick on your device: its own window, start it right from your home screen or desktop, and it gets going faster next time.',
+			installNow: 'Install now',
+			iosIntro: 'Here is how to put Soulwick on your home screen:',
+			iosStep1: 'In Safari, tap “Share”',
+			iosStep2: 'Choose “Add to Home Screen”.',
+			iosStep3: 'Tap “Add”. Done!',
+			installOther: 'Your browser does not offer installing right now. In Chrome or Edge use the “Install as app” button; on iPhone and iPad use Safari: “Share” → “Add to Home Screen”.',
+			installDone: 'Soulwick is installed. You will find it with your apps.',
+			close: 'Close',
+		},
+	};
+	const languages = navigator.languages && navigator.languages.length ? navigator.languages : [navigator.language || 'en'];
+	const lang = String(languages[0] || 'en').toLowerCase().startsWith('de') ? 'de' : 'en';
+	const T = TEXTS[lang];
+	document.documentElement.lang = lang;
+	const isTouch = window.matchMedia('(pointer: coarse)').matches;
+
+	document.querySelectorAll('[data-i18n]').forEach((node) => {
+		node.textContent = T[node.getAttribute('data-i18n')] || '';
+	});
+	const $ = (id) => document.getElementById(id);
+	const shell = $('shell');
+	const statusText = $('status');
+	const bar = $('bar');
+	const barFill = $('bar-fill');
+	$('start').textContent = isTouch ? T.startTouch : T.start;
+
+	// ------------------------------------------------------------ install (PWA)
+	const ua = navigator.userAgent || '';
+	const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+	const isIOSSafari = isIOS && /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS|GSA|YaBrowser|DuckDuckGo/.test(ua);
+	const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches
+		|| window.matchMedia('(display-mode: fullscreen)').matches
+		|| navigator.standalone === true;
+	let installPrompt = null;
+	let installed = false;
+	const installBtn = $('install-btn');
+	const installPanel = $('install-panel');
+	const installGo = $('install-go');
+
+	function installMode() {
+		if (installed || isStandalone()) {
+			return 'installed';
+		}
+		if (installPrompt) {
+			return 'prompt';
+		}
+		return isIOSSafari ? 'ios' : 'other';
+	}
+
+	function renderInstall() {
+		const mode = installMode();
+		installBtn.hidden = !(mode === 'prompt' || mode === 'ios');
+		installPanel.querySelectorAll('[data-when]').forEach((node) => {
+			node.style.display = node.getAttribute('data-when') === mode ? 'block' : 'none';
+		});
+		installGo.hidden = mode !== 'prompt';
+	}
+
+	function openInstall() {
+		renderInstall();
+		installPanel.hidden = false;
+		(installGo.hidden ? $('install-close') : installGo).focus();
+	}
+
+	function closeInstall() {
+		installPanel.hidden = true;
+		shell.focus();
+	}
+
+	async function runInstallPrompt() {
+		if (!installPrompt) {
+			openInstall();
+			return;
+		}
+		const prompt = installPrompt;
+		installPrompt = null;
+		try {
+			await prompt.prompt();
+			const choice = await prompt.userChoice;
+			if (choice && choice.outcome === 'accepted') {
+				installed = true;
+			}
+		} catch (err) {
+			console.warn('Install prompt failed:', err);
+		}
+		renderInstall();
+		if (!installPanel.hidden && installed) {
+			openInstall();
+		}
+	}
+
+	window.addEventListener('beforeinstallprompt', (event) => {
+		event.preventDefault();
+		installPrompt = event;
+		renderInstall();
+	});
+	window.addEventListener('appinstalled', () => {
+		installPrompt = null;
+		installed = true;
+		renderInstall();
+	});
+	installBtn.addEventListener('click', (event) => {
+		event.stopPropagation();
+		if (installMode() === 'prompt') {
+			runInstallPrompt();
+		} else {
+			openInstall();
+		}
+	});
+	installGo.addEventListener('click', (event) => {
+		event.stopPropagation();
+		runInstallPrompt();
+	});
+	$('install-close').addEventListener('click', (event) => {
+		event.stopPropagation();
+		closeInstall();
+	});
+	installPanel.addEventListener('click', (event) => {
+		event.stopPropagation();
+		if (event.target === installPanel) {
+			closeInstall();
+		}
+	});
+	installPanel.addEventListener('keydown', (event) => {
+		event.stopPropagation();
+		if (event.key === 'Escape') {
+			closeInstall();
+		}
+	});
+	renderInstall();
+	if (new URLSearchParams(window.location.search).has('install')) {
+		openInstall();
+	}
+
+	// ------------------------------------------------------------ loading and start
+	let state = 'loading'; // loading | ready | starting | running | failed
+
+	function fail(err, unsupported) {
+		console.error(err);
+		state = 'failed';
+		shell.classList.remove('ready');
+		shell.classList.add('failed');
+		$('failure-text').textContent = unsupported ? T.failUnsupported : T.failGeneric;
+	}
+	$('reload-btn').addEventListener('click', (event) => {
+		event.stopPropagation();
+		window.location.reload();
+	});
+
+	function onProgress(current, total) {
+		if (current > 0 && total > 0) {
+			const pct = Math.max(0, Math.min(100, Math.floor((current / total) * 100)));
+			bar.classList.remove('indeterminate');
+			barFill.style.width = `calc((100% - 6px) * ${pct / 100})`;
+			statusText.textContent = T.loadingPct.replace('%d', pct);
+		} else {
+			bar.classList.add('indeterminate');
+		}
+	}
+
+	// A new version of the game was installed in the background: switch to it while the player is
+	// still on this screen (the cached files of the old version would start otherwise).
+	function watchForUpdates() {
+		if (!GODOT_CONFIG.serviceWorker || !('serviceWorker' in navigator)) {
+			return;
+		}
+		navigator.serviceWorker.getRegistration().then((registration) => {
+			if (!registration) {
+				return;
+			}
+			const apply = (worker) => {
+				if (worker && navigator.serviceWorker.controller && (state === 'loading' || state === 'ready')) {
+					state = 'updating';
+					shell.classList.remove('ready');
+					statusText.textContent = T.updating;
+					worker.postMessage('update');
+				}
+			};
+			if (registration.waiting) {
+				apply(registration.waiting);
+			}
+			registration.addEventListener('updatefound', () => {
+				const worker = registration.installing;
+				if (worker) {
+					worker.addEventListener('statechange', () => {
+						if (worker.state === 'installed') {
+							apply(worker);
+						}
+					});
+				}
+			});
+		}).catch(() => {});
+	}
+
+	const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+	if (missing.length !== 0) {
+		fail(new Error(`Missing browser features: ${missing.join(', ')}`), true);
+		return;
+	}
+
+	const engine = new Engine(Object.assign({}, GODOT_CONFIG, { onProgress }));
+	const executable = GODOT_CONFIG.executable;
+	const mainPack = GODOT_CONFIG.mainPack || `${executable}.pck`;
+	watchForUpdates();
+
+	Promise.all([engine.init(executable), engine.preloadFile(mainPack, mainPack)]).then(() => {
+		if (state !== 'loading') {
+			return;
+		}
+		state = 'ready';
+		shell.classList.add('ready');
+		shell.focus();
+	}, (err) => fail(err, false));
+
+	function startGame() {
+		if (state !== 'ready') {
+			return;
+		}
+		state = 'starting';
+		shell.classList.remove('ready');
+		$('start').style.display = 'none';
+		$('start-sub').style.display = 'none';
+		statusText.textContent = T.starting;
+		shell.querySelector('.loader').style.display = 'flex';
+		bar.style.display = 'none';
+		engine.start({ args: ['--main-pack', mainPack].concat(GODOT_CONFIG.args || []) }).then(() => {
+			state = 'running';
+			shell.classList.add('leaving');
+			window.setTimeout(() => shell.remove(), 400);
+			installPanel.remove();
+		}, (err) => fail(err, false));
+	}
+
+	shell.addEventListener('click', startGame);
+	shell.addEventListener('keydown', (event) => {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			startGame();
+		}
+	});
+}());
+</script>
+</body>
+</html>

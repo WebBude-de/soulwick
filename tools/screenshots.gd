@@ -1,6 +1,8 @@
 extends SceneTree
 ## Captures screenshots of key screens for visual review (needs a window, not --headless).
-## Usage: godot --path . -s tools/screenshots.gd -- <output_dir>
+## Usage: godot --path . -s tools/screenshots.gd -- <output_dir> [darkness]
+## "darkness": only the darkness review (enemies on a ring around the player in a normal crypt room,
+## a Finsternis room and the shadow realm), see _run_darkness.
 
 ## Test folder for slots, settings and the pre-slot save (SaveManager.set_storage_root).
 const STORAGE_ROOT := "user://screenshot_storage"
@@ -34,6 +36,10 @@ func _run() -> void:
 	change_scene_to_file("res://scenes/main.tscn")
 	# Real time: the menu fades in, frames may run uncapped.
 	await _seconds(2.0)
+	if args.size() > 1 and args[1] == "darkness":
+		await _run_darkness()
+		quit()
+		return
 	_shot("01_main_menu")
 	var menu: Node = current_scene.get("menu")
 	menu.open_slots()
@@ -132,6 +138,64 @@ func _run() -> void:
 	await _seconds(1.0)
 	_shot("12_biome_ember")
 	quit()
+
+
+## Darkness review (enemy visibility in the dark): skeletons frozen on a ring around the player at
+## growing distances (and one elite), shot in a normal crypt room, a Finsternis room (extra dark) and
+## the shadow realm. Shots: dark_1_crypt, dark_2_finsternis, dark_3_shadow_realm.
+func _run_darkness() -> void:
+	# No first-encounter cards over the shots.
+	var save_manager := root.get_node("SaveManager")
+	var hints: Script = load("res://enemies/enemy_hints.gd")
+	for file in DirAccess.get_files_at("res://enemies/data"):
+		if file.ends_with(".tres"):
+			save_manager.unlock_content(hints.get_type_hint_id(load("res://enemies/data/" + file)))
+	for id in [&"hint_elite_swift", &"hint_elite_armored", &"hint_elite_volatile", &"hint_champion"]:
+		save_manager.unlock_content(id)
+	var menu: Node = current_scene.get("menu")
+	menu.play_slot(1)
+	await _seconds(1.2)
+	await _frames(30)
+	var controller := current_scene.get_node("WorldController")
+	controller.enter_dungeon()
+	await _seconds(3.5)
+	_close_modals(root)
+	var player: Node2D = controller.get_player()
+	player.call(&"set_protected", &"screenshots", true)
+	var dungeon: Node = controller.get_world()
+	var room: Node = dungeon.get_room(1)
+	# Untyped: a -s script compiles before the autoloads exist (class names that use them fail).
+	var skeleton: Resource = load("res://enemies/data/skeleton.tres")
+	var profiles: Script = load("res://components/visual/lighting_profile.gd")
+	var scene: PackedScene = load("res://enemies/enemy_base.tscn")
+	var container: Node = room.get(&"enemy_container")
+	# Right row 120..450 px, left row 170..400 px, one below; elites at 450 right and 290 left.
+	var offsets := [Vector2(120, 0), Vector2(230, 0), Vector2(340, 0), Vector2(450, 0),
+			Vector2(-170, 70), Vector2(-290, 70), Vector2(-400, 70), Vector2(40, 220)]
+	for i in offsets.size():
+		var enemy: Node2D = scene.instantiate()
+		enemy.set(&"data", skeleton)
+		if i == 3 or i == 5:
+			enemy.call(&"make_elite", 1)  # Enemy.Elite.SWIFT
+		container.add_child(enemy)
+		enemy.global_position = player.global_position + offsets[i]
+	await _frames(2)
+	for node in get_nodes_in_group(&"enemies"):
+		node.set_physics_process(false)
+	var vision: Node = current_scene.get_node("VisionOverlay")
+	await _seconds(1.0)
+	_shot("dark_1_crypt")
+	# Finsternis: the extra dark variant of a normal combat room (DungeonManager._apply_vision).
+	vision.set_vision(0.97, 190.0, true)
+	vision.set_lighting(profiles.for_situation(&"crypt", 0, 0, &"", true), true)
+	await _seconds(1.0)
+	_shot("dark_2_finsternis")
+	var shadow: Resource = load("res://dungeon/biomes/shadow_realm.tres")
+	vision.set_biome(shadow, true)
+	vision.set_vision(0.97, 300.0 * float(shadow.get(&"vision_factor")), true)
+	vision.set_lighting(profiles.for_situation(&"shadow_realm", 0), true)
+	await _seconds(1.0)
+	_shot("dark_3_shadow_realm")
 
 
 func _wipe(folder: String) -> void:

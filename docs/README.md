@@ -14,7 +14,7 @@
 | 5 | [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) | **was jetzt dran ist** (Phasen 1 bis 2c) |
 | 6 | [DECISIONS.md](DECISIONS.md) | alle Produkt-Entscheidungen (D-Nummern), bei Widerspruch maßgeblich |
 
-Nachschlagen: [GLOSSAR.md](GLOSSAR.md) (Begriffe Deutsch ↔ Englisch), [HANDOUT.md](HANDOUT.md) (Palette, Maßstab, Namensregeln für Grafik und Code).
+Nachschlagen: [GLOSSAR.md](GLOSSAR.md) (Begriffe Deutsch ↔ Englisch), [HANDOUT.md](HANDOUT.md) (Palette, Maßstab, Namensregeln für Grafik und Code), [RELEASE.md](RELEASE.md) (Releases über GitHub Actions: Windows, Linux, macOS, Android; Secrets, development/production).
 
 ## Roadmaps
 

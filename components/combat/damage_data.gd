@@ -21,6 +21,10 @@ var has_impact_position := false
 ## Status effects on the player; only applied by effective (not blocked) hits (D-017, D-066, D-067).
 var stun_duration := 0.0
 var blind_duration := 0.0
+## Slow (SlowStatus, D-148): move speed factor and seconds; 1.0 / 0.0 = no slow. Like stun and blind
+## only with effective hits.
+var slow_factor := 1.0
+var slow_duration := 0.0
 
 
 static func next_hit_id() -> int:
@@ -42,4 +46,6 @@ func duplicate_for_target() -> DamageData:
 	copy.has_impact_position = has_impact_position
 	copy.stun_duration = stun_duration
 	copy.blind_duration = blind_duration
+	copy.slow_factor = slow_factor
+	copy.slow_duration = slow_duration
 	return copy

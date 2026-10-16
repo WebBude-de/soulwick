@@ -3,8 +3,7 @@
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
 [ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
 [ext_resource type="PackedScene" path="res://dungeon/rooms/ingredients/rubble.tscn" id="3_rubble"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="4_torch"]
-[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="5_deco"]
+[ext_resource type="Script" path="res://dungeon/environment/deco/deco_prop.gd" id="4_deco"]
 
 [node name="WaffenkammerEmberForge" instance=ExtResource("1_base")]
 
@@ -50,21 +49,15 @@ position = Vector2(416, 160)
 metadata/objective_kind = &"weapon_rack"
 metadata/tile = Vector2i(6, 2)
 
-[node name="Torch1" parent="Props" instance=ExtResource("4_torch")]
-position = Vector2(128, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("4_torch")]
-position = Vector2(640, -64)
-
 [node name="Coffin1" type="Node2D" parent="Props"]
 position = Vector2(96, 120)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"coffin"
 blocked_tiles = Array[Vector2i]([Vector2i(1, 1)])
 
 [node name="Coffin2" type="Node2D" parent="Props"]
 position = Vector2(736, 120)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"coffin"
 blocked_tiles = Array[Vector2i]([Vector2i(11, 1)])
 
@@ -77,21 +70,21 @@ modulate = Color(0.8, 0.68, 0.6, 1)
 
 [node name="Candles1" type="Node2D" parent="Props"]
 position = Vector2(162, 162)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"candles"
 flip = true
 
 [node name="Bones1" type="Node2D" parent="Props"]
 position = Vector2(162, 180)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"bones_1"
 
 [node name="Candles2" type="Node2D" parent="Props"]
 position = Vector2(674, 162)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"candles"
 
 [node name="Bones2" type="Node2D" parent="Props"]
 position = Vector2(674, 180)
-script = ExtResource("5_deco")
+script = ExtResource("4_deco")
 item = &"bones_1"

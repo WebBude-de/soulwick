@@ -52,7 +52,10 @@ var _choosing := false
 var _safe_lights := PackedVector2Array()
 
 
-func _on_setup() -> void:
+## Kind, course and props are built while the room is prepared (playtest 15.10.2026 #9): the parcours
+## and the chest stand there under the veil. Same dungeon RNG draws in the same order as before, only
+## at the room's preparation instead of its entry.
+func _on_prepare() -> void:
 	# Built in room coordinates: TrialLayout tiles map straight to local positions.
 	position = Vector2.ZERO
 	var table := SpecialTable.load_default()
@@ -73,6 +76,10 @@ func _on_setup() -> void:
 	mistake_made.connect(_on_mistake_made)
 	run_finished.connect(_on_run_finished)
 	chest_opened.connect(_on_chest_opened)
+
+
+## Entered: runs count from now on; the light run darkens the room.
+func _on_setup() -> void:
 	if kind == SpecialTable.TrialKind.LIGHT_RUN:
 		_make_room_dark()
 
@@ -86,6 +93,9 @@ func step(delta: float) -> void:
 	if course == null:
 		return
 	course.advance(delta)
+	# Prepared, not entered yet: the hazards keep their beat, nobody runs (#9).
+	if not is_set_up():
+		return
 	for id in _cooldowns.keys():
 		_cooldowns[id] = maxf(0.0, _cooldowns[id] - delta)
 	for player in get_players():

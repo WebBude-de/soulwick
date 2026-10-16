@@ -3,7 +3,10 @@ extends Node2D
 ## One gang segment in side view (M5): the world of a SideLayout - rock and ledges (SideTiles), a
 ## dark back wall, torches, ladders with one-way top steps, crumbling ledges, coins on the jump arcs,
 ## the golden coin (a double-jump spot), spike trap, slimes and skeletons, the chest in a niche on
-## the ladder way, the door at the end - and its own camera (SideCamera). It lies far below the dungeon (WORLD_ORIGIN), so rooms and segment never
+## the ladder way, the door at the end - and its own camera (SideCamera). Round 3 (16.10.2026):
+## turrets on their mounts (SideTurret, when the layout sets them up), pools (SidePool), spike runs
+## as a wave, the biome's dressing (SideDecor), air and pit particles (SideAmbience), biome torches,
+## coloured light out of the pits and the doorway the players came through behind the start. It lies far below the dungeon (WORLD_ORIGIN), so rooms and segment never
 ## meet. Players come in through add_player (PlayerSideMotion takes over their movement) and leave
 ## through remove_players; their health, shield, gold, weapons and upgrades stay theirs.
 ## Decisions here (coins, golden coin, door, crumbling ledges, co-op catch-up), looks in the
@@ -22,6 +25,24 @@ const PLAYER_SPACING := 26.0
 const TORCH_SCENE: PackedScene = preload("res://dungeon/environment/decorations/torch.tscn")
 const LADDER_TEXTURE: Texture2D = preload("res://art/environment/deco/ladder.png")
 const LADDER_TOP_TEXTURE: Texture2D = preload("res://art/environment/deco/ladder_top.png")
+## Torch strip per biome (the room torches; the crypt's and the forge's are the warm default).
+const TORCH_STRIPS: Dictionary[StringName, String] = {
+	&"slime_grotto": "res://art/environment/props/torch_green_4f.png",
+	&"shadow_realm": "res://art/environment/props/torch_purple_4f.png",
+}
+const TORCH_LIGHT_COLORS: Dictionary[StringName, Color] = {
+	&"slime_grotto": Color(0.55, 1.0, 0.45),
+	&"shadow_realm": Color(0.7, 0.5, 1.0),
+}
+## Light out of the pits per biome (the forge's glows like embers far below).
+const PIT_GLOW: Dictionary[StringName, Color] = {
+	&"crypt": Color(0.25, 0.3, 0.6, 0.35),
+	&"slime_grotto": Color(0.25, 0.7, 0.25, 0.4),
+	&"shadow_realm": Color(0.45, 0.2, 0.75, 0.45),
+	&"ember_forge": Color(1.0, 0.4, 0.1, 0.6),
+}
+## The doorway behind the start: dimmer than the exit, so the way on stays the bright one.
+const ENTRANCE_LIGHT := 0.4
 ## Thickness of a ladder's one-way top step (px).
 const LADDER_STEP_DEPTH := 12.0
 ## Optional platform edge art (SPRITES_V9): 96×16, left / middle / right piece.
@@ -55,6 +76,8 @@ var _enemies: Array[SideEnemy] = []
 var _spikes: Array[SideSpikes] = []
 var _chest: SideChest = null
 var _crumbles: Array[SideCrumble] = []
+var _turrets: Array[SideTurret] = []
+var _pools: Array[SidePool] = []
 var _fx: Dictionary[Player, SidePlayerFx] = {}
 
 
@@ -77,14 +100,19 @@ func _ready() -> void:
 	add_child(backdrop)
 	_build_tiles()
 	_build_edges()
+	add_child(SideDecor.create(layout))
+	_build_entrance()
 	_build_torches()
 	_build_ladders()
 	_build_crumbles()
+	_build_pools()
 	_build_coins()
 	_build_spikes()
 	_build_chest()
 	_build_exit()
 	_build_enemies()
+	_build_turrets()
+	add_child(SideAmbience.create(layout))
 	camera = SideCamera.new()
 	camera.name = "Camera"
 	camera.segment = self
@@ -104,8 +132,12 @@ func add_player(player: Player) -> void:
 	_fx[player] = SidePlayerFx.attach(player, self)
 
 
-## Every player back to top-down movement (the caller puts them into the next room).
+## Every player back to top-down movement (the caller puts them into the next room); pools let go of
+## their slow first.
 func remove_players() -> void:
+	for pool in _pools:
+		if is_instance_valid(pool):
+			pool.release_all()
 	for player in _players:
 		if not is_instance_valid(player) or player.side_motion == null:
 			continue
@@ -307,15 +339,95 @@ func _build_edges() -> void:
 	var abyss := _Abyss.new()
 	abyss.name = "Abyss"
 	abyss.layout = layout
+	abyss.glow = PIT_GLOW.get(layout.biome_id, PIT_GLOW[&"crypt"])
 	abyss.z_index = -6
 	add_child(abyss)
 
 
 func _build_torches() -> void:
+	var strip_path: String = TORCH_STRIPS.get(layout.biome_id, "")
+	var strip := load(strip_path) as Texture2D if not strip_path.is_empty() and ResourceLoader.exists(strip_path) else null
 	for cell in layout.torches:
 		var torch := TORCH_SCENE.instantiate() as Node2D
+		if strip != null:
+			torch.set(&"strip", strip)
+		var light := torch.get_node_or_null(^"Light") as LightSource
+		if light != null and TORCH_LIGHT_COLORS.has(layout.biome_id):
+			light.color = TORCH_LIGHT_COLORS[layout.biome_id]
 		torch.position = SideLayout.cell_origin(cell)
 		add_child(torch)
+
+
+## The doorway the players came through, open behind the start (dim; the exit is the bright one).
+func _build_entrance() -> void:
+	var entrance := Node2D.new()
+	entrance.name = "Entrance"
+	entrance.z_index = -3
+	entrance.position = SideLayout.feet_of(layout.start)
+	add_child(entrance)
+	for biome in [layout.biome_id, SideExit.FALLBACK_BIOME]:
+		var path := SideExit.DOORS_DIR + "door_frame_%s.png" % biome
+		if not ResourceLoader.exists(path):
+			continue
+		var frame_texture := load(path) as Texture2D
+		var frame := Sprite2D.new()
+		frame.name = "Frame"
+		frame.texture = frame_texture
+		frame.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
+		frame.offset = SpriteStrip.pivot_offset(Vector2i(frame_texture.get_size()), SideExit.FRAME_PIVOT)
+		frame.modulate = Color(0.75, 0.75, 0.8)
+		entrance.add_child(frame)
+		break
+	var light := LightSource.new()
+	light.name = "Glow"
+	light.radius = 120.0
+	light.intensity = ENTRANCE_LIGHT
+	light.flicker = 0.04
+	light.position = Vector2(0, -48)
+	entrance.add_child(light)
+
+
+## Pools in the floor (plan "w"): slow running on every machine (SidePool).
+func _build_pools() -> void:
+	for run in layout.pools:
+		var pool := SidePool.new()
+		pool.name = "Pool%d_%d" % [run.x, run.z]
+		pool.cells = run.y - run.x + 1
+		pool.biome_id = layout.biome_id
+		pool.segment = self
+		pool.position = SideLayout.cell_origin(Vector2i(run.x, run.z))
+		add_child(pool)
+		_pools.append(pool)
+
+
+func get_pools() -> Array[SidePool]:
+	return _pools
+
+
+## Turrets on their mounts (plan "T") when the layout sets them up (SideRules.TURRET_CHANCE).
+func _build_turrets() -> void:
+	if not layout.turrets_enabled:
+		return
+	for cell in layout.turrets:
+		var normal := layout.turret_normal(cell)
+		if normal == Vector2i.ZERO:
+			continue
+		var turret := SideTurret.new()
+		turret.name = "Turret%d_%d" % [cell.x, cell.y]
+		turret.setup(layout.biome_id, room_index, self, normal)
+		# Mount point: the middle of the cell's side that touches the rock.
+		turret.position = SideLayout.cell_center(cell) - Vector2(normal) * SideRules.TILE * 0.5
+		add_child(turret)
+		_turrets.append(turret)
+
+
+## Every turret built here, in build order (also the destroyed ones: NetSide counts by index).
+func get_turrets() -> Array[SideTurret]:
+	return _turrets
+
+
+func get_spikes() -> Array[SideSpikes]:
+	return _spikes
 
 
 func _build_ladders() -> void:
@@ -383,11 +495,21 @@ func _build_coins() -> void:
 		add_child(_golden)
 
 
+## Spike traps; the traps of one run fire as a wave (one draw per run, SideRules.SPIKE_WAVE_STEP).
 func _build_spikes() -> void:
+	var offset := 0.0
+	var previous := Vector2i(-10, -10)
+	var in_run := 0
 	for cell in layout.spikes:
+		if cell == previous + Vector2i.RIGHT:
+			in_run += 1
+		else:
+			in_run = 0
+			offset = _rng.randf_range(0.4, SideSpikes.IDLE_TIME)
+		previous = cell
 		var spikes := SideSpikes.new()
 		spikes.position = SideLayout.feet_of(cell)
-		spikes.setup(_rng.randf_range(0.4, SideSpikes.IDLE_TIME))
+		spikes.setup(offset + SideRules.SPIKE_WAVE_STEP * in_run)
 		add_child(spikes)
 		_spikes.append(spikes)
 
@@ -445,11 +567,13 @@ func get_chest() -> SideChest:
 	return _chest
 
 
-## Darkness rising out of the pits (they fall into nothing).
+## Darkness rising out of the pits (they fall into nothing), lit faintly in the biome's colour from
+## far below.
 class _Abyss:
 	extends Node2D
 	const DEPTH := 3.0
 	var layout: SideLayout = null
+	var glow := Color(0, 0, 0, 0)
 
 	func _draw() -> void:
 		var tile := SideRules.TILE
@@ -461,6 +585,11 @@ class _Abyss:
 			var x := column * tile
 			draw_polygon(PackedVector2Array([Vector2(x, top), Vector2(x + tile, top), Vector2(x + tile, bottom), Vector2(x, bottom)]),
 					PackedColorArray([clear, clear, dark, dark]))
+			if glow.a > 0.0:
+				var lit := (layout.size.y + 0.4) * tile
+				var faint := Color(glow, 0.0)
+				draw_polygon(PackedVector2Array([Vector2(x, lit - tile * 1.2), Vector2(x + tile, lit - tile * 1.2), Vector2(x + tile, bottom), Vector2(x, bottom)]),
+						PackedColorArray([faint, faint, glow, glow]))
 
 
 ## Surface edges (placeholder until platform_edge_<biome> exists).

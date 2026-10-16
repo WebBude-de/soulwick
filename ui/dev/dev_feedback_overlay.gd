@@ -1,20 +1,27 @@
 class_name DevFeedbackOverlay
 extends CanvasLayer
-## Full-screen dev feedback overlay (DevFeedback, F9): shows the frozen screenshot, lets the
-## developer drag numbered rectangles (left mouse; Shift + drag draws a free stroke; right click
-## removes the mark under the cursor), type a shared note and one short note per rectangle, pick
-## categories, then save (Ctrl+Enter / "Speichern") or discard (Esc / "Abbrechen").
-## Texts are German and hard-coded on purpose: this is a local developer tool that never ships in
-## a release build (DevFeedback.is_enabled), so it has no translation keys (exception to D-111).
-## auto_translate is switched off so no text is ever looked up as a key.
+## Full-screen bug report overlay (DevFeedback, # / F9 or the touch button): shows the frozen
+## screenshot, lets the player drag numbered rectangles, type a shared note and one short note per
+## rectangle, pick categories, then send (Ctrl+Enter / "Senden") or discard (Esc / "Abbrechen").
+## Desktop: left mouse drags a rectangle, Shift + drag draws a free stroke, right click removes the
+## mark under the cursor. Touch (touch_mode, phones): a finger drags a rectangle, a long press on a
+## mark removes it, the text fields open the on-screen keyboard (the panel moves above it) and the
+## buttons replace the shortcuts.
+## Every text is a translation key with fallback (DevFeedbackTexts, D-111); auto_translate is off so
+## no other text is ever looked up as a key. Categories are the keys of the API contract (ui,
+## graphics, …), shown translated. One line tells the player what is sent to the developer team;
+## before the very first send (needs_consent) a short notice has to be confirmed once.
 ## All input is swallowed while it is open: the GUI consumes mouse and focused text input, every
 ## other key is marked handled, so nothing reaches the game (no attack, no pause menu).
 
 signal submitted(note: Dictionary)
 signal cancelled
+## The player confirmed the privacy notice (DevFeedback remembers it).
+signal consent_given
 
 const LAYER := 120
-const CATEGORIES: Array[String] = ["UI", "Grafik", "Licht", "Raum/Layout", "Gameplay", "Bug", "Text"]
+## Category keys (contract BugReportCategory), in the order of the buttons.
+const CATEGORIES: Array[String] = ["ui", "graphics", "light", "layout", "gameplay", "bug", "text"]
 ## Smaller drags are taken as clicks, not as rectangles (view pixels).
 const MIN_RECT := 6.0
 const STROKE_STEP := 3.0
@@ -22,6 +29,13 @@ const REMOVE_STROKE_DISTANCE := 10.0
 ## A second Esc within this time discards a note that already has content.
 const CANCEL_CONFIRM_MSEC := 2000
 const PANEL_HEIGHT := 196.0
+## Phone layout: larger text and panel.
+const PANEL_HEIGHT_TOUCH := 244.0
+const FONT_SIZE_TOUCH := 21
+## A finger resting this long without moving removes the mark under it.
+const LONG_PRESS_MSEC := 550
+## A finger that moved less than this (view pixels) still counts as resting.
+const LONG_PRESS_MOVE := 14.0
 
 const COLOR_MARK := Color(1.0, 0.16, 0.12, 1.0)
 const COLOR_MARK_FILL := Color(1.0, 0.16, 0.12, 0.18)
@@ -36,6 +50,10 @@ const FONT_SIZE := 15
 ## Marks in view coordinates: [{rect: Rect2, note: String}]; number = index + 1.
 var marks: Array[Dictionary] = []
 var strokes: Array[PackedVector2Array] = []
+## Phone layout and finger input (set before the overlay enters the tree).
+var touch_mode := false
+## The privacy notice has to be confirmed before this send (first report of the installation).
+var needs_consent := false
 
 var _texture: Texture2D = null
 var _view_size := Vector2(1280, 720)
@@ -54,6 +72,13 @@ var _drag_start := Vector2.ZERO
 var _drag_rect := Rect2()
 var _cancel_armed_at := -100000
 var _finished := false
+var _touch_finger := -1
+var _touch_start := Vector2.ZERO
+var _touch_start_msec := 0
+var _touch_moved := false
+## How far the panel is lifted above the on-screen keyboard (view pixels).
+var _keyboard_lift := 0.0
+var _consent: Control = null
 
 
 ## image: the frozen frame; view_size: canvas size of the root viewport.
@@ -68,7 +93,15 @@ func _ready() -> void:
 	layer = LAYER
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build()
-	_text.grab_focus.call_deferred()
+	# On a phone the keyboard would cover the screenshot at once: the player taps the field.
+	if not touch_mode:
+		_text.grab_focus.call_deferred()
+
+
+func _process(_delta: float) -> void:
+	if touch_mode:
+		check_long_press(Time.get_ticks_msec())
+	_follow_keyboard()
 
 
 # --- public API (also used by the tests) -------------------------------------------------------
@@ -155,8 +188,39 @@ func build_note() -> Dictionary:
 func submit() -> void:
 	if _finished:
 		return
+	if needs_consent:
+		show_consent()
+		return
 	_finished = true
 	submitted.emit(build_note())
+
+
+## The privacy notice in front of everything (first send only).
+func show_consent() -> void:
+	if _consent == null:
+		_consent = _build_consent()
+		_root.add_child(_consent)
+	_consent.visible = true
+
+
+func is_consent_open() -> bool:
+	return _consent != null and _consent.visible
+
+
+## "Einverstanden, senden": remembered by DevFeedback, then sent.
+func confirm_consent() -> void:
+	if _finished:
+		return
+	needs_consent = false
+	if _consent != null:
+		_consent.visible = false
+	consent_given.emit()
+	submit()
+
+
+func close_consent() -> void:
+	if _consent != null:
+		_consent.visible = false
 
 
 func cancel() -> void:
@@ -166,8 +230,16 @@ func cancel() -> void:
 	cancelled.emit()
 
 
-## Mouse input on the screenshot: drag = rectangle, Shift + drag = stroke, right click = remove.
+## Input on the screenshot. Mouse: drag = rectangle, Shift + drag = stroke, right click = remove.
+## Touch mode: fingers (handle_touch_event); the mouse emulated from a finger is ignored, a real
+## mouse only counts while it does not also send touches (desktop with -- touch=1 in the menus).
 func handle_canvas_event(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		if touch_mode:
+			handle_touch_event(event)
+		return
+	if touch_mode and (event.device == InputEvent.DEVICE_ID_EMULATION or Input.emulate_touch_from_mouse):
+		return
 	if event is InputEventMouseButton:
 		var button := event as InputEventMouseButton
 		if button.button_index == MOUSE_BUTTON_LEFT:
@@ -179,6 +251,47 @@ func handle_canvas_event(event: InputEvent) -> void:
 			remove_mark_at(button.position)
 	elif event is InputEventMouseMotion and _drag_mode != 0:
 		_update_drag((event as InputEventMouseMotion).position)
+
+
+## One finger: drag = rectangle; resting LONG_PRESS_MSEC on a mark = remove it (check_long_press).
+func handle_touch_event(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		var touch := event as InputEventScreenTouch
+		if touch.pressed:
+			if _touch_finger >= 0:
+				return
+			_touch_finger = touch.index
+			_touch_start = touch.position
+			_touch_start_msec = Time.get_ticks_msec()
+			_touch_moved = false
+			_begin_drag(touch.position, false)
+		elif touch.index == _touch_finger:
+			_touch_finger = -1
+			if _drag_mode != 0:
+				_end_drag(touch.position)
+	elif event is InputEventScreenDrag:
+		var drag := event as InputEventScreenDrag
+		if drag.index != _touch_finger or _drag_mode == 0:
+			return
+		if not _touch_moved and drag.position.distance_to(_touch_start) < LONG_PRESS_MOVE:
+			return
+		_touch_moved = true
+		_update_drag(drag.position)
+
+
+## Long press: a resting finger removes the mark (or stroke) under it; true when one went.
+func check_long_press(now_msec: int) -> bool:
+	if _touch_finger < 0 or _touch_moved or _drag_mode == 0:
+		return false
+	if now_msec - _touch_start_msec < LONG_PRESS_MSEC:
+		return false
+	_drag_mode = 0
+	_drag_rect = Rect2()
+	var removed := remove_mark_at(_touch_start)
+	if removed:
+		_set_status(DevFeedbackTexts.t(&"BUG_REPORT_MARK_REMOVED"), COLOR_ACCENT)
+	_canvas.queue_redraw()
+	return removed
 
 
 # --- input -------------------------------------------------------------------------------------
@@ -218,11 +331,14 @@ func _handled() -> void:
 
 
 func _on_escape() -> void:
+	if is_consent_open():
+		close_consent()
+		return
 	if not has_content() or Time.get_ticks_msec() - _cancel_armed_at <= CANCEL_CONFIRM_MSEC:
 		cancel()
 		return
 	_cancel_armed_at = Time.get_ticks_msec()
-	_set_status("Nochmal Esc: Notiz verwerfen", COLOR_MARK)
+	_set_status(DevFeedbackTexts.t(&"BUG_REPORT_CONFIRM_DISCARD"), COLOR_MARK)
 
 
 func _begin_drag(at: Vector2, stroke: bool) -> void:
@@ -255,7 +371,8 @@ func _end_drag(at: Vector2) -> void:
 		var rect := _drag_rect.intersection(Rect2(Vector2.ZERO, _canvas.size if _canvas.size != Vector2.ZERO else _view_size))
 		if rect.size.x >= MIN_RECT and rect.size.y >= MIN_RECT:
 			add_mark(rect)
-			_focus_mark_edit(marks.size() - 1)
+			if not touch_mode:
+				_focus_mark_edit(marks.size() - 1)
 	elif mode == 2 and not strokes.is_empty() and strokes[strokes.size() - 1].size() < 2:
 		strokes.remove_at(strokes.size() - 1)
 	_canvas.queue_redraw()
@@ -269,7 +386,7 @@ func _on_canvas_draw() -> void:
 		_canvas.draw_texture_rect(_texture, area, false)
 	else:
 		_canvas.draw_rect(area, Color(0.1, 0.1, 0.12))
-	# Thin frame: the game is frozen, this is the dev tool.
+	# Thin frame: the game is frozen, this is the report tool.
 	_canvas.draw_rect(area.grow(-1.0), COLOR_ACCENT, false, 2.0)
 	var font := _canvas.get_theme_default_font()
 	for line in strokes:
@@ -315,7 +432,9 @@ func _build() -> void:
 	_root.add_child(_canvas)
 
 	var header := Label.new()
-	header.text = "DEV-FEEDBACK · Spiel pausiert · Ziehen: Rechteck · Umschalt+Ziehen: Strich · Rechtsklick: entfernen"
+	header.name = "Header"
+	header.text = "%s · %s" % [DevFeedbackTexts.t(&"BUG_REPORT_TITLE"),
+		DevFeedbackTexts.t(&"BUG_REPORT_HINT_TOUCH" if touch_mode else &"BUG_REPORT_HINT_DESKTOP")]
 	header.add_theme_color_override(&"font_color", COLOR_ACCENT)
 	header.add_theme_stylebox_override(&"normal", _box(Color(0.0, 0.0, 0.0, 0.6), Color(0, 0, 0, 0), 0))
 	header.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -340,12 +459,13 @@ func _build() -> void:
 	category_row.add_theme_constant_override(&"separation", 4)
 	column.add_child(category_row)
 	var category_label := Label.new()
-	category_label.text = "Kategorie:"
+	category_label.text = DevFeedbackTexts.t(&"BUG_REPORT_CATEGORY")
 	category_label.add_theme_color_override(&"font_color", COLOR_MUTED)
 	category_row.add_child(category_label)
 	for category in CATEGORIES:
 		var button := Button.new()
-		button.text = category
+		button.name = "Category_" + category
+		button.text = DevFeedbackTexts.category_label(category)
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		category_row.add_child(button)
@@ -354,7 +474,7 @@ func _build() -> void:
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	category_row.add_child(spacer)
 	_status = Label.new()
-	_status.text = "Strg+Enter: speichern · Esc: abbrechen"
+	_status.text = "" if touch_mode else DevFeedbackTexts.t(&"BUG_REPORT_SHORTCUTS")
 	_status.add_theme_color_override(&"font_color", COLOR_MUTED)
 	category_row.add_child(_status)
 
@@ -364,7 +484,7 @@ func _build() -> void:
 	column.add_child(body)
 	_text = TextEdit.new()
 	_text.name = "Note"
-	_text.placeholder_text = "Was ist hier nicht gut? (gemeinsame Notiz, mehrzeilig)"
+	_text.placeholder_text = DevFeedbackTexts.t(&"BUG_REPORT_NOTE_PLACEHOLDER")
 	_text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_text.size_flags_stretch_ratio = 3.0
@@ -388,17 +508,27 @@ func _build() -> void:
 	buttons.alignment = BoxContainer.ALIGNMENT_END
 	buttons.add_theme_constant_override(&"separation", 6)
 	column.add_child(buttons)
+	var privacy := Label.new()
+	privacy.name = "Privacy"
+	privacy.text = DevFeedbackTexts.t(&"BUG_REPORT_PRIVACY")
+	privacy.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	privacy.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	privacy.add_theme_color_override(&"font_color", COLOR_MUTED)
+	privacy.add_theme_font_size_override(&"font_size", _font_size() - 2)
+	buttons.add_child(privacy)
 	_side_button = Button.new()
 	_side_button.focus_mode = Control.FOCUS_NONE
 	_side_button.pressed.connect(_toggle_panel_side)
 	buttons.add_child(_side_button)
 	var cancel_button := Button.new()
-	cancel_button.text = "Abbrechen"
+	cancel_button.name = "Cancel"
+	cancel_button.text = DevFeedbackTexts.t(&"BUG_REPORT_CANCEL")
 	cancel_button.focus_mode = Control.FOCUS_NONE
 	cancel_button.pressed.connect(cancel)
 	buttons.add_child(cancel_button)
 	var save_button := Button.new()
-	save_button.text = "Speichern"
+	save_button.name = "Send"
+	save_button.text = DevFeedbackTexts.t(&"BUG_REPORT_SEND")
 	save_button.focus_mode = Control.FOCUS_NONE
 	save_button.add_theme_color_override(&"font_color", COLOR_ACCENT)
 	save_button.pressed.connect(submit)
@@ -407,15 +537,64 @@ func _build() -> void:
 	_rebuild_mark_list()
 
 
+## Dimmed full screen with a centred box: title, notice, "Zurück" and "Einverstanden, senden".
+func _build_consent() -> Control:
+	var shade := ColorRect.new()
+	shade.name = "Consent"
+	shade.color = Color(0.0, 0.0, 0.0, 0.6)
+	shade.mouse_filter = Control.MOUSE_FILTER_STOP
+	shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	shade.add_child(center)
+	var box := PanelContainer.new()
+	box.custom_minimum_size = Vector2(620.0 if not touch_mode else 760.0, 0.0)
+	center.add_child(box)
+	var margin := MarginContainer.new()
+	for side: StringName in [&"margin_left", &"margin_right", &"margin_top", &"margin_bottom"]:
+		margin.add_theme_constant_override(side, 16)
+	box.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override(&"separation", 12)
+	margin.add_child(column)
+	var title := Label.new()
+	title.text = DevFeedbackTexts.t(&"BUG_REPORT_CONSENT_TITLE")
+	title.add_theme_color_override(&"font_color", COLOR_ACCENT)
+	column.add_child(title)
+	var text := Label.new()
+	text.text = DevFeedbackTexts.t(&"BUG_REPORT_CONSENT_TEXT")
+	text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(text)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_END
+	buttons.add_theme_constant_override(&"separation", 8)
+	column.add_child(buttons)
+	var back := Button.new()
+	back.name = "ConsentBack"
+	back.text = DevFeedbackTexts.t(&"BUG_REPORT_CONSENT_BACK")
+	back.focus_mode = Control.FOCUS_NONE
+	back.pressed.connect(close_consent)
+	buttons.add_child(back)
+	var ok := Button.new()
+	ok.name = "ConsentOk"
+	ok.text = DevFeedbackTexts.t(&"BUG_REPORT_CONSENT_OK")
+	ok.focus_mode = Control.FOCUS_NONE
+	ok.add_theme_color_override(&"font_color", COLOR_ACCENT)
+	ok.pressed.connect(confirm_consent)
+	buttons.add_child(ok)
+	return shade
+
+
 func _place_panel() -> void:
+	var height := _panel_height()
 	if _panel_on_top:
 		_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 		_panel.offset_top = 30.0
-		_panel.offset_bottom = 30.0 + PANEL_HEIGHT
+		_panel.offset_bottom = 30.0 + height
 	else:
 		_panel.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		_panel.offset_top = -PANEL_HEIGHT
-		_panel.offset_bottom = 0.0
+		_panel.offset_top = -height - _keyboard_lift
+		_panel.offset_bottom = -_keyboard_lift
 	_panel.offset_left = 0.0
 	_panel.offset_right = 0.0
 
@@ -427,7 +606,28 @@ func _toggle_panel_side() -> void:
 
 
 func _update_side_button() -> void:
-	_side_button.text = "Leiste nach unten" if _panel_on_top else "Leiste nach oben"
+	_side_button.text = DevFeedbackTexts.t(&"BUG_REPORT_PANEL_DOWN" if _panel_on_top else &"BUG_REPORT_PANEL_UP")
+
+
+func _panel_height() -> float:
+	return PANEL_HEIGHT_TOUCH if touch_mode else PANEL_HEIGHT
+
+
+func _font_size() -> int:
+	return FONT_SIZE_TOUCH if touch_mode else FONT_SIZE
+
+
+## Phones: the bottom panel rides above the on-screen keyboard while it is open.
+func _follow_keyboard() -> void:
+	var lift := 0.0
+	if not _panel_on_top and DisplayServer.has_feature(DisplayServer.FEATURE_VIRTUAL_KEYBOARD):
+		var keyboard := DisplayServer.virtual_keyboard_get_height()
+		var window_height := float(DisplayServer.window_get_size().y)
+		if keyboard > 0 and window_height > 0.0:
+			lift = clampf(keyboard * _view_size.y / window_height, 0.0, _view_size.y - _panel_height() - 30.0)
+	if not is_equal_approx(lift, _keyboard_lift):
+		_keyboard_lift = lift
+		_place_panel()
 
 
 func _rebuild_mark_list() -> void:
@@ -436,7 +636,7 @@ func _rebuild_mark_list() -> void:
 	# Rebuilt on add/remove only (never from a row's own signal), so freeing at once is safe.
 	for child in _mark_box.get_children():
 		child.free()
-	_mark_hint.text = "Notiz je Markierung (optional):" if not marks.is_empty() else "Noch keine Markierung: Rechteck aufziehen"
+	_mark_hint.text = DevFeedbackTexts.t(&"BUG_REPORT_MARKS_HINT" if not marks.is_empty() else &"BUG_REPORT_MARKS_EMPTY")
 	for i in marks.size():
 		var row := HBoxContainer.new()
 		var number := Label.new()
@@ -446,7 +646,7 @@ func _rebuild_mark_list() -> void:
 		row.add_child(number)
 		var edit := LineEdit.new()
 		edit.text = str(marks[i]["note"])
-		edit.placeholder_text = "kurze Notiz zu %d" % (i + 1)
+		edit.placeholder_text = DevFeedbackTexts.t(&"BUG_REPORT_MARK_PLACEHOLDER") % (i + 1)
 		edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		edit.text_changed.connect(func(value: String) -> void: _on_mark_note_changed(row, value))
 		row.add_child(edit)
@@ -479,7 +679,7 @@ func _set_status(text: String, color: Color) -> void:
 
 func _make_theme() -> Theme:
 	var theme := Theme.new()
-	theme.default_font_size = FONT_SIZE
+	theme.default_font_size = _font_size()
 	var panel := _box(COLOR_PANEL, Color(COLOR_ACCENT, 0.6), 1)
 	theme.set_stylebox(&"panel", &"PanelContainer", panel)
 	var normal := _box(Color(0.16, 0.14, 0.22), Color(0.35, 0.32, 0.45), 1)

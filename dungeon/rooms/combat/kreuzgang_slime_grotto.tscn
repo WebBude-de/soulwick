@@ -82,9 +82,6 @@ metadata/floor_tile = Vector2i(14, 6)
 metadata/wall_side = -1
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(192, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(896, -64)
 
 [node name="Candles1" type="Node2D" parent="Props"]
@@ -103,6 +100,7 @@ position = Vector2(256, 56)
 script = ExtResource("3_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(3, 0), Vector2i(4, 0)])
+solid_span = Vector2(-40, 40)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -111,6 +109,7 @@ script = ExtResource("3_deco")
 item = &"group_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(11, 7), Vector2i(12, 7)])
+solid_span = Vector2(-42, 42)
 biome = &"slime_grotto"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -119,6 +118,7 @@ script = ExtResource("3_deco")
 item = &"group_3"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(16, 5), Vector2i(17, 5)])
+solid_span = Vector2(-48, 50)
 biome = &"slime_grotto"
 
 [node name="Ingredients" type="Node2D" parent="."]

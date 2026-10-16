@@ -155,12 +155,6 @@ metadata/objective_kind = &"soul"
 metadata/tile = Vector2i(18, 8)
 
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(256, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("2_torch")]
-position = Vector2(768, -64)
-
-[node name="Torch3" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(1344, -64)
 
 [node name="Ingredients" type="Node2D" parent="."]

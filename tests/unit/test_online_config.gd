@@ -78,8 +78,8 @@ func test_session_is_stored_per_api_and_cleared() -> void:
 
 
 func test_game_version_and_platform() -> void:
-	assert_eq(OnlineConfig.get_game_version(), "0.9.0")
-	assert_has(["windows", "linux", "macos", "android", "ios"], OnlineConfig.get_platform())
+	assert_eq(OnlineConfig.get_game_version(), "0.9.1")
+	assert_has(["windows", "linux", "macos", "android", "ios", "web"], OnlineConfig.get_platform())
 
 
 func test_iso_time() -> void:

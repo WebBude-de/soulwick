@@ -51,7 +51,7 @@ const INFO := {
 	GUILD: {
 		"name": &"VILLAGE_GUILD",
 		"role": &"VILLAGE_GUILD_ROLE",
-		"hints": [&"VILLAGE_GUILD_HINT_1"],
+		"hints": [&"VILLAGE_GUILD_HINT_1", &"VILLAGE_GUILD_HINT_2"],
 		"prompt": &"VILLAGE_GUILD_ENTER",
 		"npc_frames": "res://art/characters/npcs/guild_master_frames.tres",
 		"sign": "res://art/ui/sign_guild.png",

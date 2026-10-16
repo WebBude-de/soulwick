@@ -5,7 +5,13 @@ extends RefCounted
 ## r<mask>, 8-bit neighbour mask N=1 NE=2 E=4 SE=8 S=16 SW=32 W=64 NW=128, bit = neighbour is solid,
 ## a corner bit only where both of its sides are solid) plus four fronts (left, middle, right,
 ## single) on every solid tile with floor right below it. Every border between floor and solid gets
-## the same edge, outer and inner corners included (no missing corner bits).
+## the same edge, outer and inner corners included (no missing corner bits). A front belongs to the
+## edge too (playtest 15.10.2026, notes 4/7/10: "rounding at the front too", "the light edge belongs on
+## top"): every front starts with the same light band as an edge (its top line, drawn in the front
+## piece, so it never depends on which room owns the crown row above it), the side wall beside a
+## front gets its edge up to that line with a joint, and where a block ends the crown's edge turns
+## round into the line (crown variant with a rounded foot, the front face shows in the corner). A
+## front only ends round where floor lies beside it; against rock it runs square into that edge.
 ## Two looks share the rule:
 ##   CAVE     cave rooms (plan rock: blob): the soft set (crypt_soft or its palette swap, SOFT_BIOMES)
 ##            with its seamless floor, zone floors and the flat rock around the room;
@@ -21,7 +27,8 @@ extends RefCounted
 ##
 ## Like WallAutotile (10) and AbyssAutotile (11) the pieces live in extra atlas sources that are
 ## added to a biome TileSet at runtime (never saved, never in the editor):
-##   20 / 24  rock pieces of the cave / masonry look (8 x 7, order of the delivered sheet)
+##   20 / 24  rock pieces of the cave / masonry look (8 columns: the delivered sheet's 47 pieces and
+##            4 fronts, 3 fillets, then the variants of every piece, variant_coords)
 ##   21       cave floor: row 0 = four floor variants with navigation; row 1 = an invisible solid
 ##            tile (collision on physics layer 0, no navigation) for every solid cell of both looks
 ##   22 / 26  zone floors (slab, cobble, dirt, rubble; row = zone) in 16 frayed variants (column =
@@ -43,8 +50,24 @@ const TILES_DIR := "res://art/environment/tiles/"
 ## Ground atlas of the biome tilesets (RoomTiles, source 0): plain floor and wall top.
 const GROUND_FLOOR := Vector2i(0, 0)
 const GROUND_WALL_TOP := Vector2i(4, 0)
-## Invisible solid tile on SOURCE_GROUND.
+## Invisible solid tile on SOURCE_GROUND (square collision); the other columns of its row round some
+## corners (solid_coords).
 const SOLID := Vector2i(0, 1)
+## Rounded collision corners (bits, column of the solid tile) and the arc: radius in art px like the
+## rock's outer corners, segments per arc (TESTWERT, feel).
+const CORNER_TL := 1
+const CORNER_TR := 2
+const CORNER_BR := 4
+const CORNER_BL := 8
+const SOLID_VARIANTS := 16
+const COLLISION_RADIUS := 8.0
+const COLLISION_STEPS := 4
+## Row of the solid tiles of a lip (rock with floor north of it, see is_lip): their collision starts
+## LIP_WALK art px below the tile's top, so characters walk a bit behind the rock's top edge and the
+## lip, drawn above them (RoomTiles lip sprites), hides their feet and shadow (playtest 15.10.2026,
+## note 17: "the shadow lies on top of the wall"). TESTWERT
+const SOLID_LIP_ROW := 2
+const LIP_WALK := 12
 
 ## Per biome: true = the soft set for caves (crypt_soft or its palette swap by
 ## tools/build_tilesets.gd), false = the delivered biome set (rock_blob_<biome>, the biome's floor,
@@ -106,6 +129,19 @@ const INNER_SHEET := "rock_blob_%s_soft_inner.png"
 const FILL_NAMES: Array[String] = ["fill_left", "fill_right", "fill_both"]
 ## Top edge piece (floor north of it) the band colours are read from.
 const BAND_SAMPLE_MASK := E | SE | S | SW | W
+## Rows of the light top line of the delivered cave fronts (taken off for the plain face of an abyss)
+## and the radius of the rounded foot where a block's crown turns into its front's top line (art px,
+## like the delivered outer corners).
+const FRONT_CAP := 2
+const FOOT_CORNER := 8
+## Variant bits of a crown piece (variant_coords): a rounded foot where its edge turns into the top
+## line of the front below it (left / right end of that front), a joint where its side edge meets the
+## top line of a front beside it (left / right).
+const FOOT_LEFT := 1
+const FOOT_RIGHT := 2
+const JOINT_LEFT := 4
+const JOINT_RIGHT := 8
+const VARIANTS := 16
 
 static var _mask_index: Dictionary[int, int] = {}
 
@@ -126,6 +162,19 @@ static func front_coords(front: Front) -> Vector2i:
 static func fillet_coords(bits: int) -> Vector2i:
 	var index := MASKS.size() + Front.size() + clampi(bits, 1, 3) - 1
 	return Vector2i(index % SHEET_COLUMNS, index / SHEET_COLUMNS)
+
+
+## Atlas coords of a piece with variant bits (FOOT_* | JOINT_*, 0 = the plain piece).
+static func variant_coords(mask: int, bits: int) -> Vector2i:
+	if bits <= 0:
+		return rock_coords(mask)
+	var index := MASKS.size() + Front.size() + 3 + (clampi(bits, 1, VARIANTS - 1) - 1) * MASKS.size() + _index_of(normalize(mask))
+	return Vector2i(index % SHEET_COLUMNS, index / SHEET_COLUMNS)
+
+
+## Number of atlas slots of a rock source (pieces, fronts, fillets, variants).
+static func sheet_slots() -> int:
+	return MASKS.size() + Front.size() + 3 + (VARIANTS - 1) * MASKS.size()
 
 
 ## Fillets of a floor tile: a lower corner between rock on the side and rock below (both drawn as
@@ -162,38 +211,63 @@ static func _index_of(mask: int) -> int:
 	return _mask_index.get(mask, MASKS.size() - 1)
 
 
-## Neighbour mask of a solid tile from the floor mask (keys = floor; everything else is solid,
-## fronts included, so the crown above a front runs into it without an edge).
+## Neighbour mask of a solid tile from the floor mask (keys = floor; everything else is solid). The
+## crown above a front runs into it (the front draws its own top line); a front right beside the tile
+## (west or east) counts as open: the side wall gets its edge up to the top line of that front.
 static func mask_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> int:
 	var mask := 0
 	var bits: Array[int] = [N, NE, E, SE, S, SW, W, NW]
 	var offsets: Array[Vector2i] = [Vector2i(0, -1), Vector2i(1, -1), Vector2i(1, 0), Vector2i(1, 1), Vector2i(0, 1), Vector2i(-1, 1), Vector2i(-1, 0), Vector2i(-1, -1)]
 	for i in bits.size():
-		if not floor_mask.has(tile + offsets[i]):
+		var open := floor_mask.has(tile + offsets[i])
+		if bits[i] == E or bits[i] == W:
+			open = is_open(tile + offsets[i], floor_mask)
+		if not open:
 			mask |= bits[i]
 	return normalize(mask)
 
 
+## Floor or a front: what a side wall draws its edge towards.
+static func is_open(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
+	return floor_mask.has(tile) or WallAutotile.is_front(tile, floor_mask)
+
+
+## Variant bits of a solid tile that is no front (FOOT_* | JOINT_*): a crown over a front whose end
+## lies under the crown's open side turns its edge round into the front's top line; a side wall next
+## to a front joins its edge to that line (only below rock, not at an outer corner).
+static func variant_bits(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> int:
+	var bits := 0
+	var below := tile + Vector2i.DOWN
+	var mask := mask_for(tile, floor_mask)
+	for side: Array in [[Vector2i.LEFT, FOOT_LEFT, JOINT_LEFT], [Vector2i.RIGHT, FOOT_RIGHT, JOINT_RIGHT]]:
+		var step: Vector2i = side[0]
+		if WallAutotile.is_front(below, floor_mask) and is_open(tile + step, floor_mask) and floor_mask.has(below + step):
+			bits |= int(side[1])
+		if mask & N and WallAutotile.is_front(tile + step, floor_mask):
+			bits |= int(side[2])
+	return bits
+
+
 ## Atlas coords of a solid tile. Fronts: solid with floor right below it and solid above it
-## (WallAutotile.is_front), ending with a rounded corner where the front really ends: floor beside it
-## or rock that is no front (a step back to a deeper front, the side wall; playtest 15.10.2026).
-## faces: abyss tiles drawn with the same rock face in the same row (RoomTiles.get_cliff_faces); a
-## front runs on into them without an end.
-static func piece_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], faces: Dictionary[Vector2i, bool] = {}) -> Vector2i:
+## (WallAutotile.is_front), ending with a rounded corner only where floor lies beside it; against rock
+## (the side wall, a step back to a deeper front) it runs square into that rock's edge, which goes up
+## to the top of the front (playtest 15.10.2026, notes 4 and 10).
+static func piece_for(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> Vector2i:
 	if WallAutotile.is_front(tile, floor_mask):
-		var left := not WallAutotile.is_front(tile + Vector2i.LEFT, floor_mask) and not faces.has(tile + Vector2i.LEFT)
-		var right := not WallAutotile.is_front(tile + Vector2i.RIGHT, floor_mask) and not faces.has(tile + Vector2i.RIGHT)
+		var left := floor_mask.has(tile + Vector2i.LEFT)
+		var right := floor_mask.has(tile + Vector2i.RIGHT)
 		if left and right:
 			return front_coords(Front.SINGLE)
 		if left:
 			return front_coords(Front.LEFT)
 		return front_coords(Front.RIGHT) if right else front_coords(Front.MIDDLE)
-	return rock_coords(mask_for(tile, floor_mask))
+	return variant_coords(mask_for(tile, floor_mask), variant_bits(tile, floor_mask))
 
 
-## Is the solid tile fully enclosed (no floor in its 8 neighbours)? Those stay to the backdrop.
+## Is the solid tile fully enclosed (no floor in its 8 neighbours, no front beside it)? Those stay to
+## the backdrop.
 static func is_enclosed(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
-	return not WallAutotile.is_front(tile, floor_mask) and mask_for(tile, floor_mask) == FULL
+	return not WallAutotile.is_front(tile, floor_mask) and mask_for(tile, floor_mask) == FULL and variant_bits(tile, floor_mask) == 0
 
 
 ## Cave floor variant (0-3) on SOURCE_GROUND.
@@ -315,22 +389,21 @@ static func ensure_sources(tileset: TileSet) -> bool:
 	return true
 
 
-static var _cliffs: Dictionary[StringName, Texture2D] = {}
+static var _faces: Dictionary[StringName, Image] = {}
 
 
-## Rock face under the north edge of an abyss in a cave (the fronts of the cave set, 4 x 1 in the
-## order left, middle, right, single, like abyss_cliff_<biome>); null without the art.
-static func cliff_texture(biome_id: StringName) -> Texture2D:
-	if _cliffs.has(biome_id):
-		return _cliffs[biome_id]
+## The plain rock face of a biome's cave fronts (middle piece, top line taken off, 32 x 32): the
+## rock under the north edge of an abyss (AbyssFace). Null without the art.
+static func face_image(biome_id: StringName) -> Image:
+	if _faces.has(biome_id):
+		return _faces[biome_id]
 	var sheet := _load_image(art_paths(biome_id, Look.CAVE)["rock"])
 	if sheet == null:
 		return null
-	var image := Image.create_empty(TILE * Front.size(), TILE, false, Image.FORMAT_RGBA8)
-	for front in Front.size():
-		image.blit_rect(sheet, Rect2i(front_coords(front) * TILE, Vector2i(TILE, TILE)), Vector2i(front * TILE, 0))
-	_cliffs[biome_id] = ImageTexture.create_from_image(image)
-	return _cliffs[biome_id]
+	_strip_front_tops(sheet, band_colors(sheet))
+	var image := sheet.get_region(Rect2i(front_coords(Front.MIDDLE) * TILE, Vector2i(TILE, TILE)))
+	_faces[biome_id] = image
+	return image
 
 
 static func has_look(tileset: TileSet, look: Look) -> bool:
@@ -339,13 +412,14 @@ static func has_look(tileset: TileSet, look: Look) -> bool:
 
 static func _add_rock_source(tileset: TileSet, id: int, image: Image) -> void:
 	var source := _add_source(tileset, id, image)
-	for i in MASKS.size() + Front.size() + 3:
+	for i in sheet_slots():
 		source.create_tile(Vector2i(i % SHEET_COLUMNS, i / SHEET_COLUMNS))
 
 
-## Cave floor (row 0, navigation) and the invisible solid tile (row 1, collision).
+## Cave floor (row 0, navigation) and the invisible solid tiles (row 1, collision): column = corner
+## bits of the rounded collision (solid_corners).
 static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
-	var image := Image.create_empty(TILE * 4, TILE * 2, false, Image.FORMAT_RGBA8)
+	var image := Image.create_empty(TILE * SOLID_VARIANTS, TILE * 3, false, Image.FORMAT_RGBA8)
 	image.blit_rect(floor_image, Rect2i(0, 0, TILE * 4, TILE), Vector2i.ZERO)
 	var source := _add_source(tileset, SOURCE_GROUND, image)
 	var half := TILE / 2.0
@@ -357,11 +431,66 @@ static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
 			navigation.vertices = box
 			navigation.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 			source.get_tile_data(Vector2i(x, 0), 0).set_navigation_polygon(0, navigation)
-	source.create_tile(SOLID)
-	if tileset.get_physics_layers_count() > 0:
-		var data := source.get_tile_data(SOLID, 0)
-		data.add_collision_polygon(0)
-		data.set_collision_polygon_points(0, 0, box)
+	for lip in [false, true]:
+		for bits in SOLID_VARIANTS:
+			var coords := solid_coords(bits, lip)
+			source.create_tile(coords)
+			if tileset.get_physics_layers_count() > 0:
+				var data := source.get_tile_data(coords, 0)
+				data.add_collision_polygon(0)
+				data.set_collision_polygon_points(0, 0, solid_polygon(bits, lip))
+
+
+## Collision of a solid tile (tile space, centred): the square with the corners of bits rounded; a
+## lip starts LIP_WALK below the top (its upper corners are cut off with it).
+static func solid_polygon(bits: int, lip := false) -> PackedVector2Array:
+	var half := TILE / 2.0
+	var points := PackedVector2Array()
+	# Clockwise from the top-left corner: [bit, corner, start angle of its arc (degrees)].
+	for corner: Array in [[CORNER_TL, Vector2(-half, -half), 180.0], [CORNER_TR, Vector2(half, -half), 270.0], [CORNER_BR, Vector2(half, half), 0.0], [CORNER_BL, Vector2(-half, half), 90.0]]:
+		var point: Vector2 = corner[1]
+		if lip and point.y < 0.0:
+			points.append(Vector2(point.x, -half + LIP_WALK))
+			continue
+		if not bits & int(corner[0]):
+			points.append(point)
+			continue
+		var center := point - point.sign() * COLLISION_RADIUS
+		for step in COLLISION_STEPS + 1:
+			var angle := deg_to_rad(float(corner[2]) + 90.0 * step / COLLISION_STEPS)
+			points.append(center + Vector2(cos(angle), sin(angle)) * COLLISION_RADIUS)
+	return points
+
+
+## Atlas coords of the solid tile with these rounded corners (bits CORNER_TL | CORNER_TR | ...),
+## lip: the shortened collision of a lip.
+static func solid_coords(bits: int, lip := false) -> Vector2i:
+	return Vector2i(clampi(bits, 0, SOLID_VARIANTS - 1), SOLID_LIP_ROW if lip else SOLID.y)
+
+
+## Is the cell one of the invisible solid tiles (any corner variant, lip or not)?
+static func is_solid_cell(source_id: int, coords: Vector2i) -> bool:
+	return source_id == SOURCE_GROUND and (coords.y == SOLID.y or coords.y == SOLID_LIP_ROW)
+
+
+## A lip: rock that is no front with floor right north of it (the top edge of a block, of the south
+## wall, of a ledge). Characters may walk LIP_WALK into it from the north and are drawn behind it.
+## not_lips: floor cells that do not count (door corridors: the door art lies there).
+static func is_lip(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], not_lips: Dictionary[Vector2i, bool] = {}) -> bool:
+	var north := tile + Vector2i.UP
+	return not floor_mask.has(tile) and floor_mask.has(north) and not not_lips.has(north) and not WallAutotile.is_front(tile, floor_mask)
+
+
+## Corners of a solid tile whose collision is rounded like its art: an outer corner, the two tiles
+## beside it and the one across it open (floor, abyss, corridor). Characters slide round a block
+## instead of catching on its square corner (playtest 15.10.2026: "collision a bit weird").
+static func solid_corners(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> int:
+	var bits := 0
+	for corner: Array in [[CORNER_TL, Vector2i(-1, -1)], [CORNER_TR, Vector2i(1, -1)], [CORNER_BR, Vector2i(1, 1)], [CORNER_BL, Vector2i(-1, 1)]]:
+		var d: Vector2i = corner[1]
+		if floor_mask.has(tile + Vector2i(d.x, 0)) and floor_mask.has(tile + Vector2i(0, d.y)) and floor_mask.has(tile + d):
+			bits |= int(corner[0])
+	return bits
 
 
 ## Four floor tiles with navigation on their own source (soft masonry).
@@ -380,16 +509,97 @@ static func _add_floor_source(tileset: TileSet, id: int, floor_image: Image) -> 
 
 ## Every piece of sheet laid over floor (the floor shows where the piece is transparent).
 static func compose_rock(sheet: Image, floor_tile: Image, inner: Dictionary = {}) -> Image:
-	var result := Image.create_empty(sheet.get_width(), sheet.get_height(), false, Image.FORMAT_RGBA8)
-	for y in sheet.get_height() / TILE:
-		for x in sheet.get_width() / TILE:
+	var rows := ceili(float(sheet_slots()) / SHEET_COLUMNS)
+	var result := Image.create_empty(SHEET_COLUMNS * TILE, rows * TILE, false, Image.FORMAT_RGBA8)
+	for y in rows:
+		for x in SHEET_COLUMNS:
 			result.blit_rect(floor_tile, Rect2i(0, 0, TILE, TILE), Vector2i(x, y) * TILE)
 	result.blend_rect(sheet, Rect2i(Vector2i.ZERO, sheet.get_size()), Vector2i.ZERO)
 	var band := band_colors(sheet)
 	var delivered: Dictionary = inner.get("pieces", {})
+	# The fronts as delivered, side by side (left, middle, right, single): the face shown outside the
+	# rounded foot.
+	var faces := Image.create_empty(TILE * Front.size(), TILE, false, Image.FORMAT_RGBA8)
+	for front in Front.size():
+		faces.blit_rect(result, Rect2i(front_coords(front) * TILE, Vector2i(TILE, TILE)), Vector2i(front * TILE, 0))
 	_draw_inner_corners(result, band, delivered)
 	_draw_fillets(result, band, delivered)
+	_draw_variants(result, band, faces)
+	_band_front_tops(result, band, faces)
 	return result
+
+
+## Every front starts with the light band of an edge (rows from the top: middle, middle, light,
+## light - the same order as the edge of a crown towards the floor below it). A front's end against
+## floor bends the band round (the lower half of the rounded foot, the crown above holds the upper
+## half), the face shows outside the curve.
+static func _band_front_tops(image: Image, band: Array[Color], faces: Image) -> void:
+	for front in Front.size():
+		var origin := front_coords(front) * TILE
+		var left := front == Front.LEFT or front == Front.SINGLE
+		var right := front == Front.RIGHT or front == Front.SINGLE
+		for y in BAND:
+			for x in TILE:
+				var color: Color = band[BAND - 1 - y]
+				for end: Array in [[left, FOOT_CORNER], [right, TILE - FOOT_CORNER]]:
+					var center_x: int = end[1]
+					if not end[0] or (x >= center_x if center_x == FOOT_CORNER else x < center_x):
+						continue
+					var d := Vector2(x + 0.5 - center_x, y + 0.5 + BAND).length()
+					var ring := FOOT_CORNER - d
+					color = band[clampi(int(ring), 0, BAND - 1)] if ring > 0.0 else faces.get_pixel(front * TILE + x, y + BAND)
+				image.set_pixel(origin.x + x, origin.y + y, color)
+
+
+## The variants of every piece (variant_coords): the plain piece with a rounded foot (the upper half
+## of the turn into a front's top line; the front face outside the curve) and/or a joint (the side
+## edge turning into the top line of the front beside it).
+static func _draw_variants(image: Image, band: Array[Color], faces: Image) -> void:
+	var single := Front.SINGLE * TILE
+	for i in MASKS.size():
+		var mask := MASKS[i]
+		var base := rock_coords(mask) * TILE
+		var fill := image.get_pixel(base.x + TILE / 2, base.y + TILE / 2)
+		var piece := image.get_region(Rect2i(base, Vector2i(TILE, TILE)))
+		for bits in range(1, VARIANTS):
+			var origin := variant_coords(mask, bits) * TILE
+			image.blit_rect(piece, Rect2i(0, 0, TILE, TILE), origin)
+			for foot: Array in [[FOOT_LEFT, FOOT_CORNER, 0], [FOOT_RIGHT, TILE - FOOT_CORNER, TILE - FOOT_CORNER]]:
+				if not bits & int(foot[0]):
+					continue
+				var center := Vector2(int(foot[1]), TILE - BAND)
+				for y in range(TILE - BAND, TILE):
+					for x in range(int(foot[2]), int(foot[2]) + FOOT_CORNER):
+						var d := Vector2(x + 0.5, y + 0.5).distance_to(center)
+						var color := fill
+						if d >= FOOT_CORNER:
+							color = faces.get_pixel(single + x, y - (TILE - BAND) + BAND)
+						elif d >= FOOT_CORNER - BAND:
+							color = band[clampi(int(FOOT_CORNER - d), 0, BAND - 1)]
+						image.set_pixel(origin.x + x, origin.y + y, color)
+			for joint: Array in [[JOINT_LEFT, 0], [JOINT_RIGHT, TILE]]:
+				if not bits & int(joint[0]):
+					continue
+				var corner := Vector2(int(joint[1]), BAND)
+				for y in BAND:
+					for x in range(0, BAND) if int(joint[1]) == 0 else range(TILE - BAND, TILE):
+						var ring := int(Vector2(x + 0.5, y + 0.5).distance_to(corner))
+						image.set_pixel(origin.x + x, origin.y + y, band[ring] if ring < BAND else fill)
+
+
+## The plain rock face of the delivered cave fronts: their light top line (the band's middle colour)
+## gives way to the face below it. Fronts with another top (the brick cap of masonry) stay.
+static func _strip_front_tops(image: Image, band: Array[Color]) -> void:
+	var line := band[BAND / 2]
+	for front in Front.size():
+		var origin := front_coords(front) * TILE
+		var top := image.get_pixel(origin.x + TILE / 2, origin.y)
+		if not Color(top.r, top.g, top.b).is_equal_approx(Color(line.r, line.g, line.b)):
+			continue
+		for y in FRONT_CAP:
+			for x in TILE:
+				image.set_pixel(origin.x + x, origin.y + y, image.get_pixel(origin.x + x, origin.y + FRONT_CAP + y))
+
 
 
 ## The delivered inner corner set of a biome (rock_blob_<biome>_soft_inner, SPRITES_V9 §1), fitted to

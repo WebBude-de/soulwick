@@ -10,9 +10,17 @@ extends Node
 ## - Client, other players: RemoteInput from the synced input (walk/dash animations come from the
 ##   normal player code) plus a soft pull towards the synced position.
 ## Interact is never sent or applied for other players: doors open only for the player at a machine.
-## Side-view segments (M5): velocity and the side state (ladder, ground, jump, pit, facing) travel
-## too; other players replay them with gravity (PlayerSideMotion.apply_remote_state), the own
-## player is corrected only while it stands on the ground.
+## Side-view segments (M5): velocity and the side state (ladder, ground, jump, pit, facing, wall
+## slide, double jump used) travel too; other players replay them with gravity
+## (PlayerSideMotion.apply_remote_state / apply_remote_air_state; their jumps and landings are the
+## host's, NetSide.side_move_net), the own player is corrected only while it stands on the ground.
+## Weapons (online test 15.10.2026): the active weapon slot is state, not a replayed toggle. It
+## travels in the same bits as the held actions (ACTIVE_SLOT_*), so an attack in a packet always
+## runs with the weapon its owner held: the owner's machine decides it (own player: this machine;
+## the host takes a client's slot from its input), every other copy follows. The weapon-switch
+## button is never replayed - two copies that toggled from different states (a press during a room
+## intro that locks only one copy, a loadout plus the replayed press) showed the other weapon for
+## the rest of the run. The weapons in the slots come from NetDungeon (loadout, submit_weapon).
 
 const NODE_NAME := &"NetState"
 const SYNCED_PROPERTIES: Array[StringName] = [&"pos", &"move", &"aim", &"held", &"vel", &"side"]
@@ -27,6 +35,13 @@ const SELF_CORRECTION_RATE := 8.0
 ## TESTWERT: input is sent on change and at least every N physics frames.
 const SEND_EVERY_FRAMES := 10
 const INTERACT_BIT := 1 << 4
+## Weapon switch (PlayerInput.SWITCH_WEAPON): sent, never replayed (the active slot travels instead).
+const SWITCH_BIT := 1 << 3
+## Held actions a copy replays: everything but interact and the weapon switch.
+const REPLAY_MASK := ~(INTERACT_BIT | SWITCH_BIT)
+## Active weapon slot + 1 in bits 8..10 of held (0 = unknown, keep the copy's slot).
+const ACTIVE_SLOT_SHIFT := 8
+const ACTIVE_SLOT_MASK := 0b111 << ACTIVE_SLOT_SHIFT
 ## Bits of side (M5).
 const SIDE_ACTIVE := 1
 const SIDE_CLIMBING := 1 << 1
@@ -34,6 +49,10 @@ const SIDE_ON_FLOOR := 1 << 2
 const SIDE_JUMPING := 1 << 3
 const SIDE_IN_PIT := 1 << 4
 const SIDE_FACING_LEFT := 1 << 5
+## Air state of the side view (double jump, wall slide): the host decides, copies show it.
+const SIDE_WALL_SLIDING := 1 << 6
+const SIDE_WALL_RIGHT := 1 << 7
+const SIDE_DOUBLE_JUMPED := 1 << 8
 ## TESTWERT: seconds the host's copy may be in another view (segment / room) than this machine's
 ## copy before it is corrected anyway (the own transit starts and ends a little later than the host's).
 const VIEW_MISMATCH_GRACE := 2.0
@@ -53,6 +72,8 @@ var _player: Player = null
 var _last_sent: Array = []
 var _frames_since_send := 0
 var _mismatch_time := 0.0
+## Host: the active weapon slot the owning client holds (-1 = not known yet).
+var _wanted_slot := -1
 
 
 static func create(owner_peer: int, start: Vector2) -> NetPlayerState:
@@ -86,6 +107,31 @@ static func bits_of(input: PlayerInput) -> int:
 	return bits
 
 
+## Bits of player's active weapon slot for held (ACTIVE_SLOT_*).
+static func slot_bits_of(player: Player) -> int:
+	if player == null or player.weapon_controller == null:
+		return 0
+	return ((player.weapon_controller.get_active_slot() + 1) << ACTIVE_SLOT_SHIFT) & ACTIVE_SLOT_MASK
+
+
+## Active weapon slot in held bits, -1 if they carry none.
+static func slot_of(bits: int) -> int:
+	return ((bits & ACTIVE_SLOT_MASK) >> ACTIVE_SLOT_SHIFT) - 1
+
+
+## Every bit that is to travel for player: held actions (not interact) and the active weapon slot.
+static func held_bits_of(player: Player) -> int:
+	return (bits_of(player.input) & ~INTERACT_BIT) | slot_bits_of(player)
+
+
+## The owner's weapon slot on a copy (no effect while that slot is still empty: the weapon comes
+## with the next loadout, and the slot is applied again every frame).
+static func apply_slot(player: Player, bits: int) -> void:
+	var slot := slot_of(bits)
+	if slot >= 0 and player != null and player.weapon_controller != null:
+		player.weapon_controller.set_active_slot(slot)
+
+
 static func actions_of(bits: int) -> Array[StringName]:
 	var actions: Array[StringName] = []
 	for i in PlayerInput.ACTIONS.size():
@@ -110,6 +156,12 @@ static func side_bits_of(player: Player) -> int:
 		bits |= SIDE_IN_PIT
 	if motion.facing < 0.0:
 		bits |= SIDE_FACING_LEFT
+	if motion.is_wall_sliding:
+		bits |= SIDE_WALL_SLIDING
+	if motion.wall_side > 0:
+		bits |= SIDE_WALL_RIGHT
+	if motion.has_double_jumped:
+		bits |= SIDE_DOUBLE_JUMPED
 	return bits
 
 
@@ -132,7 +184,10 @@ func _physics_process(delta: float) -> void:
 		pos = _player.position
 		move = _player.input.move
 		aim = _player.get_aim_direction()
-		held = bits_of(_player.input) & ~INTERACT_BIT
+		if not _player.is_local and _wanted_slot >= 0:
+			# A client's weapon may arrive after the slot that holds it (submit_weapon, reliable).
+			_player.weapon_controller.set_active_slot(_wanted_slot)
+		held = held_bits_of(_player)
 		vel = _player.velocity
 		side = side_bits_of(_player)
 	elif _player.is_local:
@@ -153,7 +208,10 @@ func apply_input(sender: int, new_move: Vector2, new_aim: Vector2, new_held: int
 	remote.set_move(new_move)
 	if new_aim != Vector2.ZERO:
 		remote.set_aim_direction(new_aim)
-	remote.set_held_actions(actions_of(new_held & ~INTERACT_BIT))
+	remote.set_held_actions(actions_of(new_held & REPLAY_MASK))
+	# Before the player's next physics step reads the attack of this packet.
+	_wanted_slot = slot_of(new_held)
+	apply_slot(_player, new_held)
 
 
 func _has_session() -> bool:
@@ -163,7 +221,7 @@ func _has_session() -> bool:
 
 func _send_input() -> void:
 	var input := _player.input
-	var state := [input.move, _player.get_aim_direction(), bits_of(input) & ~INTERACT_BIT]
+	var state := [input.move, _player.get_aim_direction(), held_bits_of(_player)]
 	_frames_since_send += 1
 	if state == _last_sent and _frames_since_send < SEND_EVERY_FRAMES:
 		return
@@ -211,14 +269,20 @@ func _follow(delta: float) -> void:
 		remote.set_move(move)
 		if aim != Vector2.ZERO:
 			remote.set_aim_direction(aim)
-		remote.set_held_actions(actions_of(held & ~INTERACT_BIT))
+		remote.set_held_actions(actions_of(held & REPLAY_MASK))
+	apply_slot(_player, held)
 	if not _views_agree(delta):
 		return
 	if _player.is_side_view() and side & SIDE_ACTIVE:
-		# Gravity and jumps run here as at the host: start from its velocity, climb where it climbs.
+		# Gravity runs here as at the host: start from its velocity, climb where it climbs. Jumps,
+		# wall slides and landings are the host's (NetSide.side_move_net, the air bits).
+		var motion := _player.side_motion
+		motion.moves_from_remote = true
 		_player.velocity = vel
-		_player.side_motion.apply_remote_state(side & SIDE_CLIMBING != 0, side & SIDE_IN_PIT != 0,
+		motion.apply_remote_state(side & SIDE_CLIMBING != 0, side & SIDE_IN_PIT != 0,
 				-1.0 if side & SIDE_FACING_LEFT else 1.0)
+		motion.apply_remote_air_state(side & SIDE_WALL_SLIDING != 0, 1 if side & SIDE_WALL_RIGHT else -1,
+				side & SIDE_DOUBLE_JUMPED != 0)
 	var error := pos - _player.position
 	if error.length() > SNAP_DISTANCE:
 		_player.position = pos

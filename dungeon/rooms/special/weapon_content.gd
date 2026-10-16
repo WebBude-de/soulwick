@@ -1,5 +1,7 @@
 extends SpecialContent
 ## Weapon choice: up to two weapons the player does not own; taking one may replace a slot (D-022).
+## The weapons are picked when the room is prepared, so they already float over their pedestals
+## (playtest #9); one the player has got since is gone when the room is entered.
 
 ## Animated pedestal (4 frames of 32x32, SPRITES_V4 delivery).
 const PEDESTAL_STRIP: Texture2D = preload("res://art/environment/props/weapon_pedestal_4f.png")
@@ -12,7 +14,7 @@ var _pedestals: Array[Dictionary] = []
 var _taken := false
 
 
-func _on_setup() -> void:
+func _on_prepare() -> void:
 	var weapons := context.get_unowned_weapons()
 	while weapons.size() > MAX_WEAPONS:
 		weapons.remove_at(context.rng.randi_range(0, weapons.size() - 1))
@@ -24,6 +26,17 @@ func _on_setup() -> void:
 	for i in weapons.size():
 		var x := (float(i) - float(weapons.size() - 1) * 0.5) * PEDESTAL_SPACING
 		_add_pedestal(weapons[i], Vector2(x, 0))
+
+
+func _on_setup() -> void:
+	var player := context.player if context != null else null
+	if player == null or not is_instance_valid(player):
+		return
+	for pedestal in _pedestals:
+		var weapon: WeaponData = pedestal["weapon"]
+		if player.weapon_controller.has_weapon_type(weapon.weapon_type):
+			(pedestal["interactable"] as Interactable).enabled = false
+			(pedestal["sprite"] as Sprite2D).visible = false
 
 
 func _process(_delta: float) -> void:

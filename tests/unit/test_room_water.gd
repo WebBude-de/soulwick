@@ -145,3 +145,85 @@ func test_shallow_water_draws_one_picture_per_pool_and_slows_per_tile() -> void:
 			pictures += 1
 	assert_eq(pictures, 2, "two pools")
 	assert_eq(water.get_node("Area").get_child_count(), tiles.size(), "slow area stays on the tiles")
+
+
+## Playtest 15.10.2026 note 13 ("the water looks so different"): every small puddle and pond is drawn
+## like the pools - the overlay puddles of a plan and the slime grotto's pond group.
+func test_small_puddles_and_ponds_are_the_same_water() -> void:
+	var colors := WaterArt.palette(&"slime_grotto")
+	var small := _frame(WaterArt.small_puddle_strip(&"slime_grotto", 5), 0, Vector2i(WaterArt.TILE, WaterArt.TILE))
+	var pond_size := Vector2i(64, 48)
+	var pond := _frame(WaterArt.pond_strip(&"slime_grotto", 5, pond_size, Vector2(32, 38), Vector2(28, 8.5)), 0, pond_size)
+	for image: Image in [small, pond]:
+		var shore := 0
+		var water := 0
+		for y in image.get_height():
+			for x in image.get_width():
+				var pixel := image.get_pixel(x, y)
+				if pixel.a == 0.0:
+					continue
+				water += 1
+				if Color(pixel.r, pixel.g, pixel.b).is_equal_approx(Color(colors["shore"].r, colors["shore"].g, colors["shore"].b)):
+					shore += 1
+		assert_gt(water, 40, "water drawn")
+		assert_gt(shore, 8, "with the light shore line of the pools")
+	# A plan's puddle overlay becomes a water picture, not the overlay sprite.
+	var tiles := RoomTiles.new()
+	tiles.room_size = Vector2i(6, 5)
+	tiles.rock_style = RoomTiles.RockStyle.BLOB
+	tiles.tile_set = load("res://dungeon/environment/slime_grotto_tileset.tres")
+	tiles.overlay_cells = [Vector3i(2, 2, RockTerrain.Overlay.PUDDLE), Vector3i(3, 3, RockTerrain.Overlay.PEBBLES)] as Array[Vector3i]
+	add_child_autofree(tiles)
+	tiles.paint()
+	if not tiles.is_terrain_drawn():
+		pending("no terrain art")
+		return
+	assert_eq(tiles.get_overlay_layer().get_cell_source_id(Vector2i(2, 2)), -1, "no puddle sprite")
+	assert_eq(tiles.get_overlay_layer().get_cell_source_id(Vector2i(3, 3)), RockTerrain.SOURCE_OVERLAY, "other overlays stay")
+	var puddles := tiles.get_node_or_null(RoomTiles.PUDDLES_NAME)
+	assert_not_null(puddles, "the puddle is water")
+	if puddles != null:
+		assert_eq(puddles.get_child_count(), 1)
+	# The slime grotto's pond group is water too (still solid like the group).
+	var pond_prop := DecoProp.new()
+	pond_prop.item = &"group_3"
+	pond_prop.biome = &"slime_grotto"
+	pond_prop.blocked_tiles = [Vector2i(1, 1)] as Array[Vector2i]
+	add_child_autofree(pond_prop)
+	assert_true(pond_prop.is_water_group())
+	assert_true(pond_prop.sprite is AnimatedProp, "shimmering water, not the delivered still picture")
+	assert_eq(pond_prop.z_index, DecoProp.FLOOR_Z, "lies flat on the floor")
+	var rubble := DecoProp.new()
+	rubble.item = &"group_3"
+	rubble.biome = &"crypt"
+	add_child_autofree(rubble)
+	assert_false(rubble.is_water_group(), "other biomes keep their group art")
+
+
+## G4 measurement 15.10.2026: a pool takes a few hundred ms of pixel work; rooms ask for it without
+## blocking and get it on the main thread when it is ready.
+func test_pools_are_built_off_the_main_thread() -> void:
+	var tiles: Array[Vector2i] = [Vector2i(40, 40), Vector2i(41, 40), Vector2i(42, 40), Vector2i(40, 41), Vector2i(41, 41)]
+	var got: Array = []
+	var first := WaterArt.request_pool(tiles, &"shadow_realm", func(texture: Texture2D) -> void: got.append(texture))
+	assert_null(first, "not built yet: no picture right away")
+	var frames := 0
+	while got.is_empty() and frames < 600:
+		await get_tree().process_frame
+		frames += 1
+	assert_eq(got.size(), 1, "handed over once ready")
+	assert_false(WaterArt.is_building())
+	if got.is_empty():
+		return
+	assert_eq(got[0], WaterArt.request_pool(tiles, &"shadow_realm", Callable()), "then cached")
+	assert_eq(got[0], WaterArt.pool_strip(tiles, &"shadow_realm"), "the same picture as the blocking way")
+	var water := ShallowWater.new()
+	add_child_autofree(water)
+	var other: Array[Vector2i] = [Vector2i(60, 60), Vector2i(61, 60)]
+	water.build(other, 32.0, &"ember_forge")
+	assert_false(water.is_ready(), "the pool fades in later")
+	frames = 0
+	while not water.is_ready() and frames < 600:
+		await get_tree().process_frame
+		frames += 1
+	assert_true(water.is_ready())

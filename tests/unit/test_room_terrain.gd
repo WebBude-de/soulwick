@@ -101,7 +101,8 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 					if rock.get_cell_source_id(tile) != -1 and (fillet == 0 or rock.get_cell_atlas_coords(tile) != RockTerrain.fillet_coords(fillet)):
 						problems.append("%s: rock piece on floor %s" % [entry.id, tile])
 					continue
-				var borders := false
+				# Rock borders on floor, or on a front beside it (the side wall's edge goes up to it).
+				var borders := WallAutotile.is_front(tile + Vector2i.LEFT, floor_mask) or WallAutotile.is_front(tile + Vector2i.RIGHT, floor_mask)
 				for dy in [-1, 0, 1]:
 					for dx in [-1, 0, 1]:
 						borders = borders or floor_mask.has(tile + Vector2i(dx, dy))
@@ -113,15 +114,18 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 				if rock.get_cell_source_id(tile) != RockTerrain.rock_source(tiles.get_look()):
 					problems.append("%s: no terrain piece at border %s" % [entry.id, tile])
 					continue
-				var expected := RockTerrain.piece_for(tile, floor_mask, tiles.get_cliff_faces())
+				var expected := RockTerrain.piece_for(tile, floor_mask)
 				if rock.get_cell_atlas_coords(tile) != expected:
 					problems.append("%s: piece %s at %s, mask wants %s" % [entry.id, rock.get_cell_atlas_coords(tile), tile, expected])
 				if not WallAutotile.is_front(tile, floor_mask) and RockTerrain.mask_for(tile, floor_mask) == RockTerrain.FULL:
 					problems.append("%s: border %s without an edge" % [entry.id, tile])
-				# Collision stays with the room layer: an invisible solid tile on every solid cell.
-				if tiles.get_cell_source_id(tile) != RockTerrain.SOURCE_GROUND or tiles.get_cell_atlas_coords(tile) != RockTerrain.SOLID:
+				# Collision stays with the room layer: an invisible solid tile on every solid cell, its
+				# outer corners rounded like the art.
+				if not RockTerrain.is_solid_cell(tiles.get_cell_source_id(tile), tiles.get_cell_atlas_coords(tile)):
 					if tiles.get_floor_rect().has_point(RoomTiles.tile_to_local(tile)):
 						problems.append("%s: no solid cell under the rock at %s" % [entry.id, tile])
+				elif tiles.get_cell_atlas_coords(tile).x != RockTerrain.solid_corners(tile, floor_mask):
+					problems.append("%s: collision corners at %s do not follow the art" % [entry.id, tile])
 		room.free()
 	assert_gt(checked, 10000, "border tiles checked")
 	assert_eq(problems.slice(0, 20), [] as Array[String], "%d problems: %s" % [problems.size(), "; ".join(problems.slice(0, 6))])
@@ -129,9 +133,9 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 
 func test_corner_bits_follow_the_floor() -> void:
 	# A rock tile with floor only diagonally (inner corner): all four sides rock, one corner open.
-	var floor_mask: Dictionary[Vector2i, bool] = {Vector2i(1, 1): true}
+	var floor_mask: Dictionary[Vector2i, bool] = {Vector2i(1, -1): true}
 	var mask := RockTerrain.mask_for(Vector2i.ZERO, floor_mask)
-	assert_eq(mask, RockTerrain.N | RockTerrain.NE | RockTerrain.E | RockTerrain.S | RockTerrain.SW | RockTerrain.W | RockTerrain.NW, "only the SE corner open")
+	assert_eq(mask, RockTerrain.N | RockTerrain.E | RockTerrain.SE | RockTerrain.S | RockTerrain.SW | RockTerrain.W | RockTerrain.NW, "only the NE corner open")
 	assert_ne(RockTerrain.rock_coords(mask), RockTerrain.rock_coords(RockTerrain.FULL), "drawn with its inner corner")
 	# Outer corner: floor west and south, so neither of their corners counts.
 	floor_mask = {Vector2i(-1, 0): true, Vector2i(0, 1): true, Vector2i(-1, 1): true}
@@ -145,12 +149,18 @@ func test_inner_corners_and_steps_are_round() -> void:
 	assert_eq(RockTerrain.fillet_bits(Vector2i(0, -1), floor_mask), 0, "floor below: no lower corner")
 	floor_mask[Vector2i(1, 0)] = true
 	assert_eq(RockTerrain.fillet_bits(Vector2i(0, 0), floor_mask), RockTerrain.FILLET_LEFT, "floor right")
-	# A step: the front row y 0 (x 0..1) steps back to a deeper front at (2, 1); a front ends with its
-	# rounded piece where its neighbour is floor or rock that is no front.
+	# A step: the front row y 0 (x 0..1) steps forward to a front at (2, 1). A front ends round only
+	# where floor lies beside it; against rock it runs square into that rock's edge, which counts the
+	# front as open (playtest 15.10.2026, notes 4/7/10).
 	var step: Dictionary[Vector2i, bool] = {Vector2i(0, 1): true, Vector2i(1, 1): true, Vector2i(0, 2): true, Vector2i(1, 2): true, Vector2i(2, 2): true}
-	assert_eq(RockTerrain.piece_for(Vector2i(0, 0), step), RockTerrain.front_coords(RockTerrain.Front.LEFT), "front ends at the side wall")
-	assert_eq(RockTerrain.piece_for(Vector2i(1, 0), step), RockTerrain.front_coords(RockTerrain.Front.RIGHT), "front ends at the step")
-	assert_eq(RockTerrain.piece_for(Vector2i(2, 1), step), RockTerrain.front_coords(RockTerrain.Front.SINGLE), "deeper front: floor left, rock right")
+	assert_eq(RockTerrain.piece_for(Vector2i(0, 0), step), RockTerrain.front_coords(RockTerrain.Front.MIDDLE), "front runs square into the side wall")
+	assert_eq(RockTerrain.piece_for(Vector2i(1, 0), step), RockTerrain.front_coords(RockTerrain.Front.MIDDLE), "front runs square into the step")
+	assert_eq(RockTerrain.piece_for(Vector2i(2, 1), step), RockTerrain.front_coords(RockTerrain.Front.LEFT), "front of the step: floor left, rock right")
+	assert_eq(RockTerrain.mask_for(Vector2i(-1, 0), step) & RockTerrain.E, 0, "the side wall's edge goes up beside the front")
+	assert_eq(RockTerrain.mask_for(Vector2i(2, 0), step) & RockTerrain.W, 0, "the step's crown has its edge towards the front beside it")
+	assert_eq(RockTerrain.variant_bits(Vector2i(2, 0), step), RockTerrain.FOOT_LEFT | RockTerrain.JOINT_LEFT, "and turns it round into its own front's top line, joined to the other front's")
+	assert_eq(RockTerrain.piece_for(Vector2i(2, 0), step), RockTerrain.variant_coords(RockTerrain.mask_for(Vector2i(2, 0), step), RockTerrain.FOOT_LEFT | RockTerrain.JOINT_LEFT))
+	assert_true(RockTerrain.is_enclosed(Vector2i(0, -1), step), "the crown over a straight front stays to the backdrop (the front draws its line)")
 	# The composed sheet: the band runs round the inner corner, the fillet piece holds rock only in
 	# its corner.
 	var tileset := (load(BIOME_TILESET_PATH % &"slime_grotto") as TileSet).duplicate() as TileSet
@@ -159,6 +169,20 @@ func test_inner_corners_and_steps_are_round() -> void:
 	var band := RockTerrain.band_colors(image)
 	var inner := RockTerrain.rock_coords(RockTerrain.N | RockTerrain.E | RockTerrain.S | RockTerrain.W | RockTerrain.SE | RockTerrain.SW | RockTerrain.NW) * RockTerrain.TILE
 	assert_eq(image.get_pixel(inner.x + RockTerrain.TILE - 1, inner.y), band[0], "inner corner: the band's joint at the corner point")
+	# A side wall beside a front: its edge turns into the front's top line at the joint.
+	var joint := RockTerrain.variant_coords(RockTerrain.N | RockTerrain.S | RockTerrain.SW | RockTerrain.W | RockTerrain.NW, RockTerrain.JOINT_RIGHT) * RockTerrain.TILE
+	assert_eq(image.get_pixel(joint.x + RockTerrain.TILE - 1, joint.y + RockTerrain.BAND - 1), band[0], "joint: light at the corner point")
+	assert_eq(image.get_pixel(joint.x + RockTerrain.TILE - RockTerrain.BAND, joint.y), image.get_pixel(joint.x + RockTerrain.TILE / 2, joint.y + RockTerrain.TILE / 2), "joint: no band above the front's line")
+	# A crown over the end of a front: its rounded foot shows the front face outside the curve.
+	var block := RockTerrain.N | RockTerrain.NE | RockTerrain.E | RockTerrain.SE | RockTerrain.S
+	var foot := RockTerrain.variant_coords(block, RockTerrain.FOOT_LEFT) * RockTerrain.TILE
+	var single := RockTerrain.front_coords(RockTerrain.Front.SINGLE) * RockTerrain.TILE
+	assert_eq(image.get_pixel(foot.x, foot.y + RockTerrain.TILE - 1), image.get_pixel(single.x, single.y + RockTerrain.BAND + RockTerrain.BAND - 1), "foot corner shows the face")
+	assert_eq(image.get_pixel(foot.x + 1, foot.y + RockTerrain.TILE - RockTerrain.BAND - 1), band[0], "the side edge runs down to the curve")
+	# Every front starts with the band (middle rows on top, light rows towards the face).
+	var middle := RockTerrain.front_coords(RockTerrain.Front.MIDDLE) * RockTerrain.TILE
+	assert_eq(image.get_pixel(middle.x + RockTerrain.TILE / 2, middle.y), band[RockTerrain.BAND - 1], "front top line: middle colour first")
+	assert_eq(image.get_pixel(middle.x + RockTerrain.TILE / 2, middle.y + RockTerrain.BAND - 1), band[0], "then light")
 	var fillet := RockTerrain.fillet_coords(RockTerrain.FILLET_LEFT) * RockTerrain.TILE
 	assert_gt(image.get_pixel(fillet.x, fillet.y + RockTerrain.TILE - 1).a, 0.5, "fillet: rock in the corner")
 	assert_eq(image.get_pixel(fillet.x + RockTerrain.TILE / 2, fillet.y + RockTerrain.TILE / 2).a, 0.0, "fillet: clear elsewhere")
@@ -466,3 +490,124 @@ func _what_at(room: RoomController, rects: Array, tile: Vector2i) -> String:
 		if marker.get_meta(&"tile") == tile:
 			names.append(marker.name)
 	return ", ".join(names)
+
+
+# --- playtest 15.10.2026 (G1): collision, abyss faces, abyss contacts ---
+
+func test_collision_rounds_the_outer_corners_like_the_art() -> void:
+	# A lone block (two tiles tall): its top corners and the lower corners of its front are outer
+	# corners; the crown's lower corners sit on the front (solid below), so they stay square.
+	var floor_mask: Dictionary[Vector2i, bool] = {}
+	for y in range(-2, 4):
+		for x in range(-2, 3):
+			floor_mask[Vector2i(x, y)] = true
+	floor_mask.erase(Vector2i(0, 0))
+	floor_mask.erase(Vector2i(0, 1))
+	assert_eq(RockTerrain.solid_corners(Vector2i(0, 0), floor_mask), RockTerrain.CORNER_TL | RockTerrain.CORNER_TR, "crown: round top")
+	assert_eq(RockTerrain.solid_corners(Vector2i(0, 1), floor_mask), RockTerrain.CORNER_BL | RockTerrain.CORNER_BR, "front: round foot")
+	# Rock across a corner keeps it square (no pinch to slip through).
+	floor_mask.erase(Vector2i(-1, -1))
+	assert_eq(RockTerrain.solid_corners(Vector2i(0, 0), floor_mask), RockTerrain.CORNER_TR)
+	var square := RockTerrain.solid_polygon(0)
+	assert_eq(square.size(), 4, "a plain solid tile is the square")
+	var round := RockTerrain.solid_polygon(RockTerrain.CORNER_TL | RockTerrain.CORNER_BR)
+	assert_eq(round.size(), 2 + 2 * (RockTerrain.COLLISION_STEPS + 1), "two rounded corners")
+	var half := RockTerrain.TILE / 2.0
+	assert_false(round.has(Vector2(-half, -half)), "the rounded corner point is cut")
+	assert_true(round.has(Vector2(half, -half)), "the square corner stays")
+	# The tileset carries every variant with its polygon.
+	var tileset := (load(BASE_TILESET_PATH) as TileSet).duplicate() as TileSet
+	assert_true(RockTerrain.ensure_sources(tileset))
+	var source := tileset.get_source(RockTerrain.SOURCE_GROUND) as TileSetAtlasSource
+	for bits in RockTerrain.SOLID_VARIANTS:
+		var data := source.get_tile_data(RockTerrain.solid_coords(bits), 0)
+		assert_eq(data.get_collision_polygon_points(0, 0), RockTerrain.solid_polygon(bits), "variant %d" % bits)
+		assert_null(data.get_navigation_polygon(0), "no navigation on rock")
+
+
+func test_the_abyss_face_sinks_below_the_rim() -> void:
+	var entry := _entry_of("brueckenkreuz_crypt")
+	assert_not_null(entry, "brueckenkreuz_crypt in the catalog")
+	if entry == null:
+		return
+	var room := _room(entry)
+	var tiles := room.tiles
+	var cliffs := tiles.get_cliff_tiles()
+	assert_gt(cliffs.size(), 4, "the abysses have north edges")
+	var node := tiles.get_node_or_null(RoomTiles.CLIFF_NAME)
+	assert_not_null(node)
+	if node != null:
+		var faces := 0
+		for child in node.get_children():
+			if not child.is_queued_for_deletion():
+				faces += 1
+		assert_eq(faces, cliffs.size(), "one face per north edge tile")
+	var art := ((tiles.tile_set.get_source(AbyssAutotile.ART_SOURCE_ID) as TileSetAtlasSource).texture.get_image())
+	art.decompress()
+	art.convert(Image.FORMAT_RGBA8)
+	var face := RockTerrain.face_image(&"crypt")
+	assert_not_null(face)
+	# A north edge with the abyss going on to the east and down: rim on top and to the west.
+	var image := AbyssFace.build(face, art, AbyssAutotile.E | AbyssAutotile.S, 0)
+	var piece := AbyssAutotile.make_piece(art, AbyssAutotile.E | AbyssAutotile.S, 0)
+	assert_eq(image.get_pixel(16, 0).a, 0.0, "the north rim stays the abyss's own (no wall front over it)")
+	assert_eq(image.get_pixel(0, 16).a, 0.0, "the west rim runs up to the north rim")
+	var below_rim := 0
+	while below_rim < 31 and image.get_pixel(16, below_rim).a == 0.0:
+		below_rim += 1
+	assert_lt(below_rim, 12, "the face starts right under the rim")
+	assert_gt(image.get_pixel(16, below_rim).a, 0.9, "opaque under the rim")
+	assert_lt(image.get_pixel(16, 31).a, 0.1, "gone at the foot: no strip, no line, the abyss below goes on")
+	assert_lt(image.get_pixel(16, below_rim).get_luminance(), face.get_pixel(16, below_rim).get_luminance(), "darker than the rock")
+	assert_ne(piece.get_pixel(16, 2), Color(0, 0, 0, 0))
+	room.free()
+
+
+func test_abyss_edges_never_pinch_or_meet_a_front() -> void:
+	var problems: Array[String] = []
+	for entry in _entries:
+		var room := entry.scene.instantiate() as RoomController
+		for problem in RoomPlanChecks.abyss_problems(room.get_node("Tiles") as RoomTiles):
+			problems.append("%s: %s" % [entry.id, problem])
+		room.free()
+	assert_eq(problems.slice(0, 20), [] as Array[String], "%d problems: %s" % [problems.size(), "; ".join(problems.slice(0, 6))])
+	# The rule catches both cases on a made-up room.
+	var tiles := RoomTiles.new()
+	tiles.room_size = Vector2i(10, 8)
+	tiles.pit_rects = [Rect2i(2, 2, 2, 2), Rect2i(4, 4, 2, 2)] as Array[Rect2i]
+	tiles.wall_rects = [Rect2i(0, 5, 3, 2)] as Array[Rect2i]
+	var found := "; ".join(RoomPlanChecks.abyss_problems(tiles))
+	assert_string_contains(found, "touch only at a corner")
+	tiles.pit_rects = [Rect2i(3, 5, 2, 2)] as Array[Rect2i]
+	tiles.wall_rects = [Rect2i(0, 4, 3, 2)] as Array[Rect2i]
+	found = "; ".join(RoomPlanChecks.abyss_problems(tiles))
+	assert_string_contains(found, "wall front beside the abyss")
+	tiles.free()
+
+
+func _entry_of(id: String) -> RoomTemplate:
+	for entry in _entries:
+		if entry.id == id:
+			return entry
+	return null
+
+
+func test_abyss_rim_corners_run_round() -> void:
+	var tileset := (load(BASE_TILESET_PATH) as TileSet).duplicate() as TileSet
+	assert_true(AbyssRims.ensure_source(tileset), "the round pieces are added")
+	var art := (tileset.get_source(AbyssAutotile.ART_SOURCE_ID) as TileSetAtlasSource).texture.get_image()
+	art.decompress()
+	art.convert(Image.FORMAT_RGBA8)
+	var void_tile := art.get_region(Rect2i(AbyssAutotile.ART_VOID[0] * 32, Vector2i(32, 32)))
+	var top_left: Array = AbyssRims.CORNERS[0]
+	var outer := AbyssRims.corner_patch(art, top_left, true)
+	var inner := AbyssRims.corner_patch(art, top_left, false)
+	var edge := art.get_region(Rect2i(AbyssAutotile.ART_EDGE[AbyssAutotile.N] * 32, Vector2i(32, 32)))
+	assert_eq(outer.get_pixel(0, 0), edge.get_pixel(0, 0), "outer corner: rim right in the corner")
+	assert_eq(outer.get_pixel(7, 7), void_tile.get_pixel(7, 7), "outer corner: void inside the ring")
+	assert_eq(inner.get_pixel(0, 0), edge.get_pixel(0, 0), "inner corner: rim round the corner point")
+	assert_eq(inner.get_pixel(7, 7), void_tile.get_pixel(7, 7), "inner corner: void away from it")
+	# The pieces of a room come from the round set.
+	var piece := AbyssRims.make_piece(art, AbyssAutotile.E | AbyssAutotile.S, 0)
+	assert_eq(piece.get_pixel(0, 0), outer.get_pixel(0, 0))
+	assert_eq(RoomTiles.SOURCE_ABYSS_PIECES, AbyssRims.SOURCE_ID)

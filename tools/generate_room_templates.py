@@ -85,7 +85,8 @@ Rules checked for every template (the generator stops on the first broken plan):
   - wall mass: a wall with floor south of it has a crown above it (WallAutotile.is_valid_mass);
   - entrance, exits and side doors: two tiles of floor straight in, no abyss in their lane, no
     prop, source or objective in their lane, no front fixture right beside a north door; template
-    torches keep 4 columns from the exit door (the door brings its own, D1);
+    torches closer than DOOR_TORCH_CLEARANCE columns to the exit door are left out (the door brings
+    its own, D1);
   - every floor tile reachable on foot from the entrance with every solid prop and every source
     treated as blocked (sources never close a way), every door reachable;
   - no decoration on a tile that is the only way (articulation point of the floor);
@@ -94,6 +95,8 @@ Rules checked for every template (the generator stops on the first broken plan):
     the secret niche needs it; an explosive barrel ('F') right beside it opens the wall without a
     bomber, staff or hammer (its blast reaches the front from the row below it, one column aside);
   - at most one decoration group per 20 floor tiles; groups at walls and corners;
+  - clean abyss edges (playtest 15.10.2026): no wall front beside an abyss, no abyss touching another
+    abyss or rock only at a corner (abyss_contact_problem; RoomPlanChecks checks the built room);
   - spawn markers: count per size (D-086, S >= 5, M >= 8, L >= 12, at most 14), on free reachable
     floor, away from every entrance.
 
@@ -187,8 +190,10 @@ DOOR_LANE_ROWS = 2
 # Two special rooms behind two north doors only fit side by side from 8 columns apart (R5,
 # DungeonManager._ways_fit), so plans put their own branch places near the side walls.
 BRANCH_DOOR_SPACING = 5
-# Template torches keep this many columns from the exit door (the door brings its own, D1).
-DOOR_TORCH_CLEARANCE = 4
+# Template torches keep this many columns from the exit door (the door brings its own torches, D1).
+# A plan torch closer than that is left out (G2 15.10.2026: two torches right beside each other next
+# to a gate). TESTWERT
+DOOR_TORCH_CLEARANCE = 5
 # Front fixtures keep this many columns from a north door (its arch is 1.5 tiles wide).
 DOOR_FIXTURE_CLEARANCE = 1
 # A cracked wall in the north wall keeps this many columns from a north door: the niche behind it
@@ -478,6 +483,35 @@ def articulation_points(nodes):
     return result
 
 
+def abyss_contact_problem(abyss, bridges, floor, corridors):
+    """Clean abyss edges (playtest 15.10.2026, notes 3, 5 and 6: sharp, merging edges): no wall front
+    beside an abyss tile (its face would meet the abyss's own rock face), and an abyss never touches
+    another abyss or rock only at a corner (two rims pinched into one point). abyss = pit tiles with
+    bridges, floor = the floor rectangle without walls (abysses included). First problem or None
+    (RoomPlanChecks.abyss_problems checks the same on the built room)."""
+    def solid(tile):
+        return tile not in floor and tile not in corridors
+
+    def front(tile):
+        return solid(tile) and (tile[0], tile[1] + 1) in floor
+
+    for x, y in sorted(abyss):
+        if (x, y) not in bridges:
+            for side in (-1, 1):
+                if front((x + side, y)):
+                    return f"wall front beside the abyss at {(x, y)}"
+        for dx in (-1, 1):
+            for dy in (-1, 1):
+                across, a, b = (x + dx, y + dy), (x + dx, y), (x, y + dy)
+                if a in abyss or b in abyss or solid(a) or solid(b):
+                    continue
+                if across in abyss:
+                    return f"abyss tiles {(x, y)} and {across} touch only at a corner"
+                if solid(across):
+                    return f"abyss at {(x, y)} touches rock {across} only at a corner"
+    return None
+
+
 def to_rects(tiles):
     """Tiles as few Rect2i: horizontal runs, merged downwards when identical."""
     if not tiles:
@@ -618,10 +652,46 @@ OVERLAY_GROUP_CHANCE = 0.55
 # large ones on three, side by side; the footprint blocks walking. Share of large ones (TESTWERT).
 GROUP_ART_DIR = ROOT / "art" / "environment" / "deco"
 GROUP_LARGE_CHANCE = 0.4
+# Group pictures left out per biome: the rubble of the crypt and the shadow realm (deco_group_<biome>_3)
+# reads as a dark puddle next to the rooms' water (playtest 15.10.2026, note 13 "the water looks so
+# different") until it is redrawn as stones (briefing in the G1 report).
+GROUP_ART_SKIP = {"crypt": {"group_3"}, "shadow_realm": {"group_3"}}
 
 
 def has_group_art(biome):
     return all((GROUP_ART_DIR / f"deco_group_{biome}_{n}.png").exists() for n in (1, 2, 3))
+
+
+# A column of a group picture belongs to its solid part when this many art px of it are opaque
+# (stones, pillars, crates); lower bits (candles, bones, puddles) stay walkable (playtest 15.10.2026,
+# notes 22/24: "weird hitbox"). TESTWERT
+GROUP_SOLID_MIN = 9
+_spans = {}
+
+
+def group_solid_span(item, biome):
+    """Solid part of a group picture along x in world px from its origin (drawn unflipped, pivot at
+    the bottom middle): the columns with at least GROUP_SOLID_MIN opaque art px. None without the
+    picture (the item's whole footprint then)."""
+    key = (item, biome)
+    if key in _spans:
+        return _spans[key]
+    if item.startswith("group_large_"):
+        name = item.replace("group_large_", f"deco_group_large_{biome}_")
+    else:
+        name = item.replace("group_", f"deco_group_{biome}_")
+    path = GROUP_ART_DIR / f"{name}.png"
+    span = None
+    if path.exists():
+        from PIL import Image  # only needed here (the tools have Pillow)
+        image = Image.open(path).convert("RGBA")
+        width, height = image.size
+        alpha = image.getchannel("A").load()
+        solid = [x for x in range(width) if sum(1 for y in range(height) if alpha[x, y] > 0) >= GROUP_SOLID_MIN]
+        if solid:
+            span = ((min(solid) - width / 2) * 2, (max(solid) + 1 - width / 2) * 2)
+    _spans[key] = span
+    return span
 
 
 # Composed decoration groups (the fallback from delivered parts where a biome has no group art):
@@ -906,7 +976,9 @@ class Room:
                 self.sources.append(dict(kind=WALL_SOURCES[c], tile=tile, floor_tile=below, wall_side=NORTH))
                 self._occupy([below], "source")
             elif c == "T":
-                self.props.append(dict(scene="torch", name="Torch", pos=(x * T, y * T), group=None))
+                # The fixture stays (no cracked wall there), the torch only away from the doors.
+                if not (y == -1 and abs(x - self.north[0]) < DOOR_TORCH_CLEARANCE):
+                    self.props.append(dict(scene="torch", name="Torch", pos=(x * T, y * T), group=None))
             elif c == "n" and self.plan.rock == "blob" and GROUP_ART_DIR.joinpath("../tiles/wall_niche_soft.png").exists():
                 self.props.append(dict(deco="wall_niche_soft", name="Niche", pos=(x * T + T / 2, (y + 1) * T - WALL_ITEM_LIFT), group=None))
             elif c == "n":
@@ -915,9 +987,6 @@ class Room:
             for tile, c in self.fixtures.items():
                 if tile[1] == -1 and abs(tile[0] - x) <= DOOR_FIXTURE_CLEARANCE:
                     self.fail(f"'{c}' at {tile} right beside the north door at column {x}")
-            for tile, c in self.fixtures.items():
-                if c == "T" and tile[1] == -1 and x == self.north[0] and abs(tile[0] - x) < DOOR_TORCH_CLEARANCE:
-                    self.fail(f"torch at {tile} within {DOOR_TORCH_CLEARANCE - 1} columns of the exit door (it brings its own, D1)")
 
     def _occupy(self, tiles, what):
         for tile in tiles:
@@ -1287,6 +1356,7 @@ class Room:
                 if not self._keeps_ways(row):
                     continue
                 names = [f"group_large_{n}" for n in (1, 2)] if length == 3 else [f"group_{n}" for n in (1, 2, 3)]
+                names = [n for n in names if n not in GROUP_ART_SKIP.get(self.biome, ())]
                 fresh = [n for n in names if n not in used] or names
                 item = fresh[self.rng.randrange(len(fresh))]
                 flip = self.rng.random() < 0.5
@@ -1296,8 +1366,20 @@ class Room:
                     continue
                 if not self._rect_on_ground(item, rect):
                     continue
-                self._add_prop(dict(deco=item, name="Group", pos=pos, blocked=list(row), flip=flip, group=f"auto{tile}"))
-                self.blocked.update(row)
+                # Only the tiles under the picture's solid part block (and lose their navigation).
+                span = group_solid_span(item, self.biome)
+                blocked = list(row)
+                if span is not None:
+                    a, b = (-span[1], -span[0]) if flip else span
+                    a, b = pos[0] + a, pos[0] + b
+                    blocked = [t for t in row if min(b, (t[0] + 1) * T) - max(a, t[0] * T) >= T / 3]
+                    if not blocked:
+                        blocked = [min(row, key=lambda t: abs((t[0] + 0.5) * T - (a + b) / 2))]
+                prop = dict(deco=item, name="Group", pos=pos, blocked=blocked, flip=flip, group=f"auto{tile}")
+                if span is not None:
+                    prop["solid_span"] = span
+                self._add_prop(prop)
+                self.blocked.update(blocked)
                 self._occupy(row, "decoration")
                 return item
         return None
@@ -1795,6 +1877,9 @@ class Room:
             above = (x, y - 1)
             if above not in floor and above not in corridors:
                 self.fail(f"wall front right above the abyss at {(x, y)}")
+        problem = abyss_contact_problem(self.pits, self.bridges, floor, corridors)
+        if problem:
+            self.fail(problem)
 
     # --- markers ---
 
@@ -2093,6 +2178,8 @@ def write_scene(room, rel_path):
                 text += f"tint = {color(p['tint'])}\n"
             if p.get("blocked"):
                 text += f"blocked_tiles = {vec2i_list(p['blocked'])}\n"
+            if p.get("solid_span"):
+                text += f"solid_span = {vec2(*p['solid_span'])}\n"
             if "still" in p:
                 text += f"still_frame = {p['still']}\n"
             if p["deco"] == "puddle" or p["deco"].startswith("group_") or p["deco"] == "wall_niche_soft":

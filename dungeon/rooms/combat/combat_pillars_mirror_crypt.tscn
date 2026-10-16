@@ -99,7 +99,8 @@ position = Vector2(320, 56)
 script = ExtResource("2_deco")
 item = &"group_1"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0)])
+blocked_tiles = Array[Vector2i]([Vector2i(5, 0)])
+solid_span = Vector2(-48, 18)
 biome = &"crypt"
 
 [node name="Ambience" type="Node2D" parent="."]

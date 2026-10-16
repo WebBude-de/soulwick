@@ -1,0 +1,37 @@
+# Checks every push to main/dev and every pull request: all files load (validate_project.gd) and the
+# GUT unit tests pass (AGENTS.md §7). Exports and releases: release.yml.
+name: CI
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Validate and unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - id: godot
+        uses: ./.github/actions/setup-godot
+      - name: Validate project
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+        run: '"$GODOT" --headless --audio-driver Dummy --path . -s tools/validate_project.gd'
+      - name: Unit tests (GUT)
+        env:
+          GODOT: ${{ steps.godot.outputs.godot }}
+          # Some tests expect the German texts of language "auto" (system language), as on the
+          # team's PCs; Godot reads the system language from LANG on Linux.
+          LANG: de_DE.UTF-8
+        run: '"$GODOT" --headless --audio-driver Dummy --path . -s addons/gut/gut_cmdln.gd -gexit'

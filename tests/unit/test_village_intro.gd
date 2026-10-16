@@ -12,6 +12,8 @@ var _ui: VillageUI = null
 
 
 func before_all() -> void:
+	# The guild building is the online menu (D-147): no login against a server from the tests.
+	OnlineMenu.login_on_open = false
 	_old_locale = TranslationServer.get_locale()
 	# The expected texts are German; English is the default language (D-111).
 	Loc.apply(&"de")
@@ -31,6 +33,7 @@ func after_each() -> void:
 
 
 func after_all() -> void:
+	OnlineMenu.login_on_open = true
 	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))

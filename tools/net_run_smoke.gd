@@ -10,8 +10,9 @@ extends SceneTree
 ##   (room signatures, no mismatch) and the same room numbers;
 ## - rooms 1-5: enemies exist only as the host's real ones and the client's puppets (same count,
 ##   same deaths), the client's bot deals damage through the host, gold goes into the shared pot
-##   (same value on both machines); the exit rule: one player in the next room starts a countdown,
-##   the other is brought in when it runs out;
+##   (same value on both machines); the exit rule (online test 15.10.2026): one player alone in the
+##   next room does not start it - no countdown, no teleport; he sees "Warte auf ...", the other one
+##   "... wartet im naechsten Raum" with the arrow; the room starts once the other one walked in;
 ## - after room 3 both pick their own upgrade, the exit waits for both; the special room (shop:
 ##   purchase validated by the host; weapons: the client's pick reaches the host);
 ## - the client's player goes down and is revived by the host's player (2 s, 2 HP);
@@ -33,9 +34,22 @@ extends SceneTree
 ## with rooms=5); the group walks into the gate, both players run through the segment (the host's
 ## player and the client's bot with the autopilot SideBot, the client's through RemoteInput and the
 ## network), both come out in the next room. Checked: the same side way signature on both machines,
-## both players in the segment and in its camera, the host's end reaches the client. In every
+## both players in the segment and in its camera, the host's end reaches the client. Round 2: the
+## host's ledges are made to crumble (as if stood on) - the client's shake, fall and come back with
+## them (same changes, same collapses); every move of the host's player (jumps, the double jump to
+## the golden coin, landings) reaches the client and plays on its copy there. Round 3 (traps): every
+## segment gets its turret mounts (SidePlans.force_turrets_for_tests); the host's turret shots and
+## spike phases play on the client (counters of NetSide compared). In every
 ## scenario: the gate behind a started room shuts only once both are inside (host), the client
 ## mirrors it, and the group camera holds both players.
+## weapons=<host>,<client> (e.g. sword,bow or staff,bow; online test 15.10.2026): weapons per player.
+## Each machine gives its own player its weapon (second slot, like a weapon pedestal) and switches to
+## it with the switch button; the host's player attacks with it, the client's bot fights with it.
+## In the first fight room from room 2 on each one switches to the other slot, attacks, switches back and attacks again
+## (the client's bot pauses meanwhile; its shop buys a weapon when one is offered). Checked: every
+## machine sees the other player holding and showing (sprite) the owner's weapon; the host's hits
+## of the client's player carry the client's weapon tags; the active weapons of every player and
+## the weapons of its attacks (in order) are the same on the owner's machine and on the other one.
 ## (portal: the client uses the portal after the revive; host_leaves: the host leaves in room 3,
 ## both get 50 %; client_leaves: the client gives up in room 3, the host plays on alone),
 ## spawn_client=0. Real time.
@@ -66,6 +80,12 @@ const SPECIAL_TYPES := ["SHOP", "WEAPON", "FOUNTAIN", "UPGRADE", "TRIAL"]
 const MAX_ROOMS := 16
 ## RoomController.State.CLEARED
 const ROOM_CLEARED := 2
+## weapons=: weapon ids (weapons/data/<id>.tres; the id is one of its damage tags).
+const WEAPON_IDS: Array[String] = ["sword", "bow", "staff", "dagger", "hammer"]
+## Seconds the attack button is held per weapon in the weapons scenario.
+const WEAPON_ATTACK_SECONDS := 1.0
+## Seconds the host waits alone in room 3 (longer than the old 10 s countdown).
+const STRAGGLER_WAIT := 11.0
 
 var _role := "host"
 var _run_id := ""
@@ -91,6 +111,14 @@ var _side_check_at := -1
 ## Client, M2 tunnels: the last active slot counted, frames in a passage per player.
 var _tunnel_slot := -1
 var _tunnel_streak: Dictionary[int, int] = {}
+## weapons=: weapon log per tracked player ("host_own", "host_client", "client_own", "client_host"):
+## {active: [weapon ids, changes only], attacks: [weapon ids, changes only]}.
+var _weapon_logs: Dictionary = {}
+## Client: the bot is paused while the switch round runs (weapons=).
+var _bot_paused := false
+## weapons=: the switch round runs in the first fight room from room 2 on (not in a special room,
+## whose dialogs it would wait for).
+var _switch_started := false
 
 
 func _init() -> void:
@@ -171,6 +199,7 @@ func _apply_test_tables() -> void:
 		load("res://dungeon/rooms/branches/branch_rules.gd").chance_override = 1.0
 	if str(_args.get("side", "0")) == "1":
 		load("res://dungeon/side/side_ways.gd").force_for_tests = true
+		load("res://dungeon/side/side_plans.gd").force_turrets_for_tests = true
 
 
 ## Mode of a room (&"" for none) and what the run saw: "room:mode" per room entered.
@@ -244,7 +273,10 @@ func _host() -> void:
 	root.get_node("EventBus").enemy_damaged.connect(func(_enemy: Node, _result: RefCounted, damage: RefCounted) -> void:
 		var source: Object = damage.source
 		if source != null and is_instance_valid(source) and source.get_script() != null and source.get_script().get_global_name() == &"Player" and not source.is_local:
-			_stats["client_hits"] = int(_stats.get("client_hits", 0)) + 1)
+			_stats["client_hits"] = int(_stats.get("client_hits", 0)) + 1
+			for weapon_id: String in WEAPON_IDS:
+				if damage.tags.has(StringName(weapon_id)):
+					_stats["client_hits_" + weapon_id] = int(_stats.get("client_hits_" + weapon_id, 0)) + 1)
 	if not await _until(func() -> bool: return _players().size() == 2 and _net().get_ready_peers().size() == 1, "client loaded the dungeon (ready, 2 players)", STARTUP_TIMEOUT):
 		return
 	for player in _players():
@@ -252,6 +284,8 @@ func _host() -> void:
 		player.health.reset(99999.0)
 	if not await _until(func() -> bool: return _dungeon().get_active_room_index() == 1 and _room(1).is_encounter_started(), "room 1 starts once the client is there"):
 		return
+	if _has_weapon_test():
+		await _host_weapons()
 	var host_rooms_ok := true
 	for index in range(1, _rooms + 1):
 		if index == 3 and _scenario == "host_leaves":
@@ -294,6 +328,9 @@ func _host() -> void:
 	if _net() != null:
 		_mode_stats(_net())
 	var client_copy := _remote_player()
+	if _has_weapon_test():
+		_weapon_stats("host_own", "w_host_own")
+		_weapon_stats("host_client", "w_host_client")
 	_stats["host_client_upgrades"] = _stack_total(_net().manager_for(client_copy)) if client_copy != null and _net() != null else -1
 	_stats["host_client_weapons"] = client_copy.weapon_controller.get_owned_weapons().size() if client_copy != null else -1
 	await _close_run_end()
@@ -334,9 +371,14 @@ func _host() -> void:
 			_check(client_stats.get("upgrades", -2) == _stats.get("host_client_upgrades", -1) and int(client_stats.get("upgrades", 0)) >= 1,
 					"the client's own upgrades are the same on the host (%s / %s stacks)" % [client_stats.get("upgrades"), _stats.get("host_client_upgrades")])
 		_check(client_stats.get("weapons", -2) == _stats.get("host_client_weapons", -1), "the client's weapons are the same on the host (%s / %s)" % [client_stats.get("weapons"), _stats.get("host_client_weapons")])
+		if _has_weapon_test():
+			_check_weapon_logs(client_stats)
 		_check(client_stats.get("mode_hash", -2) == _stats.get("mode_hash", -1), "same room modes in the same rooms on both machines (%s modes)" % _stats.get("mode_count"))
 		_check(int(client_stats.get("gates", 0)) >= 1 and int(client_stats.get("gates", 0)) <= int(_stats.get("host_gates", 0)), "the client shut the gates the host shut (%s / %s)" % [client_stats.get("gates"), _stats.get("host_gates")])
 		_check(int(client_stats.get("camera", 0)) >= 2, "client: the group camera held both players (%s)" % client_stats.get("camera"))
+		if _rooms >= 3 and _stats.get("straggler_room", false):
+			_check(int(client_stats.get("wait_hints", 0)) >= 1 and int(client_stats.get("wait_arrow", 0)) >= 1,
+					"client: \"... wartet im naechsten Raum\" with the arrow while the host waited (%s hints, %s arrow frames)" % [client_stats.get("wait_hints"), client_stats.get("wait_arrow")])
 		_check(client_stats.get("side_ways", -2) == _stats.get("host_side_ways", -1) and client_stats.get("side_sig", -2) == _stats.get("host_side_sig", -1),
 				"same side ways on both machines (%s ways, signatures equal)" % _stats.get("host_side_ways"))
 		if int(_stats.get("host_side_transits", 0)) > 0:
@@ -344,6 +386,23 @@ func _host() -> void:
 			_check(client_stats.get("side_finished", -2) == _stats.get("host_side_finished", -1), "the host's end of every segment reached the client (%s)" % client_stats.get("side_finished"))
 			_check(int(client_stats.get("side_players", 0)) == 2 and int(client_stats.get("side_camera", 0)) == 2, "client: both players in the segment and its camera (%s / %s)" % [client_stats.get("side_players"), client_stats.get("side_camera")])
 			_check(int(client_stats.get("side_passed", 0)) >= int(_stats.get("host_side_transits", 0)), "client: its player came out of every segment in the next room (%s)" % client_stats.get("side_passed"))
+			if int(_stats.get("side_crumbles", 0)) > 0:
+				_check(int(_stats.get("host_side_collapses", 0)) >= 1, "host: its ledges crumbled (%s of %s)" % [_stats.get("host_side_collapses"), _stats.get("side_crumbles")])
+				_check(client_stats.get("side_collapses", -2) == _stats.get("host_side_collapses", -1) and client_stats.get("side_crumble_events", -2) == _stats.get("host_side_crumble_events", -1),
+						"the client's ledges shook, fell and came back with the host's (%s / %s changes, %s falls)" % [client_stats.get("side_crumble_events"), _stats.get("host_side_crumble_events"), client_stats.get("side_collapses")])
+			_check(int(_stats.get("host_side_moves", 0)) >= 1 and client_stats.get("side_moves", -2) == _stats.get("host_side_moves", -1),
+					"every move of the host's player in a segment reached the client (%s / %s; %s played)" % [client_stats.get("side_moves"), _stats.get("host_side_moves"), client_stats.get("side_moves_applied")])
+			_check(int(client_stats.get("side_moves_applied", 0)) >= 1, "client: the host's moves played on its copy (%s)" % client_stats.get("side_moves_applied"))
+			_check(client_stats.get("side_double_jumps", -2) == _stats.get("host_side_double_jumps", -1),
+					"every double jump of the host's player played (salto) on the client (%s / %s)" % [client_stats.get("side_double_jumps"), _stats.get("host_side_double_jumps")])
+			var host_shots := int(_stats.get("host_side_turret_shots", 0))
+			var client_shots := int(client_stats.get("side_turret_shots", -1))
+			_check(host_shots >= 1 and absi(client_shots - host_shots) <= 1,
+					"TRAPS: the host's turret shots played on the client (%d / %d; events %s / %s)" % [client_shots, host_shots, client_stats.get("side_turret_events"), _stats.get("host_side_turret_events")])
+			var host_spikes := int(_stats.get("host_side_spike_events", 0))
+			var client_spikes := int(client_stats.get("side_spike_events", -1))
+			_check(host_spikes >= 3 and client_spikes >= host_spikes * 0.8 and client_spikes <= host_spikes,
+					"TRAPS: the host's spike phases played on the client (%d / %d)" % [client_spikes, host_spikes])
 		elif str(_args.get("side", "0")) == "1":
 			_check(false, "side=1: at least one side segment in the tested rooms")
 		if not str(_args.get("modes", "")).is_empty():
@@ -423,7 +482,7 @@ func _host_second_run() -> void:
 
 
 ## One room on the host: the group is in, the fight is won (the client's bot first), dialogs are
-## answered, the exit opens; then the group moves on (room 2 -> 3 tests the countdown).
+## answered, the exit opens; then the group moves on (room 2 -> 3 tests the wait for a straggler).
 func _host_room(index: int, last_room := -1) -> bool:
 	var dungeon := _dungeon()
 	var room: Node = _room(index)
@@ -435,6 +494,10 @@ func _host_room(index: int, last_room := -1) -> bool:
 	var type_name: String = ROOM_TYPES[room.room_type]
 	var variant: Node = room.get_node_or_null("CombatVariant")
 	_note_mode(room)
+	if index >= 2 and type_name != "SPECIAL" and _has_weapon_test() and last_room < 0 and not _switch_started:
+		# Not awaited: the room goes on meanwhile.
+		_switch_started = true
+		_switch_round(_local_player(), _weapon_pair()[0])
 	_say("room %d: %s%s%s" % [index, type_name, (" " + SPECIAL_TYPES[room.special_type]) if type_name == "SPECIAL" else "",
 			(" mode " + String(variant.variant_id)) if variant != null else ""])
 	if type_name == "SPECIAL":
@@ -511,16 +574,25 @@ func _host_room(index: int, last_room := -1) -> bool:
 	if side_gate != null and not side_gate.is_used:
 		return await _host_side(side_gate, next)
 	if index == 2:
-		# Exit rule (D-126): only the host walks in; the countdown brings the client after 10 s.
+		# Exit rule (online test 15.10.2026): only the host walks in - room 3 waits for the client, no
+		# countdown, no teleport; then the client walks in and it starts.
 		var host_player := _local_player()
+		var net := _net()
 		host_player.global_position = _walk_in_points(next, 1)[0]
-		await _until(func() -> bool: return _net().get(&"_waiting_room") == next, "host alone in room 3: countdown runs")
-		var started := Time.get_ticks_msec()
-		await _until(func() -> bool: return dungeon.get_active_room_index() == index + 1, "room 3 starts after the countdown", 20.0)
-		var waited := float(Time.get_ticks_msec() - started) / 1000.0
-		_check(waited >= 8.0, "the countdown took its time (%.1f s)" % waited)
+		await _until(func() -> bool: return net.get(&"_waiting_room") == next, "host alone in room 3: the room waits")
+		await _until(func() -> bool: return net.get_wait_hint() == 1, "host: \"Warte auf ...\" while it waits")
+		_say("  host hint: %s" % net.get(&"_countdown_label").text)
+		await _seconds(STRAGGLER_WAIT)
 		var client_player := _remote_player()
-		_check(client_player != null and next.get_arena().has_point(client_player.global_position), "the straggler was brought into room 3")
+		_check(dungeon.get_active_room_index() == index, "room 3 did not start without the client (%.0f s, no countdown)" % STRAGGLER_WAIT)
+		_check(client_player != null and not next.get_arena().has_point(client_player.global_position), "the straggler was not teleported into room 3")
+		var walked := Time.get_ticks_msec()
+		_place_group(next)
+		await _until(func() -> bool: return dungeon.get_active_room_index() == index + 1, "room 3 starts once the client is in")
+		_check(Time.get_ticks_msec() - walked < 3000, "room 3 started right after the client came in")
+		_check(net.living_teleports == 0, "host: no living player was teleported (%d)" % net.living_teleports)
+		_check(net.get_wait_hint() == 0, "host: the hint is gone once the room started")
+		_stats["straggler_room"] = true
 	else:
 		_place_group(next)
 	return true
@@ -549,6 +621,10 @@ func _host_side(gate: Node, next: Node) -> bool:
 	var local := _local_player()
 	# The fade ends before anybody may move (SideTransit locks input meanwhile).
 	await _seconds(1.0)
+	# Round 2: every ledge crumbles as if somebody stood on it (the host decides, the clients follow).
+	for crumble: Node in segment.get_crumbles():
+		crumble.touch()
+	_stats["side_crumbles"] = int(_stats.get("side_crumbles", 0)) + segment.get_crumbles().size()
 	var bot: RefCounted = load("res://dungeon/side/side_bot.gd").drive(segment, local)
 	if not await _until(func() -> bool: return side.segments_finished > finished_before, "host: the group reached the door of the segment", 60.0):
 		_say("  segment %s, feet %s, door %s, locked %s, protected %s, on floor %s, climbing %s, pit falls %d" % [segment.layout.plan_id,
@@ -576,6 +652,13 @@ func _host_makeover_checks(net: Node) -> void:
 	_stats["host_side_transits"] = net.side.transits
 	_stats["host_side_finished"] = net.side.segments_finished
 	_stats["host_side_sig"] = hash(",".join(net.side.signatures)) & 0x7fffffff
+	_stats["host_side_crumble_events"] = net.side.crumble_events
+	_stats["host_side_collapses"] = net.side.crumble_collapses
+	_stats["host_side_moves"] = net.side.moves_sent_own
+	_stats["host_side_double_jumps"] = net.side.double_jumps_sent_own
+	_stats["host_side_turret_events"] = net.side.turret_events
+	_stats["host_side_turret_shots"] = net.side.turret_shots
+	_stats["host_side_spike_events"] = net.side.spike_events
 	_check(net.gates_closed_early == 0, "host: no gate shut while a living player was outside the new room (%d gates)" % net.gates_closed)
 	if _rooms >= 2 and _is_portal():
 		_check(net.gates_closed >= 1, "host: gates shut behind the group (%d)" % net.gates_closed)
@@ -641,6 +724,8 @@ func _client() -> void:
 		return
 	var local := _local_player()
 	local.input = load("res://player/input/remote_input.gd").new()
+	if _has_weapon_test():
+		await _client_weapons(local)
 	_bot_enabled = true
 	local.weapon_controller.attack_performed.connect(func(_w: Resource) -> void: _bot_attacks += 1)
 	var run_manager := root.get_node("RunManager")
@@ -666,6 +751,10 @@ func _client() -> void:
 			_say("room %d active on the client (%s), pot %d" % [active, ROOM_TYPES[room.room_type] if room != null else "?", run_manager.get_run_gold()])
 			if room != null and room.room_type == 2:
 				_client_special(room)
+			if active >= 2 and room != null and room.room_type != 2 and _has_weapon_test() and not _switch_started:
+				_switch_started = true
+				# Not awaited: rooms, dialogs and the revive go on meanwhile.
+				_client_switch_round(local)
 			if active == 3 and _scenario == "client_leaves":
 				await _seconds(1.0)
 				_say("client gives up and leaves the room")
@@ -696,12 +785,22 @@ func _client() -> void:
 	_check(net.side.signature_mismatches == 0, "client planned the same side ways as the host (0 mismatches, %d compared)" % net.side.signatures_checked)
 	_stats["gates"] = net.gates_closed
 	_stats["camera"] = net.max_camera_targets
+	_stats["wait_hints"] = net.wait_hints
+	_stats["wait_arrow"] = net.wait_arrow_frames
 	_stats["side_ways"] = net.side.ways_announced
 	_stats["side_sig"] = hash(",".join(net.side.signatures)) & 0x7fffffff
 	_stats["side_transits"] = net.side.transits
 	_stats["side_finished"] = net.side.segments_finished
 	_stats["side_players"] = net.side.max_players_in_segment
 	_stats["side_camera"] = net.side.max_camera_targets
+	_stats["side_crumble_events"] = net.side.crumble_events
+	_stats["side_collapses"] = net.side.crumble_collapses
+	_stats["side_moves"] = net.side.moves_received
+	_stats["side_moves_applied"] = net.side.moves_applied
+	_stats["side_double_jumps"] = net.side.double_jumps_applied
+	_stats["side_turret_events"] = net.side.turret_events
+	_stats["side_turret_shots"] = net.side.turret_shots
+	_stats["side_spike_events"] = net.side.spike_events
 	_stats["side_passed"] = int(_stats.get("side_passed", 0))
 	_stats["tunnels"] = int(_stats.get("tunnels", 0))
 	_stats["tunnel_frames"] = int(_stats.get("tunnel_frames", 0))
@@ -725,6 +824,9 @@ func _client() -> void:
 	_stats["enemies"] = net.enemies.spawned_count
 	_stats["upgrades"] = _stack_total(_dungeon().upgrade_manager) if _dungeon() != null else -1
 	_stats["weapons"] = weapons_now
+	if _has_weapon_test():
+		_weapon_stats("client_own", "w_client_own")
+		_weapon_stats("client_host", "w_client_host")
 	_stats["deaths"] = net.enemies.died_count
 	_stats["emerges"] = net.enemies.emerge_count
 	# Rooms from plans (R2/R3): sources warn and open, puppets emerge, the wave state comes from the host.
@@ -851,17 +953,35 @@ func _client_shop(room: Node) -> void:
 		return
 	var offers: Array = net.get(&"_shop_offers")[room.slot_index]
 	var chosen: RefCounted = null
-	for offer in offers:
-		if _dungeon().economy.can_purchase(offer, local, _dungeon().upgrade_manager, -1):
-			chosen = offer
-			break
+	var weapon_slot := -1
+	if _has_weapon_test():
+		# weapons=: a weapon from the shop goes into the inactive slot (the host equips it, the
+		# client gets it back with the loadout).
+		var controller: Node = local.weapon_controller
+		var free: int = controller.find_free_slot()
+		var slot: int = free if free >= 0 else 1 - controller.get_active_slot()
+		for offer in offers:
+			if offer.weapon != null and _dungeon().economy.can_purchase(offer, local, _dungeon().upgrade_manager, slot):
+				chosen = offer
+				weapon_slot = slot
+				break
+	if chosen == null:
+		for offer in offers:
+			if _dungeon().economy.can_purchase(offer, local, _dungeon().upgrade_manager, -1):
+				chosen = offer
+				break
 	if chosen == null:
 		_say("no offer the client can buy")
 		return
 	var pot_before: int = run_manager.get_run_gold()
-	_dungeon().economy.try_purchase(chosen, local, _dungeon().upgrade_manager, -1)
+	_dungeon().economy.try_purchase(chosen, local, _dungeon().upgrade_manager, weapon_slot)
 	_check(not chosen.sold and run_manager.get_run_gold() == pot_before, "client purchase waits for the host")
 	await _until(func() -> bool: return chosen.sold and run_manager.get_run_gold() == pot_before - chosen.price, "host sold the offer to the client (pot -%d)" % chosen.price)
+	if chosen.weapon != null:
+		var bought: Resource = chosen.weapon
+		await _until(func() -> bool: return local.weapon_controller.get_weapon(weapon_slot) == bought,
+				"client: the bought %s arrived from the host in slot %d" % [bought.id, weapon_slot])
+		_stats["shop_weapons"] = int(_stats.get("shop_weapons", 0)) + 1
 
 
 func _client_weapon(room: Node) -> void:
@@ -940,7 +1060,7 @@ func _drive_side(local: Node, input: Object) -> void:
 
 
 func _drive_bot() -> void:
-	if not _bot_enabled or _controller == null or not is_instance_valid(_controller):
+	if not _bot_enabled or _bot_paused or _controller == null or not is_instance_valid(_controller):
 		return
 	var local := _local_player()
 	var dungeon := _dungeon()
@@ -975,6 +1095,164 @@ func _drive_bot() -> void:
 		input.press(&"attack")
 	else:
 		input.release(&"attack")
+
+
+# --- Weapons per player (weapons=) ---
+
+func _has_weapon_test() -> bool:
+	return _weapon_pair().size() == 2
+
+
+## [host's weapon id, client's weapon id] from weapons=, empty without (or with an unknown id).
+func _weapon_pair() -> Array[String]:
+	var pair: Array[String] = []
+	for id in str(_args.get("weapons", "")).split(",", false):
+		if WEAPON_IDS.has(id.strip_edges()):
+			pair.append(id.strip_edges())
+	if pair.size() != 2:
+		pair.clear()
+	return pair
+
+
+static func _weapon_data(id: String) -> Resource:
+	return load("res://weapons/data/%s.tres" % id)
+
+
+static func _weapon_id_of(weapon: Object) -> String:
+	return String(weapon.id) if weapon != null else ""
+
+
+static func _active_id(player: Node) -> String:
+	if player == null or not is_instance_valid(player):
+		return ""
+	return _weapon_id_of(player.weapon_controller.get_active_weapon())
+
+
+static func _append_change(list: Array, id: String) -> void:
+	if list.is_empty() or list[-1] != id:
+		list.append(id)
+
+
+## Logs the active weapon (on every change) and the weapon of every attack of player under key.
+func _track_weapons(player: Node, key: String) -> void:
+	var log := {"active": [], "attacks": []}
+	_weapon_logs[key] = log
+	var controller: Node = player.weapon_controller
+	var note := func() -> void: _append_change(log["active"], _weapon_id_of(controller.get_active_weapon()))
+	controller.weapon_changed.connect(func(_slot: int, _weapon: Resource) -> void: note.call())
+	controller.active_slot_changed.connect(func(_slot: int) -> void: note.call())
+	controller.attack_performed.connect(func(weapon: Resource) -> void: _append_change(log["attacks"], _weapon_id_of(weapon)))
+	note.call()
+
+
+## STAT values of a weapon log: hashes of both lists (and their lengths). The start weapon every
+## player has (sword) is dropped from the front of the active list: whether the other machine saw it
+## before the owner switched depends only on who was faster.
+func _weapon_stats(key: String, prefix: String) -> void:
+	var log: Dictionary = _weapon_logs.get(key, {"active": [], "attacks": []})
+	for part in ["active", "attacks"]:
+		var list: Array = (log[part] as Array).duplicate()
+		if part == "active" and not list.is_empty() and list[0] == "sword":
+			list.remove_at(0)
+		_stats["%s_%s" % [prefix, part]] = hash(",".join(PackedStringArray(list))) & 0x7fffffff
+		_stats["%s_%s_n" % [prefix, part]] = list.size()
+	_say("weapons %s: active %s, attacks %s" % [key, log["active"], log["attacks"]])
+
+
+## The owner's machine: id goes into the second slot (like a weapon pedestal: equip_weapon at the
+## owner, the network brings it to the others) and the switch button makes it the active weapon.
+func _hold_weapon(player: Node, id: String) -> void:
+	await _until(func() -> bool: return not player.is_input_locked() and not player.is_protected(), "%s: own player free to switch weapons" % _role)
+	if id != "sword":
+		var controller: Node = player.weapon_controller
+		_check(controller.equip_weapon(_weapon_data(id), 1), "%s: own player got the %s" % [_role, id])
+		await _seconds(0.5)
+		player.input.tap(&"switch_weapon")
+	await _until(func() -> bool: return _active_id(player) == id, "%s: own player holds the %s" % [_role, id])
+
+
+func _attack_for(player: Node, seconds: float) -> void:
+	player.input.press(&"attack")
+	await _seconds(seconds)
+	player.input.release(&"attack")
+
+
+## First fight room from room 2 on: the other slot, attack, back, attack (no-op with a single weapon).
+func _switch_round(player: Node, id: String) -> void:
+	if id == "sword" or player == null:
+		return
+	await _until(func() -> bool: return not player.is_input_locked() and not player.is_protected(), "%s: free to switch (room %d)" % [_role, _dungeon().get_active_room_index()])
+	player.input.set_move(Vector2.ZERO)
+	var before := _active_id(player)
+	player.input.tap(&"switch_weapon")
+	await _until(func() -> bool: return _active_id(player) != before, "%s: switched away from the %s" % [_role, before])
+	await _attack_for(player, WEAPON_ATTACK_SECONDS)
+	await _seconds(0.3)
+	var other := _active_id(player)
+	player.input.tap(&"switch_weapon")
+	await _until(func() -> bool: return _active_id(player) != other, "%s: switched back" % _role)
+	await _attack_for(player, WEAPON_ATTACK_SECONDS)
+	_stats["switch_rounds"] = int(_stats.get("switch_rounds", 0)) + 1
+
+
+## Client: the bot rests while its player switches there and back.
+func _client_switch_round(local: Node) -> void:
+	_bot_paused = true
+	await _switch_round(local, _weapon_pair()[1])
+	_bot_paused = false
+
+
+## Host, right after room 1 started: its weapon, an attack with it, then it sees the client's.
+func _host_weapons() -> void:
+	var pair := _weapon_pair()
+	var local := _local_player()
+	var copy := _remote_player()
+	local.input = load("res://player/input/remote_input.gd").new()
+	_track_weapons(local, "host_own")
+	_track_weapons(copy, "host_client")
+	await _hold_weapon(local, pair[0])
+	await _attack_for(local, WEAPON_ATTACK_SECONDS)
+	await _until(func() -> bool: return _active_id(copy) == pair[1], "host: the client's player holds the client's %s" % pair[1])
+	var sprite: Texture2D = copy.get_node("WeaponPivot/WeaponSprite").texture
+	_check(sprite == _weapon_data(pair[1]).sprite, "host: the client's player shows the %s sprite" % pair[1])
+
+
+## Client, before its bot fights: its weapon, then it sees the host's.
+func _client_weapons(local: Node) -> void:
+	var pair := _weapon_pair()
+	var copy := _remote_player()
+	_track_weapons(local, "client_own")
+	_track_weapons(copy, "client_host")
+	await _hold_weapon(local, pair[1])
+	await _until(func() -> bool: return _active_id(copy) == pair[0], "client: the host's player holds the host's %s" % pair[0])
+	var sprite: Texture2D = copy.get_node("WeaponPivot/WeaponSprite").texture
+	_check(sprite == _weapon_data(pair[0]).sprite, "client: the host's player shows the %s sprite" % pair[0])
+	var own_sprite: Texture2D = local.get_node("WeaponPivot/WeaponSprite").texture
+	_check(own_sprite == _weapon_data(pair[1]).sprite, "client: its own player shows the %s sprite" % pair[1])
+
+
+## Host, at the end: both machines saw the same weapons per player, in the same order.
+func _check_weapon_logs(client_stats: Dictionary) -> void:
+	var pair := _weapon_pair()
+	_check(int(_stats.get("client_hits_" + pair[1], 0)) > 0, "host: the client's hits carry its %s (by weapon: %s)" % [pair[1], _hit_summary()])
+	for part in ["active", "attacks"]:
+		_check(client_stats.get("w_client_own_" + part, -2) == _stats.get("w_host_client_" + part, -1),
+				"the client's %s weapons are the same on the host (%s / %s entries)" % [part, client_stats.get("w_client_own_%s_n" % part), _stats.get("w_host_client_%s_n" % part)])
+		_check(client_stats.get("w_client_host_" + part, -2) == _stats.get("w_host_own_" + part, -1),
+				"the host's %s weapons are the same on the client (%s / %s entries)" % [part, client_stats.get("w_client_host_%s_n" % part), _stats.get("w_host_own_%s_n" % part)])
+	if pair[0] != "sword":
+		_check(int(_stats.get("switch_rounds", 0)) == 1, "host: switched there and back in a fight room")
+	if pair[1] != "sword":
+		_check(int(client_stats.get("switch_rounds", 0)) == 1, "client: switched there and back in a fight room")
+		_check(int(client_stats.get("w_client_own_active_n", 0)) >= 3, "client: own weapon, switch, back (%s changes)" % client_stats.get("w_client_own_active_n"))
+
+
+func _hit_summary() -> String:
+	var parts: Array[String] = []
+	for id in WEAPON_IDS:
+		if _stats.has("client_hits_" + id):
+			parts.append("%s %d" % [id, _stats["client_hits_" + id]])
+	return ", ".join(parts)
 
 
 # --- Helpers ---
@@ -1193,7 +1471,7 @@ func _spawn_client(role := "client", instance := CLIENT_INSTANCE) -> int:
 		"api=%s" % _args.get("api", DEFAULT_API), "relay=%s" % _args.get("relay", DEFAULT_RELAY)])
 	if _args.has("dev_key"):
 		args.append("dev_key=%s" % _args.dev_key)
-	for key in ["modes", "mode_from", "branch", "side"]:
+	for key in ["modes", "mode_from", "branch", "side", "weapons"]:
 		if _args.has(key):
 			args.append("%s=%s" % [key, _args[key]])
 	var pid := OS.create_process(OS.get_executable_path(), args)

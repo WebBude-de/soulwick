@@ -9,7 +9,10 @@ extends Node
 ##   seed and a NetDungeon (rooms, enemies, players, online/net_dungeon.gd) before it enters the tree.
 ## - Run end: the host's NetDungeon sends run_over; every machine books its own payout (portal 100 %,
 ##   death/abort/host gone 50 %, D-081/D-123) and goes back to the shared village. The host reports
-##   the run (POST /runs, mode quick) when it is logged in; failures are only logged (D-082).
+##   the run (POST /runs, mode quick, or guild with the guild id in a guild room, D-147) when it is
+##   logged in; failures are only logged (D-082). A guild run's payout into the treasury goes to
+##   every machine of the room (share_guild_payout); the village shows it once ("+21 Gold für
+##   [DOCHT]", VillageUI via take_payout_notice / guild_payout_noticed).
 ## - Back in the village the host sends end_run (portal, wiped, abandoned) to the relay: the room
 ##   takes new players again until the next start. A newcomer learns the room's run number
 ##   (sync_runs), so its profiles count for the host's current village.
@@ -17,9 +20,17 @@ extends Node
 signal run_begun(seed_value: int, players: int)
 ## The run report finished: status "sent", "skipped" (not logged in) or "failed:<code>".
 signal run_reported(status: String)
+## A guild run paid into the treasury (host after its report, clients from the host): notice is
+## {payout, treasury, tag, name}.
+signal guild_payout_noticed(notice: Dictionary)
 
 const NODE_NAME := &"NetRun"
 const MODE_QUICK := "quick"
+const MODE_GUILD := "guild"
+## TESTWERT: seconds before the one retry of a failed run report.
+const REPORT_RETRY_SECONDS := 2.0
+## Contracts MAX_RUN_REMAINING_GOLD: the most run gold one report may carry.
+const MAX_REPORTED_GOLD := 10_000_000
 
 ## The LobbyClient this run belongs to (parent).
 var lobby: LobbyClient = null
@@ -35,6 +46,16 @@ var in_run := false
 var runs_begun := 0
 ## Status of the last run report ("" before the first).
 var last_report_status := ""
+## Idempotency key of the current run's report (contracts run.ts reportId): one UUID per run, the
+## same when the report is sent again.
+var report_id := ""
+## Guild runs: gold the last report paid into the guild treasury and the treasury after it
+## (CreateRunResponse guildPayout / guildProgress); -1 until a guild run was reported.
+var last_guild_payout := -1
+var last_guild_treasury := -1
+
+## The last guild payout nobody has shown yet ({} if none, see take_payout_notice).
+var _payout_notice: Dictionary = {}
 
 var _started_msec := 0
 ## Host: RunEndReason of a run that ended; sent as end_run once the village is loaded ("" = none).
@@ -182,6 +203,7 @@ func _begin(new_seed: int, count: int) -> void:
 	player_count = count
 	in_run = true
 	runs_begun += 1
+	report_id = new_uuid()
 	_started_msec = Time.get_ticks_msec()
 	controller.game_mode.player_count = clampi(count, 1, GameMode.MAX_PLAYERS)
 	run_begun.emit(seed_value, player_count)
@@ -254,20 +276,129 @@ func _report_run(summary: Dictionary) -> void:
 	var own_id := session.get_player_id()
 	if not own_id.is_empty() and not participants.has(own_id):
 		participants.push_front(own_id)
+	var body := report_body(summary)
+	var result: ApiResult = await session.api.post_run(body)
+	# One more try on a network or server error; the same reportId keeps it from counting twice.
+	if not result.ok and (result.status == 0 or result.status >= 500) and is_inside_tree():
+		await get_tree().create_timer(REPORT_RETRY_SECONDS, true).timeout
+		result = await session.api.post_run(body)
+	if result.ok:
+		if _accept_guild_payout(result):
+			_share_payout()
+		_set_report("sent")
+	else:
+		push_warning("NetRun: run report failed (%s)." % result.error)
+		_set_report("failed:%s" % result.error)
+
+
+## CreateRunRequest (contracts run.ts) for a finished run: mode quick, or guild with the guild id
+## of the room (D-147; the API wants guildId exactly for guild runs).
+func report_body(summary: Dictionary) -> Dictionary:
+	var mode := report_mode()
 	var body := {
-		"mode": MODE_QUICK,
+		"mode": mode,
 		"participants": participants.slice(0, GameMode.MAX_PLAYERS),
 		"roomReached": int(summary.get("room", 1)),
 		"durationSeconds": get_run_seconds(),
 		"seed": str(seed_value),
 		"gameVersion": OnlineConfig.get_game_version(),
 	}
-	var result: ApiResult = await session.api.post_run(body)
-	if result.ok:
-		_set_report("sent")
-	else:
-		push_warning("NetRun: run report failed (%s)." % result.error)
-		_set_report("failed:%s" % result.error)
+	if report_id.is_empty():
+		report_id = new_uuid()
+	body["reportId"] = report_id
+	if mode == MODE_GUILD:
+		body["guildId"] = report_guild_id()
+		# The API pays the guild treasury from these (portal 100 %, else 50 %, D-081).
+		var reason := _pending_end_reason
+		if reason.is_empty():
+			reason = relay_end_reason(int(summary.get("reason", RunManager.EndReason.ABORT)))
+		body["endReason"] = reason
+		body["remainingGold"] = clampi(int(summary.get("remaining_gold", 0)), 0, MAX_REPORTED_GOLD)
+	return body
+
+
+## A random UUID v4 (reportId).
+static func new_uuid() -> String:
+	var bytes := Crypto.new().generate_random_bytes(16)
+	bytes[6] = (bytes[6] & 0x0f) | 0x40
+	bytes[8] = (bytes[8] & 0x3f) | 0x80
+	var hex := bytes.hex_encode()
+	return "%s-%s-%s-%s-%s" % [hex.substr(0, 8), hex.substr(8, 4), hex.substr(12, 4), hex.substr(16, 4), hex.substr(20, 12)]
+
+
+## CreateRunResponse of a guild run: what went into the treasury and what is in it now. false if the
+## answer has no guild payout (quick runs, older API builds).
+func _accept_guild_payout(result: ApiResult) -> bool:
+	var payout: Variant = result.get_field("guildPayout", null)
+	var progress: Variant = result.get_field("guildProgress", null)
+	if payout == null and not (progress is Dictionary):
+		return false
+	last_guild_payout = int(payout) if payout != null else 0
+	if progress is Dictionary:
+		last_guild_treasury = int(progress.get("treasury", 0))
+	return true
+
+
+## Host: the payout of the reported guild run for itself and every client of the room.
+func _share_payout() -> void:
+	var tag := lobby.room_guild_tag if lobby != null else ""
+	var guild_name := lobby.room_guild_name if lobby != null else ""
+	if multiplayer.has_multiplayer_peer() and lobby != null and lobby.is_in_room():
+		for peer_id in multiplayer.get_peers():
+			share_guild_payout.rpc_id(peer_id, last_guild_payout, last_guild_treasury, tag, guild_name)
+	_notice_payout(last_guild_payout, last_guild_treasury, tag, guild_name)
+
+
+## Host -> clients: the guild run they played paid this into the treasury.
+@rpc("authority", "call_remote", "reliable")
+func share_guild_payout(payout: int, treasury: int, tag: String, guild_name: String) -> void:
+	if multiplayer.get_remote_sender_id() != RelayProtocol.HOST_PEER_ID:
+		return
+	last_guild_payout = maxi(0, payout)
+	last_guild_treasury = treasury
+	# The host knows the guild of its room; a client that joined by code may not.
+	if lobby != null:
+		if lobby.room_guild_tag.is_empty():
+			lobby.room_guild_tag = tag
+		if lobby.room_guild_name.is_empty():
+			lobby.room_guild_name = guild_name
+	_notice_payout(last_guild_payout, treasury, tag, guild_name)
+
+
+## A payout worth showing (more than 0 gold): kept until the village takes it, and announced.
+func _notice_payout(payout: int, treasury: int, tag: String, guild_name: String) -> void:
+	if payout <= 0:
+		return
+	_payout_notice = {"payout": payout, "treasury": treasury, "tag": tag, "name": guild_name}
+	guild_payout_noticed.emit(_payout_notice)
+
+
+## The guild payout not shown yet ({} if none); it is handed out once.
+func take_payout_notice() -> Dictionary:
+	var notice := _payout_notice
+	_payout_notice = {}
+	return notice
+
+
+## "+21 Gold für [DOCHT]" (without a tag: "+21 Gold für die Gildenkasse").
+static func payout_text(notice: Dictionary) -> String:
+	var tag := str(notice.get("tag", ""))
+	if tag.is_empty():
+		return Loc.t(&"GUILD_RUN_PAYOUT_PLAIN", [int(notice.get("payout", 0))])
+	return Loc.t(&"GUILD_RUN_PAYOUT_SHORT", [int(notice.get("payout", 0)), tag])
+
+
+## "guild" for a guild room with a guild id, else "quick".
+func report_mode() -> String:
+	return MODE_GUILD if not report_guild_id().is_empty() else MODE_QUICK
+
+
+## The guild of this run: the session's (GameMode GUILD), else the room's ("" for quick rooms).
+func report_guild_id() -> String:
+	var mode := GameMode.of(self)
+	if mode.kind == GameMode.Kind.GUILD and not mode.guild_id.is_empty():
+		return mode.guild_id
+	return lobby.get_room_guild_id() if lobby != null else ""
 
 
 func _set_report(status: String) -> void:

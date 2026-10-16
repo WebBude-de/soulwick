@@ -5,6 +5,12 @@ extends Node2D
 ## (no collision, the pieces drop and fade) and is back after CRUMBLE_RESPAWN once nobody is in the
 ## way. The origin is the top-left corner of its first cell; it covers cells first..last of one row.
 ## SideSegment calls update() every physics frame (decisions there, so tests can step it by hand).
+## Group game: the host decides (state_changed goes to the clients, NetSide); a client's ledge is
+## remote_controlled - it only shakes, drops and fades, and changes state when the host says so
+## (apply_remote_state), so it falls and comes back on every machine at the same moment.
+
+## The ledge started shaking, fell or came back (the decision; looks follow in step()).
+signal state_changed(crumble: SideCrumble, state: State)
 
 enum State { SOLID, SHAKING, FALLEN }
 
@@ -17,6 +23,8 @@ var biome_id: StringName = &"crypt"
 var state := State.SOLID
 ## Crumbles during this segment (tests, tools).
 var crumble_count := 0
+## Client of a group game: the host decides when it shakes, falls and comes back.
+var remote_controlled := false
 
 var _time_left := 0.0
 var _body: StaticBody2D = null
@@ -78,6 +86,20 @@ func touch() -> void:
 	_time_left = SideRules.CRUMBLE_DELAY
 	if is_inside_tree():
 		Sfx.play_at(self, &"stone_grind", global_position + Vector2(cells * SideRules.TILE * 0.5, 0), -12.0)
+	state_changed.emit(self, state)
+
+
+## The host's state on a client (NetSide): shaking, fallen or back, with the same looks.
+func apply_remote_state(new_state: State) -> void:
+	if new_state == state:
+		return
+	match new_state:
+		State.SHAKING:
+			touch()
+		State.FALLEN:
+			_collapse()
+		State.SOLID:
+			_restore()
 
 
 ## One step; blocked_by_player: someone stands where the ledge would come back.
@@ -86,14 +108,14 @@ func step(delta: float, blocked_by_player := false) -> void:
 		State.SHAKING:
 			_time_left -= delta
 			_pieces.position = Vector2(sin(_time_left * 70.0) * SHAKE_PX, 0.0)
-			if _time_left <= 0.0:
+			if _time_left <= 0.0 and not remote_controlled:
 				_collapse()
 		State.FALLEN:
 			_time_left -= delta
 			_fall_offset += DROP_SPEED * delta
 			_pieces.position = Vector2(0.0, _fall_offset)
 			_pieces.modulate.a = maxf(0.0, 1.0 - _fall_offset / 160.0)
-			if _time_left <= 0.0 and not blocked_by_player:
+			if _time_left <= 0.0 and not blocked_by_player and not remote_controlled:
 				_restore()
 
 
@@ -122,15 +144,19 @@ func _collapse() -> void:
 	if is_inside_tree():
 		Sfx.play_at(self, SideRules.sound_or(SideRules.SOUND_CRUMBLE, &"collapse_crack"), global_position + Vector2(cells * SideRules.TILE * 0.5, 0), -4.0)
 		SideDust.spawn(get_parent(), global_position + Vector2(cells * SideRules.TILE * 0.5, 8.0), SideDust.Kind.CLOUD, 0.6)
+	state_changed.emit(self, state)
 
 
 func _restore() -> void:
 	state = State.SOLID
 	_shape.disabled = false
 	_pieces.position = Vector2.ZERO
-	var tween := create_tween()
 	_pieces.modulate.a = 0.0
-	tween.tween_property(_pieces, "modulate:a", 1.0, 0.3)
+	if is_inside_tree():
+		create_tween().tween_property(_pieces, "modulate:a", 1.0, 0.3)
+	else:
+		_pieces.modulate.a = 1.0
+	state_changed.emit(self, state)
 
 
 ## Cracks over the pieces, so the ledge reads as brittle before it is stood on.

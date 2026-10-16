@@ -2,7 +2,6 @@
 
 [ext_resource type="PackedScene" path="res://dungeon/rooms/room_base.tscn" id="1_base"]
 [ext_resource type="PackedScene" path="res://dungeon/environment/decorations/barrel.tscn" id="2_barrel"]
-[ext_resource type="PackedScene" path="res://dungeon/environment/decorations/torch.tscn" id="3_torch"]
 
 [node name="LagerfeuerRast" instance=ExtResource("1_base")]
 
@@ -71,12 +70,6 @@ metadata/tile = Vector2i(7, 2)
 position = Vector2(544, 224)
 metadata/objective_kind = &"log"
 metadata/tile = Vector2i(8, 3)
-
-[node name="Torch1" parent="Props" instance=ExtResource("3_torch")]
-position = Vector2(128, -64)
-
-[node name="Torch2" parent="Props" instance=ExtResource("3_torch")]
-position = Vector2(640, -64)
 
 [node name="Barrel1" parent="Props" instance=ExtResource("2_barrel")]
 position = Vector2(224, 312)

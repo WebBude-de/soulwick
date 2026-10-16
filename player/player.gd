@@ -77,10 +77,11 @@ var is_local := true
 ## empty = the loaded save's character and clothing colour, following the wardrobe live.
 var appearance: Dictionary = {}
 ## Where this player's commands come from (MP1): keyboard and mouse by default, RemoteInput for
-## players fed from outside (network later, bots and tests now). Never null.
-var input: PlayerInput = LocalKeyboardMouseInput.new():
+## players fed from outside (network later, bots and tests now). Never null. On a touch screen the
+## local keyboard/mouse input becomes a TouchInput (CP2, on-screen controls; TouchInput.adapt).
+var input: PlayerInput = TouchInput.adapt(LocalKeyboardMouseInput.new()):
 	set(value):
-		input = value if value != null else RemoteInput.new()
+		input = TouchInput.adapt(value) if value != null else RemoteInput.new()
 		if weapon_controller != null:
 			weapon_controller.input = input
 
@@ -167,14 +168,13 @@ func _physics_process(delta: float) -> void:
 	_update_visuals(move_input)
 
 
-## Character and clothing colour: the appearance of a remote player or the loaded save (MM1).
+## Figure and colours (D-152): the look of a remote player (PlayerLook dictionary, or the MM1 pair
+## character + color) or, without one, this player's profile.
 func _apply_appearance() -> void:
 	if appearance.is_empty():
 		CharacterCatalog.apply_active(_sprite)
 		return
-	var data := CharacterCatalog.get_character(appearance.get("character", SaveManager.get_character_id()))
-	if data != null:
-		data.apply_to(_sprite, appearance.get("color", data.default_color))
+	PlayerLook.apply(_sprite, PlayerLook.from_appearance(appearance))
 
 
 func get_aim_direction() -> Vector2:
@@ -468,6 +468,7 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 		# Status effects only come with effective hits (D-017).
 		stun(damage.stun_duration)
 		blind(damage.blind_duration)
+		SlowStatus.apply_from_damage(self, result, damage)
 	SpriteFx.flash(_sprite, HIT_FLASH_COLOR, HIT_FLASH_DURATION)
 
 

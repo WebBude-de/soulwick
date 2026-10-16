@@ -1,0 +1,129 @@
+name: Setup Godot
+description: >
+  Pulls the LFS audio (cached), installs the Godot editor and the listed export templates (cached)
+  and imports the project. Runs on Linux and Windows runners. Call it after actions/checkout.
+
+inputs:
+  version:
+    description: Godot version without suffix (must match export templates and project.godot).
+    default: "4.7.2"
+  templates:
+    description: Space separated file names from the export templates, e.g. "linux_release.x86_64 web_nothreads_release.zip". Empty = none.
+    default: ""
+
+outputs:
+  godot:
+    description: Path of the Godot binary (console build on Windows).
+    value: ${{ steps.paths.outputs.binary }}
+
+runs:
+  using: composite
+  steps:
+    # LFS: the synthesized audio (AGENTS.md §8). Cached, so CI runs do not use up LFS bandwidth.
+    - name: List LFS objects
+      id: lfs
+      shell: bash
+      run: echo "key=$(git lfs ls-files --long | cut -d ' ' -f1 | sort | md5sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+    - name: Cache LFS objects
+      uses: actions/cache@v4
+      with:
+        path: .git/lfs
+        key: lfs-${{ steps.lfs.outputs.key }}
+        restore-keys: lfs-
+    - name: Pull LFS objects
+      shell: bash
+      run: git lfs pull
+
+    - name: Resolve paths
+      id: paths
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ inputs.version }}
+        TEMPLATES: ${{ inputs.templates }}
+      run: |
+        tool_dir="$RUNNER_TOOL_CACHE/godot/$GODOT_VERSION"
+        case "$RUNNER_OS" in
+          Linux)
+            archive="Godot_v${GODOT_VERSION}-stable_linux.x86_64.zip"
+            binary="$tool_dir/Godot_v${GODOT_VERSION}-stable_linux.x86_64"
+            data_dir="${XDG_DATA_HOME:-$HOME/.local/share}/godot"
+            ;;
+          Windows)
+            archive="Godot_v${GODOT_VERSION}-stable_win64.exe.zip"
+            binary="$tool_dir/Godot_v${GODOT_VERSION}-stable_win64_console.exe"
+            data_dir="$APPDATA/Godot"
+            ;;
+          *)
+            echo "Unsupported runner OS: $RUNNER_OS" >&2
+            exit 1
+            ;;
+        esac
+        {
+          echo "tool_dir=$tool_dir"
+          echo "archive=$archive"
+          echo "binary=$binary"
+          echo "templates_dir=$data_dir/export_templates/${GODOT_VERSION}.stable"
+          echo "templates_key=$(echo "$TEMPLATES" | tr ' ' '\n' | sort | tr '\n' ' ' | md5sum | cut -c1-12)"
+        } >> "$GITHUB_OUTPUT"
+
+    - name: Cache Godot
+      id: cache-godot
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.paths.outputs.tool_dir }}
+        key: godot-${{ runner.os }}-${{ inputs.version }}
+    - name: Download Godot
+      if: steps.cache-godot.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ inputs.version }}
+        TOOL_DIR: ${{ steps.paths.outputs.tool_dir }}
+        ARCHIVE: ${{ steps.paths.outputs.archive }}
+      run: |
+        base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+        mkdir -p "$TOOL_DIR"
+        cd "$RUNNER_TEMP"
+        curl -fsSL --retry 3 -o "$ARCHIVE" "$base/$ARCHIVE"
+        # Official checksums of this Godot release (catches broken or swapped downloads).
+        curl -fsSL --retry 3 -o godot-SHA512-SUMS.txt "$base/SHA512-SUMS.txt"
+        grep -E "  $ARCHIVE\$" godot-SHA512-SUMS.txt | sha512sum -c -
+        unzip -q -o "$ARCHIVE" -d "$TOOL_DIR"
+        rm "$ARCHIVE" godot-SHA512-SUMS.txt
+
+    - name: Cache export templates
+      id: cache-templates
+      if: inputs.templates != ''
+      uses: actions/cache@v4
+      with:
+        path: ${{ steps.paths.outputs.templates_dir }}
+        key: godot-templates-${{ runner.os }}-${{ inputs.version }}-${{ steps.paths.outputs.templates_key }}
+    - name: Download export templates
+      if: inputs.templates != '' && steps.cache-templates.outputs.cache-hit != 'true'
+      shell: bash
+      env:
+        GODOT_VERSION: ${{ inputs.version }}
+        TEMPLATES: ${{ inputs.templates }}
+        TEMPLATES_DIR: ${{ steps.paths.outputs.templates_dir }}
+      run: |
+        base="https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable"
+        archive="Godot_v${GODOT_VERSION}-stable_export_templates.tpz"
+        mkdir -p "$TEMPLATES_DIR"
+        curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates.tpz" "$base/$archive"
+        curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates-SHA512-SUMS.txt" "$base/SHA512-SUMS.txt"
+        (cd "$RUNNER_TEMP" && grep -E "  $archive\$" templates-SHA512-SUMS.txt | sed "s|$archive\$|templates.tpz|" | sha512sum -c -)
+        rm "$RUNNER_TEMP/templates-SHA512-SUMS.txt"
+        # Only the needed templates: the whole archive is over 1 GB.
+        files=("templates/version.txt")
+        for name in $TEMPLATES; do files+=("templates/$name"); done
+        unzip -q -o -j "$RUNNER_TEMP/templates.tpz" "${files[@]}" -d "$TEMPLATES_DIR"
+        rm "$RUNNER_TEMP/templates.tpz"
+
+    - name: Import project
+      shell: bash
+      env:
+        GODOT: ${{ steps.paths.outputs.binary }}
+      run: |
+        chmod +x "$GODOT" 2>/dev/null || true
+        "$GODOT" --version
+        # The first import of a fresh checkout (.godot/ is not versioned).
+        "$GODOT" --headless --audio-driver Dummy --path . --import
