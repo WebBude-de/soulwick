@@ -183,6 +183,7 @@ func test_version_check_offline_and_old_api() -> void:
 func test_main_menu_footer_shows_version_environment_and_update_hint() -> void:
 	var old_check := MainMenu.online_check
 	MainMenu.online_check = false
+	MainMenu.ask_profile_on_start = false
 	var old_locale := TranslationServer.get_locale()
 	TranslationServer.set_locale("de")
 	var menu := MainMenu.new()
@@ -200,6 +201,7 @@ func test_main_menu_footer_shows_version_environment_and_update_hint() -> void:
 	assert_string_contains(menu.get_online_label().text, "Einzelspieler")
 	TranslationServer.set_locale(old_locale)
 	MainMenu.online_check = old_check
+	MainMenu.ask_profile_on_start = true
 
 
 # --- Export presets ---

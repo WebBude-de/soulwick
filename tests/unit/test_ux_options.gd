@@ -275,7 +275,7 @@ func test_reset_asks_first_and_restores_defaults_but_not_slots() -> void:
 	assert_almost_eq(SaveManager.get_volume(&"Music"), SaveManager.DEFAULT_VOLUMES[&"Music"], 0.0001)
 	assert_almost_eq(view.get_volume_slider(&"Music").value, SaveManager.DEFAULT_VOLUMES[&"Music"], 0.0001, "slider follows")
 	assert_true(SaveManager.has_slot(2), "save slots stay")
-	assert_eq(SaveManager.get_profile_name(), "Bleibt")
+	assert_eq(SaveManager.get_world_name(), "Bleibt", "the world keeps its name")
 
 
 func test_language_row_switches_the_locale_and_the_open_view() -> void:

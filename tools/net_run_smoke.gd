@@ -923,15 +923,19 @@ func _client_second_run() -> void:
 	await _until(func() -> bool: return _lobby.runs_ended == ended_before + 1 and _lobby.last_run_end_reason == "portal", "%s: relay reported the end of run 2 (portal)" % _role)
 
 
-## The late joiner's player as another machine draws it: its name and its clothing colour.
+## The late joiner's player as another machine draws it: its name and its clothing colour (look).
 func _check_look(player: Node, expected_name: String, who: String) -> void:
 	if player == null:
 		_check(false, "%s: the late joiner's player exists" % who)
 		return
 	var tag: Node = player.get_node_or_null("NameTag")
 	_check(tag != null and tag.text == expected_name and not expected_name.is_empty(), "%s: late joiner's name tag (%s)" % [who, tag.text if tag != null else "?"])
-	var color: Variant = player.appearance.get("color")
-	_check(color is Color and (color as Color).is_equal_approx(LATE_COLOR), "%s: late joiner's clothing colour (%s)" % [who, color])
+	# D-152: the look (PlayerLook, loaded at run time like the other classes) carries the outfit as
+	# a palette index (nearest to LATE_COLOR).
+	var look_script: GDScript = load("res://characters/player_look.gd")
+	var look: Dictionary = look_script.from_appearance(player.appearance)
+	var outfit := int(look.colors.outfit)
+	_check(outfit == look_script.nearest_index(&"outfit", LATE_COLOR), "%s: late joiner's clothing colour (outfit %d)" % [who, outfit])
 	_check(not player.is_local, "%s: the late joiner's player is remote" % who)
 
 

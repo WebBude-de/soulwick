@@ -10,9 +10,10 @@ extends VBoxContainer
 signal activated(id: StringName)
 signal selection_changed(id: StringName)
 
-## Entry height, gap and paddings in mockup pixels (menu.json: item_padding [1, 8], gap 2).
-const ITEM_HEIGHT := 22.0
-const GAP := 3.0
+## Entry height, gap and paddings in mockup pixels (menu.json: item_padding [1, 8], gap 2; D-152: 20 px
+## high so six entries fit above the currency panel).
+const ITEM_HEIGHT := 20.0
+const GAP := 2.0
 const PADDING_X := 8.0
 const CURSOR := ">"
 const COLOR_ACTIVE := UiKit.COLOR_GOLD

@@ -34,7 +34,8 @@ const FALLBACK_VERSION := "dev"
 
 ## Layout in mockup pixels (menu.json "ui").
 const LOGO_POSITION := Vector2(24, 16)
-const MENU_POSITION := Vector2(24, 100)
+## D-152: six entries (Figur) must end above the bottom-left currency panel: list from y 88.
+const MENU_POSITION := Vector2(24, 88)
 const MENU_WIDTH := 140.0
 ## Darkened left edge: rgba(21,19,31, 0.88 -> 0.6 -> 0) over x 0..250.
 const SHADE_WIDTH := 250.0

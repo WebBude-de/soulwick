@@ -18,6 +18,13 @@ const META_DATA := &"character_data"
 const META_CONNECTED := &"character_tint_connected"
 ## Set on sprites that show a recoloured look (apply_look): the tint mask stays off.
 const META_BAKED := &"character_look_baked"
+## Own art of a figure as strips (SPRITES_V10 §7): animation -> [file part, frames]. File:
+## <folder of art_frames_path>/<id>_<part>_<frames>f.png, 32×32 frames like the player.
+const STRIP_ANIMATIONS := {
+	&"idle": ["idle", 4], &"walk": ["walk", 6], &"dash": ["dash", 3], &"death": ["death", 6],
+	&"side_jump": ["jump", 3], &"side_land": ["land", 2], &"side_climb": ["climb", 4],
+}
+const STRIP_FRAME := Vector2i(32, 32)
 
 @export var id: StringName = &""
 @export var display_name := ""
@@ -43,17 +50,59 @@ const META_BAKED := &"character_look_baked"
 @export var menu_weapon_pivot := Vector2(6, 16)
 
 
-## The frames to draw: the own art if it exists, else sprite_frames (placeholder: the base figure).
+## The frames to draw: the own art if it exists (a SpriteFrames .tres at art_frames_path, or strips
+## <id>_<animation>_<n>f.png next to it; a missing strip keeps the base figure's animation), else
+## sprite_frames (placeholder: the base figure).
 func get_frames() -> SpriteFrames:
-	if has_own_art():
+	if not art_frames_path.is_empty() and ResourceLoader.exists(art_frames_path):
 		var own := load(art_frames_path) as SpriteFrames
 		if own != null:
 			return own
-	return sprite_frames
+	if _strip_frames == null and _has_strip(&"idle"):
+		_strip_frames = _frames_from_strips()
+	return _strip_frames if _strip_frames != null else sprite_frames
 
 
 func has_own_art() -> bool:
-	return not art_frames_path.is_empty() and ResourceLoader.exists(art_frames_path)
+	if art_frames_path.is_empty():
+		return false
+	return ResourceLoader.exists(art_frames_path) or _has_strip(&"idle")
+
+
+var _strip_frames: SpriteFrames = null
+
+
+func _strip_path(animation: StringName) -> String:
+	var part: Array = STRIP_ANIMATIONS.get(animation, [])
+	if part.is_empty() or art_frames_path.is_empty():
+		return ""
+	return art_frames_path.get_base_dir().path_join("%s_%s_%df.png" % [id, part[0], part[1]])
+
+
+func _has_strip(animation: StringName) -> bool:
+	var path := _strip_path(animation)
+	return not path.is_empty() and ResourceLoader.exists(path)
+
+
+## The base figure's animations, each replaced by the own strip where one exists (same speed and loop).
+func _frames_from_strips() -> SpriteFrames:
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	for animation in sprite_frames.get_animation_names():
+		var fps := sprite_frames.get_animation_speed(animation)
+		var loop := sprite_frames.get_animation_loop(animation)
+		if _has_strip(animation):
+			SpriteStrip.add_strip(frames, animation, load(_strip_path(animation)) as Texture2D, STRIP_FRAME, fps, loop)
+			continue
+		frames.add_animation(animation)
+		frames.set_animation_speed(animation, fps)
+		frames.set_animation_loop(animation, loop)
+		for i in sprite_frames.get_frame_count(animation):
+			frames.add_frame(animation, sprite_frames.get_frame_texture(animation, i), sprite_frames.get_frame_duration(animation, i))
+	for animation: StringName in STRIP_ANIMATIONS:
+		if not frames.has_animation(animation) and _has_strip(animation):
+			SpriteStrip.add_strip(frames, animation, load(_strip_path(animation)) as Texture2D, STRIP_FRAME, 10.0, animation == &"side_climb")
+	return frames
 
 
 ## The mark drawn on the base figure until the own art exists (&"" = none).

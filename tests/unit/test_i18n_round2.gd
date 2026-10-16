@@ -191,7 +191,7 @@ func test_meta_texts_in_english() -> void:
 	assert_eq(MetaUnlocks.get_forge_lock_text(MetaUnlocks.EVENT_FIRST_BOSS), "More upgrades open after your first boss.")
 	assert_eq(MetaUnlocks.join_names(["A", "B", "C"] as Array[String]), "A, B and C")
 	assert_eq(MetaUnlocks.describe_event(MetaUnlocks.EVENT_FIRST_BOSS), "Forge: Gold Greed, Dash Training and Arsenal")
-	assert_eq(SaveSlots.default_name(2), "Save 2")
+	assert_eq(SaveSlots.default_name(2), "World 2")
 	var now := int(Time.get_unix_time_from_system())
 	assert_string_starts_with(SaveSlots.format_last_played(now, now), "today")
 	assert_eq(VillageBuildings.get_display_name(VillageBuildings.TRADER), "Trading Post")
@@ -199,7 +199,7 @@ func test_meta_texts_in_english() -> void:
 	assert_eq(RunRecap.describe_hit(_trap_hit([&"trap", &"fire"])), "Lava fissure")
 	Loc.apply(&"de")
 	assert_eq(MetaProgression.describe_level_step(MetaProgression.DASH_TRAINING, 1), "Dash-Abklingzeit 1,35 s → 1,2 s")
-	assert_eq(SaveSlots.default_name(2), "Spielstand 2")
+	assert_eq(SaveSlots.default_name(2), "Welt 2")
 
 
 func test_hud_switches_language_at_once() -> void:

@@ -103,8 +103,8 @@ func test_old_v2_save_loads_without_loss_and_counts_as_all_seen() -> void:
 	assert_eq(SaveManager.get_second_weapon(), MetaProgression.WEAPON_BOW)
 	assert_true(SaveManager.has_pending_boost(MetaProgression.BOOST_POTION))
 	assert_eq(SaveManager.get_stat(StatsTracker.KILLS), 402)
-	assert_eq(SaveManager.get_display_name(), "Spielstand 1", "no [profile]: default name")
-	assert_eq(SaveManager.get_character_id(), CharacterCatalog.DEFAULT_ID, "no [profile]: default character")
+	assert_eq(SaveManager.get_world_display_name(), "Welt 1", "no [world]: default name (D-152)")
+	assert_true(SaveManager.get_legacy_profile().is_empty(), "no [profile]: nothing for the player's profile")
 	for id in VillageBuildings.ORDER:
 		assert_false(VillageBuildings.needs_intro(id), "old save: %s already explained (D-087)" % id)
 	assert_false(FileAccess.file_exists(TEST_PATH + ".bak"), "not rejected")

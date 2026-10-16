@@ -22,6 +22,7 @@ Genutzt von `ui/touch/touch_overlay.gd` über `ui/touch/touch_art.gd` (`TouchArt
 | `touch_stick_arrows.png` *(optional)* | 60×60 | 1 | Vier kleine Richtungsdreiecke (je ca. 5×4 px) innen am Ring oben, rechts, unten, links, `#e9e4d2` mit 50 % Deckkraft. Liegt über dem Sockel. |
 | `touch_stick_knob.png` | 24×24 | 1 | Stick-Knopf: gewölbte Scheibe, Fläche `#d9b77e` mit ca. 45 % Deckkraft, 1 px hellere Glanzkante oben links, Kontur `#1c1a2b`. |
 | `touch_stick_knob_pressed.png` | 24×24 | 1 | Knopf gedrückt: deckender und wärmer (Richtung Gold `#f2cf4a`, ca. 75 %), Glanzkante etwas stärker. |
+| `touch_stick_aim_base.png` *(optional)* | 60×60 | 1 | Sockel des **Ziel-Sticks** rechts (zielen und automatisch angreifen, ersetzt den Angriffsknopf; `touch_btn_large*` wird dafür nicht mehr gezeigt). Aufbau wie `touch_stick_base`, Ring eher in Glutrot `#c8643c` statt Gold, damit beide Sticks unterscheidbar sind. Fehlt die Datei, nimmt der Code `touch_stick_base`; der Knopf ist `touch_stick_knob` mit dem Waffen-Icon darauf. |
 | `touch_btn_large.png` | 48×48 | 1 | Großer runder Aktionsknopf (nur **Angriff**): Fläche `#15131f` ca. 45 % Deckkraft, Ring 2 px `#d9b77e`, darunter 2 px dunkler Rand `#5d577a` als „Dicke“ (wie eine Taste von schräg oben). |
 | `touch_btn_large_pressed.png` | 48×48 | 1 | Gedrückt: Fläche warm getönt (`#f2cf4a` ca. 35 %), Ring heller, die untere „Dicke“ fehlt (Taste ist eingedrückt). |
 | `touch_btn_large_disabled.png` | 48×48 | 1 | Gesperrt: Ring grau `#7a7396` ca. 50 %, Fläche wie normal. |
@@ -184,3 +185,71 @@ Je Biom:
 - Kein Licht einmalen (Lichtkegel, Glow-Höfe): Licht macht das Licht-System. Glühende Stellen (Kerzen, Glut, Pilze) dürfen als helle Pixel drin sein.
 - Die Deko-Gruppen der Räume stehen auch im Jump'n'Run auf dem Boden. Die flache Schleimpfütze `deco_group_slime_grotto_3` sieht von der Seite falsch aus und wird dort nicht benutzt; eine Seitenansicht-Fassung ist nicht nötig.
 - Nach dem Ablegen: `godot --headless --path . --import`.
+
+## 7. Figuren und Lobby (D-152)
+
+> **Wunsch des Projektmitglieds:** „Ein Charakter pro Account. Mehr Charaktere und Farben, Auswahl in der Lobby und im Dorf. 4 Figuren + Farben, alles frei.“
+> **Stand heute:** Die vier Figuren `wick` (die bisherige Spielerfigur), `ember`, `moss`, `frost` sind im Spiel wählbar; die drei neuen sind **Platzhalter** (Grundfigur mit Kopf-Merkmal aus Code: Flammenschopf, Spitzhut, Bommelmütze). Alle Figuren spielen gleich, es geht nur ums Aussehen. Liefert ihr die Dateien unten, nimmt der Code sie ohne weitere Änderung.
+
+### 7a. Drei neue Figuren (`art/characters/<id>/`)
+
+| id | Name (de / en) | Silhouette und Idee |
+| --- | --- | --- |
+| `ember` | Glut / Ember | Hitzkopf: wilder Haarschopf, der in drei Flammenzacken nach oben steht; kurze Weste über dem Hemd, Schal mit flatterndem Ende. Etwas schmaler und sprunghafter als Wick. |
+| `moss` | Moos / Moss | Waldläufer: spitzer, nach hinten geknickter Hut (der Hut ist **Kleidung**), Umhang bis über die Knie, Kräuterbeutel am Gürtel. Gedrungen, ruhig. |
+| `frost` | Frost / Frost | Aus dem Norden: Bommelmütze (Mütze = **Akzent**, Bommel weiß), dicker gesteppter Mantel, Fellkragen. Breiter, etwas tapsig. |
+
+**Maße und Regeln wie die Spielerfigur** (`art/characters/player/player.json`): Frames **32×32**, Fußpunkt **(16,30)**, Blick **nach rechts** (links wird gespiegelt), Waffenhand bei **(19,19)** (die Waffe ist ein eigenes Sprite, nicht einzeichnen), Kontur 1 px `#1c1a2b`, kein Anti-Aliasing. Kopf und Körper sollen bei gleicher Höhe wie Wick bleiben (Namensschild, Lichtkreis, Trefferflächen sind darauf eingestellt).
+
+| Datei | Frames | fps | Schleife | Inhalt |
+| --- | --- | --- | --- | --- |
+| `<id>_idle_4f.png` | 4 | 4 | ja | ruhiges Atmen |
+| `<id>_walk_6f.png` | 6 | 10 | ja | Laufzyklus |
+| `<id>_dash_3f.png` | 3 | 12 | nein | Ausweichsprung nach vorn |
+| `<id>_death_6f.png` | 6 | 8 | nein | Umfallen, letzter Frame halbtransparent |
+| `<id>_jump_3f.png` | 3 | 10 | nein | Seitenansicht: Absprung, Flug, Scheitel |
+| `<id>_land_2f.png` | 2 | 14 | nein | Seitenansicht: Landung |
+| `<id>_climb_4f.png` | 4 | 8 | ja | Seitenansicht: Klettern (Rücken zur Kamera) |
+| `<id>_fall_4f.png` | 4 | 8 | nein | Sturz in die Tiefe: schrumpft zur Mitte (16,24) und verblasst |
+| `<id>_down_2f.png` | 2 | 2 | ja | am Boden liegend, atmet (Koop) |
+| `<id>_revive_4f.png` | 4 | 8 | nein | Aufstehen, endet im Idle-Frame (Koop) |
+
+Optional wie bei Wick (SPRITES_V9, noch offen): `<id>_double_jump_4f.png`, `<id>_wall_slide_2f.png`. Die ersten sieben Streifen übernimmt der Code heute schon (`CharacterData.STRIP_ANIMATIONS`); `fall`, `down`, `revive` nutzen bis zum Einbau die Frames von Wick.
+
+**Farben statt Tint-Maske:** Das Spiel färbt jetzt **vier Bereiche** frei um (je 8 Farben: Haare, Kleidung, Haut, Akzent). Es erkennt die Bereiche an festen **Schlüsselfarben**. Neue Figuren brauchen deshalb **keine** `*_tint_mask_*`-Dateien mehr, müssen aber genau diese Farben benutzen (± 3 je Kanal):
+
+| Bereich | Grundton | weitere Töne |
+| --- | --- | --- |
+| Haare (bei Moos und Frost auch, wenn unter Hut/Mütze sichtbar) | `#c7542e` | Schatten `#86351c` |
+| Kleidung (Hauptstoff: Hemd, Weste, Mantel, Moos' Hut) | `#3690da` | Schatten `#2a6cb0`, Licht `#6cb2ec` |
+| Haut | `#f3c9a3` | Schatten `#d99c6c` |
+| Akzent (Hose, zweiter Stoff, Frosts Mütze) | `#3f3b58` | Schatten `#2f2b45` |
+
+Alles, was nicht umgefärbt werden soll (Kontur, Augen, Stiefel `#452a16`/`#6b4226`, Gürtel `#8a5a34`, Schnalle `#e0b84a`, Bommel, Metall), in **anderen** Farben der HANDOUT-Palette. Keine Zwischentöne der Schlüsselfarben erfinden, sonst bleiben diese Pixel beim Umfärben stehen. Die Masken von Wick (`player_tint_mask_*`) bleiben liegen, werden aber nicht mehr gebraucht.
+
+### 7b. Lobby-Plätze (`art/ui/lobby/`)
+
+Der Raum-Dialog zeigt je Spieler einen Platz (heute aus den Theme-Panels gebaut). Rahmen als **9-Slice, Rand 6 px**, Mitte einfarbig (der Inhalt liegt darüber), Mindestgröße 24×24:
+
+| Datei | Größe | Inhalt |
+| --- | --- | --- |
+| `slot_normal.png` | 24×24 | Platz eines Mitspielers: dunkles Panel `#2a2638`, Rahmen `#5d577a`/`#8f88ad` |
+| `slot_own.png` | 24×24 | eigener Platz: gleicher Aufbau, Rahmen gold `#f2cf4a` mit hellerer Innenkante |
+| `slot_host.png` | 24×24 | Platz des Hosts: wie normal, oben mittig eine kleine Zierleiste (die Krone sitzt rechts oben) |
+| `slot_empty.png` | 24×24 | freier Platz: gestrichelter Rahmen `#5d577a`, Mitte fast durchsichtig |
+| `ready.png` | 7×7 | Bereit-Häkchen grün `#5fcd62` mit Kontur |
+| `../icon_world.png` | 16×16 | Welt-Symbol für die Weltenliste im Hauptmenü (kleine Landkarte oder Insel); ohne Datei steht dort die Platznummer |
+
+Krone und Ping-Balken gibt es schon (`art/ui/icon_host.png`, `icon_ping_good.png`, `icon_ping_mid.png`, `icon_ping_bad.png`, je 16×16) und werden benutzt; eine Überarbeitung mit gleichen Namen ist willkommen (Krone darf etwas kleiner wirken, sie wird 9 px breit gezeichnet).
+
+### 7c. Spiegel im Dorf (`art/environment/village/mirror.png`)
+
+**16×28** (im Spiel ×2), Fußpunkt unten Mitte, 1 Frame: Standspiegel mit Holzrahmen (`#8a5a34`, Licht `#a8703f`, Schatten `#5c3a24`) auf zwei kurzen Füßen, Glas bläulich-grau mit einem schrägen Glanzstreif. Steht rechts neben dem Zuhause; mit **E** öffnet er Name und Aussehen. Optional als zweite Idee: Schneiderpuppe mit Stoffbahnen (gleiche Größe, Dateiname `tailor.png`; der Code nutzt heute nur `mirror.png`).
+
+| Teil | Code | Verhalten |
+| --- | --- | --- |
+| §7a Figuren | `characters/character_data.gd`, `characters/player_look.gd` | Streifen mit genau diesen Namen ersetzen den Platzhalter (Kopf-Merkmal fällt weg); Farben über die Schlüsselfarben. |
+| §7b Lobby | `ui/menus/online/lobby_slot.gd`, `ui/main_menu/slot_panel.gd` | Datei da → Rahmen/Häkchen/Welt-Symbol aus der Datei, sonst Theme-Panel bzw. gezeichnetes Häkchen. |
+| §7c Spiegel | `world/village/village_mirror.gd` | Datei da → Grafik, sonst gezeichneter Platzhalter. |
+
+Nach dem Ablegen: `godot --headless --path . --import`.

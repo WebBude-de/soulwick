@@ -21,7 +21,9 @@ const PING_ICON_PATHS := {
 const PING_GOOD_MS := 80
 const PING_MID_MS := 160
 const PREVIEW_SCALE := 2
-const HEIGHT := 74.0
+## Mockup pixels: the place (fits the village dialog with code, hint and buttons) and its padding.
+const HEIGHT := 64.0
+const PADDING := 3.0
 const STATUS_KEYS := {
 	Status.READY: &"LOBBY_SLOT_READY",
 	Status.CONNECTING: &"LOBBY_SLOT_CONNECTING",
@@ -49,24 +51,28 @@ static func create_player(index: int, player_name: String, look: Dictionary, hos
 	slot.is_host = host
 	slot._frame(&"own" if own else (&"host" if host else &"normal"), width)
 	var box := slot._box()
-	var top := UiKit.hbox(int(UiKit.px(2)))
+	# P-tag top left, the figure in the middle, the host crown top right: one row.
+	var top := UiKit.hbox(0)
 	var tag := UiKit.text_label("P%d" % (index + 1), UiKit.SIZE_EYEBROW, NetPlayers.color_for(index), true)
 	tag.name = "Tag"
+	tag.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	tag.custom_minimum_size.x = UiKit.px(9)
 	top.add_child(tag)
-	var spacer := Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	top.add_child(spacer)
+	var preview := CharacterPreview.create(PREVIEW_SCALE, false)
+	preview.name = "Preview"
+	preview.size_flags_horizontal = Control.SIZE_EXPAND | Control.SIZE_SHRINK_CENTER
+	top.add_child(preview)
+	var crown_box := Control.new()
+	crown_box.custom_minimum_size = UiKit.pxv(9, 7)
+	crown_box.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	crown_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	if host:
 		var crown := UiKit.pixel_icon(load(HOST_ICON_PATH) as Texture2D, 9.0)
 		crown.name = "HostCrown"
 		crown.tooltip_text = tr_key(&"LOBBY_HOST")
-		top.add_child(crown)
+		crown_box.add_child(crown)
+	top.add_child(crown_box)
 	box.add_child(top)
-	var preview := CharacterPreview.create(PREVIEW_SCALE, false)
-	preview.name = "Preview"
-	preview.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	box.add_child(preview)
 	if not look.is_empty():
 		preview.set_look(look)
 	else:
@@ -76,17 +82,12 @@ static func create_player(index: int, player_name: String, look: Dictionary, hos
 	name_label.name = "PlayerName"
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.clip_text = true
-	name_label.custom_minimum_size.x = UiKit.px(width - 10.0)
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	box.add_child(name_label)
-	box.add_child(slot._status_row(status))
-	box.add_child(slot._ping_row(ping_ms))
+	box.add_child(slot._status_row(status, ping_ms))
 	if own and on_edit.is_valid():
-		var edit := UiKit.dialog_button(&"LOBBY_EDIT_LOOK", "", on_edit, false)
-		edit.name = "EditLook"
-		edit.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		edit.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		OnlineMenu._make_focusable(edit)
-		box.add_child(edit)
+		box.add_child(small_button("EditLook", &"LOBBY_EDIT_LOOK", on_edit, width))
 	return slot
 
 
@@ -104,18 +105,33 @@ static func create_empty(index: int, width: float, on_share: Callable = Callable
 	plus.custom_minimum_size.y = UiKit.px(18)
 	plus.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	box.add_child(plus)
-	var waiting := UiKit.wrapped_text(tr_key(&"LOBBY_SLOT_WAITING"), width - 10.0, UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	var waiting := UiKit.wrapped_text(tr_key(&"LOBBY_SLOT_WAITING"), width - PADDING * 2.0 - 2.0, UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	waiting.name = "Waiting"
 	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(waiting)
 	if on_share.is_valid():
-		var share := UiKit.dialog_button(&"LOBBY_SHARE_CODE", "", on_share, false)
-		share.name = "ShareCode"
-		share.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-		share.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		OnlineMenu._make_focusable(share)
-		box.add_child(share)
+		box.add_child(small_button("ShareCode", &"LOBBY_SHARE_CODE", on_share, width))
 	return slot
+
+
+## A small framed button that never makes the place wider (text trimmed), focusable for keys and
+## controller (gold frame), a tap target on touch.
+static func small_button(node_name: String, key: StringName, on_pressed: Callable, width: float) -> Button:
+	var button := Button.new()
+	button.name = node_name
+	button.text = key
+	button.clip_text = true
+	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	button.custom_minimum_size = Vector2(UiKit.px(width - PADDING * 2.0 - 2.0), UiKit.px(11))
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_EYEBROW))
+	button.add_theme_stylebox_override("normal", UiKit.padded_style(&"button", 1, 1))
+	button.add_theme_stylebox_override("hover", UiKit.padded_style(&"button_hover", 1, 1))
+	button.add_theme_stylebox_override("pressed", UiKit.padded_style(&"button_hover", 1, 1))
+	button.pressed.connect(on_pressed)
+	OnlineMenu._make_focusable(button)
+	return button
 
 
 ## Updates the ping bars in place (once a second, no rebuild).
@@ -124,7 +140,8 @@ func set_ping(ping_ms: int) -> void:
 		return
 	_ping_icon.texture = load(PING_ICON_PATHS[ping_quality(ping_ms)]) as Texture2D
 	_ping_icon.modulate.a = 1.0 if ping_ms >= 0 else 0.35
-	_ping_label.text = "%d ms" % ping_ms if ping_ms >= 0 else "– ms"
+	_ping_label.text = str(ping_ms) if ping_ms >= 0 else "–"
+	_ping_icon.tooltip_text = "%d ms" % ping_ms if ping_ms >= 0 else "– ms"
 
 
 ## &"good", &"mid" or &"bad" for a round trip (unknown counts as bad, shown faded).
@@ -145,17 +162,18 @@ static func tr_key(key: StringName) -> String:
 func _frame(kind: StringName, width: float) -> void:
 	custom_minimum_size = UiKit.pxv(width, HEIGHT)
 	mouse_filter = Control.MOUSE_FILTER_PASS
+	clip_contents = true
 	var art := ART_DIR + "slot_%s.png" % kind
 	if ResourceLoader.exists(art):
 		var style := StyleBoxTexture.new()
 		style.texture = load(art) as Texture2D
 		for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 			style.set_texture_margin(side, 6)
-			style.set_content_margin(side, UiKit.px(4))
+			style.set_content_margin(side, UiKit.px(PADDING))
 		add_theme_stylebox_override("panel", style)
 	else:
 		var panel_kind: StringName = {&"own": &"gold", &"empty": &"dark"}.get(kind, &"normal")
-		add_theme_stylebox_override("panel", UiKit.padded_style(panel_kind, 3, 3))
+		add_theme_stylebox_override("panel", UiKit.padded_style(panel_kind, PADDING, PADDING))
 	if kind == &"empty":
 		self_modulate = Color(1, 1, 1, 0.7)
 
@@ -168,8 +186,9 @@ func _box() -> VBoxContainer:
 	return box
 
 
-func _status_row(status: Status) -> Control:
-	var row := UiKit.hbox(int(UiKit.px(2)))
+## "✓ Bereit" (or connecting / in the run) and the ping bars with the round trip, one line.
+func _status_row(status: Status, ping_ms: int) -> Control:
+	var row := UiKit.hbox(int(UiKit.px(1)))
 	row.name = "Status"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	if status == Status.READY:
@@ -179,22 +198,21 @@ func _status_row(status: Status) -> Control:
 		tick.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		tick.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		tick.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		tick.custom_minimum_size = UiKit.pxv(7, 7)
+		tick.custom_minimum_size = UiKit.pxv(6, 6)
+		tick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		tick.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(tick)
 	var color := UiKit.COLOR_SUCCESS if status == Status.READY else UiKit.COLOR_MUTED
 	var label := UiKit.text_label(STATUS_KEYS[status], UiKit.SIZE_EYEBROW, color)
 	label.name = "StatusText"
 	row.add_child(label)
-	return row
-
-
-func _ping_row(ping_ms: int) -> Control:
-	var row := UiKit.hbox(int(UiKit.px(2)))
-	row.name = "Ping"
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_ping_icon = UiKit.pixel_icon(load(PING_ICON_PATHS[&"good"]) as Texture2D, 8.0)
+	var gap := Control.new()
+	gap.custom_minimum_size.x = UiKit.px(3)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(gap)
+	_ping_icon = UiKit.pixel_icon(load(PING_ICON_PATHS[&"good"]) as Texture2D, 7.0)
 	_ping_icon.name = "PingBars"
+	_ping_icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(_ping_icon)
 	_ping_label = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	_ping_label.name = "PingText"

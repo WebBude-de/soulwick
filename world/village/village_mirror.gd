@@ -41,6 +41,7 @@ func _ready() -> void:
 	door.name = "Door"
 	door.prompt = Loc.t(&"MIRROR_PROMPT")
 	var shape := CollisionShape2D.new()
+	shape.name = "CollisionShape2D"
 	var circle := CircleShape2D.new()
 	circle.radius = RADIUS
 	shape.shape = circle

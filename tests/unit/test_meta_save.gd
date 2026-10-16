@@ -74,7 +74,7 @@ func test_migrate_reports_source_version() -> void:
 	config.set_value("progress", "permanent_gold", 5)
 	assert_eq(SaveManager.migrate(config), 1)
 	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
-	assert_eq(SaveManager.SAVE_VERSION, 3)
+	assert_eq(SaveManager.SAVE_VERSION, 4)
 	assert_eq(config.get_value("progress", "permanent_crystals"), 0)
 	assert_eq(config.get_value("progress", "permanent_gold"), 5)
 
@@ -168,7 +168,7 @@ func test_migration_keeps_a_backup_of_the_old_file() -> void:
 	assert_eq(SaveManager.save_game(), OK)
 	var config := ConfigFile.new()
 	assert_eq(config.load(TEST_PATH), OK)
-	assert_eq(config.get_value("meta", "version"), 3)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_eq(config.get_value("meta_upgrades", "sharpness"), 3)
 	_write(_v2_with_level("sharpness", 1))
 	assert_eq(SaveManager.load_game(), OK)
@@ -205,7 +205,7 @@ func test_v2_values_survive_reload() -> void:
 
 
 func test_newer_version_is_rejected() -> void:
-	_write("[meta]\nversion=4\n[progress]\npermanent_gold=500\n")
+	_write("[meta]\nversion=5\n[progress]\npermanent_gold=500\n")
 	assert_eq(SaveManager.load_game(), ERR_FILE_UNRECOGNIZED)
 	assert_eq(SaveManager.get_permanent_gold(), 0)
 	assert_true(FileAccess.file_exists(TEST_PATH + ".bak"), "kept as *.bak")

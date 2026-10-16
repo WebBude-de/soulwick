@@ -22,6 +22,8 @@ var _csv: Dictionary = {}
 func before_all() -> void:
 	# No network from the menu's online version check (MP4).
 	MainMenu.online_check = false
+	# The first start ("Wie heißt du?", D-152) has its own tests in test_main_menu.
+	MainMenu.ask_profile_on_start = false
 	_old_save_path = SaveManager.save_path
 	_old_saves_dir = SaveManager.saves_dir
 	_old_settings_path = SaveManager.settings_path
@@ -42,6 +44,7 @@ func after_each() -> void:
 
 func after_all() -> void:
 	MainMenu.online_check = true
+	MainMenu.ask_profile_on_start = true
 	_wipe()
 	SaveManager.saves_dir = _old_saves_dir
 	SaveManager.settings_path = _old_settings_path
@@ -183,7 +186,7 @@ func test_open_main_menu_switches_language_at_once() -> void:
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_OPTIONS), "Options", "plain keys re-translate themselves")
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_CONTINUE), "New game")
 	assert_eq(list.get_entry_hint(MainMenu.ENTRY_SLOTS), "0 / 3 used", "composed hints are rebuilt")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "needs a save", "D-147: online needs a save")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "needs a world", "D-147: online needs a world (D-152)")
 	assert_eq(panel.view.get_caption_text(OptionsView.Row.SFX), "Effects", "the open options view follows")
 	await wait_physics_frames(2)
 	assert_true(panel.view.get_footer_text().ends_with("Esc back"), "footer in English: %s" % panel.view.get_footer_text())

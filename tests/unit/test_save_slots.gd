@@ -1,7 +1,7 @@
 extends GutTest
-## Save slots and global settings (MM1): the pre-slot save lands unchanged in slot 1 exactly once,
-## new slots start fresh (village explanations, D-087), profile and settings persist, deleting is
-## safe. Works only in a test folder (SaveManager.set_storage_root), never on the real save.
+## Save slots and global settings (MM1, D-152): the pre-slot save lands unchanged in slot 1 exactly
+## once, new slots (worlds) start fresh (village explanations, D-087), world name and settings
+## persist, the old per-slot profile is kept for the player's profile, deleting is safe. Works only in a test folder (SaveManager.set_storage_root), never on the real save.
 
 const ROOT := "user://test_save_slots"
 ## A real v2 save of the project member (14.10.2026, before slots), with [seen] and [settings].
@@ -213,31 +213,36 @@ func test_new_slot_starts_fresh_with_village_explanations() -> void:
 	assert_eq(SaveManager.get_slot_summary(1)["gold"], 54, "the old save is untouched")
 
 
-func test_profile_is_saved_in_the_slot() -> void:
-	assert_eq(SaveManager.create_slot(3, "  Mira der Mutige ist lang  ", &"hero", Color("#5fcd62")), OK)
+func test_world_name_is_saved_in_the_slot() -> void:
+	assert_eq(SaveManager.create_slot(3, "  Mira der Mutige ist lang  "), OK)
 	assert_eq(SaveManager.load_slot(3), OK)
-	assert_eq(SaveManager.get_profile_name(), "Mira der Mutige", "trimmed to 16 characters")
-	assert_eq(SaveManager.get_character_id(), &"hero")
-	assert_eq(SaveManager.get_character_color().to_html(false), "5fcd62")
+	assert_eq(SaveManager.get_world_name(), "Mira der Mutige", "trimmed to 16 characters")
 	assert_gt(SaveManager.get_last_played(), 0)
 	var config := ConfigFile.new()
 	assert_eq(config.load(SaveManager.slot_path(3)), OK)
-	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION, "no version bump for [profile]")
-	assert_eq(config.get_value("profile", "color"), "5fcd62")
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
+	assert_eq(config.get_value("world", "name"), "Mira der Mutige", "D-152: the slot names a world")
+	assert_false(config.has_section_key("profile", "name"), "the player's name is not in the world")
+	assert_false(config.has_section_key("profile", "character"))
+	assert_false(config.has_section("legacy_profile"), "new worlds have no old profile")
 	assert_false(config.has_section("settings"), "volumes are global now")
 
 
 func test_empty_name_gets_the_slot_name() -> void:
-	SaveManager.create_slot(2, "   ", &"hero", Color.WHITE)
-	assert_eq(SaveManager.get_profile_name(), "Spielstand 2")
+	SaveManager.create_slot(2, "   ")
+	assert_eq(SaveManager.get_world_name(), "", "nothing stored")
+	assert_eq(SaveManager.get_world_display_name(), "Welt 2")
 
 
 func test_unknown_character_falls_back_to_default() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SaveManager.saves_dir))
 	_write(SaveManager.slot_path(1), "[meta]\nversion=2\n[profile]\ncharacter=\"ghost\"\ncolor=\"nonsense\"\n")
 	assert_eq(SaveManager.load_slot(1), OK)
-	assert_eq(CharacterCatalog.get_active().id, CharacterCatalog.DEFAULT_ID)
-	assert_eq(SaveManager.get_character_color(), CharacterCatalog.get_active().default_color)
+	var legacy := SaveSlots.read_legacy_profile(SaveManager.slot_path(1))
+	assert_eq(legacy.get("character"), &"ghost")
+	var look := PlayerLook.from_legacy(legacy.get("character"), legacy.get("color"))
+	assert_eq(PlayerLook.get_character(look), CharacterCatalog.DEFAULT_ID, "unknown figure -> wick")
+	assert_eq(PlayerLook.get_index(look, PlayerLook.OUTFIT), 0, "broken colour -> start colour")
 
 
 func test_create_refuses_used_or_invalid_slots() -> void:
@@ -314,7 +319,7 @@ func test_plain_save_path_api_still_works() -> void:
 	assert_eq(SaveManager.save_game(), OK)
 	assert_eq(SaveManager.load_game(), OK)
 	assert_eq(SaveManager.get_permanent_gold(), 9)
-	assert_eq(SaveManager.get_display_name(), "Spielstand 1")
+	assert_eq(SaveManager.get_world_display_name(), "Welt 1")
 
 
 func test_summary_of_old_and_broken_slots() -> void:
@@ -323,7 +328,7 @@ func test_summary_of_old_and_broken_slots() -> void:
 	var summary := SaveManager.get_slot_summary(1)
 	assert_true(summary["exists"])
 	assert_false(summary["broken"])
-	assert_eq(summary["name"], "Spielstand 1")
+	assert_eq(summary["name"], "Welt 1")
 	assert_eq(summary["deepest_room"], 45)
 	assert_eq(summary["crystals"], 6)
 	assert_almost_eq(float(summary["play_time"]), 4133.24, 0.01)
@@ -336,7 +341,7 @@ func test_summary_of_old_and_broken_slots() -> void:
 
 func test_name_and_time_formatting() -> void:
 	assert_eq(SaveSlots.sanitize_name("  Ana\tBel  ", 1), "AnaBel")
-	assert_eq(SaveSlots.sanitize_name("", 3), "Spielstand 3")
+	assert_eq(SaveSlots.sanitize_name("", 3), "Welt 3")
 	assert_eq(SaveSlots.format_play_time(30.0), "< 1 min")
 	assert_eq(SaveSlots.format_play_time(45.0 * 60.0), "45 min")
 	assert_eq(SaveSlots.format_play_time(4133.0), "1:08 h")
@@ -378,22 +383,27 @@ func test_real_v2_slot_migrates_without_loss() -> void:
 	assert_eq(SaveManager.save_game(), OK)
 	var config := ConfigFile.new()
 	assert_eq(config.load(SaveManager.slot_path(1)), OK)
-	assert_eq(config.get_value("meta", "version"), 3)
-	assert_eq(config.get_value("profile", "name"), "Test", "[profile] kept in the file")
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
+	assert_false(config.has_section_key("profile", "name"), "D-152: the player's name left the world")
+	assert_eq(config.get_value("legacy_profile", "name"), "Test", "kept for the profile suggestion")
+	assert_eq(config.get_value("legacy_profile", "character"), "hero")
+	assert_eq(config.get_value("legacy_profile", "color"), "e0463a")
 	assert_eq(config.get_value("profile", "created"), 1791941206)
 	assert_eq(config.get_value("seen", "all"), false, "[seen] kept as it was")
 	assert_eq(SaveManager.load_slot(1), OK)
 	_assert_test_slot("after saving and reloading")
-	assert_eq(SaveManager.get_slot_summary(1)["name"], "Test")
+	assert_eq(SaveManager.get_slot_summary(1)["name"], "Welt 1", "a world now, not the player's name")
 	assert_eq(SaveManager.get_slot_summary(1)["crystals"], 11)
 
 
 func _assert_test_slot(when: String) -> void:
 	assert_eq(SaveManager.get_permanent_gold(), 43, when)
 	assert_eq(SaveManager.get_permanent_crystals(), 11, when)
-	assert_eq(SaveManager.get_profile_name(), "Test", when)
-	assert_eq(SaveManager.get_character_id(), &"hero", when)
-	assert_eq(SaveManager.get_character_color().to_html(false), "e0463a", when)
+	var legacy := SaveManager.get_legacy_profile()
+	assert_eq(legacy.get("name"), "Test", when)
+	assert_eq(legacy.get("character"), "hero", when)
+	assert_eq(legacy.get("color"), "e0463a", when)
+	assert_eq(SaveManager.get_world_display_name(), "Welt 1", when)
 	assert_eq(SaveManager.get_stat(StatsTracker.KILLS), 316, when)
 	assert_eq(SaveManager.get_stat(StatsTracker.BOSSES), 3, when)
 	assert_almost_eq(float(SaveManager.get_stat(StatsTracker.PLAY_TIME)), 1289.24, 0.01, when)
@@ -438,16 +448,17 @@ func test_every_slot_is_migrated_when_loaded() -> void:
 		assert_eq(SaveManager.load_slot(slot), OK)
 		assert_eq(SaveManager.get_meta_level(MetaProgression.SHARPNESS), slot, "slot %d: %d x 5 %% -> %d x 10 %%" % [slot, slot * 2, slot])
 		assert_eq(SaveManager.get_permanent_gold(), slot * 10)
-		assert_eq(SaveManager.get_profile_name(), "S%d" % slot)
+		assert_eq(SaveManager.get_legacy_profile().get("name"), "S%d" % slot, "old name kept for the profile")
+		assert_eq(SaveManager.get_world_display_name(), "Welt %d" % slot)
 		assert_true(FileAccess.file_exists(SaveManager.slot_path(slot) + ".v2.bak"), "slot %d backed up" % slot)
 		assert_true(MetaUnlocks.has_event(MetaUnlocks.EVENT_FIRST_BOSS))
 
 
-func test_new_slot_is_v3_and_starts_locked() -> void:
+func test_new_slot_is_current_and_starts_locked() -> void:
 	assert_eq(SaveManager.create_slot(1, "Neu", CharacterCatalog.DEFAULT_ID), OK)
 	var config := ConfigFile.new()
 	assert_eq(config.load(SaveManager.slot_path(1)), OK)
-	assert_eq(config.get_value("meta", "version"), 3)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.CHRONICLE))
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.TRADER))
 	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL))

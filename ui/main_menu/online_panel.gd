@@ -14,8 +14,8 @@ var menu: OnlineMenu = null
 
 
 func _ready() -> void:
-	# The login uses the name of the save that "Weiterspielen" starts (a new guest account is named
-	# after it), so that save is loaded first.
+	# Name and look come from the player's profile (D-152); rooms start in the world of
+	# "Weiterspielen", so that world is loaded first.
 	var slot := SaveManager.get_continue_slot()
 	if slot > 0 and SaveManager.get_active_slot() != slot:
 		SaveManager.load_slot(slot)

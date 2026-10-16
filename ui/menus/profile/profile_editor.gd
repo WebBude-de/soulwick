@@ -169,6 +169,10 @@ func confirm() -> void:
 	if _busy:
 		return
 	var player_name := get_player_name()
+	if player_name.is_empty() and first_start:
+		# Controller only, no keyboard: the first start still goes on, the name can change later.
+		player_name = tr(&"PROFILE_DEFAULT_NAME")
+		set_player_name(player_name)
 	if player_name.length() < PlayerProfile.NAME_MIN_LENGTH:
 		UiSound.error(self)
 		set_message(tr(&"PROFILE_NAME_TOO_SHORT") % PlayerProfile.NAME_MIN_LENGTH, true)
