@@ -7,11 +7,11 @@
 [resource]
 script = ExtResource("1_data")
 id = &"splitter_slime"
-display_name = "Splitterschleim"
+display_name = "ENEMY_SPLITTER_SLIME_NAME"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"swarm"])
 min_room = 16
-hint = "Splitterschleim: Teilt sich beim Tod in zwei flinke Mini-Schleime."
+hint = "ENEMY_SPLITTER_SLIME_HINT"
 max_health = 16.0
 damage = 0.65
 move_speed = 75.0

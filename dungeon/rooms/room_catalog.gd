@@ -50,15 +50,34 @@ static func create(extra: Array[PackedScene] = []) -> RoomCatalog:
 ## The generated catalog, loaded once (null if missing).
 static func load_default() -> RoomCatalog:
 	if _default == null and ResourceLoader.exists(DEFAULT_PATH):
-		_default = load(DEFAULT_PATH) as RoomCatalog
+		_default = _load_catalog(DEFAULT_PATH)
 	return _default
 
 
 ## The generated catalog of boss, miniboss, rest and campfire plans, loaded once (null if missing).
 static func load_plans() -> RoomCatalog:
 	if _plans == null and ResourceLoader.exists(PLANS_PATH):
-		_plans = load(PLANS_PATH) as RoomCatalog
+		_plans = _load_catalog(PLANS_PATH)
 	return _plans
+
+
+## Starts loading both catalogs, and with them every template scene, on worker threads (feedback
+## 16.10.2026: the first dungeon entry stalled about 0.75 s on them). Call it early, while the village
+## is shown; load_default()/load_plans() then take the result (waiting only if it is not done yet).
+static func preload_in_background() -> void:
+	for path in [DEFAULT_PATH, PLANS_PATH]:
+		if not ResourceLoader.exists(path) or ResourceLoader.has_cached(path):
+			continue
+		if ResourceLoader.load_threaded_get_status(path) == ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+			ResourceLoader.load_threaded_request(path, "", true)
+
+
+static func _load_catalog(path: String) -> RoomCatalog:
+	if ResourceLoader.load_threaded_get_status(path) != ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
+		var loaded := ResourceLoader.load_threaded_get(path) as RoomCatalog
+		if loaded != null:
+			return loaded
+	return load(path) as RoomCatalog
 
 
 ## Biome id of a room number (RoomSequence.get_biome); &"" for room 0 (no filter).

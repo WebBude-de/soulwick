@@ -2,8 +2,9 @@ class_name Hud
 extends CanvasLayer
 ## Compact edge HUD (D-042, docs/design screen 01 and 12). Displays values pushed via signals; it
 ## never computes gameplay state.
-## Dungeon: hearts in quarter steps + shield + run gold (top left), room and cycle (top right), weapon
-## slots with effective values, special and dash cooldown (bottom left).
+## Dungeon: hearts in quarter steps + shield + run gold (top left), room, biome progress and rooms to
+## the boss (top right; P1-6: "Zyklus" read like New Game+), weapon slots with effective values,
+## special and dash cooldown (bottom left).
 ## Village: village gold + soul crystals (top right) and chronicle values (bottom left).
 ## All measurements are mockup pixels (480×270) converted with UiKit.px / UiKit.art_px.
 ## R8: values that change hop once (hearts, shield, gold, crystals); the weapon block sits in one
@@ -12,8 +13,13 @@ extends CanvasLayer
 ## G3 (playtest note #12): the HUD is compact. Its pixel art (frames, hearts, icons, key caps) is
 ## drawn at HUD_PIXEL screen pixels per art pixel instead of UiKit.ART_SCALE, the weapon block has
 ## two short lines, and keys are KeyCaps with input symbols (mouse buttons, space, tab …) from the
-## current binding. The hint line bottom right uses the same caps.
+## current binding. The hint line bottom right uses the same caps; it hides while the first-run
+## controls card is open (P1-4: room 1 showed every key twice).
 
+## Device in use at this machine (P0-2; preloaded, so it resolves before the class list knows it).
+const InputDeviceScript := preload("res://player/input/input_device.gd")
+## Pips of the biome's rooms under the room number (P1-6).
+const BiomeProgressScript := preload("res://ui/hud/biome_progress.gd")
 const HEART_TEXTURES: Array[Texture2D] = [
 	preload("res://art/ui/heart_empty.png"),
 	preload("res://art/ui/heart_1q.png"),
@@ -46,6 +52,12 @@ const CONTROLS_HINT_SHORT: StringName = &"HUD_CONTROLS_HINT_SHORT"
 ## Room type -> key HUD_ROOM_TYPE_<RoomSequence.RoomType name>; unknown types fall back to
 ## RoomSequence.get_type_name() (German).
 const ROOM_TYPE_KEY_PREFIX := "HUD_ROOM_TYPE_"
+## Detail line under the biome pips (P1-6): rooms to the boss, then the room type or mode.
+const ROOM_DETAIL_BOSS_IN: StringName = &"HUD_ROOM_DETAIL_BOSS_IN"
+const ROOM_DETAIL_BOSS_NEXT: StringName = &"HUD_ROOM_DETAIL_BOSS_NEXT"
+const BOSS_NOW: StringName = &"HUD_BOSS_NOW"
+## Gap between the room number, the pips and the detail line (mockup px).
+const ROOM_PIPS_GAP := 1.0
 ## The HUD joins this group (DungeonUI: set_room_mode).
 const GROUP: StringName = &"hud"
 ## Bars at the top centre (task bar, boss bar of DungeonUI): the room line moves below them when
@@ -74,25 +86,29 @@ const KEY_ROW_GAP := 5.0
 const HINT_ENTRY_GAP := 5.0
 const DASH_BAR_WIDTH := 12.0
 const SPECIAL_BAR_WIDTH := 12.0
-## Hint line entries: [ControlsInfo id, caption key suffix (HINT_KEY_PREFIX + suffix), English
-## fallback, German fallback]. The keys are new in G3; until localization has them the fallbacks show.
+## Hint line entries: [ControlsInfo id, caption key suffix (HINT_KEY_PREFIX + suffix)]. The keys
+## are in localization/translations.csv (G3; the German fallbacks went with i18n round 3).
 ## The full line shows until the first-run controls card was seen (UX1), then the short one.
 const HINT_KEY_PREFIX := "HUD_HINT_"
 const HINT_ENTRIES_FULL: Array[Array] = [
-	[ControlsInfo.MOVE, "MOVE", "move", "bewegen"],
-	[ControlsInfo.AIM, "AIM", "aim", "zielen"],
-	[ControlsInfo.ATTACK, "ATTACK", "attack", "angreifen"],
-	[ControlsInfo.DASH, "DASH", "dash", "Dash"],
-	[ControlsInfo.SPECIAL, "SPECIAL", "special", "Spezial"],
-	[ControlsInfo.SWITCH, "SWITCH", "weapon", "Waffe"],
-	[ControlsInfo.INTERACT, "USE", "use", "benutzen"],
-	[ControlsInfo.OVERVIEW, "UPGRADES", "upgrades", "Upgrades"],
-	[ControlsInfo.PAUSE, "PAUSE", "pause", "Pause"],
+	[ControlsInfo.MOVE, "MOVE"],
+	[ControlsInfo.AIM, "AIM"],
+	[ControlsInfo.ATTACK, "ATTACK"],
+	[ControlsInfo.DASH, "DASH"],
+	[ControlsInfo.SPECIAL, "SPECIAL"],
+	[ControlsInfo.SWITCH, "SWITCH"],
+	[ControlsInfo.INTERACT, "USE"],
+	[ControlsInfo.OVERVIEW, "UPGRADES"],
+	[ControlsInfo.PAUSE, "PAUSE"],
 ]
 const HINT_ENTRIES_SHORT: Array[Array] = [
-	[ControlsInfo.OVERVIEW, "UPGRADES", "upgrades", "Upgrades"],
-	[ControlsInfo.PAUSE, "PAUSE_OPTIONS", "pause and options", "Pause und Optionen"],
+	[ControlsInfo.OVERVIEW, "UPGRADES"],
+	[ControlsInfo.PAUSE, "PAUSE_OPTIONS"],
 ]
+## Teaching cards on the left edge: their highest top (below the top band, where a wide banner may
+## reach to the left) and the gap below the status frame when that is taller (mockup px).
+const TEACHING_CARD_TOP := 66.0
+const TEACHING_CARD_GAP := 5.0
 ## Hop of a changed value (scale).
 const BUMP_SCALE := 1.3
 const CHRONICLE_REFRESH := 1.0
@@ -119,6 +135,8 @@ var _crystal_icon: TextureRect
 var _room_box: VBoxContainer
 var _room_label: Label
 var _room_detail: Label
+## Biome pips (BiomeProgressScript).
+var _biome_progress: BiomeProgressScript
 var _weapon_root: Control
 var _weapon_panels: Array[PanelContainer] = []
 ## Special cooldown bar per weapon slot (null for empty slots).
@@ -140,6 +158,8 @@ var _hint_row: HFlowContainer
 var _hint_full := false
 ## Touch controls in use (TouchState): no keyboard hints, the weapon keys show the touch buttons.
 var _touch := false
+## The first-run controls card (ControlsHint.GROUP) is open: it shows the keys, the line hides.
+var _controls_card_open := false
 var _currency_frame: PanelContainer
 var _village_gold: Label
 var _village_crystals: Label
@@ -173,6 +193,8 @@ func _ready() -> void:
 	EventBus.upgrade_acquired.connect(_on_weapons_changed.unbind(2))
 	SaveManager.seen_changed.connect(_refresh_hint.unbind(1))
 	SaveManager.slot_changed.connect(_refresh_hint.unbind(1))
+	# Keyboard <-> gamepad: the key caps show the symbols of the device in use (P0-2).
+	InputDeviceScript.shared().changed.connect(_on_input_device_changed.unbind(1))
 	# The HUD stays visible in menus; their overlays (higher canvas layers) dim it with the scene.
 	set_dungeon_mode(false)
 
@@ -204,6 +226,13 @@ func set_dungeon_mode(enabled: bool) -> void:
 	_refresh_hint()
 
 
+## The device in use changed: rebuild the key line and the weapon block's key caps.
+func _on_input_device_changed() -> void:
+	_build_hint_entries()
+	if _player != null and is_instance_valid(_player):
+		_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
+
+
 ## Full key line until the save has seen the first-run controls card, then the short one.
 func _refresh_hint() -> void:
 	var full := not SaveManager.has_seen(ControlsHint.SEEN_ID)
@@ -222,7 +251,7 @@ func _build_hint_entries() -> void:
 	for entry: Array in (HINT_ENTRIES_FULL if _hint_full else HINT_ENTRIES_SHORT):
 		var pair := UiKit.hbox(int(UiKit.px(KEY_PAIR_GAP)))
 		pair.add_child(KeyCap.row_for_control(entry[0], HUD_PIXEL))
-		var caption := UiKit.text_label(hud_text(StringName(HINT_KEY_PREFIX + String(entry[1])), entry[2], entry[3]), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+		var caption := UiKit.text_label(Loc.t(StringName(HINT_KEY_PREFIX + String(entry[1]))), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 		caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		pair.add_child(caption)
 		_hint_row.add_child(pair)
@@ -245,7 +274,7 @@ func _check_touch() -> void:
 
 func set_touch_mode(enabled: bool) -> void:
 	_touch = enabled
-	_hint_row.visible = not enabled
+	_update_hint_visibility()
 	if _player != null and is_instance_valid(_player):
 		_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
 
@@ -254,13 +283,41 @@ func is_touch_mode() -> bool:
 	return _touch
 
 
+## The first-run controls card shows the keys itself (P1-4): the key line waits until it is gone.
+func _check_controls_card() -> void:
+	var open := _dungeon_mode and get_tree().get_first_node_in_group(ControlsHint.GROUP) != null
+	if open == _controls_card_open:
+		return
+	_controls_card_open = open
+	_update_hint_visibility()
+
+
+func is_controls_card_open() -> bool:
+	return _controls_card_open
+
+
+func _update_hint_visibility() -> void:
+	_hint_row.visible = not _touch and not _controls_card_open
+
+
+## Player this HUD shows (the local one, bound by the world); null without one. For overlays of the
+## same machine such as the controls card (D-088: no lookup in the "player" group).
+static func local_player(tree: SceneTree) -> Player:
+	if tree == null:
+		return null
+	var hud := tree.get_first_node_in_group(GROUP) as Hud
+	if hud == null or hud._player == null or not is_instance_valid(hud._player):
+		return null
+	return hud._player
+
+
 ## Hook for the dungeon: rooms until the next regular heal (-1 hides the hint).
 func set_heal_countdown(rooms_left: int) -> void:
 	_heal_countdown = rooms_left
 	_on_room_changed(RunManager.get_current_room())
 
 
-## Hook for DungeonUI: the detail line names the room mode ("Zyklus 3 · Arena"); "" = room type.
+## Hook for DungeonUI: the detail line names the room mode ("Boss in 4 Räumen · Arena"); "" = room type.
 func set_room_mode(mode_name: String) -> void:
 	if _room_mode == mode_name:
 		return
@@ -270,6 +327,7 @@ func set_room_mode(mode_name: String) -> void:
 
 func _process(delta: float) -> void:
 	_check_touch()
+	_check_controls_card()
 	if not _dungeon_mode:
 		_chronicle_timer -= delta
 		if _chronicle_timer <= 0.0:
@@ -328,6 +386,12 @@ func _build_room(root: Control) -> void:
 	_room_label = UiKit.text_label(Loc.t(&"HUD_ROOM", [1]), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true)
 	_room_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(_room_label)
+	_biome_progress = BiomeProgressScript.new()
+	box.add_child(_biome_progress)
+	var gap := Control.new()
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	gap.custom_minimum_size.y = UiKit.px(ROOM_PIPS_GAP)
+	box.add_child(gap)
 	_room_detail = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 	_room_detail.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	box.add_child(_room_detail)
@@ -576,18 +640,33 @@ func set_campfire(active: bool, next_area := "") -> void:
 
 func _on_room_changed(room_index: int) -> void:
 	var room := maxi(1, room_index)
-	var cycle := floori(float(room - 1) / RoomSequence.CYCLE_LENGTH) + 1
 	var type_name := room_type_name(RoomSequence.get_room_type(room))
 	if not _room_mode.is_empty():
 		type_name = _room_mode
-	if _campfire_active:
-		type_name = Loc.t(&"HUD_CAMPFIRE_NEXT", [_campfire_area]) if not _campfire_area.is_empty() else Loc.t(&"HUD_CAMPFIRE")
 	_room_label.text = Loc.t(&"HUD_ROOM", [room])
-	var detail := Loc.t(&"HUD_ROOM_DETAIL", [cycle, type_name])
+	_biome_progress.set_room(room, _campfire_active)
+	var detail := room_detail_text(room, type_name, not _room_mode.is_empty())
+	var boss_now := BiomeProgressScript.rooms_until_boss(room) == 0 and not _campfire_active
+	if _campfire_active:
+		# The campfire is no room (A6): it names itself and the next area, no boss countdown.
+		detail = Loc.t(&"HUD_CAMPFIRE_NEXT", [_campfire_area]) if not _campfire_area.is_empty() else Loc.t(&"HUD_CAMPFIRE")
+	_room_detail.add_theme_color_override("font_color", UiKit.COLOR_DANGER_SOFT if boss_now else UiKit.COLOR_MUTED)
 	if _heal_countdown >= 0:
 		# Own line (R8): the room line stays narrow next to the task bar and the boss bar.
 		detail += "\n" + Loc.t(&"HUD_NEXT_HEAL", [_heal_countdown])
 	_room_detail.text = detail
+
+
+## Detail line of a room (P1-6): "Boss in 8 Räumen · Kampf", "Boss im nächsten Raum · Spezialraum",
+## "Boss!" in the boss room (with a room mode: "Boss! · Arena"). type_name is the room type or mode.
+static func room_detail_text(room_index: int, type_name: String, named_mode := false) -> String:
+	var rooms_left := BiomeProgressScript.rooms_until_boss(room_index)
+	if rooms_left == 0:
+		var now := hud_text(BOSS_NOW, "Boss!", "Boss!")
+		return now + " · " + type_name if named_mode else now
+	if rooms_left == 1:
+		return hud_text(ROOM_DETAIL_BOSS_NEXT, "Boss next room · %s", "Boss im nächsten Raum · %s") % [type_name]
+	return hud_text(ROOM_DETAIL_BOSS_IN, "Boss in %d rooms · %s", "Boss in %d Räumen · %s") % [rooms_left, type_name]
 
 
 ## The room line sits at the height of the task bar and moves below a bar at the top centre that
@@ -604,6 +683,28 @@ func _dodge_top_center() -> void:
 			top = maxf(top, rect.end.y + UiKit.px(ROOM_LINE_GAP))
 	if not is_equal_approx(_room_box.position.y, top):
 		_room_box.position.y = top
+
+
+## Bottom edge (viewport px) of the status frame top left (hearts, shield, gold); -1 when hidden.
+func get_status_bottom() -> float:
+	if _status_frame == null or not _status_frame.is_visible_in_tree():
+		return -1.0
+	return _status_frame.get_global_rect().end.y
+
+
+## Top of the teaching cards on the left edge (ControlsHint, RoomIntroCard, enemy hints; online test
+## 16.10.2026): in the upper left, away from the player in the middle - below the top band of the
+## banners (TEACHING_CARD_TOP) and below the HUD's status frame when that reaches further down.
+static func teaching_card_top(tree: SceneTree) -> float:
+	var top := UiKit.px(TEACHING_CARD_TOP)
+	if tree == null:
+		return top
+	var hud := tree.get_first_node_in_group(GROUP) as Hud
+	if hud != null:
+		var bottom := hud.get_status_bottom()
+		if bottom > 0.0:
+			top = maxf(top, bottom + UiKit.px(TEACHING_CARD_GAP))
+	return top
 
 
 ## Translated room type ("Combat", "Special room" ...); RoomSequence's German name if there is no key.

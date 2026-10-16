@@ -9,9 +9,18 @@ extends Node
 ## they are (no cut when tracks change faster than a fade lasts). A track that is still fading
 ## out is faded back in where it is instead of being started a second time (champion room
 ## cleared right after entering: no two copies of the same piece slightly out of step).
+##
+## Debounce: the same wish again never restarts anything (play() of the current track is a no-op,
+## of a fading track resumes it in place). Only a fourth piece while all three players still
+## play would have to cut one and start from the top; a burst of such wishes (pieces changing
+## every frame) is held back for MIN_RESTART_INTERVAL and only the newest is played, so the
+## channel never restarts a piece in quick succession (no "stuck record"). A wish back to the
+## current track drops the held one.
 
 const SILENT_DB := -60.0
 const PLAYER_COUNT := 3
+## Shortest real time between two fresh starts that cut a playing player (TESTWERT).
+const MIN_RESTART_INTERVAL := 0.4
 
 ## Volume of the audible player in dB (gain 1).
 var level_db := 0.0
@@ -28,6 +37,13 @@ var _track := ""
 var _started_usec := 0
 var _started_from := 0.0
 var _length := 0.0
+## Players started from scratch (diagnostics and tests: the same wish never adds one).
+var _start_count := 0
+## Real time (usec) of the last fresh start that had to cut an audible player.
+var _last_steal_usec := -1
+## Wish held back by the restart guard (empty when none) and the serial of its timer.
+var _queued := {}
+var _queue_serial := 0
 
 
 func _init(bus: StringName = &"Music", level := 0.0) -> void:
@@ -74,6 +90,22 @@ func get_gain() -> float:
 	return _gains[_active] if _active >= 0 else 0.0
 
 
+## How many times a player was started from the top (a resumed or repeated wish does not count).
+func get_start_count() -> int:
+	return _start_count
+
+
+## Track held back by the restart guard ("" when none).
+func get_queued_track() -> String:
+	return String(_queued.get("track", ""))
+
+
+## Drops a held-back wish (the caller wants the current track after all).
+func drop_queued() -> void:
+	_queued = {}
+	_queue_serial += 1
+
+
 ## Number of players that are still audible (current track plus tracks fading out).
 func get_audible_count() -> int:
 	var count := 0
@@ -88,15 +120,29 @@ func get_audible_count() -> int:
 ## the first beat audible (a loop entering after a stinger).
 func play(track: String, stream: AudioStream, fade: float, from_position := 0.0,
 		curve := MusicRules.FadeCurve.EQUAL_POWER, start_gain := 0.0) -> void:
-	if track == _track or stream == null:
+	if stream == null:
+		return
+	if track == _track:
+		# The same wish again (or back to the current one): nothing restarts, a held-back
+		# different wish is dropped.
+		drop_queued()
 		return
 	var index := _fading_player(track, stream)
 	var player: AudioStreamPlayer
 	if index >= 0:
+		drop_queued()
 		player = _players[index]
 		from_position = player.get_playback_position()
 	else:
 		index = _free_player()
+		# Any player that still plays counts: a piece started this frame is still at gain 0 but
+		# would be heard if it were not cut again and again.
+		var steals := _players[index].playing
+		if steals and _hold_back(track, stream, fade, from_position, curve, start_gain):
+			return
+		drop_queued()
+		if steals:
+			_last_steal_usec = Time.get_ticks_usec()
 		player = _players[index]
 		_kill_tween(index)
 		player.stop()
@@ -104,6 +150,7 @@ func play(track: String, stream: AudioStream, fade: float, from_position := 0.0,
 		_player_tracks[index] = track
 		_set_gain(index, clampf(start_gain, 0.0, 1.0))
 		player.play(from_position)
+		_start_count += 1
 	for i in PLAYER_COUNT:
 		if i != index and _players[i].playing:
 			_fade(i, 0.0, fade, curve)
@@ -117,6 +164,7 @@ func play(track: String, stream: AudioStream, fade: float, from_position := 0.0,
 
 ## Fades everything out (the channel stays usable).
 func stop(fade: float, curve := MusicRules.FadeCurve.EQUAL_POWER) -> void:
+	drop_queued()
 	_track = ""
 	_active = -1
 	for i in PLAYER_COUNT:
@@ -125,9 +173,43 @@ func stop(fade: float, curve := MusicRules.FadeCurve.EQUAL_POWER) -> void:
 
 
 func _exit_tree() -> void:
+	drop_queued()
 	for i in PLAYER_COUNT:
 		_kill_tween(i)
 		_players[i].stop()
+
+
+## Restart guard: a fresh start that would cut an audible player shortly after the last such cut
+## waits (newest wish wins). Returns true when the wish was held back.
+func _hold_back(track: String, stream: AudioStream, fade: float, from_position: float,
+		curve: MusicRules.FadeCurve, start_gain: float) -> bool:
+	if _last_steal_usec < 0 or not is_inside_tree():
+		return false
+	var since := float(Time.get_ticks_usec() - _last_steal_usec) / 1000000.0
+	if since < 0.0 or since >= MIN_RESTART_INTERVAL:
+		return false
+	var armed := not _queued.is_empty()
+	_queued = {
+		"track": track, "stream": stream, "fade": fade, "from_position": from_position,
+		"curve": curve, "start_gain": start_gain,
+	}
+	if not armed:
+		_queue_serial += 1
+		# Real time, also while paused (the music keeps playing under menus).
+		get_tree().create_timer(MIN_RESTART_INTERVAL - since + 0.01, true, false, true).timeout.connect(
+				_on_queue_timer.bind(_queue_serial))
+	return true
+
+
+func _on_queue_timer(serial: int) -> void:
+	if serial != _queue_serial or _queued.is_empty():
+		return
+	var wish := _queued
+	_queued = {}
+	_queue_serial += 1
+	var curve: MusicRules.FadeCurve = wish["curve"]
+	play(String(wish["track"]), wish["stream"] as AudioStream, float(wish["fade"]), float(wish["from_position"]),
+			curve, float(wish["start_gain"]))
 
 
 ## A player that still plays track (fading out), -1 if none.

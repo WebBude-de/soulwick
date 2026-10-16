@@ -14,9 +14,15 @@ const BOSS_HEALTH_PER_PLAYER := 0.7
 const REVIVE_TIME := 2.0
 const REVIVE_HEALTH := 2.0
 const REVIVE_RADIUS := 56.0
-## Room change (D-126, changed after the online test of 15.10.2026): the next room starts only once
-## every living player stands in it - no countdown, nobody is teleported (should_start_room). Downed
-## players do not count (they are brought in when it starts), a player who left counts no more.
+## Room change and side ways (online test 16.10.2026, like the truck of R.E.P.O.; replaces the rule
+## of 15.10.2026 "no countdown, nobody is teleported"): the first living player in the next room,
+## at the gate into a side segment or at a segment's door starts WAIT_COUNTDOWN. It ends at once
+## when every living player is there; at 0 the stragglers are brought in (teleported, never hurt).
+## Downed players do not count (they are brought in too), a player who left counts no more.
+## TESTWERT (seconds), one value for rooms and side ways.
+const WAIT_COUNTDOWN := 10.0
+## From this many seconds left on the countdown turns red (look).
+const WAIT_COUNTDOWN_URGENT := 3
 ## D-126 TESTWERT: seconds every player has for the upgrade choice; then the first card is taken.
 const UPGRADE_TIMEOUT := 30.0
 ## D-126 TESTWERT: the host starts room 1 at the latest this long after the run began, even if a
@@ -53,10 +59,10 @@ static func scale_group(group: EncounterGroup, players: int) -> EncounterGroup:
 	return scaled
 
 
-## The room may start: every living player stands in it (present = living players inside its floor).
-## No time limit: the group waits for the last one.
-static func should_start_room(living: int, present: int) -> bool:
-	return present >= living
+## The room may start: every living player stands in it (present = living players inside its floor)
+## or the countdown is over (time_left <= 0; the stragglers are brought in).
+static func should_start_room(living: int, present: int, time_left := INF) -> bool:
+	return present >= living or time_left <= 0.0
 
 
 ## What the room-change hint of a machine says while the group waits for the next room.
@@ -66,6 +72,8 @@ enum WaitHint { NONE, WAIT_FOR_MATES, MATES_WAIT_FOR_YOU }
 ## The hint for local_peer while inside (peers of living players in the next room) wait for missing
 ## (living players not in it yet): inside -> "Warte auf <Namen> …", missing -> "<Name> wartet im
 ## nächsten Raum", nobody inside or nobody missing (or a downed player, in neither list) -> nothing.
+## The side-way wait uses it too (inside = at the gate or door). Missing -> "Beeil dich!" with the
+## big countdown.
 static func wait_hint(local_peer: int, inside: Array, missing: Array) -> WaitHint:
 	if inside.is_empty() or missing.is_empty():
 		return WaitHint.NONE
@@ -74,6 +82,23 @@ static func wait_hint(local_peer: int, inside: Array, missing: Array) -> WaitHin
 	if missing.has(local_peer):
 		return WaitHint.MATES_WAIT_FOR_YOU
 	return WaitHint.NONE
+
+
+## The side way starts (WAIT_COUNTDOWN): every living player at its gate or door (at_gate of
+## living), or the time is up - only then are the stragglers taken along. Who stands there waits
+## (held and protected); downed players do not count (taken along as before).
+static func should_start_side_way(living: int, at_gate: int, time_left: float) -> bool:
+	return should_start_room(living, at_gate, time_left)
+
+
+## The countdown turns red (WAIT_COUNTDOWN_URGENT seconds or less, shown as whole seconds).
+static func countdown_urgent(time_left: float) -> bool:
+	return countdown_seconds(time_left) <= WAIT_COUNTDOWN_URGENT
+
+
+## Whole seconds a countdown shows (7.2 s left -> 8, never below 0).
+static func countdown_seconds(time_left: float) -> int:
+	return maxi(0, ceili(time_left))
 
 
 ## Revive progress after delta seconds: grows while a teammate is near, falls back to 0 otherwise.

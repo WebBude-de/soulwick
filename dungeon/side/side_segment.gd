@@ -64,6 +64,10 @@ var coins_total := 0
 var coins_taken := 0
 var gold_earned := 0
 var golden_coin_taken := false
+## Co-op (online test 16.10.2026): reaching the door does not end the segment for everybody at once;
+## the host's NetSide decides (every living player at the door or its timer, CoopRules.SIDE_WAIT_TIME)
+## and calls finish(). Off in a solo run: the first player at the door ends it as before.
+var door_waits := false
 
 var _players: Array[Player] = []
 var _rng := RandomNumberGenerator.new()
@@ -79,6 +83,8 @@ var _crumbles: Array[SideCrumble] = []
 var _turrets: Array[SideTurret] = []
 var _pools: Array[SidePool] = []
 var _fx: Dictionary[Player, SidePlayerFx] = {}
+## Co-op: players waiting at the door for the others (set_door_waiting).
+var _door_waiting: Array[Player] = []
 
 
 ## Before entering the tree.
@@ -162,13 +168,32 @@ func get_players() -> Array[Player]:
 
 
 ## The players the camera keeps in view: every living player in the segment (the camera follows
-## their middle; in co-op these are all players of the session).
+## their middle; in co-op these are all players of the session). Co-op door wait: the players
+## waiting at the door drop out while somebody else still runs, so the stragglers stay in view.
 func camera_targets() -> Array[Player]:
 	var targets: Array[Player] = []
+	var running: Array[Player] = []
 	for player in get_players():
 		if player.is_alive():
 			targets.append(player)
-	return targets
+			if not _door_waiting.has(player):
+				running.append(player)
+	return running if not running.is_empty() else targets
+
+
+## Co-op: who waits at the door (NetSide, on every machine). While anybody waits, nobody is pulled
+## to the foremost player (catch-up): the stragglers have the wait's time to come.
+func set_door_waiting(players: Array[Player]) -> void:
+	_door_waiting = players.duplicate()
+
+
+func get_door_waiting() -> Array[Player]:
+	return _door_waiting.duplicate()
+
+
+## Does player stand in the doorway (feet)? The door's own rule (SideExit.is_entered_by).
+func is_at_door(player: Player) -> bool:
+	return _exit != null and is_instance_valid(player) and _exit.is_entered_by(player.get_feet_position())
 
 
 ## The living player closest to the door (co-op catch-up target).
@@ -255,7 +280,7 @@ func _physics_process(delta: float) -> void:
 			var feet := player.get_feet_position()
 			if _exit.is_near(feet):
 				_exit.open()
-			if _exit.is_entered_by(feet):
+			if _exit.is_entered_by(feet) and not door_waits:
 				finish()
 				return
 		_update_catch_up(player, view, delta)
@@ -301,7 +326,7 @@ func _collect_coins(player: Player, center: Vector2) -> void:
 ## Co-op: whoever stays outside the view CATCH_UP_TIME seconds is brought to the foremost player.
 func _update_catch_up(player: Player, view: Rect2, delta: float) -> void:
 	var motion := player.side_motion
-	if not view.has_area() or view.has_point(player.global_position) or motion.is_in_pit():
+	if not view.has_area() or view.has_point(player.global_position) or motion.is_in_pit() or not _door_waiting.is_empty():
 		motion.outside_time = 0.0
 		return
 	motion.outside_time += delta

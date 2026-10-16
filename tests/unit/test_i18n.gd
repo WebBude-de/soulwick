@@ -186,7 +186,7 @@ func test_open_main_menu_switches_language_at_once() -> void:
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_OPTIONS), "Options", "plain keys re-translate themselves")
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_CONTINUE), "New game")
 	assert_eq(list.get_entry_hint(MainMenu.ENTRY_SLOTS), "0 / 3 used", "composed hints are rebuilt")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "needs a world", "D-147: online needs a world (D-152)")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "Quick game · guilds", "online is open without a world too (playtest 16.10.2026)")
 	assert_eq(panel.view.get_caption_text(OptionsView.Row.SFX), "Effects", "the open options view follows")
 	await wait_physics_frames(2)
 	assert_true(panel.view.get_footer_text().ends_with("Esc back"), "footer in English: %s" % panel.view.get_footer_text())

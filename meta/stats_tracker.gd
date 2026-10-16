@@ -5,6 +5,7 @@ extends Node
 ## (also in dialogs) and is flushed to the save on run start/end and when the node leaves the tree.
 ## Also records the village unlock events (MetaUnlocks, D-087): first finished run and first crystal
 ## at the run end, the first defeated boss right away (saved at once, it opens forge upgrades).
+## Adds the local run protocol (RunLog, P1-7) as a child, so game.tscn needs no node of its own.
 
 const RUNS: StringName = &"runs"
 const DEATHS: StringName = &"deaths"
@@ -22,6 +23,8 @@ const PLAY_TIME: StringName = &"play_time"
 
 ## Unsaved play time is moved into SaveManager (memory only) at this interval.
 const FLUSH_INTERVAL := 1.0
+## Preloaded instead of the global class name: works before the editor registered RunLog.
+const _RunLog := preload("res://meta/run_log.gd")
 
 var _unflushed_time := 0.0
 
@@ -33,6 +36,9 @@ func _ready() -> void:
 	EventBus.room_entered.connect(_on_room_entered)
 	EventBus.room_completed.connect(_on_room_completed)
 	EventBus.enemy_damaged.connect(_on_enemy_damaged)
+	var run_log := _RunLog.new()
+	run_log.name = "RunLog"
+	add_child(run_log)
 
 
 func _process(delta: float) -> void:

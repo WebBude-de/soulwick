@@ -511,7 +511,7 @@ func test_main_menu_rooms_become_launch_wishes() -> void:
 	room_code.text_changed.emit("abcd23")
 	assert_eq(room_code.text, "ABCD23")
 	(_node(menu, "JoinGuildRoom") as Button).pressed.emit()
-	assert_signal_emitted_with_parameters(menu, "launch_requested", [{"action": LobbyClient.LAUNCH_JOIN, "code": "ABCD23", "guild_name": "Lichtwacht", "guild_tag": "LW"}])
+	assert_signal_emitted_with_parameters(menu, "launch_requested", [{"action": LobbyClient.LAUNCH_JOIN, "code": "ABCD23", "guild_id": GUILD_ID, "guild_name": "Lichtwacht", "guild_tag": "LW"}])
 
 
 func test_leave_question_warns_founder_and_last_member() -> void:

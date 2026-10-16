@@ -56,8 +56,9 @@ const END_BANNED := "banned"
 
 ## TESTWERT: seconds between the game's own heartbeat pings once welcomed (the relay answers pong).
 ## Keeps the line busy through menus and loading screens (Cloudflare drops after 100 s silence)
-## and measures the round trip.
-const HEARTBEAT_SECONDS := 20.0
+## and measures the round trip (NetDiagnostics, lobby slots; 5 s instead of 20 s since the online
+## test of 16.10.2026: a 30-byte ping every 5 s costs nothing and the round trip stays current).
+const HEARTBEAT_SECONDS := 5.0
 ## TESTWERT: no data at all from the relay for this long = the connection is dead (the relay pings
 ## every 15 s and answers every heartbeat). Catches half-open connections the OS does not notice.
 const SILENCE_TIMEOUT_SECONDS := 50.0
@@ -74,6 +75,54 @@ const ERROR_CODES: Array[String] = [
 const RUN_END_PORTAL := "portal"
 const RUN_END_WIPED := "wiped"
 const RUN_END_ABANDONED := "abandoned"
+
+
+## Game-side extension of the binary frames (online test 16.10.2026, the relay forwards them
+## untouched): a peer that understands bundles says so once with a capability frame on CAPS_CHANNEL;
+## afterwards the other side may pack all packets of one frame for it into one bundle frame on
+## BUNDLE_CHANNEL: entries of [channel u8, mode u8, length u16 LE, packet]. A bundle of reliable
+## packets travels reliable, one of unreliable packets unreliable (the relay may drop it whole).
+## The capability payload starts with 3 (SceneMultiplayer's RAW command): an older build of the
+## same version string hands it to the unused peer_packet signal instead of failing.
+const CAPS_CHANNEL := 254
+const BUNDLE_CHANNEL := 255
+const CAPS_PAYLOAD := [3, 0x53, 0x57, 0x4e, 0x42, 1]
+const BUNDLE_ENTRY_HEADER := 4
+const BUNDLE_ENTRY_MAX := 0xffff
+
+
+static func caps_payload() -> PackedByteArray:
+	return PackedByteArray(CAPS_PAYLOAD)
+
+
+static func is_caps(data: PackedByteArray) -> bool:
+	return data.size() >= CAPS_PAYLOAD.size() and data.slice(0, CAPS_PAYLOAD.size() - 1) == PackedByteArray(CAPS_PAYLOAD.slice(0, CAPS_PAYLOAD.size() - 1))
+
+
+## Bundle payload of entries [channel, mode, data].
+static func encode_bundle(entries: Array) -> PackedByteArray:
+	var bytes := PackedByteArray()
+	for entry: Array in entries:
+		var data: PackedByteArray = entry[2]
+		bytes.append_array(PackedByteArray([int(entry[0]) & 0xff, int(entry[1]) & 0xff, data.size() & 0xff, (data.size() >> 8) & 0xff]))
+		bytes.append_array(data)
+	return bytes
+
+
+## Entries [channel, mode, data] of a bundle payload, or [] if it is malformed (lengths must add up).
+static func decode_bundle(bytes: PackedByteArray) -> Array:
+	var entries: Array = []
+	var at := 0
+	while at < bytes.size():
+		if at + BUNDLE_ENTRY_HEADER > bytes.size():
+			return []
+		var length := bytes.decode_u16(at + 2)
+		var start := at + BUNDLE_ENTRY_HEADER
+		if start + length > bytes.size():
+			return []
+		entries.append([bytes.decode_u8(at), bytes.decode_u8(at + 1), bytes.slice(start, start + length)])
+		at = start + length
+	return entries
 
 
 ## Binary game frame: header + data.

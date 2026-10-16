@@ -2,7 +2,7 @@ class_name CreateSlotPanel
 extends MenuPanel
 ## "Neue Welt" (D-152): a save slot is a world. Only its name is chosen here (empty = "Welt <n>");
 ## the figure is the player's profile and comes along into every world (shown small with a hint).
-## Enter starts, Esc goes back. Typing ticks softly (UiSound). A new world has seen nothing, so the
+## Enter (gamepad A) starts, Esc (B) goes back. Typing ticks softly (UiSound). A new world has seen nothing, so the
 ## village explains itself (D-087). Texts are translation keys (D-111).
 
 signal confirmed(slot: int, world_name: String)
@@ -11,6 +11,7 @@ signal confirmed(slot: int, world_name: String)
 const WIDTH := 236.0
 const PREVIEW_SCALE := 3
 const FOOTER: StringName = &"CREATE_FOOTER"
+const FOOTER_PAD: StringName = &"CREATE_FOOTER_PAD"
 
 var slot := 1
 
@@ -69,7 +70,7 @@ func _ready() -> void:
 	actions.add_child(_start_button)
 	actions.add_child(MenuPanel.action_button(&"COMMON_BACK", "Esc", close))
 	content.add_child(actions)
-	set_footer(FOOTER)
+	set_footer(FOOTER, FOOTER_PAD)
 	_name_edit.grab_focus.call_deferred()
 
 
@@ -103,7 +104,7 @@ func confirm() -> void:
 func _input(event: InputEvent) -> void:
 	if _name_edit == null or not _name_edit.has_focus():
 		return
-	if MenuInput.is_enter(event):
+	if MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm()
 	elif MenuInput.is_back(event):

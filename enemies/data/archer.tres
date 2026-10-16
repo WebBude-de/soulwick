@@ -7,7 +7,7 @@
 [resource]
 script = ExtResource("1_data")
 id = &"archer"
-display_name = "Bogenschütze"
+display_name = "ENEMY_ARCHER_NAME"
 attack_kind = 1
 tags = Array[StringName]([&"ranged", &"projectile", &"arrow"])
 max_health = 10.0
@@ -28,5 +28,5 @@ sprite_origin = Vector2(16, 22)
 strike_frame = 3
 body_radius = 12.0
 placeholder_color = Color(0.85, 0.55, 0.25, 1)
-hint = "Bogenschütze: Schießt aus der Ferne. Die rote Linie zeigt, wohin."
+hint = "ENEMY_ARCHER_HINT"
 sprite_frames = ExtResource("2_frames")

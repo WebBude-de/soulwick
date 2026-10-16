@@ -96,6 +96,39 @@ static func describe_hit(damage: DamageData) -> String:
 	return UNKNOWN_CAUSE
 
 
+## "Neuer Rekord!": deeper than the record before; the first run (no record yet) always is one (P1-3).
+static func is_new_record(room: int, record_before: int) -> bool:
+	if record_before <= 0:
+		return room >= 1
+	return room > record_before
+
+
+## The cheapest forge step for the run end (P1-3, rules of MetaProgression and MetaUnlocks, read
+## only): {"id", "level" (the level it would buy), "cost", "missing" (gold still missing, 0 =
+## affordable now)}; ties keep the forge order. {} when every open upgrade is at its limit.
+## gold: village gold to compare with (-1 = the save's permanent gold). Same rule as the village's
+## "!" over the forge (world/village/village_affordable.gd): open forge, open upgrade, next cost.
+static func next_forge_step(gold := -1) -> Dictionary:
+	if gold < 0:
+		gold = SaveManager.get_permanent_gold()
+	var best: Dictionary = {}
+	if not MetaUnlocks.is_building_open(VillageBuildings.FORGE):
+		return best
+	for id in MetaUnlocks.get_open_upgrades():
+		var cost := MetaProgression.get_next_cost(id)
+		if cost < 0:
+			continue
+		if best.is_empty() or cost < int(best["cost"]):
+			best = {"id": id, "level": MetaProgression.get_level(id) + 1, "cost": cost, "missing": maxi(0, cost - gold)}
+	return best
+
+
+## Level as a Roman numeral ("I" … "X"); larger numbers stay digits.
+static func roman(level: int) -> String:
+	const NUMERALS: Array[String] = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
+	return NUMERALS[level - 1] if level >= 1 and level <= NUMERALS.size() else str(level)
+
+
 ## "4:07" or "1:02:09".
 static func format_duration(seconds: float) -> String:
 	var total := maxi(0, floori(seconds))

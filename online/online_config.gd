@@ -18,6 +18,8 @@ extends RefCounted
 ## user://online.cfg but keep device id and token in user://online_<n>.cfg, so every instance is a
 ## device of its own.
 
+## Preloaded: works before the global class cache knows SafeSave (new file).
+const SafeSaveScript := preload("res://meta/safe_save.gd")
 const DEFAULT_API_URL := "http://localhost:8787"
 const DEFAULT_RELAY_URL := "ws://localhost:8790/v1"
 ## Must equal PROTOCOL_VERSION in soulwick-platform/packages/contracts/src/lobby.ts and the relay.
@@ -130,7 +132,7 @@ static func parse_args(args: PackedStringArray) -> Dictionary:
 ## Reads the storage file and applies settings in the order described above.
 func load_from(args: Dictionary = {}) -> void:
 	_file = ConfigFile.new()
-	_file.load(path)
+	SafeSaveScript.load_config(_file, path)
 	var settings := _file
 	if settings_path != path:
 		settings = ConfigFile.new()
@@ -242,7 +244,7 @@ func clear_session() -> void:
 
 
 func save() -> void:
-	var error := _file.save(path)
+	var error := SafeSaveScript.write_config(_file, path)
 	if error != OK:
 		push_warning("OnlineConfig: could not write %s (%s)." % [path, error_string(error)])
 

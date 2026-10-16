@@ -26,6 +26,10 @@ const VOID_MARGIN := 0.1
 const SIDE_FADE := 12.0
 
 static var _textures: Dictionary[String, Texture2D] = {}
+## The abyss art of a tileset as an image, by the texture's RID: get_image() reads the atlas back from
+## the GPU, once per sheet instead of once per face piece (feedback 16.10.2026, the first rooms of a
+## biome hitched).
+static var _arts: Dictionary[RID, Image] = {}
 
 
 ## Face over the abyss piece (mask, corners) of tileset (biome rock face, biome abyss art); null
@@ -79,12 +83,16 @@ static func _abyss_art(tileset: TileSet) -> Image:
 	var source := tileset.get_source(AbyssAutotile.ART_SOURCE_ID) as TileSetAtlasSource
 	if source == null or source.texture == null:
 		return null
+	var key := source.texture.get_rid()
+	if _arts.has(key):
+		return _arts[key]
 	var image := source.texture.get_image()
 	if image == null:
 		return null
 	if image.is_compressed():
 		image.decompress()
 	image.convert(Image.FORMAT_RGBA8)
+	_arts[key] = image
 	return image
 
 

@@ -62,7 +62,7 @@ func test_crumbling_floor_is_part_of_the_trial_draw() -> void:
 		if table.roll_trial_kind(rng, CrumbleCourse.is_available()) == SpecialTable.TrialKind.CRUMBLE:
 			crumble += 1
 	assert_almost_eq(crumble / 3000.0, 1.0 / 3.0, 0.04, "one weight of three")
-	assert_eq(DungeonTexts.DE[&"ROOM_TRIAL_CRUMBLE_INTRO"], TrialContent.get_intro_text(SpecialTable.TrialKind.CRUMBLE))
+	assert_eq(TrialContent.get_intro_key(SpecialTable.TrialKind.CRUMBLE), &"ROOM_TRIAL_CRUMBLE_INTRO")
 
 
 func test_layout_gap_columns_and_plates() -> void:

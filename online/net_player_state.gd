@@ -21,6 +21,14 @@ extends Node
 ## button is never replayed - two copies that toggled from different states (a press during a room
 ## intro that locks only one copy, a loadout plus the replayed press) showed the other weapon for
 ## the rest of the run. The weapons in the slots come from NetDungeon (loadout, submit_weapon).
+## Rubber band (online test 16.10.2026): the host's position of the own player is always one round
+## trip old; while dashing (450 px/s) or after a late packet that alone was more than SNAP_DISTANCE
+## and pulled the player back. Now the own player keeps HISTORY_SECONDS of its own positions and
+## only corrects when the host's position is far from all of them (a real disagreement: blocked,
+## knocked back, teleported) - with a quick glide, a jump only beyond HARD_SNAP_DISTANCE; a lagging
+## host position is ignored while moving. snap_count counts the corrections (tools/net_smoke.gd
+## load=). Other players in the side view take the host's velocity once per received state and are
+## not pulled while in the air (their arc comes from that velocity and the same gravity).
 
 const NODE_NAME := &"NetState"
 const SYNCED_PROPERTIES: Array[StringName] = [&"pos", &"move", &"aim", &"held", &"vel", &"side"]
@@ -56,6 +64,17 @@ const SIDE_DOUBLE_JUMPED := 1 << 8
 ## TESTWERT: seconds the host's copy may be in another view (segment / room) than this machine's
 ## copy before it is corrected anyway (the own transit starts and ends a little later than the host's).
 const VIEW_MISMATCH_GRACE := 2.0
+## TESTWERT: seconds of own positions a client keeps to recognise the host's (older) position, and
+## how close (px) the host's position must be to one of them to count as "where I was".
+const HISTORY_SECONDS := 1.0
+const HISTORY_TOLERANCE := 24.0
+## TESTWERTE: a real disagreement of the own player is closed by this share per second (a quick
+## glide instead of a jump); only further off than HARD_SNAP_DISTANCE it jumps.
+const RECONCILE_RATE := 15.0
+const HARD_SNAP_DISTANCE := 256.0
+
+## Jumps to the host's position (own player and other players) on this machine.
+static var snaps_total := 0
 
 ## Synced from the host.
 var pos := Vector2.ZERO
@@ -74,6 +93,16 @@ var _frames_since_send := 0
 var _mismatch_time := 0.0
 ## Host: the active weapon slot the owning client holds (-1 = not known yet).
 var _wanted_slot := -1
+## Jumps of this player's copy to the host's position.
+var snap_count := 0
+## Client, own player: recent positions [msec, Vector2], oldest first.
+var _history: Array[Array] = []
+## Client: a new state arrived from the host since the last physics frame (the synced velocity is
+## applied once per state, not every frame: an old jump velocity re-applied every frame lifted the
+## copy too high and the position pull dragged it back, side view, online test 16.10.2026).
+var _fresh_sync := false
+## Client, own player: gliding to the host's position after a real disagreement.
+var _reconciling := false
 
 
 static func create(owner_peer: int, start: Vector2) -> NetPlayerState:
@@ -167,6 +196,9 @@ static func side_bits_of(player: Player) -> int:
 
 func _ready() -> void:
 	_player = get_parent() as Player
+	var sync := get_synchronizer()
+	if sync != null:
+		sync.synchronized.connect(func() -> void: _fresh_sync = true)
 
 
 func get_player() -> Player:
@@ -234,11 +266,25 @@ func _send_input() -> void:
 
 ## Own player on a client: keep the local simulation, glide to the host once both stand still.
 func _correct_self(delta: float) -> void:
+	_remember_position(Time.get_ticks_msec(), _player.position)
 	if not _views_agree(delta):
 		return
 	var error := pos - _player.position
-	if error.length() > SNAP_DISTANCE:
-		_player.position = pos
+	var distance := error.length()
+	if distance > SNAP_DISTANCE and not was_recently_at(pos):
+		if distance > HARD_SNAP_DISTANCE or RelayPeer.legacy_sync:
+			_snap_to(pos)
+			_history.clear()
+			_reconciling = false
+			return
+		if not _reconciling:
+			_reconciling = true
+			snap_count += 1
+			snaps_total += 1
+	elif _reconciling and (distance <= HISTORY_TOLERANCE or was_recently_at(pos)):
+		_reconciling = false
+	if _reconciling:
+		_player.position += error * minf(1.0, RECONCILE_RATE * delta)
 	elif _player.input.move == Vector2.ZERO and move == Vector2.ZERO and error.length_squared() > 0.25 and _stands_with_host():
 		_player.position += error * minf(1.0, SELF_CORRECTION_RATE * delta)
 
@@ -278,13 +324,54 @@ func _follow(delta: float) -> void:
 		# wall slides and landings are the host's (NetSide.side_move_net, the air bits).
 		var motion := _player.side_motion
 		motion.moves_from_remote = true
-		_player.velocity = vel
+		if _fresh_sync or RelayPeer.legacy_sync:
+			_player.velocity = vel
 		motion.apply_remote_state(side & SIDE_CLIMBING != 0, side & SIDE_IN_PIT != 0,
 				-1.0 if side & SIDE_FACING_LEFT else 1.0)
 		motion.apply_remote_air_state(side & SIDE_WALL_SLIDING != 0, 1 if side & SIDE_WALL_RIGHT else -1,
 				side & SIDE_DOUBLE_JUMPED != 0)
+	_fresh_sync = false
 	var error := pos - _player.position
 	if error.length() > SNAP_DISTANCE:
-		_player.position = pos
-	else:
+		_snap_to(pos)
+	elif not _airborne_copy() or RelayPeer.legacy_sync:
 		_player.position += error * minf(1.0, CORRECTION_RATE * delta)
+
+
+## Side view: the copy or the host's player is in the air. Its arc comes from the host's velocity
+## and the same gravity here; pulling it towards the host's older position would drag it back
+## (online test 16.10.2026), so it is corrected once both stand again.
+func _airborne_copy() -> bool:
+	if not _player.is_side_view() or not (side & SIDE_ACTIVE):
+		return false
+	var own := side_bits_of(_player)
+	return own & (SIDE_ON_FLOOR | SIDE_CLIMBING) == 0 or side & (SIDE_ON_FLOOR | SIDE_CLIMBING) == 0
+
+
+func _snap_to(target: Vector2) -> void:
+	_player.position = target
+	snap_count += 1
+	snaps_total += 1
+
+
+## Client, own player: this frame's position into the history (older than HISTORY_SECONDS drops).
+func _remember_position(now_msec: int, at: Vector2) -> void:
+	_history.append([now_msec, at])
+	var limit := now_msec - int(HISTORY_SECONDS * 1000.0)
+	var old := 0
+	while old < _history.size() and int(_history[old][0]) < limit:
+		old += 1
+	if old > 0:
+		_history = _history.slice(old)
+
+
+## The host's position of the own player is one where it stood within HISTORY_SECONDS (the host is
+## only behind, not elsewhere).
+func was_recently_at(target: Vector2) -> bool:
+	if RelayPeer.legacy_sync:
+		return false
+	var tolerance := HISTORY_TOLERANCE * HISTORY_TOLERANCE
+	for i in range(_history.size() - 1, -1, -1):
+		if (_history[i][1] as Vector2).distance_squared_to(target) <= tolerance:
+			return true
+	return false

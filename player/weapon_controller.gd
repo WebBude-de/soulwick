@@ -669,7 +669,7 @@ func _on_swing_hit_landed(_hurtbox: Hurtbox, _result: DamageResult) -> void:
 func _on_backstab_landed(hurtbox: Hurtbox) -> void:
 	var parent := _get_projectile_parent()
 	Burst.spawn(parent, hurtbox.global_position, Color(1.0, 0.25, 0.3), 10, 140.0, 0.3, 3.0)
-	DamageNumber.spawn_text(parent, hurtbox.global_position + Vector2(0, -48), "Hinterhalt!", Color(1.0, 0.4, 0.45))
+	DamageNumber.spawn_status(parent, hurtbox.global_position + Vector2(0, -48), &"STATUS_AMBUSH", Color(1.0, 0.4, 0.45))
 
 
 static func _build_swing_polygon(radius: float, arc: float) -> PackedVector2Array:

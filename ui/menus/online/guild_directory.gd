@@ -4,7 +4,10 @@ extends RefCounted
 ## (GET /me/guilds -> MyGuildList), one guild in detail (GET /guilds/:id -> GuildDetail), found,
 ## join by invite code, leave, remove a member, new invite code. Rights (platform P-031): founder
 ## everything, officer sees and renews the invite code and removes plain members, member reads and
-## leaves. Every call goes through OnlineSession.call_api (login first, one new login after a
+## leaves. Open guild rooms (GET /guilds/:id/rooms -> GuildRoomList) are loaded quietly (no busy
+## state, changed only when the list differs), so the menu can poll them while a guild is open; an
+## API without the route (404) hides the list for good, joining by room code always works.
+## Every call goes through OnlineSession.call_api (login first, one new login after a
 ## 401) and only changes the state here; the menu listens to changed/action_finished. RefCounted on
 ## purpose: a call that is still running when the menu closes finishes here without touching it.
 ## Failures never throw: the error code stays in list_error or comes with action_finished, the
@@ -39,6 +42,7 @@ const ACTION_LEAVE: StringName = &"leave"
 const ACTION_REMOVE: StringName = &"remove"
 const ACTION_ROTATE: StringName = &"rotate"
 const ACTION_ROLE: StringName = &"role"
+const ACTION_ROOMS: StringName = &"rooms"
 
 ## Local validation errors (texts GUILD_ERR_*).
 const ERROR_NAME_INVALID := "name_invalid"
@@ -61,6 +65,13 @@ var list_error := ""
 var details: Dictionary = {}
 ## Calls running right now.
 var running := 0
+## Guild id -> open rooms of that guild (normalize_room, oldest first) of the last
+## GET /guilds/:id/rooms; no entry until it answered.
+var rooms: Dictionary = {}
+## false once the API answered 404 for the rooms route (older API): the menu hides the list.
+var rooms_supported := true
+## Room loads running right now (not counted in running: they never block the menu).
+var rooms_running := 0
 
 
 func _init(online_session: OnlineSession = null) -> void:
@@ -103,6 +114,18 @@ func is_at_limit() -> bool:
 	return guilds.size() >= max_guilds
 
 
+## Open rooms of a guild (normalize_room), [] if none or not loaded.
+func get_rooms(guild_id: String) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	result.assign(rooms.get(guild_id, []))
+	return result
+
+
+## true once GET /guilds/:id/rooms answered for this guild (the list may be empty).
+func has_rooms(guild_id: String) -> bool:
+	return rooms.has(guild_id)
+
+
 # --- Calls (coroutines; callers may ignore the result and listen to the signals) ---
 
 func refresh() -> ApiResult:
@@ -137,6 +160,29 @@ func load_guild(guild_id: String) -> ApiResult:
 	elif _is_gone(result):
 		_forget(guild_id)
 	_finish(ACTION_DETAIL, result, {"guild_id": guild_id})
+	return result
+
+
+## Open rooms of a guild. Quiet: no busy state; changed only when the list differs. 404 (API without
+## the route) switches the list off (rooms_supported); other failures drop the guild's list.
+func load_rooms(guild_id: String) -> ApiResult:
+	if not rooms_supported or guild_id.is_empty():
+		return ApiResult.failure(ApiResult.UNREACHABLE, "Guild rooms not supported")
+	rooms_running += 1
+	var result := await _call(func(api: ApiClient) -> ApiResult: return await api.get_guild_rooms(guild_id), false)
+	rooms_running = maxi(0, rooms_running - 1)
+	var had := rooms.has(guild_id)
+	var before: Array = rooms.get(guild_id, [])
+	if result.ok:
+		rooms[guild_id] = parse_room_list(result.data)
+	else:
+		if result.status == 404:
+			rooms_supported = false
+		rooms.erase(guild_id)
+	action_finished.emit(ACTION_ROOMS, result, {"guild_id": guild_id})
+	var now: Array = rooms.get(guild_id, [])
+	if had != rooms.has(guild_id) or str(before) != str(now) or not rooms_supported:
+		changed.emit()
 	return result
 
 
@@ -288,6 +334,48 @@ static func normalize_guild(entry: Dictionary) -> Dictionary:
 	return guild
 
 
+## Open rooms of GET /guilds/:id/rooms: GuildRoomList {time, relayAvailable, rooms} (a plain list
+## or {rooms} without the rest are read too). relayAvailable false = no list. Entries without a
+## valid room code are skipped.
+static func parse_room_list(data: Variant) -> Array[Dictionary]:
+	var raw: Variant = data
+	if data is Dictionary:
+		if data.get("relayAvailable", true) == false:
+			return []
+		raw = data.get("rooms", data.get("items", []))
+	var result: Array[Dictionary] = []
+	if raw is Array:
+		for entry: Variant in raw:
+			if entry is Dictionary:
+				var room := normalize_room(entry)
+				if RelayProtocol.is_valid_code(str(room.code)):
+					result.append(room)
+	return result
+
+
+## {code, hostName, hostPlayerId, players, maxPlayers, started, gameVersion, createdAt} of a GuildRoom
+## (contracts guild.ts: playerCount and a players array; "players" as a number is read too).
+## hostName "" if unknown.
+static func normalize_room(entry: Dictionary) -> Dictionary:
+	var players: Variant = entry.get("players", null)
+	var count := int(entry.get("playerCount", players.size() if players is Array else (int(players) if players is float or players is int else 0)))
+	var host_name: Variant = entry.get("hostName", null)
+	if host_name == null and players is Array:
+		for player: Variant in players:
+			if player is Dictionary and player.get("host", false) == true:
+				host_name = player.get("name", null)
+	return {
+		"code": RelayProtocol.normalize_code(str(entry.get("code", ""))),
+		"hostName": str(host_name) if host_name != null else "",
+		"hostPlayerId": str(entry.get("hostPlayerId", "")) if entry.get("hostPlayerId", null) != null else "",
+		"players": count,
+		"maxPlayers": int(entry.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS)),
+		"started": entry.get("started", false) == true,
+		"gameVersion": str(entry.get("gameVersion", "")) if entry.get("gameVersion", null) != null else "",
+		"createdAt": str(entry.get("createdAt", "")) if entry.get("createdAt", null) != null else "",
+	}
+
+
 ## Founders and officers see the invite code, renew it and remove members.
 static func can_manage(role: String) -> bool:
 	return role == ROLE_FOUNDER or role == ROLE_OFFICER
@@ -384,15 +472,18 @@ static func _alnum_upper(text: String) -> String:
 
 # --- Internals ---
 
-func _call(fn: Callable) -> ApiResult:
+## busy: counts in running and emits changed (the menu shows "Einen Moment …" and blocks buttons).
+func _call(fn: Callable, busy := true) -> ApiResult:
 	if (session == null or not is_instance_valid(session)) and session_provider.is_valid():
 		session = session_provider.call()
 	if session == null or not is_instance_valid(session) or not session.is_inside_tree():
 		return ApiResult.failure(ApiResult.UNREACHABLE, "No online session")
-	running += 1
-	changed.emit()
+	if busy:
+		running += 1
+		changed.emit()
 	var result: ApiResult = await session.call_api(fn)
-	running = maxi(0, running - 1)
+	if busy:
+		running = maxi(0, running - 1)
 	return result
 
 
@@ -431,6 +522,7 @@ func _update_summary(guild: Dictionary) -> void:
 
 func _forget(guild_id: String) -> void:
 	details.erase(guild_id)
+	rooms.erase(guild_id)
 	var kept: Array[Dictionary] = []
 	for guild in guilds:
 		if guild.id != guild_id:

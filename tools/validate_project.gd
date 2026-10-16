@@ -1,7 +1,8 @@
 extends SceneTree
 ## Loads every script, scene and resource of the project and instantiates every scene once.
 ## Usage: godot --headless -s tools/validate_project.gd
-## Parse and load errors are printed by Godot; the summary line counts failed loads.
+## Parse and load errors are printed by Godot; the summary line counts failed loads and scripts
+## that load but do not compile.
 
 const SKIP_DIRS: Array[String] = ["res://addons", "res://.godot", "res://tools"]
 const EXTENSIONS: Array[String] = ["gd", "tscn", "tres"]
@@ -21,6 +22,11 @@ func _validate() -> void:
 		if resource == null:
 			failed += 1
 			printerr("FAILED to load: ", path)
+			continue
+		# A script with a parse error still loads as an object; only can_instantiate() tells.
+		if resource is Script and not (resource as Script).can_instantiate():
+			failed += 1
+			printerr("FAILED to compile: ", path)
 			continue
 		if resource is PackedScene:
 			var instance := (resource as PackedScene).instantiate()

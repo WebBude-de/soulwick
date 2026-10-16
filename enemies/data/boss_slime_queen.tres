@@ -8,8 +8,8 @@
 [resource]
 script = ExtResource("1_data")
 id = &"boss_slime_queen"
-display_name = "Schleimkönigin"
-hint = "Schleimkönigin: Springt auf dich zu (gelber Kreis) und ruft Schleime herbei. Bleib in Bewegung!"
+display_name = "ENEMY_BOSS_SLIME_QUEEN_NAME"
+hint = "ENEMY_BOSS_SLIME_QUEEN_HINT"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"boss"])
 is_boss = true
@@ -43,9 +43,9 @@ sprite_frames = ExtResource("2_frames")
 enrage_special_repeats = 2
 enrage_landing_ring = 10
 enrage_summon = ExtResource("9_enrage")
-enrage_text = "Sie springt wie von Sinnen!"
-intro_story = PackedStringArray("Einst nährte ich die Hüter der Flamme.", "Dann kam das Dunkel. Und der Hunger.", "So viele Seelen blubbern schon in mir …", "Deine glüht so warm. Komm näher, Süßes!")
-intro_lines = PackedStringArray("Oh, mein Spielzeug ist zurück!|Hast du mich vermisst?", "Du schon wieder, Süßes?|Ich hab extra Hunger mitgebracht.", "Letztes Mal warst du zäh.|Diesmal kaue ich länger.", "Mmmh, dein Licht …|Ich weiß noch, wie es schmeckt.")
+enrage_text = "BOSS_SLIME_QUEEN_PHASE_TWO"
+intro_story = PackedStringArray("BOSS_SLIME_QUEEN_STORY_1", "BOSS_SLIME_QUEEN_STORY_2", "BOSS_SLIME_QUEEN_STORY_3", "BOSS_SLIME_QUEEN_STORY_4")
+intro_lines = PackedStringArray("BOSS_SLIME_QUEEN_RETURN_A", "BOSS_SLIME_QUEEN_RETURN_B", "BOSS_SLIME_QUEEN_RETURN_C", "BOSS_SLIME_QUEEN_RETURN_D")
 intro_type_speed = 1.15
 intro_voice = &"slime_queen"
 intro_voice_variants = 6

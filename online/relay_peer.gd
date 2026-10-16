@@ -20,6 +20,18 @@ extends MultiplayerPeerExtension
 ## without any data (end reason "timeout"). A socket closed in a room ends the session with
 ## RelayProtocol.end_reason_for_close(code) (shutdown, timeout, slow_consumer, … or disconnected),
 ## a room_closed that arrived together with the close wins.
+## Traffic (online test 16.10.2026, NetDiagnostics in `diagnostics`):
+## - Bundles: Godot writes every put_packet straight into the socket, so each RPC was one WebSocket
+##   message (TLS record, relay message token). Once a remote peer announced bundles
+##   (RelayProtocol.CAPS_CHANNEL, sent to every peer that comes up), the packets for it are queued
+##   per receiver and leave once per frame (deferred flush, at the latest at the next poll) as one
+##   reliable and one unreliable bundle. Broadcasts are split per receiver, so every receiver keeps
+##   the order of its reliable packets. Peers that never announced (older build) get plain frames.
+## - Own backlog: above SOFT_OUTBOUND_BYTES queued in the socket, unreliable packets are not sent
+##   (the next snapshot replaces them); a reliable packet that no longer fits ends the session as
+##   slow_consumer instead of losing it silently (the worlds would drift apart).
+## - Backlog after a hitch: when many packets wait at once, only the newest UNRELIABLE_KEEP
+##   unreliable packets per sender and channel are kept (old snapshots would only be replayed).
 
 signal welcomed(info: Dictionary)
 ## Created (peer_id 1) or joined (peer_id >= 2).
@@ -37,8 +49,30 @@ signal connection_closed(code: int, reason: String)
 
 enum Phase { IDLE, CONNECTING, HELLO, LOBBY, ENTERING, IN_ROOM, CLOSED }
 
+## Preloaded: works before the global class cache knows NetDiagnostics (new file).
+const Diagnostics := preload("res://online/net_diagnostics.gd")
+
 ## TESTWERT: WebSocket buffers (bytes) for bursts like the first spawn of every player.
 const BUFFER_BYTES := 1 << 20
+## TESTWERT: WebSocket messages the socket may hold per direction (Godot's default is 4096).
+const MAX_QUEUED_PACKETS := 8192
+## TESTWERT: bytes waiting in the own socket above which unreliable packets are skipped.
+const SOFT_OUTBOUND_BYTES := 256 * 1024
+## TESTWERT: received packets waiting at once from which old unreliable ones are thinned out, and
+## how many unreliable packets per sender, channel and mode survive.
+const BACKLOG_COLLAPSE_AT := 64
+const UNRELIABLE_KEEP := 8
+
+## SOULWICK_NET_LEGACY=1: the sync as before the online test of 16.10.2026 (no bundles, the own
+## player snaps at SNAP_DISTANCE, enemy snapshots without delta and extrapolation), for comparisons.
+static var legacy_sync := OS.get_environment("SOULWICK_NET_LEGACY") == "1"
+## Bundling may be used (SOULWICK_NET_BUNDLE=0 switches only it off; tests set it).
+static var bundling_allowed := OS.get_environment("SOULWICK_NET_BUNDLE") != "0" and not legacy_sync
+## Measurements only (environment, never set in a normal start): received game frames are held
+## SOULWICK_NET_SIM_DELAY_MS +- SOULWICK_NET_SIM_JITTER_MS before the game sees them, in arrival
+## order like TCP (a late frame holds back the ones behind it).
+static var sim_delay_msec := int(OS.get_environment("SOULWICK_NET_SIM_DELAY_MS"))
+static var sim_jitter_msec := int(OS.get_environment("SOULWICK_NET_SIM_JITTER_MS"))
 
 var phase := Phase.IDLE
 ## Last snapshot of the room (RoomInfo) and the welcome message.
@@ -78,6 +112,23 @@ var end_reason := ""
 var time_offset_msec := 0
 var _last_received_msec := 0
 var _next_heartbeat_msec := 0
+## Traffic, round trip, buffers, hitches and the disconnect reason of this connection.
+var diagnostics: Diagnostics = Diagnostics.new()
+## Remote peers that announced bundles (RelayProtocol.CAPS_CHANNEL).
+var _bundle_peers: Dictionary[int, bool] = {}
+## Per receiver: {"r": [[channel, mode, data], …], "rb": bytes, "u": […], "ub": bytes}.
+var _queues: Dictionary[int, Dictionary] = {}
+var _flush_scheduled := false
+## The socket can report its queued bytes (a real WebSocketPeer; test fakes may not).
+var _can_measure_outbound := false
+## Limit of the socket's outbound buffer (0 = unknown, never pre-checked).
+var _outbound_limit := 0
+## A reliable packet could not be queued: the session ends at the next poll.
+var _send_failed := ""
+## Simulated latency: [release msec, frame] in arrival order.
+var _delayed: Array[Array] = []
+var _last_release_msec := 0
+var _sim_rng := RandomNumberGenerator.new()
 
 
 ## Connects and sends hello; action (RelayProtocol.create/join) follows the welcome.
@@ -86,12 +137,18 @@ func open(url: String, hello: Dictionary, action: Dictionary) -> Error:
 		var ws := WebSocketPeer.new()
 		ws.inbound_buffer_size = BUFFER_BYTES
 		ws.outbound_buffer_size = BUFFER_BYTES
+		ws.max_queued_packets = MAX_QUEUED_PACKETS
 		socket = ws
+	_can_measure_outbound = socket.has_method(&"get_current_outbound_buffered_amount")
+	_outbound_limit = int(socket.get(&"outbound_buffer_size")) if socket is WebSocketPeer else 0
 	_hello = hello
 	_action = action
 	_status = MultiplayerPeer.CONNECTION_CONNECTING
 	phase = Phase.CONNECTING
 	end_reason = ""
+	_send_failed = ""
+	diagnostics = Diagnostics.new(_now_msec())
+	diagnostics.make_current()
 	_last_received_msec = _now_msec()
 	var error: Error = socket.connect_to_url(url)
 	if error != OK:
@@ -129,6 +186,7 @@ func send_control(message: Dictionary) -> Error:
 
 
 func leave() -> Error:
+	flush()
 	_leaving = true
 	return send_control({"type": "leave"})
 
@@ -153,10 +211,19 @@ func _poll() -> void:
 	if socket == null or phase == Phase.IDLE:
 		_flush_events()
 		return
+	if phase == Phase.IN_ROOM:
+		diagnostics.note_poll(_now_msec())
+		flush()
 	socket.poll()
 	if phase == Phase.CLOSED:
 		# Only finishes a close handshake; the session is already over.
 		_flush_events()
+		return
+	if not _send_failed.is_empty() and phase == Phase.IN_ROOM:
+		var why := _send_failed
+		_send_failed = ""
+		socket.close(1000, "send buffer full")
+		_on_socket_closed(RelayProtocol.CLOSE_ABNORMAL, why, RelayProtocol.END_SLOW_CONSUMER)
 		return
 	var ready_state: int = socket.get_ready_state()
 	if ready_state == WebSocketPeer.STATE_OPEN and phase == Phase.CONNECTING:
@@ -175,17 +242,50 @@ func _poll() -> void:
 
 func _read_packets() -> void:
 	var count: int = socket.get_available_packet_count()
-	if count <= 0:
-		return
-	_last_received_msec = _now_msec()
+	if count > 0:
+		_last_received_msec = _now_msec()
 	for _i in count:
 		if phase == Phase.CLOSED:
 			return
 		var packet: PackedByteArray = socket.get_packet()
 		if socket.was_string_packet():
 			_handle_text(packet.get_string_from_utf8())
+		elif sim_delay_msec > 0 and phase == Phase.IN_ROOM:
+			var release := maxi(_last_release_msec, _now_msec() + sim_delay_msec + _sim_rng.randi_range(-sim_jitter_msec, sim_jitter_msec))
+			_last_release_msec = release
+			_delayed.append([release, packet])
 		else:
 			_handle_binary(packet)
+	while not _delayed.is_empty() and int(_delayed[0][0]) <= _now_msec() and phase == Phase.IN_ROOM:
+		_handle_binary(_delayed.pop_front()[1])
+	_collapse_backlog()
+	diagnostics.note_buffers(_outbound_buffered(), _incoming.size())
+
+
+## After a hitch (or while the world loads and nothing is delivered) many packets wait at once:
+## old unreliable ones would only be replayed in one frame, the newest UNRELIABLE_KEEP per sender,
+## channel and mode stay. Reliable packets are never touched.
+func _collapse_backlog() -> void:
+	if _incoming.size() <= BACKLOG_COLLAPSE_AT:
+		return
+	var seen: Dictionary[int, int] = {}
+	var kept: Array[Dictionary] = []
+	var dropped := 0
+	for i in range(_incoming.size() - 1, -1, -1):
+		var packet := _incoming[i]
+		var mode := int(packet.mode)
+		if mode != RelayProtocol.MODE_RELIABLE:
+			var key := (int(packet.from) << 12) | (int(packet.channel) << 2) | mode
+			var count: int = seen.get(key, 0)
+			if count >= UNRELIABLE_KEEP:
+				dropped += 1
+				continue
+			seen[key] = count + 1
+		kept.append(packet)
+	if dropped > 0:
+		kept.reverse()
+		_incoming = kept
+		diagnostics.note_dropped(false, dropped)
 
 
 ## Heartbeat ping and the silence check (only after welcome: before it the relay wants hello).
@@ -215,6 +315,7 @@ func get_silence_seconds() -> float:
 func _close() -> void:
 	if socket != null and phase != Phase.CLOSED:
 		if phase == Phase.IN_ROOM:
+			flush()
 			leave()
 		socket.close(1000, "bye")
 	_end_session()
@@ -259,13 +360,139 @@ func _put_packet_script(buffer: PackedByteArray) -> Error:
 		return ERR_UNCONFIGURED
 	if _leaving:
 		return OK
+	if not _send_failed.is_empty():
+		return ERR_UNAVAILABLE
 	# Clients only ever talk to the host (CLIENT_ROUTING host_only); the host may address anyone.
 	var to := _target_peer if _is_host else RelayProtocol.HOST_PEER_ID
 	if buffer.size() > _max_packet_size:
 		push_warning("RelayPeer: packet of %d bytes exceeds %d, dropped." % [buffer.size(), _max_packet_size])
 		return ERR_INVALID_PARAMETER
-	var frame := RelayProtocol.encode_frame(_unique_id, to, _transfer_channel, _transfer_mode, buffer)
-	return socket.put_packet(frame)
+	var reliable := _transfer_mode == MultiplayerPeer.TRANSFER_MODE_RELIABLE
+	if not reliable and _outbound_buffered() > SOFT_OUTBOUND_BYTES:
+		# The line does not keep up: the next snapshot replaces this one.
+		diagnostics.note_dropped(true)
+		return OK
+	var receivers := _bundle_receivers(to, buffer.size())
+	if receivers.is_empty():
+		# Plain frame; everything queued before it leaves first (order of reliable packets).
+		flush()
+		return _send_frame(to, _transfer_channel, _transfer_mode, buffer, 1, false)
+	for receiver in receivers:
+		_enqueue(receiver, _transfer_channel, _transfer_mode, buffer)
+	return OK
+
+
+## Sends every queued bundle (also called deferred after the first packet of a frame and at every
+## poll; public for tests and tools).
+func flush() -> void:
+	_flush_scheduled = false
+	if _queues.is_empty():
+		return
+	var queues := _queues
+	_queues = {}
+	for receiver in queues:
+		var queue := queues[receiver]
+		_send_queue(receiver, queue.r, true)
+		_send_queue(receiver, queue.u, false)
+
+
+## Receivers a packet to `to` can be bundled for: every addressed peer must have announced bundles
+## (else [] and the packet goes as a plain frame). Broadcasts are split per receiver.
+func _bundle_receivers(to: int, size: int) -> Array[int]:
+	var result: Array[int] = []
+	if not bundling_allowed or _bundle_peers.is_empty() or size + RelayProtocol.BUNDLE_ENTRY_HEADER > mini(_max_packet_size, RelayProtocol.BUNDLE_ENTRY_MAX):
+		return result
+	if to > 0:
+		if _bundle_peers.has(to):
+			result.append(to)
+		return result
+	for peer in _peers:
+		if to < 0 and peer == -to:
+			continue
+		if not _bundle_peers.has(peer):
+			result.clear()
+			return result
+		result.append(peer)
+	return result
+
+
+func _enqueue(receiver: int, channel: int, mode: int, data: PackedByteArray) -> void:
+	if not _queues.has(receiver):
+		_queues[receiver] = {"r": [], "rb": 0, "u": [], "ub": 0}
+	var queue := _queues[receiver]
+	var reliable := mode == MultiplayerPeer.TRANSFER_MODE_RELIABLE
+	var list_key := "r" if reliable else "u"
+	var bytes_key := "rb" if reliable else "ub"
+	var size := data.size() + RelayProtocol.BUNDLE_ENTRY_HEADER
+	if int(queue[bytes_key]) + size > _max_packet_size:
+		_send_queue(receiver, queue[list_key], reliable)
+		queue[list_key] = []
+		queue[bytes_key] = 0
+	(queue[list_key] as Array).append([channel, mode, data])
+	queue[bytes_key] = int(queue[bytes_key]) + size
+	if not _flush_scheduled:
+		_flush_scheduled = true
+		flush.call_deferred()
+
+
+## One queue of one receiver: a single packet as a plain frame, several as one bundle.
+func _send_queue(receiver: int, entries: Array, reliable: bool) -> void:
+	if entries.is_empty():
+		return
+	if not reliable and _outbound_buffered() > SOFT_OUTBOUND_BYTES:
+		diagnostics.note_dropped(true, entries.size())
+		return
+	if entries.size() == 1:
+		var entry: Array = entries[0]
+		_send_frame(receiver, int(entry[0]), int(entry[1]), entry[2], 1, false)
+		return
+	var mode := RelayProtocol.MODE_RELIABLE if reliable else RelayProtocol.MODE_UNRELIABLE_ORDERED
+	_send_frame(receiver, RelayProtocol.BUNDLE_CHANNEL, mode, RelayProtocol.encode_bundle(entries), entries.size(), true)
+
+
+func _send_frame(to: int, channel: int, mode: int, payload: PackedByteArray, packets: int, bundled: bool) -> Error:
+	if phase != Phase.IN_ROOM or socket == null or not _send_failed.is_empty():
+		return ERR_UNCONFIGURED
+	var frame := RelayProtocol.encode_frame(_unique_id, to, channel, mode, payload)
+	var reliable := mode == RelayProtocol.MODE_RELIABLE
+	# Checked here: Godot would refuse the packet with an engine error line per packet.
+	if _outbound_limit > 0 and _outbound_buffered() + frame.size() > _outbound_limit:
+		if not reliable:
+			diagnostics.note_dropped(true, packets)
+			return OK
+		_fail_send(frame.size())
+		return ERR_OUT_OF_MEMORY
+	var error: Error = socket.put_packet(frame)
+	if error != OK:
+		if reliable:
+			_fail_send(frame.size())
+		else:
+			diagnostics.note_dropped(true, packets)
+		return error
+	diagnostics.note_sent(frame.size(), packets, bundled)
+	return OK
+
+
+## A reliable packet did not fit into the socket: without it the machines drift apart, so the
+## session ends (at the next poll, outside SceneMultiplayer's send) as slow_consumer.
+func _fail_send(frame_bytes: int) -> void:
+	diagnostics.note_send_error()
+	if _send_failed.is_empty():
+		_send_failed = "send buffer full: %d bytes queued, frame of %d bytes" % [_outbound_buffered(), frame_bytes]
+		push_warning("RelayPeer: %s. %s" % [_send_failed, diagnostics.summary_line()])
+
+
+func _outbound_buffered() -> int:
+	return int(socket.get_current_outbound_buffered_amount()) if _can_measure_outbound and socket != null else 0
+
+
+## Tells a remote peer that this machine reads bundles (once per peer that comes up).
+func _announce_bundles(peer: int) -> void:
+	if not bundling_allowed or phase != Phase.IN_ROOM or socket == null:
+		return
+	if socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	_send_frame(peer, RelayProtocol.CAPS_CHANNEL, RelayProtocol.MODE_RELIABLE, RelayProtocol.caps_payload(), 0, false)
 
 
 func _get_max_packet_size() -> int:
@@ -358,16 +585,24 @@ func _handle_text(text: String) -> void:
 			var reason := str(message.get("reason", RelayProtocol.CLOSED_LEFT))
 			if phase == Phase.IN_ROOM:
 				end_reason = reason
+				diagnostics.note_disconnect(0, "room_closed", reason, get_silence_seconds(), _now_msec())
 				_end_session()
 				phase = Phase.LOBBY
 				_flush_events()
 				room_left.emit(reason)
 		"error":
-			relay_error.emit(str(message.get("code", "internal")), str(message.get("message", "")), str(message.get("request", "")))
+			var code := str(message.get("code", "internal"))
+			diagnostics.note_relay_error(code)
+			if code in ["rate_limited", "frame_too_large", "invalid_message"]:
+				# Dropped game packets at the relay (at most one notice per second): the log says
+				# what this machine sent at the time.
+				push_warning("RelayPeer: relay error %s '%s'. %s" % [code, message.get("message", ""), diagnostics.summary_line()])
+			relay_error.emit(code, str(message.get("message", "")), str(message.get("request", "")))
 		"pong":
 			var sent: Variant = message.get("t")
 			if sent is float or sent is int:
 				last_rtt_msec = maxi(0, _now_msec() - int(sent))
+				diagnostics.note_rtt(last_rtt_msec)
 		_:
 			push_warning("RelayPeer: unknown control message type '%s'." % message.get("type", ""))
 
@@ -379,10 +614,26 @@ func _handle_binary(packet: PackedByteArray) -> void:
 	if frame.is_empty():
 		return
 	var from := int(frame.from)
+	var channel := int(frame.channel)
+	var data: PackedByteArray = frame.data
+	if channel == RelayProtocol.CAPS_CHANNEL and RelayProtocol.is_caps(data):
+		diagnostics.note_received(packet.size(), 0)
+		if from > 0 and from != _unique_id:
+			_bundle_peers[from] = true
+			diagnostics.bundling = bundling_allowed
+		return
 	# Only packets of peers SceneMultiplayer knows (a client only hears the host).
 	if not _peers.has(from):
 		return
-	_incoming.append({"from": from, "channel": frame.channel, "mode": frame.mode, "data": frame.data})
+	if channel == RelayProtocol.BUNDLE_CHANNEL:
+		var entries := RelayProtocol.decode_bundle(data)
+		if not entries.is_empty():
+			diagnostics.note_received(packet.size(), entries.size(), true)
+			for entry: Array in entries:
+				_incoming.append({"from": from, "channel": entry[0], "mode": entry[1], "data": entry[2]})
+			return
+	diagnostics.note_received(packet.size())
+	_incoming.append({"from": from, "channel": channel, "mode": frame.mode, "data": data})
 
 
 func _enter_room(message: Dictionary) -> void:
@@ -397,6 +648,9 @@ func _enter_room(message: Dictionary) -> void:
 	_set_room(message.get("room", {}))
 	phase = Phase.IN_ROOM
 	_status = MultiplayerPeer.CONNECTION_CONNECTED
+	diagnostics.role = "host" if _is_host else "client"
+	diagnostics.room_code = room_code
+	diagnostics.reset_poll_clock()
 	if _is_host:
 		_reconcile_peers()
 	else:
@@ -431,12 +685,16 @@ func _peer_up(id: int) -> void:
 		return
 	_peers[id] = true
 	_pending_events.append([true, id])
+	_announce_bundles(id)
 
 
 func _peer_down(id: int) -> void:
 	if not _peers.has(id):
 		return
 	_peers.erase(id)
+	_bundle_peers.erase(id)
+	_queues.erase(id)
+	diagnostics.bundling = bundling_allowed and not _bundle_peers.is_empty()
 	_incoming.assign(_incoming.filter(func(packet: Dictionary) -> bool: return int(packet.from) != id))
 	_pending_events.append([false, id])
 
@@ -448,9 +706,10 @@ func _on_socket_closed(code: int, reason: String, forced_reason := "") -> void:
 	var was_in_room := phase == Phase.IN_ROOM
 	if was_in_room:
 		end_reason = forced_reason if not forced_reason.is_empty() else RelayProtocol.end_reason_for_close(code)
+		diagnostics.note_disconnect(code, reason, end_reason, get_silence_seconds(), _now_msec())
 		# In godot.log of every player: the evening's report can match it to the relay log.
-		push_warning("RelayPeer: connection to room %s lost at %s: close %d '%s' -> %s; last data %.1f s ago, rtt %d ms." % [
-			room_code, Time.get_datetime_string_from_system(), code, reason, end_reason, get_silence_seconds(), last_rtt_msec])
+		push_warning("RelayPeer: connection to room %s lost at %s: close %d '%s' -> %s; last data %.1f s ago, rtt %d ms. %s" % [
+			room_code, Time.get_datetime_string_from_system(), code, reason, end_reason, get_silence_seconds(), last_rtt_msec, diagnostics.summary_line()])
 	_end_session()
 	phase = Phase.CLOSED
 	_flush_events()
@@ -464,6 +723,9 @@ func _end_session() -> void:
 	for id in _peers.keys():
 		_peer_down(id)
 	_incoming.clear()
+	_delayed.clear()
+	_queues.clear()
+	_bundle_peers.clear()
 	_status = MultiplayerPeer.CONNECTION_DISCONNECTED
 
 

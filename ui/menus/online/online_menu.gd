@@ -8,14 +8,20 @@ extends VBoxContainer
 ##   place has "Aussehen ändern": the profile editor (ProfileEditor) replaces the room view until it
 ##   is saved or left; the new look reaches everybody in the room (NetPlayers) and the account
 ##   (PATCH /me).
-## - Gilden: the player's guilds (GuildDirectory). Without a guild only two big buttons "Gilde
+## - Gilden: the player's guilds (GuildDirectory). Without a guild a short "Was bringt eine Gilde?"
+##   (only what exists: guild rooms, treasury, guild leaderboard) and two big buttons "Gilde
 ##   erstellen" / "Gilde beitreten"; with guilds a list and both buttons small at the top right.
 ##   A guild shows tag, name, own role, the invite code (founder/officer: copy, renew), the
-##   treasury, the members with their role (founder: promote/demote officers; founder/officer:
-##   remove), "Gilden-Raum erstellen"
-##   (relay mode guild, only members may join) and "Gilde verlassen" with a confirmation.
-## Without a lobby (main menu) the room buttons emit launch_requested; the main menu loads the save
-## and the village runs the wish (LobbyClient.request_launch). The menu never pauses anything itself;
+##   treasury with one line on what guild runs bring, the members with their role (founder:
+##   promote/demote officers; founder/officer: remove) and "Gilde verlassen" with a confirmation.
+##   Guild rooms live on the guild's page (playtest 16.10.2026): the open rooms of the guild
+##   (GET /guilds/:id/rooms, polled every ROOMS_REFRESH_SECONDS while the page is open; hidden on an
+##   API without the route) with "Beitreten", "Gilden-Raum erstellen" (relay mode guild, only members
+##   may join) and joining by room code. The own guild room (code, places, Start/Leave) is shown on
+##   that page, not in the quick tab; the quick tab only points to it.
+## Without a lobby (main menu) the room buttons emit launch_requested; the main menu loads the world
+## (or creates the first one) and the village runs the wish (LobbyClient.request_launch). The menu
+## never pauses anything itself;
 ## the village dialog around it pauses only in single player (Modal, GameMode.pauses_for_menus).
 ## Keyboard and controller: every button takes focus (arrows / d-pad, Enter / A), Esc goes one step
 ## back (handle_input); W/A/S/D move the focus too. Sizes in mockup pixels (UiKit.px), texts are
@@ -48,6 +54,15 @@ const VILLAGE_CONTENT_HEIGHT := 140.0
 const FOCUS_BORDER := 1.0
 ## Gap between the player places of a room (mockup pixels).
 const SLOT_GAP := 3.0
+## TESTWERT: seconds between two loads of a guild's open rooms while its page is open (the API asks
+## for at most one every ~5 s).
+const ROOMS_REFRESH_SECONDS := 6.0
+## Scroll height of the open rooms of a guild (mockup pixels, about two rows).
+const ROOMS_HEIGHT := 36.0
+## What a guild brings today (playtest 16.10.2026: "Was bringt eine Gilde?"): guild rooms only for
+## members, the treasury that guild runs fill (D-081: all leftover gold at the portal, else half),
+## the guild leaderboard (D-082, guild runs). No guild forge yet (MP8): not promised here.
+const PERK_KEYS: Array[StringName] = [&"GUILD_PERK_ROOMS", &"GUILD_PERK_TREASURY", &"GUILD_PERK_RANKING"]
 
 ## The tab of the last menu (reopening keeps it).
 static var remembered_view := View.QUICK
@@ -97,6 +112,12 @@ var _slots: Array[LobbySlot] = []
 var _watched_net: NetPlayers = null
 ## The profile editor of the PROFILE view (kept across rebuilds while it is open).
 var _profile_editor: ProfileEditor = null
+## Where the last room action started: QUICK, or DETAIL with the guild (_room_origin_guild). Room
+## errors are shown there only.
+var _room_origin := View.QUICK
+var _room_origin_guild := ""
+## Seconds until the open rooms of the shown guild are loaded again.
+var _rooms_left := ROOMS_REFRESH_SECONDS
 
 
 static func create(owner_lobby: LobbyClient, online_session: OnlineSession = null, width := DEFAULT_WIDTH, max_height := 0.0) -> OnlineMenu:
@@ -136,7 +157,14 @@ func _ready() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_status)
 	var start_view := remembered_view if remembered_view == View.GUILDS else View.QUICK
-	if is_in_room() or (lobby != null and lobby.is_busy()):
+	var room_guild := get_room_guild()
+	if not room_guild.is_empty():
+		# A guild room (or one being created/joined from its page) is shown on the guild's page.
+		start_view = View.DETAIL
+		detail_id = room_guild
+		_room_origin = View.DETAIL
+		_room_origin_guild = room_guild
+	elif is_in_room() or (lobby != null and lobby.is_busy()):
 		start_view = View.QUICK
 	show_view(start_view)
 	# Log in right away: the player sees at once whether the server is there (D-147).
@@ -152,6 +180,11 @@ static func wants_login_on_open() -> bool:
 
 
 func _process(delta: float) -> void:
+	_rooms_left -= delta
+	if _rooms_left <= 0.0:
+		_rooms_left = ROOMS_REFRESH_SECONDS
+		if wants_rooms():
+			directory.load_rooms(detail_id)
 	_ping_left -= delta
 	if _ping_left > 0.0:
 		return
@@ -182,9 +215,31 @@ func is_in_room() -> bool:
 	return lobby != null and lobby.is_in_room()
 
 
-## The tab the view belongs to: QUICK or GUILDS.
+## The guild whose page shows this machine's room: inside a guild room its guild, while a guild room
+## is being created or joined from a guild's page that guild, else "" (LobbyClient).
+func get_room_guild() -> String:
+	return lobby.get_guild_room_target() if lobby != null else ""
+
+
+## In a room or about to be: create and join are blocked.
+func _room_blocked() -> bool:
+	return is_in_room() or (lobby != null and lobby.is_busy())
+
+
+## The tab the view belongs to: QUICK or GUILDS. The profile editor of a guild room belongs to the
+## guild's page.
 func get_tab() -> View:
-	return View.QUICK if view == View.QUICK or view == View.PROFILE else View.GUILDS
+	if view == View.PROFILE:
+		return View.GUILDS if not get_room_guild().is_empty() else View.QUICK
+	return View.QUICK if view == View.QUICK else View.GUILDS
+
+
+## The open rooms of the shown guild are worth loading: its page is open and visible, the API knows
+## the route and no load is running. Not while this machine is in that guild's room.
+func wants_rooms() -> bool:
+	return view == View.DETAIL and not detail_id.is_empty() and directory.rooms_supported \
+			and directory.rooms_running == 0 and is_visible_in_tree() and get_room_guild() != detail_id \
+			and not directory.get_detail(detail_id).is_empty()
 
 
 ## Switches the view (tabs, forms, a guild, the confirmation) and rebuilds.
@@ -198,8 +253,18 @@ func show_view(new_view: View, guild_id := "") -> void:
 	if new_view == View.GUILDS and not directory.loaded and not directory.is_busy() and directory.list_error.is_empty():
 		directory.refresh()
 	if new_view == View.DETAIL and not detail_id.is_empty():
-		directory.load_guild(detail_id)
+		_load_guild_page(detail_id)
 	_rebuild()
+
+
+## The guild, then its open rooms (one after the other: the first call may have to log in).
+func _load_guild_page(guild_id: String) -> void:
+	_rooms_left = ROOMS_REFRESH_SECONDS
+	var result: ApiResult = await directory.load_guild(guild_id)
+	if result.ok and view == View.DETAIL and detail_id == guild_id and directory.rooms_supported \
+			and directory.rooms_running == 0 and get_room_guild() != guild_id:
+		_rooms_left = ROOMS_REFRESH_SECONDS
+		directory.load_rooms(guild_id)
 
 
 ## Esc: one step back (forms and a guild -> list, confirmation -> where it came from). false at the
@@ -289,8 +354,10 @@ func _rebuild() -> void:
 	_build_tabs()
 	match view:
 		View.QUICK:
-			if is_in_room():
-				_build_room()
+			if not get_room_guild().is_empty():
+				_build_guild_room_pointer()
+			elif is_in_room():
+				_build_room(_content)
 			else:
 				_build_quick()
 		View.GUILDS:
@@ -345,6 +412,7 @@ func _build_quick() -> void:
 	if lobby == null:
 		hint += " " + tr(&"ONLINE_MENU_VILLAGE_HINT")
 	_content.add_child(UiKit.wrapped_text(hint, menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	_add_new_world_hint()
 	_add_connection_state()
 	var busy := lobby != null and lobby.is_busy()
 	var create := _button(&"LOBBY_CREATE", _create_quick_room, true, BIG_BUTTON_WIDTH)
@@ -375,6 +443,42 @@ func _build_quick() -> void:
 	_content.add_child(row)
 
 
+## Main menu without any world: starting a room creates one ("Welt 1"), said once so it is no
+## surprise (playtest 16.10.2026: online must not need a world first).
+func _add_new_world_hint() -> void:
+	if lobby != null or SaveManager.get_continue_slot() > 0:
+		return
+	var slot := SaveManager.get_free_slot()
+	if slot <= 0:
+		return
+	var line := UiKit.wrapped_text(_format(&"ONLINE_MENU_NEW_WORLD_HINT", [SaveSlots.default_name(slot)]), menu_width, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	line.name = "NewWorldHint"
+	_content.add_child(line)
+
+
+## Quick tab while this machine is in a guild room (or joining one): the room lives on the guild's
+## page; one line and a button there.
+func _build_guild_room_pointer() -> void:
+	var guild_id := get_room_guild()
+	var summary := directory.find_summary(guild_id)
+	var tag := str(summary.get("tag", lobby.room_guild_tag if lobby != null else ""))
+	var guild_name := str(summary.get("name", lobby.room_guild_name if lobby != null else ""))
+	var text := _format(&"GUILD_ROOM_ACTIVE", ["[%s] %s" % [tag, guild_name] if not tag.is_empty() else guild_name])
+	if tag.is_empty() and guild_name.is_empty():
+		text = tr(&"GUILD_ROOM_ACTIVE_PLAIN")
+	var line := UiKit.wrapped_text(text, menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	line.name = "GuildRoomActive"
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_content.add_child(line)
+	var go := _button(&"GUILD_ROOM_SHOW", func() -> void:
+		_set_notice("")
+		show_view(View.DETAIL, guild_id), true, BIG_BUTTON_WIDTH)
+	go.name = "ShowGuildRoom"
+	go.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_content.add_child(go)
+	_focus_target = go
+
+
 ## Login state of the menu on the quick tab: "Anmelden ..." while the first call runs, a friendly
 ## line with "Erneut versuchen" when the server is not there (the guild tab shows the same).
 func _add_connection_state() -> void:
@@ -403,13 +507,18 @@ func _add_connection_state() -> void:
 
 
 ## In a room (village): the code with "Kopieren", the hint with the ping, one place per player
-## (LobbySlot) and Start (host) / Leave.
-func _build_room() -> void:
+## (LobbySlot) and Start (host) / Leave. on_guild_page: the guild room on its guild's page (the
+## page header names the guild; members find the room in their guild).
+func _build_room(parent: Container, on_guild_page := false) -> void:
 	var peers := lobby.get_room_peers()
 	var net := _watch_net_players()
-	if lobby.is_guild_room():
+	if on_guild_page:
+		var own := UiKit.text_label(&"GUILD_ROOM_OWN", UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true)
+		own.name = "GuildRoomTitle"
+		parent.add_child(_centered(own))
+	elif lobby.is_guild_room():
 		var title := tr(&"GUILD_ROOM_TITLE") % lobby.room_guild_name if not lobby.room_guild_name.is_empty() else tr(&"GUILD_ROOM_TITLE_PLAIN")
-		_content.add_child(_centered(UiKit.text_label(title, UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true)))
+		parent.add_child(_centered(UiKit.text_label(title, UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true)))
 	var code_row := UiKit.hbox(int(UiKit.px(6)))
 	code_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var caption := UiKit.eyebrow(tr(&"LOBBY_ROOM_CODE"), UiKit.COLOR_MUTED)
@@ -426,22 +535,25 @@ func _build_room() -> void:
 		_copy_room_code()
 		copy.text = tr(&"LOBBY_CODE_COPIED"))
 	code_row.add_child(copy)
-	_content.add_child(code_row)
+	parent.add_child(code_row)
 	var host_name := str(peers[0].get("name", "")) if not peers.is_empty() and peers[0] is Dictionary else ""
 	if net != null and not peers.is_empty() and peers[0] is Dictionary and not net.get_player_name_of(RelayProtocol.HOST_PEER_ID).is_empty():
 		host_name = net.get_player_name_of(RelayProtocol.HOST_PEER_ID)
-	_room_hint_text = tr(&"LOBBY_SHARE_HINT") if lobby.is_host() else tr(&"LOBBY_JOINED_HINT") % host_name
+	if lobby.is_host():
+		_room_hint_text = tr(&"GUILD_ROOM_SHARE_HINT") if on_guild_page else tr(&"LOBBY_SHARE_HINT")
+	else:
+		_room_hint_text = tr(&"LOBBY_JOINED_HINT") % host_name
 	_room_hint = _centered(UiKit.text_label(_room_hint_line(), UiKit.SIZE_BODY, UiKit.COLOR_MUTED))
 	_room_hint.name = "RoomHint"
-	_content.add_child(_room_hint)
+	parent.add_child(_room_hint)
 	# The host's last guild run paid into the treasury (POST /runs guildPayout, D-081).
 	var run := lobby.net_run
 	if lobby.is_guild_room() and run != null and run.last_guild_treasury >= 0:
 		var paid := UiKit.text_label(tr(&"GUILD_RUN_PAYOUT") % [run.last_guild_payout, run.last_guild_treasury], UiKit.SIZE_BODY, UiKit.COLOR_GOLD)
 		paid.name = "GuildPayout"
-		_content.add_child(_centered(paid))
+		parent.add_child(_centered(paid))
 	var max_players := int(lobby.room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))
-	_content.add_child(_build_slots(peers, max_players, net))
+	parent.add_child(_build_slots(peers, max_players, net))
 	var actions := UiKit.hbox(int(UiKit.px(4)))
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	if lobby.is_host():
@@ -460,7 +572,7 @@ func _build_room() -> void:
 	actions.add_child(leave)
 	if _focus_target == null:
 		_focus_target = leave
-	_content.add_child(actions)
+	parent.add_child(actions)
 
 
 ## One LobbySlot per place: players in room order (host first), then the free places.
@@ -538,10 +650,14 @@ func open_profile_editor() -> void:
 	show_view(View.PROFILE)
 
 
-## Back to the room view (also after saving).
+## Back to the room view (also after saving): the quick tab, or the guild's page of a guild room.
 func close_profile_editor() -> void:
 	_profile_editor = null
-	show_view(View.QUICK)
+	var room_guild := get_room_guild()
+	if not room_guild.is_empty():
+		show_view(View.DETAIL, room_guild)
+	else:
+		show_view(View.QUICK)
 
 
 func get_profile_editor() -> ProfileEditor:
@@ -657,6 +773,7 @@ func _build_no_guild() -> void:
 	text.name = "NoGuild"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(text)
+	_content.add_child(_build_perks())
 	var row := UiKit.hbox(int(UiKit.px(6)))
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var create := _button(&"GUILD_CREATE", func() -> void: _open_form(View.CREATE), true, BIG_BUTTON_WIDTH)
@@ -669,6 +786,22 @@ func _build_no_guild() -> void:
 	row.add_child(join)
 	_content.add_child(row)
 	_focus_target = create
+
+
+## "Was bringt eine Gilde?": only what the game really has (PERK_KEYS: guild rooms only for members,
+## the treasury filled by guild runs, the guild leaderboard). Nothing about the guild forge until it
+## exists (MP8).
+func _build_perks() -> PanelContainer:
+	var panel := UiKit.panel(&"dark")
+	panel.name = "GuildPerks"
+	var box := UiKit.vbox(int(UiKit.px(2)))
+	box.add_child(UiKit.text_label(&"GUILD_PERKS_TITLE", UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true))
+	for key: StringName in PERK_KEYS:
+		var line := UiKit.wrapped_text("•  " + tr(key), menu_width - 16.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		line.name = "Perk_%s" % String(key).trim_prefix("GUILD_PERK_")
+		box.add_child(line)
+	panel.add_child(box)
+	return panel
 
 
 ## Found a guild: name and tag (letters/digits, upper case).
@@ -746,17 +879,26 @@ func _build_join() -> void:
 	_focus_target = code
 
 
-## One guild: tag and name, own role, invite code, treasury, members, guild room, leave.
+## One guild: tag and name, own role; the own guild room right below the header (when in one);
+## invite code, treasury with what guild runs bring, leave; the open rooms of the guild with
+## "Beitreten", "Gilden-Raum erstellen" and joining by code; the members.
 func _build_detail() -> void:
 	var detail := directory.get_detail(detail_id)
 	var summary := detail if not detail.is_empty() else directory.find_summary(detail_id)
 	var role := directory.get_own_role(detail_id)
+	var room_here := not detail_id.is_empty() and get_room_guild() == detail_id
 	var header := UiKit.hbox(int(UiKit.px(4)))
 	var back := _back_button()
 	back.custom_minimum_size.x = 0.0
 	Modal.compact_buttons(back)
 	header.add_child(back)
-	var title := UiKit.text_label("[%s]  %s" % [summary.get("tag", ""), summary.get("name", "")], UiKit.SIZE_HEADING, UiKit.COLOR_GOLD, true)
+	var tag := str(summary.get("tag", ""))
+	var guild_name := str(summary.get("name", ""))
+	if summary.is_empty() and room_here and lobby != null:
+		# The room is there before the guild finished loading (e.g. right after entering it).
+		tag = lobby.room_guild_tag
+		guild_name = lobby.room_guild_name
+	var title := UiKit.text_label("[%s]  %s" % [tag, guild_name] if not tag.is_empty() else guild_name, UiKit.SIZE_HEADING, UiKit.COLOR_GOLD, true)
 	title.name = "GuildTitle"
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title.clip_text = true
@@ -767,9 +909,17 @@ func _build_detail() -> void:
 		role_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		header.add_child(role_label)
 	_content.add_child(header)
+	# The own guild room first: that is what the player came for (code, places, Start/Leave).
+	if room_here and is_in_room():
+		var room_box := UiKit.vbox(int(UiKit.px(4)))
+		room_box.name = "GuildRoom"
+		_build_room(room_box, true)
+		_content.add_child(room_box)
+		_content.add_child(UiKit.separator())
 	if detail.is_empty():
 		_content.add_child(_centered(UiKit.text_label(&"GUILD_LOADING_ONE", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)))
-		_focus_target = back
+		if _focus_target == null:
+			_focus_target = back
 		return
 
 	var info := UiKit.panel(&"dark")
@@ -803,6 +953,8 @@ func _build_detail() -> void:
 	var treasury := UiKit.icon_value(UiKit.GOLD_ICON, str(int(detail.get("treasury", 0))), UiKit.COLOR_GOLD, UiKit.SIZE_KEY_HINT, 8.0)
 	treasury.name = "Treasury"
 	treasury.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	treasury.tooltip_text = tr(&"GUILD_PERK_TREASURY")
+	treasury.mouse_filter = Control.MOUSE_FILTER_PASS
 	treasury_row.add_child(treasury)
 	# Leaving sits here (asks first), the dialog stays short (R8, D-139).
 	var leave := _button(&"GUILD_LEAVE", _ask_leave, false, 0.0)
@@ -811,40 +963,14 @@ func _build_detail() -> void:
 	leave.disabled = directory.is_busy()
 	treasury_row.add_child(leave)
 	info_box.add_child(treasury_row)
+	# What guild runs bring, in one line (the long version is the empty guild tab).
+	var perks := UiKit.wrapped_text(tr(&"GUILD_DETAIL_PERKS"), menu_width - 12.0, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	perks.name = "GuildPerksShort"
+	info_box.add_child(perks)
 	_content.add_child(info)
 
-	# Guild room: create one (only members may join) or join one with its room code.
-	var room_row := UiKit.hbox(int(UiKit.px(4)))
-	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var room_blocked := is_in_room() or (lobby != null and lobby.is_busy())
-	var room := _button(&"GUILD_ROOM_CREATE", _create_guild_room, true, BIG_BUTTON_WIDTH)
-	room.name = "CreateGuildRoom"
-	room.custom_minimum_size.y = UiKit.px(BIG_BUTTON_HEIGHT * 0.75)
-	room.tooltip_text = tr(&"GUILD_ROOM_HINT")
-	room.disabled = room_blocked
-	if is_in_room():
-		room.tooltip_text = tr(&"GUILD_ROOM_LEAVE_FIRST")
-	room_row.add_child(room)
-	var room_code := _line_edit("GuildRoomCode", &"LOBBY_CODE_PLACEHOLDER", _guild_room_code, RelayProtocol.ROOM_CODE_LENGTH, 62.0)
-	room_code.editable = not room_blocked
-	room_code.tooltip_text = tr(&"GUILD_ROOM_JOIN_HINT")
-	room_row.add_child(room_code)
-	var room_join := _button(&"GUILD_ROOM_JOIN", _join_guild_room, false, 0.0)
-	room_join.name = "JoinGuildRoom"
-	room_join.tooltip_text = tr(&"GUILD_ROOM_JOIN_HINT")
-	room_join.disabled = room_blocked or not RelayProtocol.is_valid_code(_guild_room_code)
-	room_row.add_child(room_join)
-	room_code.text_changed.connect(func(text: String) -> void:
-		var normalized := RelayProtocol.normalize_code(text)
-		if normalized != text:
-			room_code.text = normalized
-			room_code.caret_column = normalized.length()
-		_guild_room_code = normalized
-		room_join.disabled = (is_in_room() or (lobby != null and lobby.is_busy())) or not RelayProtocol.is_valid_code(normalized))
-	room_code.text_submitted.connect(func(_text: String) -> void:
-		if not room_join.disabled:
-			_join_guild_room())
-	_content.add_child(room_row)
+	if not (room_here and is_in_room()):
+		_build_guild_rooms()
 
 	var members: Array = detail.get("members", [])
 	_content.add_child(UiKit.text_label(tr(&"GUILD_MEMBERS") % [members.size(), int(detail.get("maxMembers", GuildDirectory.MAX_GUILD_MEMBERS))], UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true))
@@ -854,7 +980,108 @@ func _build_detail() -> void:
 	for member: Dictionary in members:
 		list.add_child(_member_row(member, role, own_id))
 	_content.add_child(_list_area(list, MEMBERS_HEIGHT))
-	_focus_target = room if not room.disabled else back
+	if _focus_target == null:
+		_focus_target = back
+
+
+## Guild rooms on the guild's page: the open rooms of the guild (GET /guilds/:id/rooms; hidden on an
+## API without the route or while the relay is away) with "Beitreten", then "Gilden-Raum erstellen"
+## and joining by room code. Everything is blocked while this machine is in a room or entering one.
+func _build_guild_rooms() -> void:
+	var blocked := _room_blocked()
+	var section := UiKit.vbox(int(UiKit.px(2)))
+	section.name = "GuildRooms"
+	if directory.rooms_supported and directory.has_rooms(detail_id):
+		section.add_child(UiKit.text_label(&"GUILD_ROOMS_OPEN", UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true))
+		var own_code := lobby.get_room_code() if lobby != null and is_in_room() else ""
+		var rows := UiKit.vbox(int(UiKit.px(1)))
+		rows.name = "OpenRooms"
+		for room in directory.get_rooms(detail_id):
+			if str(room.code) == own_code:
+				continue
+			rows.add_child(_open_room_row(room, blocked))
+		if rows.get_child_count() == 0:
+			rows.free()
+			var none := UiKit.text_label(&"GUILD_ROOMS_NONE", UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+			none.name = "NoOpenRooms"
+			section.add_child(none)
+		else:
+			section.add_child(_list_area(rows, ROOMS_HEIGHT))
+	var room_row := UiKit.hbox(int(UiKit.px(4)))
+	room_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var room := _button(&"GUILD_ROOM_CREATE", _create_guild_room, true, BIG_BUTTON_WIDTH)
+	room.name = "CreateGuildRoom"
+	room.custom_minimum_size.y = UiKit.px(BIG_BUTTON_HEIGHT * 0.75)
+	room.tooltip_text = tr(&"GUILD_ROOM_HINT")
+	room.disabled = blocked
+	if is_in_room():
+		room.tooltip_text = tr(&"GUILD_ROOM_LEAVE_FIRST")
+	room_row.add_child(room)
+	var room_code := _line_edit("GuildRoomCode", &"LOBBY_CODE_PLACEHOLDER", _guild_room_code, RelayProtocol.ROOM_CODE_LENGTH, 62.0)
+	room_code.editable = not blocked
+	room_code.tooltip_text = tr(&"GUILD_ROOM_JOIN_HINT")
+	room_row.add_child(room_code)
+	var room_join := _button(&"GUILD_ROOM_JOIN", func() -> void: _join_guild_room(), false, 0.0)
+	room_join.name = "JoinGuildRoom"
+	room_join.tooltip_text = tr(&"GUILD_ROOM_JOIN_HINT")
+	room_join.disabled = blocked or not RelayProtocol.is_valid_code(_guild_room_code)
+	room_row.add_child(room_join)
+	room_code.text_changed.connect(func(text: String) -> void:
+		var normalized := RelayProtocol.normalize_code(text)
+		if normalized != text:
+			room_code.text = normalized
+			room_code.caret_column = normalized.length()
+		_guild_room_code = normalized
+		room_join.disabled = _room_blocked() or not RelayProtocol.is_valid_code(normalized))
+	room_code.text_submitted.connect(func(_text: String) -> void:
+		if not room_join.disabled:
+			_join_guild_room())
+	section.add_child(room_row)
+	_content.add_child(section)
+	if not room.disabled:
+		_focus_target = room
+
+
+## One open room of the guild: "Raum von <host>", players, and "Beitreten" (greyed out while its run
+## is on, for another game version, when full or while this machine is in a room).
+func _open_room_row(room: Dictionary, blocked: bool) -> Control:
+	var code := str(room.code)
+	var row := UiKit.hbox(int(UiKit.px(4)))
+	row.name = "OpenRoom_%s" % code
+	var host := str(room.get("hostName", ""))
+	var label := UiKit.text_label(_format(&"GUILD_ROOM_OF", [host if not host.is_empty() else "?"]), UiKit.SIZE_BODY, UiKit.COLOR_TEXT)
+	label.name = "Host"
+	label.clip_text = true
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+	var state := ""
+	var hint := ""
+	var version := str(room.get("gameVersion", ""))
+	if bool(room.get("started", false)):
+		state = tr(&"GUILD_ROOM_RUNNING")
+		hint = tr(&"GUILD_ROOM_RUNNING_HINT")
+	elif not version.is_empty() and version != OnlineConfig.get_game_version():
+		state = tr(&"GUILD_ROOM_OTHER_VERSION")
+		hint = _format(&"GUILD_ROOM_OTHER_VERSION_HINT", [version])
+	if not state.is_empty():
+		var state_label := UiKit.text_label(state, UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+		state_label.name = "State"
+		state_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		state_label.tooltip_text = hint
+		state_label.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(state_label)
+	var players := UiKit.text_label(tr(&"GUILD_MEMBERS_SHORT") % [int(room.get("players", 0)), int(room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))], UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
+	players.name = "Players"
+	players.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(players)
+	var join := _button(&"GUILD_ROOM_JOIN", func() -> void: _join_guild_room(code), false, 0.0)
+	join.name = "JoinListed_%s" % code
+	join.disabled = blocked or not state.is_empty() or int(room.get("players", 0)) >= int(room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))
+	join.tooltip_text = hint if not hint.is_empty() else (tr(&"GUILD_ROOM_LEAVE_FIRST") if is_in_room() else "")
+	Modal.compact_buttons(join)
+	row.add_child(join)
+	return row
 
 
 ## Two lines: name (and "du") on top, role and joined-on date small below; for founder/officer the
@@ -943,7 +1170,13 @@ func _build_confirm() -> void:
 func _update_status() -> void:
 	var text := ""
 	var color := UiKit.COLOR_MUTED
-	if view == View.QUICK and lobby != null:
+	# Room state on the page that shows the room (quick tab, or the guild's page of a guild room);
+	# room errors only where the room action started.
+	var room_page := view == View.QUICK or (view == View.DETAIL and not detail_id.is_empty() and get_room_guild() == detail_id)
+	var room_errors := (_room_origin == View.QUICK and view == View.QUICK) \
+			or (_room_origin == View.DETAIL and view == View.DETAIL and _room_origin_guild == detail_id)
+	var room_error := ""
+	if lobby != null and (room_page or room_errors):
 		match lobby.state:
 			LobbyClient.State.LOGGING_IN:
 				text = tr(&"LOBBY_STATUS_LOGGING_IN")
@@ -952,16 +1185,23 @@ func _update_status() -> void:
 			LobbyClient.State.LEAVING:
 				text = tr(&"LOBBY_STATUS_LEAVING")
 			_:
-				if not lobby.last_error.is_empty():
-					text = LobbyClient.error_text(lobby.last_error)
-					color = UiKit.COLOR_DANGER_SOFT
-	elif view != View.QUICK:
+				if room_errors and not lobby.last_error.is_empty():
+					room_error = LobbyClient.error_text(lobby.last_error)
+	if not text.is_empty():
+		pass
+	elif view == View.QUICK:
+		text = room_error
+		color = UiKit.COLOR_DANGER_SOFT
+	else:
 		if (view == View.CREATE or view == View.JOIN) and notice_is_error:
 			# Shown at the field (_add_field_error, _add_form_error).
 			text = ""
 		elif not notice.is_empty():
 			text = notice
 			color = UiKit.COLOR_DANGER_SOFT if notice_is_error else UiKit.COLOR_SUCCESS
+		elif not room_error.is_empty():
+			text = room_error
+			color = UiKit.COLOR_DANGER_SOFT
 		elif directory.is_busy() and directory.loaded:
 			text = tr(&"GUILD_WORKING")
 	_status.text = text
@@ -972,6 +1212,7 @@ func _update_status() -> void:
 # --- Actions ---
 
 func _create_quick_room() -> void:
+	_set_room_origin(View.QUICK)
 	if lobby == null:
 		launch_requested.emit({"action": LobbyClient.LAUNCH_CREATE, "mode": LobbyClient.MODE_QUICK})
 		return
@@ -982,6 +1223,7 @@ func _create_quick_room() -> void:
 func _join_room() -> void:
 	if not RelayProtocol.is_valid_code(_room_code):
 		return
+	_set_room_origin(View.QUICK)
 	if lobby == null:
 		launch_requested.emit({"action": LobbyClient.LAUNCH_JOIN, "code": _room_code})
 		return
@@ -989,35 +1231,45 @@ func _join_room() -> void:
 	lobby.join_room(_room_code)
 
 
-## Guild room of the open guild: only its members may join (the relay asks the API).
+## Guild room of the open guild: only its members may join (the relay asks the API). The room is
+## shown right here on the guild's page (not in the quick tab).
 func _create_guild_room() -> void:
 	var summary := directory.find_summary(detail_id)
 	var guild_name := str(directory.get_detail(detail_id).get("name", summary.get("name", "")))
 	var guild_tag := str(directory.get_detail(detail_id).get("tag", summary.get("tag", "")))
+	_set_room_origin(View.DETAIL, detail_id)
 	if lobby == null:
 		launch_requested.emit({"action": LobbyClient.LAUNCH_CREATE, "mode": LobbyClient.MODE_GUILD, "guild_id": detail_id, "guild_name": guild_name, "guild_tag": guild_tag})
 		return
 	lobby.resume_dialog = true
 	lobby.room_guild_name = guild_name
 	lobby.room_guild_tag = guild_tag
-	show_view(View.QUICK)
 	lobby.create_room(LobbyClient.MODE_GUILD, detail_id)
 
 
-## Join a guild room with its room code; the relay lets only members in (not_guild_member).
-func _join_guild_room() -> void:
-	if not RelayProtocol.is_valid_code(_guild_room_code):
+## Join a guild room of the open guild: from its list of open rooms (code) or by the typed room code;
+## the relay lets only members in (not_guild_member). The room is shown on the guild's page.
+func _join_guild_room(code := "") -> void:
+	var room_code := code if not code.is_empty() else _guild_room_code
+	if not RelayProtocol.is_valid_code(room_code):
 		return
-	var guild := directory.get_detail(detail_id)
+	var guild_id := detail_id
+	var summary := directory.find_summary(guild_id)
+	var guild := directory.get_detail(guild_id)
+	var guild_name := str(guild.get("name", summary.get("name", "")))
+	var guild_tag := str(guild.get("tag", summary.get("tag", "")))
+	_set_room_origin(View.DETAIL, guild_id)
 	if lobby == null:
-		launch_requested.emit({"action": LobbyClient.LAUNCH_JOIN, "code": _guild_room_code, "guild_name": str(guild.get("name", "")), "guild_tag": str(guild.get("tag", ""))})
+		launch_requested.emit({"action": LobbyClient.LAUNCH_JOIN, "code": room_code, "guild_id": guild_id, "guild_name": guild_name, "guild_tag": guild_tag})
 		return
 	lobby.resume_dialog = true
-	show_view(View.QUICK)
-	await lobby.join_room(_guild_room_code)
-	if lobby != null and lobby.is_guild_room() and lobby.get_room_guild_id() == str(guild.get("id", "")):
-		lobby.room_guild_name = str(guild.get("name", ""))
-		lobby.room_guild_tag = str(guild.get("tag", ""))
+	await lobby.join_room(room_code, guild_id, guild_name, guild_tag)
+
+
+## Room errors are shown where the room action started (the quick tab or that guild's page).
+func _set_room_origin(origin: View, guild_id := "") -> void:
+	_room_origin = origin
+	_room_origin_guild = guild_id
 
 
 func _open_form(form: View) -> void:
@@ -1083,12 +1335,23 @@ func _set_notice(text: String, is_error := false) -> void:
 
 func _on_action_finished(action: StringName, result: ApiResult, info: Dictionary) -> void:
 	var guild_name := str(info.get("name", ""))
+	# Open rooms are polled quietly: no notice, the list just shows or hides (GuildDirectory.changed).
+	if action == GuildDirectory.ACTION_ROOMS:
+		return
 	if not result.ok:
 		if action == GuildDirectory.ACTION_LIST:
 			return
+		var failed_id := str(info.get("guild_id", ""))
+		var room_guild := get_room_guild()
+		# The guild's page stays while this machine's room of that guild is on it (server away: the
+		# room on the relay still works).
+		if action == GuildDirectory.ACTION_DETAIL and failed_id == room_guild and not failed_id.is_empty() \
+				and (result.error == ApiResult.UNREACHABLE or result.error == ApiResult.TIMEOUT):
+			_queue_rebuild()
+			return
 		_set_notice(GuildDirectory.error_text(result.error), true)
 		form_error_field = form_field_for(result.error)
-		if action == GuildDirectory.ACTION_DETAIL and directory.find_summary(str(info.get("guild_id", ""))).is_empty() and view == View.DETAIL:
+		if action == GuildDirectory.ACTION_DETAIL and directory.find_summary(failed_id).is_empty() and view == View.DETAIL and failed_id != room_guild:
 			view = View.GUILDS
 		elif action == GuildDirectory.ACTION_LEAVE and directory.find_summary(str(info.get("guild_id", ""))).is_empty() and view == View.DETAIL:
 			view = View.GUILDS
@@ -1133,9 +1396,16 @@ static func form_field_for(code: String) -> String:
 
 
 func _on_lobby_changed(_value: Variant = null) -> void:
-	# A room was entered (or creating one started) from the guild tab: show it.
-	if lobby != null and (lobby.is_in_room() or lobby.is_busy()) and view == View.GUILDS:
-		view = View.QUICK
+	if lobby != null and (lobby.is_in_room() or lobby.is_busy()):
+		var room_guild := get_room_guild()
+		if not room_guild.is_empty():
+			# A guild room is shown on its guild's page.
+			if view == View.GUILDS or (view == View.DETAIL and detail_id != room_guild):
+				show_view(View.DETAIL, room_guild)
+				return
+		elif view == View.GUILDS:
+			# A quick room entered (or creating one started) from the guild tab: show it.
+			view = View.QUICK
 	_queue_rebuild()
 
 
@@ -1194,6 +1464,15 @@ func _line_edit(node_name: String, placeholder: StringName, text: String, max_le
 	field.select_all_on_focus = false
 	_make_focusable(field)
 	return field
+
+
+## tr(key) % args, safe while a text is missing or has no placeholder (a new key before the
+## translations have it shows the key instead of failing).
+func _format(key: StringName, args: Array) -> String:
+	var text := tr(key)
+	if not text.contains("%"):
+		return text
+	return text % args
 
 
 func _caption(key: StringName) -> Label:

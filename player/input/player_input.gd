@@ -2,7 +2,7 @@ class_name PlayerInput
 extends RefCounted
 ## Commands of one player for the current physics frame (MP1, D-088): movement, aim and the action
 ## buttons. Player and WeaponController read only from their PlayerInput, never from Input, so the
-## same player code runs for the keyboard at this machine (LocalKeyboardMouseInput) and for players
+## same player code runs for keyboard, mouse and gamepad at this machine (LocalKeyboardMouseInput) and for players
 ## fed from outside (RemoteInput: the network later, bots and tests now).
 ## The owning player calls poll() once at the start of every physics frame; afterwards move, aim and
 ## the pressed/just-pressed flags describe that frame.

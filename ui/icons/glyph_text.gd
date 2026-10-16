@@ -115,6 +115,8 @@ static func split(text: String) -> Array:
 ## [key name, glyph id] pairs of the current binding, longest names first; touch decides the glyph.
 static func name_glyphs() -> Array[Array]:
 	var touch := InputGlyphs.is_touch()
+	# Touch and gamepad show the glyph of the action, not of the key named in the text.
+	var by_action := touch or InputGlyphs.is_gamepad()
 	var side_view := touch and TouchState.shared().side_view
 	var result: Array[Array] = []
 	var names: Dictionary = {}
@@ -127,17 +129,17 @@ static func name_glyphs() -> Array[Array]:
 			var key_name := ControlsInfo.event_text(event)
 			if key_name.is_empty() or names.has(key_name):
 				continue
-			var glyph := InputGlyphs.touch_id_for_action(action, side_view) if touch else InputGlyphs.id_for_event(event)
+			var glyph := InputGlyphs.glyph_for_action(action, side_view) if by_action else InputGlyphs.id_for_event(event)
 			if glyph == &"":
 				continue
-			if key_name.length() < MIN_NAME_LENGTH and not touch:
+			if key_name.length() < MIN_NAME_LENGTH and not by_action:
 				continue
 			names[key_name] = true
 			result.append([key_name, glyph])
 	if not touch:
 		var mouse := Loc.t(&"KEY_MOUSE")
 		if not names.has(mouse):
-			result.append([mouse, InputGlyphs.MOUSE])
+			result.append([mouse, InputGlyphs.aim_id()])
 	result.sort_custom(func(a: Array, b: Array) -> bool: return String(a[0]).length() > String(b[0]).length())
 	return result
 

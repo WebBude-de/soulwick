@@ -3,6 +3,7 @@ extends RefCounted
 ## Player options that are not the Music/SFX volumes (UX1, UX3): language (D-111), master volume,
 ## window mode, VSync, brightness (R8, R6 hook), light effects (L1), screen shake, hit stop, damage numbers, reduced flashes. Global like the
 ## volumes (settings.cfg [options] via SaveManager.get_option/set_option, not per save slot).
+## Controls (P0-2): gamepad bindings and device watcher (apply_controls), gamepad aim assist.
 ## apply_all() runs at start (scenes/main.gd, scenes/world_controller.gd); the options view calls
 ## the setters, which store and apply at once. F11 toggles the window mode everywhere.
 ##
@@ -37,6 +38,9 @@ const LIGHT_EFFECTS: StringName = &"light_effects"
 const LIGHT_LOW: StringName = &"low"
 const LIGHT_HIGH: StringName = &"high"
 const LIGHT_LEVELS: Array[StringName] = [LIGHT_LOW, LIGHT_HIGH]
+## Light aim assist on the gamepad's right stick, ranged weapons only (P0-2, same rule as touch,
+## D-155; TouchAimAssist). Read by GamepadInput every frame.
+const GAMEPAD_AIM_ASSIST: StringName = &"gamepad_aim_assist"
 
 const LANGUAGE_AUTO: StringName = &"auto"
 const LANGUAGES: Array[StringName] = [LANGUAGE_AUTO, &"en", &"de"]
@@ -63,6 +67,7 @@ const DEFAULTS := {
 	REDUCE_FLASHES: false,
 	BRIGHTNESS: 0.0,
 	LIGHT_EFFECTS: "high",
+	GAMEPAD_AIM_ASSIST: true,
 }
 
 
@@ -73,6 +78,7 @@ static func apply_all() -> void:
 	apply_master_volume()
 	apply_brightness()
 	apply_light_effects()
+	apply_controls()
 	CameraShake.enabled = is_screen_shake_enabled()
 
 
@@ -248,6 +254,25 @@ static func set_light_effects(level: StringName) -> void:
 
 static func apply_light_effects() -> void:
 	LightingQuality.set_high(get_light_effects() == LIGHT_HIGH)
+
+
+# --- Controls (P0-2) ---
+
+## Gamepad bindings into the InputMap and the watcher that switches key symbols and the mouse
+## cursor with the device in use (GamepadInput, InputDeviceWatcher). Runs with apply_all at start.
+## Loaded at call time, not referenced by class: GamepadInput reaches Enemy (aim assist), Enemy
+## preloads gold_pickup.tscn, and that scene's LightSource reads GameOptions - a load cycle at start.
+static func apply_controls() -> void:
+	load("res://player/input/gamepad_input.gd").ensure_actions()
+	load("res://player/input/input_device_watcher.gd").ensure(Engine.get_main_loop() as SceneTree)
+
+
+static func is_gamepad_aim_assist_enabled() -> bool:
+	return SaveManager.get_option(GAMEPAD_AIM_ASSIST, true)
+
+
+static func set_gamepad_aim_assist(on: bool) -> void:
+	SaveManager.set_option(GAMEPAD_AIM_ASSIST, on)
 
 
 # --- Game feel ---

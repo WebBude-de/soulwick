@@ -27,6 +27,8 @@ func after_each() -> void:
 func after_all() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
+	# P1-8: the last good copy would otherwise stand in for a broken test file.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".prev.bak"))
 	SaveManager.save_path = _old_path
 	SaveManager.load_game()
 
@@ -35,19 +37,19 @@ func after_all() -> void:
 
 func test_buy_spends_exact_cost_and_raises_level() -> void:
 	SaveManager.add_permanent_gold(100)
-	assert_eq(MetaProgression.get_next_cost(MetaProgression.VITALITY), 40)
+	assert_eq(MetaProgression.get_next_cost(MetaProgression.VITALITY), 20)
 	assert_true(MetaProgression.try_buy(MetaProgression.VITALITY))
 	assert_eq(MetaProgression.get_level(MetaProgression.VITALITY), 1)
-	assert_eq(SaveManager.get_permanent_gold(), 60)
+	assert_eq(SaveManager.get_permanent_gold(), 80)
 	assert_eq(MetaProgression.get_next_cost(MetaProgression.VITALITY), 80, "second level costs 80")
 
 
 func test_insufficient_gold_changes_nothing() -> void:
-	SaveManager.add_permanent_gold(39)
+	SaveManager.add_permanent_gold(19)
 	assert_false(MetaProgression.can_buy(MetaProgression.VITALITY))
 	assert_false(MetaProgression.try_buy(MetaProgression.VITALITY))
 	assert_eq(MetaProgression.get_level(MetaProgression.VITALITY), 0)
-	assert_eq(SaveManager.get_permanent_gold(), 39)
+	assert_eq(SaveManager.get_permanent_gold(), 19)
 
 
 func test_max_level_cannot_be_exceeded() -> void:
@@ -66,8 +68,8 @@ func test_max_level_cannot_be_exceeded() -> void:
 
 func test_all_upgrades_match_the_d087_table() -> void:
 	var expected := {
-		MetaProgression.VITALITY: [40, 80, 140, 220, 320],
-		MetaProgression.START_SHIELD: [40, 90, 160],
+		MetaProgression.VITALITY: [20, 80, 140, 220, 320],
+		MetaProgression.START_SHIELD: [30, 90, 160],
 		MetaProgression.SHARPNESS: [70, 150, 260, 400],
 		MetaProgression.GOLD_GREED: [60, 140, 250],
 		MetaProgression.DASH_TRAINING: [60, 140, 260],

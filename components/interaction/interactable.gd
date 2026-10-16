@@ -5,7 +5,7 @@ extends Area2D
 
 signal interacted(player: Player)
 
-@export var prompt := "Benutzen"
+@export var prompt := "CONTROLS_INTERACT"
 @export var enabled := true
 
 

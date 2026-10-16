@@ -1,16 +1,21 @@
 class_name IntroCountdown
 extends Control
-## The big 3-2-1 of the room intro (07_ui.md, R3) in the middle of the screen: each number pops in,
-## shrinks and fades; 0 shows "Los!". Look only; RoomIntro decides when (countdown_tick), DungeonUI
-## shows it and plays the tick. Never blocks input (mouse ignored).
+## The 3-2-1 of the room intro (07_ui.md, R3): each number pops in, shrinks and fades; 0 shows
+## "Los!". Look only; RoomIntro decides when (countdown_tick), DungeonUI shows it and plays the
+## tick. Never blocks input (mouse ignored).
+## Online test 16.10.2026 (texts over the enemies): the number sits in the top band right under the
+## goal banner (DungeonUI sets top_px), smaller than before, not in the middle of the playfield.
 
-## Number size in mockup pixels.
-const NUMBER_SIZE := 30
-const GO_SIZE := 22
-## Height of the number's centre as a share of the screen (a bit above the middle, where the
-## player stands after the camera came back).
-const CENTER_Y := 0.38
-const POP_SCALE := 1.7
+## Number size in mockup pixels (TESTWERTE; were 30 and 22 in the middle of the screen).
+const NUMBER_SIZE := 22
+const GO_SIZE := 16
+## Height of the number's centre as a share of the screen when nobody set top_px (upper third,
+## above the player in the middle).
+const CENTER_Y := 0.28
+const POP_SCALE := 1.5
+
+## Top edge of the number in viewport px (below the goal banner); negative = CENTER_Y.
+var top_px := -1.0
 const NUMBER_TIME := 0.5
 const GO_TIME := 0.7
 
@@ -41,8 +46,10 @@ func show_number(number: int, color := UiKit.COLOR_DANGER) -> void:
 	_label.add_theme_color_override("font_outline_color", color.darkened(0.55))
 	_label.reset_size()
 	var view := get_viewport_rect().size
-	_label.position = Vector2(view.x * 0.5, view.y * CENTER_Y) - _label.size * 0.5
-	_label.pivot_offset = _label.size * 0.5
+	var centre_y := top_px + _label.size.y * 0.5 if top_px >= 0.0 else view.y * CENTER_Y
+	_label.position = Vector2(view.x * 0.5, centre_y) - _label.size * 0.5
+	# Under a banner the pop grows downwards, never up into the banner.
+	_label.pivot_offset = Vector2(_label.size.x * 0.5, 0.0 if top_px >= 0.0 else _label.size.y * 0.5)
 	_label.scale = Vector2.ONE * POP_SCALE
 	_label.modulate.a = 1.0
 	if _tween != null and _tween.is_valid():
@@ -58,6 +65,13 @@ func clear() -> void:
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
 	_label.modulate.a = 0.0
+
+
+## Where the number is on screen (viewport px; empty while hidden), for the overlay dodge.
+func get_number_rect() -> Rect2:
+	if _label.modulate.a <= 0.01:
+		return Rect2()
+	return _label.get_global_rect()
 
 
 ## The text on screen ("" when hidden), for tests.

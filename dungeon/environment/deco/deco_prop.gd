@@ -89,6 +89,9 @@ const PLACEHOLDER := Color(0.42, 0.4, 0.46)
 ## them (candles, bones, a puddle) do not block (playtest 15.10.2026, notes 22 and 24).
 @export var solid_span := Vector2.ZERO
 
+## Delivered pictures by path, kept for the session (a few dozen small files).
+static var _loaded: Dictionary[String, Texture2D] = {}
+
 var sprite: Node2D = null
 var light: LightSource = null
 
@@ -208,8 +211,26 @@ func _build_sprite(data: Dictionary) -> void:
 
 ## The item's picture: per-biome files (%s in the path) and soft wall pieces fitted to the rock.
 func _art_texture(data: Dictionary, size: Vector2i) -> Texture2D:
+	return _item_texture(data, size, biome)
+
+
+## Steps that load the pictures of every item a room of biome_id can show into the session caches
+## (DungeonManager idle warm-up, feedback 16.10.2026: the first rooms of a biome hitched on them).
+## The water drawn items (puddle, pond groups) are WaterArt's (WaterArt.warm_steps).
+static func warm_steps(biome_id: StringName) -> Array[Callable]:
+	var steps: Array[Callable] = []
+	for item_id: StringName in ITEMS:
+		var data: Dictionary = ITEMS[item_id]
+		if String(data["path"]).is_empty():
+			continue
+		var size: Vector2i = data["frame"] * Vector2i(int(data.get("frames", 1)), 1)
+		steps.append(func() -> void: _item_texture(data, size, biome_id))
+	return steps
+
+
+static func _item_texture(data: Dictionary, size: Vector2i, biome_value: StringName) -> Texture2D:
 	var path := String(data["path"])
-	var biome_id: StringName = biome if biome != &"" else &"crypt"
+	var biome_id: StringName = biome_value if biome_value != &"" else &"crypt"
 	if path.contains("%s"):
 		path = path % biome_id
 		if not ResourceLoader.exists(path):
@@ -247,11 +268,16 @@ func _puddle_texture() -> Texture2D:
 	return WaterArt.puddle_strip(biome if biome != &"" else WaterArt.DEFAULT_BIOME, shape_seed)
 
 
-## The delivered file, or a flat placeholder of the same size.
+## The delivered file, or a flat placeholder of the same size. Files stay loaded for the session
+## (_loaded): a picture whose last room was freed is not read from disk again while the next room is
+## built (feedback 16.10.2026, hitch on entering a room).
 static func _texture(path: String, size: Vector2i) -> Texture2D:
+	if _loaded.has(path):
+		return _loaded[path]
 	if ResourceLoader.exists(path):
 		var texture := load(path) as Texture2D
 		if texture != null:
+			_loaded[path] = texture
 			return texture
 	var image := Image.create_empty(maxi(size.x, 1), maxi(size.y, 1), false, Image.FORMAT_RGBA8)
 	var top := floori(size.y / 3.0)

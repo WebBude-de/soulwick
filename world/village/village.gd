@@ -17,6 +17,14 @@ extends Node2D
 ## near a player and never together with a notice (07_ui.md); a locked building keeps its name
 ## readable: a small lock on the door sign, the "Öffnet nach …" text is in the door prompt and the
 ## notice. The chronicle has a board in front: empty before the first run, one chalk mark per run.
+## P1-2 (VillageGuide): until the first run of a world a trail of soul lights leads from the spawn to
+## the ruin, an arrow points at the entrance and the goal line says "Steig in den Dungeon hinab"; on
+## the very first visit the chronicler says a few words (VillageUI.show_opening). Optics at this
+## machine only: the state is this player's world, nothing is shared in a room.
+## P1-3 (VillageAffordable): a pulsing gold "!" over every building where something is affordable
+## right now (Schmiede, Handelsposten), on a layer above the darkness; it goes after a visit until
+## the building's currency changes. After a run, before the first forge purchase, the goal line says
+## "Stärke dich in der Schmiede" while a level is affordable. Local only, nothing is sent.
 
 signal dungeon_requested
 ## Emitted when the player uses a building door; id is the building's building_id metadata.
@@ -51,6 +59,22 @@ const RESCUED_LANTERN_INTENSITY := 0.8
 const BOARD_OFFSET := Vector2(-78, 0)
 ## TESTWERT: the mirror stands right of the home's door (world px from the home's origin).
 const MIRROR_OFFSET := Vector2(112, 6)
+## P1-2: way to the dungeon until the first run (preloaded: works before the class cache knows it).
+const GuideScript := preload("res://world/village/village_guide.gd")
+## The opening words come from the chronicler (the chronicle keeps the village's story).
+const OPENING_SPEAKER: StringName = &"chronicle"
+const OPENING_SPEAKER_NAME: StringName = &"VILLAGE_OPENING_SPEAKER"
+const OPENING_LINES: Array[StringName] = [&"VILLAGE_OPENING_1", &"VILLAGE_OPENING_2", &"VILLAGE_OPENING_3"]
+const GOAL_DESCEND: StringName = &"VILLAGE_GOAL_DESCEND"
+## P1-3: affordable marks and the forge goal (preloaded like the guide).
+const AffordableScript := preload("res://world/village/village_affordable.gd")
+const AffordMarkerScript := preload("res://world/village/village_afford_marker.gd")
+const GOAL_FORGE: StringName = &"VILLAGE_GOAL_FORGE"
+## Above the darkness (VisionOverlay 2) like the trail, below the HUD (5) and the dialogs (20).
+const AFFORD_LAYER := 3
+## "!" above the door sign (world px, like the info marker); next to the info marker while that shows.
+const AFFORD_OFFSET := Vector2(0, -24)
+const AFFORD_BESIDE_INFO := Vector2(26, 0)
 
 @onready var _entrance: Interactable = $Buildings/DungeonEntrance/Interactable
 @onready var _ground: VillageTiles = $Ground
@@ -65,6 +89,13 @@ var ui: VillageUI = null
 var _intro_markers: Dictionary[StringName, Node2D] = {}
 ## building id -> its lock marker (only locked buildings).
 var _lock_markers: Dictionary[StringName, Node2D] = {}
+## Trail and arrow to the entrance (null after the first run).
+var _guide: GuideScript = null
+## P1-3: layer and "!" markers per building id (only where something is affordable).
+var _afford_layer: CanvasLayer = null
+var _afford_markers: Dictionary[StringName, Node2D] = {}
+## Which goal the goal line shows: GOAL_DESCEND, GOAL_FORGE or &"" (none).
+var _goal_kind: StringName = &""
 
 
 func _ready() -> void:
@@ -104,6 +135,12 @@ func _ready() -> void:
 	refresh_locks()
 	SaveManager.seen_changed.connect(_on_seen_changed)
 	ui.show_unlocks(announcements)
+	_setup_guide()
+	# P1-3: purchases, a payout or an unlock change what is affordable.
+	SaveManager.permanent_gold_changed.connect(_on_wallet_changed.unbind(1))
+	SaveManager.permanent_crystals_changed.connect(_on_wallet_changed.unbind(1))
+	SaveManager.meta_changed.connect(_on_wallet_changed)
+	refresh_affordable()
 	_update_captions(INF)
 
 
@@ -136,6 +173,8 @@ func refresh_locks() -> void:
 			_remove_marker(_lock_markers, building_id)
 			if VillageBuildings.needs_intro(building_id) and not has_intro_marker(building_id):
 				_add_intro_marker(building as Node2D, building_id)
+	if is_node_ready():
+		refresh_affordable()
 
 
 ## Building captions and the dungeon entrance in the current language (D-111): captions get the key
@@ -200,6 +239,135 @@ func enter_building(building_id: StringName) -> void:
 			await ui.open_home()
 		_:
 			push_warning("Village: unknown building '%s'." % building_id)
+	# P1-3: seen now; its "!" waits until the currency changes.
+	if is_inside_tree():
+		AffordableScript.mark_visited(building_id)
+		refresh_affordable()
+
+
+# --- P1-2: goal and way to the dungeon until the first run ---
+
+## Trail, arrow and goal line while the world has no run yet; the opening words on the first visit
+## (not while a room wish of the main menu opens the guild dialog: they wait for the next visit).
+func _setup_guide() -> void:
+	if not GuideScript.is_active():
+		return
+	var spawn := find_child("PlayerSpawn", true, false) as Node2D
+	var entrance := _entrance.get_parent() as Node2D
+	var start := spawn.global_position if spawn != null else entrance.global_position
+	_guide = GuideScript.new()
+	_guide.setup(start, entrance.global_position)
+	_guide.hidden_check = ui.is_dialog_open
+	add_child(_guide)
+	# The key: the label translates itself (also after a language switch).
+	ui.show_goal(GOAL_DESCEND)
+	_goal_kind = GOAL_DESCEND
+	if GuideScript.needs_opening() and not _online_start_pending():
+		ui.opening_closed.connect(func() -> void: GuideScript.mark_opening_seen(), CONNECT_ONE_SHOT)
+		ui.show_opening(OPENING_SPEAKER, Loc.t(OPENING_SPEAKER_NAME), opening_lines())
+
+
+## The opening words in the current language.
+static func opening_lines() -> Array[String]:
+	var lines: Array[String] = []
+	for key in OPENING_LINES:
+		lines.append(Loc.t(key))
+	return lines
+
+
+## A room wish of the main menu (or a running room) opens the guild dialog right away.
+func _online_start_pending() -> bool:
+	if LobbyClient.has_pending_launch():
+		return true
+	var lobby := LobbyClient.find(self)
+	return lobby != null and lobby.is_in_room()
+
+
+## Trail and arrow to the entrance (null after the first run), for tests and tools.
+func get_guide() -> GuideScript:
+	return _guide
+
+
+# --- P1-3: what can I afford? ---
+
+## "!" over every building where something is affordable (VillageAffordable.needs_marker) and the
+## forge goal line until the first forge purchase. Called on load, after a visit and whenever gold,
+## crystals or forge levels change.
+func refresh_affordable() -> void:
+	for building_id in AffordableScript.BUILDINGS:
+		var building := _building_node(building_id)
+		if building != null and AffordableScript.needs_marker(building_id):
+			_place_afford_marker(building, building_id)
+		else:
+			_remove_marker(_afford_markers, building_id)
+	_update_forge_goal()
+
+
+## True while the building shows its "!" (for tests and tools).
+func has_afford_marker(building_id: StringName) -> bool:
+	return _afford_markers.has(building_id) and is_instance_valid(_afford_markers[building_id]) \
+		and not _afford_markers[building_id].is_queued_for_deletion()
+
+
+## The "!" of a building (null if none), for tests and tools.
+func get_afford_marker(building_id: StringName) -> Node2D:
+	return _afford_markers[building_id] if has_afford_marker(building_id) else null
+
+
+## Which goal the goal line shows (GOAL_DESCEND, GOAL_FORGE or &""), for tests and tools.
+func get_goal_kind() -> StringName:
+	return _goal_kind
+
+
+func _building_node(building_id: StringName) -> Node2D:
+	for building in _buildings.get_children():
+		if building.has_meta(&"building_id") and StringName(building.get_meta(&"building_id")) == building_id:
+			return building as Node2D
+	return null
+
+
+## World position of the "!": above the door sign, beside the info marker while that shows.
+func _afford_position(building: Node2D, building_id: StringName) -> Vector2:
+	var sign := building.get_node_or_null("Sign") as Node2D
+	var local := (sign.position if sign != null else Vector2(0, SIGN_TOP)) + AFFORD_OFFSET
+	if has_intro_marker(building_id):
+		local += AFFORD_BESIDE_INFO
+	return building.to_global(local)
+
+
+func _place_afford_marker(building: Node2D, building_id: StringName) -> void:
+	if _afford_layer == null:
+		_afford_layer = CanvasLayer.new()
+		_afford_layer.name = "AffordLayer"
+		_afford_layer.layer = AFFORD_LAYER
+		_afford_layer.follow_viewport_enabled = true
+		add_child(_afford_layer)
+	var marker := get_afford_marker(building_id)
+	if marker == null:
+		marker = AffordMarkerScript.new()
+		marker.name = "AffordMarker_%s" % building_id
+		_afford_layer.add_child(marker)
+		_afford_markers[building_id] = marker
+	marker.global_position = _afford_position(building, building_id)
+
+
+## The forge goal never replaces the first-run goal (descend).
+func _update_forge_goal() -> void:
+	if _goal_kind == GOAL_DESCEND:
+		return
+	var wanted := AffordableScript.needs_forge_goal()
+	if wanted and _goal_kind != GOAL_FORGE:
+		var icon := VillageBuildings.get_sign_texture(VillageBuildings.FORGE)
+		ui.show_goal(GOAL_FORGE, icon if icon != null else VillageUI.GOLD_ICON)
+		_goal_kind = GOAL_FORGE
+	elif not wanted and _goal_kind == GOAL_FORGE:
+		ui.hide_goal()
+		_goal_kind = &""
+
+
+func _on_wallet_changed() -> void:
+	if is_inside_tree():
+		refresh_affordable()
 
 
 func _on_entrance_used(_player: Player) -> void:
@@ -288,6 +456,10 @@ func _on_seen_changed(id: StringName) -> void:
 			if is_instance_valid(marker):
 				marker.queue_free()
 			_intro_markers.erase(building_id)
+			# The "!" moves back over the sign.
+			var building := _building_node(building_id)
+			if building != null and has_afford_marker(building_id):
+				_afford_markers[building_id].global_position = _afford_position(building, building_id)
 
 
 # --- R7: names near the player, chronicle board, rescued villagers ---

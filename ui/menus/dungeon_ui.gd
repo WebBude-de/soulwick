@@ -20,6 +20,20 @@ extends CanvasLayer
 ## Banners (07_ui.md): dark plaque with a stripe in the mode colour; banners and world captions
 ## (WorldCaption, only near a player) never share the screen; banners of a room left behind and
 ## banners that waited too long are dropped.
+## Overlays and the fight (online test 16.10.2026: "Gegner sieht man oft schlecht, weil
+## Texteinblendungen davor sind"): no message sits in the middle of the playfield. Everything lives
+## in a top band below the HUD's top bars (task bar, boss bar, then the status line, then banners
+## and the 3-2-1) or on the left edge below the hearts (teaching cards). While enemies are on screen
+## a banner comes as a slim strip instead of the big plaque, and every overlay fades to
+## OverlayDodge.DODGE_ALPHA while an enemy or a player stands under it. show_status_line() offers a
+## small line at the top for state texts (coop: waiting, hurry up).
+## Overlay hierarchy (same plate, stripe in the colour of the message): important news big and short
+## (banner plaque, never over a running fight), info small at the top (strip, status line), teaching
+## on the left edge, world texts small and short (damage numbers).
+## Down and out (D-084, feedback 16.10.2026): the local player's fall gets a short banner with what
+## took them down (RunRecap.describe_hit); a downed player in a group game gets the DownedPanel at the
+## bottom (what happened, how to get up, revive progress), the others a strip and DownedMarkers
+## (chevron over the mate, arrow at the screen edge). Players are watched by group, look only.
 ## Layout follows docs/design screens 02-06, 10 and 11; sizes are mockup pixels (UiKit.px).
 ## Modal dialogs run one after another (open_dialog): while a dialog is open (here or in GameUI),
 ## the next one waits in a queue (first requested, first shown) and appears DIALOG_GAP after the
@@ -31,7 +45,26 @@ extends CanvasLayer
 ## tells the host when a client's timed upgrade choice really appeared.
 signal dialog_shown(modal: Modal)
 
-const BANNER_TIME := 2.2
+## Meta of a modal naming the dialog (dialog_shown listeners, e.g. a first-time hint on the upgrade
+## choice): modal.get_meta(DIALOG_KIND, &"") == DIALOG_UPGRADE_CHOICE.
+const DIALOG_KIND: StringName = &"dialog_kind"
+const DIALOG_UPGRADE_CHOICE: StringName = &"upgrade_choice"
+
+## Overlays fade while a body is under them, big banners shrink during a fight (no class_name: no
+## global class cache entry needed).
+const OverlayDodge := preload("res://ui/hints/overlay_dodge.gd")
+## Downed panel and markers (preloaded, no class_name).
+const DownedPanel := preload("res://ui/hints/downed_panel.gd")
+const DownedMarkers := preload("res://ui/hints/downed_markers.gd")
+## Colour of falls and downed players; seconds the fall banner stays (the run end follows after
+## DungeonManager.DEATH_SCREEN_DELAY = 1.4 s), and the height of a mate's chevron over the body
+## (world px, above NetDungeon's revive label at 78 px).
+const DOWNED_COLOR := Color("#ff7366")
+const FALL_BANNER_TIME := 1.4
+const DOWNED_MARKER_LIFT := 96.0
+
+## Seconds a plain banner stays (TESTWERT; was 2.2 before the online test of 16.10.2026).
+const BANNER_TIME := 1.8
 ## A newer banner waits until the current one was readable this long (real seconds, TESTWERT).
 const BANNER_MIN_TIME := 1.2
 ## A banner that waited longer than this in the queue is dropped (real seconds, TESTWERT).
@@ -39,7 +72,7 @@ const BANNER_STALE_TIME := 8.0
 ## Banner top in mockup pixels, below the task bar (it moves further down under a taller bar), and
 ## time of a genre banner on screen (TESTWERT).
 const GENRE_BANNER_TOP := 24.0
-const GENRE_BANNER_TIME := 2.8
+const GENRE_BANNER_TIME := 2.4
 const GENRE_ICON_SIZE := 16.0
 ## Intro banner (07_ui_intro_arena.png): bigger symbol; it stays while the intro runs and this long
 ## after "go" (TESTWERTE). An intro that never ends lets go of the banner after INTRO_HOLD_MAX.
@@ -51,6 +84,23 @@ const INTRO_HOLD_MAX := 15.0
 const BANNER_STRIPE_WIDTH := 4.0
 ## Task bar and boss bar top (mockup pixels).
 const TOP_BAR_Y := 4.0
+## Banner strip (online test 16.10.2026): while enemies are on screen a banner is one slim line -
+## thin stripe, small symbol, title and subtitle side by side on a see-through plaque - and stays
+## STRIP_TIME (TESTWERTE, mockup pixels). The plaque itself is a little see-through too.
+const STRIP_TIME := 1.5
+const STRIP_STRIPE_WIDTH := 2.0
+const STRIP_ICON_SIZE := 10.0
+const STRIP_SUBTITLE_WIDTH := 200.0
+const STRIP_ALPHA := 0.8
+const PLAQUE_ALPHA := 0.92
+## Gap between the pieces of the top band, and its top on a touch screen (below the touch buttons
+## for the overview and the pause menu at the top centre, TouchOverlay; mockup pixels).
+const TOP_BAND_GAP := 3.0
+const TOUCH_TOP_CLEAR := 32.0
+## Status line at the top (show_status_line): wraps at this width, fades in and out (seconds).
+const STATUS_LINE_WIDTH := 220.0
+const STATUS_LINE_FADE := 0.2
+const STATUS_LINE_ALPHA := 0.85
 ## Banner subtitles wrap at this width (mockup pixels); the intro's rule line earlier, so the goal
 ## banner stays a compact plaque in the middle (07_ui_intro_arena.png).
 const BANNER_SUBTITLE_WIDTH := 280.0
@@ -70,10 +120,17 @@ const BOSS_COLORS := {
 	&"boss_shadow_lord": Color("#a66ef0"),
 	&"boss_bone_king": Color("#b8b09a"),
 }
-const HINT_TIME := 5.0
+## Enemy hint card: seconds on screen (TESTWERT; was 5 before the online test of 16.10.2026).
+const HINT_TIME := 4.5
 const HINT_WIDTH := 150.0
-## Enemy hint cards end this far above the bottom edge: clear of the HUD weapon block (mockup px).
-const HINT_BOTTOM := 36.0
+## Teaching cards that were on screen this long end when the players walk into the next room (QA
+## 16.10.2026: "Abgrund" stood until room 4; real seconds), and they are a little see-through while
+## a fight is on screen (TESTWERTE).
+const HINT_ROOM_CHANGE_MIN := 2.0
+const CARD_FIGHT_ALPHA := 0.8
+## Enemy hint cards sit on the left edge like the room cards (they were at the bottom centre, under
+## the player's feet, until the online test of 16.10.2026; mockup px).
+const HINT_EDGE_MARGIN := 8.0
 ## Upgrade cards inside UiDialog.WIDTH_WIDE (R8: compact so the dialog stays under 60 % of the
 ## screen height; ui_spec had 124 × 158). Padding: vertical, horizontal (mockup pixels).
 const CARD_SIZE := Vector2(136, 82)
@@ -121,6 +178,8 @@ const PAUSE_DIALOG_QUEUE: StringName = &"dialog_queue"
 var context: DungeonContext = null
 ## Show a hint card the first time an enemy type / elite kind / champion appears.
 var auto_enemy_hints := true
+## Overlays fade while an enemy or a player is under them (tests may switch it off).
+var dodge_overlays := true
 ## Show the first-run controls card (once per save); tests and tools may switch it off.
 var show_controls_hint := true
 
@@ -150,6 +209,24 @@ var _boss_portrait: TextureRect = null
 var _boss_color := BOSS_BAR_COLOR
 var _boss: Enemy = null
 var _hint_root: Control = null
+## Status line at the top (show_status_line): root (dodge alpha), panel (fade), text, end time
+## (real ms; 0 = until cleared) and its fade tween.
+var _status_root: Control = null
+var _status_panel: PanelContainer = null
+var _status_label: Label = null
+var _status_text := ""
+var _status_until_ms := 0
+var _status_tween: Tween = null
+## Hook for the group game (NetDungeon): revive share 0..1 of a downed player,
+## func(player: Player) -> float. Unset: the panel shows no progress bar.
+var revive_share_provider: Callable = Callable()
+## Watched players (instance id -> player; untyped: a player may be freed any time, a mate leaves or
+## the world unloads) and what last hurt each one (cause text, RunRecap).
+var _watched_players: Dictionary = {}
+var _last_hit_by: Dictionary[int, String] = {}
+var _downed_root: Control = null
+var _downed_panel: DownedPanel = null
+var _downed_markers: DownedMarkers = null
 ## Teaching cards waiting: {"kind": &"enemy", "title", "text", "badge"} or {"kind": &"room", "genre"}.
 var _hint_queue: Array[Dictionary] = []
 var _hint_card: Control = null
@@ -171,8 +248,11 @@ func _ready() -> void:
 	_build_banner()
 	_build_boss_bar()
 	_build_objective_bar()
+	_build_status_line()
 	_build_hint_root()
+	_build_downed()
 	get_tree().node_added.connect(_on_node_added)
+	EventBus.room_entered.connect(_on_room_entered_cards)
 	# Deferred: the dungeon starts the run after its children are ready.
 	start_controls_hint.call_deferred()
 
@@ -180,7 +260,11 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_pump_dialogs()
 	_pump_banners()
+	_update_status_line()
+	_watch_players()
+	_update_downed()
 	WorldCaption.update_all(get_tree(), get_banner() != null, _player_positions(), delta)
+	_update_dodge(delta)
 
 
 func _exit_tree() -> void:
@@ -307,6 +391,13 @@ func _queue_banner(entry: Dictionary) -> void:
 				_banner_queue.remove_at(i)
 		if get_banner() != null and not _banner_entry.has("genre") and _banner_entry.get("title", "") == entry["title"]:
 			_banner_cut = true
+	elif entry.get("replace_same_title", false):
+		# Plain banners with this title (e.g. NetDungeon's own "Du bist am Boden") give way to it.
+		for i in range(_banner_queue.size() - 1, -1, -1):
+			if not _banner_queue[i].has("kind") and _banner_queue[i]["title"] == entry["title"]:
+				_banner_queue.remove_at(i)
+		if get_banner() != null and not _banner_entry.has("kind") and _banner_entry.get("title", "") == entry["title"]:
+			_banner_cut = true
 	elif not entry.has("kind"):
 		# Plain banners: the same title right behind or on screen is not shown twice (e.g. the old
 		# wave banner of DungeonManager after the arena's own; the other way round the arena's
@@ -364,13 +455,14 @@ static func _current_room() -> int:
 func _display_banner(entry: Dictionary) -> void:
 	for child in _banner_root.get_children():
 		child.queue_free()
-	var box := _build_banner_plaque(entry)
+	var intro := entry.get("intro") as RoomIntro if is_instance_valid(entry.get("intro")) else null
+	var strip := _wants_strip(entry, intro)
+	var box := _build_banner_strip(entry) if strip else _build_banner_plaque(entry)
 	_banner_root.add_child(box)
 	_banner_box = box
 	_banner_entry = entry
 	_banner_since_ms = Time.get_ticks_msec()
 	_banner_cut = false
-	var intro := entry.get("intro") as RoomIntro if is_instance_valid(entry.get("intro")) else null
 	_banner_hold = intro != null and not intro.is_released()
 	var top := _banner_top()
 	box.position.y = top - UiKit.px(8)
@@ -390,6 +482,8 @@ func _display_banner(entry: Dictionary) -> void:
 	if _banner_hold:
 		return
 	var default_time := GENRE_BANNER_TIME if entry.has("genre") else BANNER_TIME
+	if strip:
+		default_time = STRIP_TIME
 	if intro != null:
 		default_time = INTRO_BANNER_AFTER_RUNNING if intro.fight_was_running else INTRO_BANNER_AFTER
 	_fade_banner_later(box, float(entry.get("time", default_time)))
@@ -417,13 +511,45 @@ func _release_banner_hold(intro: RoomIntro) -> void:
 	_banner_since_ms += int(after * 1000.0)
 
 
-## Banner top: below the task bar or the boss bar when one is up.
+## Banner top: below every bar of the top centre that is up (task bar, boss bar, the status line,
+## the coop wait line; Hud.TOP_CENTER_GROUP) and below the touch buttons on a touch screen.
 func _banner_top() -> float:
 	var top := UiKit.px(GENRE_BANNER_TOP)
-	for bar: Control in [_objective_bar, _boss_bar_root]:
-		if bar != null and bar.visible:
-			top = maxf(top, bar.position.y + bar.get_combined_minimum_size().y + UiKit.px(3))
+	if InputGlyphs.is_touch():
+		top = maxf(top, UiKit.px(TOUCH_TOP_CLEAR))
+	if not is_inside_tree():
+		return top
+	for node in get_tree().get_nodes_in_group(Hud.TOP_CENTER_GROUP):
+		var bar := node as Control
+		if bar == null or not bar.is_visible_in_tree():
+			continue
+		top = maxf(top, bar.get_global_rect().end.y + UiKit.px(TOP_BAND_GAP))
 	return top
+
+
+## Bottom of the top band (viewport px): below the bars and the banner on screen, plus a gap. The
+## intro's 3-2-1 sits here.
+func get_top_band_bottom() -> float:
+	var top := _banner_top()
+	var box := get_banner()
+	if box != null:
+		top += box.get_combined_minimum_size().y
+	return top + UiKit.px(TOP_BAND_GAP)
+
+
+## Enemies of the fight are on this screen (living, not hidden in their spawn source).
+func is_fight_on_screen() -> bool:
+	return OverlayDodge.enemies_on_screen(get_tree(), get_viewport().get_visible_rect()) > 0
+
+
+## Strip or plaque: an entry may ask with "compact"; the intro banner is a strip when it came over a
+## running fight; every other banner is a strip while enemies are on screen.
+func _wants_strip(entry: Dictionary, intro: RoomIntro) -> bool:
+	if entry.has("compact"):
+		return bool(entry["compact"])
+	if intro != null:
+		return intro.fight_was_running
+	return is_fight_on_screen()
 
 
 ## The banner plaque of every kind (07_ui.md): panel_dark, a stripe in the colour on the left,
@@ -487,7 +613,384 @@ func _build_banner_plaque(entry: Dictionary) -> Control:
 		text.add_child(hint)
 	plaque.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	plaque.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	# Only the dark plate is see-through, not the text on it.
+	plaque.self_modulate.a = PLAQUE_ALPHA
 	return plaque
+
+
+## The banner as one slim line (online test 16.10.2026, while enemies are on screen): thin stripe,
+## small symbol, title and subtitle side by side on a see-through plate. Same names as the plaque
+## ("Banner" … "WaveBanner" with "Stripe", "Icon", "Title", "Subtitle") plus the meta "strip".
+func _build_banner_strip(entry: Dictionary) -> Control:
+	var kind: StringName = entry.get("kind", &"genre" if entry.has("genre") else &"plain")
+	var color: Color = entry.get("color", UiKit.COLOR_GOLD)
+	var plate := UiKit.panel(&"dark")
+	plate.name = {&"genre": "GenreBanner", &"intro": "IntroBanner", &"wave": "WaveBanner"}.get(kind, "Banner")
+	plate.set_meta(&"strip", true)
+	var style := UiKit.padded_style(&"dark", 2, 5).duplicate() as StyleBoxTexture
+	style.content_margin_left = UiKit.px(2)
+	plate.add_theme_stylebox_override("panel", style)
+	plate.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	plate.self_modulate.a = STRIP_ALPHA
+	var row := UiKit.hbox(int(UiKit.px(4)))
+	plate.add_child(row)
+	var stripe := ColorRect.new()
+	stripe.name = "Stripe"
+	stripe.color = color
+	stripe.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stripe.custom_minimum_size.x = UiKit.px(STRIP_STRIPE_WIDTH)
+	row.add_child(stripe)
+	var icon_texture: Texture2D = entry.get("icon")
+	var tint: bool = entry.get("tint", false)
+	if icon_texture == null and entry.has("genre"):
+		icon_texture = RoomGenre.get_icon(entry["genre"])
+		tint = RoomGenre.is_icon_tinted(entry["genre"])
+	if icon_texture != null:
+		var icon := UiKit.pixel_icon(icon_texture, STRIP_ICON_SIZE)
+		icon.name = "Icon"
+		icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		if tint:
+			icon.modulate = color
+		row.add_child(icon)
+	var title_color := UiKit.COLOR_GOLD if kind == &"intro" else color
+	var title := UiKit.text_label(entry["title"], UiKit.SIZE_CARD_NAME, title_color, true)
+	title.name = "Title"
+	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(title)
+	var subtitle: String = entry.get("subtitle", "")
+	if not subtitle.is_empty():
+		var sub := UiKit.text_label(subtitle, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		sub.name = "Subtitle"
+		sub.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		var single_line := UiKit.get_font().get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.font_px(UiKit.SIZE_BODY)).x
+		if single_line > UiKit.px(STRIP_SUBTITLE_WIDTH):
+			sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			sub.custom_minimum_size.x = UiKit.px(STRIP_SUBTITLE_WIDTH)
+		row.add_child(sub)
+	plate.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	plate.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	return plate
+
+
+# --- Status line (online test 16.10.2026) ---
+
+## Small status line at the top centre, below the task bar or the boss bar (and above the banners):
+## one short line on a see-through plate for states such as "Warte auf Anna …" or "Beeil dich!".
+## duration > 0: it fades out after that many real seconds; 0: it stays until clear_status_line()
+## or the next text. Showing the same text again only renews its time (safe to call every frame).
+## Look only and local: every machine shows its own line.
+func show_status_line(text: String, duration := 0.0, color := UiKit.COLOR_GOLD) -> void:
+	if text.is_empty():
+		clear_status_line()
+		return
+	_status_until_ms = Time.get_ticks_msec() + int(duration * 1000.0) if duration > 0.0 else 0
+	_status_label.add_theme_color_override("font_color", color)
+	if text == _status_text and _status_panel.visible:
+		if _status_tween != null and _status_tween.is_valid():
+			# A fade-out that was running is called off.
+			_status_tween.kill()
+			_status_panel.modulate.a = 1.0
+		return
+	_status_text = text
+	_status_label.text = text
+	var single_line := UiKit.get_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, UiKit.font_px(UiKit.SIZE_BODY)).x
+	var wraps := single_line > UiKit.px(STATUS_LINE_WIDTH)
+	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if wraps else TextServer.AUTOWRAP_OFF
+	_status_label.custom_minimum_size.x = UiKit.px(STATUS_LINE_WIDTH) if wraps else 0.0
+	var appearing := not _status_panel.visible
+	_status_panel.visible = true
+	_place_status_line()
+	if _status_tween != null and _status_tween.is_valid():
+		_status_tween.kill()
+	if appearing:
+		_status_panel.modulate.a = 0.0
+		_status_tween = UiKit.ui_tween(_status_panel)
+		_status_tween.tween_property(_status_panel, "modulate:a", 1.0, STATUS_LINE_FADE)
+	else:
+		_status_panel.modulate.a = 1.0
+
+
+## Takes the status line away (fades out).
+func clear_status_line() -> void:
+	_status_until_ms = 0
+	if _status_text.is_empty():
+		return
+	_status_text = ""
+	if _status_tween != null and _status_tween.is_valid():
+		_status_tween.kill()
+	_status_tween = UiKit.ui_tween(_status_panel)
+	_status_tween.tween_property(_status_panel, "modulate:a", 0.0, STATUS_LINE_FADE)
+	_status_tween.tween_callback(_hide_status_panel)
+
+
+## The text of the status line ("" when none or fading out).
+func get_status_line_text() -> String:
+	return _status_text
+
+
+## The plate of the status line (tools and tests; visible while a text shows or fades).
+func get_status_line() -> Control:
+	return _status_panel
+
+
+func _hide_status_panel() -> void:
+	if _status_text.is_empty():
+		_status_panel.visible = false
+
+
+func _update_status_line() -> void:
+	if _status_text.is_empty():
+		return
+	if _status_until_ms > 0 and Time.get_ticks_msec() >= _status_until_ms:
+		clear_status_line()
+		return
+	_place_status_line()
+
+
+## Top centre below the task bar / boss bar (and the touch buttons on a touch screen).
+func _place_status_line() -> void:
+	var top := UiKit.px(TOP_BAR_Y)
+	if InputGlyphs.is_touch():
+		top = maxf(top, UiKit.px(TOUCH_TOP_CLEAR))
+	for bar: Control in [_objective_bar, _boss_bar_root]:
+		if bar != null and bar.is_visible_in_tree():
+			top = maxf(top, bar.get_global_rect().end.y + UiKit.px(TOP_BAND_GAP))
+	var own := _status_panel.get_combined_minimum_size()
+	_status_panel.size = own
+	var view := get_viewport().get_visible_rect().size
+	_status_panel.position = Vector2(roundf((view.x - own.x) * 0.5), top)
+
+
+func _build_status_line() -> void:
+	_status_root = Control.new()
+	_status_root.name = "StatusLineRoot"
+	_status_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_status_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_root.theme = UiKit.get_theme()
+	add_child(_status_root)
+	_status_panel = UiKit.panel(&"dark")
+	_status_panel.name = "StatusLine"
+	_status_panel.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", 2, 5))
+	_status_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_panel.self_modulate.a = STATUS_LINE_ALPHA
+	_status_panel.visible = false
+	# The HUD's room line and other top lines (coop) move below it.
+	_status_panel.add_to_group(Hud.TOP_CENTER_GROUP)
+	_status_root.add_child(_status_panel)
+	_status_label = UiKit.text_label("", UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
+	_status_label.name = "Text"
+	_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_status_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_status_panel.add_child(_status_label)
+
+
+# --- Down and out (D-084, feedback 16.10.2026) ---
+
+## The panel of the downed local player (null when standing), for tests and tools.
+func get_downed_panel() -> DownedPanel:
+	return _downed_panel if is_instance_valid(_downed_panel) and not _downed_panel.is_closing() else null
+
+
+func get_downed_markers() -> DownedMarkers:
+	return _downed_markers
+
+
+## What last hurt player ("" = unknown), as the fall banner and the panel name it.
+func get_last_hit_by(player: Player) -> String:
+	return _last_hit_by.get(player.get_instance_id(), "") if player != null else ""
+
+
+## Connects to every player in the group once (coop: remote ones arrive later).
+func _watch_players() -> void:
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player == null or not is_instance_valid(player):
+			continue
+		var id := player.get_instance_id()
+		if _watched_players.has(id) and is_instance_valid(_watched_players[id]):
+			continue
+		_watched_players[id] = player
+		# Bound by id, not by the node: a deferred call may come after the player was freed.
+		# Deferred: the hurtbox reports the fatal hit (its cause) only after the health died.
+		player.died.connect(_on_watched_player_died.bind(id), CONNECT_DEFERRED)
+		player.revived.connect(_on_watched_player_revived.bind(id))
+		if player.hurtbox != null:
+			player.hurtbox.hit_received.connect(_on_watched_player_hit.bind(id))
+		if player.is_downed():
+			_on_watched_player_died(id)
+
+
+func _on_watched_player_hit(result: DamageResult, damage: DamageData, id: int) -> void:
+	if result == null or result.health_damage <= 0.0:
+		return
+	var cause := RunRecap.describe_hit(damage)
+	if not cause.is_empty():
+		_last_hit_by[id] = cause
+
+
+func _living_count() -> int:
+	var count := 0
+	for player in _watched():
+		if player.is_alive():
+			count += 1
+	return count
+
+
+## The watched player of an instance id (null when it was freed or left the tree).
+func _watched_player(id: int) -> Player:
+	var node: Variant = _watched_players.get(id)
+	if not is_instance_valid(node):
+		return null
+	var player := node as Player
+	return player if player != null and player.is_inside_tree() else null
+
+
+## The watched players that still exist and are in the tree; freed ones drop out here (session end:
+## the players go before this UI).
+func _watched() -> Array[Player]:
+	var result: Array[Player] = []
+	for id: int in _watched_players.keys():
+		var node: Variant = _watched_players[id]
+		if not is_instance_valid(node):
+			_watched_players.erase(id)
+			_last_hit_by.erase(id)
+			continue
+		var player := node as Player
+		if player != null and player.is_inside_tree():
+			result.append(player)
+	return result
+
+
+## A player fell. Local and nobody left standing (single player, or the last of the group): short
+## big banner with the cause (the run end follows). Local with mates standing: banner plus the
+## DownedPanel. A mate: a strip with the name; the markers show where they lie.
+func _on_watched_player_died(id: int) -> void:
+	var player := _watched_player(id)
+	if player == null or not is_inside_tree() or not player.is_downed():
+		return
+	var cause := get_last_hit_by(player)
+	var cause_text := _t(&"DOWNED_CAUSE", [cause]) if not cause.is_empty() else ""
+	var living := _living_count()
+	if player.is_local:
+		if living == 0:
+			var title := _t(&"FALL_ALL_DOWN") if _watched().size() > 1 else _t(&"RUNEND_DEATH")
+			_queue_banner({"kind": &"fall", "title": title, "subtitle": cause_text, "color": DOWNED_COLOR,
+					"priority": true, "compact": false, "keep": true, "time": FALL_BANNER_TIME})
+			return
+		_queue_banner({"kind": &"fall", "title": Loc.t(&"NET_DOWNED_TITLE"), "subtitle": cause_text,
+				"color": DOWNED_COLOR, "priority": true, "compact": false, "replace_same_title": true,
+				"time": FALL_BANNER_TIME})
+		_show_downed_panel(cause)
+		return
+	if living == 0:
+		return
+	var name_text := _player_name(player)
+	var title := _t(&"MATE_DOWNED_TITLE", [name_text]) if not name_text.is_empty() else _t(&"MATE_DOWNED_NAMELESS")
+	_queue_banner({"kind": &"fall", "title": title, "subtitle": _t(&"MATE_DOWNED_SUB", [DamageNumber.format_amount(CoopRules.REVIVE_TIME)]),
+			"color": DOWNED_COLOR, "priority": true, "compact": true})
+
+
+func _on_watched_player_revived(id: int) -> void:
+	var player := _watched_player(id)
+	if player == null or not is_inside_tree() or not player.is_local:
+		return
+	if _downed_panel != null and is_instance_valid(_downed_panel):
+		_downed_panel.close()
+	_downed_panel = null
+	_queue_banner({"kind": &"fall", "title": _t(&"REVIVED_TITLE"), "color": UiKit.COLOR_SUCCESS, "compact": true, "priority": true})
+
+
+func _show_downed_panel(cause: String) -> void:
+	if _downed_panel != null and is_instance_valid(_downed_panel) and not _downed_panel.is_closing():
+		_downed_panel.set_cause(cause)
+		return
+	_downed_panel = DownedPanel.new()
+	_downed_root.add_child(_downed_panel)
+	_downed_panel.set_cause(cause)
+
+
+## Name tag of a player (NetPlayers puts one on every player of a group game; "" without one).
+static func _player_name(player: Player) -> String:
+	var tag := player.get_node_or_null(^"NameTag") as Label
+	return tag.text if tag != null else ""
+
+
+## Every frame: the panel's revive bar, the markers over downed mates (only while a local player
+## stands; a downed local player sees the panel instead).
+func _update_downed() -> void:
+	var panel := get_downed_panel()
+	var local_standing := false
+	var players := _watched()
+	for player in players:
+		if player.is_local and player.is_alive():
+			local_standing = true
+		elif panel != null and player.is_local and player.is_downed():
+			panel.set_revive_share(_revive_share(player))
+	if panel != null and local_standing and _all_local_standing():
+		panel.close()
+		_downed_panel = null
+	var targets: Array[Dictionary] = []
+	if local_standing:
+		for player in players:
+			if player.is_local or not player.is_downed():
+				continue
+			var canvas := player.get_global_transform_with_canvas()
+			targets.append({"point": canvas.origin, "share": _revive_share(player),
+					"lift": DOWNED_MARKER_LIFT * maxf(0.01, canvas.get_scale().x)})
+	_downed_markers.set_targets(targets)
+
+
+func _all_local_standing() -> bool:
+	for player in _watched():
+		if player.is_local and player.is_downed():
+			return false
+	return true
+
+
+func _revive_share(player: Player) -> float:
+	if not revive_share_provider.is_valid():
+		return 0.0
+	return clampf(float(revive_share_provider.call(player)), 0.0, 1.0)
+
+
+func _build_downed() -> void:
+	_downed_markers = DownedMarkers.new()
+	add_child(_downed_markers)
+	_downed_root = Control.new()
+	_downed_root.name = "DownedRoot"
+	_downed_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_downed_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_downed_root.theme = UiKit.get_theme()
+	add_child(_downed_root)
+
+
+# --- Overlay dodge (online test 16.10.2026) ---
+
+## Banner, status line, teaching cards and the 3-2-1 fade while an enemy or a player is under them.
+## Each overlay root has its own alpha; the overlays' own tweens use their own modulate.
+func _update_dodge(delta: float) -> void:
+	# The downed panel does not dodge: its player cannot fight, the panel is what matters then.
+	var roots: Array[Control] = [_banner_root, _status_root, _hint_root, _countdown]
+	var rects: Array[Rect2] = [
+		_banner_box.get_global_rect() if get_banner() != null else Rect2(),
+		_status_panel.get_global_rect() if _status_panel.visible else Rect2(),
+		OverlayDodge.children_rect(_hint_root),
+		_countdown.get_number_rect(),
+	]
+	var any := false
+	for rect in rects:
+		any = any or rect.size != Vector2.ZERO
+	var bodies: Array[Rect2] = []
+	if any and dodge_overlays:
+		bodies = OverlayDodge.body_rects(get_tree())
+	# Teaching cards step back a little while a fight is on screen.
+	var card_rest := CARD_FIGHT_ALPHA if rects[2].size != Vector2.ZERO and is_fight_on_screen() else 1.0
+	for i in roots.size():
+		var root := roots[i]
+		if root == null:
+			continue
+		var covered := OverlayDodge.is_covering(rects[i], bodies)
+		root.modulate.a = OverlayDodge.step(root.modulate.a, covered, delta, card_rest if root == _hint_root else 1.0)
 
 
 # --- Room genres (D-110) ---
@@ -716,6 +1219,8 @@ func _on_intro_phase(phase: RoomIntro.Phase, intro: RoomIntro) -> void:
 
 func _on_intro_tick(number: int, intro: RoomIntro) -> void:
 	var color := intro.objective.get_ui_color() if is_instance_valid(intro.objective) else UiKit.COLOR_DANGER
+	# In the top band right under the goal banner, not in the middle of the playfield.
+	_countdown.top_px = get_top_band_bottom()
 	_countdown.show_number(number, color)
 	Sfx.play_ui(self, &"countdown_go" if number <= 0 else &"countdown_tick")
 	if number <= 0:
@@ -760,7 +1265,8 @@ func notice_enemy(enemy: Enemy) -> void:
 		_queue_hint_once(entry)
 
 
-## Short card at the bottom: badge, name and one sentence. Auto-hides, never pauses the game.
+## Short card in the upper left (where the room cards sit): badge, name and one sentence.
+## Auto-hides, never pauses the game.
 func show_hint(title: String, text: String, badge := &"") -> void:
 	_hint_queue.append({"kind": &"enemy", "title": title, "text": text, "badge": badge})
 	if _hint_card == null:
@@ -806,6 +1312,7 @@ func _show_next_hint() -> void:
 		_set_controls_hint_waiting(true)
 		var intro := RoomIntroCard.create(genre)
 		intro.finished.connect(_show_next_hint)
+		intro.set_meta(&"shown_ms", Time.get_ticks_msec())
 		_hint_root.add_child(intro)
 		_hint_card = intro
 		_hint_entry = hint
@@ -825,20 +1332,43 @@ func _show_next_hint() -> void:
 	text.add_child(UiKit.text_label(hint["title"], UiKit.SIZE_CARD_NAME, color, true))
 	text.add_child(GlyphText.wrapped(hint["text"], HINT_WIDTH, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	row.add_child(text)
+	card.name = "EnemyHint"
 	_hint_root.add_child(card)
-	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_BOTTOM)
-	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	card.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	card.position.y -= UiKit.px(HINT_BOTTOM)
+	var own := card.get_combined_minimum_size()
+	card.size = own
+	card.position = Vector2(UiKit.px(HINT_EDGE_MARGIN), ControlsHint.card_top(card, own.y))
 	card.modulate.a = 0.0
 	_hint_card = card
 	_hint_entry = hint
+	card.set_meta(&"shown_ms", Time.get_ticks_msec())
 	var tween := card.create_tween()
+	card.set_meta(&"tween", tween)
 	tween.tween_property(card, "modulate:a", 1.0, 0.25)
 	tween.tween_interval(HINT_TIME)
 	tween.tween_property(card, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(card.queue_free)
 	tween.tween_callback(_show_next_hint)
+
+
+## Next room: a teaching card that was readable for HINT_ROOM_CHANGE_MIN goes. The controls card is
+## not one of them: it runs on through rooms 2-3 until its keys were used and ends by room 4 at the
+## latest (ControlsHint, P1-4).
+func _on_room_entered_cards(_room_index: int) -> void:
+	var card := _hint_card as Control
+	if card == null or not is_instance_valid(card) or card.is_queued_for_deletion():
+		return
+	if Time.get_ticks_msec() - int(card.get_meta(&"shown_ms", 0)) < int(HINT_ROOM_CHANGE_MIN * 1000.0):
+		return
+	if card is RoomIntroCard:
+		(card as RoomIntroCard).finish()
+		return
+	var running := card.get_meta(&"tween", null) as Tween
+	if running != null and running.is_valid():
+		running.kill()
+	var fade := card.create_tween()
+	fade.tween_property(card, "modulate:a", 0.0, 0.3)
+	fade.tween_callback(card.queue_free)
+	fade.tween_callback(_show_next_hint)
 
 
 ## The controls card steps aside (hidden, its timer and key tracking frozen) while another teaching
@@ -936,9 +1466,10 @@ func _on_boss_phase_changed(enemy: Enemy, phase: int) -> void:
 	if champion:
 		show_banner(_t(&"BOSS_BANNER_CHAMPION_ENRAGED", [enemy.get_display_name()]), _t(&"BOSS_BANNER_CHAMPION_ENRAGED_SUB"), BOSS_BAR_ENRAGED_COLOR)
 		return
-	var subtitle := enemy.data.enrage_text if not enemy.data.enrage_text.is_empty() else _t(&"BOSS_BANNER_PHASE_TWO_SUB")
+	# enrage_text is a translation key now (i18n round 3; Loc.t gives German text back unchanged).
+	var subtitle := Loc.t(StringName(enemy.data.enrage_text)) if not enemy.data.enrage_text.is_empty() else _t(&"BOSS_BANNER_PHASE_TWO_SUB")
 	show_banner(_t(&"BOSS_BANNER_PHASE_TWO", [enemy.get_display_name()]), subtitle, BOSS_BAR_ENRAGED_COLOR)
-	_queue_hint_once({"id": EnemyHints.PHASE_TWO_HINT_ID, "title": EnemyHints.PHASE_TWO_TITLE, "text": EnemyHints.PHASE_TWO_TEXT, "badge": &""})
+	_queue_hint_once(EnemyHints.phase_two_entry())
 
 
 func _on_boss_died(_enemy: Enemy) -> void:
@@ -1122,11 +1653,13 @@ func _activate_focused(cards: Array[UiCard]) -> void:
 
 
 ## ←/→ (and ↑/↓) move the focus through a card row; returns true when handled (Modal.input_handler).
+## Gamepad: D-pad and left stick the same way (MenuInput debounces the stick), A picks (Modal).
 func _arrow_focus(event: InputEvent, cards: Array[UiCard]) -> bool:
+	var direction := MenuInput.direction(event, false)
 	var step := 0
-	if event.is_action_pressed(&"ui_left", false, true) or event.is_action_pressed(&"ui_up", false, true):
+	if direction == Vector2i.LEFT or direction == Vector2i.UP:
 		step = -1
-	elif event.is_action_pressed(&"ui_right", false, true) or event.is_action_pressed(&"ui_down", false, true):
+	elif direction == Vector2i.RIGHT or direction == Vector2i.DOWN:
 		step = 1
 	if step == 0 or cards.is_empty():
 		return false
@@ -1138,6 +1671,30 @@ func _arrow_focus(event: InputEvent, cards: Array[UiCard]) -> bool:
 	if current < 0 and step < 0:
 		next = cards.size() - 1
 	UiSound.hover(self)
+	_focus_card(cards, cards[next])
+	return true
+
+
+## D-pad / stick / arrows through a card grid of columns (shop): ←/→ one card, ↑/↓ one row; the
+## first step focuses the first card. Returns true when handled (Modal.input_handler).
+func _grid_focus(event: InputEvent, cards: Array[UiCard], columns: int) -> bool:
+	var direction := MenuInput.direction(event, false)
+	if direction == Vector2i.ZERO or cards.is_empty():
+		return false
+	var current := -1
+	for i in cards.size():
+		if is_instance_valid(cards[i]) and cards[i].focused:
+			current = i
+	var next := 0
+	if current >= 0:
+		if direction.x != 0:
+			next = posmod(current + direction.x, cards.size())
+		else:
+			next = current + direction.y * columns
+			if next < 0 or next >= cards.size():
+				next = current
+	if next != current:
+		UiSound.hover(self)
 	_focus_card(cards, cards[next])
 	return true
 
@@ -1209,11 +1766,21 @@ func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1, t
 	modal.deal(cards)
 	modal.accept_action = _activate_focused.bind(cards)
 	modal.input_handler = _arrow_focus.bind(cards)
-	modal.set_key_hints([
+	# Gamepad: the first card starts focused, so A picks it (Modal ignores A in its first moments).
+	if InputGlyphs.is_gamepad() and not cards.is_empty():
+		_focus_card(cards, cards[0])
+	var keys: Array = [
 		[number_range(offer.size()), _t(&"MENU_HINT_PICK")],
 		[_t(&"MENU_KEY_ARROWS"), _t(&"MENU_HINT_MOVE")],
 		[_t(&"MENU_KEY_ENTER"), _t(&"MENU_HINT_CONFIRM")],
-	])
+	]
+	# P1-4: the first upgrade choice of a save names the overview key (Tab; gamepad: Back).
+	var overview_tip := ControlsHint.take_overview_key_hint()
+	if not overview_tip.is_empty():
+		keys.append(overview_tip)
+	modal.set_key_hints(keys)
+	# Hook (P1-4, ui/hints): dialog_shown carries this modal; the meta tells it is the upgrade choice.
+	modal.set_meta(DIALOG_KIND, DIALOG_UPGRADE_CHOICE)
 	return await open_dialog(modal)
 
 
@@ -1351,6 +1918,11 @@ func open_shop(offers: Array[ShopOffer], player: Player) -> void:
 	var cards: Array[UiCard] = []
 	var refresh := func() -> void:
 		gold_label.text = str(RunManager.get_run_gold())
+		# The gamepad focus stays on the same offer after a purchase rebuilt the cards.
+		var focused := -1
+		for i in cards.size():
+			if is_instance_valid(cards[i]) and cards[i].focused:
+				focused = i
 		for child in grid.get_children():
 			# Out of the grid at once: the new cards keep their names ("Offer1"..).
 			grid.remove_child(child)
@@ -1366,12 +1938,19 @@ func open_shop(offers: Array[ShopOffer], player: Player) -> void:
 			empty.caption = _t(&"SHOP_EMPTY_SLOT", [i + 1])
 			empty.custom_minimum_size = UiKit.pxv(SHOP_CARD_SIZE.x, SHOP_CARD_SIZE.y)
 			grid.add_child(empty)
+		if focused >= 0 and focused < cards.size():
+			_focus_card(cards, cards[focused])
+	# Gamepad: D-pad / stick move through the grid, A buys the focused offer, B closes.
+	modal.input_handler = func(event: InputEvent) -> bool: return _grid_focus(event, cards, SHOP_COLUMNS)
+	modal.accept_action = _activate_focused.bind(cards)
 	for i in mini(offers.size(), NUMBER_KEYS.size()):
 		modal.hotkeys[NUMBER_KEYS[i]] = func() -> void:
 			if i < cards.size() and is_instance_valid(cards[i]):
 				cards[i].activate()
 	modal.set_meta(&"refresh", refresh)
 	refresh.call()
+	if InputGlyphs.is_gamepad() and not cards.is_empty():
+		_focus_card(cards, cards[0])
 	modal.deal(cards)
 	await open_dialog(modal)
 

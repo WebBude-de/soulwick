@@ -118,6 +118,8 @@ static func get_template_for(special_type: int) -> PackedScene:
 	return null
 
 
+## Code/log name of a special type (smoke test, BranchOption.describe); the player sees the
+## ROOM_*_TITLE keys of the room contents instead.
 static func get_type_name(special_type: int) -> String:
 	match special_type:
 		SHOP:
@@ -133,13 +135,19 @@ static func get_type_name(special_type: int) -> String:
 	return ""
 
 
-static func get_trial_name(kind: int) -> String:
+## Translation key of a trial's name (D-111), also the title of its room intro.
+static func get_trial_title_key(kind: int) -> StringName:
 	match kind:
 		TrialKind.LIGHT_RUN:
-			return "Lichtlauf"
+			return &"ROOM_TRIAL_LIGHT_RUN_TITLE"
 		TrialKind.CRUMBLE:
-			return "Bröckelboden"
-	return "Spießrutenlauf"
+			return &"ROOM_TRIAL_CRUMBLE_TITLE"
+	return &"ROOM_TRIAL_GAUNTLET_TITLE"
+
+
+## Translated trial name, shown on the sign in the trial room (D-112).
+static func get_trial_name(kind: int) -> String:
+	return DungeonTexts.t(get_trial_title_key(kind))
 
 
 func _fallback_type(previous: int) -> int:

@@ -12,7 +12,7 @@
 [resource]
 script = ExtResource("1_biome")
 id = &"shadow_realm"
-display_name = "Schattenreich"
+display_name = "BIOME_SHADOW_REALM"
 tile_tint = Color(0.78, 0.65, 1, 1)
 darkness_color = Color(0.02, 0.0, 0.04, 1)
 vision_factor = 0.85

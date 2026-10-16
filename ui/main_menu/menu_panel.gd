@@ -6,8 +6,15 @@ extends PanelContainer
 ## Texts are translation keys (D-111): header and footer labels re-translate themselves on a
 ## language change; panels with composed texts call set_header()/set_footer() again in
 ## _notification(NOTIFICATION_TRANSLATION_CHANGED).
+## Gamepad (P0-2 step 2): the footer has a gamepad line with button pictures (KeyLine, shown while a
+## gamepad is in use), action buttons show their gamepad button under the label ("Enter" -> A,
+## "Esc" -> B, or the pad_key given).
 
 signal closed
+
+const KeyLine := preload("res://ui/widgets/key_line.gd")
+## Key hint of an action button -> gamepad token (PadNav) when the caller names none.
+const PAD_KEYS := {"Enter": "{a}", "Esc": "{b}"}
 
 ## Panel padding in mockup pixels (vertical, horizontal).
 const PADDING := Vector2(8, 10)
@@ -16,6 +23,7 @@ var content: VBoxContainer = null
 var _eyebrow: Label = null
 var _title: Label = null
 var _footer: Label = null
+var _key_line: KeyLine = null
 
 
 func _init() -> void:
@@ -50,14 +58,22 @@ func set_header(eyebrow_text: String, title_text: String) -> void:
 		_title.text = title_text
 
 
-## Key line under the content (translation key or composed text), e.g. "↑↓ wählen · Esc zurück".
-func set_footer(text: String) -> void:
-	if _footer == null:
-		_footer = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-		_footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		content.add_child(_footer)
-	_footer.text = text
-	content.move_child(_footer, content.get_child_count() - 1)
+## Key line under the content (translation key or composed text), e.g. "↑↓ wählen · Esc zurück";
+## pad_text: the same for a gamepad with PadNav tokens ("{a} los · {b} zurück"), "" = none.
+func set_footer(text: String, pad_text := "") -> void:
+	if _key_line == null:
+		_key_line = KeyLine.new()
+		_key_line.name = "Footer"
+		_key_line.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+		_footer = _key_line.label
+		content.add_child(_key_line)
+	_key_line.set_texts(text, pad_text)
+	content.move_child(_key_line, content.get_child_count() - 1)
+
+
+## The footer's gamepad line is on screen (gamepad in use).
+func is_footer_pad() -> bool:
+	return _key_line != null and _key_line.is_showing_pad()
 
 
 ## The footer as shown (keys translated).
@@ -75,9 +91,35 @@ func close() -> void:
 	closed.emit()
 
 
-## Small framed button with a key hint under the label (UiKit.dialog_button look).
-static func action_button(text: String, key_hint: String, on_pressed: Callable, is_default := false) -> Button:
+## Small framed button with a key hint under the label (UiKit.dialog_button look). pad_key: the
+## gamepad button shown instead of the key while a gamepad is in use (PadNav token, e.g. "{y}");
+## "" = from PAD_KEYS (Enter -> A, Esc -> B) or none.
+static func action_button(text: String, key_hint: String, on_pressed: Callable, is_default := false, pad_key := "") -> Button:
 	var button := UiKit.dialog_button(text, key_hint, on_pressed, is_default)
 	button.custom_minimum_size.x = UiKit.px(70)
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	if pad_key.is_empty():
+		pad_key = PAD_KEYS.get(key_hint, "")
+	if not pad_key.is_empty():
+		_add_pad_key(button, key_hint, pad_key)
 	return button
+
+
+## Replaces the key hint label under a dialog button by a KeyLine (key name or gamepad button).
+static func _add_pad_key(button: Button, key_hint: String, pad_key: String) -> void:
+	var sub: Label = null
+	for child in button.get_children():
+		if child is Label:
+			sub = child
+	if sub == null:
+		return
+	var line := KeyLine.new()
+	line.name = "KeyHint"
+	line.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	line.set_texts(key_hint, pad_key)
+	line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	line.offset_top = sub.offset_top
+	line.offset_bottom = sub.offset_bottom
+	button.remove_child(sub)
+	sub.queue_free()
+	button.add_child(line)

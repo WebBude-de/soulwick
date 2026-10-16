@@ -107,6 +107,18 @@ const DE: Dictionary[StringName, String] = {
 	&"RUNEND_VILLAGE_GOLD": "Dorfgold",
 	&"RUNEND_TO_VILLAGE": "Zurück ins Dorf",
 	&"RUNEND_NEW_RUN": "Neuer Run",
+	# --- Falls and downed players (D-084, feedback 16.10.2026) ---
+	&"FALL_ALL_DOWN": "Alle am Boden",
+	&"DOWNED_EYEBROW": "Am Boden",
+	&"DOWNED_CAUSE": "Erwischt von: %s",
+	&"DOWNED_HELP": "Ein Mitspieler hilft dir auf: %s s neben dir stehen.",
+	&"DOWNED_ROOM": "Schafft dein Team den Raum, stehst du wieder auf.",
+	&"DOWNED_ALL": "Liegen alle am Boden, endet der Run.",
+	&"DOWNED_REVIVING": "Aufhelfen %d %%",
+	&"MATE_DOWNED_TITLE": "%s ist am Boden",
+	&"MATE_DOWNED_NAMELESS": "Ein Mitspieler ist am Boden",
+	&"MATE_DOWNED_SUB": "%s s daneben stehen, um aufzuhelfen",
+	&"REVIVED_TITLE": "Wieder auf den Beinen",
 	# --- Room genres (D-110): banners and first-time cards. Arena keys come from WaveRules (A5). ---
 	&"ROOM_EYEBROW_COMBAT": "Raum %d · Kampfraum",
 	&"ROOM_EYEBROW_SPECIAL": "Raum %d · Spezialraum",

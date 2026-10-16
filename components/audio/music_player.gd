@@ -22,8 +22,21 @@ extends Node
 ## on_run_ended(), begin_interlude(next_biome) for a room between two biomes (campfire, A6). With follow_game they are also picked up automatically: Enemy.phase_changed
 ## of a boss, a BossIntro node entering the tree (held until its "ending"/"finished" signal) and
 ## EventBus.run_ended.
+##
+## Debounce (feedback 16.10.2026, "music stutters and loops"): a wish for what already plays never
+## restarts it. The same room entered again (duplicate room_entered, e.g. re-sent in a group game)
+## changes nothing, so boss phase and victory stay; MusicChannel resumes a fading piece in place
+## and holds back bursts of new pieces. The pause duck fades instead of jumping. Engine.time_scale
+## (HitStop) and pitch never reach the music: players keep pitch 1, fades and timers ignore the
+## time scale. A long main-thread stall cannot move loop points (the mixer loops the stream on its
+## own); it is logged (HITCH_LOG_MS) so a stutter report can be matched with the log.
+##
+## Preloading (MusicPreloader): the files of the current biome and, PRELOAD_NEXT_BIOME_ROOMS
+## before the change (and at an interlude), the entry of the next biome load in the background,
+## so the first room of a new biome does not stall a frame. Not ready yet = normal load.
 
 const GROUP := &"music_player"
+const MusicPreloader := preload("res://components/audio/music_preloader.gd")
 const FADE_TIME := 1.2
 ## Biome track <-> champion version, same position in the bar (TESTWERT).
 const INTENSE_FADE_TIME := 1.5
@@ -74,6 +87,12 @@ const HANDOFF_RESUME_FADE := 0.08
 const MENU_FADE_TIME := 2.5
 
 const PAUSE_DUCK_DB := -9.0
+## The duck fades in and out instead of jumping (menus opened and closed quickly) (TESTWERT).
+const PAUSE_DUCK_FADE_TIME := 0.25
+## A frame gap longer than this (real time) is logged once as a main-thread stall (TESTWERT).
+const HITCH_LOG_MS := 1000
+## The entry files of the next biome are preloaded this many rooms before it starts (TESTWERT).
+const PRELOAD_NEXT_BIOME_ROOMS := 3
 ## Global class name of the boss intro node that holds the boss track (see _on_node_added).
 const BOSS_INTRO_CLASS := &"BossIntro"
 
@@ -88,6 +107,7 @@ static var _handoff := {}
 var _music: MusicChannel
 var _ambient: MusicChannel
 var _stinger: MusicChannel
+var _preloader: MusicPreloader
 var _room_index := 0
 var _room_type := RoomSequence.RoomType.COMBAT
 var _biome: BiomeData
@@ -109,6 +129,16 @@ var _entry_pending := false
 ## Next step of a running transition (entry or victory) and the serial of its timer.
 var _pending_step := Callable()
 var _sequence_serial := 0
+## Room whose entry was handled (-1: none since the last phase change or run end).
+var _entered_room := -1
+## Current pause duck in dB (0 = none) and its fade.
+var _duck_db := 0.0
+var _duck_target_db := 0.0
+var _duck_tween: Tween
+## Main-thread stall watch (game scene only, see HITCH_LOG_MS).
+var _last_frame_usec := 0
+var _hitch_count := 0
+var _longest_hitch_ms := 0
 
 
 func _ready() -> void:
@@ -120,6 +150,8 @@ func _ready() -> void:
 	add_child(_ambient)
 	_stinger = MusicChannel.new(&"Music", STINGER_VOLUME_DB)
 	add_child(_stinger)
+	_preloader = MusicPreloader.new()
+	add_child(_preloader)
 	var resumed := _resume_handoff() if _is_scene_player() else ""
 	if follow_game:
 		GameManager.phase_changed.connect(_on_phase_changed)
@@ -128,6 +160,7 @@ func _ready() -> void:
 		EventBus.room_completed.connect(_on_room_completed)
 		EventBus.run_ended.connect(_on_run_ended)
 		get_tree().node_added.connect(_on_node_added)
+	set_process(follow_game and DisplayServer.get_name() != "headless")
 	if start_track.is_empty():
 		return
 	if resumed.is_empty() or resumed == start_track:
@@ -145,6 +178,11 @@ func _play_start_track() -> void:
 
 
 func _exit_tree() -> void:
+	# A duck fade cut off by a scene change must not leave the bus half ducked.
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+		_duck_tween = null
+		_apply_duck(_duck_target_db)
 	# Children leave the tree first, so the players are already stopped here: the channels
 	# report their position from the clock.
 	if _is_scene_player() and _music != null:
@@ -160,7 +198,11 @@ func _exit_tree() -> void:
 ## Crossfades to track. Equal power between different pieces, linear (keeping the position)
 ## between a biome track and its champion version. start_gain: see MusicChannel.play.
 func play_track(track: String, fade := FADE_TIME, start_gain := 0.0) -> void:
-	if track.is_empty() or track == _music.get_track():
+	if track.is_empty():
+		return
+	if track == _music.get_track():
+		# Same wish again: keep it running; a different wish held back by the channel is dropped.
+		_music.drop_queued()
 		return
 	var stream := MusicRules.load_stream(track, MusicRules.MUSIC_DIR)
 	if stream == null:
@@ -214,6 +256,20 @@ func get_audible_music_count() -> int:
 	return _music.get_audible_count()
 
 
+## How often a music piece was started from the top (resumed or repeated wishes do not count).
+func get_music_start_count() -> int:
+	return _music.get_start_count()
+
+
+## Main-thread stalls longer than HITCH_LOG_MS seen so far and the longest one in ms.
+func get_hitch_count() -> int:
+	return _hitch_count
+
+
+func get_longest_hitch_ms() -> int:
+	return _longest_hitch_ms
+
+
 ## True while an entry or a victory sequence still has a step to come.
 func is_transition_pending() -> bool:
 	return _pending_step.is_valid()
@@ -228,10 +284,16 @@ func complete_transition() -> void:
 ## Music and ambient of a dungeon room (EventBus.room_entered). A boss track starts one frame
 ## later, so a boss intro started in the same frame can still hold it.
 func enter_room(room_index: int) -> void:
+	if room_index == _entered_room:
+		# Duplicate entry of the room that already plays (re-sent signal): nothing restarts,
+		# boss phase, held intro and victory stay as they are.
+		return
+	_entered_room = room_index
 	var previous_biome := _biome
 	_room_index = room_index
 	_room_type = RoomSequence.get_room_type(room_index)
 	_biome = MusicRules.biome_for_room(room_index)
+	_preload_for_room(room_index)
 	_boss_phase = 1
 	_room_cleared = false
 	if _room_type == RoomSequence.RoomType.BOSS:
@@ -288,7 +350,27 @@ func begin_interlude(next_biome: BiomeData = null) -> void:
 	_hold_source = null
 	_music.stop(ENTRY_MUSIC_OUT_TIME)
 	if next_biome != null:
+		_preloader.request(MusicRules.biome_files(next_biome, false))
 		play_ambient(MusicRules.ambient_track(next_biome), ENTRY_AMBIENT_FADE_TIME)
+
+
+## Preloader of the music files (tests, debugging).
+func get_preloader() -> MusicPreloader:
+	return _preloader
+
+
+## Files of the room's biome, and the entry of the next biome when it is near; everything else
+## is let go (a playing file stays alive through its player).
+func _preload_for_room(room_index: int) -> void:
+	var keep := MusicRules.biome_files(_biome)
+	var next := MusicRules.next_biome_after(room_index)
+	var change_room := room_index + 1
+	while change_room <= room_index + RoomSequence.BOSS_INTERVAL and RoomSequence.get_biome(change_room) == RoomSequence.get_biome(maxi(1, room_index)):
+		change_room += 1
+	if next != null and change_room - room_index <= PRELOAD_NEXT_BIOME_ROOMS:
+		keep.append_array(MusicRules.biome_files(next, false))
+	_preloader.release_except(keep)
+	_preloader.request(keep)
 
 
 ## True between a boss victory (or begin_interlude) and the entry of the next room.
@@ -450,6 +532,7 @@ func _on_sequence_timer(serial: int) -> void:
 
 
 func _reset_room_state() -> void:
+	_entered_room = -1
 	_room_index = 0
 	_room_type = RoomSequence.RoomType.COMBAT
 	_boss_phase = 1
@@ -530,10 +613,15 @@ func _on_phase_changed(phase: GameManager.Phase) -> void:
 		GameManager.Phase.VILLAGE:
 			_biome = null
 			_enter_village()
+			# The dungeon starts in its first biome: its entry loads while the village plays.
+			var first := MusicRules.biome_files(MusicRules.biome_for_room(1), false)
+			_preloader.release_except(first)
+			_preloader.request(first)
 		GameManager.Phase.DUNGEON:
 			# The first room_entered comes later; the entry of the run's first biome starts now.
 			_biome = MusicRules.biome_for_room(RunManager.get_current_room())
 			_room_type = RoomSequence.get_room_type(maxi(1, RunManager.get_current_room()))
+			_preload_for_room(maxi(1, RunManager.get_current_room()))
 			_enter_biome()
 
 
@@ -591,4 +679,50 @@ func _on_enemy_phase_changed(enemy: Enemy, phase: int) -> void:
 
 
 func _on_pause_changed(is_paused: bool) -> void:
-	AudioServer.set_bus_volume_db(AudioServer.get_bus_index(&"Music"), SaveManager.get_bus_volume_db(&"Music") + (PAUSE_DUCK_DB if is_paused else 0.0))
+	set_pause_duck(is_paused)
+
+
+## Ducks the Music bus under menus with a short fade; the same state again changes nothing, a
+## quick open/close turns the running fade around instead of jumping.
+func set_pause_duck(ducked: bool, fade := PAUSE_DUCK_FADE_TIME) -> void:
+	var target := PAUSE_DUCK_DB if ducked else 0.0
+	if is_equal_approx(target, _duck_target_db):
+		return
+	_duck_target_db = target
+	if _duck_tween != null and _duck_tween.is_valid():
+		_duck_tween.kill()
+	_duck_tween = null
+	# Only the remaining distance is faded: a turned-around duck takes as long as it moved.
+	var time := fade * absf(target - _duck_db) / absf(PAUSE_DUCK_DB)
+	if time <= 0.001 or not is_inside_tree():
+		_apply_duck(target)
+		return
+	_duck_tween = create_tween().set_ignore_time_scale(true)
+	_duck_tween.tween_method(_apply_duck, _duck_db, target, time)
+
+
+## Current pause duck of the Music bus in dB (0 = none).
+func get_pause_duck_db() -> float:
+	return _duck_db
+
+
+func _apply_duck(duck_db: float) -> void:
+	_duck_db = duck_db
+	var bus := AudioServer.get_bus_index(&"Music")
+	if bus >= 0:
+		AudioServer.set_bus_volume_db(bus, SaveManager.get_bus_volume_db(&"Music") + duck_db)
+
+
+# --- Main-thread stall watch ---
+
+## Real time between frames: a long gap means the main thread hung (loading, network, GC). The
+## music itself plays on in the mixer; the log line lets a "music stutters" report be matched.
+func _process(_delta: float) -> void:
+	var now := Time.get_ticks_usec()
+	if _last_frame_usec > 0:
+		var gap_ms := int((now - _last_frame_usec) / 1000)
+		if gap_ms > HITCH_LOG_MS:
+			_hitch_count += 1
+			_longest_hitch_ms = maxi(_longest_hitch_ms, gap_ms)
+			print("MusicPlayer: main thread stalled %d ms (music \"%s\", room %d)" % [gap_ms, _music.get_track(), _room_index])
+	_last_frame_usec = now

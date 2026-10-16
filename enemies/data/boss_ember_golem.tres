@@ -8,8 +8,8 @@
 [resource]
 script = ExtResource("1_data")
 id = &"boss_ember_golem"
-display_name = "Glutgolem"
-hint = "Glutgolem: Stampft auf dich nieder, schießt Feuerringe und ruft Bomber. Meide die Warnkreise!"
+display_name = "ENEMY_BOSS_EMBER_GOLEM_NAME"
+hint = "ENEMY_BOSS_EMBER_GOLEM_HINT"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"boss", &"heavy"])
 is_boss = true
@@ -52,9 +52,9 @@ enrage_special_repeats = 0
 enrage_spiral = true
 enrage_landing_ring = 12
 enrage_eruptions = 2
-enrage_text = "Die Glut bricht hervor!"
-intro_story = PackedStringArray("Geformt aus der letzten Glut.", "Ich hüte den Herd des Ersten Lichts.", "Das Licht ging. Die Glut blieb.", "Wer Licht bringt … verbrennt.")
-intro_lines = PackedStringArray("Du. Wieder.|Ich vergesse nicht.", "Wieder Licht.|Wieder Asche.", "Du kamst zurück.|Du brennst wieder.", "Herd ruft.|Du brennst.")
+enrage_text = "BOSS_EMBER_GOLEM_PHASE_TWO"
+intro_story = PackedStringArray("BOSS_EMBER_GOLEM_STORY_1", "BOSS_EMBER_GOLEM_STORY_2", "BOSS_EMBER_GOLEM_STORY_3", "BOSS_EMBER_GOLEM_STORY_4")
+intro_lines = PackedStringArray("BOSS_EMBER_GOLEM_RETURN_A", "BOSS_EMBER_GOLEM_RETURN_B", "BOSS_EMBER_GOLEM_RETURN_C", "BOSS_EMBER_GOLEM_RETURN_D")
 intro_type_speed = 0.7
 intro_voice = &"ember_golem"
 intro_voice_variants = 6

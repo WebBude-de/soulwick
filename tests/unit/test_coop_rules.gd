@@ -51,7 +51,9 @@ func test_scale_group_keeps_one_player_and_never_changes_the_original() -> void:
 
 func test_room_starts_only_when_everybody_is_in() -> void:
 	assert_true(CoopRules.should_start_room(2, 2))
-	assert_false(CoopRules.should_start_room(2, 1), "no countdown: the group waits for the last one")
+	assert_false(CoopRules.should_start_room(2, 1), "one missing: the countdown runs")
+	assert_false(CoopRules.should_start_room(2, 1, 0.5), "still time left")
+	assert_true(CoopRules.should_start_room(2, 1, 0.0), "countdown over: the straggler is brought in")
 	assert_false(CoopRules.should_start_room(3, 0))
 	assert_true(CoopRules.should_start_room(1, 1))
 	assert_true(CoopRules.should_start_room(0, 0), "nobody standing: nothing to wait for")

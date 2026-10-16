@@ -1,10 +1,10 @@
 class_name RoomIntroCard
 extends PanelContainer
-## First-time explanation of a room genre (D-110, UX2): small dark card on the left edge, in the
-## look and place of the first-run controls card (ControlsHint). Eyebrow "NEU: ARENA" with the
-## genre symbol, one or two sentences, a thin bar that runs down while it stays. Never pauses the
-## game; it pauses with it (PROCESS_MODE_PAUSABLE), so a dialog never eats it. DungeonUI decides
-## when it appears (one teaching card at a time) and marks the genre as seen.
+## First-time explanation of a room genre (D-110, UX2): small dark card in the upper left (below the
+## banners' top band), in the look and place of the first-run controls card (ControlsHint). Eyebrow
+## "NEU: ARENA" with the genre symbol, one or two sentences, a thin bar that runs down while it
+## stays. Never pauses the game; it pauses with it (PROCESS_MODE_PAUSABLE), so a dialog never eats
+## it. DungeonUI decides when it appears (one teaching card at a time) and marks the genre as seen.
 
 signal finished
 
@@ -83,6 +83,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if _finishing:
 		return
+	_layout()
 	_left -= delta
 	_bar.value = clampf(_left / _duration, 0.0, 1.0)
 	if _left <= 0.0:
@@ -104,8 +105,8 @@ func finish() -> void:
 	tween.tween_callback(queue_free)
 
 
-## Left edge, vertically centred, like the controls card.
+## Upper left edge, like the controls card (ControlsHint.card_top).
 func _layout() -> void:
 	var own := get_combined_minimum_size()
 	size = own
-	position = Vector2(UiKit.px(EDGE_MARGIN), floorf((get_viewport_rect().size.y - own.y) * 0.5))
+	position = Vector2(UiKit.px(EDGE_MARGIN), ControlsHint.card_top(self, own.y))

@@ -4,7 +4,9 @@ extends RefCounted
 ## one centred panel on the dimmed scene, a header (eyebrow in capitals, title, subtitle, optional
 ## badge on the right such as the run gold), a divider, the body (cards, rows, option buttons) and
 ## the key bar inside the panel (Modal.set_key_hints: key caps, "Spiel pausiert"). Option buttons
-## carry their key as a key cap; the default option (Enter) is drawn with button_hover. Builds on
+## carry their key as a key cap; the default option (Enter) is drawn with button_hover. Option
+## buttons are marked for the gamepad focus of Modal (D-pad moves, A presses; the default option
+## is framed first), their key caps show gamepad buttons while a gamepad is in use (UiChip). Builds on
 ## Modal, so every dialog pauses the simulation (D-043) and sounds the same (open, hover, click,
 ## back, error).
 ##
@@ -213,6 +215,10 @@ static func add_buttons(modal: Modal, options: Array, vertical := true) -> Array
 static func option_button(text: String, sub: String, key: String, on_pressed: Callable, is_default := false) -> Button:
 	var button := UiKit.button(text, on_pressed)
 	button.name = "Option"
+	# Gamepad focus (Modal): option buttons take part, the default one gets the frame first.
+	button.set_meta(Modal.META_PAD_OPTION, true)
+	if is_default:
+		button.set_meta(Modal.META_PAD_DEFAULT, true)
 	button.custom_minimum_size = Vector2(UiKit.px(OPTION_MIN_WIDTH), 0)
 	button.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_KEY_HINT))
 	button.add_theme_font_override("font", UiKit.bold_font())

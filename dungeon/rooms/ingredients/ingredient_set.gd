@@ -113,6 +113,7 @@ static func load_for_id(biome_id: StringName) -> IngredientSet:
 	return null
 
 
+## Code/log name of an ingredient kind (smoke test, tests; never shown to the player).
 static func get_kind_name(kind: int) -> String:
 	match kind:
 		Kind.COVER:

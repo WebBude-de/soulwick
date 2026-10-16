@@ -34,6 +34,8 @@ const SENT_TOAST_SECONDS := 1.6
 const SETTING_ENABLED := "soulwick/beta/bug_reports"
 ## Command-line switch after "--": bug_reports=0 or bug_reports=1 (strongest).
 const ARG_ENABLED := "bug_reports"
+## Preloaded: works before the global class cache knows NetDiagnostics (new file).
+const NetDiagnosticsScript := preload("res://online/net_diagnostics.gd")
 
 ## Where the notes go (user://dev_feedback = %APPDATA%/Godot/app_userdata/Soulwick/dev_feedback).
 static var root_dir := "user://dev_feedback"
@@ -323,6 +325,9 @@ func build_record(note: Dictionary) -> Dictionary:
 			points.append([int(px.x), int(px.y)])
 		strokes.append({"points_px": points})
 	var context := DevFeedbackContext.collect(get_tree(), self)
+	# Frame rate, main-thread stalls and, online, traffic, rtt and the last disconnect (online test
+	# 16.10.2026).
+	context["network"] = NetDiagnosticsScript.snapshot()
 	return {
 		"time": Time.get_datetime_string_from_system(false, false),
 		"unix": int(Time.get_unix_time_from_system()),

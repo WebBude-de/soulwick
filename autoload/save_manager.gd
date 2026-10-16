@@ -5,8 +5,12 @@ extends Node
 ## Save format (D-059, extended by D-078, D-087, MM1 and D-152): ConfigFile with [meta] version and
 ## sections [progress], [meta_upgrades], [boosts], [stats], [seen], [world] (name), [profile]
 ## (created, last_played) and, in migrated files only, [legacy_profile]. Older versions are migrated
-## on load (the untouched file is kept once as *.v<old>.bak before); missing, unreadable, newer or
-## invalid files fall back to a fresh state and a broken file is kept as *.bak.
+## on load (the untouched file is kept once as *.v<old>.bak before); missing files start fresh, a
+## broken file (unreadable, newer or invalid) is kept as *.bak and its last good copy is loaded (P1-8,
+## see below), only without one the game starts fresh.
+## P1-8: every file written here (slots, the pre-slot save, settings.cfg) goes through SafeSave: written
+## to <file>.tmp, read back, then renamed into place; the file it replaces is kept as <file>.prev.bak
+## (the last good copy). A crash while saving leaves either the old or the new file, never half of one.
 ## D-152: a slot is a world ("Welt 1"), the player's name and look live in the account profile
 ## (PlayerProfile, profile.cfg), not in the slot. The old per-slot name, character and colour stay
 ## in [legacy_profile] for the one-time suggestion of the first start (PlayerProfile.legacy_suggestion).
@@ -31,6 +35,9 @@ signal slot_changed(slot: int)
 signal profile_changed
 ## An unlock id was stored for the first time (enemy hints, village events of MetaUnlocks, …).
 signal content_unlocked(id: StringName)
+## P1-8: the loaded save file was broken and its last good copy (*.prev.bak) was loaded instead.
+## Hook for a notice in the menu ("Spielstand aus der Sicherung geladen").
+signal save_restored(path: String)
 
 const SAVE_VERSION := 4
 const SETTINGS_VERSION := 1
@@ -49,6 +56,9 @@ const DEFAULT_VOLUMES: Dictionary[StringName, float] = {&"Music": 0.8, &"SFX": 1
 const SEEN_ALL_EXCLUDED_PREFIXES: Array[String] = ["boss_intro_", "room_intro_"]
 ## Suffix of the copy kept before a migration: slot_1.cfg -> slot_1.cfg.v2.bak (written once).
 const MIGRATION_BACKUP_SUFFIX := ".v%d.bak"
+## Crash-safe writing (P1-8). Preloaded instead of the global class name, so the autoload also
+## compiles before the editor registered the new class.
+const _SafeSave := preload("res://meta/safe_save.gd")
 
 # --- Migration v2 -> v3 (B2, D-087). Frozen: later changes need their own migration step. ---
 ## Forge level rule per upgrade: [numerator, denominator, new maximum]. New level = old effect
@@ -98,6 +108,11 @@ var _legacy_profile: Dictionary = {}
 ## Creation and last save time ([profile], unix seconds, 0 = unknown).
 var _created_at := 0
 var _last_played := 0
+## P1-8: the last load_game() used the last good copy; why the last file was rejected.
+var _restored_from_backup := false
+var _load_failure := ""
+## The loaded file was rejected: the next save must not copy it over the last good copy.
+var _skip_backup_once := false
 
 # --- Global settings (settings_path) ---
 ## Linear 0..1 volume per audio bus.
@@ -112,6 +127,7 @@ var _options: Dictionary = {}
 
 func _ready() -> void:
 	_import_pre_rename_save()
+	recover_storage()
 	load_settings()
 	save_path = _startup_save_path()
 	load_game()
@@ -136,35 +152,73 @@ func _startup_save_path() -> String:
 	return slot_path(slot if slot > 0 else 1)
 
 
+## Loads save_path. P1-8: a file broken by a crash or a full disk (unreadable, invalid values) is
+## kept as *.bak (D-059) and the last good copy (*.prev.bak, SafeSave) is loaded instead, with a
+## warning; only without a usable copy the game starts fresh. The rejected file is never copied over
+## the good copy (the next save skips that once). A file of a newer version falls back the same way
+## (an older copy beats a fresh start; the newer file stays as *.bak).
 func load_game() -> Error:
 	_reset()
+	_restored_from_backup = false
+	_skip_backup_once = false
+	_SafeSave.recover(save_path)
 	if not FileAccess.file_exists(save_path):
 		return ERR_FILE_NOT_FOUND
+	var err := _load_file(save_path)
+	if err == OK:
+		return OK
+	var reason := _load_failure
+	push_warning("SaveManager: save file %s rejected (%s)." % [save_path, reason])
+	DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path), ProjectSettings.globalize_path(save_path + ".bak"))
+	_skip_backup_once = true
+	var backup := _SafeSave.backup_path(save_path)
+	if FileAccess.file_exists(backup):
+		_reset()
+		if _load_file(backup) == OK:
+			push_warning("SaveManager: loaded the last good copy %s instead." % backup)
+			_restored_from_backup = true
+			save_restored.emit(save_path)
+			return OK
+		push_warning("SaveManager: the last good copy %s is not usable either (%s)." % [backup, _load_failure])
+	push_warning("SaveManager: starting fresh.")
+	_reset()
+	return err
+
+
+## True when the last load_game() had to use the last good copy (*.prev.bak) of a broken file.
+func was_restored_from_backup() -> bool:
+	return _restored_from_backup
+
+
+## Reads, migrates, checks and applies one save file (save_path or its copy). Nothing is changed in
+## memory when the file is rejected; _load_failure says why.
+func _load_file(path: String) -> Error:
+	_load_failure = ""
 	var config := ConfigFile.new()
-	if config.load(save_path) != OK:
-		return _reject("unreadable", ERR_FILE_CORRUPT)
+	if config.load(path) != OK:
+		return _fail("unreadable", ERR_FILE_CORRUPT)
 	var version: Variant = config.get_value("meta", "version", -1)
 	if typeof(version) != TYPE_INT or version < 1 or version > SAVE_VERSION:
-		return _reject("unsupported version %s" % str(version), ERR_FILE_UNRECOGNIZED)
+		return _fail("unsupported version %s" % str(version), ERR_FILE_UNRECOGNIZED)
 	if version < SAVE_VERSION:
-		_backup_before_migration(version)
+		_backup_before_migration(version, path)
 	migrate(config)
 
 	var gold: Variant = config.get_value("progress", "permanent_gold", 0)
 	if typeof(gold) != TYPE_INT or gold < 0:
-		return _reject("invalid permanent_gold", ERR_INVALID_DATA)
+		return _fail("invalid permanent_gold", ERR_INVALID_DATA)
 	var crystals: Variant = config.get_value("progress", "permanent_crystals", 0)
 	if typeof(crystals) != TYPE_INT or crystals < 0:
-		return _reject("invalid permanent_crystals", ERR_INVALID_DATA)
+		return _fail("invalid permanent_crystals", ERR_INVALID_DATA)
 	var unlocked: Variant = config.get_value("progress", "unlocked", PackedStringArray())
 	if typeof(unlocked) != TYPE_PACKED_STRING_ARRAY:
-		return _reject("invalid unlocked list", ERR_INVALID_DATA)
+		return _fail("invalid unlocked list", ERR_INVALID_DATA)
 	var levels: Dictionary[StringName, int] = {}
 	if config.has_section("meta_upgrades"):
 		for key in config.get_section_keys("meta_upgrades"):
 			var level: Variant = config.get_value("meta_upgrades", key)
 			if typeof(level) != TYPE_INT or level < 0:
-				return _reject("invalid meta upgrade level %s" % key, ERR_INVALID_DATA)
+				return _fail("invalid meta upgrade level %s" % key, ERR_INVALID_DATA)
 			levels[StringName(key)] = level
 
 	_permanent_gold = gold
@@ -285,14 +339,15 @@ static func _with_ids(ids: PackedStringArray, extra: Array[String]) -> PackedStr
 
 
 ## Keeps the untouched older file once before it is migrated (save_path + ".v2.bak"); an existing
-## backup is never overwritten, so it always holds the first file of that version.
-func _backup_before_migration(from_version: int) -> void:
+## backup is never overwritten, so it always holds the first file of that version. source is the
+## file being loaded (save_path, or its last good copy after a broken file).
+func _backup_before_migration(from_version: int, source: String) -> void:
 	var backup := save_path + MIGRATION_BACKUP_SUFFIX % from_version
 	if FileAccess.file_exists(backup):
 		return
-	var err := DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path), ProjectSettings.globalize_path(backup))
+	var err := DirAccess.copy_absolute(ProjectSettings.globalize_path(source), ProjectSettings.globalize_path(backup))
 	if err != OK:
-		push_warning("SaveManager: could not back up %s before migrating (%s)." % [save_path, error_string(err)])
+		push_warning("SaveManager: could not back up %s before migrating (%s)." % [source, error_string(err)])
 
 
 func save_game() -> Error:
@@ -327,10 +382,12 @@ func save_game() -> Error:
 	config.set_value("profile", "last_played", _last_played)
 	for key: String in _legacy_profile:
 		config.set_value("legacy_profile", key, _legacy_profile[key])
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(save_path.get_base_dir()))
-	var err := config.save(save_path)
+	# P1-8: .tmp, read back, rename; a rejected file is not kept as the last good copy.
+	var err := _SafeSave.write_config(config, save_path, not _skip_backup_once)
 	if err != OK:
 		push_error("SaveManager: could not write %s (%s)." % [save_path, error_string(err)])
+	else:
+		_skip_backup_once = false
 	return err
 
 
@@ -509,10 +566,10 @@ func rename_slot(slot: int, text: String) -> Error:
 		_world_name = stored
 		return save_game()
 	var config := ConfigFile.new()
-	if config.load(slot_path(slot)) != OK:
+	if _SafeSave.load_config(config, slot_path(slot)) != OK:
 		return ERR_FILE_CORRUPT
 	config.set_value("world", "name", stored)
-	return config.save(slot_path(slot))
+	return _SafeSave.write_config(config, slot_path(slot))
 
 
 ## [legacy_profile] of the loaded world ({} for new worlds), see PlayerProfile.legacy_suggestion().
@@ -641,6 +698,8 @@ func delete_slot(slot: int) -> Error:
 	var err := DirAccess.rename_absolute(path, path + DELETED_SUFFIX)
 	if err != OK:
 		return err
+	# Its last good copy must not bring the world back (SafeSave.recover, load_game).
+	_SafeSave.remove_companions(slot_path(slot))
 	if _last_slot == slot:
 		_last_slot = 0
 		save_settings()
@@ -700,9 +759,20 @@ func set_storage_root(root: String) -> void:
 	settings_path = root.path_join("settings.cfg")
 	legacy_save_path = root.path_join("savegame.cfg")
 	save_path = legacy_save_path
+	recover_storage()
 	load_settings()
 	# The player's profile lives next to the settings (PlayerProfile.default_path).
 	PlayerProfile.reset()
+
+
+## P1-8: finishes saves a crash interrupted (SafeSave.recover) for the settings, the pre-slot save and
+## every slot, so a world whose file was being replaced is not shown as empty. Startup and
+## set_storage_root(); load_game() and load_settings() do it for their own file anyway.
+func recover_storage() -> void:
+	_SafeSave.recover(settings_path)
+	_SafeSave.recover(legacy_save_path)
+	for slot in range(1, SaveSlots.SLOT_COUNT + 1):
+		_SafeSave.recover(slot_path(slot))
 
 
 # --- Global settings (MM1: user://settings.cfg, not per slot) ---
@@ -716,8 +786,10 @@ func load_settings() -> Error:
 	_options = {}
 	var config := ConfigFile.new()
 	var err := ERR_FILE_NOT_FOUND
+	_SafeSave.recover(settings_path)
 	if FileAccess.file_exists(settings_path):
-		err = config.load(settings_path)
+		# P1-8: an unreadable file falls back to its last good copy (SafeSave warns).
+		err = _SafeSave.load_config(config, settings_path)
 		if err != OK:
 			push_warning("SaveManager: settings %s unreadable (%s); using defaults." % [settings_path, error_string(err)])
 	if err == OK:
@@ -746,8 +818,7 @@ func save_settings() -> Error:
 	config.set_value("slots", "legacy_imported", _legacy_imported)
 	for key in _options:
 		config.set_value("options", String(key), _options[key])
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(settings_path.get_base_dir()))
-	var err := config.save(settings_path)
+	var err := _SafeSave.write_config(config, settings_path)
 	if err != OK:
 		push_error("SaveManager: could not write %s (%s)." % [settings_path, error_string(err)])
 	return err
@@ -813,8 +884,7 @@ func _reset() -> void:
 	profile_changed.emit()
 
 
-func _reject(reason: String, err: Error) -> Error:
-	push_warning("SaveManager: save file %s rejected (%s); starting fresh." % [save_path, reason])
-	DirAccess.copy_absolute(ProjectSettings.globalize_path(save_path), ProjectSettings.globalize_path(save_path + ".bak"))
-	_reset()
+## Why _load_file() rejected a file (load_game() logs it and keeps the file as *.bak, D-059).
+func _fail(reason: String, err: Error) -> Error:
+	_load_failure = reason
 	return err

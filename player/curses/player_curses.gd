@@ -105,30 +105,37 @@ static func get_available(player: Node) -> Array[Curse]:
 	return available
 
 
+## Translation keys (D-111): name and short effect text ("%s"/"%d" take the values below).
+const NAME_KEYS := {
+	Curse.FRAILTY: &"CURSE_FRAILTY",
+	Curse.HASTE: &"CURSE_HASTE",
+	Curse.GLOOM: &"CURSE_GLOOM",
+	Curse.DRY_FOUNTAINS: &"CURSE_DRY_FOUNTAINS",
+}
+const EFFECT_KEYS := {
+	Curse.FRAILTY: &"CURSE_FRAILTY_EFFECT",
+	Curse.HASTE: &"CURSE_HASTE_EFFECT",
+	Curse.GLOOM: &"CURSE_GLOOM_EFFECT",
+	Curse.DRY_FOUNTAINS: &"CURSE_DRY_FOUNTAINS_EFFECT",
+}
+
+
+## Curse name in the current language.
 static func get_curse_name(curse: int) -> String:
-	match curse:
-		Curse.FRAILTY:
-			return "Gebrechen"
-		Curse.HASTE:
-			return "Gehetzt"
-		Curse.GLOOM:
-			return "Düsternis"
-		Curse.DRY_FOUNTAINS:
-			return "Versiegte Quellen"
-	return ""
+	return Loc.t(NAME_KEYS[curse]) if NAME_KEYS.has(curse) else ""
 
 
-## Short effect text for the altar and the Tab overview.
+## Short effect text for the altar and the Tab overview, in the current language.
 static func get_curse_effect(curse: int) -> String:
 	match curse:
 		Curse.FRAILTY:
-			return "−%s Max-Herz" % _number(MAX_HEALTH_LOSS * 0.5)
+			return Loc.t(EFFECT_KEYS[curse], [_number(MAX_HEALTH_LOSS * 0.5)])
 		Curse.HASTE:
-			return "Gegner +%d %% Tempo" % roundi((ENEMY_SPEED_FACTOR - 1.0) * 100.0)
+			return Loc.t(EFFECT_KEYS[curse], [roundi((ENEMY_SPEED_FACTOR - 1.0) * 100.0)])
 		Curse.GLOOM:
-			return "Lichtkreis −%d %%" % roundi((1.0 - VISION_FACTOR) * 100.0)
+			return Loc.t(EFFECT_KEYS[curse], [roundi((1.0 - VISION_FACTOR) * 100.0)])
 		Curse.DRY_FOUNTAINS:
-			return "Brunnen heilen nur %d %%" % roundi(FOUNTAIN_HEAL_FACTOR * 100.0)
+			return Loc.t(EFFECT_KEYS[curse], [roundi(FOUNTAIN_HEAL_FACTOR * 100.0)])
 	return ""
 
 

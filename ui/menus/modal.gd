@@ -13,11 +13,28 @@ extends Control
 ## meant for the dialog before (or a quick double click) never picks in this one; a click has to
 ## begin after the guard. Open dialogs are counted (open_count) so DungeonUI can queue the next
 ## one until they are closed.
+## Gamepad (P0-2 step 2, Steam Deck): A confirms like Enter (ui_accept), B cancels like Esc
+## (ui_cancel). Dialogs without their own input_handler get a focus over their buttons: D-pad or
+## left stick (MenuInput, debounced, repeats while held) move a gold frame from button to button
+## (nearest one in that direction), A or Enter press the framed button. With a gamepad in use the
+## frame starts on the default button (UiDialog marks it). A press of A in the first
+## PAD_ACCEPT_GUARD seconds is ignored: A is also the dash, a player mashing it in a fight must not
+## pick blindly. The key bar shows the gamepad's buttons while a gamepad is in use (number keys
+## become "D-pad select"), and switches back and forth with the device.
 
 signal finished(result: Variant)
 
 ## Seconds after opening in which clicks and keys are ignored (real time, TESTWERT).
 const INPUT_GUARD := 0.25
+## Seconds after opening in which the gamepad's A is ignored (it is also the dash; TESTWERT).
+const PAD_ACCEPT_GUARD := 0.6
+## Meta flags UiDialog sets on its option buttons: part of the gamepad focus / the default one.
+const META_PAD_OPTION: StringName = &"pad_option"
+const META_PAD_DEFAULT: StringName = &"pad_default"
+## Gamepad focus frame: gold, ART_SCALE thick, this many mockup pixels outside the button.
+const FOCUS_COLOR := UiKit.COLOR_GOLD
+const FOCUS_MARGIN := 1.0
+const PadNav := preload("res://ui/widgets/pad_nav.gd")
 
 const DIM_COLOR := UiKit.COLOR_OVERLAY
 ## Gap between content rows in mockup pixels (ui_spec dialog.gap; R8 tighter, dialogs max 60 %).
@@ -57,6 +74,8 @@ var accent := Color(0, 0, 0, 0):
 
 ## Input guard of this dialog in seconds (INPUT_GUARD; 0 = none).
 var input_guard := INPUT_GUARD
+## Seconds the gamepad's A is ignored after opening (PAD_ACCEPT_GUARD; tests set 0).
+var pad_accept_guard := PAD_ACCEPT_GUARD
 ## Optional (result) -> bool: finish() ignores results it rejects, e.g. a pick meant for another
 ## dialog (null always passes: a dialog freed or closed from outside).
 var result_filter: Callable = Callable()
@@ -73,6 +92,14 @@ var _deal: Array[Control] = []
 ## Full-screen catcher on top while the input guard runs (swallows clicks and hover).
 var _guard_blocker: Control = null
 var _shown_ms := -1
+## Button under the gamepad focus frame (null = none).
+var _pad_button: Button = null
+var _focus_ring: Control = null
+## Key bar as last set (rebuilt when the device changes): entries, paused, action control.
+var _key_entries: Array = []
+var _key_paused := true
+var _key_action: Control = null
+var _has_key_hints := false
 
 ## Instance ids of the dialogs on screen (any screen), see open_count().
 static var _open_ids: Dictionary = {}
@@ -105,6 +132,13 @@ func show_on(parent: Node) -> void:
 	parent.add_child(self)
 	_open_ids[get_instance_id()] = true
 	_shown_ms = Time.get_ticks_msec()
+	# A stick or D-pad still held from the game (walking) must not move the focus.
+	MenuInput.latch()
+	var device := InputDevice.shared()
+	if not device.changed.is_connected(_on_device_changed):
+		device.changed.connect(_on_device_changed)
+	if InputGlyphs.is_gamepad():
+		_focus_default.call_deferred()
 	GameManager.request_pause(pause_reason)
 	Sfx.play_ui(self, &"ui_open")
 	_start_input_guard()
@@ -133,6 +167,127 @@ func _process(_delta: float) -> void:
 	if _guard_blocker != null and not is_input_guarded():
 		_guard_blocker.queue_free()
 		_guard_blocker = null
+	if is_visible_in_tree() and not _done:
+		# Held D-pad or stick: the next step as an arrow-key event (MenuInput).
+		if not is_input_guarded():
+			MenuInput.pump_repeat()
+		if _pad_button != null:
+			_focus_ring.queue_redraw()
+
+
+## true while the gamepad's A is still ignored after opening (PAD_ACCEPT_GUARD).
+func is_pad_accept_guarded() -> bool:
+	return _shown_ms >= 0 and Time.get_ticks_msec() - _shown_ms < int(maxf(pad_accept_guard, input_guard) * 1000.0)
+
+
+# --- Gamepad focus over the buttons ---
+
+## Buttons the gamepad focus can reach: visible, enabled, clickable.
+func focus_targets() -> Array[Button]:
+	var result: Array[Button] = []
+	for node in frame.find_children("*", "Button", true, false):
+		var button := node as Button
+		if button.is_visible_in_tree() and not button.disabled and button.mouse_filter != Control.MOUSE_FILTER_IGNORE:
+			result.append(button)
+	return result
+
+
+func get_focused_button() -> Button:
+	return _pad_button if is_instance_valid(_pad_button) else null
+
+
+## Puts the gamepad focus frame on button (null clears it).
+func focus_button(button: Button) -> void:
+	_pad_button = button if is_instance_valid(button) else null
+	_focus_ring.visible = _pad_button != null
+	_focus_ring.queue_redraw()
+
+
+## Moves the focus to the nearest button in direction (D-pad / stick / arrows); without a focus it
+## starts on the default button. Returns true when the dialog has buttons to move over.
+func move_focus(step: Vector2i) -> bool:
+	var targets := focus_targets()
+	if targets.is_empty():
+		return false
+	var current := get_focused_button()
+	if current == null or not targets.has(current):
+		focus_button(_default_target(targets))
+		UiSound.hover(self)
+		return true
+	var origin := current.get_global_rect().get_center()
+	var best: Button = null
+	var best_score := INF
+	for target in targets:
+		if target == current:
+			continue
+		var delta := target.get_global_rect().get_center() - origin
+		var along := delta.dot(Vector2(step))
+		if along <= 1.0:
+			continue
+		var score := along + absf(delta.cross(Vector2(step))) * 2.0
+		if score < best_score:
+			best_score = score
+			best = target
+	if best != null:
+		focus_button(best)
+		UiSound.hover(self)
+	return true
+
+
+## Presses the focused button (A / Enter). Returns false without a usable focus.
+func press_focused() -> bool:
+	var button := get_focused_button()
+	if button == null or not button.is_visible_in_tree() or button.disabled:
+		return false
+	button.pressed.emit()
+	return true
+
+
+## With a gamepad in use the frame starts on the default option (dialogs built with UiDialog).
+func _focus_default() -> void:
+	if _done or input_handler.is_valid() or get_focused_button() != null:
+		return
+	var targets := focus_targets()
+	for target in targets:
+		if target.has_meta(META_PAD_OPTION):
+			focus_button(_default_target(targets))
+			return
+
+
+func _default_target(targets: Array[Button]) -> Button:
+	for target in targets:
+		if target.has_meta(META_PAD_DEFAULT):
+			return target
+	for target in targets:
+		if target.has_meta(META_PAD_OPTION):
+			return target
+	return targets[0]
+
+
+func _draw_focus_ring() -> void:
+	var button := get_focused_button()
+	if button == null or not button.is_visible_in_tree():
+		return
+	var rect := _focus_ring.get_global_transform().affine_inverse() * button.get_global_rect()
+	rect = rect.grow(UiKit.px(FOCUS_MARGIN))
+	var width := float(UiKit.ART_SCALE)
+	_focus_ring.draw_rect(Rect2(rect.position, Vector2(rect.size.x, width)), FOCUS_COLOR)
+	_focus_ring.draw_rect(Rect2(rect.position + Vector2(0, rect.size.y - width), Vector2(rect.size.x, width)), FOCUS_COLOR)
+	_focus_ring.draw_rect(Rect2(rect.position, Vector2(width, rect.size.y)), FOCUS_COLOR)
+	_focus_ring.draw_rect(Rect2(rect.position + Vector2(rect.size.x - width, 0), Vector2(width, rect.size.y)), FOCUS_COLOR)
+
+
+## Keyboard/mouse <-> gamepad: the key bar symbols follow; a gamepad gets its focus frame.
+func _on_device_changed(_kind: int) -> void:
+	if _done:
+		return
+	if _has_key_hints:
+		_build_key_hints()
+	if InputGlyphs.is_gamepad():
+		_focus_default()
+	elif InputDevice.shared().kind == InputDevice.Kind.KEYBOARD_MOUSE and get_focused_button() != null:
+		# The mouse picks by hovering; arrow keys bring the frame back.
+		focus_button(null)
 
 
 func _on_auto_finish() -> void:
@@ -199,8 +354,49 @@ func set_footer(text: String, color := UiKit.COLOR_DISABLED) -> void:
 ## paused, "Spiel pausiert" on the right. action (e.g. the "Schließen" button of the shop) sits on
 ## the right of the bar and saves a row of its own. Calling it again replaces the bar.
 func set_key_hints(entries: Array, paused := true, action: Control = null) -> void:
+	_key_entries = entries.duplicate()
+	_key_paused = paused
+	_key_action = action
+	_has_key_hints = true
+	_build_key_hints()
+
+
+## Key bar entries for the gamepad: number keys and arrows become one "D-pad auswählen" entry (and
+## "A <caption>" when the dialog names no Enter); Enter, Esc and Tab show their buttons (UiChip).
+static func pad_key_entries(entries: Array) -> Array:
+	var arrows := DungeonTexts.t(&"MENU_KEY_ARROWS")
+	var enter := DungeonTexts.t(&"MENU_KEY_ENTER")
+	var has_accept := false
+	for entry: Array in entries:
+		if String(entry[0]) == enter:
+			has_accept = true
+	var result: Array = []
+	var has_dpad := false
+	for entry: Array in entries:
+		var key := String(entry[0])
+		var is_number := not key.is_empty() and key.left(1).is_valid_int()
+		if key == arrows or is_number:
+			if not has_dpad:
+				result.append([arrows, DungeonTexts.t(&"MENU_HINT_MOVE")])
+				has_dpad = true
+			if is_number and not has_accept:
+				result.append([enter, entry[1]])
+				has_accept = true
+			continue
+		result.append(entry)
+	return result
+
+
+func _build_key_hints() -> void:
+	var action := _key_action if is_instance_valid(_key_action) else null
+	if action != null and action.get_parent() != null:
+		# The action control (e.g. "Schließen") survives a rebuild.
+		action.get_parent().remove_child(action)
 	for child in key_bar.get_children():
+		key_bar.remove_child(child)
 		child.queue_free()
+	var entries := pad_key_entries(_key_entries) if InputGlyphs.is_gamepad() else _key_entries
+	var paused := _key_paused
 	key_bar.visible = true
 	key_bar.add_child(UiKit.separator())
 	var row := UiKit.hbox(int(UiKit.px(8)))
@@ -219,7 +415,9 @@ func set_key_hints(entries: Array, paused := true, action: Control = null) -> vo
 	row.add_child(filler)
 	if action != null:
 		action.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		compact_buttons(action)
+		if not action.has_meta(&"compacted"):
+			action.set_meta(&"compacted", true)
+			compact_buttons(action)
 		row.add_child(action)
 	if paused:
 		var note := UiKit.text_label(DungeonTexts.t(&"MENU_PAUSED"), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
@@ -267,6 +465,13 @@ func _build(panel_kind: StringName) -> void:
 	key_bar.name = "KeyBar"
 	key_bar.visible = false
 	outer.add_child(key_bar)
+	_focus_ring = Control.new()
+	_focus_ring.name = "PadFocus"
+	_focus_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_focus_ring.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_focus_ring.visible = false
+	_focus_ring.draw.connect(_draw_focus_ring)
+	add_child(_focus_ring)
 
 
 ## The accent stripe inside the panel border, from top to bottom (drawn under the content).
@@ -280,14 +485,29 @@ func _draw_accent() -> void:
 	frame.draw_rect(Rect2(inset + width, inset, UiKit.ART_SCALE, frame.size.y - inset * 2.0), Color(accent, 0.35))
 
 
+## Content that moves with Godot's GUI focus (the guild menu in the village): D-pad and stick take
+## one debounced step there (PadNav), before Godot would step on every stick motion event.
+func _input(event: InputEvent) -> void:
+	if _done or not is_visible_in_tree() or is_input_guarded():
+		return
+	if PadNav.step_gui_focus(event, frame):
+		get_viewport().set_input_as_handled()
+
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not is_visible_in_tree():
 		# Hidden under a dialog opened on top of it (pause menu -> options).
 		return
 	if is_input_guarded():
 		# Just opened: a key still meant for the dialog before must not pick here.
+		if MenuInput.is_pad_direction_event(event):
+			# Keeps the stick state, so a stick pushed during the guard does not step afterwards.
+			MenuInput.direction(event)
 		if event.is_action_type():
 			get_viewport().set_input_as_handled()
+		return
+	if MenuInput.is_pad_accept(event) and is_pad_accept_guarded():
+		get_viewport().set_input_as_handled()
 		return
 	if input_handler.is_valid() and input_handler.call(event):
 		get_viewport().set_input_as_handled()
@@ -297,6 +517,15 @@ func _unhandled_input(event: InputEvent) -> void:
 		UiSound.back(self)
 		finish(cancel_result)
 		return
+	var step := MenuInput.direction(event, false)
+	if step != Vector2i.ZERO:
+		if move_focus(step):
+			get_viewport().set_input_as_handled()
+		return
+	if MenuInput.is_pad_accept(event):
+		get_viewport().set_input_as_handled()
+		_accept()
+		return
 	var key := event as InputEventKey
 	if key == null or not key.pressed or key.echo:
 		return
@@ -304,15 +533,25 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		(hotkeys[key.keycode] as Callable).call()
 	elif key.keycode == KEY_ENTER or key.keycode == KEY_KP_ENTER:
-		if accept_action.is_valid():
+		if get_focused_button() != null or accept_action.is_valid() or accept_allowed:
 			get_viewport().set_input_as_handled()
-			accept_action.call()
-		elif accept_allowed:
-			get_viewport().set_input_as_handled()
-			finish(accept_result)
+			_accept()
+
+
+## Enter or A: the focused button, else accept_action, else the default result.
+func _accept() -> void:
+	if press_focused():
+		return
+	if accept_action.is_valid():
+		accept_action.call()
+	elif accept_allowed:
+		finish(accept_result)
 
 
 func _exit_tree() -> void:
+	var device := InputDevice.shared()
+	if device.changed.is_connected(_on_device_changed):
+		device.changed.disconnect(_on_device_changed)
 	# Never leave a stale pause reason behind, e.g. when the world is freed with the dialog open.
 	_open_ids.erase(get_instance_id())
 	if not _done:

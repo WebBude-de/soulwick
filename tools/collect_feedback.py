@@ -9,6 +9,13 @@ Aufruf (im Repo-Root):
     python tools/collect_feedback.py --src <ordner>          # anderer Quellordner (Standard siehe unten)
     python tools/collect_feedback.py --no-copy               # Bilder nicht kopieren, Links zeigen auf die Quelle
 
+Run-Protokolle (P1-7, meta/run_log.gd: eine JSON-Zeilen-Datei je Run unter user://runs/):
+    python tools/collect_feedback.py --runs                  # -> docs/feedback/RUNS_<heute>.md
+    python tools/collect_feedback.py --runs --since 2026-10-16 --src <ordner>
+Uebersicht: Endgruende, Durchschnitt/Median des End-Raums, haeufigste Todesursachen, Zeit, Schaden und
+Gold je Biom und je Raumart, End-Raum je Startwaffe, Liste aller Runs. Runs ohne "end"-Zeile sind
+abgestuerzt (oder laufen noch) und zaehlen als "abgebrochen (Absturz?)".
+
 Meldungen aller Spieler vom Server (Admin-Login wie das Admin-Panel, nur ueber die API):
     set SOULWICK_ADMIN_EMAIL=...  /  set SOULWICK_ADMIN_PASSWORD=...
     python tools/collect_feedback.py --api https://api-dev.playsoulwick.com            # Status "new"
@@ -68,6 +75,11 @@ def default_source() -> Path:
         return Path.home() / "Library" / "Application Support" / "Godot" / "app_userdata" / "Soulwick" / "dev_feedback"
     base = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
     return base / "godot" / "app_userdata" / "Soulwick" / "dev_feedback"
+
+
+def default_runs_source() -> Path:
+    """user://runs of the game (RunLog.DIR_NAME next to dev_feedback)."""
+    return default_source().parent / "runs"
 
 
 def parse_since(text: str) -> dt.datetime:
@@ -340,6 +352,221 @@ def draw_marked(image_path: Path, record: dict, target: Path) -> bool:
     return True
 
 
+# --- run protocols (P1-7) ----------------------------------------------------------------------
+
+REASON_LABELS = {
+    "death": "Tod", "exit": "Ausgang (Portal)", "abort": "Aufgegeben", "quit": "Spiel verlassen",
+    "crash": "Abgebrochen (Absturz?)",
+}
+BIOME_LABELS = {
+    "crypt": "Krypta", "slime_grotto": "Schleimgrotte", "shadow_realm": "Schattenreich", "ember_forge": "Glutschmiede",
+}
+
+
+def load_runs(source: Path, since: dt.datetime | None) -> list[dict]:
+    """One dict per run file: header, rooms, end (None for a crashed run), path."""
+    runs = []
+    if not source.is_dir():
+        return runs
+    for path in sorted(source.glob("run_*.jsonl")):
+        header: dict = {}
+        rooms: list[dict] = []
+        end = None
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except OSError as error:
+            print(f"Uebersprungen ({error}): {path.name}", file=sys.stderr)
+            continue
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue  # a cut last line (crash while writing)
+            kind = record.get("type")
+            if kind == "run":
+                header = record
+            elif kind == "room":
+                rooms.append(record)
+            elif kind == "end":
+                end = record
+        when = run_time(header, path)
+        if since is not None and when < since:
+            continue
+        runs.append({"header": header, "rooms": rooms, "end": end, "path": path, "time": when})
+    runs.sort(key=lambda r: r["time"])
+    return runs
+
+
+def run_time(header: dict, path: Path) -> dt.datetime:
+    try:
+        return dt.datetime.fromisoformat(str(header.get("time", "")).replace(" ", "T"))
+    except ValueError:
+        pass
+    try:
+        return dt.datetime.strptime(path.stem.removeprefix("run_")[:19], "%Y-%m-%d_%H-%M-%S")
+    except ValueError:
+        return dt.datetime.fromtimestamp(path.stat().st_mtime)
+
+
+def run_reason(run: dict) -> str:
+    return str(run["end"].get("reason", "crash")) if run["end"] else "crash"
+
+
+def run_end_room(run: dict) -> int:
+    if run["end"]:
+        return int(run["end"].get("room", 0) or 0)
+    return max((int(room.get("room", 0) or 0) for room in run["rooms"]), default=0)
+
+
+def run_mode(run: dict) -> str:
+    header = run["header"]
+    mode = str(header.get("mode", "?"))
+    players = int(header.get("players", 1) or 1)
+    return "Solo" if mode == "solo" and players <= 1 else f"Koop ({mode}, {players})"
+
+
+def start_weapon(run: dict) -> str:
+    weapons = run["header"].get("weapons") or []
+    return str(weapons[0]) if weapons else "?"
+
+
+def fmt_time(seconds: float) -> str:
+    total = int(round(seconds))
+    if total >= 3600:
+        return f"{total // 3600}:{total // 60 % 60:02d}:{total % 60:02d}"
+    return f"{total // 60}:{total % 60:02d}"
+
+
+def fmt_num(value: float, digits: int = 1) -> str:
+    return f"{value:.{digits}f}".replace(".", ",")
+
+
+def median(values: list) -> float:
+    ordered = sorted(values)
+    if not ordered:
+        return 0.0
+    middle = len(ordered) // 2
+    return float(ordered[middle]) if len(ordered) % 2 else (ordered[middle - 1] + ordered[middle]) / 2.0
+
+
+def runs_room_table(runs: list[dict], title: str, key_of, label_of) -> list[str]:
+    """Time, damage and gold of the room lines grouped by key_of(room)."""
+    groups: dict[str, dict] = {}
+    for run in runs:
+        seen_in_run: set[str] = set()
+        for room in run["rooms"]:
+            key = key_of(room)
+            if not key:
+                continue
+            group = groups.setdefault(key, {"rooms": 0, "time": 0.0, "damage": 0.0, "gold": 0, "runs": 0, "clear": []})
+            group["rooms"] += 1
+            group["time"] += float(room.get("duration", 0) or 0)
+            group["damage"] += float(room.get("damage", 0) or 0)
+            group["gold"] += int(room.get("gold", 0) or 0)
+            if room.get("clear_time") is not None:
+                group["clear"].append(float(room["clear_time"]))
+            if key not in seen_in_run:
+                seen_in_run.add(key)
+                group["runs"] += 1
+    lines = [f"## {title}", ""]
+    if not groups:
+        return lines + ["Keine Räume protokolliert.", ""]
+    lines += ["| | Runs | Räume | Zeit gesamt | Ø Zeit je Raum | Ø bis geräumt | Ø Schaden je Raum | Ø Gold je Raum |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for key, group in sorted(groups.items(), key=lambda item: -item[1]["rooms"]):
+        rooms = group["rooms"]
+        clear = group["clear"]
+        cleared = fmt_time(sum(clear) / len(clear)) if clear else "–"
+        lines.append(f"| {label_of(key)} | {group['runs']} | {rooms} | {fmt_time(group['time'])} | "
+                     f"{fmt_time(group['time'] / rooms)} | {cleared} | "
+                     f"{fmt_num(group['damage'] / rooms)} | {fmt_num(group['gold'] / rooms)} |")
+    return lines + [""]
+
+
+def room_kind_key(room: dict) -> str:
+    detail = str(room.get("special", "") or room.get("kind", "") or "")
+    return "/".join(part for part in (str(room.get("room_type", "")), detail) if part)
+
+
+def build_runs_report(runs: list[dict], source: str, since: dt.datetime | None, today: str) -> str:
+    out = [f"# Run-Protokolle {today}", ""]
+    since_text = f" seit {since:%Y-%m-%d %H:%M}" if since else ""
+    out.append(f"{len(runs)} Runs{since_text} aus {source}. Erzeugt mit `python tools/collect_feedback.py --runs` "
+               "(Format: `meta/run_log.gd`).")
+    out.append("")
+    if not runs:
+        out.append("Keine Run-Protokolle gefunden.")
+        return "\n".join(out) + "\n"
+
+    end_rooms = [run_end_room(run) for run in runs]
+    versions = sorted({str(run["header"].get("game", "") or "?") for run in runs})
+    modes: dict[str, int] = {}
+    for run in runs:
+        modes[run_mode(run)] = modes.get(run_mode(run), 0) + 1
+    play_time = sum(float((run["end"] or {}).get("duration", 0) or 0) for run in runs)
+    out += ["## Überblick", "",
+            f"- **End-Raum:** Durchschnitt {fmt_num(sum(end_rooms) / len(end_rooms))}, "
+            f"Median {fmt_num(median(end_rooms))}, bester {max(end_rooms)}",
+            f"- **Spielzeit (beendete Runs):** {fmt_time(play_time)}",
+            f"- **Versionen:** {', '.join(versions)}",
+            "- **Modus:** " + ", ".join(f"{mode} {count}" for mode, count in sorted(modes.items())),
+            ""]
+
+    reasons: dict[str, int] = {}
+    for run in runs:
+        reasons[run_reason(run)] = reasons.get(run_reason(run), 0) + 1
+    out += ["## Endgründe", "", "| Ende | Runs | Anteil |", "| --- | --- | --- |"]
+    for reason, count in sorted(reasons.items(), key=lambda item: -item[1]):
+        out.append(f"| {REASON_LABELS.get(reason, reason)} | {count} | {round(100 * count / len(runs))} % |")
+    out.append("")
+
+    causes: dict[tuple, list[int]] = {}
+    for run in runs:
+        if run_reason(run) != "death":
+            continue
+        end = run["end"] or {}
+        key = (str(end.get("cause", "") or "unknown"), str(end.get("cause_kind", "") or "unknown"))
+        causes.setdefault(key, []).append(run_end_room(run))
+    out += ["## Häufigste Todesursachen", ""]
+    if causes:
+        out += ["| Ursache | Art | Tode | Ø Raum |", "| --- | --- | --- | --- |"]
+        for (cause, kind), rooms in sorted(causes.items(), key=lambda item: (-len(item[1]), item[0])):
+            out.append(f"| `{cause}` | {kind} | {len(rooms)} | {fmt_num(sum(rooms) / len(rooms))} |")
+    else:
+        out.append("Kein Run endete mit dem Tod.")
+    out.append("")
+
+    out += runs_room_table(runs, "Zeit je Biom", lambda room: str(room.get("biome", "")),
+                           lambda key: BIOME_LABELS.get(key, key))
+    out += runs_room_table(runs, "Je Raumart", room_kind_key, lambda key: f"`{key}`")
+
+    weapons: dict[str, list[int]] = {}
+    for run in runs:
+        weapons.setdefault(start_weapon(run), []).append(run_end_room(run))
+    out += ["## Startwaffe", "", "| Waffe | Runs | Ø End-Raum | bester |", "| --- | --- | --- | --- |"]
+    for weapon, rooms in sorted(weapons.items(), key=lambda item: -len(item[1])):
+        out.append(f"| `{weapon}` | {len(rooms)} | {fmt_num(sum(rooms) / len(rooms))} | {max(rooms)} |")
+    out.append("")
+
+    out += ["## Alle Runs", "",
+            "| Zeit | Version | Modus | Waffe | End-Raum | Ende | Ursache | Dauer | Upgrades | Datei |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+    for run in runs:
+        end = run["end"] or {}
+        upgrades = end.get("upgrades") or {}
+        cause = f"`{end.get('cause')}`" if end.get("cause") else "–"
+        duration = fmt_time(float(end.get("duration", 0) or 0)) if end else "–"
+        reason = REASON_LABELS.get(run_reason(run), run_reason(run))
+        out.append(f"| {run['time']:%Y-%m-%d %H:%M} | {md_escape(run['header'].get('game', '') or '?')} | "
+                   f"{run_mode(run)} | `{start_weapon(run)}` | {run_end_room(run)} | {reason} | {cause} | "
+                   f"{duration} | {len(upgrades)} | {run['path'].name} |")
+    out.append("")
+    return "\n".join(out) + "\n"
+
+
 # --- report --------------------------------------------------------------------------------------
 
 def category_label(category) -> str:
@@ -584,7 +811,10 @@ def build_report(notes: list[dict], group: str, links: dict, base: Path, source:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Fehlermeldungen (# / F9) zu einer Markdown-Uebersicht sammeln.")
-    parser.add_argument("--src", type=Path, default=default_source(), help="lokaler Quellordner (Standard: user://dev_feedback)")
+    parser.add_argument("--src", type=Path, default=None,
+                        help="lokaler Quellordner (Standard: user://dev_feedback, mit --runs user://runs)")
+    parser.add_argument("--runs", action="store_true",
+                        help="Run-Protokolle (user://runs, P1-7) statt Meldungen auswerten -> docs/feedback/RUNS_<heute>.md")
     parser.add_argument("--api", default=None, help="Basis-URL der Plattform-API: Meldungen aller Spieler vom Server holen")
     parser.add_argument("--status", default="new", choices=["new", "seen", "done", "wont_fix", "all"],
                         help="nur mit --api: Status der Meldungen (Standard new)")
@@ -597,6 +827,16 @@ def main() -> int:
     args = parser.parse_args()
 
     today = dt.date.today().isoformat()
+    if args.runs:
+        source_dir: Path = args.src or default_runs_source()
+        runs_file: Path = (args.out or (REPO_ROOT / "docs" / "feedback" / f"RUNS_{today}.md")).resolve()
+        runs_file.parent.mkdir(parents=True, exist_ok=True)
+        runs = load_runs(source_dir, args.since)
+        runs_file.write_text(build_runs_report(runs, f"`{source_dir}`", args.since, today), encoding="utf-8", newline="\n")
+        print(f"{len(runs)} Runs -> {runs_file}")
+        return 0
+    if args.src is None:
+        args.src = default_source()
     out_file: Path = args.out or (REPO_ROOT / "docs" / "feedback" / f"FEEDBACK_{today}.md")
     out_file = out_file.resolve()
     out_file.parent.mkdir(parents=True, exist_ok=True)

@@ -45,6 +45,8 @@ func before_each() -> void:
 	SaveManager.save_path = TEST_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
+	# P1-8: the last good copy would otherwise stand in for a broken test file.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".prev.bak"))
 	SaveManager.load_game()
 
 
@@ -52,6 +54,8 @@ func after_all() -> void:
 	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
+	# P1-8: the last good copy would otherwise stand in for a broken test file.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".prev.bak"))
 	for version in [1, 2]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + SaveManager.MIGRATION_BACKUP_SUFFIX % version))
 	SaveManager.save_path = _old_path

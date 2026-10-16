@@ -152,3 +152,15 @@ func test_trial_template_and_content_exist() -> void:
 	assert_true(ResourceLoader.exists(SpecialTable.TRIAL_CONTENT_PATH))
 	assert_true(autofree(load(SpecialTable.TRIAL_CONTENT_PATH).instantiate()) is TrialContent)
 	assert_eq(SpecialTable.get_type_name(SpecialTable.TRIAL), "Prüfung")
+
+
+func test_trial_names_are_translation_keys() -> void:
+	assert_eq(SpecialTable.get_trial_title_key(SpecialTable.TrialKind.GAUNTLET), &"ROOM_TRIAL_GAUNTLET_TITLE")
+	assert_eq(SpecialTable.get_trial_title_key(SpecialTable.TrialKind.LIGHT_RUN), &"ROOM_TRIAL_LIGHT_RUN_TITLE")
+	assert_eq(SpecialTable.get_trial_title_key(SpecialTable.TrialKind.CRUMBLE), &"ROOM_TRIAL_CRUMBLE_TITLE")
+	for kind: int in SpecialTable.TrialKind.values():
+		var key := SpecialTable.get_trial_title_key(kind)
+		assert_true(DungeonTexts.has_text(key), "%s has German" % key)
+		assert_eq(SpecialTable.get_trial_name(kind), DungeonTexts.t(key))
+		assert_ne(SpecialTable.get_trial_name(kind), String(key), "%s is translated" % key)
+	assert_eq(RoomSequence.get_special_name(RoomSequence.SpecialType.TRIAL), SpecialTable.get_type_name(SpecialTable.TRIAL))

@@ -76,6 +76,25 @@ static func clear_cache() -> void:
 	_cache.clear()
 
 
+## Every door style a room of biome_id can show: its own gate in an arch or a cave mouth, plain or
+## in the soft palette, the arena's portcullis, and the boss gate.
+static func styles_of(biome_id: StringName) -> Array[DoorStyle]:
+	var styles: Array[DoorStyle] = [DoorStyle.for_door(biome_id, DoorStyle.KIND_BOSS)]
+	for cave: bool in [false, true]:
+		for soft: bool in [false, true]:
+			for arena: bool in [false, true]:
+				var style := DoorStyle.for_door(biome_id)
+				style.apply_room_look(cave, soft, arena)
+				styles.append(style)
+	return styles
+
+
+## The signs over the doors (special rooms, branches), built ahead.
+static func warm_symbols() -> void:
+	for symbol_id: StringName in DoorStyle.SYMBOLS + DoorStyle.BRANCH_SYMBOLS:
+		get_symbol(symbol_id)
+
+
 ## True when the delivered file for this style's frame exists.
 static func has_frame_file(style: DoorStyle) -> bool:
 	return _file_exists(_art_path(style.get_frame_path()))
@@ -100,16 +119,39 @@ static func has_symbol_file(symbol_id: StringName) -> bool:
 static func get_frame(style: DoorStyle) -> Texture2D:
 	var key := "frame_%s" % style.get_key()
 	if not _cache.has(key):
-		var file := _load_file(_art_path(style.get_frame_path()))
+		var path := _art_path(style.get_frame_path())
+		var file := _load_file(path)
 		if file == null and style.soft:
-			file = _load_file(_art_path(style.get_frame_path().replace(DoorStyle.SOFT_SUFFIX, "")))
+			path = _art_path(style.get_frame_path().replace(DoorStyle.SOFT_SUFFIX, ""))
+			file = _load_file(path)
+		# Styles that differ only in their gate (an arena's portcullis) share the frame of one file.
+		var shared := "frame_of_%s_%s_%s" % [path, style.is_cave(), style.is_boss()] if file != null else ""
+		if shared != "" and _cache.has(shared):
+			var built: Array = _cache[shared]
+			_cache[key] = built[0]
+			_cache["frame_image_%s" % style.get_key()] = built[1]
+			return _cache[key]
 		var image := open_passage(file.get_image()) if file != null else paint_frame(style)
 		# Old mouths are a rock block with the arch in it: only the arch stays. The V9 soft mouths are
 		# the arch band alone already (transparent corners).
 		if style.is_cave() and not style.is_boss() and image.get_pixel(0, 0).a > 0.5:
 			image = arch_band(image, CAVE_ARCH_BAND)
+		if image.is_compressed():
+			image.decompress()
+		image.convert(Image.FORMAT_RGBA8)
 		_cache[key] = ImageTexture.create_from_image(image)
+		_cache["frame_image_%s" % style.get_key()] = image
+		if shared != "":
+			_cache[shared] = [_cache[key], image]
 	return _cache[key]
+
+
+## The frame of get_frame() as an image (RGBA8), kept from building it: get_image() on the texture
+## reads it back from the GPU, a stall every time a gate is built (feedback 16.10.2026). Shared: read
+## it, do not change it.
+static func frame_image(style: DoorStyle) -> Image:
+	get_frame(style)
+	return _cache["frame_image_%s" % style.get_key()]
 
 
 ## A cave mouth keeps only its arch: the rim around the passage, this many px wide; the flat rock
@@ -241,14 +283,12 @@ static func get_side_notch() -> Texture2D:
 ## off below it). A row with the arch on one side only (a pillar foot left out, a shadow row) takes
 ## the missing side from the nearest row that has both; rows without any arch stay outside. Cached.
 static func passage_mask(style: DoorStyle) -> Dictionary[Vector2i, bool]:
-	var key := "passage_%s" % style.get_key()
+	# Per frame picture: styles sharing a frame (get_frame) share its opening.
+	var frame := frame_image(style)
+	var key := "passage_%d" % frame.get_instance_id()
 	if _cache.has(key):
 		return _cache[key]
 	var mask: Dictionary[Vector2i, bool] = {}
-	var frame := get_frame(style).get_image()
-	if frame.is_compressed():
-		frame.decompress()
-	frame.convert(Image.FORMAT_RGBA8)
 	var size := frame.get_size()
 	var start := Vector2i(size.x / 2, size.y - 1)
 	if frame.get_pixelv(start).a <= 0.05:
@@ -357,9 +397,7 @@ static func get_delivered_shade(style: DoorStyle) -> Image:
 static func frame_top_row(style: DoorStyle) -> int:
 	var key := "top_row_%s" % style.get_key()
 	if not _cache.has(key):
-		var image := get_frame(style).get_image()
-		if image.is_compressed():
-			image.decompress()
+		var image := frame_image(style)
 		var row := 0
 		var found := false
 		while row < image.get_height() and not found:
@@ -458,10 +496,7 @@ static func frame_top_image(style: DoorStyle) -> Image:
 	var rows := style.leaf_offset.y
 	if rows <= 0:
 		return null
-	var frame := get_frame(style).get_image()
-	if frame.is_compressed():
-		frame.decompress()
-	frame.convert(Image.FORMAT_RGBA8)
+	var frame := frame_image(style)
 	return frame.get_region(Rect2i(0, 0, frame.get_width(), rows))
 
 
@@ -679,7 +714,11 @@ static func get_leaf_strip(style: DoorStyle) -> Texture2D:
 	if not _cache.has(key):
 		var file := _load_file(_art_path(style.get_leaf_path()))
 		if file != null and style.is_gate():
-			_cache[key] = ImageTexture.create_from_image(open_gate_strip(file.get_image()))
+			# One opened strip per gate file, whatever biome or frame shows it.
+			var shared := "leaf_of_%s" % _art_path(style.get_leaf_path())
+			if not _cache.has(shared):
+				_cache[shared] = ImageTexture.create_from_image(open_gate_strip(file.get_image()))
+			_cache[key] = _cache[shared]
 		else:
 			_cache[key] = file if file != null else ImageTexture.create_from_image(paint_leaf_strip(style))
 	return _cache[key]
@@ -693,7 +732,7 @@ static func get_glow(style: DoorStyle) -> Texture2D:
 	if not _cache.has(key):
 		var image: Image
 		if has_frame_file(style):
-			image = glow_from_frame(get_frame(style).get_image(), style)
+			image = glow_from_frame(frame_image(style), style)
 		else:
 			image = paint_glow(style)
 		_cache[key] = ImageTexture.create_from_image(image) if image != null and not image.is_invisible() else null

@@ -1,8 +1,8 @@
 class_name BossIntroRules
 extends RefCounted
 ## Pure rules of the boss intro (BossIntro, BI1/D-098): which lines a boss says, when every letter
-## appears, where a syllable starts and which babble sound it gets. The text is readable German,
-## only the voice is babble (Animal Crossing / Undertale principle). Two kinds of intro:
+## appears, where a syllable starts and which babble sound it gets. The text is readable (English or
+## German, translated from the keys in EnemyData), only the voice is babble (Animal Crossing / Undertale principle). Two kinds of intro:
 ## - story (first encounter per save, EnemyData.intro_story): all lines, longer hold per line, the
 ##   player can page through it (tap) or skip it as a whole (hold);
 ## - short (every later encounter, EnemyData.intro_lines): one variant of 1-2 lines.
@@ -183,9 +183,15 @@ static func is_punctuation(character: String) -> bool:
 	return not character.is_empty() and PUNCTUATION.contains(character)
 
 
+## Non-empty entries, translated: EnemyData holds keys (BOSS_<ID>_STORY_<n>, BOSS_<ID>_RETURN_<x>,
+## D-111) whose text may contain LINE_SEPARATOR, so translation comes before splitting. Plain text
+## (tests, unmigrated data) comes back unchanged.
 static func _clean(lines: PackedStringArray) -> PackedStringArray:
 	var result := PackedStringArray()
 	for line in lines:
-		if not line.strip_edges().is_empty():
-			result.append(line.strip_edges())
+		var text := line.strip_edges()
+		if not text.is_empty():
+			text = Loc.t(StringName(text)).strip_edges()
+		if not text.is_empty():
+			result.append(text)
 	return result

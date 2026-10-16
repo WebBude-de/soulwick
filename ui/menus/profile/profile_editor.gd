@@ -8,6 +8,8 @@ extends VBoxContainer
 ## row, Enter saves, Esc goes back (not on the first start). Mouse and touch: arrows, swatches and
 ## buttons are tap targets; the name field opens the on-screen keyboard. Keys come through
 ## handle_input() from the dialog around it (MenuPanel, Modal.input_handler, OnlineMenu).
+## Gamepad (P0-2 step 2): D-pad/stick like the arrows (also out of the name field), A like Enter
+## (in the name field too: on the first start an empty name becomes the default name), B like Esc.
 ## Saving (commit): the profile is written at once; with a live login the change goes to the server
 ## (OnlineSession.push_profile, PATCH /me). A refused name change ("Namen kannst du in 5 h wieder
 ## ändern") is shown here and the editor stays open; everything else emits saved.
@@ -264,11 +266,13 @@ func handle_input(event: InputEvent) -> bool:
 func _input(event: InputEvent) -> void:
 	if _name_edit == null or not _name_edit.has_focus() or not is_visible_in_tree():
 		return
-	if event.is_action_pressed(&"ui_up", true) or event.is_action_pressed(&"ui_down", true):
+	# Arrows, D-pad and stick only (W/A/S/D are letters of the name here).
+	var direction := MenuInput.direction(event, false)
+	if direction == Vector2i.UP or direction == Vector2i.DOWN:
 		get_viewport().set_input_as_handled()
-		_set_row(Row.CONFIRM if event.is_action_pressed(&"ui_up", true) else Row.FIGURE)
+		_set_row(Row.CONFIRM if direction == Vector2i.UP else Row.FIGURE)
 		UiSound.hover(self)
-	elif MenuInput.is_enter(event):
+	elif MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm()
 	elif MenuInput.is_back(event):

@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_data")
 id = &"mini_slime"
-display_name = "Mini-Schleim"
+display_name = "ENEMY_MINI_SLIME_NAME"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"swarm"])
 max_health = 4.0

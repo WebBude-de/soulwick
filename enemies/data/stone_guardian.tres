@@ -5,11 +5,11 @@
 [resource]
 script = ExtResource("1_data")
 id = &"stone_guardian"
-display_name = "Steinwächter"
+display_name = "ENEMY_STONE_GUARDIAN_NAME"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"heavy", &"stone"])
 min_room = 6
-hint = "Steinwächter: Im Dunkeln aus Stein und unverwundbar, im Licht erstarrt und verwundbar. Weiche seinem Sprung (gelber Kreis) aus."
+hint = "ENEMY_STONE_GUARDIAN_HINT"
 max_health = 48.0
 damage = 1.0
 move_speed = 140.0

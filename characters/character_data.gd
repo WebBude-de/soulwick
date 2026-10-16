@@ -42,7 +42,7 @@ const STRIP_FRAME := Vector2i(32, 32)
 @export var base_color := Color("#3690da")
 @export var default_color := Color("#3690da")
 ## Clothing colours offered in the wardrobe at home (TESTWERT: HANDOUT P1-P4 plus two palette
-## colours) and their German names (same order).
+## colours) and their names as translation keys (same order, LOOK_OUTFIT_<n>).
 @export var color_choices := PackedColorArray()
 @export var color_names := PackedStringArray()
 ## Weapon the figure holds in the main menu scene (look only), pivot = grip in texture pixels.
@@ -137,9 +137,10 @@ func get_mask(animation: StringName) -> Texture2D:
 	return tint_masks.get(animation, null)
 
 
-## German name of a colour choice ("Blau"), empty if unnamed.
+## Name of a colour choice in the current language ("Blue"), empty if unnamed. color_names holds
+## translation keys (LOOK_OUTFIT_<n>, D-111).
 func get_color_name(index: int) -> String:
-	return color_names[index] if index >= 0 and index < color_names.size() else ""
+	return Loc.t(StringName(color_names[index])) if index >= 0 and index < color_names.size() else ""
 
 
 ## Index of color in color_choices (nearest match), 0 if the list is empty.

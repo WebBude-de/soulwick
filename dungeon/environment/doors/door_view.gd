@@ -52,9 +52,15 @@ const LINTEL_UNDER_ALPHA := 1.0
 const LINTEL_FADE_SPEED := 4.0
 ## Tools may switch the see-through off (1.0) to compare.
 static var lintel_under_alpha := LINTEL_UNDER_ALPHA
-## Tile sheets as images (cut pieces, _sheet_image), per texture RID; a few biomes' worth at most.
-const SHEET_CACHE_MAX := 8
+## Tile sheets as images (cut pieces and the floor in the opening, _sheet_image), per texture RID: the
+## ground, wall and rock sheets of all four biomes fit, so it is not cleared on every biome change.
+const SHEET_CACHE_MAX := 24
 static var _sheets: Dictionary = {}
+## Textures made from door images (the opening sprites over the passage, cut cover pieces) by key:
+## the gate of a style is built again in every room, the images and their upload once (feedback
+## 16.10.2026, hitch on entering a room). A null entry: nothing to draw.
+const TEXTURE_CACHE_MAX := 256
+static var _textures: Dictionary = {}
 ## The first share of the light cone fades in from its start edge (no hard edge at the door, 31.png).
 const CONE_FADE_IN := 0.45
 ## Glow strengths (alpha of the additive overlay). Kept low for long sessions. TESTWERTE.
@@ -494,13 +500,18 @@ func _cover_sprite(entry: Dictionary, door_cell: Vector2i, cut_opening := false)
 ## (DoorArt.cut_opening). False if a cut piece does not reach into the opening.
 func _set_piece_texture(sprite: Sprite2D, source: TileSetAtlasSource, region: Rect2, cut_opening: bool, piece_pos: Vector2, piece_scale: float) -> bool:
 	if cut_opening:
-		var sheet := _sheet_image(source.texture)
-		if sheet == null or style == null:
+		if style == null:
 			return false
-		var cut := DoorArt.cut_opening(sheet.get_region(Rect2i(region)), style, piece_pos, piece_scale, PIXEL_SCALE)
-		if int(cut["cut"]) == 0:
+		var key := "cut|%d|%s|%s|%s|%s" % [source.texture.get_rid().get_id(), region, style.get_key(), piece_pos, piece_scale]
+		var texture := _cached_texture(key, func() -> Image:
+			var sheet := _sheet_image(source.texture)
+			if sheet == null:
+				return null
+			var cut := DoorArt.cut_opening(sheet.get_region(Rect2i(region)), style, piece_pos, piece_scale, PIXEL_SCALE)
+			return cut["image"] if int(cut["cut"]) > 0 else null)
+		if texture == null:
 			return false
-		sprite.texture = ImageTexture.create_from_image(cut["image"])
+		sprite.texture = texture
 		return true
 	# The region of the sheet, clipped at its edges: no seam of the neighbouring piece between two
 	# cover tiles at any zoom.
@@ -521,43 +532,128 @@ func _build_frame_top() -> void:
 	# The dark of the tunnel over the crown above the cover, under the top of the frame (the delivered
 	# inner shadow of V9 or the opening's own); its part over the door tile on the floor, under the
 	# gate and the players.
-	var delivered := DoorArt.get_delivered_shade(style)
-	var top_shade := DoorArt.opening_top_image(style)
+	var top_shade := _top_shade_texture(style)
 	if top_shade != null:
 		_shade_top = _opening_sprite("ShadeTop", top_shade, LINTEL_Z + 1)
-	var image := DoorArt.frame_top_image(style)
-	if image != null:
-		var top := _opening_sprite("FrameTop", image, LINTEL_Z + 1)
+	var top_texture := _frame_top_texture(style)
+	if top_texture != null:
+		var top := _opening_sprite("FrameTop", top_texture, LINTEL_Z + 1)
 		top.modulate = _frame.modulate
 	# Everything seen in the opening is cut to the arch (44.png): the floor where the arch is wider
 	# than the door tile, the soft dark at its top, the shade that hides a player in the arch.
 	var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles
-	var floor_image := _door_floor_image(Vector2i.ZERO)
-	if floor_image != null:
-		var opening_floor := _opening_sprite("OpeningFloor", DoorArt.opening_floor_image(style, floor_image), OPENING_FLOOR_Z)
+	var floor_texture := _opening_floor_texture(false)
+	if floor_texture != null:
+		var opening_floor := _opening_sprite("OpeningFloor", floor_texture, OPENING_FLOOR_Z)
 		opening_floor.material = tiles.material
 		opening_floor.modulate = tiles.modulate
 		# The floor of the second biome where the room blends into it (campfire).
-		var blend_floor := _door_floor_image(Vector2i.ZERO, true)
-		if blend_floor != null:
+		var blend_texture := _opening_floor_texture(true)
+		if blend_texture != null:
 			var twin := Sprite2D.new()
 			twin.name = "Blend"
-			twin.texture = ImageTexture.create_from_image(DoorArt.opening_floor_image(style, blend_floor))
+			twin.texture = blend_texture
 			twin.centered = false
 			twin.material = tiles.get_blend_layer().material
 			twin.modulate = tiles.get_blend_layer().modulate
 			opening_floor.add_child(twin)
-	if delivered != null:
-		_opening_sprite("ShadeFloor", DoorArt.rows_of(delivered, style.leaf_offset.y, delivered.get_height()), OPENING_FLOOR_Z)
+	if DoorArt.get_delivered_shade(style) != null:
+		_opening_sprite("ShadeFloor", _floor_shade_texture(style), OPENING_FLOOR_Z)
 	else:
-		_opening_sprite("TunnelFade", DoorArt.tunnel_fade_image(style), 0)
+		_opening_sprite("TunnelFade", _floor_shade_texture(style), 0)
+
+
+## Door pictures of a biome built ahead (every style of DoorArt.styles_of, the signs, the light
+## cone): no gate builds them while its room is prepared (feedback 16.10.2026).
+static func warm_up(biome_id: StringName) -> void:
+	for style in DoorArt.styles_of(biome_id):
+		warm_style(style)
+	DoorArt.warm_symbols()
+	_cone_texture()
+
+
+## The pictures of one door style (frame, gates, glow, opening, mouth deco) and its opening sprites,
+## built ahead.
+static func warm_style(style: DoorStyle) -> void:
+	for step in warm_steps(style):
+		step.call()
+
+
+## warm_style in small steps (one picture each, a few ms), for the DungeonManager's idle frames.
+static func warm_steps(style: DoorStyle) -> Array[Callable]:
+	var steps: Array[Callable] = []
+	steps.append(func() -> void: DoorArt.get_frame(style))
+	steps.append(func() -> void: DoorArt.get_leaf_strip(style))
+	steps.append(func() -> void: DoorArt.get_side_leaf_strip(style))
+	steps.append(func() -> void: DoorArt.get_glow(style))
+	steps.append(func() -> void: DoorArt.passage_mask(style))
+	steps.append(func() -> void: DoorArt.frame_top_row(style))
+	for cell: StringName in DoorArt.OVERLAY_CELLS:
+		steps.append(func() -> void: DoorArt.get_overlay(style.biome_id, style.soft, cell))
+	steps.append(func() -> void: _top_shade_texture(style))
+	steps.append(func() -> void: _frame_top_texture(style))
+	steps.append(func() -> void: _floor_shade_texture(style))
+	return steps
+
+
+## The dark of the tunnel above the door tile (DoorArt.opening_top_image), null for none.
+static func _top_shade_texture(style: DoorStyle) -> Texture2D:
+	return _cached_texture("shade_top|" + style.get_key(), func() -> Image: return DoorArt.opening_top_image(style))
+
+
+## The frame above the door tile (DoorArt.frame_top_image), null for none.
+static func _frame_top_texture(style: DoorStyle) -> Texture2D:
+	return _cached_texture("frame_top|" + style.get_key(), func() -> Image: return DoorArt.frame_top_image(style))
+
+
+## The dark in the opening over the door tile: the delivered inner shadow's lower rows, else the
+## fade of the tunnel (DoorArt.tunnel_fade_image).
+static func _floor_shade_texture(style: DoorStyle) -> Texture2D:
+	var delivered := DoorArt.get_delivered_shade(style)
+	if delivered != null:
+		return _cached_texture("shade_floor|" + style.get_key(),
+				func() -> Image: return DoorArt.rows_of(delivered, style.leaf_offset.y, delivered.get_height()))
+	return _cached_texture("tunnel_fade|" + style.get_key(), func() -> Image: return DoorArt.tunnel_fade_image(style))
+
+
+## The light cone of a way (DoorArt.soft_cone of door_glow.png), null without the art.
+static func _cone_texture() -> Texture2D:
+	var raw := load(CONE_PATH) as Texture2D if ResourceLoader.exists(CONE_PATH) else null
+	if raw == null:
+		return null
+	# At its base the cone is as wide as the opening (one tile), its sides fade out (L1, 15.10.2026).
+	var base_share := TILE / (PIXEL_SCALE * CONE_SCALE * raw.get_width())
+	return DoorArt.soft_cone(raw, CONE_FADE_IN, base_share)
+
+
+## The door tile's floor seen through the opening (DoorArt.opening_floor_image), per style and floor
+## piece; null without a floor there.
+func _opening_floor_texture(blend: bool) -> Texture2D:
+	var floor_source := _door_floor_source(Vector2i.ZERO, blend)
+	if floor_source.is_empty():
+		return null
+	var texture: Texture2D = floor_source[0]
+	var region: Rect2i = floor_source[1]
+	return _cached_texture("floor|%s|%d|%s" % [style.get_key(), texture.get_rid().get_id(), region], func() -> Image:
+		var sheet := _sheet_image(texture)
+		return DoorArt.opening_floor_image(style, sheet.get_region(region)) if sheet != null else null)
+
+
+## Texture of the image build makes (Callable() -> Image, null = nothing), made once per key.
+static func _cached_texture(key: String, build: Callable) -> Texture2D:
+	if not _textures.has(key):
+		if _textures.size() >= TEXTURE_CACHE_MAX:
+			_textures.clear()
+		var image: Image = build.call()
+		_textures[key] = ImageTexture.create_from_image(image) if image != null and not image.is_empty() else null
+	return _textures[key]
 
 
 ## A frame-sized sprite on the frame's place (art px at the pixel scale).
-func _opening_sprite(node_name: String, image: Image, z: int) -> Sprite2D:
+func _opening_sprite(node_name: String, texture: Texture2D, z: int) -> Sprite2D:
 	var sprite := Sprite2D.new()
 	sprite.name = node_name
-	sprite.texture = ImageTexture.create_from_image(image)
+	sprite.texture = texture
 	sprite.centered = false
 	sprite.scale = Vector2.ONE * PIXEL_SCALE
 	sprite.position = -Vector2(style.leaf_offset) * PIXEL_SCALE
@@ -567,31 +663,26 @@ func _opening_sprite(node_name: String, image: Image, z: int) -> Sprite2D:
 	return sprite
 
 
-## The floor tile the door's room paints on the door tile (plus offset tiles; art px), null without one.
-## blend: the same tile in the room's second biome (biome blend), null without a blend.
-func _door_floor_image(offset: Vector2i, blend := false) -> Image:
+## Sheet and region of the floor tile the door's room paints on the door tile (plus offset tiles; art
+## px), empty without one. blend: the same tile in the room's second biome (biome blend).
+func _door_floor_source(offset: Vector2i, blend := false) -> Array:
 	var tiles := _lintel_rooms[0].get_node_or_null("Tiles") as RoomTiles if not _lintel_rooms.is_empty() and is_instance_valid(_lintel_rooms[0]) else null
 	if tiles == null or tiles.tile_set == null:
-		return null
+		return []
 	var tile_set := tiles.tile_set
 	if blend:
 		if not tiles.has_biome_blend() or tiles.get_blend_layer().tile_set == null:
-			return null
+			return []
 		tile_set = tiles.get_blend_layer().tile_set
 	var cell := tiles.local_to_map(tiles.to_local(global_position + Vector2.ONE * TILE * 0.5)) + offset
 	var source_id := tiles.get_cell_source_id(cell)
 	if source_id == -1 or not tile_set.has_source(source_id):
-		return null
+		return []
 	var source := tile_set.get_source(source_id) as TileSetAtlasSource
 	if source == null or source.texture == null:
-		return null
-	var sheet := source.texture.get_image()
-	if sheet == null:
-		return null
-	if sheet.is_compressed():
-		sheet.decompress()
-	sheet.convert(Image.FORMAT_RGBA8)
-	return sheet.get_region(source.get_tile_texture_region(tiles.get_cell_atlas_coords(cell)))
+		return []
+	# The sheet comes from _sheet_image (cached): get_image() reads the whole atlas back from the GPU.
+	return [source.texture, source.get_tile_texture_region(tiles.get_cell_atlas_coords(cell))]
 
 
 func _update_lintel(delta: float) -> void:
@@ -1146,10 +1237,7 @@ func _build_way_light() -> void:
 	var inward := get_inward()
 	# Inner edge of the door tile, in the middle of the opening.
 	var edge := Vector2(TILE * 0.5, TILE * 0.5) + inward * TILE * 0.5
-	var raw := load(CONE_PATH) as Texture2D if ResourceLoader.exists(CONE_PATH) else null
-	# At its base the cone is as wide as the opening (one tile), its sides fade out (L1, 15.10.2026).
-	var base_share := TILE / (PIXEL_SCALE * CONE_SCALE * raw.get_width()) if raw != null else 1.0
-	var texture := DoorArt.soft_cone(raw, CONE_FADE_IN, base_share) if raw != null else null
+	var texture := _cone_texture()
 	if texture != null:
 		_cone = Sprite2D.new()
 		_cone.name = "Cone"

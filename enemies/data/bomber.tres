@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1_data")
 id = &"bomber"
-display_name = "Bomber"
+display_name = "ENEMY_BOMBER_NAME"
 attack_kind = 0
 tags = Array[StringName]([&"melee", &"explosive"])
 max_health = 7.0
@@ -26,5 +26,5 @@ body_radius = 12.0
 placeholder_color = Color(1, 0.5, 0.15, 1)
 light_radius = 45.0
 min_room = 6
-hint = "Bomber: Rennt auf dich zu und explodiert. Halte Abstand, wenn er blinkt!"
+hint = "ENEMY_BOMBER_HINT"
 sprite_frames = ExtResource("2_frames")

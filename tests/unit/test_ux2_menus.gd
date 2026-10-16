@@ -300,9 +300,9 @@ func test_every_used_key_has_a_german_text() -> void:
 
 
 func test_copied_texts_match_their_sources() -> void:
-	assert_eq(DungeonTexts.DE[&"ROOM_TRIAL_GAUNTLET_INTRO"], TrialContent.get_intro_text(SpecialTable.TrialKind.GAUNTLET))
-	assert_eq(DungeonTexts.DE[&"ROOM_TRIAL_LIGHT_RUN_INTRO"], TrialContent.get_intro_text(SpecialTable.TrialKind.LIGHT_RUN))
-	assert_eq(DungeonTexts.DE[&"ROOM_PACT_INTRO"], ALTAR_SCRIPT.PACT_INTRO_TEXT)
+	assert_eq(TrialContent.get_intro_key(SpecialTable.TrialKind.GAUNTLET), &"ROOM_TRIAL_GAUNTLET_INTRO")
+	assert_eq(TrialContent.get_intro_key(SpecialTable.TrialKind.LIGHT_RUN), &"ROOM_TRIAL_LIGHT_RUN_INTRO")
+	assert_eq(ALTAR_SCRIPT.PACT_INTRO_KEY, &"ROOM_PACT_INTRO")
 	for key: StringName in [WaveRules.ARENA_TITLE, WaveRules.ARENA_INTRO_TEXT]:
 		assert_true(DungeonTexts.has_text(key), "A5 key %s has a German text" % key)
 

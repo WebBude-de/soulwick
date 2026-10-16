@@ -121,6 +121,37 @@ static func victory_track(biome: BiomeData) -> String:
 	return biome.victory_track
 
 
+## Files a biome plays, for preloading (existing files only, no duplicates). The entry comes
+## first (transition stinger, ambient bed, biome loop); with everything = true also the champion
+## version, both boss phases and the victory stinger.
+static func biome_files(biome: BiomeData, everything := true) -> Array[String]:
+	var files: Array[String] = []
+	_add_file(files, transition_track(biome), MUSIC_DIR)
+	_add_file(files, ambient_track(biome), AMBIENT_DIR)
+	_add_file(files, dungeon_track(biome, RoomSequence.RoomType.COMBAT), MUSIC_DIR)
+	if everything:
+		_add_file(files, dungeon_track(biome, RoomSequence.RoomType.MINIBOSS), MUSIC_DIR)
+		_add_file(files, boss_track(biome, 1), MUSIC_DIR)
+		_add_file(files, boss_track(biome, 2), MUSIC_DIR)
+		_add_file(files, victory_track(biome), MUSIC_DIR)
+	return files
+
+
+## Biome of the first room after room_index that lies in another biome (null if none).
+static func next_biome_after(room_index: int) -> BiomeData:
+	var current := RoomSequence.get_biome(maxi(1, room_index))
+	for offset in range(1, RoomSequence.BOSS_INTERVAL + 2):
+		if RoomSequence.get_biome(maxi(1, room_index) + offset) != current:
+			return biome_for_room(maxi(1, room_index) + offset)
+	return null
+
+
+static func _add_file(files: Array[String], track: String, dir: String) -> void:
+	var path := find_file(track, dir)
+	if not path.is_empty() and not files.has(path):
+		files.append(path)
+
+
 ## Seconds after a transition stinger starts at which the loop comes in (end of its last bar).
 static func stinger_entry_time(stinger_length: float) -> float:
 	return maxf(0.0, stinger_length - STINGER_TAIL)

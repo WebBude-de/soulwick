@@ -166,7 +166,8 @@ static func get_subtitle(genre: StringName, room: RoomController = null) -> Stri
 	if genre == CAMPFIRE:
 		var next: BiomeData = room.get_next_biome() if room != null and is_instance_valid(room) else null
 		if next != null:
-			return DungeonTexts.t(&"ROOM_CAMPFIRE_SUB", [next.display_name])
+			# display_name is a translation key (i18n round 3).
+			return DungeonTexts.t(&"ROOM_CAMPFIRE_SUB", [Loc.t(StringName(next.display_name))])
 		return DungeonTexts.t(&"ROOM_CAMPFIRE_SUB_PLAIN")
 	if get_group(genre) == Group.TRIAL:
 		return DungeonTexts.t(&"ROOM_TRIAL_SUB")

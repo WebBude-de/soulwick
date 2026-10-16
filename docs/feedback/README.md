@@ -59,6 +59,20 @@ python tools/collect_feedback.py --group location    # nach Ort statt nach Kateg
 
 Das schreibt `docs/feedback/FEEDBACK_<Datum>.md` und kopiert die Bilder nach `docs/feedback/<Datum>/`. Diese Dateien bleiben lokal (gitignored, nur diese Anleitung ist versioniert). Danach Claude sagen: „Werte `docs/feedback/FEEDBACK_<Datum>.md` aus und mach den Grafik-Rework.“
 
+## Run-Protokolle auswerten (D-165)
+
+Jeder Run schreibt ein Protokoll nach `user://runs/` (JSONL, die letzten 50 Runs; nur Spieldaten): Kopf mit Version, Modus, Waffe und Seed, je Raum Art, Biom, Dauer, Schaden und Gold, am Ende Grund, Ursache und Upgrades. Fehlt die `end`-Zeile, ist das Spiel abgestürzt.
+
+```bat
+python tools/collect_feedback.py --runs                      # -> docs/feedback/RUNS_<Datum>.md
+python tools/collect_feedback.py --runs --since 2026-10-17   # nur neuere Runs
+python tools/collect_feedback.py --runs --src <ordner>       # Protokolle eines Mitspielers
+```
+
+Die Übersicht zeigt Endgründe und End-Raum, die häufigsten Todesursachen, Zeit, Schaden und Gold je Biom und Raumart und den End-Raum je Startwaffe. Für einen Dev-Test: Mitspieler schicken ihren Ordner `%APPDATA%/Godot/app_userdata/Soulwick/runs/`.
+
+Bug-Meldungen (F9) enthalten seit D-159 unter `context.network` Bildrate, längsten Hänger des Hauptthreads und online Ping, Datenmenge und den letzten Trennungsgrund.
+
 ## Meldungen auswerten (alle Spieler, Server)
 
 Eine Admin-Oberfläche dafür gibt es nicht: Claude holt die Meldungen aller Spieler über die Admin-API und wertet sie aus (labeln, verbessern).

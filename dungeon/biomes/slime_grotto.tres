@@ -13,7 +13,7 @@
 [resource]
 script = ExtResource("1_biome")
 id = &"slime_grotto"
-display_name = "Schleimgrotte"
+display_name = "BIOME_SLIME_GROTTO"
 tile_tint = Color(0.72, 1, 0.75, 1)
 darkness_color = Color(0.005, 0.03, 0.015, 1)
 vision_factor = 1.0

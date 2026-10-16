@@ -12,9 +12,22 @@ extends CanvasLayer
 ## Locked forge upgrades (MetaUnlocks) are not shown; one line with a lock says when more open.
 ## Short non-blocking notices (show_notice): "Neu freigeschaltet" and "Öffnet nach …" at locked doors.
 ## Texts come from localization/translations.csv (D-111) and are resolved when a dialog is built.
+## P1-2 (first visit of a world, VillageGuide decides when): the opening words of a villager
+## (show_opening: a card at the top that never pauses or blocks walking; Enter, a click or
+## OPENING_TIME close it) and the goal line top left ("Steig in den Dungeon hinab", show_goal)
+## until the first run.
+## P1-3 "Was kann ich mir leisten?": affordable forge levels and Proviant get a gold card and a
+## "Leistbar" tag, the others say what is missing ("Noch 28 Gold"). show_goal takes an icon (the
+## forge goal of Village). Gamepad (P1-3): the building dialogs move a visible focus with the D-pad
+## or stick, A presses, B closes (Modal, ui_cancel); keyboard arrows do the same. The focus starts on
+## the first affordable entry when the gamepad is in use, otherwise with the first arrow key.
+
+signal opening_closed
 
 const PAUSE_VILLAGE_DIALOG: StringName = &"village_dialog"
 const PAUSE_VILLAGE_INTRO: StringName = &"village_intro"
+## P1-3: what the village marks as affordable (preloaded: works before the class cache knows it).
+const AffordableScript := preload("res://world/village/village_affordable.gd")
 const CARD_WIDTH := 240.0
 const INTRO_TEXT_WIDTH := 440.0
 const NPC_PORTRAIT_SCALE := 3.0
@@ -30,6 +43,21 @@ const NOTICE_TIME := 4.0
 const NOTICE_FADE := 0.4
 const NOTICE_TOP := 104.0
 const NOTICE_TEXT_WIDTH := 520.0
+const LADDER_ICON: Texture2D = preload("res://art/ui/symbol_ladder.png")
+## TESTWERT: the opening card stays this long (s) unless closed earlier; it sits at the top centre
+## below the goal line (the player starts at the bottom of the village), text width in px.
+const OPENING_TIME := 20.0
+const OPENING_TOP := 72.0
+const OPENING_TEXT_WIDTH := 470.0
+const OPENING_PORTRAIT_SCALE := 2.0
+## Goal line at the top left (px; the village HUD has its currencies top right, records bottom left).
+const GOAL_MARGIN := Vector2(16, 16)
+## P1-3: affordable cards and the gamepad focus frame (px).
+const AFFORDABLE_COLOR := UiKit.COLOR_GOLD
+const MISSING_COLOR := UiKit.COLOR_DANGER_SOFT
+const FOCUS_BORDER := 3
+## The colour of the focused button text and its frame.
+const FOCUS_COLOR := Color("#fff1a8")
 const UPGRADE_ICONS := {
 	MetaProgression.VITALITY: preload("res://art/ui/meta_vitality.png"),
 	MetaProgression.START_SHIELD: preload("res://art/ui/meta_shield.png"),
@@ -70,6 +98,9 @@ var _notice_root: Control = null
 var _notice: Control = null
 ## The online menu of the open guild dialog (null otherwise).
 var _online_menu: OnlineMenu = null
+## P1-2: opening card and goal line (null while not shown).
+var _opening: Control = null
+var _goal: Control = null
 
 
 func _ready() -> void:
@@ -88,6 +119,14 @@ func _unhandled_input(event: InputEvent) -> void:
 	if _intro_modal != null and event.is_action_pressed(&"ui_accept"):
 		get_viewport().set_input_as_handled()
 		_intro_modal.finish()
+	elif get_opening() != null and not is_dialog_open() and (MenuInput.is_enter(event) or _is_pad_confirm(event)):
+		get_viewport().set_input_as_handled()
+		close_opening()
+
+
+## A or B of a gamepad (ui_accept / ui_cancel): closes the opening card like Enter.
+static func _is_pad_confirm(event: InputEvent) -> bool:
+	return event is InputEventJoypadButton and (event.is_action_pressed(&"ui_accept") or event.is_action_pressed(&"ui_cancel"))
 
 
 func is_dialog_open() -> bool:
@@ -133,6 +172,7 @@ func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
 			var pick := UiKit.button(MetaProgression.get_weapon_name(weapon_id), func() -> void:
 				MetaProgression.set_second_weapon(weapon_id)
 				refresh.call())
+			pick.name = "Weapon_%s" % weapon_id
 			pick.disabled = weapon_id == chosen
 			row.add_child(pick)
 		body.add_child(row)
@@ -155,9 +195,37 @@ func _forge_card(id: StringName, refresh: Callable) -> Control:
 		if MetaProgression.try_buy(id):
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
+	buy.name = "Buy_%s" % id
 	buy.disabled = not MetaProgression.can_buy(id)
+	_add_afford_line(box, buy, cost >= 0 and not buy.disabled, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD")
 	box.add_child(buy)
 	return box.get_parent()
+
+
+## P1-3: under an affordable entry a gold "Leistbar" and a gold card frame; under one that is not
+## yet "Noch N Gold" (key with the missing amount). Nothing for maxed or packed entries.
+func _add_afford_line(box: VBoxContainer, button: Button, affordable: bool, missing: int, missing_key: StringName) -> void:
+	var card := box.get_parent() as PanelContainer
+	if affordable:
+		if card != null:
+			card.add_theme_stylebox_override("panel", UiKit.panel_style(&"gold"))
+		var tag := UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
+		tag.name = "AffordableTag"
+		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(tag)
+		button.add_theme_color_override("font_color", AFFORDABLE_COLOR)
+	elif missing > 0:
+		var line := UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
+		line.name = "MissingLabel"
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(line)
+
+
+## Text with one number ("Noch %d Gold"); a key without its text yet (a new key before it is in
+## translations.csv) shows "KEY 28" instead of a formatting error.
+static func _amount_text(key: StringName, amount: int) -> String:
+	var text := Loc.t(key)
+	return text % amount if text.contains("%d") else "%s %d" % [text, amount]
 
 
 # --- Handelsposten ---
@@ -180,7 +248,11 @@ func _build_trader(body: VBoxContainer, refresh: Callable) -> void:
 			if MetaProgression.try_buy_boost(id):
 				Sfx.play_ui(self, &"coin")
 			refresh.call())
+		button.name = "Boost_%s" % id
 		button.disabled = not MetaProgression.can_buy_boost(id)
+		var missing := AffordableScript.crystals_missing(id)
+		_add_afford_line(box, button, not button.disabled, missing,
+			&"VILLAGE_UI_MISSING_CRYSTAL" if missing == 1 else &"VILLAGE_UI_MISSING_CRYSTALS")
 		box.add_child(button)
 		grid.add_child(box.get_parent())
 	body.add_child(UiKit.label(Loc.t(&"VILLAGE_TRADER_HINT_2"), 14, UiKit.MUTED_COLOR))
@@ -373,35 +445,143 @@ func show_intro(building_id: StringName) -> void:
 	confirm.name = "ConfirmButton"
 	confirm.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	modal.content.add_child(confirm)
+	# Gamepad: A (ui_accept) confirms in _unhandled_input; a focused button of the dialog below
+	# would take it first, so the focus waits until the explanation is closed.
+	var below := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	if below != null:
+		below.release_focus()
 	await modal.open(self)
 	_intro_modal = null
 	VillageBuildings.mark_intro_seen(building_id)
+	if below != null and is_instance_valid(below) and below.is_inside_tree():
+		below.grab_focus()
 
 
 ## The building's NPC, animated, in a dark frame (empty frame if the sprite is missing). Zuhause has
 ## no NPC: it shows the player's own character.
-func _npc_portrait(building_id: StringName) -> Control:
+func _npc_portrait(building_id: StringName, portrait_scale := NPC_PORTRAIT_SCALE) -> Control:
 	var frame := UiKit.panel(&"dark")
 	frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	if building_id == VillageBuildings.HOME:
-		var own := CharacterPreview.create(int(NPC_PORTRAIT_SCALE))
+		var own := CharacterPreview.create(int(portrait_scale))
 		own.name = "OwnPortrait"
 		frame.add_child(own)
 		own.set_look(PlayerProfile.current().look)
 		return frame
 	var holder := Control.new()
-	holder.custom_minimum_size = Vector2(32, 32) * NPC_PORTRAIT_SCALE
+	holder.custom_minimum_size = Vector2(32, 32) * portrait_scale
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.add_child(holder)
 	var frames := VillageBuildings.get_npc_frames(building_id)
 	if frames != null and frames.has_animation(&"idle"):
 		var sprite := AnimatedSprite2D.new()
 		sprite.sprite_frames = frames
-		sprite.scale = Vector2.ONE * NPC_PORTRAIT_SCALE
+		sprite.scale = Vector2.ONE * portrait_scale
 		sprite.position = holder.custom_minimum_size * 0.5
 		holder.add_child(sprite)
 		sprite.play(&"idle")
 	return frame
+
+
+# --- First visit (P1-2): opening words and the goal line ---
+
+## A villager's opening words: the NPC of speaker_building (portrait), its name and the lines. Never
+## pauses (no global pause, Koop); closed by Enter, a click or after OPENING_TIME, then opening_closed.
+func show_opening(speaker_building: StringName, speaker_name: String, lines: Array[String]) -> void:
+	close_opening(false)
+	var card := UiKit.panel(&"gold")
+	card.name = "Opening"
+	card.mouse_filter = Control.MOUSE_FILTER_STOP
+	var row := UiKit.hbox(14)
+	var portrait := _npc_portrait(speaker_building, OPENING_PORTRAIT_SCALE)
+	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(portrait)
+	var text := UiKit.vbox(4)
+	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var speaker := UiKit.label(speaker_name, 20, UiKit.ACCENT_COLOR)
+	speaker.name = "Speaker"
+	text.add_child(speaker)
+	for line in lines:
+		var label := UiKit.wrapped_label(line, OPENING_TEXT_WIDTH, 16)
+		label.add_to_group(&"village_opening_line")
+		text.add_child(label)
+	var hint := UiKit.label(Loc.t(&"VILLAGE_OPENING_CLOSE_PAD" if InputDevice.is_gamepad() else &"VILLAGE_OPENING_CLOSE"), 13, UiKit.MUTED_COLOR)
+	hint.name = "CloseHint"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	text.add_child(hint)
+	row.add_child(text)
+	card.add_child(row)
+	card.gui_input.connect(func(event: InputEvent) -> void:
+		var click := event as InputEventMouseButton
+		if (click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
+			card.accept_event()
+			close_opening())
+	_notice_root.add_child(card)
+	_opening = card
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.position.y = OPENING_TOP
+	card.modulate.a = 0.0
+	var tween := card.create_tween()
+	tween.tween_property(card, "modulate:a", 1.0, NOTICE_FADE)
+	tween.tween_interval(OPENING_TIME)
+	tween.tween_callback(close_opening)
+
+
+## Fades the opening card out (emit: announce it with opening_closed, e.g. to mark it as seen).
+func close_opening(emit := true) -> void:
+	var card := get_opening()
+	_opening = null
+	if card == null:
+		return
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var tween := card.create_tween()
+	tween.tween_property(card, "modulate:a", 0.0, NOTICE_FADE)
+	tween.tween_callback(card.queue_free)
+	if emit:
+		opening_closed.emit()
+
+
+## The opening card while it is up (null otherwise), for tests and tools.
+func get_opening() -> Control:
+	return _opening if _opening != null and is_instance_valid(_opening) and not _opening.is_queued_for_deletion() else null
+
+
+## The goal line at the top left: a symbol (the ladder to the dungeon by default), "Ziel" and the
+## text (a translation key stays live: the labels translate themselves). Replaces an older one.
+func show_goal(text: String, icon: Texture2D = LADDER_ICON) -> void:
+	hide_goal()
+	var card := UiKit.panel(&"dark")
+	card.name = "Goal"
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := UiKit.hbox(8)
+	var symbol := UiKit.icon(icon, 24.0)
+	symbol.name = "GoalIcon"
+	row.add_child(symbol)
+	var caption := UiKit.label("VILLAGE_GOAL_EYEBROW", 15, UiKit.MUTED_COLOR)
+	caption.uppercase = true
+	caption.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(caption)
+	var label := UiKit.label(text, 18, UiKit.ACCENT_COLOR)
+	label.name = "GoalText"
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(label)
+	card.add_child(row)
+	_notice_root.add_child(card)
+	_goal = card
+	card.position = GOAL_MARGIN
+	UiKit.pop_in(card)
+
+
+func hide_goal() -> void:
+	if _goal != null and is_instance_valid(_goal):
+		_goal.queue_free()
+	_goal = null
+
+
+## The goal line while shown (null otherwise), for tests and tools.
+func get_goal() -> Control:
+	return _goal if _goal != null and is_instance_valid(_goal) and not _goal.is_queued_for_deletion() else null
 
 
 # --- Notices (D-087: unlocks, locked doors) ---
@@ -497,10 +677,18 @@ func _open(building_id: StringName, build: Callable, skip_intro := false) -> voi
 	_body = UiKit.vbox(10)
 	modal.content.add_child(_body)
 	var close := UiKit.button(Loc.t(&"MENU_CLOSE"), modal.finish)
+	close.name = "CloseButton"
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	make_focusable(close)
 	modal.content.add_child(close)
 	_rebuild()
-	await modal.open(self)
+	# Guild and home set their own key handler (online menu, profile editor) while building.
+	if not modal.input_handler.is_valid():
+		modal.input_handler = _on_dialog_key
+	modal.show_on(self)
+	if modal.input_handler == _on_dialog_key and InputDevice.is_gamepad():
+		focus_default()
+	await modal.finished
 	_open_modal = null
 	_body = null
 	_currencies = null
@@ -516,7 +704,7 @@ func _title_row(building_id: StringName) -> Control:
 	info.name = "InfoButton"
 	info.icon = UiKit.upscale(INFO_ICON, 2)
 	info.flat = true
-	info.focus_mode = Control.FOCUS_NONE
+	make_focusable(info)
 	info.tooltip_text = Loc.t(&"VILLAGE_UI_SHOW_INTRO")
 	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	info.pressed.connect(func() -> void:
@@ -534,6 +722,9 @@ func _request_refresh() -> void:
 func _rebuild() -> void:
 	if not is_instance_valid(_body) or not is_instance_valid(_currencies):
 		return
+	# Gamepad: the focus stays on the same entry after a purchase (buttons are rebuilt by name).
+	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
+	var focused_name := StringName(focused.name) if focused != null and _body.is_ancestor_of(focused) else &""
 	for row: Control in [_currencies, _body]:
 		for child in row.get_children():
 			row.remove_child(child)
@@ -542,6 +733,76 @@ func _rebuild() -> void:
 	# Gold and crystals do not count online (D-081): the guild dialog shows none.
 	_currencies.visible = _build != _build_guild
 	_build.call(_body, _request_refresh)
+	if _build != _build_guild and _build != _build_home:
+		for node in _body.find_children("*", "Button", true, false):
+			make_focusable(node as Button)
+	if focused_name != &"":
+		var again := _body.find_child(String(focused_name), true, false) as Control
+		if again != null and again.is_inside_tree():
+			again.grab_focus()
+		else:
+			focus_default()
+
+
+# --- Gamepad and arrow keys (P1-3) ---
+
+## Lets the D-pad, the stick and the arrow keys move to a button and A/Enter press it: the button
+## takes focus and shows a light frame and text while focused (the theme's focus style is empty).
+static func make_focusable(button: Button) -> void:
+	if button == null:
+		return
+	button.focus_mode = Control.FOCUS_ALL
+	var frame := StyleBoxFlat.new()
+	frame.draw_center = false
+	frame.set_border_width_all(FOCUS_BORDER)
+	frame.border_color = FOCUS_COLOR
+	frame.set_expand_margin_all(2.0)
+	button.add_theme_stylebox_override("focus", frame)
+	button.add_theme_color_override("font_focus_color", FOCUS_COLOR)
+
+
+## Focuses the first affordable entry of the open building dialog, else its first enabled button,
+## else "Schließen". Returns the focused button (null if there is no dialog).
+func focus_default() -> Button:
+	if _open_modal == null or not is_instance_valid(_open_modal) or not _open_modal.is_inside_tree():
+		return null
+	var first_enabled: Button = null
+	if _body != null and is_instance_valid(_body):
+		for node in _body.find_children("*", "Button", true, false):
+			var button := node as Button
+			if button.focus_mode != Control.FOCUS_ALL or button.disabled:
+				continue
+			var box := button.get_parent()
+			if box != null and box.find_child("AffordableTag", false, false) != null:
+				button.grab_focus()
+				return button
+			if first_enabled == null:
+				first_enabled = button
+	var target := first_enabled if first_enabled != null else _open_modal.find_child("CloseButton", true, false) as Button
+	if target != null:
+		target.grab_focus()
+	return target
+
+
+## The focused button of the open building dialog (null if none), for tests and tools.
+func get_focused_button() -> Button:
+	if _open_modal == null or not is_instance_valid(_open_modal) or not _open_modal.is_inside_tree():
+		return null
+	var focus := get_viewport().gui_get_focus_owner()
+	return focus as Button if focus != null and _open_modal.is_ancestor_of(focus) else null
+
+
+## Key handler of the forge, trader and chronicle: while nothing has the focus the first arrow,
+## stick or A press puts it on the default entry (afterwards Godot moves and presses it).
+func _on_dialog_key(event: InputEvent) -> bool:
+	if get_focused_button() != null or _intro_modal != null:
+		return false
+	var direction := MenuInput.is_up(event) or MenuInput.is_down(event) or MenuInput.is_left(event) or MenuInput.is_right(event)
+	if direction or (event is InputEventJoypadButton and event.is_action_pressed(&"ui_accept")):
+		if focus_default() != null:
+			UiSound.hover(self)
+			return true
+	return false
 
 
 func _fill_currencies(row: HBoxContainer) -> void:

@@ -5,7 +5,8 @@ extends MenuPanel
 ## player's figure is the same in every world, so the cards show the world, not a character.
 ## Enter plays a used slot or opens "Neue Welt" for an empty one, R renames (inline field, Enter
 ## saves, Esc cancels), Del asks before deleting, Esc goes back. Mouse: click selects, a second
-## click plays, buttons below. Texts are translation keys (D-111); the cards are rebuilt on a
+## click plays, buttons below. Gamepad (P0-2 step 2): D-pad/stick select, A plays, Y renames,
+## X deletes (after the question), B goes back; footer and buttons show the gamepad's buttons. Texts are translation keys (D-111); the cards are rebuilt on a
 ## language change.
 
 signal play_requested(slot: int)
@@ -19,6 +20,10 @@ const PREVIEW_SCALE := 2
 const FOOTER_NORMAL: StringName = &"SLOTS_FOOTER"
 const FOOTER_CONFIRM: StringName = &"SLOTS_FOOTER_CONFIRM"
 const FOOTER_RENAME: StringName = &"SLOTS_FOOTER_RENAME"
+const FOOTER_NORMAL_PAD: StringName = &"SLOTS_FOOTER_PAD"
+const FOOTER_CONFIRM_PAD: StringName = &"SLOTS_FOOTER_CONFIRM_PAD"
+const FOOTER_RENAME_PAD: StringName = &"SLOTS_FOOTER_RENAME_PAD"
+const PadNav := preload("res://ui/widgets/pad_nav.gd")
 ## Optional world icon (16×16, SPRITES_V10 §7); without it the card shows the slot number.
 const WORLD_ICON_PATH := "res://art/ui/icon_world.png"
 
@@ -89,7 +94,11 @@ func is_renaming() -> bool:
 
 func handle_input(event: InputEvent) -> bool:
 	if _renaming:
-		# The field has the keys (_input); arrows do nothing meanwhile.
+		# The field has the keys (_input); arrows do nothing meanwhile. Without the field's focus
+		# (gamepad, before the field appeared) B still cancels.
+		if MenuInput.is_back(event):
+			cancel_rename()
+			return true
 		return MenuInput.is_up(event) or MenuInput.is_down(event)
 	if _confirm_delete:
 		if MenuInput.is_accept(event):
@@ -108,11 +117,12 @@ func handle_input(event: InputEvent) -> bool:
 	if MenuInput.is_accept(event):
 		activate_selected()
 		return true
-	if MenuInput.is_delete(event):
+	if MenuInput.is_delete(event) or MenuInput.is_pad_button(event, JOY_BUTTON_X):
 		request_delete()
 		return true
 	var key := event as InputEventKey
-	if key != null and key.pressed and not key.echo and (key.keycode == KEY_R or key.keycode == KEY_F2):
+	if (key != null and key.pressed and not key.echo and (key.keycode == KEY_R or key.keycode == KEY_F2)) \
+			or MenuInput.is_pad_button(event, JOY_BUTTON_Y):
 		request_rename()
 		return true
 	if MenuInput.is_back(event):
@@ -165,7 +175,7 @@ func cancel_rename() -> void:
 func _input(event: InputEvent) -> void:
 	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit) or not _rename_edit.has_focus():
 		return
-	if MenuInput.is_enter(event):
+	if MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm_rename(_rename_edit.text)
 	elif MenuInput.is_back(event):
@@ -254,7 +264,7 @@ func _rebuild_actions() -> void:
 		var field := _rename_edit
 		_actions.add_child(MenuPanel.action_button(&"SLOTS_RENAME_SAVE", "Enter", func() -> void: confirm_rename(field.text), true))
 		_actions.add_child(MenuPanel.action_button(&"COMMON_CANCEL", "Esc", cancel_rename))
-		set_footer(FOOTER_RENAME)
+		set_footer(FOOTER_RENAME, FOOTER_RENAME_PAD)
 		field.grab_focus()
 		field.caret_column = field.text.length()
 		return
@@ -264,20 +274,22 @@ func _rebuild_actions() -> void:
 		delete.add_theme_color_override("font_hover_color", UiKit.COLOR_DANGER_SOFT.lightened(0.2))
 		_actions.add_child(delete)
 		_actions.add_child(MenuPanel.action_button(&"COMMON_CANCEL", "Esc", cancel_delete))
-		set_footer(FOOTER_CONFIRM)
+		set_footer(FOOTER_CONFIRM, FOOTER_CONFIRM_PAD)
 		return
 	_actions.add_child(MenuPanel.action_button(&"SLOTS_PLAY" if used else &"SLOTS_CREATE", "Enter", activate_selected, true))
-	var rename_button := MenuPanel.action_button(&"SLOTS_RENAME", "R", request_rename)
+	var rename_button := MenuPanel.action_button(&"SLOTS_RENAME", "R", request_rename, false, "{y}")
 	rename_button.name = "RenameButton"
 	rename_button.disabled = not used
 	rename_button.modulate.a = 1.0 if used else 0.45
 	_actions.add_child(rename_button)
-	var delete_button := MenuPanel.action_button(&"SLOTS_DELETE", &"KEY_DELETE", request_delete)
+	var delete_button := MenuPanel.action_button(&"SLOTS_DELETE", &"KEY_DELETE", request_delete, false, "{x}")
 	delete_button.disabled = not used
 	delete_button.modulate.a = 1.0 if used else 0.45
 	_actions.add_child(delete_button)
 	_actions.add_child(MenuPanel.action_button(&"COMMON_BACK", "Esc", close))
-	set_footer(tr(FOOTER_NORMAL) % tr(&"SLOTS_ACTION_PLAY" if used else &"SLOTS_ACTION_CREATE"))
+	var action := tr(&"SLOTS_ACTION_PLAY" if used else &"SLOTS_ACTION_CREATE")
+	set_footer(tr(FOOTER_NORMAL) % action, PadNav.text(FOOTER_NORMAL_PAD, [action],
+			"{dpad} select · {a} %s · {y} rename · {x} delete · {b} back"))
 
 
 func _build_card(index: int) -> Button:

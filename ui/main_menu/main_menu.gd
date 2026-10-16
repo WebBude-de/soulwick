@@ -6,12 +6,19 @@ extends Control
 ## (save slots, D-152: a slot is a world), Neue Welt (only its name), Figur (ProfilePanel: name and
 ## look of the player, the same in every world and online), Optionen (OptionsView: sound, display,
 ## keys) and "Online spielen" (OnlinePanel, D-147: quick game and guilds, the same menu as the
-## village's guild building; it needs a world to start in). Name and look can also be changed in the
-## village (mirror, Zuhause) and in the lobby.
+## village's guild building). "Online spielen" is always open (playtest 16.10.2026: needing a world
+## first confused players); a room starts in the world of "Weiterspielen", without any world a fresh
+## one is created in the first free slot ("Welt 1"). Name and look are the profile (D-152), not the
+## world's, and can also be changed in the village (mirror, Zuhause) and in the lobby.
 ## First start (D-152): without a profile the menu opens "Wie heißt du?" (ProfilePanel, first_start)
 ## before anything else; the name of the save slots of older builds is suggested once.
-## Creating or joining a room from here loads the save like "Weiterspielen" and hands the wish to
-## the village of the new game (LobbyClient.request_launch); the room starts there as before.
+## P1-1 "Ein Einstieg statt zwei": when that first "Los geht's" finds no world, a fresh "Welt 1" is
+## created (create_default_world, the same as an online game without a world) and the game starts
+## straight in the village; the world list stays under "Welten". Players who already have a world
+## (older builds) land in the menu as before.
+## Creating or joining a room from here loads the save like "Weiterspielen" (or creates the first
+## world) and hands the wish to the village of the new game (LobbyClient.request_launch); the room
+## starts there as before.
 ##
 ## Opening the menu copies the save of older builds into slot 1 once (SaveManager). When a slot is
 ## loaded or created, play_requested is emitted after a short fade; scenes/main.gd starts the game.
@@ -22,11 +29,17 @@ extends Control
 ## OnlineVersionCheck reads GET /public/config in the background. Too old for the API → online
 ## features locked with "please update" and the website; API unreachable → offline hint, single
 ## player as always. Command line "-- offline" or online_check = false (tests) skip the check.
+##
+## Gamepad (P0-2 step 2): D-pad/left stick move (MenuInput debounces the stick and repeats a held
+## direction: _process pumps the repeats), A confirms, B goes back; the key line bottom right and
+## the panels' footers show the gamepad's buttons while a gamepad is in use (KeyLine).
 
 signal play_requested
 signal quit_requested
 
 const LOGO_TEXTURE: Texture2D = preload("res://art/ui/logo.png")
+const KeyLine := preload("res://ui/widgets/key_line.gd")
+const PadNav := preload("res://ui/widgets/pad_nav.gd")
 const TROPHY_ICON: Texture2D = preload("res://art/ui/trophy_icon.png")
 const TAGLINE: StringName = &"MENU_TAGLINE"
 ## Shown when project.godot has no application/config/version yet.
@@ -67,6 +80,7 @@ var _profile_label: Label = null
 var _status: PanelContainer = null
 var _record_label: Label = null
 var _keys_label: Label = null
+var _keys_line: KeyLine = null
 var _fade: ColorRect = null
 var _starting := false
 var _online_label: Label = null
@@ -123,19 +137,18 @@ func refresh() -> void:
 		_show_slot_info({})
 	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
 	_list.set_entry(ENTRY_PROFILE, &"MENU_PROFILE", PlayerProfile.current().get_display_name())
-	_refresh_online_entry(slot > 0)
-	if _keys_label != null:
-		_keys_label.text = tr(&"MENU_KEYS") % build_text(_environment_tag())
+	_refresh_online_entry()
+	if _keys_line != null:
+		var build := build_text(_environment_tag())
+		_keys_line.set_texts(tr(&"MENU_KEYS") % build, PadNav.text(&"MENU_KEYS_PAD", [build], "%s · {dpad} select · {a} · {b}"))
 	_show_online_status()
 
 
-## "Online spielen": open with a save (its name and look go online), locked while this build is
-## too old for the API.
-func _refresh_online_entry(has_save: bool) -> void:
+## "Online spielen": always open (also without a world, see _on_online_launch), locked only while
+## this build is too old for the API.
+func _refresh_online_entry() -> void:
 	if _online_status == OnlineVersionCheck.Status.OUTDATED:
 		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"ONLINE_UPDATE_SHORT", false)
-	elif not has_save:
-		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_NEEDS_SAVE", false)
 	else:
 		_list.set_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_HINT", true)
 
@@ -169,6 +182,12 @@ func _notification(what: int) -> void:
 	# (is_node_ready() is already true inside _ready, so check the nodes themselves.)
 	if what == NOTIFICATION_TRANSLATION_CHANGED and _list != null and _status != null:
 		refresh()
+
+
+## Held D-pad or stick: the next step as an arrow-key event (MenuInput).
+func _process(_delta: float) -> void:
+	if not _starting:
+		MenuInput.pump_repeat()
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -232,11 +251,25 @@ func open_create(slot: int) -> CreateSlotPanel:
 func open_profile(first_start := false) -> ProfilePanel:
 	var panel := ProfilePanel.create(first_start)
 	panel.look_changed.connect(_background.set_look)
+	if first_start:
+		# Deferred like close_panel (queued first, so the game is already starting when it runs).
+		panel.saved.connect(_on_first_profile_saved, CONNECT_DEFERRED)
 	_open_panel(panel)
 	panel.closed.connect(func() -> void: _background.set_look(PlayerProfile.current().look), CONNECT_DEFERRED)
 	if not first_start:
 		_list.select_id(ENTRY_PROFILE)
 	return panel
+
+
+## "Los geht's" of the first start (P1-1): without any world, Welt 1 is created and the game starts
+## in the village; with a world (older builds) the menu stays open as before.
+func _on_first_profile_saved() -> void:
+	if _starting or SaveManager.get_continue_slot() > 0:
+		return
+	if create_default_world() <= 0:
+		push_warning("MainMenu: could not create the first world.")
+		return
+	_start()
 
 
 ## "Online spielen": quick game and guilds (D-147).
@@ -248,16 +281,44 @@ func open_online() -> OnlinePanel:
 	return panel
 
 
-## A room from the online menu: the save of "Weiterspielen" is loaded and the game starts; its
-## village creates or joins the room (LobbyClient.take_launch in VillageUI).
+## A room from the online menu: the world of "Weiterspielen" is loaded (without any world a fresh
+## one is created first, online_world_slot) and the game starts; its village creates or joins the
+## room (LobbyClient.take_launch in VillageUI).
 func _on_online_launch(launch: Dictionary) -> void:
-	var slot := SaveManager.get_continue_slot()
-	if _starting or slot <= 0:
+	if _starting:
 		return
+	var slot := SaveManager.get_continue_slot()
+	var created := false
+	if slot <= 0:
+		slot = create_default_world()
+		if slot <= 0:
+			push_warning("MainMenu: could not create a world for the online game.")
+			return
+		created = true
 	LobbyClient.request_launch(str(launch.get("action", "")), str(launch.get("mode", LobbyClient.MODE_QUICK)),
 			str(launch.get("guild_id", "")), str(launch.get("guild_name", "")), str(launch.get("code", "")),
 			str(launch.get("guild_tag", "")))
-	play_slot(slot)
+	if created:
+		_start()
+	else:
+		play_slot(slot)
+
+
+## A fresh world in the first free slot, like "Neue Welt" with an empty name ("Welt 1"): it explains
+## the village (D-087). The first start and an online game without any world both start in it.
+## Returns the slot (now the loaded save), 0 if no world could be created.
+static func create_default_world() -> int:
+	var slot := SaveManager.get_free_slot()
+	if slot <= 0 or SaveManager.create_slot(slot) != OK:
+		return 0
+	return slot
+
+
+## The world an online game starts in: the one of "Weiterspielen", else the free slot a fresh world
+## would get (0 if neither, which cannot happen: no world means every slot is free).
+static func online_world_slot() -> int:
+	var slot := SaveManager.get_continue_slot()
+	return slot if slot > 0 else SaveManager.get_free_slot()
 
 
 func play_slot(slot: int) -> void:
@@ -272,7 +333,8 @@ func close_panel() -> void:
 		_panel_area.remove_child(_panel)
 		_panel.queue_free()
 		_panel = null
-	_list.active = true
+	# The first start's "Los geht's" may already be fading into the game.
+	_list.active = not _starting
 	_status.visible = true
 	refresh()
 
@@ -418,9 +480,12 @@ func _build_corners() -> void:
 	_record_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	record_row.add_child(_record_label)
 	status_box.add_child(record_row)
-	_keys_label = UiKit.text_label(tr(&"MENU_KEYS") % build_text(_environment_tag()), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-	_keys_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	status_box.add_child(_keys_label)
+	_keys_line = KeyLine.new()
+	_keys_line.name = "Keys"
+	_keys_line.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED, HORIZONTAL_ALIGNMENT_RIGHT)
+	_keys_label = _keys_line.label
+	_keys_label.text = tr(&"MENU_KEYS") % build_text(_environment_tag())
+	status_box.add_child(_keys_line)
 	_online_label = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	_online_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	_online_label.visible = false

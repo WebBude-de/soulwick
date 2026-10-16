@@ -14,6 +14,15 @@ extends SceneTree
 ##   godot --headless --path . -s tools/net_smoke.gd -- api=http://localhost:8787 relay=ws://localhost:8790/v1 dev_key=<DEV_AUTH_KEY>
 ## The dev key can also come from the environment (SOULWICK_DEV_KEY). spawn_client=0 starts no
 ## client (start it yourself with role=client run=<id>). Real time, no --fixed-fps.
+## load=<enemies> (network load, online test 16.10.2026): instead of the village checks the host
+## starts a run, puts both players into room 1 and adds that many enemies (archers, skeletons,
+## slimes, shadows) to its encounter; for load_seconds (default 20) the client's player walks and
+## dashes in a square, both players stay alive. Both print their traffic (NetDiagnostics: frames,
+## game packets and bytes per second in both directions, round trip, buffers, longest hitch) and
+## the corrections of the own player (snaps). hitch=<seconds> hitch_role=client|host freezes that
+## process once in the middle of the window (what a hang does to the other side and the relay).
+## SOULWICK_NET_BUNDLE=0 compares without bundles; relay=ws://127.0.0.1:<port>/v1 of an own relay
+## started with --sim-latency=<ms> adds latency.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const DEFAULT_API := "http://localhost:8787"
@@ -93,9 +102,15 @@ func _run() -> void:
 		player.tree_exiting.connect(func() -> void: _say("  player %s leaves the world" % player.name)))
 	_lobby.state_changed.connect(func(state: int) -> void: _say("  lobby state %d" % state))
 	_lobby.session_ended.connect(func(reason: String) -> void: _say("  session ended: %s" % reason))
+	var load_test := int(_args.get("load", "0")) > 0
 	if _role == "client":
-		await _client()
+		if load_test:
+			await _client_load()
+		else:
+			await _client()
 		_write_result()
+	elif load_test:
+		await _host_load()
 	else:
 		await _host()
 	var ok := _failures.is_empty()
@@ -156,6 +171,9 @@ func _spawn_client() -> int:
 		"api=%s" % _args.get("api", DEFAULT_API), "relay=%s" % _args.get("relay", DEFAULT_RELAY)])
 	if _args.has("dev_key"):
 		args.append("dev_key=%s" % _args.dev_key)
+	for key in ["load", "load_seconds", "hitch", "hitch_role"]:
+		if _args.has(key):
+			args.append("%s=%s" % [key, _args[key]])
 	var pid := OS.create_process(OS.get_executable_path(), args)
 	_check(pid > 0, "client process started")
 	return pid
@@ -200,6 +218,191 @@ func _client() -> void:
 	await _until(func() -> bool: return int(_lobby.state) == 0 and _lobby.last_end_reason == "host_left", "host leaving closed the room (host_left)", STEP_TIMEOUT * 2)
 	await _until(func() -> bool: return not _controller.game_mode.is_networked() and _player_count() == 1, "client back in a solo village")
 
+
+# --- Load test (load=<enemies>) ---
+
+func _host_load() -> void:
+	_lobby.create_room()
+	if not await _until(func() -> bool: return _lobby.is_in_room(), "host created a room"):
+		return
+	_write_file(_code_path(), _lobby.get_room_code())
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(_result_path()))
+	var client_pid := -1
+	if str(_args.get("spawn_client", "1")) != "0":
+		client_pid = _spawn_client()
+	if not await _until(func() -> bool: return _player_count() == 2, "host sees the client in the village", STARTUP_TIMEOUT):
+		return
+	await _seconds(1.0)
+	_lobby.net_run.start(int(_args.get("seed", "0")))
+	if not await _until(func() -> bool: return _dungeon() != null and _net() != null, "host entered the dungeon"):
+		return
+	if not await _until(func() -> bool: return _player_count() == 2 and _net().get_ready_peers().size() == 1, "client loaded the dungeon", STARTUP_TIMEOUT):
+		return
+	await _seconds(1.0)
+	var dungeon := _dungeon()
+	var room: Node = dungeon.get_room(maxi(1, dungeon.get_active_room_index()))
+	_keep_alive_players()
+	_place_players(room)
+	if not await _until(func() -> bool: return room.is_encounter_started(), "room %d started with both players inside" % room.room_index):
+		return
+	await _until(func() -> bool: return _living_enemies(room).size() > 0, "room has enemies")
+	var extra := int(_args.get("load", "30"))
+	_spawn_load(room, extra)
+	await _seconds(2.0)
+	_say("load: %d living enemies in room %d" % [_living_enemies(room).size(), room.room_index])
+	var diagnostics: Object = _diagnostics()
+	var start: Dictionary = diagnostics.mark()
+	var load_seconds := float(_args.get("load_seconds", "20"))
+	var hitch_done := false
+	var deadline := Time.get_ticks_msec() + int(load_seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
+		_keep_alive_players()
+		if not hitch_done and str(_args.get("hitch_role", "")) == "host" and Time.get_ticks_msec() > deadline - int(load_seconds * 500.0):
+			hitch_done = true
+			_hitch()
+		await _seconds(0.25)
+		if _living_enemies(room).size() < extra / 2:
+			_spawn_load(room, extra / 2)
+	_report_load(diagnostics, start)
+	_check(_lobby.is_in_room(), "host still in the room after the load")
+	_lobby.leave()
+	var box := {"text": ""}
+	await _until(func() -> bool:
+		box.text = _read_file(_result_path())
+		return not box.text.is_empty(), "client finished", STEP_TIMEOUT * 3)
+	for line in str(box.text).split("\n", false):
+		_say("  client| " + line)
+	_check(str(box.text).contains("RESULT OK"), "client checks passed")
+	await _seconds(0.5)
+	for line in _read_file(_client_log_path()).split("\n", false):
+		if line.begins_with("ERROR") or line.begins_with("WARNING") or line.begins_with("SCRIPT ERROR"):
+			_say("  client log| " + line)
+	if client_pid > 0 and OS.is_process_running(client_pid):
+		OS.kill(client_pid)
+
+
+func _client_load() -> void:
+	var box := {"code": ""}
+	if not await _until(func() -> bool:
+		box.code = _read_file(_code_path())
+		return not box.code.is_empty(), "client got the room code"):
+		return
+	_lobby.join_room(box.code)
+	if not await _until(func() -> bool: return _lobby.is_in_room(), "client joined"):
+		return
+	if not await _until(func() -> bool: return _dungeon() != null and _net() != null and _player_count() == 2 and _controller.local_player != null, "client in the dungeon with both players", STEP_TIMEOUT * 2):
+		return
+	var extra := int(_args.get("load", "30"))
+	if not await _until(func() -> bool: return _net().enemies.get_live_count() >= extra / 2, "client sees the load (%d+ puppets)" % (extra / 2), STEP_TIMEOUT * 2):
+		return
+	var diagnostics: Object = _diagnostics()
+	var start: Dictionary = diagnostics.mark()
+	var state: Node = _controller.local_player.get_node("NetState")
+	var snaps_before: int = state.snap_count
+	var load_seconds := float(_args.get("load_seconds", "20"))
+	var started := Time.get_ticks_msec()
+	var hitch_done := false
+	var directions := [&"move_right", &"move_down", &"move_left", &"move_up"]
+	var step := 0
+	var peak_puppets := 0
+	var snaps := 0
+	while _lobby.is_in_room() and Time.get_ticks_msec() - started < int((load_seconds + 30.0) * 1000.0):
+		var held: StringName = directions[step % directions.size()]
+		Input.action_press(held)
+		if step % 3 == 0:
+			Input.action_press(&"dash")
+		await _seconds(0.15)
+		Input.action_release(&"dash")
+		await _seconds(0.55)
+		Input.action_release(held)
+		step += 1
+		peak_puppets = maxi(peak_puppets, _net().enemies.get_live_count() if _net() != null else 0)
+		if is_instance_valid(state):
+			snaps = state.snap_count - snaps_before
+		if not hitch_done and str(_args.get("hitch_role", "")) == "client" and Time.get_ticks_msec() - started > int(load_seconds * 500.0):
+			hitch_done = true
+			_hitch()
+	_say("load: up to %d puppets, own player snapped back %d times" % [peak_puppets, snaps])
+	_report_load(diagnostics, start)
+	_check(_lobby.last_end_reason == "host_left", "the session ended because the host left (%s)" % _lobby.last_end_reason)
+
+
+func _report_load(diagnostics: Object, start: Dictionary) -> void:
+	var averages: Dictionary = diagnostics.since(start)
+	_say("load %s averages over %.1f s: out %.1f frames/s, %.1f packets/s, %.0f B/s; in %.1f frames/s, %.1f packets/s, %.0f B/s; dropped out %d in %d, send errors %d, relay errors %d, hitches %d" % [
+		_role, averages.seconds, averages.frames_out_per_s, averages.packets_out_per_s, averages.bytes_out_per_s,
+		averages.frames_in_per_s, averages.packets_in_per_s, averages.bytes_in_per_s,
+		averages.dropped_out, averages.dropped_in, averages.send_errors, averages.relay_errors, averages.hitches])
+	_say("load %s diagnostics: %s" % [_role, diagnostics.summary_line()])
+	_check(int(averages.send_errors) == 0 and int(averages.relay_errors) == 0, "%s: no send or relay errors under load" % _role)
+
+
+func _hitch() -> void:
+	var seconds := float(_args.get("hitch", "0"))
+	if seconds <= 0.0:
+		return
+	_say("freezing this process for %.1f s" % seconds)
+	OS.delay_msec(int(seconds * 1000.0))
+	_say("awake again")
+
+
+func _diagnostics() -> Object:
+	return _lobby.peer.diagnostics
+
+
+func _keep_alive_players() -> void:
+	for player in _controller.players:
+		if is_instance_valid(player) and player.health.get_health() < 5000.0:
+			player.health.reset(99999.0)
+
+
+## Both players into the middle of the room (the client's own player follows the host: far off = snap).
+func _place_players(room: Node) -> void:
+	var middle: Vector2 = room.get_arena().get_center()
+	var offsets := [Vector2(-40, 0), Vector2(40, 0)]
+	var i := 0
+	for player in _controller.players:
+		if is_instance_valid(player):
+			player.global_position = middle + offsets[mini(i, 1)]
+			i += 1
+
+
+func _spawn_load(room: Node, count: int) -> void:
+	var scene: PackedScene = load("res://enemies/enemy_base.tscn")
+	var net_enemies: GDScript = load("res://online/net_enemies.gd")
+	var ids := [&"archer", &"skeleton", &"slime", &"shadow", &"archer", &"skeleton"]
+	var arena: Rect2 = room.get_arena()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 4711
+	for i in count:
+		var data: Resource = net_enemies.data_for(ids[i % ids.size()])
+		if data == null:
+			continue
+		var enemy: Node2D = scene.instantiate()
+		enemy.set(&"data", data)
+		enemy.set(&"arena", arena)
+		var at := arena.get_center() + Vector2(rng.randf_range(-0.4, 0.4) * arena.size.x, rng.randf_range(-0.4, 0.4) * arena.size.y)
+		enemy.position = room.enemy_container.to_local(at)
+		enemy.apply_scaling(room.room_index, false)
+		room.enemy_container.add_child(enemy)
+
+
+func _living_enemies(room: Node) -> Array:
+	var result: Array = []
+	for node in room.enemy_container.get_children():
+		if node.has_method(&"is_dead") and not node.is_dead():
+			result.append(node)
+	return result
+
+
+func _dungeon() -> Node:
+	var world: Node = _controller.get_world() if _controller != null else null
+	return world if world != null and world.get_script() != null and world.get_script().get_global_name() == &"DungeonManager" else null
+
+
+func _net() -> Node:
+	var dungeon := _dungeon()
+	return dungeon.get_node_or_null("NetDungeon") if dungeon != null else null
 
 # --- Helpers ---
 

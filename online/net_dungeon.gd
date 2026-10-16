@@ -11,9 +11,11 @@ extends Node
 ## and builds both ways of a branch room once both states arrived (R5: up to four live rooms, the
 ## ways dark behind their doors, never started on a client). The host's group chooses the way
 ## (branch_chosen_net); room_signature checks every slot, every way and the chosen way. The host decides when a room starts
-## (exit rule since the online test of 15.10.2026: only once every living player stands in it - no
-## countdown, nobody is teleported; meanwhile room_wait tells every machine who is in and who is
-## missing: "Warte auf <Name> ..." inside, "<Name> wartet im naechsten Raum" with an arrow outside),
+## (exit rule since the online test of 16.10.2026, like the truck of R.E.P.O.: the first living
+## player in it starts CoopRules.WAIT_COUNTDOWN; it starts once every living player stands in it or
+## at 0, and then the stragglers are brought in (player_placed); meanwhile room_wait tells every
+## machine who is in, who is missing and the time left: the CoopWaitLine at the top centre shows the
+## number with "Warte auf <Name> ..." inside, big with "Beeil dich!" and an arrow outside),
 ## when it is cleared and when the exit opens; clients follow (activate_slot, room_completed_net,
 ## exit_opened). Enemies, enemy projectiles, pickups and crates: NetEnemies (online/net_enemies.gd).
 ## Rooms from plans (R1-R3, D-131-D-133): a client's room never spawns (RoomController.remote_encounter,
@@ -43,13 +45,12 @@ const REMOTE_MENU := &"menu_remote"
 ## Client: hits on players are resolved by the host only.
 const CLIENT_INVULNERABLE := &"net_client"
 const STATE_FIELDS := 5
-const COUNTDOWN_COLOR := Color(1.0, 0.85, 0.4)
+## The wait line at the top edge (online/coop_wait_line.gd, class CoopWaitLine; preloaded, so it
+## also resolves before the editor's class list knows it).
+const WaitLine := preload("res://online/coop_wait_line.gd")
 ## Translation keys of the room-change hints (localization/translations.csv, "%s" = the names).
+## Shown in the CoopWaitLine (channel room), the arrow to the next room's entrance with them.
 const WAIT_TEXT_KEYS: Array[StringName] = [&"NET_WAIT_FOR_MATES", &"NET_MATES_WAIT_FOR_YOU", &"NET_MATES_WAIT_FOR_YOU_MANY"]
-## TESTWERTE: the arrow to the next room sits this far (UI px) from the local player and hides
-## within this distance (world px) of the room's entrance.
-const WAIT_ARROW_DISTANCE := 46.0
-const WAIT_ARROW_HIDE_DISTANCE := 40.0
 const DOWNED_COLOR := Color(1.0, 0.45, 0.4)
 const SHOP_SCRIPT_SUFFIX := "shop_content.gd"
 ## Slots the DungeonManager prepares in its _ready (from the seed alone, before any message).
@@ -86,15 +87,16 @@ var side: NetSide = null
 ## shut gate, most targets the local group camera had at once.
 var gates_closed := 0
 var gates_closed_early := 0
-## Room change (host): living players outside a starting room (must stay 0: the room waits for them,
-## nobody is teleported), downed ones brought in, the longest wait for the last player (s). Every
-## machine: wait hints shown (a player waits for others or others wait for him), frames the arrow to
-## the next room was shown.
+## Room change (host): living stragglers brought in when the countdown ran out, downed ones brought
+## in, the longest wait for the last player (s). Every machine: wait hints shown (a player waits for
+## others or others wait for him), frames the arrow to the next room was shown; client: players
+## placed by the host (player_placed).
 var living_teleports := 0
 var downed_gathered := 0
 var max_room_wait := 0.0
 var wait_hints := 0
 var wait_arrow_frames := 0
+var players_placed := 0
 var rejoins := 0
 var max_camera_targets := 0
 
@@ -110,10 +112,13 @@ var _waiting_room: RoomController = null
 var _wait_time := 0.0
 ## Host: the last wait state sent (room_wait).
 var _wait_sent := ""
-## Every machine: the wait for the next room as the host decided it (slot -1 = none), its hint.
+## Every machine: the wait for the next room as the host decided it (slot -1 = none), its hint and
+## the countdown's time left (counted down here between the host's messages).
 var _wait_slot := -1
 var _wait_hint := CoopRules.WaitHint.NONE
-var _wait_arrow: Polygon2D = null
+var _wait_left := 0.0
+## Every machine: the wait line at the top edge (room change, side ways, upgrade round, start).
+var wait_line: WaitLine = null
 ## Host: signature of every prepared slot and branch way (Vector2i(slot, way), way -1 = the slot's
 ## room; catch-up for late clients).
 var _signatures: Dictionary[Vector2i, String] = {}
@@ -148,8 +153,6 @@ var _downed_announced := false
 var _managers: Dictionary[int, UpgradeManager] = {}
 var _effects: Dictionary[int, UpgradeEffects] = {}
 var _revive_labels: Dictionary[int, Label] = {}
-var _countdown_layer: CanvasLayer = null
-var _countdown_label: Label = null
 ## Host: last wave state sent per slot (wave, total, alive, alive in the wave).
 var _progress_sent: Dictionary[int, Vector4i] = {}
 ## Client: loadouts of players this machine has not spawned yet (peer -> loadout arguments).
@@ -219,7 +222,13 @@ func _ready() -> void:
 	add_child(modes)
 	side = NetSide.create(self, dm)
 	add_child(side)
-	_build_countdown()
+	wait_line = WaitLine.new()
+	add_child(wait_line)
+	# DungeonUI exists only once the dungeon itself is ready (this node is its child).
+	if dm.is_node_ready():
+		_hook_ui()
+	else:
+		dm.ready.connect(_hook_ui, CONNECT_ONE_SHOT)
 	get_tree().node_added.connect(_on_node_added)
 	if is_host:
 		RunManager.run_gold_changed.connect(_send_pot.unbind(1))
@@ -228,6 +237,12 @@ func _ready() -> void:
 		dm.slot_rng_captured.connect(_on_slot_rng_captured)
 	else:
 		GameManager.pause_changed.connect(_on_pause_changed)
+
+
+## Downed panel and markers of DungeonUI show how far a revive is (0..1).
+func _hook_ui() -> void:
+	if dm.ui != null:
+		dm.ui.revive_share_provider = func(p: Player) -> float: return get_revive_progress(p) / CoopRules.REVIVE_TIME
 
 
 func _exit_tree() -> void:
@@ -251,8 +266,8 @@ func detach() -> void:
 		side.detach()
 	_apply_wait(-1, [], [])
 	set_physics_process(false)
-	if _wait_arrow != null:
-		_wait_arrow.visible = false
+	if wait_line != null:
+		wait_line.clear_all()
 
 
 func is_detached() -> bool:
@@ -483,7 +498,7 @@ func offer_upgrade(title: String) -> void:
 	_picks_closed[slot] = true
 	_picks.erase(slot)
 	_pick_starts.erase(slot)
-	_show_countdown_text("")
+	_show_line(WaitLine.CHANNEL_UPGRADES, "")
 
 
 ## Host: how long to wait for the clients' picks of slot (ticks msec). Normally the client's own time
@@ -521,7 +536,7 @@ func _physics_process(delta: float) -> void:
 			_send_states()
 	_update_revive_labels()
 	_update_tunnel_tags()
-	_update_wait_arrow()
+	_update_wait_view(delta)
 
 
 func _tick_gate(delta: float) -> void:
@@ -533,10 +548,11 @@ func _tick_gate(delta: float) -> void:
 		_send_wait(-1, [], [])
 		return
 	if not _clients_ready():
-		_show_countdown_text(Loc.t(&"NET_WAITING_PLAYERS"))
+		_show_line(WaitLine.CHANNEL_PLAYERS, Loc.t(&"NET_WAITING_PLAYERS"))
 		return
+	_show_line(WaitLine.CHANNEL_PLAYERS, "")
 	# Only living players count: downed ones are brought in at the start, a player who left is gone.
-	# No countdown and no teleport: the room waits for the last one (online test 15.10.2026).
+	# The countdown (online test 16.10.2026) runs while somebody is in; at 0 the stragglers come along.
 	var rect := room.get_arena()
 	var inside: Array[int] = []
 	var missing: Array[int] = []
@@ -545,24 +561,31 @@ func _tick_gate(delta: float) -> void:
 			inside.append(peer_of(player))
 		else:
 			missing.append(peer_of(player))
+	if inside.is_empty():
+		# The first one walked out again: no countdown until somebody is in.
+		_wait_time = 0.0
+		_send_wait(room.slot_index, inside, missing)
+		return
 	_wait_time += delta
 	max_room_wait = maxf(max_room_wait, _wait_time)
-	if CoopRules.should_start_room(inside.size() + missing.size(), inside.size()):
+	var time_left := CoopRules.WAIT_COUNTDOWN - _wait_time
+	if CoopRules.should_start_room(inside.size() + missing.size(), inside.size(), time_left):
 		_start_room(room)
 		return
-	_send_wait(room.slot_index, inside, missing)
+	_send_wait(room.slot_index, inside, missing, time_left)
 
 
-## Host: who is in the next room and who is still missing, to every machine when it changes.
-func _send_wait(slot: int, inside: Array[int], missing: Array[int]) -> void:
+## Host: who is in the next room, who is still missing and the countdown, to every machine when it
+## changes and every whole second.
+func _send_wait(slot: int, inside: Array[int], missing: Array[int], time_left := 0.0) -> void:
 	inside.sort()
 	missing.sort()
-	var key := "%d|%s|%s" % [slot, inside, missing]
+	var key := "%d|%s|%s|%d" % [slot, inside, missing, CoopRules.countdown_seconds(time_left)]
 	if key == _wait_sent:
 		return
 	_wait_sent = key
-	_send(&"room_wait", [slot, PackedInt32Array(inside), PackedInt32Array(missing)])
-	_apply_wait(slot, inside, missing)
+	_send(&"room_wait", [slot, PackedInt32Array(inside), PackedInt32Array(missing), maxf(0.0, time_left)])
+	_apply_wait(slot, inside, missing, time_left)
 
 
 ## The wave state of the running fight in the active room, whenever it changes (R3: the clients'
@@ -689,16 +712,17 @@ func _start_room(room: RoomController) -> void:
 	_waiting_room = null
 	_wait_time = 0.0
 	_send_wait(-1, [], [])
-	_gather_downed(room)
+	_gather_outside(room)
 	_send(&"activate_slot", [room.slot_index, room.room_index])
 	rooms_activated += 1
 	dm.enter_room(room)
 	_share_shop(room)
 
 
-## Downed players lying outside come along into the room that starts (D-128); every living player
-## walked in himself (the room waits for him, _tick_gate).
-func _gather_downed(room: RoomController) -> void:
+## Downed players lying outside come along into the room that starts (D-128), and so do living
+## stragglers still outside it when the countdown ran out (online test 16.10.2026; never hurt). Every
+## machine moves them the same way (player_placed).
+func _gather_outside(room: RoomController) -> void:
 	# M2: past the gate, so it can shut behind them at once (GateCloser counts INSIDE_MARGIN in).
 	var inside := room.get_arena().grow(-GateCloser.INSIDE_MARGIN)
 	var floor_rect := room.get_arena()
@@ -707,14 +731,29 @@ func _gather_downed(room: RoomController) -> void:
 	for player in _all_players():
 		if inside.has_point(player.global_position):
 			continue
-		if not player.is_downed():
-			if not floor_rect.has_point(player.global_position):
-				# Must never happen (the room starts only with everybody in); counted for the tools.
-				living_teleports += 1
+		if player.is_downed():
+			downed_gathered += 1
+		elif floor_rect.has_point(player.global_position):
+			# In the doorway: he walked in himself.
 			continue
-		player.global_position = gather_point(room, start + WorldController.get_spawn_offset(index), start)
+		else:
+			living_teleports += 1
+		_place_player(player, gather_point(room, start + WorldController.get_spawn_offset(index), start))
 		index += 1
-		downed_gathered += 1
+
+
+## Host: player lands at point (brought into a starting room); the clients do the same.
+func _place_player(player: Player, point: Vector2) -> void:
+	_set_player_position(player, point)
+	_send(&"player_placed", [peer_of(player), point])
+
+
+static func _set_player_position(player: Player, point: Vector2) -> void:
+	player.global_position = point
+	player.velocity = Vector2.ZERO
+	if player.fall != null:
+		# A fall in the new room returns here, not to the old room.
+		player.fall.remember_safe_spot(player.get_feet_position())
 
 
 ## Where a downed player lands: point if it is walkable floor well inside the room, else the room's start.
@@ -871,7 +910,7 @@ func _all_picked(slot: int) -> bool:
 	for player in _all_players():
 		var peer := peer_of(player)
 		if player.is_alive() and not picked.has(peer):
-			_show_countdown_text(Loc.t(&"NET_WAITING_UPGRADES"))
+			_show_line(WaitLine.CHANNEL_UPGRADES, Loc.t(&"NET_WAITING_UPGRADES"))
 			return false
 	return true
 
@@ -1105,16 +1144,29 @@ func exit_opened(slot: int) -> void:
 		room.open_exit()
 
 
-## Who is in the next room and who is still missing (peers of living players; slot -1 = no wait).
+## Who is in the next room, who is still missing (peers of living players; slot -1 = no wait) and
+## the countdown's time left.
 @rpc("authority", "call_remote", "reliable")
-func room_wait(slot: int, inside: PackedInt32Array, missing: PackedInt32Array) -> void:
+func room_wait(slot: int, inside: PackedInt32Array, missing: PackedInt32Array, time_left: float) -> void:
 	if is_host or _detached:
 		return
 	var inside_peers: Array[int] = []
 	inside_peers.assign(inside)
 	var missing_peers: Array[int] = []
 	missing_peers.assign(missing)
-	_apply_wait(slot, inside_peers, missing_peers)
+	_apply_wait(slot, inside_peers, missing_peers, time_left)
+
+
+## The host brought the player of peer into the starting room (countdown over, or downed).
+@rpc("authority", "call_remote", "reliable")
+func player_placed(peer: int, point: Vector2) -> void:
+	if is_host or _detached:
+		return
+	var player := _player_of(peer)
+	if player == null:
+		return
+	_set_player_position(player, point)
+	players_placed += 1
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -1326,9 +1378,8 @@ func _on_pause_changed(menus_open: bool) -> void:
 func _on_local_downed() -> void:
 	if _downed_announced or _detached:
 		return
+	# DungeonUI shows "Du bist am Boden" with the cause and the downed panel itself.
 	_downed_announced = true
-	if dm.get_living_players().size() > 0:
-		dm.ui.show_banner(Loc.t(&"NET_DOWNED_TITLE"), Loc.t(&"NET_DOWNED_SUB"), DOWNED_COLOR)
 
 
 func _check_signature(room: RoomController, expected: String, way := -1) -> void:
@@ -1344,7 +1395,8 @@ func _check_signature(room: RoomController, expected: String, way := -1) -> void
 ## The live room of a slot (way -1) or a built branch way (way >= 0), null if not there (any more).
 func _room_for(key: Vector2i) -> RoomController:
 	if key.y < 0:
-		return dm.get_room_at_slot(key.x)
+		# Peek: fetching the room must not pull its staged build into this frame.
+		return dm.peek_room_at_slot(key.x)
 	var ways := dm.get_branch_ways()
 	if key.y < ways.size() and is_instance_valid(ways[key.y]) and ways[key.y].slot_index == key.x:
 		return ways[key.y]
@@ -1512,43 +1564,27 @@ func _send_host(method: StringName, args: Array = []) -> void:
 
 # --- Presentation ---
 
-func _build_countdown() -> void:
-	_countdown_layer = CanvasLayer.new()
-	_countdown_layer.name = "NetCountdown"
-	_countdown_layer.layer = 20
-	add_child(_countdown_layer)
-	_countdown_label = UiKit.text_label("", UiKit.SIZE_VALUE, COUNTDOWN_COLOR, true)
-	_countdown_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_countdown_label.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	_countdown_label.position.y = UiKit.px(34.0)
-	_countdown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_countdown_label.visible = false
-	_countdown_layer.add_child(_countdown_label)
-	# Arrow to the next room for a straggler (points along +x, rotated towards the entrance).
-	_wait_arrow = Polygon2D.new()
-	_wait_arrow.name = "WaitArrow"
-	var size := UiKit.px(11.0)
-	_wait_arrow.polygon = PackedVector2Array([Vector2(size, 0.0), Vector2(-size * 0.7, -size * 0.75),
-			Vector2(-size * 0.3, 0.0), Vector2(-size * 0.7, size * 0.75)])
-	_wait_arrow.color = COUNTDOWN_COLOR
-	_wait_arrow.visible = false
-	_countdown_layer.add_child(_wait_arrow)
-
-
-## Every machine: the hint for its own player while the group waits for the next room - inside
-## "Warte auf <Namen> ...", outside "<Name> wartet im naechsten Raum - beeil dich!" plus the arrow.
-func _apply_wait(slot: int, inside: Array[int], missing: Array[int]) -> void:
+## Every machine: the hint for its own player while the group waits for the next room - inside the
+## countdown with "Warte auf <Namen> ...", outside the big countdown with "Beeil dich!" and the arrow.
+func _apply_wait(slot: int, inside: Array[int], missing: Array[int], time_left := 0.0) -> void:
+	var hint := CoopRules.wait_hint(multiplayer.get_unique_id(), inside, missing) if slot >= 0 else CoopRules.WaitHint.NONE
+	if hint != CoopRules.WaitHint.NONE and (hint != _wait_hint or slot != _wait_slot):
+		wait_hints += 1
 	_wait_slot = slot
-	_wait_hint = CoopRules.wait_hint(multiplayer.get_unique_id(), inside, missing) if slot >= 0 else CoopRules.WaitHint.NONE
+	_wait_hint = hint
+	_wait_left = maxf(0.0, time_left)
 	var text := ""
 	match _wait_hint:
 		CoopRules.WaitHint.WAIT_FOR_MATES:
-			text = wait_text(&"NET_WAIT_FOR_MATES", _names_of(missing))
+			text = wait_text(&"NET_WAIT_FOR_MATES", names_of(missing))
 		CoopRules.WaitHint.MATES_WAIT_FOR_YOU:
-			text = wait_text(&"NET_MATES_WAIT_FOR_YOU" if inside.size() == 1 else &"NET_MATES_WAIT_FOR_YOU_MANY", _names_of(inside))
-	if _wait_hint != CoopRules.WaitHint.NONE:
-		wait_hints += 1
-	_show_countdown_text(text)
+			text = WaitLine.hurry_text()
+	_show_line(WaitLine.CHANNEL_ROOM, text)
+	if wait_line != null:
+		if _wait_hint == CoopRules.WaitHint.NONE:
+			wait_line.clear_countdown(WaitLine.CHANNEL_ROOM)
+		else:
+			wait_line.set_countdown(WaitLine.CHANNEL_ROOM, _wait_left, _wait_hint == CoopRules.WaitHint.MATES_WAIT_FOR_YOU)
 
 
 ## The text of a wait hint (WAIT_TEXT_KEYS) with the names filled in.
@@ -1557,8 +1593,8 @@ static func wait_text(key: StringName, names: String) -> String:
 	return text % names if text.contains("%s") else text
 
 
-## "Anna, Ben" for the players of peers (name tags; "P2" without a name).
-func _names_of(peers: Array[int]) -> String:
+## "Anna, Ben" for the players of peers (name tags; "P2" without a name). NetSide uses it too.
+func names_of(peers: Array[int]) -> String:
 	var names: Array[String] = []
 	for peer in peers:
 		var name_text := NetPlayers.display_name_of(_player_of(peer))
@@ -1566,30 +1602,42 @@ func _names_of(peers: Array[int]) -> String:
 	return ", ".join(names)
 
 
-## The current wait hint of this machine (tools, tests).
+## The current wait hint of this machine (tools, tests) and the countdown's time left.
 func get_wait_hint() -> CoopRules.WaitHint:
 	return _wait_hint
 
 
-## The arrow from the local player to the next room's entrance while the others wait there.
-func _update_wait_arrow() -> void:
-	if _wait_arrow == null:
+func get_wait_left() -> float:
+	return _wait_left if _wait_hint != CoopRules.WaitHint.NONE else 0.0
+
+
+## Every machine: the countdown runs on between the host's messages; the arrow from the local
+## player to the next room's entrance while the others wait there (the CoopWaitLine draws both; a
+## side way's go first).
+func _update_wait_view(delta: float) -> void:
+	if wait_line == null:
 		return
-	var show := false
-	if _wait_hint == CoopRules.WaitHint.MATES_WAIT_FOR_YOU:
-		var local := _local_player()
-		var room := dm.get_room_at_slot(_wait_slot) if dm != null else null
-		if local != null and room != null and local.is_alive() and not local.is_side_view():
-			var target := room.to_global(RoomTiles.tile_center(room.get_entrance_tile()))
-			var offset := target - local.global_position
-			if offset.length() > WAIT_ARROW_HIDE_DISTANCE:
-				var direction := offset.normalized()
-				_wait_arrow.position = local.get_global_transform_with_canvas().origin + direction * UiKit.px(WAIT_ARROW_DISTANCE)
-				_wait_arrow.rotation = direction.angle()
-				show = true
-	_wait_arrow.visible = show
-	if show:
+	if _wait_hint != CoopRules.WaitHint.NONE:
+		_wait_left = maxf(0.0, _wait_left - delta)
+		wait_line.set_countdown(WaitLine.CHANNEL_ROOM, _wait_left, _wait_hint == CoopRules.WaitHint.MATES_WAIT_FOR_YOU)
+	var local := _local_player() if _wait_hint == CoopRules.WaitHint.MATES_WAIT_FOR_YOU else null
+	var room := dm.get_room_at_slot(_wait_slot) if local != null and dm != null else null
+	if local != null and room != null and local.is_alive() and not local.is_side_view():
+		wait_line.set_arrow(WaitLine.CHANNEL_ROOM, local, room.to_global(RoomTiles.tile_center(room.get_entrance_tile())))
+	else:
+		wait_line.clear_arrow(WaitLine.CHANNEL_ROOM)
+	if wait_line.get_arrow_channel() == WaitLine.CHANNEL_ROOM:
 		wait_arrow_frames += 1
+
+
+## The wait line of this machine (NetSide, tools, tests).
+func get_wait_line() -> WaitLine:
+	return wait_line
+
+
+## This machine's own player (NetSide).
+func get_local_player() -> Player:
+	return _local_player()
 
 
 func _local_player() -> Player:
@@ -1599,14 +1647,9 @@ func _local_player() -> Player:
 	return null
 
 
-func _show_countdown_text(text: String) -> void:
-	if _countdown_label == null:
-		return
-	_countdown_label.text = text
-	_countdown_label.visible = not text.is_empty()
-	if not text.is_empty():
-		_countdown_label.reset_size()
-		_countdown_label.position.x = -_countdown_label.size.x * 0.5
+func _show_line(channel: StringName, text: String) -> void:
+	if wait_line != null:
+		wait_line.set_text(channel, text)
 
 
 ## "Revive 40 %" over every downed player.

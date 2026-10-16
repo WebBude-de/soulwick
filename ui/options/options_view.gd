@@ -2,15 +2,16 @@ class_name OptionsView
 extends VBoxContainer
 ## The options content shared by the main menu ("Optionen" panel) and the pause menu, so both look
 ## and behave the same (UX1, UX3). Three tabs under the eyebrow: "Allgemein" (Ton: Musik, Effekte,
-## Gesamt · Sprache), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
-## Trefferstopp, Schadenszahlen, Blitze reduzieren) and "Tasten" (key overview from ControlsInfo).
+## Gesamt · Sprache · Steuerung: Zielhilfe (Pad), P0-2), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
+## Trefferstopp, Schadenszahlen, Blitze reduzieren) and "Tasten" (key overview from ControlsInfo; it
+## shows the gamepad's buttons while a gamepad is in use).
 ## "Zurücksetzen" (all options and volumes, after a confirmation) sits next to "Zurück".
 ## The view keeps one size whatever tab or row is shown (_fix_layout): every page gets the size of
 ## the largest one, captions the width of the longest "> caption", the key line the height of its
 ## longest text. Measured again after a language change.
 ##
 ## Keys: ↑/↓ row (the tab strip and the reset button are rows too), ←/→ change (on the tab row:
-## switch tab), Enter toggles / next tab / reset, Q/E switch tabs anywhere. Esc is NOT used here
+## switch tab), Enter toggles / next tab / reset, Q/E (gamepad LB/RB) switch tabs anywhere. Esc is NOT used here
 ## except to cancel the reset question: the host closes (back_requested is emitted by the "Zurück"
 ## button only). Hosts forward keys with handle_input(); with listen_unhandled the view reads
 ## _unhandled_input itself (pause menu modal; children see keys before the modal).
@@ -19,13 +20,15 @@ extends VBoxContainer
 ##
 ## Texts are translation keys (D-111): Godot re-translates plain labels on a language change, the
 ## composed ones (captions with cursor, key chips, footer) are rebuilt in _notification.
+## Gamepad (P0-2 step 2): D-pad/stick like the arrows (MenuInput debounces the stick), A like Enter,
+## LB/RB switch tabs, B goes back (host); the footer shows the gamepad's buttons (KeyLine).
 
 signal back_requested
 
 ## Kept for hosts and tests: CONTROLS = the "Tasten" tab, SETTINGS = the other two.
 enum Page { SETTINGS, CONTROLS }
 enum Tab { GENERAL, DISPLAY, CONTROLS }
-enum Row { TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES, BRIGHTNESS, LIGHT_EFFECTS, RESET }
+enum Row { TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES, BRIGHTNESS, LIGHT_EFFECTS, RESET, AIM_ASSIST }
 
 const STEP := 0.05
 ## Brightness slider step (GameOptions.BRIGHTNESS, -1 .. +1).
@@ -38,10 +41,11 @@ const CHOICE_WIDTH := 44.0
 ## Choice buttons: 12 mockup px high (sliders are 10), so six rows plus two sections fit the pause menu.
 const CHOICE_HEIGHT := 12.0
 const KEY_WIDTH := 50.0
+const KeyLine := preload("res://ui/widgets/key_line.gd")
 const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPLAY", &"OPTIONS_TAB_CONTROLS"]
 ## Rows per tab, in keyboard order.
 const TAB_ROWS := {
-	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.RESET],
+	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.AIM_ASSIST, Row.RESET],
 	Tab.DISPLAY: [Row.TABS, Row.WINDOW, Row.VSYNC, Row.BRIGHTNESS, Row.LIGHT_EFFECTS, Row.SHAKE, Row.HIT_STOP, Row.DAMAGE_NUMBERS, Row.REDUCE_FLASHES, Row.RESET],
 	Tab.CONTROLS: [Row.TABS, Row.RESET],
 }
@@ -57,6 +61,7 @@ const CHOICE_VALUES := {
 	Row.DAMAGE_NUMBERS: [false, true],
 	Row.REDUCE_FLASHES: [false, true],
 	Row.LIGHT_EFFECTS: [&"low", &"high"],
+	Row.AIM_ASSIST: [false, true],
 }
 
 ## true: the view reads keys in _unhandled_input (pause menu); false: the host calls handle_input.
@@ -73,6 +78,7 @@ var _actions: HBoxContainer = null
 var _reset_button: Button = null
 var _back_button: Button = null
 var _footer: Label = null
+var _footer_line: KeyLine = null
 ## Row -> caption label (meta "caption" holds the key).
 var _captions: Dictionary = {}
 ## Row -> HSlider, Row -> value label.
@@ -87,6 +93,8 @@ func _init() -> void:
 	add_theme_constant_override("separation", int(UiKit.px(5)))
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	Loc.install()
+	# The key overview follows the device in use (keyboard/mouse or gamepad symbols).
+	InputDevice.shared().changed.connect(_on_input_device_changed)
 
 
 func _ready() -> void:
@@ -108,10 +116,12 @@ func _ready() -> void:
 	_actions = UiKit.hbox(int(UiKit.px(6)))
 	_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(_actions)
-	_footer = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-	_footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_footer_line = KeyLine.new()
+	_footer_line.name = "Footer"
+	_footer_line.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	_footer = _footer_line.label
 	_footer.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(_footer)
+	add_child(_footer_line)
 	_rebuild_actions()
 	_refresh_choices()
 	_show_tab(Tab.GENERAL)
@@ -146,6 +156,10 @@ func handle_input(event: InputEvent) -> bool:
 	var key := event as InputEventKey
 	if key != null and key.pressed and not key.echo and (key.keycode == KEY_Q or key.keycode == KEY_E):
 		show_tab(_next_tab(-1 if key.keycode == KEY_Q else 1))
+		return true
+	var pad := event as InputEventJoypadButton
+	if pad != null and pad.pressed and (pad.button_index == JOY_BUTTON_LEFT_SHOULDER or pad.button_index == JOY_BUTTON_RIGHT_SHOULDER):
+		show_tab(_next_tab(-1 if pad.button_index == JOY_BUTTON_LEFT_SHOULDER else 1))
 		return true
 	if MenuInput.is_up(event) or MenuInput.is_down(event):
 		var rows: Array = TAB_ROWS[_tab]
@@ -335,11 +349,13 @@ func _set_row(row: Row) -> void:
 
 func _update_footer() -> void:
 	if _confirming_reset:
-		_footer.text = &"OPTIONS_RESET_QUESTION"
-		_footer.add_theme_color_override("font_color", UiKit.COLOR_DANGER_SOFT)
+		_footer_line.set_texts(&"OPTIONS_RESET_QUESTION")
+		_footer_line.set_color(UiKit.COLOR_DANGER_SOFT)
 	else:
-		_footer.text = &"OPTIONS_FOOTER_CONTROLS" if _tab == Tab.CONTROLS else &"OPTIONS_FOOTER"
-		_footer.add_theme_color_override("font_color", UiKit.COLOR_DISABLED)
+		var controls := _tab == Tab.CONTROLS
+		_footer_line.set_texts(&"OPTIONS_FOOTER_CONTROLS" if controls else &"OPTIONS_FOOTER",
+				&"OPTIONS_FOOTER_CONTROLS_PAD" if controls else &"OPTIONS_FOOTER_PAD")
+		_footer_line.set_color(UiKit.COLOR_DISABLED)
 
 
 ## Language change: captions carry the cursor, the key page has composed texts.
@@ -373,7 +389,8 @@ func _fix_layout() -> void:
 		var height := 0.0
 		for key in [&"OPTIONS_FOOTER", &"OPTIONS_FOOTER_CONTROLS", &"OPTIONS_RESET_QUESTION"]:
 			height = maxf(height, _text_height(_footer, tr(key), width))
-		_footer.custom_minimum_size.y = ceilf(height)
+		# On the line, not the label: the gamepad line (pictures) takes the same height.
+		_footer_line.custom_minimum_size.y = ceilf(height)
 
 
 static func _text_width(label: Label, text: String) -> float:
@@ -413,6 +430,8 @@ func _choice_index(row: Row) -> int:
 			current = GameOptions.is_reduce_flashes_enabled()
 		Row.LIGHT_EFFECTS:
 			current = GameOptions.get_light_effects()
+		Row.AIM_ASSIST:
+			current = GameOptions.is_gamepad_aim_assist_enabled()
 	var index := values.find(current)
 	if index < 0 and row == Row.SHAKE:
 		# Any other strength (hand-edited file) shows as the nearest step.
@@ -446,6 +465,8 @@ func _pick(row: Row, index: int) -> void:
 			GameOptions.set_reduce_flashes(value)
 		Row.LIGHT_EFFECTS:
 			GameOptions.set_light_effects(value)
+		Row.AIM_ASSIST:
+			GameOptions.set_gamepad_aim_assist(value)
 	_refresh_choices()
 
 
@@ -520,6 +541,9 @@ func _build_general() -> VBoxContainer:
 	box.add_child(_section(&"OPTIONS_SECTION_LANGUAGE"))
 	# Language names stay in their own language on purpose.
 	box.add_child(_choice_row(Row.LANGUAGE, &"OPTIONS_LANGUAGE", [&"OPTIONS_LANG_AUTO", "English", "Deutsch"]))
+	# Here and not on the full "Tasten" page, so the view keeps its size (P0-2).
+	box.add_child(_section(&"OPTIONS_SECTION_CONTROLS"))
+	box.add_child(_choice_row(Row.AIM_ASSIST, &"OPTIONS_AIM_ASSIST_PAD", [&"COMMON_OFF", &"COMMON_ON"]))
 	return box
 
 
@@ -559,6 +583,14 @@ func _fill_controls_rows() -> void:
 		child.queue_free()
 	for id in ControlsInfo.get_ids():
 		_controls_rows.add_child(_control_row(id))
+
+
+## Keyboard/mouse <-> gamepad: the key symbols of the overview change (P0-2).
+func _on_input_device_changed(_kind: int) -> void:
+	if _controls_rows == null:
+		return
+	_fill_controls_rows()
+	_fix_layout()
 
 
 func _section(key: StringName) -> Label:
@@ -735,6 +767,12 @@ func _control_row(id: StringName) -> Control:
 	var row := UiKit.hbox(int(UiKit.px(6)))
 	# Key symbols like the HUD (mouse, space, W A S D), in a column of the old chip width.
 	var keys := KeyCap.row_for_control(id, UiKit.ART_SCALE)
+	if id == ControlsInfo.AIM and InputGlyphs.aim_id() != InputGlyphs.MOUSE:
+		# Aiming has no action: on a gamepad the right stick instead of KeyCap's mouse.
+		for child in keys.get_children():
+			keys.remove_child(child)
+			child.free()
+		keys.add_child(KeyCap.for_name(String(InputGlyphs.aim_id()), UiKit.ART_SCALE))
 	keys.custom_minimum_size.x = UiKit.px(KEY_WIDTH)
 	row.add_child(keys)
 	var caption := UiKit.text_label(ControlsInfo.caption(id), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT, true)

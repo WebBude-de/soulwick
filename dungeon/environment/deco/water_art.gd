@@ -26,6 +26,8 @@ const DEFAULT_BIOME := &"crypt"
 const BODY_ALPHA := 0.94
 const TILE := 32
 const FRAMES := 4
+## Shapes of the round puddles and ponds (ellipse_strip): a seed picks one of them.
+const SHAPES := 8
 const FPS := 3.0
 ## Outline (art px, TESTWERTE, look): mean inset from the water tiles, noise amplitude and its
 ## wavelength, radius of outer corners, extra softness of inner corners.
@@ -142,6 +144,21 @@ static func pool_image(tiles: Array[Vector2i], biome_id: StringName) -> Image:
 	return _paint(depth, size, biome_id, seed_value)
 
 
+## Steps that build every puddle shape of a biome ahead (DungeonManager idle warm-up, feedback
+## 16.10.2026: the first rooms of a biome hitched on them): SHAPES shapes of the DecoProp puddle and of
+## the small overlay puddle; the pond groups of DecoProp.WATER_GROUPS too.
+static func warm_steps(biome_id: StringName) -> Array[Callable]:
+	var steps: Array[Callable] = []
+	for shape in SHAPES:
+		steps.append(func() -> void: puddle_strip(biome_id, shape))
+		steps.append(func() -> void: small_puddle_strip(biome_id, shape))
+		for item: StringName in DecoProp.WATER_GROUPS.get(biome_id, {}):
+			var pond: Array = DecoProp.WATER_GROUPS[biome_id][item]
+			var frame: Vector2i = DecoProp.ITEMS[item]["frame"]
+			steps.append(func() -> void: pond_strip(biome_id, shape, frame, pond[0], pond[1]))
+	return steps
+
+
 ## A small round puddle in one 32 px frame (DecoProp item puddle, FRAMES frames).
 static func puddle_strip(biome_id: StringName, seed_value: int) -> Texture2D:
 	return ellipse_strip(biome_id, seed_value, Vector2i(TILE, TILE), PUDDLE_CENTER, PUDDLE_RADII)
@@ -160,7 +177,7 @@ static func pond_strip(biome_id: StringName, seed_value: int, size: Vector2i, ce
 
 ## Water inside a wobbled ellipse (center, radii in art px) in frames of size.
 static func ellipse_strip(biome_id: StringName, seed_value: int, size: Vector2i, center: Vector2, radii: Vector2) -> Texture2D:
-	var shape_seed := seed_value % 8
+	var shape_seed := seed_value % SHAPES
 	var key := "ellipse:%s:%d:%s:%s:%s" % [biome_id, shape_seed, size, center, radii]
 	if _cache.has(key):
 		return _cache[key]

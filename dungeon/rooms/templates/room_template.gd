@@ -106,17 +106,24 @@ static func of(room: Node) -> RoomTemplate:
 	return RoomCatalog.find_template_of(room)
 
 
-## Name shown when a room with gameplay of its own is entered (D-110): "Arena", "Abgrund",
-## "Katakombe"; empty for normal combat rooms of every other shape (D-100: shapes stay unnamed).
+## Name shown when a room with gameplay of its own is entered (D-110): arena, chasm, catacomb, in the
+## current language (D-111); empty for normal combat rooms of every other shape (D-100: shapes stay
+## unnamed).
 static func get_room_name(kind: int, template: RoomTemplate) -> String:
+	var key := get_room_name_key(kind, template)
+	return Loc.t(key) if key != &"" else ""
+
+
+## Translation key of get_room_name, &"" for none.
+static func get_room_name_key(kind: int, template: RoomTemplate) -> StringName:
 	match kind:
 		RoomSequence.RoomKind.ARENA:
-			return "Arena"
+			return &"ROOM_ARENA_TITLE"
 		RoomSequence.RoomKind.CHASM:
-			return "Abgrund"
+			return &"ROOM_CHASM_TITLE"
 	if template != null and template.shape == Shape.CATACOMB:
-		return "Katakombe"
-	return ""
+		return &"ROOM_CATACOMB_TITLE"
+	return &""
 
 
 ## Code/test name of a shape (never shown to the player, D-100).

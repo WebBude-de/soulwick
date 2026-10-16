@@ -5,7 +5,9 @@ extends RefCounted
 ## and gestures as small pixel-art pictures instead of words like "Rechtsklick". Letters, digits and
 ## words without a picture (Q, E, Strg …) stay key names that KeyCap draws on a key cap. The symbol
 ## comes from the current binding (InputMap), so a later rebinding shows the right picture; the
-## input actions themselves are never changed here.
+## input actions themselves are never changed here. While a gamepad is the device in use
+## (InputDevice, P0-2) actions and key names show the gamepad's buttons instead (first_event,
+## pad_id_for_name, glyph_for_action, aim_id); rebuild on InputDevice.shared().changed.
 ##
 ## Art: res://art/ui/input/input_<id>.png replaces the drawn placeholder of the same id
 ## (SPRITES_V10 §2a/§2b); input_key_cap.png is the 9-slice background of text caps (KeyCap).
@@ -105,6 +107,13 @@ const TOUCH_ACTION_GLYPHS := {
 	&"move_left": TOUCH_STICK, &"move_right": TOUCH_STICK,
 }
 const TOUCH_SIDE_VIEW_GLYPHS := {&"dash": TOUCH_JUMP}
+
+## Actions whose key names pad_id_for_name maps to gamepad glyphs, in priority order: the menu keys
+## first (a menu's "Esc" means back, not pause), then the game actions like GlyphText.ACTIONS.
+const NAME_ACTIONS: Array[StringName] = [
+	&"ui_accept", &"ui_cancel", &"dash", &"attack", &"special_attack", &"switch_weapon", &"interact",
+	&"upgrade_overview", &"pause_menu", &"side_dash", &"move_up", &"move_left", &"move_down", &"move_right",
+]
 
 ## Engine key names (OS.get_keycode_string) with a picture.
 const KEY_GLYPHS := {
@@ -279,11 +288,15 @@ static func id_for_action(action: StringName) -> StringName:
 	return id_for_event(event) if event != null else &""
 
 
-## Glyph id of a key name as ControlsInfo shows it ("Rechtsklick", "Right click", "Space", "Tab").
+## Glyph id of a key name as ControlsInfo shows it ("Rechtsklick", "Right click", "Space", "Tab");
+## while the gamepad is in use the gamepad button of the action behind the name (pad_id_for_name).
 static func id_for_name(key_name: String) -> StringName:
 	var text := key_name.strip_edges()
 	if text.is_empty():
 		return &""
+	var pad := pad_id_for_name(text)
+	if pad != &"":
+		return pad
 	if KEY_GLYPHS.has(text):
 		return KEY_GLYPHS[text]
 	if text == "Esc":
@@ -294,18 +307,53 @@ static func id_for_name(key_name: String) -> StringName:
 	return &""
 
 
-## First bound key or mouse button of an action (null when unbound). Keyboard and mouse come
-## first; a gamepad binding only when there is nothing else.
-static func first_event(action: StringName) -> InputEvent:
+## First bound event of an action for the device in use (null when unbound): keyboard and mouse
+## first, a gamepad binding only when there is nothing else; while the gamepad is in use
+## (is_gamepad, P0-2) the other way round.
+static func first_event(action: StringName, pad_first := is_gamepad()) -> InputEvent:
 	if not InputMap.has_action(action):
 		return null
 	var pad: InputEvent = null
+	var desk: InputEvent = null
 	for event in InputMap.action_get_events(action):
-		if event is InputEventMouseButton or event is InputEventKey:
-			return event
-		if pad == null and (event is InputEventJoypadButton or event is InputEventJoypadMotion):
+		if desk == null and (event is InputEventMouseButton or event is InputEventKey):
+			desk = event
+		if pad == null and is_pad_event(event):
 			pad = event
-	return pad
+	if pad_first:
+		return pad if pad != null else desk
+	return desk if desk != null else pad
+
+
+static func is_pad_event(event: InputEvent) -> bool:
+	return event is InputEventJoypadButton or event is InputEventJoypadMotion
+
+
+## Glyph of the first gamepad binding of an action ("" = none).
+static func pad_id_for_action(action: StringName) -> StringName:
+	if not InputMap.has_action(action):
+		return &""
+	for event in InputMap.action_get_events(action):
+		if is_pad_event(event):
+			return id_for_event(event)
+	return &""
+
+
+## Glyph of an action for the device in use: the touch button, the gamepad button or the bound key
+## or mouse button ("" = a key without a picture, e.g. Q). side_view: dash is the jump there.
+## Hook for GlyphText.name_glyphs and other hint builders (P0-2).
+static func glyph_for_action(action: StringName, side_view := false) -> StringName:
+	if is_touch():
+		return touch_id_for_action(action, side_view)
+	if is_gamepad():
+		return pad_id_for_action(action)
+	var event := first_event(action, false)
+	return id_for_event(event) if event != null else &""
+
+
+## Glyph of aiming (ControlsInfo.AIM has no action): the right stick on a gamepad, else the mouse.
+static func aim_id() -> StringName:
+	return PAD_STICK_RIGHT if is_gamepad() else MOUSE
 
 
 ## Engine name of a key ("Q", "Space", "Escape"); physical bindings show the letter of the
@@ -350,6 +398,32 @@ static func touch_id_for_action(action: StringName, side_view := false) -> Strin
 ## Touch controls in use on this device (TouchState, read only).
 static func is_touch() -> bool:
 	return TouchState.shared().is_active()
+
+
+## Gamepad in use on this machine (InputDevice, read only); the touch controls win.
+static func is_gamepad() -> bool:
+	return InputDevice.is_gamepad() and not is_touch()
+
+
+## While the gamepad is in use: the gamepad glyph of the action a shown key name belongs to
+## ("Enter" -> A, "Esc" -> B, "Leertaste" -> A), searched in NAME_ACTIONS order; "" otherwise.
+static func pad_id_for_name(key_name: String) -> StringName:
+	if not is_gamepad():
+		return &""
+	for action in NAME_ACTIONS:
+		if not InputMap.has_action(action):
+			continue
+		for event in InputMap.action_get_events(action):
+			if not (event is InputEventKey or event is InputEventMouseButton):
+				continue
+			var names := [ControlsInfo.event_text(event)]
+			if event is InputEventKey:
+				names.append(engine_key_name(event))
+			if names.has(key_name):
+				var pad := pad_id_for_action(action)
+				if pad != &"":
+					return pad
+	return &""
 
 
 # --- Textures ---

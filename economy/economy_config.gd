@@ -8,8 +8,9 @@ extends Resource
 ## Drop = base (EnemyData.gold_drop) * (1 + growth * k), k = five-room block.
 ## TESTWERT (D-091): 0.10 -> 0.0, enemy count and waves already raise the income per room.
 @export var gold_growth_per_block := 0.0
-## TESTWERT (D-118: 5 -> 9, keeps the champion's gold with gold_drop_factor 0.4).
-@export var miniboss_gold_multiplier := 9.0
+## TESTWERT (D-118: 5 -> 9, keeps the champion's gold with gold_drop_factor 0.4; P1-5: 9 -> 12, the
+## champion in room 5 comes right before a typical first death and makes the first forge buy reachable).
+@export var miniboss_gold_multiplier := 12.0
 ## TESTWERT (D-091): flat factor on every enemy drop (playtest: 944 gold at room 43 was too much).
 ## D-118: 0.7 -> 0.4, about 1.75x as many enemies per room since then.
 @export var gold_drop_factor := 0.4

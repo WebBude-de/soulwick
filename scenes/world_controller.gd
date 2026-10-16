@@ -96,6 +96,10 @@ func load_world(scene: PackedScene) -> void:
 		game_ui.in_dungeon = in_dungeon
 	if hud != null:
 		hud.set_dungeon_mode(in_dungeon)
+	if not in_dungeon:
+		# The room catalogs load in the background while the village runs (dungeon start hitched
+		# ~2 s, online test 16.10.2026).
+		DungeonManager.preload_in_background()
 	if vision != null and not in_dungeon:
 		# The village follows the local clock (bright day, dark night with lit lamps); the dungeon
 		# sets its darkness per room (D-067).
@@ -107,7 +111,7 @@ func load_world(scene: PackedScene) -> void:
 	if hud != null and _world.has_signal(&"room_activated"):
 		_world.connect(&"room_activated", func(room: RoomController) -> void:
 			var next := room.get_next_biome() if room.is_campfire() else null
-			hud.set_campfire(room.is_campfire(), next.display_name if next != null else ""))
+			hud.set_campfire(room.is_campfire(), Loc.t(StringName(next.display_name)) if next != null else ""))
 	if hud != null and _world.has_signal(&"heal_countdown_changed"):
 		_world.connect(&"heal_countdown_changed", hud.set_heal_countdown)
 	_spawn_players()

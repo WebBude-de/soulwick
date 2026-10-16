@@ -10,9 +10,10 @@ extends SceneTree
 ##   (room signatures, no mismatch) and the same room numbers;
 ## - rooms 1-5: enemies exist only as the host's real ones and the client's puppets (same count,
 ##   same deaths), the client's bot deals damage through the host, gold goes into the shared pot
-##   (same value on both machines); the exit rule (online test 15.10.2026): one player alone in the
-##   next room does not start it - no countdown, no teleport; he sees "Warte auf ...", the other one
-##   "... wartet im naechsten Raum" with the arrow; the room starts once the other one walked in;
+##   (same value on both machines); the exit rule (online test 16.10.2026, like R.E.P.O.): one player
+##   alone in the next room starts the countdown (CoopRules.WAIT_COUNTDOWN) - he sees the number with
+##   "Warte auf ...", the other one the big number with "Beeil dich!" and the arrow, both at the top
+##   centre inside the screen; at 0 the room starts and the straggler is brought in on both machines;
 ## - after room 3 both pick their own upgrade, the exit waits for both; the special room (shop:
 ##   purchase validated by the host; weapons: the client's pick reaches the host);
 ## - the client's player goes down and is revived by the host's player (2 s, 2 HP);
@@ -84,8 +85,8 @@ const ROOM_CLEARED := 2
 const WEAPON_IDS: Array[String] = ["sword", "bow", "staff", "dagger", "hammer"]
 ## Seconds the attack button is held per weapon in the weapons scenario.
 const WEAPON_ATTACK_SECONDS := 1.0
-## Seconds the host waits alone in room 3 (longer than the old 10 s countdown).
-const STRAGGLER_WAIT := 11.0
+## Slack (s) around the room countdown (CoopRules.WAIT_COUNTDOWN) in the straggler scenario.
+const COUNTDOWN_SLACK := 2.5
 
 var _role := "host"
 var _run_id := ""
@@ -379,6 +380,10 @@ func _host() -> void:
 		if _rooms >= 3 and _stats.get("straggler_room", false):
 			_check(int(client_stats.get("wait_hints", 0)) >= 1 and int(client_stats.get("wait_arrow", 0)) >= 1,
 					"client: \"... wartet im naechsten Raum\" with the arrow while the host waited (%s hints, %s arrow frames)" % [client_stats.get("wait_hints"), client_stats.get("wait_arrow")])
+			var hurry_frames := int(client_stats.get("hurry_frames", 0))
+			_check(hurry_frames >= 30 and int(client_stats.get("hurry_on_screen", -1)) == hurry_frames,
+					"client: the big countdown with \"Beeil dich!\" at the top centre, inside the screen (%d frames, %s of them on screen, %s ticks)" % [hurry_frames, client_stats.get("hurry_on_screen"), client_stats.get("countdown_ticks")])
+			_check(int(client_stats.get("players_placed", 0)) >= 1, "client: the host brought its player into room 3 (%s)" % client_stats.get("players_placed"))
 		_check(client_stats.get("side_ways", -2) == _stats.get("host_side_ways", -1) and client_stats.get("side_sig", -2) == _stats.get("host_side_sig", -1),
 				"same side ways on both machines (%s ways, signatures equal)" % _stats.get("host_side_ways"))
 		if int(_stats.get("host_side_transits", 0)) > 0:
@@ -574,24 +579,33 @@ func _host_room(index: int, last_room := -1) -> bool:
 	if side_gate != null and not side_gate.is_used:
 		return await _host_side(side_gate, next)
 	if index == 2:
-		# Exit rule (online test 15.10.2026): only the host walks in - room 3 waits for the client, no
-		# countdown, no teleport; then the client walks in and it starts.
+		# Exit rule (online test 16.10.2026, like R.E.P.O.): only the host walks in - room 3 counts down;
+		# the client stays out and is brought in at 0 (never hurt).
+		var countdown: float = load("res://online/coop_rules.gd").WAIT_COUNTDOWN
 		var host_player := _local_player()
 		var net := _net()
 		host_player.global_position = _walk_in_points(next, 1)[0]
-		await _until(func() -> bool: return net.get(&"_waiting_room") == next, "host alone in room 3: the room waits")
+		await _until(func() -> bool: return net.get(&"_waiting_room") == next, "host alone in room 3: the countdown runs")
+		var counted := Time.get_ticks_msec()
 		await _until(func() -> bool: return net.get_wait_hint() == 1, "host: \"Warte auf ...\" while it waits")
-		_say("  host hint: %s" % net.get(&"_countdown_label").text)
-		await _seconds(STRAGGLER_WAIT)
+		await _seconds(0.2)
+		var banner: Node = net.wait_line.get_banner()
+		var line_rect: Rect2 = net.wait_line.get_line_rect()
+		_say("  host hint: %s %d s, %s" % [net.wait_line.get_text(), banner.get_seconds(), line_rect])
+		# The countdown sits at the top centre inside the screen (the old label sat half outside its
+		# left edge), small for the one waiting.
+		_check(net.wait_line.is_countdown_visible() and line_rect.position.x >= 0.0 and line_rect.position.y < 120.0 and not banner.is_hurry(),
+				"host: the countdown is on screen at the top centre (%s)" % line_rect)
+		_check(banner.get_seconds() >= 1 and banner.get_seconds() <= int(countdown), "host: it counts down (%d s)" % banner.get_seconds())
 		var client_player := _remote_player()
-		_check(dungeon.get_active_room_index() == index, "room 3 did not start without the client (%.0f s, no countdown)" % STRAGGLER_WAIT)
-		_check(client_player != null and not next.get_arena().has_point(client_player.global_position), "the straggler was not teleported into room 3")
-		var walked := Time.get_ticks_msec()
-		_place_group(next)
-		await _until(func() -> bool: return dungeon.get_active_room_index() == index + 1, "room 3 starts once the client is in")
-		_check(Time.get_ticks_msec() - walked < 3000, "room 3 started right after the client came in")
-		_check(net.living_teleports == 0, "host: no living player was teleported (%d)" % net.living_teleports)
-		_check(net.get_wait_hint() == 0, "host: the hint is gone once the room started")
+		_check(client_player != null and not next.get_arena().has_point(client_player.global_position), "the straggler stays outside meanwhile")
+		await _until(func() -> bool: return dungeon.get_active_room_index() == index + 1, "room 3 starts when the countdown is over", countdown + COUNTDOWN_SLACK + 3.0)
+		var waited := (Time.get_ticks_msec() - counted) / 1000.0
+		_check(waited >= countdown - COUNTDOWN_SLACK and waited <= countdown + COUNTDOWN_SLACK, "room 3 started after the countdown (%.1f s)" % waited)
+		await _seconds(0.5)
+		_check(client_player != null and next.get_arena().has_point(client_player.global_position), "host: the straggler was brought into room 3")
+		_check(net.living_teleports == 1, "host: one living straggler brought in (%d)" % net.living_teleports)
+		_check(net.get_wait_hint() == 0 and not net.wait_line.is_countdown_visible(), "host: the countdown is gone once the room started")
 		_stats["straggler_room"] = true
 	else:
 		_place_group(next)
@@ -634,6 +648,13 @@ func _host_side(gate: Node, next: Node) -> bool:
 				local.velocity, local.side_motion.get_last_input().axis, local.is_stunned(), local.is_alive(), paused, Engine.time_scale, bot.get(&"_path")])
 		return false
 	local.side_motion.input_source = Callable()
+	# Online test 16.10.2026: gate and door wait for the group (everybody there or 10 s), nobody is
+	# pulled at once; the waiting ones were let go again.
+	_say("  host: side waits %d (everybody there %d, time up %d, longest %.1f s), holds %d" % [side.side_waits,
+			side.waits_full, side.waits_timed_out, side.max_side_wait, side.holds])
+	_check(side.waits_full + side.waits_timed_out >= 2 * int(_stats.get("side_segments", 0)), "host: the gate and the door of every segment waited for the group")
+	_check(side.max_side_wait <= float(load("res://online/coop_rules.gd").WAIT_COUNTDOWN) + 0.5, "host: no side wait longer than its time (%.1f s)" % side.max_side_wait)
+	_check(not local.is_protected(), "host: its player waited at the door and was let go with the end")
 	if not await _until(func() -> bool: return _dungeon().get_active_room_index() == next.room_index, "room %d starts after the segment" % next.room_index, 15.0):
 		return false
 	var inside := 0
@@ -787,6 +808,14 @@ func _client() -> void:
 	_stats["camera"] = net.max_camera_targets
 	_stats["wait_hints"] = net.wait_hints
 	_stats["wait_arrow"] = net.wait_arrow_frames
+	_stats["wait_line"] = net.wait_line.shown_count
+	_stats["countdown_ticks"] = net.wait_line.get_banner().ticks
+	_stats["players_placed"] = net.players_placed
+	# STAT values travel as integers (%d): frames of the straggler's countdown, and on screen.
+	_stats["hurry_frames"] = net.wait_line.hurry_frames
+	_stats["hurry_on_screen"] = net.wait_line.hurry_frames_on_screen
+	_stats["side_waits"] = net.side.side_waits
+	_stats["side_holds"] = net.side.holds
 	_stats["side_ways"] = net.side.ways_announced
 	_stats["side_sig"] = hash(",".join(net.side.signatures)) & 0x7fffffff
 	_stats["side_transits"] = net.side.transits

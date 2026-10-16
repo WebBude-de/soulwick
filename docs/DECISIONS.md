@@ -1189,6 +1189,123 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `.github/workflows/release.yml`, `tools/ci/release_meta.sh`, `tools/ci/store_flags.sh`, `docs/RELEASE.md`, `docs/WEB_BUILD.md`, `docs/LAUNCH.md`.
 - **Ergänzt:** D-148, D-156.
 
+### D-158 – Koop: 10-s-Countdown beim Raumwechsel und am Seitenweg (wie R.E.P.O.)
+
+- **Status:** VERBINDLICH (Projektmitglied 16.10.2026 nach dem Online-Test: „Mach 10 Sekunden Timer, dass der Player etwas hurry up macht, aber zieh nicht instant mit … die anderen Spieler sollen so einen Countdown bekommen, ähnlich wie in Repo“) · Umsetzung **VORGESCHLAGEN** (Claude)
+- **Kontext:** Der Warte-Hinweis lag auf jedem Rechner halb links außerhalb des Bildes (Label-Position falsch berechnet, vier Absender auf einem Label); im Jump'n'Run zog das Tor alle Spieler sofort mit, auch beim Kisten-Looten.
+- **Beschluss:**
+  - Betritt der erste lebende Spieler den nächsten Raum, das Tor eines Seitenwegs oder die Tür am Ende eines Abschnitts, startet ein gemeinsamer Countdown von 10 s (`CoopRules.WAIT_COUNTDOWN`, TESTWERT). Sind alle Lebenden dort, geht es sofort weiter; bei 0 werden Nachzügler unverletzt hineingeholt bzw. mitgenommen. Gefallene wie bisher.
+  - Wartende stehen still und sind geschützt; an der Tür folgt die Kamera den Nachzüglern, das Nachholen nach 3 s ist währenddessen aus. Allein in der Sitzung startet der Weg sofort.
+  - Anzeige oben mittig unter dem HUD, nie über der Spielfeldmitte (`CoopWaitLine`, `CoopWaitBanner`): Nachzügler große Zahl mit „Beeil dich!“, Pfeil und Tick, ab 3 s rot; Wartende dieselbe Zahl kleiner mit „Warte auf <Name> …“. Weicht aus (halbtransparent), wenn ein Körper darunter steht.
+  - Host-autoritativ: `room_wait` mit Restzeit, neu `player_placed` und `side_wait_net` (Host und Client brauchen dieselbe Version).
+- **Prüfung:** `net_run_smoke side=1 rooms=5` auf Wegwerf-Infrastruktur 129 PASS / 0 FAIL (auch ohne Bündelung und im Legacy-Netzmodus); Raum 3 startet nach 10,0 s, Nachzügler hineingeholt, „Beeil dich!“ 616/616 Frames im Bild.
+- **Folgen:** `online/coop_rules.gd`, `online/net_dungeon.gd`, `online/net_side.gd`, `online/coop_wait_line.gd`, `online/coop_wait_banner.gd`, `dungeon/side/side_gate.gd`, `dungeon/side/side_segment.gd`, `tools/net_run_smoke.gd`, `tests/unit/test_coop_wait.gd`; MULTIPLAYER.md §3c/§3e noch anzugleichen.
+- **Ersetzt:** die Raumwechsel-Regel „kein Countdown, kein Teleport, der Raum wartet“ (Online-Test 15.10.2026) und das sofortige Mitziehen am Seitenweg-Tor (D-144).
+
+### D-159 – Netz-Synchronisierung nach dem Online-Test, Diagnose an Bug-Meldungen
+
+- **Status:** VORGESCHLAGEN (Claude; Anlass Projektmitglied 16.10.2026: „im Online-Modus etwas gebuggt … in 2D laggt es extrem, im Top-Down-Dungeon ein bisschen, vor allem die Mobs buggen“) · alle Zahlen TESTWERT
+- **Kontext:** Gegner wurden 10–15-mal je Sekunde hart auf den neuesten Snapshot gezogen; TCP liefert verspätete Pakete gebündelt → Springen. In der Seitenansicht setzte `NetPlayerState._follow` jedes Physik-Frame die alte Host-Geschwindigkeit neu. Netzlast war nicht die Ursache (Relay-Limits weit darüber).
+- **Beschluss:**
+  - Gegner (Dungeon und Seitenansicht) werden 100 ms in der Vergangenheit zwischen zwei Snapshots mit Host-Zeitstempel gezeichnet (`NetInterpolator`), höchstens 100 ms Vorausschätzung, Teleport nur bei großem Fehler. Delta-Snapshots (jeder 8. vollständig), Seitenansicht 15 statt 10 Snapshots/s.
+  - Eigene Figur: Verlaufsabgleich (1 s), Korrektur als kurzes Gleiten, harter Sprung erst ab 256 px; Kopien übernehmen die Host-Geschwindigkeit nur einmal je Paket, in der Luft keine Rückzüge.
+  - RelayPeer bündelt je Empfänger und Frame (nach Fähigkeits-Handshake, ältere Builds kompatibel), überspringt bei Rückstau unzuverlässige Pakete, endet bei vollem Puffer sauber als `slow_consumer`; Heartbeat 20 → 5 s.
+  - Relay (Plattform): `slow_consumer` erst nach 5 s ununterbrochen über der Grenze (`SLOW_CONSUMER_GRACE_SECONDS`), Grenze 1 → 4 MiB (`MAX_BUFFERED_BYTES`); ein zuverlässiges Paket über dem Rate-Limit trennt sauber mit 4008 statt still verworfen zu werden; Close-Log mit Spitzen-Raten.
+  - `NetDiagnostics`: RTT, Pakete und Bytes je Sekunde, Puffer, längster Hänger, letzter Trennungsgrund; hängt als `context.network` an jeder F9-Meldung, der Trennungsgrund steht im Log.
+- **Messung** (`net_smoke load=40`, 46 Gegner): Host→Client 28,1 → 21,6 KB/s; Bewegungsrauschen der Gegner bei 80 ± 30 ms Verzögerung 42 → 5 px/s (Seitenansicht 48 → 4); Rücksprünge der eigenen Figur bei ~300 ms −42 %.
+- **Gründe / verworfen:** Dedizierte Server nicht nötig – Spieler als Host ist für 2–4-Spieler-Koop üblich; der verbleibende Nachteil ist TCP (Kopfblockade). Für die Steam-Version Steam Datagram Relay (UDP) vorsehen, WebSocket-Relay für den Browser behalten.
+- **Folgen:** `online/net_interpolator.gd`, `online/net_diagnostics.gd`, `online/relay_peer.gd`, `online/relay_protocol.gd`, `online/net_enemies.gd`, `online/net_side.gd`, `online/net_player_state.gd`, `online/lobby_client.gd`, `ui/dev/dev_feedback.gd`, `tools/net_smoke.gd`; Plattform `apps/relay/src/{relay,limits,config}.ts`. Dokploy: `MAX_BUFFERED_BYTES` nicht mehr auf 1 MiB setzen.
+- **Ersetzt:** keine.
+
+### D-160 – Raumwechsel ohne Ruckler: gestaffelter Aufbau und Vorwärmen
+
+- **Status:** VORGESCHLAGEN (Claude; Anlass Projektmitglied 16.10.2026: „Wenn man in Räume geht, hängt der Bildschirm kurz … wenn es ein Feature ist, mach es raus“) · Zahlen TESTWERT
+- **Kontext:** Kein Feature: Raum N+1 wurde komplett in einem Frame gebaut; jedes Tor las den Tileset-Atlas von der GPU zurück (ohne Cache). Dungeon-Start hing ~2,1 s auf allen Maschinen gleichzeitig (Ursache der „hängenden Musik“ im Browser).
+- **Beschluss:** N+1 entsteht in fünf Schritten über fünf Frames (Bau, Kacheln, Schleier, Naht, Türzeichen), auch auf dem Netz-Client (`peek_room_at_slot` statt `get_room_at_slot` in Signatur-RPCs). Rahmen-, Tür-, Abgrund- und Deko-Bilder werden gecacht; Türbilder des ersten Bioms beim Laden, übrige Biome, Deko und Pfützen im Leerlauf nur in ruhigen Räumen (`IDLE_BUDGET_USEC` = 2000). Raumkataloge laden schon im Dorf im Hintergrund (`DungeonManager.preload_in_background()` aus `WorldController.load_world`).
+- **Messung** (`tools/room_enter_profile.gd`, Seed 4711, 18 Räume, Fenster): längster Frame 101 → 40 ms, Mittel der längsten Frames je Wechsel 40,2 → 18,5 ms, Frames > 16,7 ms 35 → 13; Ladeframe Dungeon-Start 2,1 → ~1,1 s.
+- **OFFEN:** Ladebildschirm für den Rest des Dungeon-Starts (Projektmitglied); Seitensegment-Start ~35–40 ms.
+- **Folgen:** `dungeon/dungeon_manager.gd`, `dungeon/rooms/{room_tiles,room_catalog}.gd`, `dungeon/rooms/walls/abyss_face.gd`, `dungeon/environment/doors/*`, `dungeon/environment/deco/*`, `scenes/world_controller.gd`, `online/net_dungeon.gd`, `tools/room_enter_profile.gd`, `tests/unit/test_room_entry_staging.gd`.
+- **Ersetzt:** keine.
+
+### D-161 – Einstieg: Online ohne Welt, ein Erststart, Gildenräume auf der Gildenseite, Ziele im Dorf
+
+- **Status:** VERBINDLICH für Online ohne Welt und Gildenräume (Projektmitglied 16.10.2026: „Wenn man hostet und noch keine Welt hat, wird halt eine erstellt“; „Gildenräume … in der Übersicht seiner Gilde … mit seinen Gilden-Homies spielen“; „besser verstehen, was es bringt, in einer Gilde zu sein“) · Rest **VORGESCHLAGEN** (Claude, Launch-Prüfung P1-1/P1-2/P1-3) · ergänzt D-147, D-152
+- **Beschluss:**
+  - „Online spielen“ ist immer erreichbar (gesperrt nur bei zu alter Version). Ohne Welt legt der Start „Welt 1“ im ersten freien Platz an (`MainMenu.create_default_world()`, dieselbe Funktion wie der Erststart).
+  - Erststart: Profil → „Welt 1“ automatisch → direkt ins Dorf; Weltenliste nur unter „Welten“.
+  - Gildenräume stehen auf der Gildenseite (eigener Raum oben; „Offene Räume“ der Gilde mit „Beitreten“, ausgegraut bei laufendem Run, anderer Version oder vollem Raum; Liste alle 6 s neu, TESTWERT). Neuer API-Endpunkt `GET /guilds/:id/rooms` (nur Mitglieder). Der Gilden-Tab nennt nur vorhandene Vorteile: Räume nur für Mitglieder, Gildenkasse, Gilden-Rangliste.
+  - Dorf bis zum ersten Run: Eröffnung durch den Chronisten (einmal je Welt, ohne Pause), Ziel-Zeile „Steig in den Dungeon hinab“, Seelenlicht-Spur und Pfeil zum Eingang. Alte Stände gelten als gesehen (D-087).
+  - Leistbar-Hinweise: „!“ über Schmiede und Handelsposten, solange etwas leistbar ist (nach einem Besuch aus, bis sich die Währung ändert; nur für die Sitzung gemerkt); Dialoge zeigen „Leistbar“ bzw. „Noch N Gold“; nach dem ersten Run Ziel-Zeile „Stärke dich in der Schmiede“ bis zum ersten Schmiede-Kauf; Run-Ende nennt die günstigste offene Schmiede-Stufe; der erste Run zählt als Rekord.
+- **OFFEN (Projektmitglied):** Gildenkasse ausgeben (Gilden-Schmiede, D-081/MP8) und Boni in Gilden-Runs; Name „Welt 1“; Chronist oder Chronistin; Eröffnung je Welt oder je Profil.
+- **Folgen:** `ui/main_menu/*`, `ui/menus/online/*`, `online/lobby_client.gd`, `online/api_client.gd`, `ui/menus/village_ui.gd`, `world/village/{village,village_guide,village_affordable,village_afford_marker}.gd`, `ui/menus/game_ui.gd`; Plattform `packages/contracts/src/guild.ts`, `apps/api/src/{routes/guilds,services/guild-rooms}.ts`.
+- **Ersetzt:** „Online spielen braucht eine Welt“ (`MENU_ONLINE_NEEDS_SAVE`).
+
+### D-162 – Einblendungen machen dem Kampf Platz; Anzeige für Tod und „am Boden“; Boss-Fortschritt
+
+- **Status:** VORGESCHLAGEN (Claude; Anlass Projektmitglied 16.10.2026: „Oft sieht man Gegner schlecht, weil Texteinblendungen davor sind“, „wenn man stirbt … dass das UI besser ist“) · Zahlen TESTWERT
+- **Beschluss:**
+  - Oberes Band in fester Reihenfolge: Aufgaben-/Bossleiste, Statuszeile (`DungeonUI.show_status_line`), Banner, 3-2-1; nichts mittig über dem Spielfeld.
+  - Im Kampf (Gegner im Bild) Streifen statt Schild (eine Zeile, 1,5 s); sonst Schild 1,8 s (Genre 2,4 s). Banner, Statuszeile, Lernkarten, 3-2-1 und Koop-Warte-Zeile werden halbtransparent (Alpha 0,35), wenn ein sichtbarer Körper darunter steht (`ui/hints/overlay_dodge.gd`).
+  - Lernkarten oben links unter dem Band, im Kampf Alpha 0,8, Ende beim Raumwechsel nach mindestens 2 s. Schadenszahlen 0,6 s, leicht versetzt.
+  - Tod allein: Banner „Du bist gefallen“ mit Ursache. Koop „am Boden“: Banner mit Ursache, Panel mit Hinweisen und Aufhelf-Fortschritt; Mitspieler sehen „<Name> ist am Boden“ und einen Pfeil (am Bildrand mit Fortschrittsring).
+  - Steuerungskarte Schritt 2 ohne Zeitgrenze, bis Spezial, Waffe, Benutzen und Übersicht benutzt sind, spätestens Raum 4 (`ControlsHint.LAST_ROOM`); HUD-Tastenleiste aus, solange die Karte offen ist.
+  - HUD: „Zyklus N“ ersetzt durch „Boss in N Räumen“ / „Boss!“ und 15 Biom-Pips (Spezialraum, Miniboss, Boss).
+- **OFFEN (Projektmitglied):** Ausblut-Zeit für Gefallene (D-084 kennt keine); Alpha 0,35 oder 0,45.
+- **Folgen:** `ui/menus/dungeon_ui.gd`, `ui/menus/dungeon_texts.gd`, `ui/hud/{hud,biome_progress}.gd`, `ui/hints/*`, `ui/damage_numbers/damage_number.gd`, `ui/widgets/key_cap.gd`, `player/player.gd`, `player/weapon_controller.gd`, `online/net_dungeon.gd`, `online/coop_wait_line.gd`.
+- **Ersetzt:** keine.
+
+### D-163 – Gamepad im Spiel und in allen Menüs
+
+- **Status:** VORGESCHLAGEN (Claude, Launch-Prüfung P0-2: Steam/Steam Deck) · Zahlen TESTWERT · ergänzt D-155
+- **Beschluss:**
+  - Zwei Sticks wie Touch (D-155): links laufen (auch D-Pad), rechts zielen (ohne Ausschlag in Laufrichtung); RT Angriff, LT Spezial, A Dash/Sprung, B Seiten-Dash (Seitenansicht), X benutzen, Y Waffe wechseln, Start Pause, Back Übersicht. Belegung zur Laufzeit (`GamepadInput.ensure_actions()` über `GameOptions.apply_controls()`), `project.godot` unverändert.
+  - Zielhilfe D-155 auch am Pad (Fernwaffen, Option „Zielhilfe (Pad)“, Standard an). Glyphen, Interaktions-Prompt und Mauszeiger folgen dem zuletzt benutzten Gerät.
+  - Menüs: A bestätigt, B zurück, Start öffnet/schließt die Pause; goldener Fokusrahmen in Dialogen ohne eigene Steuerung; Upgrade-Wahl und Shop starten mit der ersten Karte; A in den ersten 0,6 s eines Dialogs ignoriert (A ist auch Dash); Stick-Schritt ab 0,5, Wiederholung nach 0,4 s alle 0,12 s; Welten: Y umbenennen, X löschen.
+  - Totzonen: Zielen 0,25, Laufen 0,2; Gerätewechsel ab Stick 0,4 / Trigger 0,3 / 3 px Maus.
+- **OFFEN:** Texteingabe am Steam Deck (`ShowGamepadTextInput` mit MP6); Xbox-Buchstaben statt neutraler Positions-Glyphen; ein Pad je Spieler im lokalen Koop; B als Seiten-Dash oder RB als zweiter Angriff.
+- **Folgen:** `player/input/{gamepad_input,input_device,input_device_watcher,local_keyboard_mouse_input}.gd`, `ui/icons/{input_glyphs,glyph_text}.gd`, `ui/options/*`, `ui/menus/{modal,ui_dialog,dungeon_ui,game_ui}.gd`, `ui/main_menu/*`, `ui/widgets/{pad_nav,key_line,ui_chip,key_cap}.gd`, `ui/menus/village_ui.gd`, `player/player.gd`.
+- **Ersetzt:** D-155 „Gamepad unverändert“.
+
+### D-164 – Gegner-, Boss-, Biom- und Raumdaten speichern Übersetzungsschlüssel
+
+- **Status:** VORGESCHLAGEN (Claude, Launch-Prüfung P0-1) · ergänzt D-111
+- **Kontext:** Englisch ist Standard, aber Gegner- und Bossnamen, Tipps, Boss-Geschichten, Biome, Flüche, Statustexte und Todesursache waren fest Deutsch.
+- **Beschluss:** Daten speichern Schlüssel, übersetzt wird beim Anzeigen über `Loc.t` (in `Enemy.get_display_name()`, `EnemyHints`, `BossIntroRules`, `BossRules.boss_title`, `RoomSequence.get_biome_name`, `PlayerCurses`). Schema: `ENEMY_<ID>_NAME/_HINT`, `BOSS_<ID>_STORY_<n>`, `BOSS_<ID>_RETURN_<A..>` (Buchstaben, Text darf `|` enthalten; übersetzt wird vor dem Trennen), `BOSS_<ID>_PHASE_TWO`, `BIOME_<ID>`, `CURSE_<ID>[_EFFECT]`, `ENEMY_ELITE_<KIND>`, `STATUS_STUNNED/BLINDED/AMBUSH`; `Interactable.prompt` ist ein Text oder Schlüssel (Standard `CONTROLS_INTERACT`). Test `test_i18n_dungeon.gd`: kein Klartext in den Daten, jeder Schlüssel mit en und de.
+- **OFFEN (Projektmitglied):** deutsche Elite-Namen grammatisch („Flinkes Skelett“ bräuchte ein Geschlecht je Gegner); englische Namen „Shade“, „Splitting Slime“, „Hounded“, „Dry Fountains“.
+- **Folgen:** `enemies/data/*.tres`, `enemies/{enemy_hints,enemy_base,boss_intro_rules,boss_rules}.gd`, `dungeon/biomes/*.tres`, `dungeon/room_sequence.gd`, `dungeon/rooms/*`, `player/curses/player_curses.gd`, `characters/*`, `localization/translations.csv`.
+- **Ersetzt:** keine.
+
+### D-165 – Spielstand sicher schreiben, lokales Run-Protokoll
+
+- **Status:** VORGESCHLAGEN (Claude, Launch-Prüfung P1-7/P1-8) · ergänzt D-059
+- **Beschluss:**
+  - Welten, Profil, `settings.cfg` und `online.cfg` werden über `SafeSave` geschrieben: `<datei>.tmp` schreiben, zurücklesen, umbenennen; die letzte gute Kopie bleibt als `.prev.bak`. Kaputte Hauptdatei → `.prev.bak` laden (Log, Signal `save_restored`); `.bak` bleibt die abgelehnte Datei (D-059). Im Web wird nach der `.tmp`-Prüfung direkt geschrieben (IndexedDB synchronisiert nur beim Schließen).
+  - Run-Protokoll (`RunLog`) als JSONL je Run unter `user://runs/`, höchstens 50 Runs (TESTWERT): Kopf (Version, Modus, Waffe, Seed), je Raum Art, Biom, Dauer, Schaden, Gold, am Ende Grund, Ursache und Upgrades. Nur Spieldaten, keine persönlichen Daten. Option `run_log` (ohne UI), in Skriptläufen aus (`SOULWICK_RUN_LOG_DIR` schaltet ein). Auswertung: `python tools/collect_feedback.py --runs`.
+- **OFFEN (Projektmitglied):** Protokoll auch in Release-Builds; Seed im Protokoll.
+- **Folgen:** `meta/{safe_save,run_log,save_slots,stats_tracker}.gd`, `autoload/save_manager.gd`, `characters/player_profile.gd`, `online/online_config.gd`, `tools/collect_feedback.py`, Tests `test_save_atomic.gd`, `test_run_log.gd`.
+- **Ersetzt:** direktes Schreiben der Spielstände.
+
+### D-166 – Musik: kein Neustart bei wiederholten Wünschen, Absenken als Blende, Hänger im Log
+
+- **Status:** VORGESCHLAGEN (Claude; Anlass Projektmitglied 16.10.2026: „bei uns beiden gleichzeitig hat die Musik angefangen zu ruckeln … ganz schnell geloopt“) · Zahlen TESTWERT
+- **Kontext:** Ursache war ein Hänger des Hauptthreads (Dungeon-Aufbau, D-160), nicht der Musikspieler; im Browser mischt der Hauptthread den Ton. Gefunden wurden trotzdem drei Schwachstellen.
+- **Beschluss:** Die Stücke des nächsten Bioms laden vorab im Hintergrund (`MusicPreloader`; ohne Threads im Web ein Stück je 0,5 s in ruhigen Frames), ein neues Biom kostet keinen Lade-Frame mehr (~30 ms). Derselbe Raum ein zweites Mal ändert die Musik nicht (Bossphase und Sieg bleiben); nach einem erzwungenen Abschneiden werden weitere Wechsel für 0,4 s zurückgehalten (`MIN_RESTART_INTERVAL`), der neueste gewinnt; das Absenken unter Menüs blendet in 0,25 s. Im Spiel schreibt der MusicPlayer jeden Frame-Abstand über 1 s ins Log (`main thread stalled N ms`); der Wert geht in `NetDiagnostics.snapshot()`.
+- **OFFEN:** `audio/general/default_playback_type.web` = Sample (Musik im Browser unabhängig vom Hauptthread) – erst im Web-Build gegenprüfen.
+- **Folgen:** `components/audio/{music_player,music_channel,music_rules,music_preloader}.gd`, `tests/unit/test_music_debounce.gd`, `tests/unit/test_music_preload.gd`.
+- **Ersetzt:** keine.
+
+### D-167 – Balance: Knochenkönig fairer fürs Schwert, mehr Druck in der Krypta ab Raum 6
+
+- **Status:** VORGESCHLAGEN (Claude, Launch-Prüfung P1-5; Balance delegiert) · alle Zahlen TESTWERT · Nachtrag zu D-154
+- **Kontext:** Biom 1 kostete je Kampfraum 0,06–0,14 HP, danach nahm der Knochenkönig dem Startschwert im Median 3 von 6 HP (Tod 10 %), dem Bogen 0. Ein erster Tod in Raum 5–8 brachte 13–20 Gold, die billigste Schmiede-Stufe kostet 40.
+- **Beschluss:** Knochenkönig: Salve 12 → 10 Pfeile, Schildstoß-Warnung 1,0 → 1,2 s, Betäubung 1,0 → 0,7 s, Abklingzeit 0,9 → 1,0 s (Fenster nach dem Wandaufprall 1,44 → 1,6 s); Schaden, HP und Muster unverändert. Krypta: Gewichte Schatten/Bomber 0,04/0,04 → 0,14/0,10 (beide erst ab Raum 6); Kryptaturm Abklingzeit 1,8 → 1,4 s. Champion-Gold ×9 → ×12.
+- **Messung** (`balance_sim`, `hazards=1 falls=1 nav=1`, Werte per Override): Knochenkönig allein, Schwert 40 Runs: Schaden Median 3,0 → 1,5, Kämpfe mit ≥ 4,5 Schaden 15 → 4; im Run bis Raum 16 Tod 4/40 → 2/40; Bogen unverändert 0. Auszahlung bei Tod in Raum 6/8: 13/20 → 15/22 Gold.
+- **Schmiede:** Vitalität I 40 → 20, Startschild I 40 → 30 Gold, damit ein Tod in Raum 7–8 (18–22 Gold) für den ersten Kauf reicht.
+- **Nachmessung ganzer Runs** (gleiche Seeds, Schwert 20 / Bogen 10 Runs): Schwert Median 40 → 46 erreichte Räume, Schaden am Knochenkönig Median 3,0 → 1,5, 0 Tode bis Raum 15; Bogen 87,5 → 85 (Streuung); Auszahlung bei Tod in Raum 6/8 Schwert 15/21 Gold.
+- **OFFEN:** mehr Druck in Raum 6–14 über Elite-Chance (0,12 → 0,2) oder +1 Gegner – nach dem Dev-Test.
+- **Folgen:** `enemies/data/boss_bone_king.tres`, `enemies/data/turret_crypt.tres`, `dungeon/biomes/crypt.tres`, `economy/economy_config.gd`, `meta/meta_progression.gd`.
+- **Ersetzt:** Knochenkönig Salve 12, Warnung 1,0 s, Betäubung 1,0 s, Abklingzeit 0,9 s; Krypta-Gewichte 0,04/0,04; Kryptaturm 1,8 s; Champion-Gold ×9 (D-118).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

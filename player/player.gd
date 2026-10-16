@@ -13,6 +13,8 @@ signal blinded(duration: float)
 ## Emitted when an effective hit stuns the player (screen tilt, post-process wobble).
 signal stunned(duration: float)
 
+## Key name of the prompt ("E", or the pad button while the gamepad is in use; P0-2).
+const PadNav := preload("res://ui/widgets/pad_nav.gd")
 const INVULNERABLE_DASH: StringName = &"dash"
 const INVULNERABLE_HIT: StringName = &"hit"
 const HIT_FLASH_COLOR := Color(1.0, 0.35, 0.35)
@@ -307,7 +309,7 @@ func stun(duration: float) -> void:
 	_camera.stun_sway(duration)
 	stunned.emit(duration)
 	Sfx.play_at(self, &"stun", global_position)
-	DamageNumber.spawn_text(get_parent(), global_position + Vector2(0, -56), "Betäubt!", STATUS_TEXT_COLOR)
+	DamageNumber.spawn_status(get_parent(), global_position + Vector2(0, -56), &"STATUS_STUNNED", STATUS_TEXT_COLOR)
 
 
 func blind(duration: float) -> void:
@@ -315,7 +317,7 @@ func blind(duration: float) -> void:
 		return
 	blinded.emit(duration)
 	Sfx.play_at(self, &"blind", global_position)
-	DamageNumber.spawn_text(get_parent(), global_position + Vector2(0, -56), "Geblendet!", Color(0.75, 0.6, 1.0))
+	DamageNumber.spawn_status(get_parent(), global_position + Vector2(0, -56), &"STATUS_BLINDED", Color(0.75, 0.6, 1.0))
 
 
 ## Dash goes in movement direction, or in aim direction without movement input.
@@ -406,7 +408,8 @@ func _update_interaction() -> void:
 	# Only the player at this machine sees its prompt (MP1).
 	_prompt_label.visible = closest != null and is_local
 	if closest != null:
-		var prompt_text := "E %s" % closest.prompt
+		# Prompts are texts or translation keys (Interactable default CONTROLS_INTERACT).
+		var prompt_text := "%s %s" % [PadNav.key_name(&"interact"), Loc.t(StringName(closest.prompt))]
 		if _prompt_label.text != prompt_text:
 			_prompt_label.text = prompt_text
 			# The panel hugs the text, centered above the head.

@@ -99,13 +99,64 @@ func test_menu_imports_old_save_and_offers_continue() -> void:
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_CONTINUE)
 
 
-func test_online_needs_a_save() -> void:
-	var list := _menu().get_list()
+func test_online_is_open_without_a_world() -> void:
+	var menu := _menu()
+	var list := menu.get_list()
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_ONLINE), "Online spielen")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "Welt nötig")
-	assert_false(list.is_entry_enabled(MainMenu.ENTRY_ONLINE))
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_ONLINE), "Schnell · Gilden", "playtest 16.10.2026: no world needed first")
+	assert_true(list.is_entry_enabled(MainMenu.ENTRY_ONLINE))
+	menu.activate(MainMenu.ENTRY_ONLINE)
+	var panel := menu.get_open_panel() as OnlinePanel
+	assert_not_null(panel, "opens the online menu without a world")
+	await wait_physics_frames(2)
+	assert_not_null(panel.find_child("CreateRoom", true, false))
+	assert_not_null(panel.find_child("NewWorldHint", true, false), "says that starting creates a world")
+	assert_false(SaveManager.has_slot(1), "just looking creates no world")
 	var version := str(ProjectSettings.get_setting("application/config/version", ""))
 	assert_eq(MainMenu.version_text(), ("v" + version) if not version.is_empty() else MainMenu.FALLBACK_VERSION)
+
+
+func test_online_without_a_world_creates_one_on_start() -> void:
+	var menu := _menu()
+	var panel := menu.open_online()
+	await wait_physics_frames(2)
+	panel.launch_requested.emit({"action": LobbyClient.LAUNCH_JOIN, "code": "ABCD23"})
+	await wait_physics_frames(2)
+	assert_true(menu.is_starting(), "the game starts")
+	assert_true(SaveManager.has_slot(1), "a fresh world in the first free slot")
+	assert_eq(SaveManager.get_active_slot(), 1)
+	assert_eq(SaveManager.get_slot_summary(1)["name"], "Welt 1", "the usual default name")
+	assert_eq(PlayerProfile.current().player_name, "Kerze", "the player stays who they are (D-152)")
+	for id in VillageBuildings.ALL:
+		assert_true(VillageBuildings.needs_intro(id), "the fresh world explains %s (D-087)" % id)
+	var launch := LobbyClient.take_launch()
+	assert_eq(launch.get("action"), LobbyClient.LAUNCH_JOIN)
+	assert_eq(launch.get("code"), "ABCD23")
+
+
+func test_online_with_worlds_uses_the_continue_world() -> void:
+	SaveManager.create_slot(1, "Nebeltal")
+	SaveManager.create_slot(2, "Moorhang")
+	SaveManager.load_slot(2)
+	var menu := _menu()
+	assert_eq(MainMenu.online_world_slot(), 2, "the world of Weiterspielen")
+	var panel := menu.open_online()
+	await wait_physics_frames(2)
+	assert_null(panel.find_child("NewWorldHint", true, false), "no hint with a world")
+	panel.launch_requested.emit({"action": LobbyClient.LAUNCH_CREATE, "mode": LobbyClient.MODE_QUICK})
+	await wait_physics_frames(2)
+	assert_eq(SaveManager.get_active_slot(), 2)
+	assert_false(SaveManager.has_slot(3), "no extra world")
+	LobbyClient.take_launch()
+
+
+func test_profile_works_without_a_world() -> void:
+	var menu := _menu()
+	var panel := menu.open_profile(false)
+	await wait_physics_frames(2)
+	assert_not_null(panel, "Figur opens without a world (D-152: the profile is not the world's)")
+	assert_eq(PlayerProfile.current().get_display_name(), "Kerze")
+	assert_eq(SaveManager.get_continue_slot(), 0, "still no world")
 
 
 func test_online_opens_the_online_menu_with_a_save() -> void:
@@ -142,14 +193,18 @@ func test_a_room_from_the_main_menu_starts_the_game_with_the_wish() -> void:
 
 
 func test_keyboard_skips_disabled_entries_and_wraps() -> void:
-	var list := _menu().get_list()
+	var menu := _menu()
+	var list := menu.get_list()
+	# The only way Online spielen is locked: this build is too old for the API (MP4).
+	menu._on_online_checked(OnlineVersionCheck.Status.OUTDATED)
+	assert_false(list.is_entry_enabled(MainMenu.ENTRY_ONLINE))
 	assert_true(_press(list, KEY_DOWN))
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_SLOTS)
 	_press(list, KEY_DOWN)
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_PROFILE)
 	assert_eq(list.get_entry_hint(MainMenu.ENTRY_PROFILE), "Kerze", "the player's name")
 	_press(list, KEY_DOWN)
-	assert_eq(list.get_selected_id(), MainMenu.ENTRY_OPTIONS, "Online spielen (no save) is skipped")
+	assert_eq(list.get_selected_id(), MainMenu.ENTRY_OPTIONS, "Online spielen (locked) is skipped")
 	_press(list, KEY_S)
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_QUIT, "S works like the down arrow")
 	_press(list, KEY_DOWN)

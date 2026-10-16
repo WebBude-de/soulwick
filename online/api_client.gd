@@ -158,6 +158,13 @@ func get_guild_progress(guild_id: String) -> ApiResult:
 	return await _with_token(HTTPClient.METHOD_GET, guild_path(guild_id, "/progress"))
 
 
+## GET /guilds/:id/rooms (members only): the guild's open rooms on the relay, so members can join
+## without a room code. Expected answer: {rooms: [{code, hostName, players, maxPlayers, started,
+## createdAt}]}. Older APIs answer 404 (the menu then hides the list; joining by code still works).
+func get_guild_rooms(guild_id: String) -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_GET, guild_path(guild_id, "/rooms"))
+
+
 ## "/guilds/<id><suffix>" with the id URL-encoded.
 static func guild_path(guild_id: String, suffix := "") -> String:
 	return "/guilds/%s%s" % [guild_id.uri_encode(), suffix]

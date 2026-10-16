@@ -23,13 +23,15 @@ extends Node2D
 ## no way back). Where two joined rooms paint over each other each keeps its own floor and walls
 ## (PassageSeam); when a room is unloaded its neighbour gets its cells back and blocks its entrance,
 ## which now leads nowhere (Door.block).
-## No hitch on entry (playtest 15.10.2026 #14): entering a room only lights it up and starts it; the
-## next room is built one frame later, covered (veil, seam) the frame after, then signed (door signs,
+## No hitch on entry (playtest 15.10.2026 #14, feedback 16.10.2026): entering a room only lights it up
+## and starts it; the next room is built one frame later with its tiles held back (RoomTiles.hold_paint),
+## painted the frame after, then veiled, joined to the room before (seam), signed (door signs,
 ## corridor), then its side way is planned (_pending, one job per frame). The steps keep the order they
 ## had and nothing draws from the dungeon RNG in between, so the stream stays the same. Whoever asks
 ## for a room that is still pending (get_room_at_slot, the next entry, the branch choice, the network,
 ## tests) gets it built at once (finish_preparing). First-time work (the plan catalog, the rock pieces
-## of every biome tileset) is done while the dungeon loads (_warm_up).
+## of every biome tileset, the first biome's door pictures) is done while the dungeon loads
+## (_warm_up), the later biomes' door pictures one style per idle frame (_idle).
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
@@ -61,6 +63,8 @@ const CRYSTALS_PER_CHAMPION := 1
 const SHOW_ROOM_KIND_BANNER := false
 const INPUT_LOCK_BOSS_INTRO := &"boss_intro"
 const ROOM_KIND_BANNER_COLOR := Color(0.75, 0.8, 0.9)
+## Idle warm-up (_idle): further steps in the same frame only while this much time is left. TESTWERT
+const IDLE_BUDGET_USEC := 2000
 ## Exit portal at every campfire instead of in the boss room (recommendation D-103, confirmation
 ## by the team member still open). false = the portal appears in the boss room again (D-073).
 const CAMPFIRE_EXIT_PORTAL := true  # TESTWERT
@@ -131,6 +135,14 @@ var _pending: Array[Callable] = []
 var _job_running := false
 ## Resources warmed up at the start and kept for the run (biome tilesets with their rock pieces).
 var _warm: Array[Resource] = []
+## Work that only fills caches (door pictures, decoration and puddles of the biomes): one step per
+## frame (5-30 ms each) while the group stands in a calm room - cleared, a special room, the campfire -
+## and no room is prepared (feedback 16.10.2026: warming everything while the dungeon loads made its
+## first frame longer, warming it during a fight would stutter). Never needed for correctness, so
+## finish_preparing leaves it alone.
+var _idle: Array[Callable] = []
+## Process frame of the last entry: no idle step in it.
+var _entry_frame := -1
 ## Branch ways built over several frames: the chain state they all start from, the state each built
 ## way left behind.
 var _ways_base: ChainState = null
@@ -182,15 +194,34 @@ func _ready() -> void:
 	var first := _prepare_slot(1)
 	_player_spawn.global_position = first.get_player_start()
 	_prepare_slot(2)
+	# The idle warm-up of the later biomes starts with the next frame.
+	_update_pending_hook()
+
+
+## Hook for the village (feedback 16.10.2026, the first dungeon entry stalled about 2 s): starts
+## loading the room catalogs and every template scene on worker threads, so the dungeon does not
+## load them in its first frame. Safe to call more than once.
+static func preload_in_background() -> void:
+	RoomCatalog.preload_in_background()
 
 
 ## First-time work of later rooms done while the dungeon loads (#14, the entry of the first rest room
 ## and the first room of every biome hitched): the plan catalog (rest, miniboss, boss and campfire
 ## templates) and the wall, abyss and rock pieces of every biome tileset (kept for the run, so the
-## pieces are not built again). No dungeon RNG.
+## pieces are not built again). The pictures of every door style (feedback 16.10.2026: the first gate
+## of a style hitched): the first biome's now, the others one style per idle frame; after them, one
+## picture per idle frame, the decoration and the puddles of every biome (the first rooms of a biome
+## hitched on them). No dungeon RNG.
 func _warm_up() -> void:
 	RoomCatalog.load_plans()
+	var first_biome := RoomCatalog.biome_id_for_room(1)
+	DoorView.warm_up(first_biome)
 	for biome_id in RoomCatalog.BIOME_IDS:
+		if biome_id != first_biome:
+			for style in DoorArt.styles_of(biome_id):
+				_idle.append_array(DoorView.warm_steps(style))
+		_idle.append_array(DecoProp.warm_steps(biome_id))
+		_idle.append_array(WaterArt.warm_steps(biome_id))
 		var tileset := RoomController._load_biome_tileset(biome_id)
 		if tileset == null:
 			continue
@@ -281,6 +312,12 @@ func get_room_at_slot(slot: int) -> RoomController:
 	return _rooms.get(slot)
 
 
+## The room of a slot as far as it is built, without finishing its dressing (#14): for checks that
+## need no tiles, veil or signs (NetDungeon's room signature). null if not prepared.
+func peek_room_at_slot(slot: int) -> RoomController:
+	return _rooms.get(slot)
+
+
 ## Is part of the next room's preparation still waiting for a later frame (#14)?
 func is_preparing() -> bool:
 	return not _pending.is_empty()
@@ -297,11 +334,24 @@ func finish_preparing() -> void:
 
 
 ## One job per frame. SceneTree.process_frame comes while a menu pauses the game too, so the order of
-## the dungeon RNG never depends on a pause.
+## the dungeon RNG never depends on a pause. Without a job: one idle step while it is calm.
 func _run_pending_job() -> void:
 	if not _pending.is_empty() and not _job_running:
 		_run_job(_pending.pop_front())
+	elif not _idle.is_empty() and not _job_running and _is_calm():
+		# Steps that find their picture cached already take no time: several of them per frame.
+		var start := Time.get_ticks_usec()
+		while not _idle.is_empty() and Time.get_ticks_usec() - start < IDLE_BUDGET_USEC:
+			(_idle.pop_front() as Callable).call()
 	_update_pending_hook()
+
+
+## No fight in the active room (cleared, special room, campfire) and not the frame of an entry.
+func _is_calm() -> bool:
+	if Engine.get_process_frames() == _entry_frame:
+		return false
+	var room: RoomController = _rooms.get(_active_slot)
+	return room != null and room.state == RoomController.State.CLEARED
 
 
 func _run_job(job: Callable) -> void:
@@ -327,9 +377,10 @@ func _update_pending_hook() -> void:
 		return
 	var tree := get_tree()
 	var hooked := tree.process_frame.is_connected(_run_pending_job)
-	if _pending.is_empty() and hooked:
+	var busy := not _pending.is_empty() or not _idle.is_empty()
+	if not busy and hooked:
 		tree.process_frame.disconnect(_run_pending_job)
-	elif not _pending.is_empty() and not hooked:
+	elif busy and not hooked:
 		tree.process_frame.connect(_run_pending_job)
 
 
@@ -363,6 +414,7 @@ func end_run(reason: RunManager.EndReason) -> void:
 		return
 	_run_ending = true
 	_pending.clear()
+	_idle.clear()
 	_update_pending_hook()
 	RunManager.end_run(reason)
 
@@ -427,6 +479,9 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1, stage
 	# A10: doors, place, branch and secret niche, decided before the room is built.
 	var secret := _plan_links(room, previous, previous_exit, slot, entrance_side, variant_pick.has_variant() or elite_nest,
 			ModeRegistry.allows_secret(variant_pick.variant_id))
+	if staged:
+		# Its tiles follow in the next frame (_paint_staged); the room stays hidden until it is covered.
+		(room.get_node(^"Tiles") as RoomTiles).hold_paint()
 	room_container.add_child(room)
 	if is_way:
 		_branch_ways.append(room)
@@ -456,7 +511,7 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1, stage
 			previous.make_way_for_campfire()
 	if staged:
 		room.visible = false
-		_queue_next(_cover_staged.bind(previous, room, option, via_exit, then))
+		_queue_next(_paint_staged.bind(previous, room, option, via_exit, then))
 	else:
 		_dress_way(previous, room, previous_exit, option, via_exit)
 
@@ -471,10 +526,12 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1, stage
 	return room
 
 
-## Prepares a slot from outside (MP3: a network client builds the slot the host announced).
+## Prepares a slot from outside (MP3: a network client builds the slot the host announced). Built
+## now, dressed in the next frames like on the host (feedback 16.10.2026, online test: a client built
+## the whole room in the frame the host's message came); asking for it finishes it (finish_preparing).
 func prepare_slot(slot: int, option: BranchOption = null) -> RoomController:
 	finish_preparing()
-	return _prepare_slot(slot, option)
+	return _prepare_slot(slot, option, -1, true)
 
 
 ## Builds both ways of an active branch room from outside (MP3: a network client, once the host's RNG
@@ -746,7 +803,25 @@ func _sign_way(previous: RoomController, room: RoomController, option: BranchOpt
 	CorridorDressing.attach(room, other_door, _run_seed, room.room_index, biome.id if biome != null else &"")
 
 
-## Staged dressing (#14), step 1: veil and seam; the room shows from now on.
+## Staged dressing (#14, feedback 16.10.2026: one heavy frame per step is still a hitch), step 1: the
+## tiles held back while the room was built (cells, collision, navigation).
+func _paint_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
+	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	room.tiles.release_paint()
+	_queue_next(_veil_staged.bind(previous, room, option, via_exit, then))
+
+
+## Step 2: the veil over the room (its soft texture is built here).
+func _veil_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
+	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	if room.slot_index > 1:
+		RoomVeil.attach(room)
+	_queue_next(_cover_staged.bind(previous, room, option, via_exit, then))
+
+
+## Step 3: the seam to the room before (same order as _cover_way); the room shows from now on.
 func _cover_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
 	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
 		return
@@ -755,7 +830,7 @@ func _cover_staged(previous: RoomController, room: RoomController, option: Branc
 	_queue_next(_sign_staged.bind(previous, room, option, via_exit, then))
 
 
-## Step 2: door sign and corridor, then the job that follows the room (its side way).
+## Step 4: door sign and corridor, then the job that follows the room (its side way).
 func _sign_staged(previous: RoomController, room: RoomController, option: BranchOption, via_exit: int, then: Callable) -> void:
 	if not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
 		return
@@ -1106,6 +1181,7 @@ func enter_room(room: RoomController, prepare_next := true) -> void:
 	if not is_instance_valid(room) or room.slot_index <= _active_slot or _run_ending or _branch_ways.has(room):
 		return
 	_active_slot = room.slot_index
+	_entry_frame = Engine.get_process_frames()
 	# The campfire is no room (D-103): room number, scaling and heals stay where they are.
 	if room.room_index > 1 and not room.is_campfire():
 		RunManager.advance_room()
@@ -1274,7 +1350,7 @@ func _announce_room(room: RoomController, biome: BiomeData) -> void:
 	var kind_text := get_room_kind_label(room) if SHOW_ROOM_KIND_BANNER else ""
 	var entering_biome := room.room_index > 1 and (room.room_index - 1) % RoomSequence.BOSS_INTERVAL == 0
 	if entering_biome and biome != null:
-		ui.show_banner(biome.display_name, _with_kind(DungeonTexts.t(&"BIOME_NEW_SUB"), kind_text), biome.tile_tint)
+		ui.show_banner(Loc.t(StringName(biome.display_name)), _with_kind(DungeonTexts.t(&"BIOME_NEW_SUB"), kind_text), biome.tile_tint)
 		Sfx.play_ui(self, &"portal", -6.0)
 	elif room.is_extra_dark and room.room_index > 1 and RoomSequence.get_biome(room.room_index) != RoomSequence.Biome.SHADOW_REALM:
 		ui.show_banner(DungeonTexts.t(&"DARKNESS_TITLE"), _with_kind(DungeonTexts.t(&"DARKNESS_SUB"), kind_text), Color(0.7, 0.6, 1.0))
@@ -1336,7 +1412,7 @@ func _announce_boss(enemy: Enemy) -> void:
 		if not is_instance_valid(enemy) or enemy.is_dead():
 			return
 	else:
-		ui.show_banner(enemy.data.display_name, DungeonTexts.t(&"BOSS_BAR_KIND_BOSS"), Color(0.95, 0.4, 1.0))
+		ui.show_banner(enemy.get_display_name(), DungeonTexts.t(&"BOSS_BAR_KIND_BOSS"), Color(0.95, 0.4, 1.0))
 		Sfx.play_ui(self, &"boss_roar")
 		CameraShake.shake(self, 9.0)
 	ui.show_boss_bar(enemy)

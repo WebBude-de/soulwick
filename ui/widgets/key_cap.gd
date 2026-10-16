@@ -47,14 +47,16 @@ static func for_name(key_name: String, scale := HUD_PIXEL) -> KeyCap:
 	return cap
 
 
-## Caps of a control (ControlsInfo id) in a row: W A S D for moving, the mouse for aiming.
+## Caps of a control (ControlsInfo id) in a row: W A S D for moving, the mouse (gamepad: the right
+## stick) for aiming.
 static func row_for_control(id: StringName, scale := HUD_PIXEL, separation := -1) -> HBoxContainer:
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_theme_constant_override("separation", scale if separation < 0 else separation)
 	var actions := ControlsInfo.actions(id)
 	if actions.is_empty():
-		row.add_child(for_name(String(InputGlyphs.MOUSE) if id == ControlsInfo.AIM else ControlsInfo.key_text(id), scale))
+		# Aiming: the mouse, or the right stick while a gamepad is in use (P0-2).
+		row.add_child(for_name(String(InputGlyphs.aim_id()) if id == ControlsInfo.AIM else ControlsInfo.key_text(id), scale))
 		return row
 	var seen: Array[String] = []
 	for action in actions:

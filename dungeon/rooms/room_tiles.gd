@@ -254,6 +254,11 @@ signal walls_opened(tiles: Array[Vector2i])
 @export var stair_tiles: Array[Vector2i] = []
 
 var _paint_queued := false
+## Staged build (feedback 16.10.2026, the hitch on entering a room): while held, paint() only notes
+## that it is due; the DungeonManager paints the hidden room a frame after it entered the tree
+## (hold_paint / release_paint), so the frame that builds the room stays short.
+var _paint_held := false
+var _paint_due := false
 var _backdrop: TileMapLayer = null
 ## Rows of rock above the room (BACKDROP_MARGIN.y by default). Rooms are y-sorted, so a room's rock
 ## covers the rock of the room north of it; the room before a campfire trims it to 0, so the
@@ -932,8 +937,8 @@ func use_tileset(new_tileset: TileSet) -> void:
 			(layer as TileMapLayer).tile_set = new_tileset
 	if had_terrain != terrain and is_inside_tree():
 		paint()
-	# The rock faces and the water take the biome's colours.
-	if is_inside_tree():
+	# The rock faces and the water take the biome's colours (a held paint draws them later).
+	if is_inside_tree() and not _paint_held:
 		_paint_cliffs()
 		_paint_water()
 
@@ -942,8 +947,35 @@ func get_backdrop() -> TileMapLayer:
 	return _backdrop
 
 
+## Holds every paint back (call before the layer enters the tree): the cells, collision and
+## navigation come with release_paint(). Until then the layer has no cells.
+func hold_paint() -> void:
+	_paint_held = true
+
+
+## Paints what was held back (once, with everything set since); a no-op without a hold.
+func release_paint() -> void:
+	if not _paint_held:
+		return
+	_paint_held = false
+	if not _paint_due:
+		return
+	_paint_due = false
+	paint()
+	# A campfire's blend copied no cells while they were missing (set_biome_blend).
+	if _blend_layer != null:
+		_copy_cells_to_blend()
+
+
+func is_paint_held() -> bool:
+	return _paint_held
+
+
 func paint() -> void:
 	_paint_queued = false
+	if _paint_held:
+		_paint_due = true
+		return
 	clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = floor_seed

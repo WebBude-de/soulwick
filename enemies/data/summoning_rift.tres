@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_data")
 id = &"summoning_rift"
-display_name = "Beschwörungsriss"
+display_name = "ENEMY_SUMMONING_RIFT_NAME"
 tags = Array[StringName]([&"summoner"])
 max_health = 30.0
 damage = 0.0

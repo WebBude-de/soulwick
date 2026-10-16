@@ -82,7 +82,9 @@ static func tier_numeral(tier: int) -> String:
 
 
 ## "Knochenkönig" for the first cycle, "Knochenkönig II" for the second, ...
+## display_name may be the key from EnemyData (ENEMY_<ID>_NAME, D-111) or an already translated name.
 static func boss_title(display_name: String, tier: int) -> String:
+	var title := Loc.t(StringName(display_name)) if not display_name.is_empty() else display_name
 	if tier <= 0:
-		return display_name
-	return "%s %s" % [display_name, tier_numeral(tier)]
+		return title
+	return "%s %s" % [title, tier_numeral(tier)]

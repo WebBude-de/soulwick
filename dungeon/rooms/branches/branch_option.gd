@@ -60,6 +60,7 @@ func forces_variant() -> bool:
 	return kind != Kind.SPECIAL
 
 
+## Log name of the way (smoke test); the player only sees the door sign (DoorStyle.BRANCH_SYMBOLS).
 func describe() -> String:
 	match kind:
 		Kind.ELITE_NEST:

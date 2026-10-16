@@ -9,6 +9,8 @@ extends RefCounted
 const SLOT_COUNT := 3
 ## Longest world name in characters (TESTWERT).
 const NAME_MAX_LENGTH := 16
+## Last good copy of a slot file (P1-8); preloaded, works before the class cache knows SafeSave.
+const _SafeSave := preload("res://meta/safe_save.gd")
 
 
 ## Slot file name inside SaveManager.saves_dir.
@@ -37,24 +39,27 @@ static func sanitize_name(text: String, slot: int) -> String:
 
 ## What the slot list shows. Never changes the file. Keys: exists, broken, name (the world's name or
 ## "Welt <n>"), world_name (stored name, "" = default), version, gold, crystals, deepest_room,
-## play_time (s), last_played (unix s, 0 = unknown), all_seen.
+## play_time (s), last_played (unix s, 0 = unknown), all_seen, from_backup (the file is broken, the
+## values come from its last good copy, which loading will use too; P1-8).
 static func read_summary(path: String, slot: int) -> Dictionary:
 	var summary := {
 		"exists": false, "broken": false, "name": default_name(slot), "world_name": "", "version": 0,
 		"gold": 0, "crystals": 0, "deepest_room": 0, "play_time": 0.0, "last_played": 0, "all_seen": false,
+		"from_backup": false,
 	}
 	if not FileAccess.file_exists(path):
 		return summary
 	summary["exists"] = true
 	var config := ConfigFile.new()
-	if config.load(path) != OK:
-		summary["broken"] = true
-		return summary
-	var version: Variant = config.get_value("meta", "version", -1)
-	if typeof(version) != TYPE_INT or version < 1:
-		summary["broken"] = true
-	else:
-		summary["version"] = version
+	if config.load(path) != OK or not _has_valid_version(config):
+		# P1-8: loading falls back to the last good copy (SafeSave), so the list shows that one.
+		var backup := _SafeSave.backup_path(path)
+		config = ConfigFile.new()
+		if not FileAccess.file_exists(backup) or config.load(backup) != OK or not _has_valid_version(config):
+			summary["broken"] = true
+			return summary
+		summary["from_backup"] = true
+	summary["version"] = config.get_value("meta", "version")
 	# Before D-152 (v4) [profile] name was the player's name, not the world's: such a world has none.
 	var stored_name: Variant = config.get_value("world", "name", "")
 	if typeof(stored_name) == TYPE_STRING and not String(stored_name).strip_edges().is_empty():
@@ -133,6 +138,11 @@ static func format_last_played(unix_time: int, now := -1) -> String:
 	if Loc.current_language() == &"de":
 		return "%02d.%02d.%d · %s" % [local["day"], local["month"], local["year"], clock]
 	return "%d-%02d-%02d · %s" % [local["year"], local["month"], local["day"], clock]
+
+
+static func _has_valid_version(config: ConfigFile) -> bool:
+	var version: Variant = config.get_value("meta", "version", -1)
+	return typeof(version) == TYPE_INT and version >= 1
 
 
 static func _non_negative_int(value: Variant) -> int:

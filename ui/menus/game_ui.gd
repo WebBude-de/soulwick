@@ -3,6 +3,11 @@ extends CanvasLayer
 ## Global dialogs of game.tscn: Esc pause menu (docs/design screen 08) with the shared options
 ## (OptionsView, same as the main menu) and the run end summary (screen 07, UX1: run statistics,
 ## "Zurück ins Dorf" or "Neuer Run"). F11 toggles fullscreen anywhere in the game.
+## Gamepad (P0-2 step 2): Start opens and closes the pause menu, D-pad/stick move through it, A
+## presses, B resumes; the run end takes D-pad + A on its two buttons (Modal focus). The key lines
+## show the gamepad's buttons while a gamepad is in use (KeyLine).
+## P1-3: the run end names what the village gold buys now ("Im Dorf leistbar: Vitalität I (40 Gold)")
+## or how much is missing for the cheapest forge step; the first run always counts as a record.
 
 signal abort_run_requested
 signal main_menu_requested
@@ -21,6 +26,8 @@ const CONFIRM_WIDTH := 220.0
 const STAT_TILE_SIZE := Vector2(62, 24)
 const SKULL_ICON: Texture2D = preload("res://art/ui/skull_icon.png")
 const TROPHY_ICON: Texture2D = preload("res://art/ui/trophy_icon.png")
+const KeyLine := preload("res://ui/widgets/key_line.gd")
+const PadNav := preload("res://ui/widgets/pad_nav.gd")
 
 ## Set by WorldController so the pause menu can offer "Run abbrechen" only inside the dungeon.
 var in_dungeon := false
@@ -94,8 +101,10 @@ func open_pause_menu() -> void:
 	# A browser tab cannot close itself.
 	if not OS.has_feature("web"):
 		_add_pause_button(modal, _pause_button(&"GAME_UI_QUIT", &"GAME_UI_QUIT_HINT" if in_dungeon else &"", [], modal.finish.bind(&"quit")))
-	var footer := UiKit.text_label(_pause_footer_text(), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-	footer.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	var footer := KeyLine.new()
+	footer.name = "Footer"
+	footer.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	footer.set_texts(_pause_footer_text(), _pause_footer_text(true))
 	_pause_texts.append([footer, &"", []])
 	modal.content.add_child(footer)
 	modal.input_handler = _on_pause_key
@@ -126,12 +135,13 @@ func _pause_button(key: StringName, hint_key: StringName, hint_args: Array, on_p
 	return button
 
 
-func _pause_footer_text() -> String:
+## pad: the gamepad line ("{dpad} {a} · {b} fortsetzen", KeyLine tokens).
+func _pause_footer_text(pad := false) -> String:
 	var footer_parts: PackedStringArray = []
 	if in_dungeon:
 		footer_parts.append(Loc.t(&"GAME_UI_ROOM", [maxi(1, RunManager.get_current_room())]))
 	footer_parts.append(Loc.t(&"MENU_PAUSED"))
-	footer_parts.append(Loc.t(&"GAME_UI_PAUSE_KEYS"))
+	footer_parts.append(PadNav.text(&"GAME_UI_PAUSE_KEYS_PAD", [], "{dpad} {a} · {b} resume") if pad else Loc.t(&"GAME_UI_PAUSE_KEYS"))
 	return " · ".join(footer_parts)
 
 
@@ -144,7 +154,9 @@ func _notification(what: int) -> void:
 		if not is_instance_valid(node):
 			continue
 		var text := _pause_footer_text() if entry[1] == &"" else Loc.t(entry[1], entry[2])
-		if node is Button:
+		if node is KeyLine:
+			(node as KeyLine).set_texts(text, _pause_footer_text(true))
+		elif node is Button:
 			(node as Button).text = text
 		elif node is Label:
 			(node as Label).text = text
@@ -206,8 +218,10 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 	notes.name = "Notes"
 	notes.alignment = BoxContainer.ALIGNMENT_CENTER
 	var record_before: int = stats.get("record_before", 0)
-	if record_before > 0 and room > record_before:
-		var record := UiKit.text_label(DungeonTexts.t(&"RUNEND_RECORD", [record_before]), UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
+	if RunRecap.is_new_record(room, record_before):
+		# The first run always counts as a record (P1-3): it has no "bisher Raum".
+		var record_text := DungeonTexts.t(&"RUNEND_RECORD", [record_before]) if record_before > 0 else PadNav.text(&"RUNEND_RECORD_FIRST", [], "New record!")
+		var record := UiKit.text_label(record_text, UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
 		record.name = "Record"
 		notes.add_child(record)
 	var cause: String = stats.get("cause", "")
@@ -230,8 +244,22 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 	]
 	if summary.get("remaining_crystals", 0) > 0:
 		rows.append([DungeonTexts.t(&"RUNEND_CRYSTALS", [ratio_text]), "+%d" % summary.get("crystal_payout", 0), UiKit.COLOR_CRYSTAL])
-	rows.append([DungeonTexts.t(&"RUNEND_VILLAGE_GOLD"), str(SaveManager.get_permanent_gold()), UiKit.COLOR_TEXT])
+	var village_gold := [DungeonTexts.t(&"RUNEND_VILLAGE_GOLD"), str(SaveManager.get_permanent_gold()), UiKit.COLOR_TEXT]
+	var forge := _forge_hint(RunRecap.next_forge_step())
+	if forge == null:
+		rows.append(village_gold)
 	modal.content.add_child(_row_grid(rows))
+	if forge != null:
+		# P1-3: what the village gold buys, on one line with the village gold (R8: no extra height
+		# with crystals, the grid loses that row).
+		var village := UiKit.value_row(String(village_gold[0]), String(village_gold[1]), UiKit.COLOR_TEXT, UiKit.SIZE_BODY)
+		village.size_flags_horizontal = Control.SIZE_SHRINK_END
+		var line := UiKit.hbox(int(UiKit.px(12)))
+		line.name = "Village"
+		forge.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(forge)
+		line.add_child(village)
+		modal.content.add_child(line)
 	# Both buttons sit in the key bar (R8: no extra row; their key caps name the keys).
 	var buttons := UiKit.hbox(int(UiKit.px(6)))
 	buttons.name = "Buttons"
@@ -279,6 +307,29 @@ func _stat_tiles(entries: Array, accent := UiKit.COLOR_GOLD) -> Control:
 	return row
 
 
+## "Im Dorf leistbar: Vitalität I (40 Gold)" (gold) or "Noch 18 Gold bis Vitalität I" (muted) for
+## a RunRecap.next_forge_step(); null when there is nothing left to buy.
+func _forge_hint(step: Dictionary) -> Label:
+	var text := forge_hint_text(step)
+	if text.is_empty():
+		return null
+	var affordable: bool = int(step.get("missing", 0)) <= 0
+	var label := UiKit.text_label(text, UiKit.SIZE_BODY, UiKit.COLOR_GOLD if affordable else UiKit.COLOR_TEXT_SOFT, affordable)
+	label.name = "ForgeHint"
+	return label
+
+
+## Text of a forge step ({} = ""): the upgrade with its next level as a Roman numeral.
+static func forge_hint_text(step: Dictionary) -> String:
+	if step.is_empty():
+		return ""
+	var upgrade := "%s %s" % [MetaProgression.get_upgrade_name(step["id"]), RunRecap.roman(int(step["level"]))]
+	var missing := int(step.get("missing", 0))
+	if missing <= 0:
+		return PadNav.text(&"RUNEND_FORGE_AFFORDABLE", [upgrade, int(step["cost"])], "Affordable in the village: %s (%d gold)")
+	return PadNav.text(&"RUNEND_FORGE_MISSING", [missing, upgrade], "%d more gold for %s")
+
+
 ## Value rows in two columns (gold, payout, crystals, village gold), so the run end stays low.
 func _row_grid(rows: Array) -> Control:
 	var grid := GridContainer.new()
@@ -302,15 +353,23 @@ func _add_pause_button(modal: Modal, button: Button) -> void:
 	modal.content.add_child(button)
 
 
-## ↑/↓ move the highlight through the pause menu, Enter presses it.
+## ↑/↓ (D-pad, stick) move the highlight through the pause menu, Enter or A presses it, B resumes
+## (Esc and Start resume through the pause_menu action, _unhandled_input).
 func _on_pause_key(event: InputEvent) -> bool:
 	if _pause_buttons.is_empty():
 		return false
 	if MenuInput.is_up(event) or MenuInput.is_down(event):
 		_select_pause_button(posmod(_pause_index + (-1 if MenuInput.is_up(event) else 1), _pause_buttons.size()), true)
 		return true
-	if MenuInput.is_enter(event):
+	if MenuInput.direction(event) != Vector2i.ZERO:
+		# ←/→ mean nothing in the list (no second focus frame from Modal).
+		return true
+	if MenuInput.is_confirm(event):
 		_pause_buttons[_pause_index].pressed.emit()
+		return true
+	if MenuInput.is_pad_back(event) and _pause_modal != null:
+		UiSound.back(self)
+		_pause_modal.finish(&"resume")
 		return true
 	return false
 

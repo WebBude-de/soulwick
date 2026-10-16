@@ -5,8 +5,12 @@ extends GutTest
 ## in the following frames (DungeonManager._pending), in the same order and with the same dungeon RNG
 ## as all at once; asking for it builds the rest right away (finish_preparing). The veil texture is
 ## built with a separable blur that gives the same values as the plain 2D mean.
+## Feedback 16.10.2026 (still a hitch on entering): the room's tiles are painted a frame after it was
+## built (RoomTiles.hold_paint), the veil and the seam get a frame each; the painted cells are the
+## same as when everything happens at once.
 
 const DUNGEON: PackedScene = preload("res://dungeon/dungeon.tscn")
+const ROOM_BASE := "res://dungeon/rooms/room_base.tscn"
 const SEEDS: Array[int] = [4247586090614500065, 777]
 const SLOTS := 12
 
@@ -150,17 +154,26 @@ func test_entering_builds_the_next_room_in_the_following_frames() -> void:
 	assert_false(dungeon._rooms.has(3), "room 3 not built in the entry frame")
 	assert_eq(dungeon.get_live_room_count(), 2)
 	var built_hidden := false
+	var built_unpainted := false
 	var frames := 0
-	while dungeon.is_preparing() and frames < 12:
+	while dungeon.is_preparing() and frames < 16:
 		await get_tree().process_frame
 		frames += 1
 		var next: RoomController = dungeon._rooms.get(3)
-		if next != null and not next.visible:
+		if next == null:
+			continue
+		if not next.visible:
 			built_hidden = true
-			assert_null(RoomVeil.of(next), "hidden until its veil is on")
+		else:
+			assert_not_null(RoomVeil.of(next), "shown only with its veil on")
+			assert_false(next.tiles.is_paint_held(), "shown only once painted")
+		if next.tiles.is_paint_held():
+			built_unpainted = true
+			assert_eq(next.tiles.get_used_cells().size(), 0, "no cells while the paint is held")
 	assert_false(dungeon.is_preparing(), "done after a few frames (%d)" % frames)
-	assert_gte(frames, 3, "built, covered and signed in separate frames")
+	assert_gte(frames, 5, "built, painted, veiled, joined and signed in separate frames")
 	assert_true(built_hidden, "the room stayed hidden until it was covered")
+	assert_true(built_unpainted, "its tiles came a frame after the room")
 	var next := dungeon.get_room_at_slot(3)
 	assert_not_null(next)
 	assert_true(next.visible)
@@ -207,11 +220,39 @@ func _chain(seed_value: int, staged: bool) -> Array[String]:
 		var room := dungeon.get_room_at_slot(slot)
 		if room == null:
 			break
-		lines.append("%d %s %s %s %d" % [slot, room.scene_file_path.get_file(), room.tiles.get_entrance_door(),
-				room.tiles.get_exit_doors(), dungeon.get_slot_rng_state(slot)])
+		lines.append("%d %s %s %s %d cells %d" % [slot, room.scene_file_path.get_file(), room.tiles.get_entrance_door(),
+				room.tiles.get_exit_doors(), dungeon.get_slot_rng_state(slot), _cells_signature(room.tiles)])
 		dungeon.enter_room(room)
 	await _drop(dungeon)
 	return lines
+
+
+## Hash of every painted cell of the room layer and its backdrop (source, atlas piece, flips).
+static func _cells_signature(tiles: RoomTiles) -> int:
+	var parts: PackedStringArray = []
+	for layer: TileMapLayer in [tiles, tiles.get_backdrop()]:
+		if layer == null:
+			continue
+		var cells := layer.get_used_cells()
+		cells.sort()
+		for cell in cells:
+			parts.append("%s:%d:%s:%d" % [cell, layer.get_cell_source_id(cell), layer.get_cell_atlas_coords(cell), layer.get_cell_alternative_tile(cell)])
+	return "|".join(parts).hash()
+
+
+func test_a_held_paint_draws_the_same_cells() -> void:
+	var base := (load(ROOM_BASE) as PackedScene).instantiate()
+	var at_once := base.get_node(^"Tiles").duplicate() as RoomTiles
+	var held := at_once.duplicate() as RoomTiles
+	base.free()
+	held.hold_paint()
+	add_child_autofree(at_once)
+	add_child_autofree(held)
+	assert_gt(at_once.get_used_cells().size(), 0, "painted on entering the tree")
+	assert_eq(held.get_used_cells().size(), 0, "held: nothing painted yet")
+	held.release_paint()
+	assert_false(held.is_paint_held())
+	assert_eq(_cells_signature(held), _cells_signature(at_once), "the same cells after the release")
 
 
 # --- Veil texture (#14: built without a per-pixel 2D loop) ---

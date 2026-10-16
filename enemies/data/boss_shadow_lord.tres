@@ -8,8 +8,8 @@
 [resource]
 script = ExtResource("1_data")
 id = &"boss_shadow_lord"
-display_name = "Schattenlord"
-hint = "Schattenlord: Teleportiert sich, seine Geschosse blenden und er ruft Schattenwesen. Erst die Diener, dann er!"
+display_name = "ENEMY_BOSS_SHADOW_LORD_NAME"
+hint = "ENEMY_BOSS_SHADOW_LORD_HINT"
 attack_kind = 1
 tags = Array[StringName]([&"ranged", &"boss", &"shadow"])
 is_boss = true
@@ -50,9 +50,9 @@ sprite_frames = ExtResource("2_frames")
 enrage_special_repeats = 1
 enrage_spiral = true
 enrage_eruptions = 2
-enrage_text = "Die Schatten verschlingen alles!"
-intro_story = PackedStringArray("Auch ich trug einst eine Flamme wie du.", "Ich blies sie aus. Endlich Stille.", "Jeder Docht brennt nieder, auch deiner.", "Was bleibt, ist Kristall – für mich.")
-intro_lines = PackedStringArray("Pssst … da bist du ja wieder.|Ich habe gewartet.", "Dein Licht flackert schon.|Ich sehe es.", "Du kehrst immer zurück.|Ich auch.", "Wie oft noch, kleiner Docht?|Das Dunkel hat Zeit.")
+enrage_text = "BOSS_SHADOW_LORD_PHASE_TWO"
+intro_story = PackedStringArray("BOSS_SHADOW_LORD_STORY_1", "BOSS_SHADOW_LORD_STORY_2", "BOSS_SHADOW_LORD_STORY_3", "BOSS_SHADOW_LORD_STORY_4")
+intro_lines = PackedStringArray("BOSS_SHADOW_LORD_RETURN_A", "BOSS_SHADOW_LORD_RETURN_B", "BOSS_SHADOW_LORD_RETURN_C", "BOSS_SHADOW_LORD_RETURN_D")
 intro_type_speed = 0.85
 intro_voice = &"shadow_lord"
 intro_voice_variants = 6

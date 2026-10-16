@@ -27,13 +27,15 @@ const LIGHT_RUN_VISION_RADIUS := 120.0
 ## Safe torches beside the direct way (light run) and their light radius.
 const SAFE_TORCH_TILES: Array[Vector2i] = [Vector2i(1, 8), Vector2i(3, 1), Vector2i(13, 0)]
 const SAFE_TORCH_RADIUS := 170.0
-## Short explanation lines for the first-time explanations and room banners, which UX2 builds
-## centrally (D-110); the trial room itself shows none.
-const INTRO_TEXT := "Der Weg zum Ausgang ist sicher. Lauf durch den Parcours zur Truhe – ohne Fehler gibt es zusätzlich einen Seelenkristall. Fehler kosten ½ Herz, nie den Run."
-const INTRO_GAUNTLET := "Stacheln, Flammen und Pendelklingen haben ihren eigenen Takt: warte die Lücke ab."
-const INTRO_LIGHT_RUN := "Die Fackeln erlöschen nacheinander. Bleib im Licht – im Dunkeln kostet es alle 2 s ½ Herz."
-## The crumbling floor has its own full text: a fall costs a heart there (A4 rule), not ½.
-const INTRO_CRUMBLE := "Der Weg zum Ausgang ist sicher. Der Boden des Parcours bricht kurz nach dem Betreten hinter dir weg – bleib in Bewegung und spring mit Dash über die Lücken. Ein Sturz kostet ein Herz, nie den Run; ohne Fehler gibt es zusätzlich einen Seelenkristall."
+## Explanation of a kind of trial for the first-time explanations and room banners, which UX2 builds
+## centrally (D-110); the trial room itself shows none. Translation keys (D-111); the crumbling
+## floor's text says a fall costs a heart there (A4 rule), not ½.
+const INTRO_KEY := &"ROOM_TRIAL_INTRO"
+const INTRO_KEYS := {
+	SpecialTable.TrialKind.GAUNTLET: &"ROOM_TRIAL_GAUNTLET_INTRO",
+	SpecialTable.TrialKind.LIGHT_RUN: &"ROOM_TRIAL_LIGHT_RUN_INTRO",
+	SpecialTable.TrialKind.CRUMBLE: &"ROOM_TRIAL_CRUMBLE_INTRO",
+}
 const CAPTION_COLOR := Color(1.0, 0.85, 0.5)
 const MISTAKE_COLOR := Color(1.0, 0.35, 0.3)
 const FLAWLESS_COLOR := Color(0.86, 0.74, 1.0)
@@ -142,16 +144,14 @@ func is_chest_open() -> bool:
 	return _chest_open
 
 
-## Explanation line of a kind of trial (INTRO_TEXT plus the kind's own line), for UX2.
+## Translation key of the explanation of a kind of trial, for UX2.
+static func get_intro_key(trial_kind: int) -> StringName:
+	return INTRO_KEYS.get(trial_kind, INTRO_KEY)
+
+
+## Explanation of a kind of trial in the current language.
 static func get_intro_text(trial_kind: int) -> String:
-	match trial_kind:
-		SpecialTable.TrialKind.LIGHT_RUN:
-			return "%s %s" % [INTRO_TEXT, INTRO_LIGHT_RUN]
-		SpecialTable.TrialKind.GAUNTLET:
-			return "%s %s" % [INTRO_TEXT, INTRO_GAUNTLET]
-		SpecialTable.TrialKind.CRUMBLE:
-			return INTRO_CRUMBLE
-	return INTRO_TEXT
+	return Loc.t(get_intro_key(trial_kind))
 
 
 # --- Decisions ---

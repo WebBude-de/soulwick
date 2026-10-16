@@ -177,6 +177,7 @@ static func average_health(types: Array[EnemyData], weights: Array[float]) -> fl
 	return health / total if total > 0.0 else 0.0
 
 
+## Code/test name of a group theme (never shown to the player).
 static func get_theme_name(theme: int) -> String:
 	match theme:
 		GroupTheme.RANGED:

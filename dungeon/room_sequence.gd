@@ -117,15 +117,21 @@ static func get_boss_tier(room_index: int) -> int:
 	return floori(float(get_boss_number(room_index) - 1) / BIOME_COUNT)
 
 
-static func get_biome_name(biome: int) -> String:
+## Translation key of a biome name (same key as BiomeData.display_name, D-111).
+static func get_biome_name_key(biome: int) -> StringName:
 	match biome:
 		Biome.SLIME_GROTTO:
-			return "Schleimgrotte"
+			return &"BIOME_SLIME_GROTTO"
 		Biome.SHADOW_REALM:
-			return "Schattenreich"
+			return &"BIOME_SHADOW_REALM"
 		Biome.EMBER_FORGE:
-			return "Glutkammer"
-	return "Krypta"
+			return &"BIOME_EMBER_FORGE"
+	return &"BIOME_CRYPT"
+
+
+## Biome name in the current language.
+static func get_biome_name(biome: int) -> String:
+	return Loc.t(get_biome_name_key(biome))
 
 
 ## Equal weights over the four types, never the same type twice in a row (D-005).
@@ -244,6 +250,8 @@ static func get_size_name(size: int) -> String:
 	return "S"
 
 
+## German room type name: code/log name and the HUD's fallback (Hud.room_type_name shows the
+## HUD_ROOM_TYPE_* keys).
 static func get_type_name(room_type: RoomType) -> String:
 	match room_type:
 		RoomType.COMBAT_UPGRADE:
@@ -259,16 +267,6 @@ static func get_type_name(room_type: RoomType) -> String:
 	return "Kampf"
 
 
+## Code/log name of a special type (SpecialType ids equal SpecialTable's, test_special_table).
 static func get_special_name(special_type: int) -> String:
-	match special_type:
-		SpecialType.SHOP:
-			return "Shop"
-		SpecialType.WEAPON:
-			return "Waffenauswahl"
-		SpecialType.FOUNTAIN:
-			return "Brunnen"
-		SpecialType.UPGRADE:
-			return "Upgrade-Altar"
-		SpecialType.TRIAL:
-			return "Prüfung"
-	return ""
+	return SpecialTable.get_type_name(special_type)

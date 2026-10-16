@@ -40,6 +40,10 @@ func _run() -> void:
 		await _run_darkness()
 		quit()
 		return
+	# The very first read of the viewport texture comes back black (tool only, the game shows
+	# the menu): read once, wait a few frames, then shoot.
+	root.get_viewport().get_texture().get_image()
+	await _frames(3)
 	_shot("01_main_menu")
 	var menu: Node = current_scene.get("menu")
 	menu.open_slots()

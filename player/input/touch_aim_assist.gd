@@ -4,9 +4,10 @@ extends RefCounted
 ## delegated by the Projektmitglied, see D-155): while the aim stick is deflected and a living
 ## enemy the local player can see lies in a narrow cone around the stick direction and within the
 ## weapon's range, the aim snaps onto it. Several in the cone: the smallest angle wins, on a tie the
-## nearer one. Melee weapons, mouse, keyboard and gamepad never use it.
+## nearer one. The gamepad's right stick uses the same assist (P0-2, GamepadInput, option
+## "Zielhilfe (Gamepad)"). Melee weapons, mouse and keyboard never use it.
 ## Co-op: candidates come from the player's own tree and are measured from its own weapon; the
-## visibility is the local viewer's darkness (only the local player reads touch input). No random.
+## visibility is the local viewer's darkness (only the local player reads touch or gamepad input). No random.
 
 ## Half opening of the snap cone around the stick direction in degrees (TESTWERT).
 const CONE_DEGREES := 12.0

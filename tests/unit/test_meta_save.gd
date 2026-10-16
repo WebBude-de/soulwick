@@ -35,7 +35,8 @@ func after_all() -> void:
 
 
 func _remove_files() -> void:
-	for suffix in ["", ".bak", ".v1.bak", ".v2.bak"]:
+	# P1-8: also the last good copy (.prev.bak), else it stands in for a broken test file.
+	for suffix in ["", ".bak", ".v1.bak", ".v2.bak", ".prev.bak", ".tmp"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + suffix))
 
 

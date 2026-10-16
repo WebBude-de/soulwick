@@ -14,7 +14,7 @@
 [resource]
 script = ExtResource("1_biome")
 id = &"ember_forge"
-display_name = "Glutkammer"
+display_name = "BIOME_EMBER_FORGE"
 tile_tint = Color(1, 0.75, 0.62, 1)
 darkness_color = Color(0.04, 0.008, 0.0, 1)
 vision_factor = 1.0

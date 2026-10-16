@@ -69,7 +69,10 @@ const ELITE_COLORS := {
 	Elite.ARMORED: Color(0.75, 0.8, 0.95),
 	Elite.VOLATILE: Color(1.0, 0.45, 0.1),
 }
-const ELITE_NAMES := {Elite.SWIFT: "Flink", Elite.ARMORED: "Gepanzert", Elite.VOLATILE: "Explosiv"}
+## Translation keys of the elite prefixes (D-111); get_display_name() and the elite label translate them.
+const ELITE_NAMES := {Elite.SWIFT: &"ENEMY_ELITE_SWIFT", Elite.ARMORED: &"ENEMY_ELITE_ARMORED", Elite.VOLATILE: &"ENEMY_ELITE_VOLATILE"}
+## Small label above a champion (same word as the boss bar kind).
+const CHAMPION_LABEL_KEY := &"BOSS_BAR_KIND_CHAMPION"
 const LEAP_TIME := 0.5
 const TELEPORT_MIN_DISTANCE := 200.0
 const TELEPORT_MAX_DISTANCE := 330.0
@@ -459,10 +462,13 @@ func get_ability_badges() -> Array[StringName]:
 	return EnemyBadges.badges_for(data, elite, is_champion())
 
 
+## Name in the current language, with elite prefix ("Swift Skeleton"). EnemyData.display_name holds
+## the key (ENEMY_<ID>_NAME); an untranslated text comes back unchanged.
 func get_display_name() -> String:
+	var type_name := Loc.t(StringName(data.display_name)) if data != null else ""
 	if elite != Elite.NONE:
-		return "%s %s" % [ELITE_NAMES[elite], data.display_name]
-	return data.display_name
+		return "%s %s" % [Loc.t(ELITE_NAMES[elite]), type_name]
+	return type_name
 
 
 func _apply_data() -> void:
@@ -1448,9 +1454,9 @@ func _update_elite_label() -> void:
 	var text := ""
 	var color := CHAMPION_LABEL_COLOR
 	if is_champion():
-		text = "Champion"
+		text = Loc.t(CHAMPION_LABEL_KEY)
 	elif elite != Elite.NONE:
-		text = ELITE_NAMES[elite]
+		text = Loc.t(ELITE_NAMES[elite])
 		color = ELITE_COLORS[elite]
 	if text.is_empty():
 		if _elite_label != null:

@@ -3,7 +3,8 @@ extends MenuPanel
 ## "Wie heißt du?" (first start) and "Figur" in the main menu (D-152): the ProfileEditor in a menu
 ## panel. The first start cannot be skipped (Esc does nothing); it suggests the name and colour of
 ## the save slots of older builds once (PlayerProfile.legacy_suggestion), otherwise the profile.
-## The scene figure behind the menu follows the editor (look_changed).
+## The scene figure behind the menu follows the editor (look_changed). On the first start "Los geht's"
+## also starts the game when there is no world yet (MainMenu creates Welt 1, P1-1).
 
 signal saved
 signal look_changed(look: Dictionary)
@@ -43,7 +44,8 @@ func _ready() -> void:
 	editor.cancelled.connect(close)
 	editor.look_changed.connect(look_changed.emit)
 	content.add_child(editor)
-	set_footer(&"PROFILE_FOOTER_FIRST" if first_start else &"PROFILE_FOOTER")
+	set_footer(&"PROFILE_FOOTER_FIRST" if first_start else &"PROFILE_FOOTER",
+			&"PROFILE_FOOTER_FIRST_PAD" if first_start else &"PROFILE_FOOTER_PAD")
 
 
 func handle_input(event: InputEvent) -> bool:

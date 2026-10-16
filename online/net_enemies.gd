@@ -20,6 +20,12 @@ extends Node
 ##   active room) and its enemies come out of them (Enemy.emerge_started); the client plays the
 ##   same phases on its own SpawnSource nodes (same names, built from the same plan) and lets the
 ##   puppet emerge with the time that is left. Slime hops show their landing marker (snapshot).
+## - Snapshots (online test 16.10.2026): stamped with the host's clock; only enemies whose encoding
+##   changed since the last snapshot travel, every FULL_SNAPSHOT_EVERY-th snapshot carries all of
+##   them (a lost unreliable snapshot or a late joiner is caught up). The client draws every puppet
+##   NetInterpolator.DELAY_MSEC in the host's past between two snapshots (online/net_interpolator.gd)
+##   instead of pulling it towards the newest one: no stepping, no jumps when TCP delivers late.
+##   Further off than SNAP_DISTANCE from the newest position = jump. RelayPeer.legacy_sync = as before.
 
 const NODE_NAME := &"NetEnemies"
 const META_NET := &"net_id"
@@ -42,6 +48,10 @@ const PUPPET_INVULNERABLE := &"net_puppet"
 ## Client smoothing (TESTWERTE): jump when further off, else close this share per second.
 const SNAP_DISTANCE := 120.0
 const FOLLOW_RATE := 14.0
+## TESTWERT: every n-th snapshot carries every enemy.
+const FULL_SNAPSHOT_EVERY := 8
+## Preloaded: works before the global class cache knows NetInterpolator (new file).
+const Interpolator := preload("res://online/net_interpolator.gd")
 const HIT_SPARK_TEXTURE: Texture2D = preload("res://art/effects/hit_spark_3f.png")
 const DATA_DIR := "res://enemies/data/"
 const ENEMY_SCENE_PATH := "res://enemies/enemy_base.tscn"
@@ -72,9 +82,16 @@ var _snapshot_left := 0.0
 var _emerges: Dictionary[int, Array] = {}
 var _source_phases: Dictionary[int, int] = {}
 var _sources_slot := -1
+## Host: the last encoding sent per enemy (delta snapshots).
+var _full_left := 0
+var _last_encoded: Dictionary[int, PackedFloat32Array] = {}
+## Test counters: enemy entries sent (host) or applied (client).
+var snapshot_entries := 0
 ## Client: puppets by host id and where the host last saw them.
 var _puppets: Dictionary[int, Enemy] = {}
 var _targets: Dictionary[int, Vector2] = {}
+## Client: positions of the puppets over the host's time (drawn a little in the past).
+var interpolator: Interpolator = Interpolator.new()
 var _client_projectiles: Dictionary[int, Node] = {}
 var _client_pickups: Dictionary[int, Node] = {}
 static var _data_by_id: Dictionary = {}
@@ -226,6 +243,7 @@ func _on_enemy_damaged(enemy: Node2D, result: DamageResult, damage: DamageData) 
 
 func _on_enemy_died(enemy: Enemy, id: int) -> void:
 	_enemies.erase(id)
+	_last_encoded.erase(id)
 	died_count += 1
 	_send(&"enemy_died", [id, enemy.has_fallen_into_pit()])
 
@@ -239,6 +257,7 @@ func _on_enemy_exiting(id: int) -> void:
 	if enemy != null and is_instance_valid(enemy):
 		_emerges.erase(enemy.get_instance_id())
 	_enemies.erase(id)
+	_last_encoded.erase(id)
 
 
 func _register_projectile(projectile: Projectile) -> void:
@@ -306,13 +325,22 @@ func _physics_process(delta: float) -> void:
 	if _snapshot_left > 0.0 or _ready_peers.is_empty():
 		return
 	_snapshot_left = 1.0 / CoopRules.ENEMY_SNAPSHOT_RATE
+	_full_left -= 1
+	var full := _full_left <= 0 or RelayPeer.legacy_sync
+	if full:
+		_full_left = FULL_SNAPSHOT_EVERY
 	var data := PackedFloat32Array()
 	for id in _enemies:
 		var enemy := _enemies[id]
 		if is_instance_valid(enemy) and not enemy.is_dead():
-			data.append_array(encode_enemy(id, enemy))
+			var encoded := encode_enemy(id, enemy)
+			if not full and _last_encoded.get(id, PackedFloat32Array()) == encoded:
+				continue
+			_last_encoded[id] = encoded
+			data.append_array(encoded)
+			snapshot_entries += 1
 	if not data.is_empty():
-		_send(&"enemy_snapshot", [data])
+		_send(&"enemy_snapshot", [Time.get_ticks_msec(), data])
 
 
 ## R2: phase changes of the active room's spawn sources (warning, opening, rest) go to the clients.
@@ -429,16 +457,17 @@ func _announce_boss(enemy: Enemy) -> void:
 		if local != null and is_instance_valid(local):
 			local.set_input_locked(DungeonManager.INPUT_LOCK_BOSS_INTRO, false)
 	else:
-		dm.ui.show_banner(enemy.data.display_name, "Boss", Color(0.95, 0.4, 1.0))
+		dm.ui.show_banner(enemy.get_display_name(), "Boss", Color(0.95, 0.4, 1.0))
 		Sfx.play_ui(self, &"boss_roar")
 	if is_instance_valid(enemy) and not enemy.is_dead():
 		dm.ui.show_boss_bar(enemy)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 2)
-func enemy_snapshot(data: PackedFloat32Array) -> void:
+func enemy_snapshot(host_msec: int, data: PackedFloat32Array) -> void:
 	if is_host or _detached:
 		return
+	interpolator.begin_snapshot(float(host_msec), float(Time.get_ticks_msec()))
 	var i := 0
 	while i + SNAPSHOT_FIELDS <= data.size():
 		var id := int(data[i])
@@ -446,12 +475,25 @@ func enemy_snapshot(data: PackedFloat32Array) -> void:
 		var extra := (CIRCLE_FIELDS if flags & FLAG_CIRCLE else 0) + (LINE_FIELDS if flags & FLAG_LINE else 0) + (HOP_FIELDS if flags & FLAG_HOP else 0)
 		var enemy := get_puppet(id)
 		if enemy != null and not enemy.is_dead():
+			var at := Vector2(data[i + 1], data[i + 2])
+			_targets[id] = at
+			interpolator.push(id, float(host_msec), at)
 			_apply_snapshot(enemy, id, data, i)
+			snapshot_entries += 1
 		i += SNAPSHOT_FIELDS + extra
 
 
+## Client: where puppet id is drawn now (interpolated; the newest position without samples or in
+## legacy mode).
+func drawn_position(id: int, now_msec: int) -> Vector2:
+	if not RelayPeer.legacy_sync:
+		var at := interpolator.position_at(id, float(now_msec))
+		if at != Vector2.INF:
+			return at
+	return _targets.get(id, Vector2.INF)
+
+
 func _apply_snapshot(enemy: Enemy, id: int, data: PackedFloat32Array, i: int) -> void:
-	_targets[id] = Vector2(data[i + 1], data[i + 2])
 	if enemy.is_emerging():
 		# Its own emergence draws the sprite until it is out (enemy_emerge).
 		return
@@ -513,6 +555,7 @@ func _apply_hop_marker(enemy: Enemy, data: PackedFloat32Array, at: int, shown: b
 func _process(delta: float) -> void:
 	if is_host or _detached:
 		return
+	var now := Time.get_ticks_msec()
 	for id in _puppets:
 		var enemy := _puppets[id]
 		if not is_instance_valid(enemy) or enemy.is_dead() or not _targets.has(id):
@@ -521,6 +564,9 @@ func _process(delta: float) -> void:
 			# Coming out of a source switches the hurtbox back on (Enemy._start_rise): off again,
 			# the client's attacks only show (the host's copy of the player hits).
 			enemy.hurtbox.monitorable = false
+		if not RelayPeer.legacy_sync and interpolator.has(id):
+			enemy.global_position = drawn_position(id, now)
+			continue
 		var error: Vector2 = _targets[id] - enemy.global_position
 		if error.length() > SNAP_DISTANCE:
 			enemy.global_position = _targets[id]
@@ -553,7 +599,7 @@ func enemy_died(id: int, fell: bool) -> void:
 	if is_host or enemy == null or enemy.is_dead():
 		return
 	died_count += 1
-	_targets.erase(id)
+	_forget_target(id)
 	if fell:
 		enemy.fall_into_pit()
 	else:
@@ -705,7 +751,12 @@ func breakable_broken(slot: int, local_position: Vector2) -> void:
 
 func _on_puppet_exiting(id: int) -> void:
 	_puppets.erase(id)
+	_forget_target(id)
+
+
+func _forget_target(id: int) -> void:
 	_targets.erase(id)
+	interpolator.erase(id)
 
 
 # --- Helpers ---

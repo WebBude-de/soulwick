@@ -17,8 +17,8 @@ const PACT_STACKS := 2
 const PACT_COLOR := Color(0.75, 0.5, 1.0)
 const PACT_LIGHT_RADIUS := 150.0
 ## Short explanation line for the first-time explanation of the pact altar, built centrally by UX2
-## (D-110); the altar itself shows none.
-const PACT_INTRO_TEXT := "Ein Pakt gibt ein stärkeres Upgrade – und einen Fluch bis zum Ende des Runs. Das gewöhnliche Upgrade kostet nichts."
+## (D-110); the altar itself shows none. Translation key (D-111).
+const PACT_INTRO_KEY := &"ROOM_PACT_INTRO"
 
 ## -1 = roll with the dungeon RNG, 0 = normal altar, 1 = pact altar (tests, screenshots).
 var forced_pact := -1

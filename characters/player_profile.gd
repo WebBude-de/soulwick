@@ -15,6 +15,8 @@ extends RefCounted
 ## First start: is_set_up is false until the player confirmed name and figure once (main menu
 ## "Wie heißt du?") or the server's profile was taken over.
 
+## Preloaded: works before the global class cache knows SafeSave (new file).
+const SafeSaveScript := preload("res://meta/safe_save.gd")
 const FILE_NAME := "profile.cfg"
 const INSTANCE_FILE_NAME := "profile_%d.cfg"
 const SCRIPT_PREFIX := "script_"
@@ -93,7 +95,7 @@ static func load_from(file_path: String) -> PlayerProfile:
 
 func _read() -> void:
 	var config := ConfigFile.new()
-	if not FileAccess.file_exists(path) or config.load(path) != OK:
+	if SafeSaveScript.load_config(config, path) != OK:
 		return
 	var stored_name: Variant = config.get_value(SECTION, "name", "")
 	player_name = sanitize_name(str(stored_name)) if typeof(stored_name) == TYPE_STRING else ""
@@ -126,8 +128,7 @@ func save() -> Error:
 	config.set_value("sync", "look_dirty", look_dirty)
 	config.set_value("sync", "player_id", synced_player_id)
 	config.set_value("sync", "name_locked_until", name_locked_until)
-	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
-	var err := config.save(path)
+	var err := SafeSaveScript.write_config(config, path)
 	if err != OK:
 		push_error("PlayerProfile: could not write %s (%s)." % [path, error_string(err)])
 	return err

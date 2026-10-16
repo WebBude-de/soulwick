@@ -155,7 +155,7 @@ func test_host_room_peers_and_packets() -> void:
 	_peer.transfer_mode = MultiplayerPeer.TRANSFER_MODE_UNRELIABLE_ORDERED
 	_peer.set_target_peer(-2)
 	assert_eq(_peer.put_packet(PackedByteArray([0, 255])), OK)
-	assert_eq(_socket.sent_binary[0].hex_encode(), "01000000feffffff010100ff")
+	assert_eq(_socket.sent_binary.back().hex_encode(), "01000000feffffff010100ff")
 	# Client leaves.
 	_socket.push_text({"type": "peer_left", "peerId": 2, "reason": "left"})
 	_peer.poll()
@@ -176,8 +176,8 @@ func test_client_sees_only_the_host_and_sends_to_it() -> void:
 	assert_eq(_events, [["up", 1]])
 	_peer.set_target_peer(0)
 	_peer.put_packet(PackedByteArray([42]))
-	assert_eq(RelayProtocol.decode_frame(_socket.sent_binary[0]).to, 1, "host_only routing")
-	assert_eq(RelayProtocol.decode_frame(_socket.sent_binary[0]).from, 3)
+	assert_eq(RelayProtocol.decode_frame(_socket.sent_binary.back()).to, 1, "host_only routing")
+	assert_eq(RelayProtocol.decode_frame(_socket.sent_binary.back()).from, 3)
 	# Peer events of other clients are host business.
 	_socket.push_text({"type": "peer_joined", "peer": {"peerId": 4, "playerId": "p4", "name": "X", "platform": "ios"}})
 	_peer.poll()

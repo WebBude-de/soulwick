@@ -18,13 +18,14 @@ const UPGRADE_ORDER: Array[StringName] = [VITALITY, START_SHIELD, SHARPNESS, GOL
 ## changes (forge cards, D-087), gold cost of each level (index = level - 1).
 ## The texts are translation keys (D-111); read them translated with get_upgrade_name(),
 ## get_upgrade_summary(), get_upgrade_effect() and get_upgrade_stat().
-## TESTWERT: levels and costs from the D-087 table (28 -> 20 levels). Changing the number of levels
+## TESTWERT: levels and costs from the D-087 table (28 -> 20 levels); first level of Vitality 20 and
+## Start shield 30 so an early first death buys something (D-167). Changing the number of levels
 ## needs a save migration (SaveManager.migrate, D-059).
 const UPGRADES := {
 	VITALITY: {"name": &"FORGE_VITALITY_NAME", "effect": &"FORGE_VITALITY_EFFECT", "summary": &"FORGE_VITALITY_SUMMARY",
-		"stat": &"FORGE_VITALITY_STAT", "costs": [40, 80, 140, 220, 320]},
+		"stat": &"FORGE_VITALITY_STAT", "costs": [20, 80, 140, 220, 320]},
 	START_SHIELD: {"name": &"FORGE_START_SHIELD_NAME", "effect": &"FORGE_START_SHIELD_EFFECT", "summary": &"FORGE_START_SHIELD_SUMMARY",
-		"stat": &"FORGE_START_SHIELD_STAT", "costs": [40, 90, 160]},
+		"stat": &"FORGE_START_SHIELD_STAT", "costs": [30, 90, 160]},
 	SHARPNESS: {"name": &"FORGE_SHARPNESS_NAME", "effect": &"FORGE_SHARPNESS_EFFECT", "summary": &"FORGE_SHARPNESS_SUMMARY",
 		"stat": &"FORGE_SHARPNESS_STAT", "costs": [70, 150, 260, 400]},
 	GOLD_GREED: {"name": &"FORGE_GOLD_GREED_NAME", "effect": &"FORGE_GOLD_GREED_EFFECT", "summary": &"FORGE_GOLD_GREED_SUMMARY",

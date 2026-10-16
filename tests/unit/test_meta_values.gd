@@ -27,6 +27,8 @@ func after_all() -> void:
 	TranslationServer.set_locale(_old_locale)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH))
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".bak"))
+	# P1-8: the last good copy would otherwise stand in for a broken test file.
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + ".prev.bak"))
 	SaveManager.save_path = _old_path
 	SaveManager.load_game()
 

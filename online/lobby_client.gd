@@ -17,6 +17,8 @@ extends Node
 ## forge (MP8).
 ## The main menu has no game scene to hold a room: it stores the wish with request_launch() and the
 ## village of the started game runs it (take_launch(), VillageUI).
+## A guild room belongs on its guild's page in the online menu: target_guild_id names the guild while
+## the room is being created or joined from there (the room itself knows it once entered).
 
 signal state_changed(state: State)
 ## The room snapshot changed (RoomInfo of the contract; {} when not in a room).
@@ -33,6 +35,8 @@ signal run_ended(reason: String)
 enum State { IDLE, LOGGING_IN, CONNECTING, IN_ROOM, LEAVING }
 
 const GROUP: StringName = &"lobby_client"
+## Preloaded: works before the global class cache knows NetDiagnostics (new file).
+const NetDiagnosticsScript := preload("res://online/net_diagnostics.gd")
 const MODE_QUICK := "quick"
 const MODE_GUILD := "guild"
 ## Local error codes besides the relay's.
@@ -76,6 +80,12 @@ var resume_dialog := false
 var room_guild_name := ""
 ## Tag of that guild ("" if unknown), e.g. for "+21 Gold für [DOCHT]" after a guild run.
 var room_guild_tag := ""
+## Guild whose room is being created or joined from its page ("" for quick rooms or by code alone);
+## the online menu shows the room there while it connects. Inside the room get_room_guild_id().
+var target_guild_id := ""
+## Name and tag of target_guild_id while joining from its page (room_guild_name/_tag once inside).
+var _target_guild_name := ""
+var _target_guild_tag := ""
 
 ## The main menu's wish for the next game scene ({} if none): {action, mode, guild_id, guild_name,
 ## guild_tag, code}. Static: it has to survive the scene change (no autoload, D-044).
@@ -168,11 +178,10 @@ func run_launch(launch: Dictionary) -> void:
 			room_guild_tag = str(launch.get("guild_tag", ""))
 			await create_room(str(launch.get("mode", MODE_QUICK)), str(launch.get("guild_id", "")))
 		LAUNCH_JOIN:
-			await join_room(str(launch.get("code", "")))
-			# Joined from a guild's page: its name and tag are known (only if it is that guild room).
-			if is_guild_room():
-				room_guild_name = str(launch.get("guild_name", ""))
-				room_guild_tag = str(launch.get("guild_tag", ""))
+			# Joined from a guild's page: its name and tag are known (used only if it is that guild's
+			# room, see _on_room_entered).
+			await join_room(str(launch.get("code", "")), str(launch.get("guild_id", "")),
+					str(launch.get("guild_name", "")), str(launch.get("guild_tag", "")))
 
 
 func _enter_tree() -> void:
@@ -218,6 +227,16 @@ func get_room_guild_id() -> String:
 	return str(id) if id != null and get_room_mode() == MODE_GUILD else ""
 
 
+## The guild whose page shows this machine's room: the room's guild inside a guild room, the guild
+## of a guild room being created or joined from its page while connecting, else "".
+func get_guild_room_target() -> String:
+	if is_in_room() or state == State.LEAVING:
+		return get_room_guild_id()
+	if state == State.LOGGING_IN or state == State.CONNECTING:
+		return target_guild_id
+	return ""
+
+
 func is_guild_room() -> bool:
 	return get_room_mode() == MODE_GUILD
 
@@ -257,13 +276,21 @@ func create_room(mode := MODE_QUICK, guild_id := "") -> void:
 	if mode != MODE_GUILD:
 		room_guild_name = ""
 		room_guild_tag = ""
+	target_guild_id = guild_id if mode == MODE_GUILD else ""
+	_target_guild_name = ""
+	_target_guild_tag = ""
 	await _enter(RelayProtocol.create(mode, guild_id))
 
 
-## Join a room by its 6-character code (case and spaces do not matter).
-func join_room(code: String) -> void:
+## Join a room by its 6-character code (case and spaces do not matter). guild_id, guild_name,
+## guild_tag: the guild whose page the player joins from ("" = by code alone, see target_guild_id);
+## name and tag are taken over only if the room really is that guild's room.
+func join_room(code: String, guild_id := "", guild_name := "", guild_tag := "") -> void:
 	room_guild_name = ""
 	room_guild_tag = ""
+	target_guild_id = guild_id
+	_target_guild_name = guild_name if not guild_id.is_empty() else ""
+	_target_guild_tag = guild_tag if not guild_id.is_empty() else ""
 	var normalized := RelayProtocol.normalize_code(code)
 	if not RelayProtocol.is_valid_code(normalized):
 		_fail(ERROR_INVALID_CODE)
@@ -415,6 +442,12 @@ func _enter(action: Dictionary) -> void:
 
 func _on_room_entered(new_room: Dictionary, _peer_id: int) -> void:
 	room = new_room
+	# Joined from a guild's page: that guild's name and tag, if this is its room.
+	# (The state is not IN_ROOM yet: the snapshot is read directly.)
+	if str(new_room.get("mode", "")) == MODE_GUILD and not target_guild_id.is_empty() \
+			and str(new_room.get("guildId", "")) == target_guild_id and not _target_guild_name.is_empty():
+		room_guild_name = _target_guild_name
+		room_guild_tag = _target_guild_tag
 	last_run_end_reason = ""
 	runs_ended = 0
 	var tree := get_tree()
@@ -512,11 +545,14 @@ func _end_session(reason: String) -> void:
 		return
 	var left_on_purpose := state == State.LEAVING or reason == RelayProtocol.CLOSED_LEFT
 	last_end_reason = reason
+	if not left_on_purpose:
+		print("LobbyClient: session lost: ", NetDiagnosticsScript.describe_last_disconnect())
 	_pending_notice = "" if left_on_purpose else String(error_key(reason))
 	_close_peer()
 	room = {}
 	room_guild_name = ""
 	room_guild_tag = ""
+	target_guild_id = ""
 	_set_state(State.IDLE)
 	var controller := _controller()
 	if controller != null:
