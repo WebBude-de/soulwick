@@ -54,7 +54,7 @@ func test_lips_collide_lower_and_hide_who_stands_behind() -> void:
 	var mask := tiles.get_floor_mask()
 	var lips := 0
 	for cell in tiles.get_used_cells():
-		if RockTerrain.is_solid_cell(tiles.get_cell_source_id(cell), tiles.get_cell_atlas_coords(cell)) and tiles.get_cell_atlas_coords(cell).y == RockTerrain.SOLID_LIP_ROW:
+		if RockTerrain.is_solid_cell(tiles.get_cell_source_id(cell), tiles.get_cell_atlas_coords(cell)) and RockTerrain.is_lip_coords(tiles.get_cell_atlas_coords(cell)):
 			lips += 1
 			assert_true(mask.has(cell + Vector2i.UP), "%s: lip below floor" % cell)
 	assert_gt(lips, 5, "the room has lips")

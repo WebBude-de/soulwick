@@ -43,6 +43,16 @@ const ARCH_VISIBLE_DEEP := 0.45
 const SIDE_COVER_LOW_Z := -3
 ## The closed side gate lies on the mouth of the notch, under the players in front of it.
 const SIDE_LEAF_Z := -1
+## Bug report 17.10.2026 (#e1279990, #b153783c: "der Eingang ist so tief eingelassen ... nicht so
+## cutted"): the notch of a side gate is only this share of its tile deep (the room side); the rest
+## of the door tile is the rock of the side wall, the notch's back wall, its front and its foot drawn
+## that much closer to the room. 1.0 = the whole door tile (G2). TESTWERT
+const SIDE_NOTCH_OPEN := 0.5
+## Art px at the room side of the notch's pieces kept where they are (the room wall's light edge and
+## its corners there).
+const SIDE_NOTCH_ROOM_EDGE := 8
+## Rows (relative to the door tile) of the notch drawn closer to the room: crown, front, floor, foot.
+const SIDE_NOTCH_ROWS := [-2, -1, 0, 1]
 ## The fronts beside a north gate, the floor seen in its opening (above the fronts, below the gate).
 const FRONT_PATCH_Z := -2
 const OPENING_FLOOR_Z := -1
@@ -286,8 +296,8 @@ func set_symbol(symbol_id: StringName) -> void:
 	elif DoorArt.has_symbol_file(symbol_id) and not DoorStyle.is_branch_symbol(symbol_id):
 		_symbol.modulate = SYMBOL_TINT
 	if _is_side():
-		# On the closed side wall above the gate.
-		_symbol.position = Vector2(TILE * 0.5, SIDE_SYMBOL_Y)
+		# On the closed side wall above the gate, over the open share of the notch.
+		_symbol.position = Vector2(side_notch_center_x(), SIDE_SYMBOL_Y)
 		_symbol.z_index = LINTEL_Z + 2
 	elif not _lintel.is_empty():
 		# On the crown above the arch, under its light edge, clear of the arch (32/38.png). The tall
@@ -394,7 +404,12 @@ func _build_lintel() -> void:
 	# round it (G2 note 18). A north gate shows its arch and gate on the door tile: there the front is
 	# drawn only around the opening (no floor of the door tile beside the arch).
 	var north := not _is_side()
-	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, not north, not north):
+	var plan := PassageCover.plan(rooms, door_cell, outward, not north, not north)
+	var notch: Dictionary = {}
+	if not north:
+		notch = _side_notch_cells(rooms, door_cell, outward, plan)
+		plan = notch["plan"]
+	for entry: Dictionary in plan:
 		var cell: Vector2i = entry["cell"]
 		var on_door := north and cell == door_cell
 		var piece := _cover_sprite(entry, door_cell, on_door)
@@ -426,6 +441,7 @@ func _build_lintel() -> void:
 				floor_piece.name = "NotchFloor%d" % _lintel_extras.size()
 				floor_piece.z_index = SIDE_COVER_LOW_Z - 1
 				_lintel_extras.append(floor_piece)
+		_build_notch_rows(door_cell, outward, notch)
 		_build_side_notch()
 	else:
 		_build_frame_top()
@@ -433,17 +449,165 @@ func _build_lintel() -> void:
 
 ## The dark of the tunnel in the notch of a side gate (DoorArt.side_notch_image): clear at the mouth,
 ## dark where the passage runs on into the rock; over the players, so one walking in fades into it.
+## Only over the open share of the door tile (SIDE_NOTCH_OPEN).
 func _build_side_notch() -> void:
 	var notch := Sprite2D.new()
 	notch.name = "SideNotch"
 	notch.texture = DoorArt.get_side_notch()
 	notch.centered = false
-	notch.scale = Vector2.ONE * TILE / float(notch.texture.get_width())
-	# Drawn for an east wall (the room on the left); a west wall mirrors it.
+	var open_share := clampf(SIDE_NOTCH_OPEN, 0.1, 1.0)
+	notch.scale = Vector2(open_share, 1.0) * TILE / float(notch.texture.get_width())
+	# Drawn for an east wall (the room on the left); a west wall mirrors it and starts further in.
 	notch.flip_h = side == RoomTiles.DoorSide.WEST
+	if side == RoomTiles.DoorSide.WEST:
+		notch.position.x = TILE * (1.0 - open_share)
+	# The picture starts DoorArt.NOTCH_RISE art px above the door tile (soft over the front).
+	notch.position.y = -float(DoorArt.NOTCH_RISE) * notch.scale.y
 	notch.z_index = LINTEL_Z + 1
 	add_child(notch)
 	_lintel_extras.append(notch)
+
+
+## The notch of a side gate only SIDE_NOTCH_OPEN deep. Of the cover plan the cells of the door
+## column and the column behind it in SIDE_NOTCH_ROWS are taken out: the column behind is drawn as
+## if the passage were closed (no light edge where the notch's back wall used to be), the door column
+## by _build_notch_rows as the notch moved towards the room. Returns {"plan": the rest of the cover,
+## "open": cell -> entry of the notch plan, "fillet": the fillet entry of the notch floor or {}}; the
+## plain plan with SIDE_NOTCH_OPEN 1.
+func _side_notch_cells(rooms: Array, door_cell: Vector2i, outward: Vector2i, open_plan: Array[Dictionary]) -> Dictionary:
+	var result := {"plan": open_plan, "open": {}, "fillet": {}}
+	if SIDE_NOTCH_OPEN >= 1.0:
+		return result
+	var open: Dictionary = {}
+	for entry: Dictionary in open_plan:
+		open[entry["cell"]] = entry
+	var closed: Dictionary = {}
+	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, false, false):
+		closed[entry["cell"]] = entry
+	var taken: Dictionary = {}
+	for row: int in SIDE_NOTCH_ROWS:
+		taken[door_cell + Vector2i(0, row)] = true
+		taken[door_cell + outward + Vector2i(0, row)] = true
+	var rest: Array[Dictionary] = []
+	for entry: Dictionary in open_plan:
+		if not taken.has(entry["cell"]):
+			rest.append(entry)
+	# The column behind the door tile: closed rock (its own outer side unchanged).
+	for row: int in SIDE_NOTCH_ROWS:
+		var behind: Vector2i = door_cell + outward + Vector2i(0, row)
+		if closed.has(behind):
+			rest.append(closed[behind])
+		elif open.has(behind):
+			rest.append(open[behind])
+	result["plan"] = rest
+	result["open"] = open
+	for entry: Dictionary in PassageCover.notch_floor(rooms, door_cell, outward):
+		var atlas: Vector3i = entry["atlas"]
+		var tiles := (entry["room"] as Node).get_node_or_null("Tiles") as RoomTiles
+		if tiles != null and tiles.is_terrain_drawn() and atlas.z == RockTerrain.rock_source(tiles.get_look()):
+			result["fillet"] = entry
+	return result
+
+
+## The door column of a shallower notch (_side_notch_cells), one sprite per row: every art column
+## u (counted from the door tile's outer side towards the room) shows the notch plan's picture at
+## u - shift (shift = the closed share), so the back wall, the corners of the notch's front and foot
+## and its fillet come that much closer to the room; the last SIDE_NOTCH_ROOM_EDGE columns keep
+## their own picture (the room wall's light edge). Above the players like the other pieces.
+func _build_notch_rows(door_cell: Vector2i, outward: Vector2i, notch: Dictionary) -> void:
+	if notch.is_empty() or (notch["open"] as Dictionary).is_empty():
+		return
+	var open: Dictionary = notch["open"]
+	for row: int in SIDE_NOTCH_ROWS:
+		var cell: Vector2i = door_cell + Vector2i(0, row)
+		var own: Dictionary = open.get(cell, {})
+		if row == 0:
+			own = notch["fillet"]
+		var behind: Dictionary = open.get(cell + outward, {})
+		var owner: Dictionary = own if not own.is_empty() else behind
+		if owner.is_empty():
+			continue
+		var tiles := (owner["room"] as Node).get_node_or_null("Tiles") as RoomTiles
+		if tiles == null:
+			continue
+		var texture := _notch_row_texture(own, behind, row)
+		if texture == null:
+			continue
+		var piece := Sprite2D.new()
+		piece.name = "NotchRow%d" % (row + 2)
+		piece.texture = texture
+		piece.centered = false
+		piece.scale = Vector2.ONE * TILE / float(texture.get_width())
+		piece.position = Vector2(0.0, row * TILE)
+		piece.material = tiles.material
+		piece.modulate = tiles.modulate
+		piece.z_index = SIDE_COVER_LOW_Z
+		# The rock beside the notch's floor and its foot lie over a player in the passage, its front
+		# and crown above stay behind him (as _build_lintel).
+		piece.set_meta(&"over_player", row >= 0)
+		add_child(piece)
+		_lintel.append(piece)
+
+
+## The picture of one row of a shallower notch (see _build_notch_rows), cached; null without art.
+func _notch_row_texture(own: Dictionary, behind: Dictionary, row: int) -> Texture2D:
+	var own_image := _entry_image(own)
+	var behind_image := _entry_image(behind)
+	var size := own_image.get_width() if own_image != null else (behind_image.get_width() if behind_image != null else 0)
+	if size <= 0:
+		return null
+	var shift := roundi(size * (1.0 - clampf(SIDE_NOTCH_OPEN, 0.0, 1.0)))
+	var keep := mini(SIDE_NOTCH_ROOM_EDGE, size)
+	var west := side == RoomTiles.DoorSide.WEST
+	var key := "notch|%s|%s|%d|%d|%d|%s" % [_entry_key(own), _entry_key(behind), shift, keep, row, west]
+	return _cached_texture(key, func() -> Image:
+		var image := Image.create_empty(size, size, false, Image.FORMAT_RGBA8)
+		for u in size:
+			var from := u - shift if u < size - keep else u
+			var source := own_image
+			if from < 0:
+				source = behind_image
+				from += size
+			if source == null or source.get_width() != size:
+				continue
+			# u counts from the outer side: x = u on a west wall (outer side left), mirrored on an east wall.
+			var x := u if west else size - 1 - u
+			var source_x := from if west else size - 1 - from
+			image.blit_rect(source, Rect2i(source_x, 0, 1, size), Vector2i(x, 0))
+		return image)
+
+
+## The art of a cover entry ({"room", "atlas"}) as an image (its region of the sheet), null for none.
+func _entry_image(entry: Dictionary) -> Image:
+	if entry.is_empty():
+		return null
+	var tiles := (entry["room"] as Node).get_node_or_null("Tiles") as RoomTiles
+	var atlas: Vector3i = entry["atlas"]
+	if tiles == null or tiles.tile_set == null or not tiles.tile_set.has_source(atlas.z):
+		return null
+	var source := tiles.tile_set.get_source(atlas.z) as TileSetAtlasSource
+	if source == null or source.texture == null or not source.has_tile(Vector2i(atlas.x, atlas.y)):
+		return null
+	var sheet := _sheet_image(source.texture)
+	return sheet.get_region(source.get_tile_texture_region(Vector2i(atlas.x, atlas.y))) if sheet != null else null
+
+
+func _entry_key(entry: Dictionary) -> String:
+	if entry.is_empty():
+		return "-"
+	var tiles := (entry["room"] as Node).get_node_or_null("Tiles") as RoomTiles
+	var sheet_id := tiles.tile_set.get_rid().get_id() if tiles != null and tiles.tile_set != null else 0
+	return "%d:%s" % [sheet_id, entry["atlas"]]
+
+
+## Door-local x of the middle of a side gate's notch (the open share at the room side).
+func side_notch_center_x() -> float:
+	var open_share := clampf(SIDE_NOTCH_OPEN, 0.1, 1.0)
+	if side == RoomTiles.DoorSide.WEST:
+		return TILE * (1.0 - open_share * 0.5)
+	if side == RoomTiles.DoorSide.EAST:
+		return TILE * open_share * 0.5
+	return TILE * 0.5
 
 
 func get_side_notch() -> Sprite2D:
@@ -710,6 +874,14 @@ static func arch_visibility(depth: float) -> float:
 	return lerpf(ARCH_VISIBLE_ENTRY, ARCH_VISIBLE_DEEP, clampf(depth, 0.0, 1.0))
 
 
+## Bug report 17.10.2026 (#0db1e7b0, "warum ist man hier noch dunkel beim Rauskommen"): the last tile
+## of a passage is the wall of the room behind it; a player whose feet are in it already stands with
+## his body in that room. His colour comes back over that tile: down 0 (its far edge, the room's
+## floor) = full colour .. 1 (where the tunnel is) = ARCH_VISIBLE_DEEP.
+static func exit_visibility(down: float) -> float:
+	return lerpf(1.0, ARCH_VISIBLE_DEEP, clampf(down, 0.0, 1.0))
+
+
 ## Depths (0 at the room side .. 1 at the crown) of the living players whose feet stand in the door
 ## tile of a north gate (the sprite rises from the feet: once they are under the crown, all of him
 ## is); empty for a side gate (its door tile lies under the rock).
@@ -785,17 +957,24 @@ func _dim_players(delta: float) -> void:
 	var seen: Dictionary = {}
 	for player in EnemyTargeting.living_players(get_tree()):
 		var feet := to_local(player.global_position + Player.FEET_OFFSET)
-		var depth := -1.0
+		var share := -1.0
+		var last := _passage_rects.size() - 1
 		for i in _passage_rects.size():
 			if _in_door_lane(_passage_rects[i], feet):
 				var rect: Rect2 = _passage_rects[i]
-				depth = clampf(1.0 - (feet.y - rect.position.y) / rect.size.y, 0.0, 1.0) if i == 0 else 1.0
+				var down := clampf((feet.y - rect.position.y) / rect.size.y, 0.0, 1.0)
+				if i == 0:
+					share = arch_visibility(1.0 - down)
+				elif i == last:
+					share = exit_visibility(down)
+				else:
+					share = ARCH_VISIBLE_DEEP
 				break
-		if depth < 0.0:
+		if share < 0.0:
 			continue
 		seen[player.get_instance_id()] = true
 		_dimmed[player.get_instance_id()] = player
-		_shade_player(player, arch_visibility(depth), delta)
+		_shade_player(player, share, delta)
 	for id: int in _dimmed.keys():
 		if seen.has(id):
 			continue
@@ -1021,13 +1200,27 @@ func _build_seal() -> bool:
 	if tiles == null or tiles.tile_set == null or not is_inside_tree():
 		return false
 	var door_tile := tiles.local_to_map(tiles.to_local(global_position + Vector2.ONE * TILE * 0.5))
-	for entry: Dictionary in PassageCover.sealed_plan(room, door_tile, -Vector2i(get_inward())):
+	var outward := -Vector2i(get_inward())
+	for entry: Dictionary in PassageCover.sealed_plan(room, door_tile, outward):
 		var piece := _cover_sprite(entry, door_tile)
 		if piece == null:
 			continue
 		piece.name = "Seal%d" % _seal.size()
 		piece.z_index = SEAL_Z
 		_seal.append(piece)
+		# The south wall's row over the closed gap is a lip like the wall beside it (bug report
+		# 17.10.2026 #5d991188): drawn once more in the y-sort at its foot, so a player walking on the
+		# wall's top edge goes behind it there too (RoomTiles lip sprites, Door._fit_shape).
+		if outward == Vector2i.DOWN and (entry["cell"] as Vector2i).y == door_tile.y:
+			var lip := _cover_sprite(entry, door_tile)
+			if lip != null:
+				lip.name = "SealLip%d" % _seal.size()
+				lip.z_index = 0
+				lip.position.y += TILE - RoomTiles.LIP_SORT_FEET
+				lip.offset.y = -(TILE - RoomTiles.LIP_SORT_FEET) / lip.scale.y
+				for twin in lip.get_children():
+					(twin as Sprite2D).offset.y = lip.offset.y / (twin as Sprite2D).scale.y
+				_seal.append(lip)
 	return true
 
 

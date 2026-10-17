@@ -96,7 +96,8 @@ func _ready() -> void:
 	_crack.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
 	_crack.position = RoomTiles.tile_to_local(site.crack)
 	var tiles := room.tiles if room != null else null
-	if tiles != null and tiles.is_terrain_drawn() and tiles.get_look() == RockTerrain.Look.CAVE and ResourceLoader.exists(CRACK_CAVE_ART % biome_id):
+	# The room may still hold its paint back (staged build): ask for the look it will have.
+	if tiles != null and tiles.is_terrain_planned() and tiles.get_planned_look() == RockTerrain.Look.CAVE and ResourceLoader.exists(CRACK_CAVE_ART % biome_id):
 		var cave := SoftPalette.texture(CRACK_CAVE_ART % biome_id, biome_id)
 		if cave != null:
 			# Crown and front: the picture reaches one half tile up into the crown.

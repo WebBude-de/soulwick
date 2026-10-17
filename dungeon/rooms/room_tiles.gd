@@ -304,6 +304,12 @@ var _lips: Node2D = null
 ## Floor cells whose rock south of it is no lip (door corridors and the cells around door tiles,
 ## abysses), built at each paint.
 var _not_lips: Dictionary[Vector2i, bool] = {}
+## The same for the lip collision only: door corridors and abysses. The rock right beside a door gap
+## is a lip to walk on like the rest of its wall (bug report 17.10.2026 #5d991188: a full-height tile
+## next to the entrance was "a strange invisible hitbox" along the wall); the door's art draws over it.
+var _not_lip_walls: Dictionary[Vector2i, bool] = {}
+## Door corridor cells (a lip's band runs on into them, no cap there).
+var _corridor_set: Dictionary[Vector2i, bool] = {}
 
 
 func _ready() -> void:
@@ -872,6 +878,20 @@ func get_blend_progress(local_y: float) -> float:
 	return clampf((local_y - position.y - from_y) / (to_y - from_y), 0.0, 1.0)
 
 
+## The blend layers draw over the layers of the old biome at their z. A campfire built in stages gets
+## its blend before its paint, so the draw layers (rock with its brick fronts) came after them and
+## covered the new biome's walls (bug report 17.10.2026 #6be25fbd: old-biome walls with patches of
+## the new one beside the door): put them back behind every other child.
+func _raise_blend_layers() -> void:
+	for layer: TileMapLayer in [_blend_backdrop, _blend_layer]:
+		if layer == null or not is_instance_valid(layer) or layer.get_parent() != self:
+			continue
+		if layer.get_index(true) == get_child_count(true) - 1:
+			continue
+		remove_child(layer)
+		add_child(layer, false, Node.INTERNAL_MODE_FRONT)
+
+
 func _make_blend_layer(layer: TileMapLayer, layer_name: String, layer_z: int) -> TileMapLayer:
 	if layer != null:
 		return layer
@@ -1009,6 +1029,7 @@ func paint() -> void:
 	_paint_cliffs()
 	_paint_water()
 	_paint_lips()
+	_raise_blend_layers()
 
 
 ## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
@@ -1035,7 +1056,7 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 ## with edges, enclosed rock as the plain wall-top tile (the rock shader turns it into stones).
 func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 	var floor_mask := get_floor_mask()
-	_not_lips = _lip_blockers()
+	_update_lip_blockers()
 	var rect := _get_painted_rect()
 	var parts := get_painted_parts()
 	for y in range(rect.position.y, rect.end.y):
@@ -1189,7 +1210,7 @@ static func tile_bounds(tiles: Array[Vector2i]) -> Rect2i:
 ## The second brick pattern is picked from the tile position instead of the paint RNG.
 func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 	var floor_mask := get_floor_mask()
-	_not_lips = _lip_blockers()
+	_update_lip_blockers()
 	for tile: Vector2i in area:
 		if not is_painted(tile):
 			continue
@@ -1260,9 +1281,10 @@ func get_rock_fill_cell() -> Vector3i:
 ## masonry rooms too: both share the rock, its fill around the room and the soft doors, so neither
 ## has to give way to the other where they meet (PassageSeam, DoorStyle). get_look() tells them apart.
 func is_cave_look() -> bool:
-	if not _terrain_active:
+	if not is_terrain_planned():
 		return false
-	return _look == RockTerrain.Look.CAVE or RockTerrain.floor_source(_look, tile_set) == RockTerrain.SOURCE_MASONRY_GROUND
+	var look := get_planned_look()
+	return look == RockTerrain.Look.CAVE or RockTerrain.floor_source(look, tile_set) == RockTerrain.SOURCE_MASONRY_GROUND
 
 
 ## Atlas source of plain floor cells (SOURCE_ID without the terrain, else the look's floor source).
@@ -1280,6 +1302,23 @@ func get_look() -> RockTerrain.Look:
 ## Is the 47-piece terrain drawn (either look)?
 func is_terrain_drawn() -> bool:
 	return _terrain_active
+
+
+## Is the terrain drawn, or will it be once the paint held back is done? A room built in stages
+## (DungeonManager, feedback 16.10.2026) paints its tiles a frame after its doors, secret niche and
+## wall sources were made; they ask this and get_planned_look (bug reports 17.10.2026: brick cracks
+## and hard gates in cave rooms, #5bf2c82e, #b153783c).
+func is_terrain_planned() -> bool:
+	if _terrain_active:
+		return true
+	if tile_set == null or Engine.is_editor_hint() or not (_paint_held or _paint_due or _paint_queued):
+		return false
+	return WallAutotile.ensure_source(tile_set) and RockTerrain.ensure_sources(tile_set) and RockTerrain.has_look(tile_set, _look_of_style())
+
+
+## The look the walls are drawn in, or will be (is_terrain_planned).
+func get_planned_look() -> RockTerrain.Look:
+	return _look if _terrain_active else _look_of_style()
 
 
 func _look_of_style() -> RockTerrain.Look:
@@ -1303,8 +1342,9 @@ func get_overlay_layer() -> TileMapLayer:
 func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
 	# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
 	# characters walk a bit behind it.
-	var lip := RockTerrain.is_lip(tile, floor_mask, _not_lips)
-	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip))
+	var lip := RockTerrain.is_lip(tile, floor_mask, _not_lip_walls)
+	var caps := RockTerrain.lip_caps(tile, floor_mask, _corridor_set) if lip else 0
+	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip, caps))
 	_ensure_cave_layers()
 	if RockTerrain.is_enclosed(tile, floor_mask):
 		_rock_layer.erase_cell(tile)
@@ -1380,16 +1420,26 @@ func _paint_ground_details() -> void:
 		_paint_puddles(puddles)
 
 
-## Floor cells north of rock that is no lip: door corridors and every cell next to a door tile (the
-## door's art lies there), abysses (nobody stands there).
-func _lip_blockers() -> Dictionary[Vector2i, bool]:
+## Both lip blocker sets (_not_lips for the lip sprites, _not_lip_walls for the collision).
+func _update_lip_blockers() -> void:
+	_corridor_set.clear()
+	for tile in get_door_corridor_tiles():
+		_corridor_set[tile] = true
+	_not_lips = _lip_blockers()
+	_not_lip_walls = _lip_blockers(false)
+
+
+## Floor cells north of rock that is no lip: door corridors and every cell next to a door of this run
+## (the door's art lies there; places the run does not use are plain wall), abysses (nobody stands
+## there). around_doors false: corridors and abysses only (the collision, _not_lip_walls).
+func _lip_blockers(around_doors := true) -> Dictionary[Vector2i, bool]:
 	var blockers: Dictionary[Vector2i, bool] = {}
 	for tile in get_door_corridor_tiles():
 		blockers[tile] = true
 	var doors: Array[Vector2i] = [get_entrance_door()]
 	doors.append_array(get_exit_doors())
-	for slot in door_slots:
-		doors.append(slot)
+	if not around_doors:
+		doors.clear()
 	for door in doors:
 		var door_tile := door_tile_of(door.x, door.y, room_size)
 		for dy in range(-1, 2):

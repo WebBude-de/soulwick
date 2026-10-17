@@ -23,7 +23,15 @@ extends RefCounted
 ## Rock both rooms border (the row between the next room's floor and this room's wall front, G2) is
 ## drawn from both floors, so it has its edges towards both - the same pieces the rock over the
 ## passage draws (PassageCover), no line that stops where the passage begins (playtest 15.10.2026).
+## Rock on rock where one room's cell is the top edge of its wall (a lip, collision from
+## RockTerrain.LIP_WALK down) and the other's a full solid: the other takes the lip's collision, so
+## a player walking on the wall's top edge does not hit the neighbour's invisible block (bug report
+## 17.10.2026 #5d991188, next to the passage); release puts it back.
 ## Tiles only, no RNG, no gameplay state.
+
+## Collision cells of a room set to the other room's lip: {instance id of the other room: {cell:
+## [source, atlas, alt]}}, put back by release.
+const META_LIPPED := &"passage_seam_lipped"
 
 ## Erased cells on a room's RoomTiles: {instance id of the owner room: {layer name: {cell: [source,
 ## atlas, alt]}}}; the RoomTiles layer itself is &"".
@@ -77,6 +85,8 @@ static func join(first: Node2D, second: Node2D) -> int:
 				Owner.SECOND:
 					_erase(first_tiles, in_first, second)
 					erased += 1
+				_:
+					_share_lip(first_tiles, in_first, second_tiles, in_second, first, second)
 	erased += _clear_corridors(first, second) + _clear_corridors(second, first)
 	if is_cave_look(first_tiles) != is_cave_look(second_tiles):
 		erased += _yield_to_cave(second, first) if is_cave_look(first_tiles) else _yield_to_cave(first, second)
@@ -195,6 +205,60 @@ static func _yield_to_cave(built: Node2D, cave: Node2D) -> int:
 	return count
 
 
+## Rock both rooms keep (Owner.NONE): where one of them has a lip there and the other a full solid,
+## the full one takes the lip's collision (see META_LIPPED). True if a cell changed.
+static func _share_lip(first_tiles: RoomTiles, in_first: Vector2i, second_tiles: RoomTiles, in_second: Vector2i, first: Node, second: Node) -> bool:
+	var first_source := first_tiles.get_cell_source_id(in_first)
+	var second_source := second_tiles.get_cell_source_id(in_second)
+	var first_coords := first_tiles.get_cell_atlas_coords(in_first)
+	var second_coords := second_tiles.get_cell_atlas_coords(in_second)
+	if not RockTerrain.is_solid_cell(first_source, first_coords) or not RockTerrain.is_solid_cell(second_source, second_coords):
+		return false
+	var first_lip := RockTerrain.is_lip_coords(first_coords)
+	var second_lip := RockTerrain.is_lip_coords(second_coords)
+	if first_lip == second_lip:
+		return false
+	var full_tiles := second_tiles if first_lip else first_tiles
+	var full_cell := in_second if first_lip else in_first
+	var lip_coords := first_coords if first_lip else second_coords
+	var lip_owner := first if first_lip else second
+	var lipped: Dictionary = full_tiles.get_meta(META_LIPPED, {})
+	var cells: Dictionary = lipped.get(lip_owner.get_instance_id(), {})
+	if not cells.has(full_cell):
+		cells[full_cell] = [full_tiles.get_cell_source_id(full_cell), full_tiles.get_cell_atlas_coords(full_cell), full_tiles.get_cell_alternative_tile(full_cell)]
+	lipped[lip_owner.get_instance_id()] = cells
+	full_tiles.set_meta(META_LIPPED, lipped)
+	full_tiles.set_cell(full_cell, RockTerrain.SOURCE_GROUND, lip_coords)
+	return true
+
+
+## Gives tiles back the collision cells it took over from the room with instance id key (_share_lip).
+static func _unlip(tiles: RoomTiles, key: int) -> void:
+	if tiles == null or not tiles.has_meta(META_LIPPED):
+		return
+	var lipped: Dictionary = tiles.get_meta(META_LIPPED)
+	if not lipped.has(key):
+		return
+	var cells: Dictionary = lipped[key]
+	for cell: Vector2i in cells:
+		var entry: Array = cells[cell]
+		if RockTerrain.is_lip_coords(tiles.get_cell_atlas_coords(cell)):
+			tiles.set_cell(cell, entry[0], entry[1], entry[2])
+	lipped.erase(key)
+
+
+## Cells of room whose collision took the lip of other (room-local), empty if none.
+static func get_lipped(room: Node, other: Node) -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var tiles := _tiles_of(room)
+	if tiles == null or other == null or not tiles.has_meta(META_LIPPED):
+		return cells
+	var lipped: Dictionary = tiles.get_meta(META_LIPPED)
+	for cell: Vector2i in lipped.get(other.get_instance_id(), {}):
+		cells.append(cell)
+	return cells
+
+
 ## A walkable tile within one tile (8 neighbours) of cell?
 static func _beside(cell: Vector2i, walkable: Dictionary) -> bool:
 	for dy in range(-1, 2):
@@ -223,6 +287,7 @@ static func release(gone: Node, others: Array) -> void:
 			continue
 		var tiles := _tiles_of(room)
 		_unmend(tiles, key)
+		_unlip(tiles, key)
 		if tiles == null or not tiles.has_meta(META_ERASED):
 			continue
 		var origin := origin_of(room)

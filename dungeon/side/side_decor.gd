@@ -60,6 +60,9 @@ const DRIPS_TEXTURE := "deco/drip_4f.png"
 ## Delivered art for the drawn hangings (SPRITES_V10 §6): hang_roots.png, hang_crystals.png, 32×48,
 ## top edge = the rock.
 const HANG_ART := "side/hang_%s.png"
+## At most this many opaque rows at the top of a hanging count as its strip of rock (rock_rows_of).
+const HANG_ROCK_ROWS_MAX := 8
+static var _rock_rows: Dictionary = {}
 ## TESTWERTE (look): share of free floor cells with a prop, columns kept free between two props,
 ## share of ceiling cells with something hanging, spacing between those.
 const PROP_CHANCE := 0.42
@@ -249,6 +252,13 @@ func _place_hangings() -> void:
 					var hanging := Sprite2D.new()
 					hanging.texture = load(art) as Texture2D
 					hanging.centered = false
+					# The delivered art starts with a strip of its own rock (opaque rows): left out, the
+					# hanging grows out of the segment's ceiling (bug report 17.10.2026 #a1bd7c42: a dark
+					# box under the ceiling).
+					var rock_rows := rock_rows_of(hanging.texture)
+					if rock_rows > 0:
+						hanging.region_enabled = true
+						hanging.region_rect = Rect2(0, rock_rows, hanging.texture.get_width(), hanging.texture.get_height() - rock_rows)
 					hanging.offset = Vector2(-hanging.texture.get_width() * 0.5, 0)
 					hanging.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
 					hanging.flip_h = wobble < 0.5
@@ -284,6 +294,31 @@ func _draw() -> void:
 				var tip := Vector2(x, top.y + h)
 				draw_colored_polygon(PackedVector2Array([Vector2(x - 5, top.y - 2), Vector2(x + 5, top.y - 2), tip]), CRYSTAL_COLOR.darkened(0.35))
 				draw_colored_polygon(PackedVector2Array([Vector2(x - 1, top.y), Vector2(x + 4, top.y), tip]), Color(CRYSTAL_COLOR, 0.85))
+
+
+## Leading rows of a hanging's art that are opaque all across (its strip of rock), cached per path.
+static func rock_rows_of(texture: Texture2D) -> int:
+	if texture == null:
+		return 0
+	var key := texture.resource_path
+	if _rock_rows.has(key):
+		return _rock_rows[key]
+	var image := texture.get_image()
+	var rows := 0
+	if image != null:
+		if image.is_compressed():
+			image.decompress()
+		for y in mini(image.get_height() / 2, HANG_ROCK_ROWS_MAX):
+			var solid := true
+			for x in image.get_width():
+				if image.get_pixel(x, y).a < 0.9:
+					solid = false
+					break
+			if not solid:
+				break
+			rows += 1
+	_rock_rows[key] = rows
+	return rows
 
 
 func _path(relative: String) -> String:

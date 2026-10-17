@@ -68,6 +68,13 @@ const COLLISION_STEPS := 4
 ## note 17: "the shadow lies on top of the wall"). TESTWERT
 const SOLID_LIP_ROW := 2
 const LIP_WALK := 12
+## Bug report 17.10.2026 (#b16194d4, "da bin ich transparent"): the walkable band of a lip is closed
+## at an end of the block (floor beside it), so nobody walks into the rock's top from the side and is
+## cut by the lip drawn over him; only from the north. Bits of the caps, the rows of their solid
+## tiles (lip row + bits) and the cap width in art px (the rounded corner's radius). TESTWERT
+const CAP_LEFT := 1
+const CAP_RIGHT := 2
+const LIP_CAP_WIDTH := 8.0
 
 ## Per biome: true = the soft set for caves (crypt_soft or its palette swap by
 ## tools/build_tilesets.gd), false = the delivered biome set (rock_blob_<biome>, the biome's floor,
@@ -419,7 +426,7 @@ static func _add_rock_source(tileset: TileSet, id: int, image: Image) -> void:
 ## Cave floor (row 0, navigation) and the invisible solid tiles (row 1, collision): column = corner
 ## bits of the rounded collision (solid_corners).
 static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
-	var image := Image.create_empty(TILE * SOLID_VARIANTS, TILE * 3, false, Image.FORMAT_RGBA8)
+	var image := Image.create_empty(TILE * SOLID_VARIANTS, TILE * (SOLID_LIP_ROW + 4), false, Image.FORMAT_RGBA8)
 	image.blit_rect(floor_image, Rect2i(0, 0, TILE * 4, TILE), Vector2i.ZERO)
 	var source := _add_source(tileset, SOURCE_GROUND, image)
 	var half := TILE / 2.0
@@ -431,14 +438,20 @@ static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
 			navigation.vertices = box
 			navigation.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 			source.get_tile_data(Vector2i(x, 0), 0).set_navigation_polygon(0, navigation)
-	for lip in [false, true]:
-		for bits in SOLID_VARIANTS:
-			var coords := solid_coords(bits, lip)
-			source.create_tile(coords)
-			if tileset.get_physics_layers_count() > 0:
-				var data := source.get_tile_data(coords, 0)
-				data.add_collision_polygon(0)
-				data.set_collision_polygon_points(0, 0, solid_polygon(bits, lip))
+	for caps in 4:
+		for lip in ([false, true] if caps == 0 else [true]):
+			for bits in SOLID_VARIANTS:
+				var coords := solid_coords(bits, lip, caps)
+				source.create_tile(coords)
+				if tileset.get_physics_layers_count() > 0:
+					var data := source.get_tile_data(coords, 0)
+					data.add_collision_polygon(0)
+					data.set_collision_polygon_points(0, 0, solid_polygon(bits, lip))
+					for cap: int in [CAP_LEFT, CAP_RIGHT]:
+						if caps & cap:
+							var index := data.get_collision_polygons_count(0)
+							data.add_collision_polygon(0)
+							data.set_collision_polygon_points(0, index, lip_cap_polygon(bits, cap))
 
 
 ## Collision of a solid tile (tile space, centred): the square with the corners of bits rounded; a
@@ -462,15 +475,61 @@ static func solid_polygon(bits: int, lip := false) -> PackedVector2Array:
 	return points
 
 
+## The cap that closes the walkable band of a lip at one end (CAP_LEFT / CAP_RIGHT, tile space,
+## centred): LIP_CAP_WIDTH wide from the top down to LIP_WALK, its outer top corner rounded like the
+## rock when bits round it. Convex.
+static func lip_cap_polygon(bits: int, cap: int) -> PackedVector2Array:
+	var half := TILE / 2.0
+	var points := PackedVector2Array()
+	var rounded := bits & (CORNER_TL if cap == CAP_LEFT else CORNER_TR)
+	if rounded:
+		var center := Vector2(-half + COLLISION_RADIUS, -half + COLLISION_RADIUS)
+		for step in COLLISION_STEPS + 1:
+			var angle := deg_to_rad(180.0 + 90.0 * step / COLLISION_STEPS)
+			points.append(center + Vector2(cos(angle), sin(angle)) * COLLISION_RADIUS)
+	else:
+		points.append(Vector2(-half, -half))
+	if not points[points.size() - 1].is_equal_approx(Vector2(-half + LIP_CAP_WIDTH, -half)):
+		points.append(Vector2(-half + LIP_CAP_WIDTH, -half))
+	points.append(Vector2(-half + LIP_CAP_WIDTH, -half + LIP_WALK))
+	points.append(Vector2(-half, -half + LIP_WALK))
+	if cap == CAP_RIGHT:
+		# Mirrored, still clockwise.
+		var mirrored := PackedVector2Array()
+		for i in range(points.size() - 1, -1, -1):
+			mirrored.append(Vector2(-points[i].x, points[i].y))
+		return mirrored
+	return points
+
+
+## Caps of a lip (CAP_LEFT | CAP_RIGHT): an end of the block with open floor beside it; open_ends are
+## floor cells the band may run into (door corridors: the passage goes on there).
+static func lip_caps(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], open_ends: Dictionary[Vector2i, bool] = {}) -> int:
+	var caps := 0
+	for pair: Array in [[CAP_LEFT, Vector2i.LEFT], [CAP_RIGHT, Vector2i.RIGHT]]:
+		var side: Vector2i = tile + (pair[1] as Vector2i)
+		if floor_mask.has(side) and not open_ends.has(side):
+			caps |= int(pair[0])
+	return caps
+
+
 ## Atlas coords of the solid tile with these rounded corners (bits CORNER_TL | CORNER_TR | ...),
-## lip: the shortened collision of a lip.
-static func solid_coords(bits: int, lip := false) -> Vector2i:
-	return Vector2i(clampi(bits, 0, SOLID_VARIANTS - 1), SOLID_LIP_ROW if lip else SOLID.y)
+## lip: the shortened collision of a lip, caps: its band closed at the ends (lip_caps).
+static func solid_coords(bits: int, lip := false, caps := 0) -> Vector2i:
+	var row := SOLID.y
+	if lip:
+		row = SOLID_LIP_ROW + clampi(caps, 0, 3)
+	return Vector2i(clampi(bits, 0, SOLID_VARIANTS - 1), row)
 
 
 ## Is the cell one of the invisible solid tiles (any corner variant, lip or not)?
 static func is_solid_cell(source_id: int, coords: Vector2i) -> bool:
-	return source_id == SOURCE_GROUND and (coords.y == SOLID.y or coords.y == SOLID_LIP_ROW)
+	return source_id == SOURCE_GROUND and coords.y >= SOLID.y and coords.y <= SOLID_LIP_ROW + 3
+
+
+## Is the solid tile at these atlas coords a lip (any caps)?
+static func is_lip_coords(coords: Vector2i) -> bool:
+	return coords.y >= SOLID_LIP_ROW and coords.y <= SOLID_LIP_ROW + 3
 
 
 ## A lip: rock that is no front with floor right north of it (the top edge of a block, of the south

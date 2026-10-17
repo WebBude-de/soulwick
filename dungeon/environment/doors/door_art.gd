@@ -256,16 +256,27 @@ static func side_mouth_image() -> Image:
 const NOTCH_FADE_FROM := 0.12
 const NOTCH_FADE_TO := 0.85
 const NOTCH_ALPHA_DEEP := 0.96
+## Bug report 17.10.2026 (#e1279990, "Schatten cutted": the dark ended in a hard line across a player
+## in the notch, at the foot of its front): the picture reaches NOTCH_RISE rows up over the front and
+## fades in there from nothing; towards the notch's foot it fades to NOTCH_EDGE_SHARE. 32 x (32 +
+## NOTCH_RISE), the door tile from row NOTCH_RISE. TESTWERTE
+const NOTCH_RISE := 16
+const NOTCH_FADE_BOTTOM := 6
+const NOTCH_EDGE_SHARE := 0.35
 
 
 static func side_notch_image() -> Image:
-	var image := Image.create_empty(32, 32, false, Image.FORMAT_RGBA8)
+	var height := 32 + NOTCH_RISE
+	var image := Image.create_empty(32, height, false, Image.FORMAT_RGBA8)
 	for x in 32:
 		var t := clampf((float(x) + 0.5) / 32.0, 0.0, 1.0)
 		var u := clampf((t - NOTCH_FADE_FROM) / (NOTCH_FADE_TO - NOTCH_FADE_FROM), 0.0, 1.0)
 		var a := NOTCH_ALPHA_DEEP * u * u * (3.0 - 2.0 * u)
-		for y in 32:
-			image.set_pixel(x, y, Color(TUNNEL_COLOR, a))
+		for y in height:
+			var top := clampf((float(y) + 0.5) / float(NOTCH_RISE + 4), 0.0, 1.0)
+			var bottom := clampf((float(height) - 0.5 - float(y)) / float(NOTCH_FADE_BOTTOM), 0.0, 1.0)
+			var edge := minf(top * top * (3.0 - 2.0 * top), lerpf(NOTCH_EDGE_SHARE, 1.0, bottom))
+			image.set_pixel(x, y, Color(TUNNEL_COLOR, a * edge))
 	return image
 
 

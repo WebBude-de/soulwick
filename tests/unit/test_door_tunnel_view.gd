@@ -252,7 +252,8 @@ func test_blocked_entrance_is_closed_by_the_wall() -> void:
 		assert_false(entrance.view.get_seal().is_empty(), "the wall is drawn over the gap")
 		for piece in entrance.view.get_seal():
 			assert_true(piece.visible)
-			assert_eq(piece.z_index, DoorView.SEAL_Z)
+			# Bug report 17.10.2026 (#5d991188): the wall row over the gap is a lip in the y-sort too.
+			assert_eq(piece.z_index, 0 if String(piece.name).begins_with("SealLip") else DoorView.SEAL_Z)
 		# The wall over the gap is the room's plain wall beside it.
 		var beside := door_tile + Vector2i(3, 0)
 		var rock := tiles.get_rock_layer()
@@ -291,9 +292,13 @@ func _side_passage() -> Door:
 
 func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 	var notch := DoorArt.side_notch_image()
-	assert_almost_eq(notch.get_pixel(0, 16).a, 0.0, 0.01, "clear at the mouth")
-	assert_gt(notch.get_pixel(31, 16).a, 0.9, "dark at the back")
-	assert_lt(notch.get_pixel(12, 16).a, notch.get_pixel(20, 16).a, "darker further in")
+	var middle := DoorArt.NOTCH_RISE + 16
+	assert_almost_eq(notch.get_pixel(0, middle).a, 0.0, 0.01, "clear at the mouth")
+	assert_gt(notch.get_pixel(31, middle).a, 0.9, "dark at the back")
+	assert_lt(notch.get_pixel(12, middle).a, notch.get_pixel(20, middle).a, "darker further in")
+	# Bug report 17.10.2026 (#e1279990, "Schatten cutted"): no hard line where the notch's front ends.
+	assert_almost_eq(notch.get_pixel(31, 0).a, 0.0, 0.01, "fades in over the front")
+	assert_lt(notch.get_pixel(31, DoorArt.NOTCH_RISE).a, notch.get_pixel(31, middle).a, "still fading at the foot of the front")
 	var gate := _side_passage()
 	if gate == null:
 		pass_test("the hall has no side doors")
@@ -304,7 +309,9 @@ func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 		return
 	assert_not_null(view.get_side_notch())
 	for piece in view.get_lintel():
-		assert_ne(piece.position, Vector2.ZERO, "the door tile stays open (the notch)")
+		if piece.position == Vector2.ZERO:
+			# The door tile: rock on its outer side, open on the room side (#e1279990, #b153783c).
+			_assert_shallow_notch(view, piece)
 		assert_eq(piece.z_index, DoorView.SIDE_COVER_LOW_Z, "%s under a player beside the wall" % piece.name)
 	# A player walks in: the rock lies over him.
 	var player := PLAYER_SCENE.instantiate() as Player
@@ -323,6 +330,47 @@ func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 	await wait_process_frames(10)
 	for piece in view.get_lintel():
 		assert_eq(piece.z_index, DoorView.SIDE_COVER_LOW_Z)
+
+
+## The door tile's row of a shallower notch: opaque rock on the outer share; the dark of the notch
+## lies over the open share (SIDE_NOTCH_OPEN) only.
+func _assert_shallow_notch(view: DoorView, piece: Sprite2D) -> void:
+	var image := _image(piece.texture)
+	var size := image.get_width()
+	var west := view.side == RoomTiles.DoorSide.WEST
+	var outer := 1 if west else size - 2
+	assert_gt(image.get_pixel(outer, size / 2).a, 0.9, "rock on the outer side of the door tile")
+	var shade := view.get_side_notch()
+	var width := shade.texture.get_width() * shade.scale.x
+	assert_almost_eq(width, RoomTiles.TILE_WORLD * DoorView.SIDE_NOTCH_OPEN, 0.5, "the dark over the open share")
+	var start := shade.position.x
+	assert_almost_eq(start, RoomTiles.TILE_WORLD - width if west else 0.0, 0.5, "on the room side")
+
+
+func test_leaving_a_passage_brings_the_colour_back() -> void:
+	# Bug report 17.10.2026 (#0db1e7b0): full colour at the room side of the last passage tile.
+	assert_almost_eq(DoorView.exit_visibility(0.0), 1.0, 0.001)
+	assert_almost_eq(DoorView.exit_visibility(1.0), DoorView.ARCH_VISIBLE_DEEP, 0.001)
+	assert_gt(DoorView.exit_visibility(0.3), DoorView.exit_visibility(0.7))
+	var gate := _north_passage()
+	var view := gate.view
+	var rects := view.get_passage_rects()
+	if rects.size() < 2:
+		pass_test("no passage in this build")
+		return
+	var player := PLAYER_SCENE.instantiate() as Player
+	add_child_autofree(player)
+	var last: Rect2 = rects[rects.size() - 1]
+	# Feet just inside the far edge of the last tile: the body already stands in the next room.
+	player.global_position = view.to_global(last.position + Vector2(last.size.x * 0.5, 4.0)) - Player.FEET_OFFSET
+	await wait_process_frames(30)
+	assert_gt(player.modulate.r, 0.85, "nearly full colour coming out")
+	# Deeper in the tunnel it is dark.
+	if rects.size() > 2:
+		var mid: Rect2 = rects[1]
+		player.global_position = view.to_global(mid.get_center()) - Player.FEET_OFFSET
+		await wait_process_frames(30)
+		assert_almost_eq(player.modulate.r, DoorView.ARCH_VISIBLE_DEEP, 0.05, "dark under the rock")
 
 
 func test_rock_over_a_passage_takes_the_biome_blend() -> void:

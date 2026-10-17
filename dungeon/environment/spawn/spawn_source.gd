@@ -357,7 +357,8 @@ func _cave_biome() -> StringName:
 	while node != null:
 		var tiles := node.get_node_or_null("Tiles") as RoomTiles
 		if tiles != null:
-			if tiles.tile_set != null and tiles.is_terrain_drawn() and tiles.get_look() == RockTerrain.Look.CAVE:
+			# The room may still hold its paint back (staged build): the look it will have.
+			if tiles.tile_set != null and tiles.is_terrain_planned() and tiles.get_planned_look() == RockTerrain.Look.CAVE:
 				return WallAutotile.biome_of(tiles.tile_set)
 			return &""
 		node = node.get_parent()

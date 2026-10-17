@@ -16,6 +16,9 @@ extends StaticBody2D
 ## Emitted on every open()/close()/set_open_instant(); instant = no animation or effects.
 signal state_changed(open: bool, instant: bool)
 
+## World px of a tile.
+const TILE := 64.0
+
 var is_open := false
 ## Look of the door. Unconfigured doors use the crypt style.
 var style: DoorStyle = DoorStyle.for_door(DoorStyle.DEFAULT_BIOME)
@@ -38,6 +41,7 @@ var way_color := Color(0, 0, 0, 0)
 
 
 func _ready() -> void:
+	_fit_shape()
 	view.setup(_sprite)
 	view.side = side
 	view.apply_style(style, is_entrance)
@@ -57,6 +61,7 @@ func configure(biome_id: StringName, kind: StringName = DoorStyle.KIND_NORMAL, s
 	is_configured = true
 	_copy_way()
 	if is_node_ready():
+		_fit_shape()
 		view.apply_style(style, is_entrance)
 		view.sounds_enabled = true
 		view.show_state(is_open)
@@ -82,6 +87,7 @@ func get_style() -> DoorStyle:
 func set_side(value: int) -> void:
 	side = value
 	if is_node_ready():
+		_fit_shape()
 		view.side = value
 		view.apply_style(style, is_entrance)
 		view.show_state(is_open)
@@ -152,6 +158,27 @@ static func entrance_of(room: Node) -> Door:
 		if child is Door and (child as Door).is_entrance:
 			return child
 	return null
+
+
+## A blocked entrance in the south wall is part of that wall's lip: it blocks from the lip's walkable
+## band (RockTerrain.LIP_WALK) down like the rock beside it, so a player walking along the wall's top
+## edge passes it without a step (bug report 17.10.2026 #5d991188). Every other door blocks its tile.
+func _fit_shape() -> void:
+	var lip := is_entrance and side == RoomTiles.DoorSide.SOUTH
+	var rect := _shape.shape as RectangleShape2D
+	# The walkable band at the top of a lip: RockTerrain.LIP_WALK art px.
+	var height := TILE - RockTerrain.LIP_WALK * SpriteStrip.PIXEL_SCALE if lip else TILE
+	if rect == null or not is_equal_approx(rect.size.y, height):
+		# Own shape: the scene's shape is shared by every door.
+		rect = RectangleShape2D.new()
+		rect.size = Vector2(TILE, height)
+		_shape.shape = rect
+	_shape.position = Vector2(TILE * 0.5, TILE - height * 0.5)
+
+
+func get_blocking_rect() -> Rect2:
+	var size := (_shape.shape as RectangleShape2D).size
+	return Rect2(_shape.position - size * 0.5, size)
 
 
 func set_open_instant(value: bool) -> void:

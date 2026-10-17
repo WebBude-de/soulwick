@@ -1353,6 +1353,20 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `enemies/turret/{turret,turret_placement,side_turret,turret_rules}.gd`, `enemies/data/turret_*.tres`, Turm-Hinweise in `translations.csv`, `tests/unit/test_enemy_turret.gd`.
 - **Ersetzt:** D-151 „Türme an Wänden, wenig Schaden, verlangsamen“ für den Raum-Turm.
 
+### D-172 – Räume und Türen nach den Meldungen vom 17.10.2026
+
+- **Status:** VORGESCHLAGEN (Claude; Anlass 9 Meldungen des Projektmitglieds vom 17.10.2026) · Zahlen TESTWERT · ergänzt D-160
+- **Kontext:** Seit dem gestaffelten Raumaufbau (D-160) wurden Türen, rissige Wände, Wandquellen und die Lagerfeuer-Mischung angelegt, bevor die Kacheln gemalt waren; `is_cave_look()` lieferte dann falsch (harte statt weicher Torstile, Ziegel-Riss in Höhlen, Mischungs-Ebenen unter dem Fels).
+- **Beschluss:**
+  - `RoomTiles.is_terrain_planned()`/`get_planned_look()`: Nische, Wandquellen und Torstil richten sich nach dem geplanten Malen; Mischungs-Ebenen werden nach jedem Malen nach oben gezogen.
+  - Begehbarer Streifen oben auf Blöcken an den Enden mit Kollisionskappen geschlossen (`RockTerrain.LIP_CAP_WIDTH` 8 Art-px), nur von Norden betretbar – die Blockkante verdeckt den Spieler nicht mehr.
+  - Seitennische nur noch halb so tief (`DoorView.SIDE_NOTCH_OPEN` 0,5); ihr Schatten beginnt eine halbe Kachel höher und blendet weich ein (`DoorArt.NOTCH_RISE` 16, `NOTCH_FADE_BOTTOM` 6, `NOTCH_EDGE_SHARE` 0,35).
+  - Neben Eingangslücken und an der Naht zum Vorraum Lip- statt Vollblock-Kollision (keine unsichtbare Wand mehr); Helligkeit kommt über die letzte Durchgangskachel zurück (`DoorView.exit_visibility`).
+  - Hänger der Seitenansicht ohne die mitgelieferten Felszeilen (`SideDecor.rock_rows_of`).
+- **OFFEN (Projektmitglied):** Hohe Torbögen (Boss-Tor, V9-Bogen, je 56 px) reichen fast an die Bodenkante des nächsten Raums und wirken oben abgeschnitten – zweite Kronen-Kachel vor hohen Toren oder niedrigere Bogengrafik (`door_frame_boss_low.png` 64×48)?
+- **Folgen:** `dungeon/rooms/{room_tiles,walls/rock_terrain,secrets/secret_niche}.gd`, `dungeon/environment/{spawn/spawn_source,corridors/passage_seam,doors/door,doors/door_view,doors/door_art}.gd`, `dungeon/side/side_decor.gd`, Tests `test_room_feedback_walls.gd`, `test_door_tunnel_view.gd`, `test_room_sorting.gd`.
+- **Ersetzt:** ganze Kachel tiefe Seitennische.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
