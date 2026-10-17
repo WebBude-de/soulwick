@@ -3,7 +3,7 @@ class_name RoomTiles
 extends TileMapLayer
 ## Paints a rectangular dungeon room from a few parameters, in the editor and at runtime.
 ## Tile (0, 0) is the top-left floor tile. The north wall occupies rows -2 (top) and -1 (front),
-## the south wall row room_size.y. Doors (A10, KONZEPT_RAEUME §7.1) sit in any wall: entrance_side /
+## the south wall row room_size.y. Doors (A10, D-117) sit in any wall: entrance_side /
 ## exit_side name the wall, entrance_x / exit_x the place along it (x on the north and south wall,
 ## y on the west and east wall). A door corridor runs from the door tile out to the edge of the
 ## painted ring: north rows -1..-3, south rows h..h+1, west columns -1..-2, east columns w..w+1; the

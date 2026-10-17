@@ -1,5 +1,5 @@
 extends GutTest
-## Trial room floor plan and courses (KONZEPT_RAEUME §6.1, ROADMAP_AUSBAU A8): the exit is always
+## Trial room floor plan and courses (D-112, ROADMAP_AUSBAU A8): the exit is always
 ## reachable without touching the parcours, the parcours and its chest are reachable, hazards only
 ## stand in the parcours, every kind of hazard appears, beats leave gaps, torches light the way.
 

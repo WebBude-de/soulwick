@@ -95,14 +95,24 @@ static func menu_zoom(viewport: Viewport) -> float:
 		return zoom_override
 	if size_mode == SizeMode.NORMAL or viewport == null:
 		return 1.0
+	var touch := is_touch_screen()
+	var body_dp := BODY_PX * dp_per_pixel(viewport) if touch else 0.0
+	return zoom_for(touch, body_dp, size_mode, device_scale(viewport))
+
+
+## menu_zoom() of a screen: touch screen or not, body text size in dp at zoom 1, the UI size option
+## and device pixels per viewport pixel. Without a touch screen AUTO is exactly 1 (D-169, the PC is
+## unchanged): snapping 1 to whole device pixels gave e.g. 1.054 in a 2560×1366 browser window
+## showing 1349×720, and the forge scrolled by a few pixels (report #0efb405c).
+static func zoom_for(touch: bool, body_dp: float, mode: SizeMode, device_px_per_pixel: float) -> float:
+	if mode == SizeMode.NORMAL or (mode == SizeMode.AUTO and not touch):
+		return 1.0
 	var wanted := 1.0
-	if is_touch_screen():
-		var body_dp := BODY_PX * dp_per_pixel(viewport)
-		if body_dp > 0.0:
-			wanted = TARGET_BODY_DP / body_dp
-	if size_mode == SizeMode.LARGE:
+	if touch and body_dp > 0.0:
+		wanted = TARGET_BODY_DP / body_dp
+	if mode == SizeMode.LARGE:
 		wanted = maxf(wanted, 1.0) * LARGE_FACTOR
-	return snap_zoom(clampf(wanted, 1.0, MAX_ZOOM), device_scale(viewport))
+	return snap_zoom(clampf(wanted, 1.0, MAX_ZOOM), device_px_per_pixel)
 
 
 ## Nearest zoom at which one art pixel (ART_PX viewport pixels) covers whole device pixels; >= 1.

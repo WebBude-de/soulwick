@@ -1,6 +1,6 @@
 class_name EliteNestVariant
 extends CombatVariant
-## Variant "Elite-Nest" (KONZEPT_RAEUME §4.8, D-101, D-105): only reachable through a branch, never
+## Variant "Elite-Nest" (D-101, D-105, D-117): only reachable through a branch, never
 ## drawn by the variant table. Few but strong enemies: 2-3 elites, or one champion with a small
 ## escort. Clearing the room is the success (no own failure): a bonus chest with an upgrade choice
 ## (D-109) and double soul crystals (NEST_CRYSTALS, twice a champion's).

@@ -127,6 +127,33 @@ func test_desktop_keeps_zoom_one_and_shows_keys() -> void:
 	assert_gt(MobileUi.menu_zoom(get_tree().root), 1.0, "option UI size 'Groß' also on the PC")
 
 
+## Report #0efb405c: a 2560×1366 browser window showing 1349×720 (1.897 device pixels per pixel)
+## gave the PC zoom 1.054 and a forge that scrolled a little. D-169: without touch exactly 1.
+func test_desktop_zoom_stays_one_at_any_window_ratio() -> void:
+	var odd_ratio := minf(2560.0 / 1349.0, 1366.0 / 720.0)
+	for ratio in [1.0, 1.5, odd_ratio, 2.25]:
+		assert_eq(MobileUi.zoom_for(false, 0.0, MobileUi.SizeMode.AUTO, ratio), 1.0, "PC at %.3f" % ratio)
+		assert_eq(MobileUi.zoom_for(false, 0.0, MobileUi.SizeMode.NORMAL, ratio), 1.0)
+	assert_gt(MobileUi.zoom_for(false, 0.0, MobileUi.SizeMode.LARGE, odd_ratio), 1.0, "'Groß' still on the PC")
+	# Touch screens keep the snapping to whole device pixels (D-169).
+	var touch := MobileUi.zoom_for(true, MobileUi.TARGET_BODY_DP / 1.3, MobileUi.SizeMode.AUTO, odd_ratio)
+	assert_gt(touch, 1.0)
+	var art := MobileUi.ART_PX * odd_ratio * touch
+	assert_almost_eq(art, roundf(art), 0.001, "one art pixel = whole device pixels")
+
+
+func test_desktop_dialog_taller_than_the_screen_scrolls() -> void:
+	_desktop()
+	var modal := _confirm_dialog(90)
+	modal.show_on(self)
+	await wait_process_frames(3)
+	assert_eq(modal.zoom, 1.0)
+	assert_true(modal.is_scrolling(), "too tall even at zoom 1: scrolls instead of being cut off")
+	assert_lte(modal.get_panel_rect().size.y, get_viewport().get_visible_rect().size.y + 0.5, "on screen")
+	assert_false(modal.has_close_button(), "still no X on the PC")
+	modal.finish()
+
+
 func test_phone_zoom_follows_the_physical_text_size() -> void:
 	MobileUi.touch_override = 1
 	MobileUi.phone_override = 1

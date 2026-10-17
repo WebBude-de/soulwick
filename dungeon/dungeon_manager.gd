@@ -4,7 +4,7 @@ extends Node2D
 ## Rooms are chained: each exit lines up with the next entrance. At most three room instances exist
 ## at any time (N-1, N, N+1): N-2 is freed immediately, before N+1 is created, so a fourth instance
 ## never exists, not even until the end of the frame (D-007).
-## Way-finding (A10, KONZEPT_RAEUME §7, D-105): a room is left to the north, west or east and the
+## Way-finding (A10, D-105, D-117): a room is left to the north, west or east and the
 ## next one is entered through the opposite wall; a room that would overlap a live room moves further
 ## out along a longer corridor (ExitRules). Now and then a cleared room offers two ways to room n+1
 ## (branch, BranchRules). Some combat rooms hide a niche behind a cracked wall (SecretRules,

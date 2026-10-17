@@ -8,6 +8,10 @@ extends Node2D
 ## Village calls populate() once in _ready, after the props were lifted (SortLift).
 ## R7: the square, the stairs and the stone slabs count as paths, the ridge (rock face) as a blocker;
 ## a little denser than in B3 (the village felt empty).
+## Reports 17.10.2026: flat kinds (grass, stones, flowers) lie under characters, their weapons and
+## shadows instead of being y-sorted like a prop (a sword pointing down vanished under stones,
+## #d83bda23); only the small bush stays sorted. Flower beds are solid props of the generator now
+## (#5a560cd1), so the scatter places none (a walkable bed looking like a solid one would confuse).
 
 ## Fixed seed: same village on every start.
 const SEED := 20261014
@@ -33,8 +37,12 @@ const MIN_SPACING := 36.0
 const BUILDING_MIN_WIDTH := 120.0
 
 const PATH_KINDS := {"grass_tuft": 4, "stones": 2, "flowers_1": 2, "flowers_2": 2, "bush_small": 1}
-const WALL_KINDS := {"flowers_1": 2, "flowers_2": 2, "flowers_3": 2, "flower_bed": 2, "bush_small": 2, "grass_tuft": 1}
+const WALL_KINDS := {"flowers_1": 2, "flowers_2": 2, "flowers_3": 2, "bush_small": 2, "grass_tuft": 1}
 const FIELD_KINDS := {"grass_tuft": 4, "flowers_3": 2, "stones": 1}
+## Kinds lying flat on the ground and their draw order: below DropShadow.Z (-2, shadows of characters
+## and props), above the ground (-10). Everything else (the small bush) is y-sorted like a prop.
+const FLAT_KINDS := ["grass_tuft", "stones", "flowers_1", "flowers_2", "flowers_3", "flower_bed"]
+const FLAT_Z := DropShadow.Z - 1
 
 ## Placed items: [{"art": String, "position": Vector2 (base), "rect": Rect2, "flip": bool}].
 var placements: Array[Dictionary] = []
@@ -207,6 +215,11 @@ static func _weighted(kinds: Dictionary, pick: float) -> String:
 	return kinds.keys().back()
 
 
+## True for decoration that lies flat on the ground (drawn under characters, not y-sorted).
+static func is_flat(art: String) -> bool:
+	return FLAT_KINDS.has(art)
+
+
 ## Plans and places the decoration for village (once).
 func populate(village: Node2D) -> void:
 	for child in get_children():
@@ -225,4 +238,7 @@ func populate(village: Node2D) -> void:
 		sprite.flip_h = item["flip"]
 		holder.add_child(sprite)
 		add_child(holder)
-		SortLift.lift(holder)
+		if is_flat(item["art"]):
+			holder.z_index = FLAT_Z
+		else:
+			SortLift.lift(holder)

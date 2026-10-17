@@ -1,6 +1,6 @@
 class_name BountyFlight
 extends Node
-## The crowned one of "Jagd" (KONZEPT_RAEUME_V2 §3.8; before "Kopfgeld", KONZEPT_RAEUME §4.6). A child
+## The crowned one of "Jagd" (KONZEPT_RAEUME_V2 §3.8; before "Kopfgeld", D-114). A child
 ## node of that enemy: it wears a gold crown; once it sees a player (range and free line) it stops
 ## fighting and flees. The escape hole opens over HuntRules.CATCH_TIME seconds; until its last seconds
 ## he zigzags away from the players between the pillars (evade_points), then he runs for the hole and

@@ -218,6 +218,92 @@ func test_decoration_does_not_collide() -> void:
 	assert_eq(village.get_node("Villagers").find_children("*", "CollisionObject2D", true, false).size(), 0, "villagers never block")
 
 
+## Report #d83bda23: flat decoration (grass, stones, flowers) and the rubble lie under characters,
+## their weapons and shadows (not y-sorted over a sword pointing down); the small bush stays sorted.
+## #5a560cd1: no walkable decoration flower beds next to the solid ones.
+func test_flat_decoration_lies_under_characters() -> void:
+	var village := _village()
+	var decor := village.get_node("Decor") as VillageDecor
+	var ground_z := (village.get_node("Ground") as CanvasItem).z_index
+	var flat := 0
+	for i in decor.placements.size():
+		var art: String = decor.placements[i]["art"]
+		var holder := decor.get_child(i) as Node2D
+		assert_ne(art, "flower_bed", "beds are solid props, not scattered decoration")
+		if VillageDecor.is_flat(art):
+			flat += 1
+			assert_lt(holder.z_index, DropShadow.Z, "%s under shadows and weapons" % art)
+			assert_gt(holder.z_index, ground_z, "%s above the ground" % art)
+		else:
+			assert_eq(holder.z_index, 0, "%s y-sorted like a prop" % art)
+	assert_gt(flat, 20, "most decoration is flat")
+	for rubble_name in ["Rubble1", "Rubble2"]:
+		var rubble := village.get_node_or_null("Buildings/" + rubble_name) as CanvasItem
+		if rubble != null:
+			assert_lt(rubble.z_index, DropShadow.Z, "%s lies flat" % rubble_name)
+
+
+## Opaque part of a prop's sprite in village coordinates (Rect2() without a Sprite2D).
+func _opaque_rect(prop: Node) -> Rect2:
+	var sprite := prop.get_node_or_null("Sprite") as Sprite2D
+	if sprite == null or sprite.texture == null:
+		return Rect2()
+	var used := sprite.texture.get_image().get_used_rect()
+	var local := sprite.get_rect()
+	var x := local.position.x + (local.size.x - used.end.x if sprite.flip_h else float(used.position.x))
+	var rect := Rect2(Vector2(x, local.position.y + used.position.y), Vector2(used.size))
+	var xform := sprite.global_transform
+	return Rect2(xform * rect.position, xform.basis_xform(rect.size)).abs()
+
+
+## Reports #5a560cd1, #0a088654, #90544fa9: beds, crates, barrels and the market stall block like the
+## hay bales: a box as wide as the visible art (at most 8 px less), standing on its bottom edge and
+## covering its lower part, never sticking out of it.
+func test_prop_hitboxes_match_their_art() -> void:
+	var village := _village()
+	var checked := {}
+	for prop in village.get_node("Buildings").get_children():
+		var prop_name := String(prop.name)
+		var kind := prop_name.rstrip("0123456789")
+		if not kind in ["Bed", "Crate", "Barrel", "MarketStall", "HayBale"]:
+			continue
+		var holder := prop.get_node_or_null("CollisionShape2D") as CollisionShape2D
+		assert_not_null(holder, "%s is solid" % prop_name)
+		if holder == null:
+			continue
+		var box_shape := holder.shape as RectangleShape2D
+		assert_not_null(box_shape, "%s has a box, not a small circle" % prop_name)
+		if box_shape == null:
+			continue
+		var box := Rect2(holder.global_position - box_shape.size * 0.5, box_shape.size)
+		var art := _opaque_rect(prop)
+		assert_true(art.has_area(), "%s has art" % prop_name)
+		assert_true(art.grow(0.5).encloses(box), "%s: box %s inside the art %s" % [prop_name, box, art])
+		assert_gte(box.size.x, art.size.x - 8.5, "%s: about as wide as it looks" % prop_name)
+		assert_almost_eq(box.end.y, art.end.y, 4.5, "%s: on its bottom edge" % prop_name)
+		assert_between(box.size.y, art.size.y * 0.3, art.size.y * 0.65, "%s: the lower part" % prop_name)
+		checked[kind] = true
+	assert_eq(checked.size(), 5, "beds, crates, barrels, the stall and the hay bales: %s" % [checked.keys()])
+
+
+## Report #d73e649d: the bush (ground tile, never drawn in front of the player) stops a player from
+## the north with the feet on its upper edge, not before it; bush and stump keep inside their art.
+func test_bush_and_stump_hitboxes_inside_their_art() -> void:
+	var tileset := load("res://world/village/village_tileset.tres") as TileSet
+	var source := tileset.get_source(0) as TileSetAtlasSource
+	# Art extents in tile px from the centre: bush x -12..12, y -4..12; stump x -8..8, y -6..11.
+	for entry in [[VillageTiles.BUSH, Rect2(-12, -4, 24, 16)], [VillageTiles.STUMP, Rect2(-8, -6, 16, 17)]]:
+		var data := source.get_tile_data(entry[0], 0)
+		assert_eq(data.get_collision_polygons_count(0), 1)
+		var points := data.get_collision_polygon_points(0, 0)
+		var box := Rect2(points[0], Vector2.ZERO)
+		for point in points:
+			box = box.expand(point)
+		var art: Rect2 = entry[1]
+		assert_true(art.encloses(box), "%s: %s inside %s" % [entry[0], box, art])
+		assert_gt(box.position.y, art.position.y, "%s: the top of the art is walkable" % entry[0])
+
+
 func test_rule_rejects_paths_doors_and_spawn() -> void:
 	var village := _village()
 	var rules := VillageDecor.collect_rules(village)

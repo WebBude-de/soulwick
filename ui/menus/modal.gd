@@ -26,7 +26,8 @@ extends Control
 ## dialog until its width fits (MobileUi.fit_zoom); what is still too tall scrolls (Scroll between
 ## frame and its column). Dialogs that close with Esc/B (cancel_allowed or close_action) get a
 ## tappable X on the top-right corner of the panel; key hints hide while touch is in use. Without a
-## touch screen nothing of this applies (zoom 1, no X, R8 limits as before).
+## touch screen nothing of this applies (zoom 1, no X, R8 limits as before); only a dialog taller than
+## the whole screen scrolls there too instead of being cut off.
 
 signal finished(result: Variant)
 
@@ -614,7 +615,10 @@ func _layout_mobile() -> void:
 	var full := Rect2(Vector2.ZERO, get_viewport_rect().size)
 	var safe := MobileUi.safe_rect(viewport)
 	var target := MobileUi.menu_zoom(viewport)
-	if not MobileUi.is_touch_screen() and is_equal_approx(target, 1.0) and safe.is_equal_approx(full) and _scroll == null:
+	# PC: as before, unless the dialog is taller than the screen; then it scrolls instead of being
+	# cut off at the top and the bottom (report #0efb405c).
+	if not MobileUi.is_touch_screen() and is_equal_approx(target, 1.0) and safe.is_equal_approx(full) and _scroll == null \
+			and _content_minimum().y <= full.size.y + 0.5:
 		zoom = 1.0
 		MobileUi.place_stage(_stage, full, 1.0, full)
 		return

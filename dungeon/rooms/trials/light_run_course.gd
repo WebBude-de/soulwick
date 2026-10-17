@@ -1,6 +1,6 @@
 class_name LightRunCourse
 extends TrialCourse
-## Lichtlauf (KONZEPT_RAEUME §6.1): free-standing torches along the parcours go out one after the
+## Lichtlauf (D-112): free-standing torches along the parcours go out one after the
 ## other once a run starts; whoever is in the dark loses half a heart every 2 s (TrialRules). Reach
 ## the next torch before your own goes out. The room is dark (TrialContent sets the vision), the
 ## chest at the finish always glows. Spacing and the beat of the torches come from the dungeon RNG.

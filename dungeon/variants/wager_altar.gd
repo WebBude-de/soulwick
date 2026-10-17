@@ -1,6 +1,6 @@
 class_name WagerAltar
 extends Node2D
-## Wager altar (KONZEPT_RAEUME §5, D-104, D-109): stands right behind the entrance of a normal
+## Wager altar (D-104, D-109, D-114): stands right behind the entrance of a normal
 ## combat room and offers one condition - a trial (no hit, under 30 s, secondary weapon only) or a
 ## curse (light circle -40 %, enemies +15 % speed, no healing in this room). Accepted with E while
 ## the door is still open; once a player walks in, the offer is gone. Met when the room is cleared

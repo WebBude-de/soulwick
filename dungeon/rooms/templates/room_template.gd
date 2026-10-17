@@ -1,6 +1,6 @@
 class_name RoomTemplate
 extends Resource
-## Metadata of one combat room template (KONZEPT_RAEUME §9.2): room kind, shape, size class, door
+## Metadata of one combat room template (D-113): room kind, shape, size class, door
 ## sides, spawn points and allowed biomes. Written by tools/generate_room_templates.py next to the
 ## scene (dungeon/rooms/templates/<id>.tres) and listed in combat_catalog.tres (RoomCatalog).
 ## The scene stays the source of the layout; this resource only describes it, so the catalog can
@@ -11,11 +11,11 @@ extends Resource
 ## rooms from boss, miniboss, rest and campfire rooms (RoomCatalog.load_plans()), weight scales the
 ## draw among the candidates.
 
-## Floor plan of a template (KONZEPT_RAEUME §3.2). Never shown in the game (D-100). BRIDGE_HALL ..
+## Floor plan of a template (D-113). Never shown in the game (D-100). BRIDGE_HALL ..
 ## RING_HOLE are the old chasm shapes (A4); PLAN = built from a hand-made plan (R1, every template snow).
 enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOMB, BRIDGE_HALL, ISLANDS, WALKWAY, RING_HOLE, PLAN }
 ## Wall of the room a door sits in (same order as RoomTiles.DoorSide). Entrances come from the
-## south, west or east, exits lead north, east or west (A10, KONZEPT_RAEUME §7.1).
+## south, west or east, exits lead north, east or west (A10, D-117).
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
 
 ## Plan modes (KONZEPT_RAEUME_V2 §2). Plain fights draw MODE_CLEAR (normal kind) and MODE_ARENA.

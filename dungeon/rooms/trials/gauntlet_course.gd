@@ -1,6 +1,6 @@
 class_name GauntletCourse
 extends TrialCourse
-## Spießrutenlauf (KONZEPT_RAEUME §6.1): both lanes of the parcours hold spikes, flame jets and
+## Spießrutenlauf (D-112): both lanes of the parcours hold spikes, flame jets and
 ## pendulum blades with their own beats. Every kind appears at least once; order, columns, gaps
 ## and timing are rolled with the dungeon RNG, so no two rooms play the same.
 

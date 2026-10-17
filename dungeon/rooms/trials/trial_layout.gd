@@ -1,6 +1,6 @@
 class_name TrialLayout
 extends RefCounted
-## Floor plan of the trial rooms (KONZEPT_RAEUME §6.1): entrance -> direct, always safe way to the
+## Floor plan of the trial rooms (D-112): entrance -> direct, always safe way to the
 ## exit -> a parcours that branches off, with the chest at its end, visible from the start.
 ## Inner walls (RoomTiles.wall_rects, painted with the biome's inner wall pieces) separate it:
 ##

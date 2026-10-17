@@ -13,7 +13,8 @@ extends Node2D
 ## "Frame 1 bzw. 6"). Gates and wall rifts use the
 ## arena wall art (WallBreach: enemy_gate_4f / wall_breach_6f). Without art a drawn placeholder.
 ## Floor sources stand at their pivot (where the enemy appears); wall sources sit on the edge between
-## wall and floor tile, local +y pointing into the room.
+## wall and floor tile, local +y pointing into the room. A sarcophagus also has a solid foot behind
+## its pivot (SOLID_FOOT), so nobody walks into or behind it.
 
 enum Phase { IDLE, WARN, OPEN, REST }
 
@@ -47,6 +48,16 @@ const FLAT_KINDS: Array[int] = [SpawnSourceRules.Kind.PUDDLE, SpawnSourceRules.K
 ## (TESTWERT).
 const STAND_SORT_LIFT := 3.0
 const FOOT_ABOVE_PIVOT := {SpawnSourceRules.Kind.GRAVE: 18.0}
+## Solid foot (width, depth in world px before the node's own scale; a champion's source is
+## bigger): a sarcophagus lies on the floor, its lid is the top face of the art (22x31 art px above
+## the pivot), so a player could walk into it and vanish behind it (bug report #a461e6ff). The foot
+## covers the lid and ends SOLID_PIVOT_GAP above the pivot: the enemy rises there without a body
+## (D-132) and its body (circle up to a quarter radius above its position) stays clear of the foot.
+## Graves, puddles, rifts and vents stay walkable. TESTWERTE
+const SOLID_FOOT := {SpawnSourceRules.Kind.SARCOPHAGUS: Vector2(44, 44)}
+const SOLID_PIVOT_GAP := 12.0
+## get_blocked_tile() of a source that took no navigation.
+const INVALID_TILE := Vector2i(-9999, -9999)
 ## Rest glimmer: brightness pulse of the art (no light of its own - the vision overlay draws a
 ## limited number of lights). TESTWERTE
 const GLIMMER_STRENGTH := 0.22
@@ -79,6 +90,10 @@ var uses := 0
 var quiet := false
 
 var _sprite: AnimatedSprite2D = null
+var _foot: StaticBody2D = null
+## Room tiles whose navigation the foot took (null if it took none) and that tile.
+var _foot_tiles: RoomTiles = null
+var _foot_tile := Vector2i.ZERO
 var _breach: WallBreach = null
 var _light: LightSource = null
 var _timeline: Tween = null
@@ -129,9 +144,12 @@ func _ready() -> void:
 		if FLAT_KINDS.has(kind):
 			z_index = -1
 		else:
-			# Sorts at the foot line of the art (sort_lift); everything drawn moves back down.
-			position.y -= sort_lift()
+			# Sorts at the foot line of the art (sort_lift); everything drawn moves back down. Times
+			# the node's scale (a champion's bigger source), so the art's pivot stays on the spot
+			# the enemy rises from.
+			position.y -= sort_lift() * scale.y
 		_build_sprite()
+		_build_foot()
 	_show_frame()
 
 
@@ -342,6 +360,70 @@ func get_pivot_global() -> Vector2:
 	return to_global(Vector2(0.0, sort_lift()))
 
 
+## Does this source block walking (SOLID_FOOT)?
+func is_solid() -> bool:
+	return _foot != null and is_instance_valid(_foot)
+
+
+## Centre of the solid foot in own coordinates: SOLID_PIVOT_GAP and half its depth above the pivot.
+func get_foot_center() -> Vector2:
+	var size: Vector2 = SOLID_FOOT.get(kind, Vector2.ZERO)
+	return Vector2(0.0, sort_lift() - SOLID_PIVOT_GAP - size.y * 0.5)
+
+
+## Room tile whose navigation the foot took (D-115), INVALID_TILE if none.
+func get_blocked_tile() -> Vector2i:
+	return _foot_tile if _foot_tiles != null else INVALID_TILE
+
+
+## The solid foot of a standing source (SOLID_FOOT): a static body like a DecoProp's, a drop shadow
+## at the foot line and no navigation on the room tile under it. Same on every peer (plan or the
+## champion's spot, no randomness).
+func _build_foot() -> void:
+	var size: Vector2 = SOLID_FOOT.get(kind, Vector2.ZERO)
+	if size == Vector2.ZERO:
+		return
+	_foot = StaticBody2D.new()
+	_foot.name = "Foot"
+	_foot.collision_layer = PhysicsLayers.WORLD
+	_foot.collision_mask = 0
+	_foot.position = get_foot_center()
+	var shape := RectangleShape2D.new()
+	shape.size = size
+	var collision := CollisionShape2D.new()
+	collision.shape = shape
+	_foot.add_child(collision)
+	add_child(_foot)
+	DropShadow.attach(self, size.x * 0.4, sort_lift() - 2.0)
+	_block_navigation()
+
+
+## Takes the navigation off the room tile under the foot's centre, so enemies path around it like
+## around a solid prop (D-115); given back when the source leaves. Only a free floor tile and never
+## the one its enemies rise on (they would start in a hole of the navigation); only a tile this
+## source blocked itself is given back. Nothing outside a room (tests).
+func _block_navigation() -> void:
+	var room := _room_node()
+	if room == null:
+		return
+	var tiles := room.get_node(^"Tiles") as RoomTiles
+	var tile := RoomTiles.local_to_tile(room.to_local(to_global(get_foot_center())))
+	if tile == RoomTiles.local_to_tile(room.to_local(get_pivot_global())):
+		return
+	if tiles.is_navigation_blocked(tile) or not tiles.is_walkable(tile):
+		return
+	tiles.set_navigation_blocked(tile, true)
+	_foot_tiles = tiles
+	_foot_tile = tile
+	tree_exiting.connect(_free_navigation, CONNECT_ONE_SHOT)
+
+
+func _free_navigation() -> void:
+	if _foot_tiles != null and is_instance_valid(_foot_tiles) and not _foot_tiles.is_queued_for_deletion():
+		_foot_tiles.set_navigation_blocked(_foot_tile, false)
+	_foot_tiles = null
+
+
 func _build_wall() -> void:
 	_breach = WallBreach.new()
 	_breach.name = "Opening"
@@ -353,16 +435,24 @@ func _build_wall() -> void:
 
 ## Biome of the room when its walls are cave rock (the breach breaks a rock front), else empty.
 func _cave_biome() -> StringName:
+	var room := _room_node()
+	if room == null:
+		return &""
+	var tiles := room.get_node(^"Tiles") as RoomTiles
+	# The room may still hold its paint back (staged build): the look it will have.
+	if tiles.tile_set != null and tiles.is_terrain_planned() and tiles.get_planned_look() == RockTerrain.Look.CAVE:
+		return WallAutotile.biome_of(tiles.tile_set)
+	return &""
+
+
+## The nearest ancestor holding the room's RoomTiles as "Tiles" (the room), null outside a room.
+func _room_node() -> Node2D:
 	var node := get_parent()
 	while node != null:
-		var tiles := node.get_node_or_null("Tiles") as RoomTiles
-		if tiles != null:
-			# The room may still hold its paint back (staged build): the look it will have.
-			if tiles.tile_set != null and tiles.is_terrain_planned() and tiles.get_planned_look() == RockTerrain.Look.CAVE:
-				return WallAutotile.biome_of(tiles.tile_set)
-			return &""
+		if node is Node2D and node.get_node_or_null(^"Tiles") is RoomTiles:
+			return node as Node2D
 		node = node.get_parent()
-	return &""
+	return null
 
 
 func _ensure_light() -> void:

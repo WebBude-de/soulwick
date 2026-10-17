@@ -1,5 +1,5 @@
 extends GutTest
-## A run through a trial (KONZEPT_RAEUME §6.1, D-102, D-109): starting and leaving the parcours,
+## A run through a trial (D-102, D-109, D-112): starting and leaving the parcours,
 ## mistakes cost half a heart but never the run, flawless gives a soul crystal per player, the chest
 ## opens once for the first player and offers an upgrade choice, darkness hurts in the light run.
 

@@ -1,6 +1,6 @@
 class_name BranchRules
 extends RefCounted
-## Branches (D-105, KONZEPT_RAEUME §7.2): now and then a cleared combat room has two exits with a
+## Branches (D-105, D-117): now and then a cleared combat room has two exits with a
 ## sign over each; both lead to room n+1 (cycle, room number and scaling stay), the contents differ.
 ## The choice falls when the players walk up to a door; the other way is sealed. Pure rules, no
 ## nodes: the draw (roll), the door layout (pick_exit_pair) and the group vote (resolve_vote).

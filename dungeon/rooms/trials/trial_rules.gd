@@ -1,6 +1,6 @@
 class_name TrialRules
 extends RefCounted
-## Pure rules of the trial rooms (KONZEPT_RAEUME §6.1, D-102): what a mistake costs, that it never
+## Pure rules of the trial rooms (D-102, D-112): what a mistake costs, that it never
 ## ends the run, the flawless reward and the light rule of the light run. No nodes, unit-testable.
 
 ## A mistake (hazard hit) costs half a heart (TESTWERT).

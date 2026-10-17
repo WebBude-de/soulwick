@@ -1,6 +1,6 @@
 class_name CrumbleCourse
 extends TrialCourse
-## Bröckelboden (KONZEPT_RAEUME §6.1, A4): cracked plates in the lanes of the parcours break
+## Bröckelboden (D-112, D-115, A4): cracked plates in the lanes of the parcours break
 ## CRUMBLE_DELAY after a player stepped on them and become abyss (RoomTiles.add_pit_tiles); one
 ## column per lane is an open gap from the start, one tile wide, to dash over. Some plates in each
 ## column stay solid (plain floor): the way to choose. Broken plates grow back after REGROW_TIME,

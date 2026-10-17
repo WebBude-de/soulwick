@@ -1,6 +1,6 @@
 class_name LightIsland
 extends Node2D
-## Free-standing light in a combat room (ingredient "Lichtinseln", KONZEPT_RAEUME §3.3): a crystal
+## Free-standing light in a combat room (ingredient "Lichtinseln", D-113): a crystal
 ## on a pedestal or an iron torch stand. Its LightSource cuts a circle into the darkness like a wall
 ## torch (VisionOverlay collects every LightSource, so it works for any number of players).
 ## Its light counts for LightQuery (A9): stone guardians freeze in it like in a player's circle.

@@ -1,5 +1,5 @@
 extends GutTest
-## Secret niches (A10, KONZEPT_RAEUME §7.3, D-109, R1): the draw (from room 6, normal and chasm rooms,
+## Secret niches (A10, D-109, D-117, R1): the draw (from room 6, normal and chasm rooms,
 ## fixed RNG draws, content weights), only explosions break a cracked wall, the niche places of every
 ## template keep the room whole, and a niche in the tree: sealed, tapped by a sword, opened by a
 ## barrel blast, its content (chest, crystals, wandering merchant with the shop's prices).

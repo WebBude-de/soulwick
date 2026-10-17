@@ -1,5 +1,5 @@
 extends GutTest
-## The shared light decision (A9, KONZEPT_RAEUME §4.3): any number of light circles - every
+## The shared light decision (A9, D-116): any number of light circles - every
 ## player's own circle (state at the player), LightSources that count (torches, crystals, lantern),
 ## never flashes or enemy glows - and the pure circle test that the light run uses too.
 

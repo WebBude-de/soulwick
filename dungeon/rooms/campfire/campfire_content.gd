@@ -1,6 +1,6 @@
 class_name CampfireContent
 extends SpecialContent
-## The campfire between two biomes (D-103, KONZEPT_RAEUME §6.3): fire with warm light in the
+## The campfire between two biomes (D-103): fire with warm light in the
 ## middle, a seat and a bedroll, no enemies. At the fire (E) every player makes ONE choice: heal
 ## (+HEAL_AMOUNT up to max HP) or strengthen an upgrade they already have by one stack.
 ## While the player walks from the entrance (old biome) to the exit (new biome) the darkness colour

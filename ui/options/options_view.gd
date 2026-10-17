@@ -49,6 +49,10 @@ const CHOICE_WIDTH := 44.0
 const CHOICE_HEIGHT := 12.0
 const KEY_WIDTH := 50.0
 const KeyLine := preload("res://ui/widgets/key_line.gd")
+## Inner padding of a tab in mockup pixels (vertical, horizontal): the same for every tab and state.
+const TAB_PADDING := Vector2(1.0, 6.0)
+## TESTWERT: gap between two tabs in mockup pixels (report 0ca75616: more room around the tabs).
+const TAB_GAP := 6.0
 const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPLAY", &"OPTIONS_TAB_CONTROLS", &"OPTIONS_TAB_TOUCH"]
 ## Rows per tab, in keyboard order.
 const TAB_ROWS := {
@@ -537,7 +541,8 @@ func _refresh_sliders() -> void:
 # --- Building: header ---
 
 func _build_tabs() -> HBoxContainer:
-	var strip := UiKit.hbox(int(UiKit.px(4)))
+	var strip := UiKit.hbox(int(UiKit.px(TAB_GAP)))
+	strip.name = "Tabs"
 	strip.alignment = BoxContainer.ALIGNMENT_CENTER
 	for i in TAB_KEYS.size():
 		if not is_tab_available(i as Tab):
@@ -563,21 +568,34 @@ func _build_tabs() -> HBoxContainer:
 	return strip
 
 
+## Every tab keeps the padding of its framed look, also without a frame: a button is as wide as its
+## normal style, so an unframed tab that gets the frame on hover had no room left for its text
+## (report 0ca75616: "Bild" vanished under the mouse). The strip no longer jumps when tabs change.
 func _style_tab(index: int) -> void:
 	var button := _tab_buttons[index]
 	var active: bool = index == int(_tab)
 	var selected: bool = _row == Row.TABS
-	var style: StyleBox = StyleBoxEmpty.new()
+	var style: StyleBox = tab_padding_style()
 	if active:
-		style = UiKit.padded_style(&"button_hover" if selected else &"button", 1, 6)
+		style = UiKit.padded_style(&"button_hover" if selected else &"button", TAB_PADDING.x, TAB_PADDING.y)
 	for state in ["normal", "pressed", "disabled", "focus"]:
 		button.add_theme_stylebox_override(state, style)
-	button.add_theme_stylebox_override("hover", UiKit.padded_style(&"button_hover" if active else &"button", 1, 6))
+	button.add_theme_stylebox_override("hover", UiKit.padded_style(&"button_hover" if active else &"button", TAB_PADDING.x, TAB_PADDING.y))
 	var color := UiKit.COLOR_DISABLED
 	if active:
 		color = UiKit.COLOR_GOLD if selected else UiKit.COLOR_TEXT
 	button.add_theme_color_override("font_color", color)
 	button.add_theme_color_override("font_hover_color", UiKit.COLOR_GOLD if active else UiKit.COLOR_TEXT)
+
+
+## No frame, but the inner padding of the framed tab (TAB_PADDING).
+static func tab_padding_style() -> StyleBoxEmpty:
+	var style := StyleBoxEmpty.new()
+	style.content_margin_left = UiKit.px(TAB_PADDING.y)
+	style.content_margin_right = UiKit.px(TAB_PADDING.y)
+	style.content_margin_top = UiKit.px(TAB_PADDING.x)
+	style.content_margin_bottom = UiKit.px(TAB_PADDING.x)
+	return style
 
 
 # --- Building: pages ---

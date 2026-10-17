@@ -1,6 +1,6 @@
 class_name DarkZone
 extends Node2D
-## Dark zone (ingredient "Dunkelzonen", KONZEPT_RAEUME §3.3): a patch of thick darkness on the floor
+## Dark zone (ingredient "Dunkelzonen", D-113): a patch of thick darkness on the floor
 ## that shrinks the light circle of whoever stands in it. The decision lives in one place,
 ## get_vision_factor_at(), for any point, so every player gets their own factor (Koop); the effect
 ## (a smaller vision radius) is applied by the VisionOverlay (hook, see the A3 report). The patch

@@ -4,7 +4,7 @@ extends GutTest
 ## *.v2.bak, new values persist, invalid values are rejected. Uses a test save file only.
 
 const TEST_PATH := "user://test_meta_save.cfg"
-## Old v2 maximum per upgrade (KONZEPT_ENDLOS §6 before D-087) and the expected v3 level for every
+## Old v2 maximum per upgrade (before D-087) and the expected v3 level for every
 ## old level 0..max (D-087: new level = old effect rounded up to the new step, at most the new max).
 const V2_TO_V3 := {
 	"vitality": [0, 1, 2, 3, 4, 5],

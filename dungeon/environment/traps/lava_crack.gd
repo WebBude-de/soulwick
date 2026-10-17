@@ -1,7 +1,7 @@
 @tool
 class_name LavaCrack
 extends Node2D
-## Ember-forge floor hazard (KONZEPT_ENDLOS §2): a glowing crack that periodically erupts, like a
+## Ember-forge floor hazard (D-075): a glowing crack that periodically erupts, like a
 ## spike trap: idle -> warning (bright, sparks) -> burst (hurts the player) -> idle. Only the player
 ## is targeted. Dormant while the player is far away (rooms are prepared ahead).
 ## Code-drawn; art/environment/props/lava_crack_4f.png replaces the drawing when present.

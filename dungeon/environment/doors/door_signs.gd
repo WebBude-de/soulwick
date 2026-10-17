@@ -1,6 +1,6 @@
 class_name DoorSigns
 extends RefCounted
-## Door recognition (R5, KONZEPT_RAEUME_V2 §1.2, docs/design/claude_design_antwort/05_tueren.md): what
+## Door recognition (R5, KONZEPT_RAEUME_V2 §1.2, docs/design/responses/05_tueren.md): what
 ## an exit door tells about the room behind it. The DungeonManager calls show_way() once the next
 ## room is prepared (it lies built and dark behind the door): the door then shows the mode symbol of
 ## that room over the arch and throws a light cone in the mode colour into the room.

@@ -1,5 +1,5 @@
 extends GutTest
-## Branches (D-105, KONZEPT_RAEUME §7.2): the draw (from room 6, at most once per cycle, not in a
+## Branches (D-105, D-117): the draw (from room 6, at most once per cycle, not in a
 ## variant room, fixed number of RNG draws), the two ways (special pair, elite nest or unknown vs.
 ## safe), the two doors (west/east fork, north + side, two north doors for special rooms), the group
 ## vote and a branch room in the tree (doors wait after the fight, the chosen one opens, the other

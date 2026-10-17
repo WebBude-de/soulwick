@@ -75,6 +75,44 @@ func test_places_for_players_and_free_places() -> void:
 	lobby.state = LobbyClient.State.IDLE
 
 
+func test_guild_room_places_offer_no_code() -> void:
+	# Report b47bee4a: the guild joins its rooms from the guild's page, no code to share.
+	var lobby := _room_lobby([{"peerId": 1, "playerId": OWN_ID, "name": "Kerze", "platform": "pc"}])
+	lobby.room["mode"] = LobbyClient.MODE_GUILD
+	lobby.room["guildId"] = "11111111-2222-4333-8444-555555555555"
+	var menu := _menu(lobby)
+	await wait_physics_frames(2)
+	assert_eq(menu.view, OnlineMenu.View.DETAIL, "a guild room lives on its guild's page")
+	var slots := menu.get_slots()
+	assert_eq(slots.size(), 4)
+	for slot in slots:
+		assert_null(slot.find_child("ShareCode", true, false), "no 'Code teilen'")
+	assert_true(slots[1].is_empty and slots[3].is_empty, "the free places still wait for players")
+	lobby.peer = null
+	lobby.state = LobbyClient.State.IDLE
+
+
+## Report #181dfb78: the place buttons are bold like the dialog buttons and "Aussehen ändern" is not
+## cut off in the narrow places of the village dialog.
+func test_place_buttons_are_bold_and_untrimmed() -> void:
+	var lobby := _room_lobby([{"peerId": 1, "playerId": OWN_ID, "name": "Kerze", "platform": "pc"}])
+	var menu := OnlineMenu.create(lobby, null, OnlineMenu.DEFAULT_WIDTH, OnlineMenu.VILLAGE_CONTENT_HEIGHT)
+	add_child_autofree(menu)
+	await wait_physics_frames(3)
+	for button_name in ["EditLook", "ShareCode"]:
+		var button := menu.find_child(button_name, true, false) as Button
+		assert_not_null(button, button_name)
+		assert_eq(button.get_theme_font("font"), UiKit.bold_font(), "%s bold" % button_name)
+		var style := button.get_theme_stylebox("normal")
+		var room := button.size.x - style.get_margin(SIDE_LEFT) - style.get_margin(SIDE_RIGHT)
+		var text := TranslationServer.translate(button.text)
+		var text_width := UiKit.bold_font().get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size("font_size")).x
+		assert_lte(text_width, room, "%s: '%s' fits without '…'" % [button_name, text])
+		assert_lte(button.size.x, button.get_parent_control().size.x + 0.5, "%s inside its place" % button_name)
+	lobby.peer = null
+	lobby.state = LobbyClient.State.IDLE
+
+
 func test_ping_bars() -> void:
 	assert_eq(LobbySlot.ping_quality(-1), &"bad")
 	assert_eq(LobbySlot.ping_quality(30), &"good")

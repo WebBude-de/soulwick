@@ -1,6 +1,6 @@
 class_name SecretRules
 extends RefCounted
-## Secret niches behind cracked walls (A10, KONZEPT_RAEUME §7.3, D-105, D-109): pure rules, no nodes.
+## Secret niches behind cracked walls (A10, D-105, D-109, D-117): pure rules, no nodes.
 ##
 ## - From FROM_ROOM, CHANCE of the normal combat rooms (normal and chasm kind; arenas keep their
 ##   walls for the wave gates) get a cracked wall. It is no room of its own: a small niche (three
@@ -23,7 +23,7 @@ extends RefCounted
 enum Content { CHEST, CRYSTAL, MERCHANT }
 
 const FROM_ROOM := 6
-## "1 von 8 Kampfräumen ab Raum 6" (KONZEPT_RAEUME §2). TESTWERT
+## "1/8 der Normal- und Abgrundräume ab Raum 6" (D-117). TESTWERT
 const CHANCE := 1.0 / 8.0
 ## Content weights in Content order: chest, soul crystals, wandering merchant (rare). TESTWERTE
 const CONTENT_WEIGHTS: Array[float] = [0.55, 0.35, 0.10]

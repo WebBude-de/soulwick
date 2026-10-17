@@ -1,5 +1,5 @@
 extends GutTest
-## Elite nest (A10, KONZEPT_RAEUME §4.8, D-105): a combat variant only reachable through a branch.
+## Elite nest (A10, D-105, D-117): a combat variant only reachable through a branch.
 ## Few strong enemies (every one an elite, or one champion with an escort), cleared = bonus chest and
 ## double soul crystals. Attached without the variant table (A9's), through its own attach().
 

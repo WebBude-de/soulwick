@@ -1,6 +1,6 @@
 class_name PlayerCurses
 extends Node
-## Curses of one player for the rest of the run (pact altar, KONZEPT_RAEUME §6.2). Lives as a child
+## Curses of one player for the rest of the run (pact altar, D-112). Lives as a child
 ## node of its player (per-player state, D-088) and is attached at runtime by ensure(), so player.gd
 ## does not need to know it. In co-op a pact only curses the player who sealed it.
 ## All queries are static and take the player: enemies, the vision, the fountain and the Tab
@@ -13,7 +13,7 @@ signal curse_added(curse: Curse)
 enum Curse { FRAILTY, HASTE, GLOOM, DRY_FOUNTAINS }
 
 const NODE_NAME := &"PlayerCurses"
-## Curse values (KONZEPT_RAEUME §6.2, TESTWERTE).
+## Curse values (D-112, TESTWERTE).
 ## FRAILTY: -1 heart = 2 HP of maximum health; never below MIN_MAX_HEALTH.
 const MAX_HEALTH_LOSS := 2.0  # TESTWERT
 const MIN_MAX_HEALTH := 2.0  # TESTWERT

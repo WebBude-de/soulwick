@@ -1,6 +1,6 @@
 class_name WagerRules
 extends RefCounted
-## Pure rules of the wager altar (KONZEPT_RAEUME §5, D-104, D-109): which condition, what breaks
+## Pure rules of the wager altar (D-104, D-109, D-114): which condition, what breaks
 ## it, what it pays. A trial condition (no hit, under 30 s, secondary weapon only) is a goal; a curse
 ## (light circle -40 %, enemies +15 % speed, no healing) makes the room harder and is met by clearing
 ## the room. Success pays soul crystals (D-109: 1-2, TESTWERTE); failure costs nothing more.

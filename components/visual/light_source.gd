@@ -3,7 +3,7 @@ extends Node2D
 ## A point that cuts a light circle into the dungeon darkness (torches, projectiles, explosions,
 ## pickups, elites). VisionOverlay collects all nodes of the group every frame.
 ## Lights that matter for gameplay (torches, crystals, lanterns - not flashes, projectiles or enemy
-## glows) set counts_as_light: LightQuery then treats their circle as "lit" (A9, KONZEPT_RAEUME §4.3).
+## glows) set counts_as_light: LightQuery then treats their circle as "lit" (A9, D-116).
 ## The colour of the light (R6: warm = safe, cold = goal, red = danger) is pure optics: set color, or
 ## leave it transparent and LightPalette derives it from the owner once.
 ## L1 (optics only): the drawn brightness flickers like fire for warm lights and breathes slowly for

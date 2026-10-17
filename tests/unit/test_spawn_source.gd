@@ -3,6 +3,8 @@ extends GutTest
 ## warning, opening, rest) and the emerge phase of the enemy (hidden, passive, invulnerable).
 
 const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")
+## The biggest normal enemy (body radius times sprite scale): the worst case beside a sarcophagus.
+const GOLEM: EnemyData = preload("res://enemies/data/golem.tres")
 ## Loaded when needed: a preload here would make this script the first to load the enemy scene
 ## when it runs alone, which trips over the old load cycle enemy_base -> variants -> enemy_base.
 const ENEMY_SCENE_PATH := "res://enemies/enemy_base.tscn"
@@ -33,12 +35,28 @@ func _no_groups(count: int) -> Array[int]:
 	return groups
 
 
-func _enemy() -> Enemy:
+func _enemy(data: EnemyData = SKELETON, champion := false, elite := Enemy.Elite.NONE) -> Enemy:
 	var enemy := (load(ENEMY_SCENE_PATH) as PackedScene).instantiate() as Enemy
-	enemy.data = SKELETON
-	enemy.apply_scaling(3, false)
+	enemy.data = data
+	enemy.apply_scaling(3, champion)
+	enemy.make_elite(elite)
 	add_child_autofree(enemy)
 	return enemy
+
+
+## The foot's rectangle in global coordinates (axis aligned: the sources never rotate).
+func _foot_rect(source: SpawnSource) -> Rect2:
+	var foot := source.get_node("Foot") as StaticBody2D
+	var shape := (foot.get_child(0) as CollisionShape2D).shape as RectangleShape2D
+	var size := shape.size * foot.global_scale
+	return Rect2(foot.global_position - size * 0.5, size)
+
+
+## Does enemy's body overlap the source's foot?
+func _touches_foot(enemy: Enemy, source: SpawnSource) -> bool:
+	var body := enemy.get_node("CollisionShape2D") as CollisionShape2D
+	var foot_shape := (source.get_node("Foot").get_child(0) as CollisionShape2D)
+	return body.shape.collide(body.global_transform, foot_shape.shape, foot_shape.global_transform)
 
 
 # --- Marker contract ---
@@ -224,6 +242,88 @@ func test_floor_sources_use_the_delivered_art() -> void:
 			assert_null(art, "drawn fallback without the file")
 		assert_eq(source.z_index, -1 if SpawnSource.FLAT_KINDS.has(kind) else 0)
 		assert_eq(source.phase, SpawnSource.Phase.IDLE)
+
+
+func test_only_a_sarcophagus_has_a_solid_foot_over_its_lid() -> void:
+	# Bug report #a461e6ff: the player walked into the sarcophagus and vanished behind it.
+	for kind in [Kind.GRAVE, Kind.PUDDLE, Kind.RIFT, Kind.VENT]:
+		var walkable: SpawnSource = add_child_autofree(SpawnSource.create_floor(kind, Vector2(96, 96)))
+		assert_false(walkable.is_solid(), "%s stays walkable" % SpawnSourceRules.kind_id(kind))
+		assert_null(walkable.get_node_or_null("Foot"))
+	var gate: SpawnSource = add_child_autofree(SpawnSource.create_wall(Kind.GATE, WallGates.Side.NORTH, Vector2i(4, -1), Vector2i(4, 0)))
+	assert_false(gate.is_solid(), "the wall is the gate's body")
+	for source_scale: float in [1.0, SpawnSources.CHAMPION_SOURCE_SCALE]:
+		var spot := Vector2(300, 300)
+		var source := SpawnSource.create_floor(Kind.SARCOPHAGUS, spot)
+		source.scale = Vector2.ONE * source_scale
+		add_child_autofree(source)
+		assert_true(source.is_solid(), "scale %.1f" % source_scale)
+		var foot := source.get_node("Foot") as StaticBody2D
+		assert_eq(foot.collision_layer, PhysicsLayers.WORLD, "blocks players and enemies like a wall")
+		assert_eq(foot.collision_mask, 0)
+		assert_almost_eq(source.get_pivot_global().y, spot.y, 0.01, "the art's pivot stays on the spot (scale %.1f)" % source_scale)
+		var rect := _foot_rect(source)
+		var art_px := SpriteStrip.PIXEL_SCALE * source_scale
+		assert_true(rect.has_point(spot + Vector2(0, -20 * art_px)), "covers the middle of the lid")
+		assert_lt(rect.end.y, spot.y - SpawnSource.SOLID_PIVOT_GAP * source_scale + 0.01, "ends above the pivot")
+		assert_gt(rect.size.x, 20.0 * art_px, "about as wide as the lid")
+		# A player (body circle radius 9, 8 px below its centre, feet 16 px below it) coming from the
+		# south stops with the feet below the front of the art: drawn in front of it.
+		var player_center_y := rect.end.y + 1.0
+		assert_gt(player_center_y, source.global_position.y, "a player south of the foot sorts in front")
+
+
+func test_enemies_rise_clear_of_the_sarcophagus_foot() -> void:
+	# Plan sarcophagus: elites (the biggest one) rise at its pivot without touching the foot (D-132).
+	var room: Node2D = add_child_autofree(Node2D.new())
+	var source := SpawnSource.create_floor(Kind.SARCOPHAGUS, Vector2(320, 288))
+	room.add_child(source)
+	var elite := _enemy(GOLEM, false, Enemy.Elite.ARMORED)
+	await wait_frames(1)
+	source.bring(elite, room, 0.05, 0)
+	assert_false(_touches_foot(elite, source), "an elite golem stands clear of the foot")
+	# The champion's own, bigger source where it stands (SpawnSources._champion_source).
+	var champion := _enemy(GOLEM, true, Enemy.Elite.ARMORED)
+	await wait_frames(1)
+	var big := SpawnSource.create_floor(Kind.SARCOPHAGUS, Vector2(900, 288))
+	big.scale = Vector2.ONE * SpawnSources.CHAMPION_SOURCE_SCALE
+	room.add_child(big)
+	big.bring(champion, room, 0.05, 0)
+	assert_false(_touches_foot(champion, big), "a champion golem stands clear of its sarcophagus")
+	await wait_seconds(0.05 + SpawnSourceRules.EMERGE_TIME + 0.2)
+	assert_false(champion.is_in_intro(), "out and fighting")
+	assert_false(_touches_foot(champion, big), "still clear once its body is back")
+
+
+func test_a_sarcophagus_takes_the_navigation_off_the_tile_under_its_foot() -> void:
+	var room: Node2D = add_child_autofree(Node2D.new())
+	var tiles := RoomTiles.new()
+	tiles.name = "Tiles"
+	tiles.tile_set = load("res://dungeon/environment/dungeon_tileset.tres") as TileSet
+	tiles.room_size = Vector2i(8, 8)
+	room.add_child(tiles)
+	var spot := RoomTiles.tile_center(Vector2i(3, 4))
+	var source := SpawnSource.create_floor(Kind.SARCOPHAGUS, spot)
+	room.add_child(source)
+	var tile := source.get_blocked_tile()
+	assert_eq(tile, RoomTiles.local_to_tile(room.to_local(source.to_global(source.get_foot_center()))), "the tile under the foot's centre")
+	assert_eq(tile, Vector2i(3, 3), "the lid lies mostly on the tile north of the pivot")
+	assert_true(tiles.is_navigation_blocked(tile), "enemies path around it (D-115)")
+	assert_false(tiles.is_navigation_blocked(Vector2i(3, 4)), "the tile the enemy rises on keeps its navigation")
+	var grave := SpawnSource.create_floor(Kind.GRAVE, RoomTiles.tile_center(Vector2i(6, 6)))
+	room.add_child(grave)
+	assert_eq(grave.get_blocked_tile(), SpawnSource.INVALID_TILE, "graves block nothing")
+	room.remove_child(source)
+	source.free()
+	assert_false(tiles.is_navigation_blocked(tile), "given back when the source goes")
+	# A tile a prop blocked already stays blocked when the source goes.
+	tiles.set_navigation_blocked(Vector2i(5, 1), true)
+	var second := SpawnSource.create_floor(Kind.SARCOPHAGUS, RoomTiles.tile_center(Vector2i(5, 2)))
+	room.add_child(second)
+	assert_eq(second.get_blocked_tile(), SpawnSource.INVALID_TILE, "the prop's block, not its own")
+	room.remove_child(second)
+	second.free()
+	assert_true(tiles.is_navigation_blocked(Vector2i(5, 1)), "the prop's tile stays blocked")
 
 
 func test_wall_sources_sit_between_wall_and_floor() -> void:

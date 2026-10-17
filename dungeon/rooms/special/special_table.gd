@@ -6,7 +6,7 @@ extends Resource
 ## its weight is then split proportionally between the others. The 30 % portal chance stays in
 ## RoomSequence.roll_portal.
 ## Also the sub-draws of the new special rooms: pact altar in a third of the extra-upgrade rooms
-## (KONZEPT_RAEUME §6.2) and the kind of trial (§6.1). All draws use the dungeon RNG.
+## (D-102, D-112) and the kind of trial (D-112, D-115). All draws use the dungeon RNG.
 
 const DEFAULT_PATH := "res://dungeon/rooms/special/special_table.tres"
 ## Type ids in RoomSequence.SpecialType order. TRIAL is new (A8): the integrator appends it to the
@@ -21,7 +21,7 @@ const TYPE_COUNT := 5
 const TRIAL_TEMPLATE_PATH := "res://dungeon/rooms/trials/trial_room.tscn"
 const TRIAL_CONTENT_PATH := "res://dungeon/rooms/trials/trial_content.tscn"
 
-## Kinds of trial rooms (KONZEPT_RAEUME §6.1). CRUMBLE needs the abyss of A4 and stays at weight 0.
+## Kinds of trial rooms (D-102, D-112). CRUMBLE needs the abyss of A4 and stays at weight 0.
 enum TrialKind { GAUNTLET, LIGHT_RUN, CRUMBLE }
 
 @export_group("Special room weights (D-102, TESTWERTE)")
@@ -31,7 +31,7 @@ enum TrialKind { GAUNTLET, LIGHT_RUN, CRUMBLE }
 @export var upgrade_weight := 15.0
 @export var trial_weight := 15.0
 @export_group("Variants (TESTWERTE)")
-## Share of the extra-upgrade rooms that show a pact altar instead (KONZEPT_RAEUME §6.2).
+## Share of the extra-upgrade rooms that show a pact altar instead (D-102, D-112).
 @export_range(0.0, 1.0) var pact_chance := 1.0 / 3.0
 @export var gauntlet_weight := 1.0
 @export var light_run_weight := 1.0

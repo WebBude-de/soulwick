@@ -1,5 +1,5 @@
 extends GutTest
-## Bröckelboden (KONZEPT_RAEUME §6.1, A4/A8): one open gap per lane from the start, cracked plates
+## Bröckelboden (D-112, D-115, A4/A8): one open gap per lane from the start, cracked plates
 ## that break after a step and grow back, solid tiles to choose; a fall is a mistake, lands on the
 ## last solid tile of the course and never ends the run.
 

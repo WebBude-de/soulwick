@@ -1,6 +1,6 @@
 class_name TrialContent
 extends SpecialContent
-## Trial room (new special room type, D-102, KONZEPT_RAEUME §6.1): entrance -> direct, always safe
+## Trial room (new special room type, D-102, D-112): entrance -> direct, always safe
 ## way to the exit -> a parcours branching off with a chest at its end (TrialLayout, trial_room.tscn).
 ## The kind of trial (gauntlet, light run, crumbling floor) is rolled with the dungeon RNG,
 ## its course fills the parcours. Mistakes cost damage (half a heart), never the run; whoever

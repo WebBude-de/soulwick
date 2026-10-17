@@ -1,5 +1,5 @@
 extends GutTest
-## Way-finding (A10, KONZEPT_RAEUME §7.1, D-105): doors in every wall (RoomTiles geometry), the exit
+## Way-finding (A10, D-105, D-117): doors in every wall (RoomTiles geometry), the exit
 ## rules (never the entrance wall, north before rooms entered from the south only, weighted turns),
 ## joining rooms with one corridor tile (M2: the next room's wall is the corridor), the overlap rule
 ## (rock on rock is fine, never on a floor, wall or corridor) with longer corridors, and the door

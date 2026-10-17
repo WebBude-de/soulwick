@@ -1,5 +1,5 @@
 extends GutTest
-## Pact altar and curses (KONZEPT_RAEUME §6.2, ROADMAP_AUSBAU A8): a pact gives a better upgrade
+## Pact altar and curses (D-112, ROADMAP_AUSBAU A8): a pact gives a better upgrade
 ## (one stack more) against a curse for the rest of the run; curses lie on the player who sealed
 ## the pact, act through PlayerCurses' queries and show up in the Tab overview.
 

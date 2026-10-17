@@ -87,8 +87,8 @@ radius = 20
 [sub_resource type="CircleShape2D" id="Circle_Well"]
 radius = 22
 
-[sub_resource type="CircleShape2D" id="Circle_MarketStall"]
-radius = 40
+[sub_resource type="RectangleShape2D" id="Rect_MarketStall"]
+size = Vector2(116, 30)
 
 [sub_resource type="CircleShape2D" id="Circle_Lamp1"]
 radius = 8
@@ -108,29 +108,29 @@ radius = 8
 [sub_resource type="CircleShape2D" id="Circle_Lamp6"]
 radius = 8
 
-[sub_resource type="CircleShape2D" id="Circle_Barrel1"]
-radius = 11
+[sub_resource type="RectangleShape2D" id="Rect_Barrel1"]
+size = Vector2(40, 20)
 
-[sub_resource type="CircleShape2D" id="Circle_Barrel2"]
-radius = 11
+[sub_resource type="RectangleShape2D" id="Rect_Barrel2"]
+size = Vector2(40, 20)
 
-[sub_resource type="CircleShape2D" id="Circle_Barrel3"]
-radius = 11
+[sub_resource type="RectangleShape2D" id="Rect_Barrel3"]
+size = Vector2(40, 20)
 
-[sub_resource type="CircleShape2D" id="Circle_Barrel4"]
-radius = 11
+[sub_resource type="RectangleShape2D" id="Rect_Barrel4"]
+size = Vector2(40, 20)
 
-[sub_resource type="CircleShape2D" id="Circle_Crate1"]
-radius = 12
+[sub_resource type="RectangleShape2D" id="Rect_Crate1"]
+size = Vector2(48, 22)
 
-[sub_resource type="CircleShape2D" id="Circle_Crate2"]
-radius = 12
+[sub_resource type="RectangleShape2D" id="Rect_Crate2"]
+size = Vector2(48, 22)
 
-[sub_resource type="CircleShape2D" id="Circle_Crate3"]
-radius = 12
+[sub_resource type="RectangleShape2D" id="Rect_Crate3"]
+size = Vector2(48, 22)
 
-[sub_resource type="CircleShape2D" id="Circle_Crate4"]
-radius = 12
+[sub_resource type="RectangleShape2D" id="Rect_Crate4"]
+size = Vector2(48, 22)
 
 [sub_resource type="CircleShape2D" id="Circle_trunk"]
 radius = 14
@@ -618,8 +618,8 @@ texture = ExtResource("33_res")
 offset = Vector2(0, -20)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/MarketStall"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_MarketStall")
+position = Vector2(0, -15)
+shape = SubResource("Rect_MarketStall")
 
 [node name="Lamp1" type="StaticBody2D" parent="Buildings"]
 position = Vector2(790.4, 880)
@@ -727,8 +727,8 @@ texture = ExtResource("35_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel1"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Barrel1")
+position = Vector2(0, -10)
+shape = SubResource("Rect_Barrel1")
 
 [node name="Barrel2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1632, 659.2)
@@ -740,8 +740,8 @@ texture = ExtResource("35_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel2"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Barrel2")
+position = Vector2(0, -10)
+shape = SubResource("Rect_Barrel2")
 
 [node name="Barrel3" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1427.2, 953.6)
@@ -753,8 +753,8 @@ texture = ExtResource("35_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel3"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Barrel3")
+position = Vector2(0, -10)
+shape = SubResource("Rect_Barrel3")
 
 [node name="Barrel4" type="StaticBody2D" parent="Buildings"]
 position = Vector2(684.8, 550.4)
@@ -766,8 +766,8 @@ texture = ExtResource("35_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Barrel4"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Barrel4")
+position = Vector2(0, -10)
+shape = SubResource("Rect_Barrel4")
 
 [node name="Crate1" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1888, 665.6)
@@ -779,8 +779,8 @@ texture = ExtResource("36_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate1"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Crate1")
+position = Vector2(0, -11)
+shape = SubResource("Rect_Crate1")
 
 [node name="Crate2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(166.4, 1081.6)
@@ -792,8 +792,8 @@ texture = ExtResource("36_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate2"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Crate2")
+position = Vector2(0, -11)
+shape = SubResource("Rect_Crate2")
 
 [node name="Crate3" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1593.6, 956.8)
@@ -805,8 +805,8 @@ texture = ExtResource("36_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate3"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Crate3")
+position = Vector2(0, -11)
+shape = SubResource("Rect_Crate3")
 
 [node name="Crate4" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1382.4, 886.4)
@@ -818,8 +818,8 @@ texture = ExtResource("36_res")
 offset = Vector2(0, -15)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Crate4"]
-position = Vector2(0, -8)
-shape = SubResource("Circle_Crate4")
+position = Vector2(0, -11)
+shape = SubResource("Rect_Crate4")
 
 [node name="YardFence1" type="StaticBody2D" parent="Buildings"]
 position = Vector2(160, 806.4)
@@ -904,12 +904,14 @@ position = Vector2(473.6, 851.2)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "flower_bed"
+solid_size = Vector2(60, 16)
 
 [node name="Bed2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(550.4, 851.2)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "flower_bed"
+solid_size = Vector2(60, 16)
 flip = true
 
 [node name="Bed3" type="StaticBody2D" parent="Buildings"]
@@ -917,6 +919,7 @@ position = Vector2(512, 896)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "flower_bed"
+solid_size = Vector2(60, 16)
 
 [node name="Bench" type="StaticBody2D" parent="Buildings"]
 position = Vector2(736, 572.8)
@@ -979,12 +982,14 @@ position = Vector2(1561.6, 1184)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "flower_bed"
+solid_size = Vector2(60, 16)
 
 [node name="Bed5" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1638.4, 1184)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "flower_bed"
+solid_size = Vector2(60, 16)
 flip = true
 
 [node name="FlameBowl" type="StaticBody2D" parent="Buildings"]
@@ -1004,6 +1009,7 @@ position = Vector2(1299.2, 355.2)
 collision_mask = 0
 script = ExtResource("37_res")
 art_name = "stones"
+z_index = -3
 
 [node name="Rubble2" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1593.6, 326.4)
@@ -1011,6 +1017,7 @@ collision_mask = 0
 script = ExtResource("37_res")
 art_name = "stones"
 flip = true
+z_index = -3
 
 [node name="Tree0" type="StaticBody2D" parent="Buildings"]
 position = Vector2(96, 96)
@@ -1637,6 +1644,7 @@ speed = 18
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 
 [node name="Chicken2" type="Node2D" parent="Villagers"]
 position = Vector2(358.4, 896)
@@ -1647,6 +1655,7 @@ speed = 16
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 
 [node name="Cat" type="Node2D" parent="Villagers"]
 position = Vector2(614.4, 1171.2)
@@ -1657,6 +1666,7 @@ speed = 22
 pause_max = 5.0
 art_name = "cat"
 optional = true
+dodge_sound = &""
 
 [node name="RescuedChicken1" type="Node2D" parent="Villagers"]
 position = Vector2(230.4, 857.6)
@@ -1667,6 +1677,7 @@ speed = 16
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 metadata/rescued_chicken_slot = 0
 
 [node name="RescuedChicken2" type="Node2D" parent="Villagers"]
@@ -1678,6 +1689,7 @@ speed = 14
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 metadata/rescued_chicken_slot = 1
 
 [node name="RescuedChicken3" type="Node2D" parent="Villagers"]
@@ -1689,6 +1701,7 @@ speed = 15
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 metadata/rescued_chicken_slot = 2
 
 [node name="RescuedChicken4" type="Node2D" parent="Villagers"]
@@ -1700,6 +1713,7 @@ speed = 15
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 metadata/rescued_chicken_slot = 3
 
 [node name="PlayerSpawn" type="Marker2D" parent="."]

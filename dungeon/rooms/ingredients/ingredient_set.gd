@@ -1,6 +1,6 @@
 class_name IngredientSet
 extends Resource
-## Ingredients of one biome (KONZEPT_RAEUME §3.3): which elements the IngredientScatter may put
+## Ingredients of one biome (D-113): which elements the IngredientScatter may put
 ## into a normal combat room, how likely each one is and how many pieces it places. One .tres per
 ## biome in dungeon/rooms/ingredients/sets/<biome id>.tres; the biome .tres points to it with the
 ## metadata entry "ingredient_set" (BiomeData has no field for it yet, see for_biome()).
@@ -17,7 +17,7 @@ const DEFAULT_BIOME := &"crypt"
 const META_KEY := &"ingredient_set"
 
 @export var biome_id: StringName = DEFAULT_BIOME
-## Ingredients per room, inclusive (2-3, never all; KONZEPT_RAEUME §3.3). TESTWERT
+## Ingredients per room, inclusive (2-3, never all; D-113). TESTWERT
 @export var count := Vector2i(2, 3)
 
 @export_group("Weights (TESTWERTE)")
@@ -70,7 +70,7 @@ const META_KEY := &"ingredient_set"
 @export_group("Abyss holes")
 ## Holes per room (1x1, 2x1, 1x2 or 2x2 tiles each). TESTWERT
 @export var pit_pieces := Vector2i(1, 2)
-## No holes before this room (KONZEPT_RAEUME §3.3: never in rooms 1-5). TESTWERT
+## No holes before this room (D-115: never in rooms 1-5). TESTWERT
 @export var pits_from_room := ChasmRules.HOLES_FROM_ROOM
 
 

@@ -1,6 +1,6 @@
 class_name ExitRules
 extends RefCounted
-## Way-finding of the room chain (A10, KONZEPT_RAEUME §7.1, D-105): which wall a room is left through
+## Way-finding of the room chain (A10, D-105, D-117): which wall a room is left through
 ## and where the next room goes. Pure tile maths, no nodes, unit-tested.
 ##
 ## - The exit lies north, west or east, never on the entrance wall. A room before anything but a

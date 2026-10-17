@@ -105,6 +105,8 @@ const HINT_ENTRIES_SHORT: Array[Array] = [
 	[ControlsInfo.OVERVIEW, "UPGRADES"],
 	[ControlsInfo.PAUSE, "PAUSE_OPTIONS"],
 ]
+## Weapon keys the village line leaves out: nobody holds a weapon there (D-185, Player.set_armed).
+const UNARMED_HIDDEN_HINTS: Array[StringName] = [ControlsInfo.ATTACK, ControlsInfo.SPECIAL, ControlsInfo.SWITCH]
 ## Teaching cards on the left edge: their highest top (below the top band, where a wide banner may
 ## reach to the left) and the gap below the status frame when that is taller (mockup px).
 const TEACHING_CARD_TOP := 66.0
@@ -156,6 +158,8 @@ var _last_values := {}
 var _hint_label: Label
 var _hint_row: HFlowContainer
 var _hint_full := false
+## The key line was built for the dungeon (with weapon keys) or the village (without).
+var _hint_armed := false
 ## Touch controls in use (TouchState): no keyboard hints, the weapon keys show the touch buttons.
 var _touch := false
 ## The first-run controls card (ControlsHint.GROUP) is open: it shows the keys, the line hides.
@@ -240,10 +244,19 @@ func _on_input_device_changed() -> void:
 func _refresh_hint() -> void:
 	var full := not SaveManager.has_seen(ControlsHint.SEEN_ID)
 	_hint_label.text = CONTROLS_HINT if full else CONTROLS_HINT_SHORT
-	if full == _hint_full and _hint_row.get_child_count() > 0:
+	if full == _hint_full and _dungeon_mode == _hint_armed and _hint_row.get_child_count() > 0:
 		return
 	_hint_full = full
 	_build_hint_entries()
+
+
+## Entries of the key line: full or short; without a weapon (village) no attack, special or switch.
+static func hint_entries(full: bool, armed: bool) -> Array[Array]:
+	var entries: Array[Array] = []
+	for entry: Array in (HINT_ENTRIES_FULL if full else HINT_ENTRIES_SHORT):
+		if armed or not UNARMED_HIDDEN_HINTS.has(entry[0]):
+			entries.append(entry)
+	return entries
 
 
 ## Key caps + short captions of the hint line ([Tab] Upgrades · [Esc] Pause und Optionen).
@@ -251,7 +264,8 @@ func _build_hint_entries() -> void:
 	for child in _hint_row.get_children():
 		_hint_row.remove_child(child)
 		child.queue_free()
-	for entry: Array in (HINT_ENTRIES_FULL if _hint_full else HINT_ENTRIES_SHORT):
+	_hint_armed = _dungeon_mode
+	for entry: Array in hint_entries(_hint_full, _hint_armed):
 		var pair := UiKit.hbox(int(UiKit.px(KEY_PAIR_GAP)))
 		pair.add_child(KeyCap.row_for_control(entry[0], HUD_PIXEL))
 		var caption := UiKit.text_label(Loc.t(StringName(HINT_KEY_PREFIX + String(entry[1]))), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)

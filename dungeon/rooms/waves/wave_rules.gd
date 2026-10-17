@@ -1,6 +1,6 @@
 class_name WaveRules
 extends RefCounted
-## Pure rules of enemy waves (A5, KONZEPT_RAEUME 3.1, D-086 overflow). No nodes, unit-testable.
+## Pure rules of enemy waves (A5, D-113, D-086 overflow). No nodes, unit-testable.
 ## Arena rooms (RoomKind.ARENA, D-100) fight 2-3 waves; the next wave comes as soon as at most
 ## NEXT_WAVE_AT_REMAINING enemies of the running wave are left. Normal combat rooms keep their
 ## waves (D-074) and wait until the running wave is cleared. Overflow: more enemies than spawn
@@ -26,7 +26,7 @@ const NEXT_WAVE_AT_REMAINING := 0
 ## Share of arenas that are an ambush. 0 since D-120 (Raeume v2: no ambush any more; enemies come out
 ## of visible sources, R2). Kept with the roll until the cleanup removes the ambush texts and tools.
 const AMBUSH_CHANCE := 0.0
-## No enemy steps out of a wall closer than this to any player (KONZEPT_RAEUME 3.1). TESTWERT
+## No enemy steps out of a wall closer than this to any player (D-113). TESTWERT
 const MIN_PLAYER_DISTANCE := 96.0
 ## Enemies of one wave come from at least this many walls; an ambush from (almost) all. TESTWERTE
 const MIN_SIDES := 2

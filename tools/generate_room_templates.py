@@ -6,7 +6,7 @@ Usage (from the project root):
     python tools/generate_room_templates.py --check    build and check only, write nothing
     python tools/generate_room_templates.py --list     print every plan and the templates it makes
 
-Plans live in dungeon/rooms/plans/<group>/<id>.txt (docs/design/claude_design_antwort/02_grundrisse.md).
+Plans live in dungeon/rooms/plans/<group>/<id>.txt (docs/design/responses/02_grundrisse.md).
 A plan file has a header ("key: value" lines, "#" comments), a line "---" and the ASCII grid:
 
     name: Grabhalle               shown nowhere, for people

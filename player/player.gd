@@ -66,6 +66,9 @@ var _stun_left := 0.0
 var _input_locks: Dictionary[StringName, bool] = {}
 var _protections: Dictionary[StringName, bool] = {}
 var _stun_stars: Node2D = null
+## Holds and uses weapons (#80c94d8c: false in the village). State of this player (D-088), set by
+## the world for every copy on every machine (Village.on_player_spawned); see set_armed().
+var _armed := true
 ## Falling into an abyss and the last safe spot of this player (A4, D-086, D-088).
 var fall: PlayerFall = null
 ## Side-view gang segments (M5): while active it moves this player (gravity, jump, ladders) instead
@@ -125,6 +128,8 @@ func _ready() -> void:
 	_prompt_label.visible = false
 	UiKit.apply_prompt_style(_prompt_label)
 	_on_weapon_changed()
+	# Disarmed before entering the tree (the world may set it before _ready).
+	_weapon_pivot.visible = _armed
 	fall = PlayerFall.new()
 	fall.name = "Fall"
 	add_child(fall)
@@ -160,10 +165,10 @@ func _physics_process(delta: float) -> void:
 		velocity = _dash_direction * dash_speed if is_dashing() else move_input * move_speed
 		move_and_slide()
 
-	if input.is_just_pressed(PlayerInput.SWITCH_WEAPON):
+	if _armed and input.is_just_pressed(PlayerInput.SWITCH_WEAPON):
 		weapon_controller.switch_weapon()
-	# No attacks while dashing (D-016) or while carrying the soul lantern (A9).
-	if not is_dashing() and input.is_pressed(PlayerInput.ATTACK) and LanternCarry.can_attack(self):
+	# No attacks while dashing (D-016), while carrying the soul lantern (A9) or unarmed (village).
+	if _armed and not is_dashing() and input.is_pressed(PlayerInput.ATTACK) and LanternCarry.can_attack(self):
 		weapon_controller.request_attack()
 
 	_update_interaction()
@@ -202,10 +207,28 @@ func revive(hp: float) -> void:
 	health.take_damage(maximum - clampf(hp, DamageProcessor.DAMAGE_STEP, maximum))
 	set_physics_process(true)
 	weapon_controller.set_physics_process(true)
-	_weapon_pivot.visible = true
+	_weapon_pivot.visible = _armed
 	_sprite.play(&"idle")
 	grant_invulnerability(REVIVE_INVULNERABILITY)
 	revived.emit()
+
+
+## Weapons in hand (#80c94d8c). Unarmed (the village) the player holds no visible weapon and cannot
+## attack, use the special or switch weapons; a running attack ends. The weapons stay in their slots.
+## Per player, never per session: the world sets it on every copy on every machine (D-088), and a
+## new world spawns new, armed players (D-041). Works before _ready too.
+func set_armed(armed: bool) -> void:
+	_armed = armed
+	if not is_node_ready():
+		return
+	if not armed:
+		weapon_controller.cancel_attack()
+		_weapon_swing_left = 0.0
+	_weapon_pivot.visible = armed and _sprite.visible and not health.is_dead()
+
+
+func is_armed() -> bool:
+	return _armed
 
 
 func is_dashing() -> bool:
@@ -292,7 +315,7 @@ func grant_invulnerability(duration: float) -> void:
 ## Shows or hides body, held weapon and shadow (the fall animation draws its own sprite).
 func set_body_visible(body_visible: bool) -> void:
 	_sprite.visible = body_visible
-	_weapon_pivot.visible = body_visible and not health.is_dead()
+	_weapon_pivot.visible = body_visible and _armed and not health.is_dead()
 	var shadow := get_node_or_null("DropShadow") as CanvasItem
 	if shadow != null:
 		shadow.visible = body_visible

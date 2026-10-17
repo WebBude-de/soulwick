@@ -1,6 +1,6 @@
 class_name ChasmRules
 extends RefCounted
-## Pure rules of abysses (A4, D-086, KONZEPT_RAEUME §3.1): when a player falls, what a fall costs,
+## Pure rules of abysses (A4, D-086, D-115): when a player falls, what a fall costs,
 ## which enemies a knockback can push into a pit, and the first-time hint. No nodes, unit-testable;
 ## PlayerFall, Enemy and PitProbe apply them (decisions here, effects there, D-088).
 
@@ -28,7 +28,7 @@ const FALL_SOUND_FALLBACK := &"dash"
 const DAMAGE_TAG := &"pit"
 ## Enemies with this tag are too heavy to be pushed into an abyss (golems, D-086).
 const HEAVY_TAG := &"heavy"
-## The ingredient "small abyss holes" appears from this room on (KONZEPT_RAEUME §3.3: not in 1-5).
+## The ingredient "small abyss holes" appears from this room on (D-115: not in 1-5).
 const HOLES_FROM_ROOM := 6
 
 ## First-time hint for abysses outside a chasm room (small holes in a normal room); the chasm room

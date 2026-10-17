@@ -1,6 +1,6 @@
 class_name ExplosiveBarrel
 extends Breakable
-## Explosive barrel (ingredient "Explosionsfässer", KONZEPT_RAEUME §3.3): a hit that breaks it lights
+## Explosive barrel (ingredient "Explosionsfässer", D-113): a hit that breaks it lights
 ## the fuse; after FUSE_TIME it explodes through BarrelBlast with the usual warning circle. The blast
 ## hurts players and enemies and breaks crates and other barrels in reach, so barrels set each
 ## other off (chain reaction). Later it also opens cracked walls (A10). No loot.

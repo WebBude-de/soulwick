@@ -6,6 +6,9 @@ extends RefCounted
 ## running index.md. Folder names: <YYYY-MM-DD_HH-MM-SS>_<nr>, nr counts up across all notes.
 ## The marked image is drawn straight into the Image (no font, no SubViewport) so saving works the
 ## same in headless tests: numbers use a tiny built-in 3x5 pixel digit font.
+## with_marked = false (web build, DevFeedback.light_save) skips marked.png: nobody opens user://
+## in the browser, and one PNG less keeps the browser's single thread free; index.md then links
+## screenshot.png.
 
 const INDEX_FILE := "index.md"
 const SCREENSHOT_FILE := "screenshot.png"
@@ -27,7 +30,8 @@ const DIGITS: Array[String] = [
 
 ## Writes the note; returns the folder (user:// or absolute path) or "" on failure.
 ## record: the note.json content (DevFeedback builds it); id and folder are filled in here.
-static func save(root_dir: String, screenshot: Image, record: Dictionary) -> String:
+## with_marked = false writes no marked.png (see the class notes).
+static func save(root_dir: String, screenshot: Image, record: Dictionary, with_marked := true) -> String:
 	if screenshot == null or screenshot.is_empty():
 		push_warning("DevFeedbackStore: no screenshot to save")
 		return ""
@@ -48,14 +52,15 @@ static func save(root_dir: String, screenshot: Image, record: Dictionary) -> Str
 	if screenshot.save_png(dir.path_join(SCREENSHOT_FILE)) != OK:
 		push_warning("DevFeedbackStore: cannot write screenshot")
 		return ""
-	render_marked(screenshot, marks, strokes).save_png(dir.path_join(MARKED_FILE))
+	if with_marked:
+		render_marked(screenshot, marks, strokes).save_png(dir.path_join(MARKED_FILE))
 	var file := FileAccess.open(dir.path_join(NOTE_FILE), FileAccess.WRITE)
 	if file == null:
 		push_warning("DevFeedbackStore: cannot write note.json")
 		return ""
 	file.store_string(JSON.stringify(record, "\t", false))
 	file.close()
-	append_index(root_dir, record)
+	append_index(root_dir, record, MARKED_FILE if with_marked else SCREENSHOT_FILE)
 	return dir
 
 
@@ -77,8 +82,8 @@ static func next_number(root_dir: String) -> int:
 	return highest + 1
 
 
-## Appends one table row to index.md (creates it with a header first).
-static func append_index(root_dir: String, record: Dictionary) -> void:
+## Appends one table row to index.md (creates it with a header first); the folder links link_file.
+static func append_index(root_dir: String, record: Dictionary, link_file := MARKED_FILE) -> void:
 	var path := root_dir.path_join(INDEX_FILE)
 	var exists := FileAccess.file_exists(path)
 	var file := FileAccess.open(path, FileAccess.READ_WRITE if exists else FileAccess.WRITE)
@@ -90,11 +95,11 @@ static func append_index(root_dir: String, record: Dictionary) -> void:
 	else:
 		file.store_string("# Dev-Feedback\n\nEine Zeile je Meldung (Strg + B, am Pad Select + Start, # oder F9 im Spiel). Auswerten: `python tools/collect_feedback.py`.\n\n")
 		file.store_string("| Zeit | Art | Ort | Text | Ordner |\n| --- | --- | --- | --- | --- |\n")
-	file.store_string(index_line(record) + "\n")
+	file.store_string(index_line(record, link_file) + "\n")
 	file.close()
 
 
-static func index_line(record: Dictionary) -> String:
+static func index_line(record: Dictionary, link_file := MARKED_FILE) -> String:
 	var kind := "Idee" if str(record.get("kind", "bug")) == "idea" else "Fehler"
 	var text := _one_line(str(record.get("text", "")))
 	if text.is_empty():
@@ -111,7 +116,7 @@ static func index_line(record: Dictionary) -> String:
 		kind,
 		_cell(str(record.get("location", ""))),
 		_cell(text),
-		folder, folder, MARKED_FILE,
+		folder, folder, link_file,
 	]
 
 

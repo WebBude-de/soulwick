@@ -1,6 +1,6 @@
 class_name SecretNiche
 extends Node2D
-## The secret niche of one combat room (A10, KONZEPT_RAEUME §7.3), behind its north wall: the cracked wall with its dust,
+## The secret niche of one combat room (A10, D-117), behind its north wall: the cracked wall with its dust,
 ## the hurtbox that waits for an explosion, the break and the content behind it (chest, soul
 ## crystals or the wandering merchant). No room of its own: no room number, no encounter.
 ## Decision and effects are separate (D-088): break_open() decides once, opens the room's tiles and

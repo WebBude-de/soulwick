@@ -70,6 +70,96 @@ func test_villager_uses_fallback_with_tint_and_has_no_collision() -> void:
 	assert_eq(villager.find_children("*", "CollisionObject2D", true, false).size(), 0)
 
 
+## A stand-in player (group &"player", origin FEET_OFFSET above the feet like Player).
+func _player_at(feet: Vector2) -> Node2D:
+	var player := Node2D.new()
+	player.add_to_group(&"player")
+	player.position = feet - Villager.FEET_OFFSET
+	add_child_autofree(player)
+	return player
+
+
+## Report #ec4f0b9f: a walking villager goes around a player standing in its way and walks on.
+func test_villager_steps_around_a_player_in_its_way() -> void:
+	var villager := _villager(PackedVector2Array([Vector2(100, 100), Vector2(400, 100)]))
+	var blocker := Vector2(160, 100)
+	_player_at(blocker)
+	var closest := INF
+	for i in 80:
+		villager._process(0.05)
+		closest = minf(closest, villager.get_feet().distance_to(blocker))
+	assert_gt(closest, 20.0, "around the player, not through (closest %.1f px)" % closest)
+	assert_gt(villager.get_feet().x, 220.0, "and on along its way")
+	assert_eq(villager.find_children("*", "CollisionObject2D", true, false).size(), 0, "still never blocks")
+	for i in 80:
+		villager._process(0.05)
+	assert_almost_eq(villager.get_side_offset().length(), 0.0, 0.01, "back on its route")
+
+
+## Report #ec4f0b9f: running into a villager makes it hop aside with a "?" and stand for a moment.
+func test_villager_hops_aside_when_a_player_runs_into_it() -> void:
+	var villager := _villager(PackedVector2Array([Vector2(100, 100), Vector2(400, 100)]))
+	var player := _player_at(Vector2(100, 40))
+	villager._process(0.05)
+	assert_false(villager.is_dodging(), "a player standing far away changes nothing")
+	player.position += Vector2(0, 45)
+	villager._process(0.05)
+	assert_true(villager.is_dodging(), "the player ran into it (900 px/s, 15 px away)")
+	assert_not_null(villager.get_huh(), "a confused '?' above the head")
+	var x_before := villager.get_feet().x
+	for i in 6:
+		villager._process(0.05)
+	assert_gt(villager.get_side_offset().x, Villager.DODGE_DISTANCE - 0.5, "hopped across the player's way")
+	assert_almost_eq(villager.get_feet().x - x_before, Villager.DODGE_DISTANCE, 1.0, "without walking on meanwhile")
+	for i in 40:
+		villager._process(0.05)
+	assert_false(villager.is_dodging(), "walks on after a moment")
+	assert_null(villager.get_huh(), "the '?' is gone")
+
+
+func test_villager_never_hops_into_something_solid() -> void:
+	var villager := _villager(PackedVector2Array([Vector2(100, 100), Vector2(400, 100)]))
+	# A wall right where the hop would go first (to the right of the player's way).
+	var wall := StaticBody2D.new()
+	var shape := CollisionShape2D.new()
+	var box := RectangleShape2D.new()
+	box.size = Vector2(40, 200)
+	shape.shape = box
+	wall.add_child(shape)
+	wall.position = Vector2(145, 100)
+	add_child_autofree(wall)
+	await wait_physics_frames(2)
+	assert_false(villager.is_spot_free(Vector2(138, 100)), "the wall blocks")
+	assert_true(villager.is_spot_free(Vector2(66, 100)))
+	var player := _player_at(Vector2(100, 40))
+	villager._process(0.05)
+	player.position += Vector2(0, 45)
+	villager._process(0.05)
+	for i in 6:
+		villager._process(0.05)
+	assert_lt(villager.get_side_offset().x, -Villager.DODGE_DISTANCE + 0.5, "hopped to the free side")
+
+
+func test_village_villagers_sound_confused_animals_stay_silent() -> void:
+	var village: Node = (load("res://world/village/village.tscn") as PackedScene).instantiate()
+	var humans := 0
+	var animals := 0
+	for node in village.get_node("Villagers").get_children():
+		var walker := node as Villager
+		if walker == null:
+			continue
+		if walker.art_name == "chicken" or walker.art_name == "cat":
+			animals += 1
+			assert_eq(walker.dodge_sound, &"", "%s: no villager sound for animals" % walker.name)
+		else:
+			humans += 1
+			assert_eq(walker.dodge_sound, &"villager_huh", "%s says 'hm?'" % walker.name)
+	village.free()
+	assert_gt(humans, 3)
+	assert_gt(animals, 2)
+	assert_true(ResourceLoader.exists(Sfx.SFX_DIR + "villager_huh.wav"), "tools/generate_audio.py village")
+
+
 func test_optional_animal_without_art_frees_itself() -> void:
 	var cat := Villager.new()
 	cat.route = PackedVector2Array([Vector2.ZERO, Vector2(10, 0)])

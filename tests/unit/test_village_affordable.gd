@@ -2,7 +2,9 @@ extends GutTest
 ## P1-3 "Was kann ich mir leisten?": a "!" over the forge and the trading post while something there
 ## is affordable (gone after a visit until the currency changes), "Leistbar" / "Noch N Gold" in the
 ## dialogs, the forge goal after a run until the first purchase, and the dialogs work with a gamepad
-## (D-pad/stick move a visible focus, A presses, B closes). Uses a test save file only.
+## (D-pad/stick move a visible focus, A presses, B closes). Reports 17.10.2026: buying keeps the
+## dialog's size (#bf9c698d), the forge fits a 720 px high screen (#0efb405c), every button is a bold
+## dialog button (#181dfb78). Uses a test save file only.
 
 const TEST_PATH := "user://test_village_affordable.cfg"
 const VILLAGE_SCENE := "res://world/village/village.tscn"
@@ -263,15 +265,16 @@ func test_forge_cards_say_affordable_or_missing() -> void:
 	assert_not_null(vitality)
 	assert_false(vitality.disabled)
 	var card := vitality.get_parent()
-	assert_not_null(card.find_child("AffordableTag", false, false), "Leistbar")
-	assert_eq((card.find_child("AffordableTag", false, false) as Label).text, "Leistbar")
-	assert_eq((card.get_parent() as PanelContainer).get_theme_stylebox("panel"), UiKit.panel_style(&"gold"), "gold frame")
+	assert_not_null(card.find_child("AffordableTag", true, false), "Leistbar")
+	assert_eq((card.find_child("AffordableTag", true, false) as Label).text, "Leistbar")
+	var frame := (card.get_parent() as PanelContainer).get_theme_stylebox("panel") as StyleBoxTexture
+	assert_eq(frame.texture, UiKit.panel_style(&"gold").texture, "gold frame")
 	var sharpness := modal.find_child("Buy_%s" % MetaProgression.SHARPNESS, true, false) as Button
-	var missing := sharpness.get_parent().find_child("MissingLabel", false, false) as Label
+	var missing := sharpness.get_parent().find_child("MissingLabel", true, false) as Label
 	assert_not_null(missing, "not affordable: what is missing")
 	var expected := MetaProgression.get_next_cost(MetaProgression.SHARPNESS) - cost
 	assert_eq(missing.text, "Noch %d Gold" % expected)
-	assert_null(sharpness.get_parent().find_child("AffordableTag", false, false))
+	assert_null(sharpness.get_parent().find_child("AffordableTag", true, false))
 	modal.finish()
 
 
@@ -282,8 +285,8 @@ func test_maxed_upgrade_has_no_line() -> void:
 	add_child_autofree(ui)
 	ui.open_forge()
 	var shield := ui.get_building_modal().find_child("Buy_%s" % MetaProgression.START_SHIELD, true, false) as Button
-	assert_null(shield.get_parent().find_child("MissingLabel", false, false))
-	assert_null(shield.get_parent().find_child("AffordableTag", false, false))
+	assert_null(shield.get_parent().find_child("MissingLabel", true, false))
+	assert_null(shield.get_parent().find_child("AffordableTag", true, false))
 	ui.get_building_modal().finish()
 
 
@@ -296,12 +299,127 @@ func test_trader_cards_say_affordable_or_missing() -> void:
 	ui.open_trader()
 	var modal := ui.get_building_modal()
 	var potion := modal.find_child("Boost_%s" % MetaProgression.BOOST_POTION, true, false) as Button
-	assert_not_null(potion.get_parent().find_child("AffordableTag", false, false))
+	assert_not_null(potion.get_parent().find_child("AffordableTag", true, false))
 	var upgrade := modal.find_child("Boost_%s" % MetaProgression.BOOST_UPGRADE, true, false) as Button
-	var missing := upgrade.get_parent().find_child("MissingLabel", false, false) as Label
+	var missing := upgrade.get_parent().find_child("MissingLabel", true, false) as Label
 	assert_not_null(missing)
 	assert_eq(missing.text, "Noch 1 Kristall")
 	modal.finish()
+
+
+# --- Size of the dialogs (reports 17.10.2026) ---
+
+## Every building open, every upgrade seen (like the reports).
+func _all_open(gold: int, crystals := 0) -> void:
+	_after_first_run(gold)
+	SaveManager.add_permanent_crystals(crystals)
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_BOSS)
+
+
+func _frame_size(modal: Modal) -> Vector2:
+	return modal.frame.get_combined_minimum_size()
+
+
+func test_trader_keeps_its_size_after_buying() -> void:
+	_all_open(0, 30)
+	var ui := VillageUI.new()
+	add_child_autofree(ui)
+	ui.open_trader()
+	await _frames(2)
+	var modal := ui.get_building_modal()
+	var before := _frame_size(modal)
+	for id in MetaProgression.BOOST_ORDER:
+		assert_true(MetaProgression.try_buy_boost(id))
+		ui._request_refresh()
+		await _frames(2)
+		assert_eq(_frame_size(modal), before, "same size after buying %s (#bf9c698d)" % id)
+	var packed := modal.find_child("Boost_%s" % MetaProgression.BOOST_POTION, true, false) as Button
+	assert_eq(packed.text, Loc.t(&"VILLAGE_UI_PACKED"))
+	assert_not_null(packed.get_parent().find_child("AffordSpacer", true, false), "an invisible line keeps the height")
+	modal.finish()
+
+
+func test_affordable_and_poor_cards_are_equally_large() -> void:
+	_all_open(MetaProgression.get_next_cost(MetaProgression.VITALITY))
+	var ui := VillageUI.new()
+	add_child_autofree(ui)
+	ui.open_forge()
+	await _frames(2)
+	var modal := ui.get_building_modal()
+	var gold_card := modal.find_child("Buy_%s" % MetaProgression.VITALITY, true, false).get_parent().get_parent() as Control
+	var dark_card := modal.find_child("Buy_%s" % MetaProgression.SHARPNESS, true, false).get_parent().get_parent() as Control
+	var gold_style := gold_card.get_theme_stylebox("panel")
+	var dark_style := dark_card.get_theme_stylebox("panel")
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		assert_eq(gold_style.get_margin(side), dark_style.get_margin(side), "same padding, only the colour differs")
+	var before := _frame_size(modal)
+	assert_true(MetaProgression.try_buy(MetaProgression.VITALITY))
+	ui._request_refresh()
+	await _frames(2)
+	assert_eq(_frame_size(modal), before, "no longer affordable: same size")
+	modal.finish()
+
+
+func test_forge_keeps_its_size_up_to_max() -> void:
+	_all_open(100000)
+	var ui := VillageUI.new()
+	add_child_autofree(ui)
+	ui.open_forge()
+	await _frames(2)
+	var modal := ui.get_building_modal()
+	var before := _frame_size(modal)
+	var id := MetaProgression.START_SHIELD
+	while MetaProgression.can_buy(id):
+		assert_true(MetaProgression.try_buy(id))
+		ui._request_refresh()
+		await _frames(2)
+		assert_gte(_frame_size(modal).y, before.y, "never lower after a purchase")
+		assert_gte(_frame_size(modal).x, before.x, "never narrower after a purchase")
+	assert_eq((modal.find_child("Buy_%s" % id, true, false) as Button).text, "Max.")
+	modal.finish()
+
+
+func test_forge_fits_a_720_px_screen_without_scrolling() -> void:
+	# The fullest forge: every upgrade affordable (gold frames, "Leistbar") and the weapon choice.
+	_all_open(100000)
+	SaveManager.set_meta_level(MetaProgression.ARSENAL, MetaProgression.get_max_level(MetaProgression.ARSENAL))
+	var ui := VillageUI.new()
+	add_child_autofree(ui)
+	ui.open_forge()
+	await _frames(3)
+	var modal := ui.get_building_modal()
+	assert_not_null(modal.find_child("Weapon_%s" % MetaProgression.WEAPON_STAFF, true, false), "with the weapon choice")
+	gut.p("forge: %s" % _frame_size(modal))
+	assert_lte(_frame_size(modal).y, 700.0, "fits 720 px with room to spare (#0efb405c)")
+	assert_false(modal.is_scrolling())
+	modal.finish()
+
+
+func test_every_dialog_button_is_a_bold_dialog_button() -> void:
+	_all_open(100000, 30)
+	SaveManager.set_meta_level(MetaProgression.ARSENAL, MetaProgression.get_max_level(MetaProgression.ARSENAL))
+	var ui := VillageUI.new()
+	add_child_autofree(ui)
+	for open: Callable in [ui.open_forge, ui.open_trader]:
+		open.call()
+		await _frames(2)
+		var modal := ui.get_building_modal()
+		var buttons := modal.content.find_children("*", "Button", true, false)
+		assert_gt(buttons.size(), 3)
+		for node in buttons:
+			var button := node as Button
+			if button.name == &"InfoButton":
+				continue
+			assert_eq(button.get_theme_font("font"), UiKit.bold_font(), "%s bold (#181dfb78)" % button.name)
+			assert_eq(button.get_theme_font_size("font_size"), UiKit.font_px(UiKit.SIZE_KEY_HINT), "%s in the dialog size" % button.name)
+		modal.finish()
+		await _frames(2)
+	ui.show_intro(VillageBuildings.FORGE)
+	await _frames(2)
+	var confirm := ui.get_intro_modal().find_child("ConfirmButton", true, false) as Button
+	assert_eq(confirm.get_theme_font("font"), UiKit.bold_font(), "Verstanden too")
+	ui.get_intro_modal().finish()
 
 
 # --- Gamepad ---

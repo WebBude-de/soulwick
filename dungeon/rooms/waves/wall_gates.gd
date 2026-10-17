@@ -4,7 +4,7 @@ extends RefCounted
 ## A gate is a reachable floor tile right inside the outer wall plus the wall tile behind it.
 ## Door corridors, the tiles beside the doors and tiles with props (torches, crates, traps) are
 ## never gates. pick() spreads the enemies of a wave over several walls and keeps a minimum
-## distance to every player (KONZEPT_RAEUME 3.1).
+## distance to every player (D-113).
 
 enum Side { NORTH, EAST, SOUTH, WEST }
 

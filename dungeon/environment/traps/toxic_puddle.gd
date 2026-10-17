@@ -1,7 +1,7 @@
 @tool
 class_name ToxicPuddle
 extends Node2D
-## Slime-grotto floor hazard (KONZEPT_ENDLOS §2): while the player stands in it they are slowed
+## Slime-grotto floor hazard (D-075): while the player stands in it they are slowed
 ## and take small poison damage at a fixed interval. Enemies are not affected (it is their home).
 ## Code-drawn bubbling puddle; art/environment/props/toxic_puddle_4f.png replaces it when present.
 

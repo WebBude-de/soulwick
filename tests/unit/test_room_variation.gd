@@ -1,5 +1,5 @@
 extends GutTest
-## Invisible variation of combat rooms (KONZEPT_RAEUME §3.4, A3): theme groups and the quiet room
+## Invisible variation of combat rooms (D-113, A3): theme groups and the quiet room
 ## (8 %, same total health), as EncounterGroup data for the spawner (A5).
 
 const DRAWS := 20000
@@ -103,7 +103,7 @@ func test_theme_groups_filter_the_table() -> void:
 
 
 func test_mixed_weights_keep_the_average_shares() -> void:
-	# PRD 4.2: themed rooms must not shift the mix over many rooms.
+	# D-010, D-075: themed rooms must not shift the mix over many rooms.
 	for biome_id in ["crypt", "slime_grotto", "shadow_realm", "ember_forge"]:
 		var table := _biome(biome_id).get_table(40)
 		var types: Array[EnemyData] = table[0]

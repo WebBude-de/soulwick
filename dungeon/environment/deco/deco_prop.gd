@@ -1,6 +1,6 @@
 class_name DecoProp
 extends Node2D
-## One piece of decoration from a room plan (R1, D-120, docs/design/claude_design_antwort/02_grundrisse.md
+## One piece of decoration from a room plan (R1, D-120, docs/design/responses/02_grundrisse.md
 ## "Deko mit Absicht"): a fallen pillar, candles, a coffin, a drip from the ceiling, a niche in a
 ## wall front. tools/generate_room_templates.py writes these nodes into a template's Props and
 ## decides everything (item, place, offset, flip, which tiles it blocks), deterministically per

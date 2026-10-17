@@ -31,6 +31,13 @@ extends Node
 ## time scale. A long main-thread stall cannot move loop points (the mixer loops the stream on its
 ## own); it is logged (HITCH_LOG_MS) so a stutter report can be matched with the log.
 ##
+## Web build (feedback 17.10.2026, "since the last report the music loops again"): the browser
+## plays the music as Web Audio samples and loops a piece back to where it was started, so a
+## champion room (same bar) or a scene handoff left only the tail of the piece looping. MusicChannel
+## restarts such a piece at its loop start at the end of its first pass (see there). Frame gaps
+## over HITCH_COUNT_MS are counted too; get_diagnostics() goes into every bug report
+## (DevFeedback, context "music").
+##
 ## Preloading (MusicPreloader): the files of the current biome and, PRELOAD_NEXT_BIOME_ROOMS
 ## before the change (and at an interlude), the entry of the next biome load in the background,
 ## so the first room of a new biome does not stall a frame. Not ready yet = normal load.
@@ -91,6 +98,8 @@ const PAUSE_DUCK_DB := -9.0
 const PAUSE_DUCK_FADE_TIME := 0.25
 ## A frame gap longer than this (real time) is logged once as a main-thread stall (TESTWERT).
 const HITCH_LOG_MS := 1000
+## Frame gaps longer than this are counted for bug reports, without a log line (TESTWERT).
+const HITCH_COUNT_MS := 150
 ## The entry files of the next biome are preloaded this many rooms before it starts (TESTWERT).
 const PRELOAD_NEXT_BIOME_ROOMS := 3
 ## Global class name of the boss intro node that holds the boss track (see _on_node_added).
@@ -135,10 +144,14 @@ var _entered_room := -1
 var _duck_db := 0.0
 var _duck_target_db := 0.0
 var _duck_tween: Tween
-## Main-thread stall watch (game scene only, see HITCH_LOG_MS).
+## Main-thread stall watch (game scene only, see HITCH_LOG_MS and HITCH_COUNT_MS).
 var _last_frame_usec := 0
 var _hitch_count := 0
 var _longest_hitch_ms := 0
+var _stall_count := 0
+var _longest_stall_ms := 0
+var _last_stall_ms := 0
+var _last_stall_usec := 0
 
 
 func _ready() -> void:
@@ -268,6 +281,46 @@ func get_hitch_count() -> int:
 
 func get_longest_hitch_ms() -> int:
 	return _longest_hitch_ms
+
+
+## Frame gaps longer than HITCH_COUNT_MS seen so far (also the short ones under HITCH_LOG_MS).
+func get_stall_count() -> int:
+	return _stall_count
+
+
+## Music state for bug reports (DevFeedback context "music"): what plays where, whether the browser
+## plays it as samples, how often the browser loop fix restarted a piece, music starts and frame
+## gaps over HITCH_COUNT_MS (count, longest, last and how long ago).
+func get_diagnostics() -> Dictionary:
+	var stalls := {"count": _stall_count, "longest_ms": _longest_stall_ms, "last_ms": _last_stall_ms}
+	if _last_stall_usec > 0:
+		stalls["last_ago_s"] = snappedf(float(Time.get_ticks_usec() - _last_stall_usec) / 1000000.0, 0.1)
+	return {
+		"track": _music.get_track(),
+		"position": snappedf(_music.get_timeline_position(), 0.01),
+		"ambient": _ambient.get_track(),
+		"stinger": _stinger.get_track(),
+		"sample_playback": _music.is_sample_playback() or _ambient.is_sample_playback(),
+		"loop_restarts": _music.get_loop_anchor_count() + _ambient.get_loop_anchor_count(),
+		"starts": _music.get_start_count(),
+		"duck_db": snappedf(_duck_db, 0.1),
+		"stalls": stalls,
+	}
+
+
+## Diagnostics of the game's music player (the one that follows the game, else the first one);
+## {} without a music player.
+static func diagnostics_of(tree: SceneTree) -> Dictionary:
+	if tree == null:
+		return {}
+	var chosen: MusicPlayer = null
+	for node in tree.get_nodes_in_group(GROUP):
+		var player := node as MusicPlayer
+		if player == null or player._music == null:
+			continue
+		if chosen == null or (player.follow_game and not chosen.follow_game):
+			chosen = player
+	return chosen.get_diagnostics() if chosen != null else {}
 
 
 ## True while an entry or a victory sequence still has a step to come.
@@ -721,6 +774,11 @@ func _process(_delta: float) -> void:
 	var now := Time.get_ticks_usec()
 	if _last_frame_usec > 0:
 		var gap_ms := int((now - _last_frame_usec) / 1000)
+		if gap_ms > HITCH_COUNT_MS:
+			_stall_count += 1
+			_longest_stall_ms = maxi(_longest_stall_ms, gap_ms)
+			_last_stall_ms = gap_ms
+			_last_stall_usec = now
 		if gap_ms > HITCH_LOG_MS:
 			_hitch_count += 1
 			_longest_hitch_ms = maxi(_longest_hitch_ms, gap_ms)

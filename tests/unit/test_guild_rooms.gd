@@ -238,7 +238,8 @@ func test_guild_page_lists_open_rooms_with_join() -> void:
 	assert_not_null(_node(_node(menu, "OpenRoom_RUNS45"), "State"))
 	assert_true((_node(menu, "JoinListed_VERS67") as Button).disabled, "another game version: version_mismatch")
 	assert_not_null(_node(menu, "CreateGuildRoom"), "creating stays on the page")
-	assert_not_null(_node(menu, "GuildRoomCode"), "and joining by code")
+	assert_null(_node(menu, "GuildRoomCode"), "no room code: the guild joins from the list (b47bee4a)")
+	assert_null(_node(menu, "JoinGuildRoom"))
 	assert_eq(menu.get_tab(), OnlineMenu.View.GUILDS)
 
 
@@ -264,6 +265,7 @@ func test_api_without_the_route_hides_the_list() -> void:
 	assert_null(_node(menu, "NoOpenRooms"), "no empty promise either")
 	assert_null(_node(menu, "OpenRooms"))
 	assert_not_null(_node(menu, "CreateGuildRoom"), "creating and joining by code still work")
+	assert_not_null(_node(menu, "GuildRoomCode"), "the room code is the fallback here")
 	assert_not_null(_node(menu, "JoinGuildRoom"))
 	assert_true(menu.notice.is_empty(), "no error line for a missing list")
 	assert_false(menu.wants_rooms(), "no more polling")
@@ -305,12 +307,38 @@ func test_guild_room_opens_on_the_guild_page() -> void:
 	assert_eq(menu.get_tab(), OnlineMenu.View.GUILDS)
 	var room := _node(menu, "GuildRoom")
 	assert_not_null(room, "the room on the guild's page")
-	assert_eq((_node(room, "RoomCodeLabel") as Label).text, "ROOM23")
+	assert_null(_node(room, "RoomCodeLabel"), "a guild room shows no code (b47bee4a)")
+	assert_null(_node(room, "CopyRoomCode"))
+	assert_null(_node(room, "ShareCode"), "no 'Code teilen' at the free places")
 	assert_not_null(_node(room, "LobbyPlayers"))
+	assert_eq(menu.get_slots().size(), 4, "the free places are there")
 	assert_not_null(_node(room, "LeaveRoom"))
 	assert_null(_node(menu, "CreateGuildRoom"), "no second room from here")
 	assert_false(_fake.keys().has("GET /guilds/%s/rooms" % GUILD_ID), "no list while in the guild's room")
 	assert_false(menu.wants_rooms())
+	lobby.state = LobbyClient.State.IDLE
+
+
+func test_guild_room_code_only_without_the_room_list() -> void:
+	# An API without GET /guilds/:id/rooms: members could not find the room, so the code stays.
+	_answer_guild()
+	var lobby := _lobby_in_room(LobbyClient.MODE_GUILD, GUILD_ID)
+	lobby.peer = RelayPeer.new()
+	lobby.peer._unique_id = 1
+	lobby.peer._is_host = true
+	var menu := _open_menu(lobby)
+	await wait_physics_frames(3)
+	menu.directory.rooms_supported = false
+	menu._rebuild()
+	var room := _node(menu, "GuildRoom")
+	assert_eq((_node(room, "RoomCodeLabel") as Label).text, "ROOM23")
+	assert_not_null(_node(room, "CopyRoomCode"))
+	assert_not_null(_node(room, "ShareCode"), "the first free place offers the code again")
+	assert_string_contains((_node(room, "RoomHint") as Label).text, "Gib diesen Code", "the host is told to pass it on")
+	menu.directory.rooms_supported = true
+	menu._rebuild()
+	assert_string_contains((_node(menu, "RoomHint") as Label).text, "Deine Gilde sieht den Raum hier", "with the list: the guild finds it")
+	lobby.peer = null
 	lobby.state = LobbyClient.State.IDLE
 
 

@@ -14,7 +14,7 @@ smoke, villagers walking routes on the paths, pollen/fireflies. Props whose art 
 placed as VillageProp/Villager and appear once the file exists (or with a drawn placeholder).
 Small decoration (flowers, stones, grass, bushes) is scattered at runtime by VillageDecor.
 
-R7 (Dorf und Dungeon-Eingang, docs/design/claude_design_antwort/06_dorf.md): no symmetric cross any
+R7 (Dorf und Dungeon-Eingang, docs/design/responses/06_dorf.md): no symmetric cross any
 more. A cobbled village square with the fountain in the middle, the houses around it slightly offset,
 lanes leaving it to the west, the south (spawn) and the east; the way to the dungeon climbs from the
 square's north-east corner to stairs in a ridge (rock face, solid) at the top edge. On the terrace
@@ -22,6 +22,11 @@ above: the ruin of the entrance (dungeon_entrance_v2, VillageEntrance with torch
 path of stone slabs and the soul flame bowl in front, forest around it. Fences, beds and hay bales
 stand in groups (chicken yard, vegetable garden); chickens and the cat keep to their territory.
 Slots for rescued villagers and chickens (RescueRecord, D-135): Village keeps as many as were rescued.
+
+Reports 17.10.2026 (hitboxes like the hay bales: the visible width minus a little, the lower part of
+the art): flower beds are solid (#5a560cd1), crates, barrels and the market stall have a box instead
+of a small circle (#0a088654, #90544fa9), the flat rubble lies under characters, weapons and shadows
+(#d83bda23), animals dodge the player without the villagers' sound (#ec4f0b9f).
 """
 from pathlib import Path
 
@@ -96,14 +101,20 @@ NPCS = [
     ("Trader", "trader", (26.15, 14.95), True),
     ("GuildMaster", "guild_master", (30.45, 14.95), True),
 ]
-# decoration: name, folder, texture, size, pivot, tile position, solid radius (0 = none), frames
+# decoration: name, folder, texture, size, pivot, tile position, solid (0 = none, a number = circle
+# radius around (0, -8), a pair (w, h) = box in world px standing on the base line), frames
 LAMP = (BUILDING_DIR, "lamp_post_4f", (16, 48), (8, 47))
 BARREL = (PROP_DIR, "barrel", (32, 32), (16, 31))
 CRATE = (PROP_DIR, "crate", (32, 32), (16, 31))
+# TESTWERTE (17.10.2026): boxes from the opaque art (2x): barrel 44 px wide -> 40 x 20, crate 52 x 48
+# -> 48 x 22, market stall counter 116 px wide (the awning above it is wider) -> 116 x 30.
+BARREL_SOLID = (40, 20)
+CRATE_SOLID = (48, 22)
+STALL_SOLID = (116, 30)
 DECOR = [
     ("Fountain", PROP_DIR, "fountain_4f", (32, 40), (16, 38), (16.5, 12.1), 20, 4),
     ("Well", BUILDING_DIR, "well_4f", (32, 40), (16, 38), (6.5, 9.6), 22, 4),
-    ("MarketStall", BUILDING_DIR, "market_stall", (64, 48), (32, 44), (20.3, 12.9), 40, 1),
+    ("MarketStall", BUILDING_DIR, "market_stall", (64, 48), (32, 44), (20.3, 12.9), STALL_SOLID, 1),
     # Lamps as light islands (VillageDaylight.LAMP_RADIUS = 3 tiles), not along one axis.
     ("Lamp1", *LAMP, (12.35, 13.75), 8, 4),
     ("Lamp2", *LAMP, (12.45, 9.75), 8, 4),
@@ -111,18 +122,23 @@ DECOR = [
     ("Lamp4", *LAMP, (6.0, 12.4), 8, 4),
     ("Lamp5", *LAMP, (17.5, 18.6), 8, 4),
     ("Lamp6", *LAMP, (22.0, 17.6), 8, 4),
-    ("Barrel1", *BARREL, (6.0, 16.9), 11, 1),
-    ("Barrel2", *BARREL, (25.5, 10.3), 11, 1),
-    ("Barrel3", *BARREL, (22.3, 14.9), 11, 1),
-    ("Barrel4", *BARREL, (10.7, 8.6), 11, 1),
-    ("Crate1", *CRATE, (29.5, 10.4), 12, 1),
-    ("Crate2", *CRATE, (2.6, 16.9), 12, 1),
-    ("Crate3", *CRATE, (24.9, 14.95), 12, 1),
-    ("Crate4", *CRATE, (21.6, 13.85), 12, 1),
+    ("Barrel1", *BARREL, (6.0, 16.9), BARREL_SOLID, 1),
+    ("Barrel2", *BARREL, (25.5, 10.3), BARREL_SOLID, 1),
+    ("Barrel3", *BARREL, (22.3, 14.9), BARREL_SOLID, 1),
+    ("Barrel4", *BARREL, (10.7, 8.6), BARREL_SOLID, 1),
+    ("Crate1", *CRATE, (29.5, 10.4), CRATE_SOLID, 1),
+    ("Crate2", *CRATE, (2.6, 16.9), CRATE_SOLID, 1),
+    ("Crate3", *CRATE, (24.9, 14.95), CRATE_SOLID, 1),
+    ("Crate4", *CRATE, (21.6, 13.85), CRATE_SOLID, 1),
 ]
 # Props (art/environment/village/<art>.png; placeholder or hidden until then): name, art, tile
 # position (bottom centre), solid size in world px (None = walk through), mirrored, extra lines.
 BOWL_LIGHT = 'frames = 6\nfps = 8.0\nlight_radius = 170.0\nlight_color = Color(0.72, 0.45, 1, 1)\nlight_height = 40.0\n'
+# TESTWERT: flower beds (32 x 14 art, 64 x 28 world) like the hay bales: full width - 4, lower part.
+BED_SOLID = (60, 16)
+# Flat props without a body (rubble) lie under characters, their weapons and shadows: one below
+# DropShadow.Z (-2), above the ground (-10), like VillageDecor.FLAT_Z.
+FLAT = "z_index = -3\n"
 PROPS = [
     # Chicken yard in the west: fence above and below (gate in the lower row), hay inside.
     ("YardFence1", "garden_fence", (2.5, 12.6), (60, 12), False, ""),
@@ -137,9 +153,9 @@ PROPS = [
     # Vegetable garden next to the house in the south-west: fence and beds.
     ("GardenFence1", "garden_fence", (7.5, 12.6), (60, 12), False, ""),
     ("GardenFence2", "garden_fence", (8.5, 12.6), (60, 12), False, ""),
-    ("Bed1", "flower_bed", (7.4, 13.3), None, False, ""),
-    ("Bed2", "flower_bed", (8.6, 13.3), None, True, ""),
-    ("Bed3", "flower_bed", (8.0, 14.0), None, False, ""),
+    ("Bed1", "flower_bed", (7.4, 13.3), BED_SOLID, False, ""),
+    ("Bed2", "flower_bed", (8.6, 13.3), BED_SOLID, True, ""),
+    ("Bed3", "flower_bed", (8.0, 14.0), BED_SOLID, False, ""),
     # Bench looking onto the square, signpost at the spawn, cart and hay in the east.
     ("Bench", "bench", (11.5, 8.95), (56, 14), False, ""),
     ("Signpost", "signpost", (17.4, 17.3), (12, 10), False, ""),
@@ -150,12 +166,12 @@ PROPS = [
     # Small field in the south-east next to the cart.
     ("FieldFence1", "garden_fence", (24.5, 17.6), (60, 12), False, ""),
     ("FieldFence2", "garden_fence", (25.5, 17.6), (60, 12), False, ""),
-    ("Bed4", "flower_bed", (24.4, 18.5), None, False, ""),
-    ("Bed5", "flower_bed", (25.6, 18.5), None, True, ""),
+    ("Bed4", "flower_bed", (24.4, 18.5), BED_SOLID, False, ""),
+    ("Bed5", "flower_bed", (25.6, 18.5), BED_SOLID, True, ""),
     # In front of the dungeon ruin: soul flame bowl and rubble.
     ("FlameBowl", "entrance_flame_bowl", (21.25, 5.3), (28, 12), False, BOWL_LIGHT),
-    ("Rubble1", "stones", (20.3, 5.55), None, False, ""),
-    ("Rubble2", "stones", (24.9, 5.1), None, True, ""),
+    ("Rubble1", "stones", (20.3, 5.55), None, False, FLAT),
+    ("Rubble2", "stones", (24.9, 5.1), None, True, FLAT),
 ]
 # Villagers walk the paths (feet positions in tiles); placeholder = an NPC sprite with a tint.
 # name, art, fallback frames, tint, loop, speed, route
@@ -420,7 +436,7 @@ shape = SubResource("Circle_npc")
 ''')
 
     fountain_sound = add_ext("Script", "res://world/village/fountain_sound.gd")
-    for name, folder, tex, (w, h), (px, py), pos, radius, frames in DECOR:
+    for name, folder, tex, (w, h), (px, py), pos, solid, frames in DECOR:
         texture_id = add_ext("Texture2D", f"{folder}/{tex}.png")
         if frames > 1:
             sprite = f'''[node name="Sprite" type="AnimatedSprite2D" parent="Buildings/{name}"]
@@ -442,9 +458,17 @@ position = {tiles(pos)}
 collision_mask = 0
 
 ''' + sprite
-        if radius:
+        if isinstance(solid, tuple):
+            sid = f"Rect_{name}"
+            rect_shape(sid, *solid)
+            body += f'''
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/{name}"]
+position = {vec(0, -solid[1] / 2)}
+shape = SubResource("{sid}")
+'''
+        elif solid:
             sid = f"Circle_{name}"
-            circle_shape(sid, radius)
+            circle_shape(sid, solid)
             body += f'''
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/{name}"]
 position = Vector2(0, -8)
@@ -536,6 +560,7 @@ speed = {speed:g}
 pause_max = 5.0
 art_name = "{art}"
 optional = true
+dodge_sound = &""
 ''')
     for i, (loop, speed, points) in enumerate(RESCUED_CHICKENS):
         nodes.append(f'''[node name="RescuedChicken{i + 1}" type="Node2D" parent="Villagers"]
@@ -547,6 +572,7 @@ speed = {speed:g}
 pause_max = 5.0
 art_name = "chicken"
 optional = true
+dodge_sound = &""
 metadata/rescued_chicken_slot = {i}
 ''')
 

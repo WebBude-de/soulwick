@@ -229,6 +229,27 @@ func test_hint_line_uses_key_caps() -> void:
 	assert_false(rect.intersects(hud._weapon_root.get_global_rect()), "hint line and weapon block never overlap")
 
 
+## D-185 (#80c94d8c): nobody holds a weapon in the village, so its key line names no weapon keys;
+## back in the dungeon the full line has them again.
+func test_village_hint_line_has_no_weapon_keys() -> void:
+	var village_full := Hud.hint_entries(true, false)
+	assert_eq(village_full.size(), Hud.HINT_ENTRIES_FULL.size() - Hud.UNARMED_HIDDEN_HINTS.size())
+	for entry: Array in village_full:
+		assert_false(Hud.UNARMED_HIDDEN_HINTS.has(entry[0]), "no %s key in the village" % entry[0])
+	assert_eq(Hud.hint_entries(true, true).size(), Hud.HINT_ENTRIES_FULL.size())
+	assert_eq(Hud.hint_entries(false, false).size(), Hud.HINT_ENTRIES_SHORT.size(), "the short line has no weapon keys anyway")
+	var hud: Hud = add_child_autofree(Hud.new())
+	await wait_physics_frames(1)
+	var full := not SaveManager.has_seen(ControlsHint.SEEN_ID)
+	assert_eq(hud._hint_row.get_child_count(), Hud.hint_entries(full, false).size(), "village line")
+	hud.set_dungeon_mode(true)
+	assert_eq(hud._hint_row.get_child_count(), Hud.hint_entries(full, true).size(), "dungeon line rebuilt")
+	hud.set_dungeon_mode(false)
+	assert_eq(hud._hint_row.get_child_count(), Hud.hint_entries(full, false).size(), "village line rebuilt")
+	# The replaced lines are queue_free'd: let them go before the HUD is freed (no orphans).
+	await wait_physics_frames(1)
+
+
 func test_new_texts_fall_back_per_language() -> void:
 	assert_eq(Hud.hud_text(&"HUD_TEST_MISSING_KEY", "pause", "Pause"), "Pause")
 	TranslationServer.set_locale("en")

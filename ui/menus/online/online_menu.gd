@@ -4,10 +4,10 @@ extends VBoxContainer
 ## the village's guild building (VillageUI). Two tabs:
 ## - Schnelles Spiel: create a room or join one by room code (LobbyClient); inside a room the code
 ##   and one designed place per player (LobbySlot, D-152: figure in its look, name, host crown,
-##   status, ping; free places "Wartet auf Spieler …" with "Code teilen"), Start/Leave. The own
-##   place has "Aussehen ändern": the profile editor (ProfileEditor) replaces the room view until it
-##   is saved or left; the new look reaches everybody in the room (NetPlayers) and the account
-##   (PATCH /me).
+##   status, ping; free places "Wartet auf Spieler …", the first with "Code teilen"), Start/Leave.
+##   The own place has "Aussehen ändern": the profile editor (ProfileEditor) replaces the room view
+##   until it is saved or left; the new look reaches everybody in the room (NetPlayers) and the
+##   account (PATCH /me).
 ## - Gilden: the player's guilds (GuildDirectory). Without a guild a short "Was bringt eine Gilde?"
 ##   (only what exists: guild rooms, treasury, guild leaderboard) and two big buttons "Gilde
 ##   erstellen" / "Gilde beitreten"; with guilds a list and both buttons small at the top right.
@@ -16,9 +16,14 @@ extends VBoxContainer
 ##   promote/demote officers; founder/officer: remove) and "Gilde verlassen" with a confirmation.
 ##   Guild rooms live on the guild's page (playtest 16.10.2026): the open rooms of the guild
 ##   (GET /guilds/:id/rooms, polled every ROOMS_REFRESH_SECONDS while the page is open; hidden on an
-##   API without the route) with "Beitreten", "Gilden-Raum erstellen" (relay mode guild, only members
-##   may join) and joining by room code. The own guild room (code, places, Start/Leave) is shown on
-##   that page, not in the quick tab; the quick tab only points to it.
+##   API without the route) with "Beitreten" and "Gilden-Raum erstellen" (relay mode guild, only
+##   members may join). Guild rooms show no room code (report b47bee4a): the guild joins from that
+##   list; the code (field, "Kopieren", "Code teilen") is only the fallback for an API without the
+##   list. The own guild room (places, Start/Leave) is shown on that page, not in the quick tab; the
+##   quick tab only points to it.
+## The village dialog and the main menu panel give the content one fixed height (report 60711d3b:
+## switching tabs never resizes the dialog); it scrolls with a pixel scroll bar, an even wheel step
+## (report e0ca0a4f) and keeps its place when the page is rebuilt (report b5657bff).
 ## Without a lobby (main menu) the room buttons emit launch_requested; the main menu loads the world
 ## (or creates the first one) and the village runs the wish (LobbyClient.request_launch). The menu
 ## never pauses anything itself;
@@ -48,8 +53,19 @@ const BUTTON_WIDTH := 58.0
 const BIG_BUTTON_WIDTH := 104.0
 const BIG_BUTTON_HEIGHT := 30.0
 ## Content height in the village dialog (mockup pixels): with the dialog's title, tabs and close
-## button it stays on a 270 px high screen; taller views scroll.
+## button it stays on a 270 px high screen; taller views scroll. Every view gets this height (report
+## 60711d3b: the dialog no longer jumps between tabs); a room with four places just fits.
 const VILLAGE_CONTENT_HEIGHT := 140.0
+## Gap between the content and the scroll bar (mockup pixels). The bar's own width
+## (Modal.SCROLL_BAR_WIDTH) is always kept free next to it, also while nothing scrolls.
+const SCROLL_GAP := 2.0
+## TESTWERT: one mouse wheel step in the scroll areas (mockup pixels, about one line and a half;
+## Godot's own step is an eighth of the visible height, report e0ca0a4f "scrolls much too far").
+const WHEEL_STEP := 14.0
+## TESTWERT: the browser makes every wheel event a full step, also the many small ones of a touchpad
+## swipe. There a step moves WHEEL_STEP only after this pause, quicker ones a share of it: a swipe
+## scrolls at most WHEEL_STEP per this many milliseconds.
+const WEB_WHEEL_WINDOW_MSEC := 40.0
 ## Focus frame around the focused control (keyboard / controller).
 const FOCUS_BORDER := 1.0
 ## Gap between the player places of a room (mockup pixels).
@@ -96,6 +112,8 @@ var _invite_input := ""
 var _guild_room_code := ""
 var _tabs: HBoxContainer = null
 var _content: VBoxContainer = null
+## The scroll area around the content (fixed height), null without max_content_height.
+var _scroll_area: ScrollContainer = null
 var _status: Label = null
 ## Control that gets the focus after a rebuild when nothing of this menu had it.
 var _focus_target: Control = null
@@ -118,6 +136,12 @@ var _room_origin := View.QUICK
 var _room_origin_guild := ""
 ## Seconds until the open rooms of the shown guild are loaded again.
 var _rooms_left := ROOMS_REFRESH_SECONDS
+## Back from the confirmation: {focus, scroll} of the page that asked (the next build keeps them).
+var _return_to: Dictionary = {}
+## Scroll position the content area keeps while a rebuilt page is laid out (-1 = none) and the
+## frames it is still applied (every sort of the scroll area in between sets it again).
+var _pending_scroll := -1
+var _pending_scroll_frames := 0
 
 
 static func create(owner_lobby: LobbyClient, online_session: OnlineSession = null, width := DEFAULT_WIDTH, max_height := 0.0) -> OnlineMenu:
@@ -149,13 +173,19 @@ func _ready() -> void:
 	_content = UiKit.vbox(int(UiKit.px(4)))
 	_content.name = "Content"
 	if max_content_height > 0.0:
-		add_child(_scroll(_content, max_content_height))
+		_scroll_area = _scroll(_content, max_content_height, true)
+		_scroll_area.name = "ScrollArea"
+		_scroll_area.sort_children.connect(_apply_pending_scroll)
+		add_child(_scroll_area)
 	else:
 		add_child(_content)
 	_status = UiKit.wrapped_text("", menu_width, UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
 	_status.name = "Status"
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_status)
+	if _scroll_area != null:
+		# One line is always kept for it: "Einen Moment …" coming and going never resizes the dialog.
+		_status.custom_minimum_size.y = _status.get_line_height()
 	var start_view := remembered_view if remembered_view == View.GUILDS else View.QUICK
 	var room_guild := get_room_guild()
 	if not room_guild.is_empty():
@@ -180,6 +210,11 @@ static func wants_login_on_open() -> bool:
 
 
 func _process(delta: float) -> void:
+	if _pending_scroll >= 0:
+		_apply_pending_scroll()
+		_pending_scroll_frames -= 1
+		if _pending_scroll_frames <= 0:
+			_pending_scroll = -1
 	_rooms_left -= delta
 	if _rooms_left <= 0.0:
 		_rooms_left = ROOMS_REFRESH_SECONDS
@@ -277,7 +312,7 @@ func go_back() -> bool:
 			return true
 		View.CONFIRM:
 			var back: View = _confirm.get("back", View.GUILDS)
-			_confirm = {}
+			_return_from_confirm()
 			show_view(back)
 			return true
 		View.PROFILE:
@@ -346,6 +381,12 @@ func _rebuild() -> void:
 	var focused := _focus_owner()
 	var focused_name := String(focused.name) if focused != null else ""
 	var had_focus := focused != null
+	var scroll_before := _scroll_area.scroll_vertical if _scroll_area != null else 0
+	if _pending_scroll >= 0:
+		# The last page is not laid out yet (its place is still on the way).
+		scroll_before = _pending_scroll
+	var back_from_confirm := _return_to
+	_return_to = {}
 	for row: Control in [_tabs, _content]:
 		for child in row.get_children():
 			row.remove_child(child)
@@ -373,16 +414,38 @@ func _rebuild() -> void:
 		View.PROFILE:
 			_build_profile()
 	_update_status()
-	# The focus stays on the control of the same name while the view shows the same thing, else it
-	# goes to the view's main control (e.g. a guild that finished loading: "Gilden-Raum erstellen").
+	# While the view shows the same thing (a guild call started or ended, the open rooms changed) or
+	# after the confirmation, focus and scroll stay where they were (report b5657bff: every click
+	# jumped back to "Zurück" at the top). A button greyed out only while the call runs keeps the
+	# focus; one that is gone takes it along (the next key gives it back, handle_input). A new view
+	# gives the focus to its main control (e.g. a guild that finished loading: "Gilden-Raum erstellen").
 	var key := "%d|%s|%s|%s" % [view, detail_id, directory.get_detail(detail_id).is_empty(), is_in_room()]
 	var same_view := key == _built_key
 	_built_key = key
-	var again := find_child(focused_name, true, false) as Control if not focused_name.is_empty() and same_view else null
-	if again != null and again.focus_mode != Control.FOCUS_NONE and again.is_visible_in_tree() and not (again is BaseButton and (again as BaseButton).disabled):
-		again.grab_focus()
+	if same_view or not back_from_confirm.is_empty():
+		var keep_name := focused_name if same_view else str(back_from_confirm.get("focus", ""))
+		var again := find_child(keep_name, true, false) as Control if not keep_name.is_empty() else null
+		if again != null and again.focus_mode != Control.FOCUS_NONE and again.is_visible_in_tree():
+			again.grab_focus()
+		_keep_scroll(scroll_before if same_view else int(back_from_confirm.get("scroll", 0)))
 	elif had_focus or _wants_initial_focus():
 		focus_default()
+
+
+## The scroll area stays at value: now (a newly built control that takes the focus scrolls it before
+## the containers placed it) and again whenever the scroll area sorts the new content during the
+## next frames (a short page before, e.g. the confirmation, still limits the scroll range).
+func _keep_scroll(value: int) -> void:
+	if _scroll_area == null or value <= 0:
+		return
+	_pending_scroll = value
+	_pending_scroll_frames = 3
+	_apply_pending_scroll()
+
+
+func _apply_pending_scroll() -> void:
+	if _pending_scroll >= 0 and _scroll_area != null and is_instance_valid(_scroll_area):
+		_scroll_area.scroll_vertical = _pending_scroll
 
 
 ## The first build of a visible menu takes the focus, so keys work at once.
@@ -411,7 +474,7 @@ func _build_quick() -> void:
 	var hint := tr(&"LOBBY_QUICK_HINT")
 	if lobby == null:
 		hint += " " + tr(&"ONLINE_MENU_VILLAGE_HINT")
-	_content.add_child(UiKit.wrapped_text(hint, menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	_content.add_child(UiKit.wrapped_text(hint, _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	_add_new_world_hint()
 	_add_connection_state()
 	var busy := lobby != null and lobby.is_busy()
@@ -451,7 +514,7 @@ func _add_new_world_hint() -> void:
 	var slot := SaveManager.get_free_slot()
 	if slot <= 0:
 		return
-	var line := UiKit.wrapped_text(_format(&"ONLINE_MENU_NEW_WORLD_HINT", [SaveSlots.default_name(slot)]), menu_width, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	var line := UiKit.wrapped_text(_format(&"ONLINE_MENU_NEW_WORLD_HINT", [SaveSlots.default_name(slot)]), _content_width(), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 	line.name = "NewWorldHint"
 	_content.add_child(line)
 
@@ -466,7 +529,7 @@ func _build_guild_room_pointer() -> void:
 	var text := _format(&"GUILD_ROOM_ACTIVE", ["[%s] %s" % [tag, guild_name] if not tag.is_empty() else guild_name])
 	if tag.is_empty() and guild_name.is_empty():
 		text = tr(&"GUILD_ROOM_ACTIVE_PLAIN")
-	var line := UiKit.wrapped_text(text, menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	var line := UiKit.wrapped_text(text, _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 	line.name = "GuildRoomActive"
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(line)
@@ -519,28 +582,16 @@ func _build_room(parent: Container, on_guild_page := false) -> void:
 	elif lobby.is_guild_room():
 		var title := tr(&"GUILD_ROOM_TITLE") % lobby.room_guild_name if not lobby.room_guild_name.is_empty() else tr(&"GUILD_ROOM_TITLE_PLAIN")
 		parent.add_child(_centered(UiKit.text_label(title, UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true)))
-	var code_row := UiKit.hbox(int(UiKit.px(6)))
-	code_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	var caption := UiKit.eyebrow(tr(&"LOBBY_ROOM_CODE"), UiKit.COLOR_MUTED)
-	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	code_row.add_child(caption)
-	var code := UiKit.text_label(lobby.get_room_code(), UiKit.SIZE_TITLE_LARGE, UiKit.COLOR_GOLD, true)
-	code.name = "RoomCodeLabel"
-	code_row.add_child(code)
-	# For Discord: the code into the clipboard; the button says it worked.
-	var copy := _button(&"GUILD_COPY", func() -> void: pass, false, 0.0)
-	copy.name = "CopyRoomCode"
-	copy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	copy.pressed.connect(func() -> void:
-		_copy_room_code()
-		copy.text = tr(&"LOBBY_CODE_COPIED"))
-	code_row.add_child(copy)
-	parent.add_child(code_row)
+	# A guild room needs no code: the guild finds it in the open rooms of its page (report b47bee4a).
+	# Only an API without that list leaves the code as the way in.
+	var show_code := not (on_guild_page or lobby.is_guild_room()) or not directory.rooms_supported
+	if show_code:
+		parent.add_child(_room_code_row())
 	var host_name := str(peers[0].get("name", "")) if not peers.is_empty() and peers[0] is Dictionary else ""
 	if net != null and not peers.is_empty() and peers[0] is Dictionary and not net.get_player_name_of(RelayProtocol.HOST_PEER_ID).is_empty():
 		host_name = net.get_player_name_of(RelayProtocol.HOST_PEER_ID)
 	if lobby.is_host():
-		_room_hint_text = tr(&"GUILD_ROOM_SHARE_HINT") if on_guild_page else tr(&"LOBBY_SHARE_HINT")
+		_room_hint_text = tr(&"LOBBY_SHARE_HINT") if show_code else tr(&"GUILD_ROOM_SHARE_HINT")
 	else:
 		_room_hint_text = tr(&"LOBBY_JOINED_HINT") % host_name
 	_room_hint = _centered(UiKit.text_label(_room_hint_line(), UiKit.SIZE_BODY, UiKit.COLOR_MUTED))
@@ -553,7 +604,7 @@ func _build_room(parent: Container, on_guild_page := false) -> void:
 		paid.name = "GuildPayout"
 		parent.add_child(_centered(paid))
 	var max_players := int(lobby.room.get("maxPlayers", RelayProtocol.MAX_ROOM_PLAYERS))
-	parent.add_child(_build_slots(peers, max_players, net))
+	parent.add_child(_build_slots(peers, max_players, net, show_code))
 	var actions := UiKit.hbox(int(UiKit.px(4)))
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	if lobby.is_host():
@@ -575,14 +626,37 @@ func _build_room(parent: Container, on_guild_page := false) -> void:
 	parent.add_child(actions)
 
 
-## One LobbySlot per place: players in room order (host first), then the free places.
-func _build_slots(peers: Array, max_players: int, net: NetPlayers) -> Control:
+## "RAUMCODE ABCD23 [Kopieren]" of a room.
+func _room_code_row() -> HBoxContainer:
+	var code_row := UiKit.hbox(int(UiKit.px(6)))
+	code_row.name = "RoomCodeRow"
+	code_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	var caption := UiKit.eyebrow(tr(&"LOBBY_ROOM_CODE"), UiKit.COLOR_MUTED)
+	caption.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	code_row.add_child(caption)
+	var code := UiKit.text_label(lobby.get_room_code(), UiKit.SIZE_TITLE_LARGE, UiKit.COLOR_GOLD, true)
+	code.name = "RoomCodeLabel"
+	code_row.add_child(code)
+	# For Discord: the code into the clipboard; the button says it worked.
+	var copy := _button(&"GUILD_COPY", func() -> void: pass, false, 0.0)
+	copy.name = "CopyRoomCode"
+	copy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	copy.pressed.connect(func() -> void:
+		_copy_room_code()
+		copy.text = tr(&"LOBBY_CODE_COPIED"))
+	code_row.add_child(copy)
+	return code_row
+
+
+## One LobbySlot per place: players in room order (host first), then the free places; the first free
+## place offers the code ("Code teilen") when the room is joined by code (offer_code).
+func _build_slots(peers: Array, max_players: int, net: NetPlayers, offer_code := true) -> Control:
 	var row := UiKit.hbox(int(UiKit.px(SLOT_GAP)))
 	row.name = "LobbyPlayers"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	var places := maxi(1, max_players)
 	# The village dialog scrolls: leave room for its scroll bar.
-	var usable := menu_width - (6.0 if max_content_height > 0.0 else 0.0)
+	var usable := _content_width() - (1.0 if max_content_height > 0.0 else 0.0)
 	var slot_width := floorf((usable - SLOT_GAP * (places - 1)) / places)
 	var share_offered := false
 	for i in places:
@@ -607,7 +681,7 @@ func _build_slots(peers: Array, max_players: int, net: NetPlayers) -> Control:
 			slot.tooltip_text = {"android": "Android", "ios": "iOS"}.get(str(peer.get("platform", "")), "PC")
 		else:
 			var share := Callable()
-			if not share_offered:
+			if offer_code and not share_offered:
 				share = _copy_room_code
 				share_offered = true
 			slot = LobbySlot.create_empty(i, slot_width, share)
@@ -664,6 +738,11 @@ func get_profile_editor() -> ProfileEditor:
 	return _profile_editor if _has_profile_editor() else null
 
 
+## The scroll area of the content (null without max_content_height), for tests and tools.
+func get_scroll_area() -> ScrollContainer:
+	return _scroll_area
+
+
 func get_slots() -> Array[LobbySlot]:
 	var result: Array[LobbySlot] = []
 	for slot in _slots:
@@ -678,7 +757,7 @@ func _has_profile_editor() -> bool:
 
 func _build_profile() -> void:
 	var profile := PlayerProfile.current()
-	var usable := menu_width - (6.0 if max_content_height > 0.0 else 0.0)
+	var usable := _content_width() - (1.0 if max_content_height > 0.0 else 0.0)
 	_profile_editor = ProfileEditor.create(profile.player_name, profile.look, false, usable)
 	_profile_editor.saved.connect(close_profile_editor)
 	_profile_editor.cancelled.connect(close_profile_editor)
@@ -693,7 +772,7 @@ func _build_guilds() -> void:
 			loading.name = "GuildsLoading"
 			_content.add_child(loading)
 			return
-		var error := UiKit.wrapped_text(GuildDirectory.error_text(directory.list_error), menu_width, UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
+		var error := UiKit.wrapped_text(GuildDirectory.error_text(directory.list_error), _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
 		error.name = "GuildsError"
 		error.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		_content.add_child(error)
@@ -769,7 +848,7 @@ func _guild_card(guild: Dictionary) -> Button:
 
 
 func _build_no_guild() -> void:
-	var text := UiKit.wrapped_text(tr(&"GUILD_EMPTY"), menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	var text := UiKit.wrapped_text(tr(&"GUILD_EMPTY"), _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 	text.name = "NoGuild"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(text)
@@ -797,7 +876,7 @@ func _build_perks() -> PanelContainer:
 	var box := UiKit.vbox(int(UiKit.px(2)))
 	box.add_child(UiKit.text_label(&"GUILD_PERKS_TITLE", UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true))
 	for key: StringName in PERK_KEYS:
-		var line := UiKit.wrapped_text("•  " + tr(key), menu_width - 16.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		var line := UiKit.wrapped_text("•  " + tr(key), _content_width() - 16.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 		line.name = "Perk_%s" % String(key).trim_prefix("GUILD_PERK_")
 		box.add_child(line)
 	panel.add_child(box)
@@ -821,7 +900,7 @@ func _build_create() -> void:
 	grid.add_child(tag_field)
 	_add_field_error(grid, "tag")
 	_content.add_child(grid)
-	_content.add_child(UiKit.wrapped_text(tr(&"GUILD_CREATE_RULES"), menu_width, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED))
+	_content.add_child(UiKit.wrapped_text(tr(&"GUILD_CREATE_RULES"), _content_width(), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED))
 	_add_form_error("")
 	var actions := UiKit.hbox(int(UiKit.px(4)))
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -853,7 +932,7 @@ func _build_create() -> void:
 ## Join a guild with its invite code.
 func _build_join() -> void:
 	_content.add_child(UiKit.text_label(&"GUILD_JOIN_TITLE", UiKit.SIZE_HEADING, UiKit.COLOR_GOLD, true))
-	_content.add_child(UiKit.wrapped_text(tr(&"GUILD_JOIN_HINT"), menu_width, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+	_content.add_child(UiKit.wrapped_text(tr(&"GUILD_JOIN_HINT"), _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
 	var code := _line_edit("InviteCode", &"GUILD_INVITE_PLACEHOLDER", _invite_input, GuildDirectory.INVITE_MAX, 110.0)
 	code.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_content.add_child(code)
@@ -964,7 +1043,7 @@ func _build_detail() -> void:
 	treasury_row.add_child(leave)
 	info_box.add_child(treasury_row)
 	# What guild runs bring, in one line (the long version is the empty guild tab).
-	var perks := UiKit.wrapped_text(tr(&"GUILD_DETAIL_PERKS"), menu_width - 12.0, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	var perks := UiKit.wrapped_text(tr(&"GUILD_DETAIL_PERKS"), _content_width() - 12.0, UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
 	perks.name = "GuildPerksShort"
 	info_box.add_child(perks)
 	_content.add_child(info)
@@ -985,8 +1064,9 @@ func _build_detail() -> void:
 
 
 ## Guild rooms on the guild's page: the open rooms of the guild (GET /guilds/:id/rooms; hidden on an
-## API without the route or while the relay is away) with "Beitreten", then "Gilden-Raum erstellen"
-## and joining by room code. Everything is blocked while this machine is in a room or entering one.
+## API without the route or while the relay is away) with "Beitreten", then "Gilden-Raum erstellen".
+## Joining by room code only on an API without the list (report b47bee4a: guild rooms need no code).
+## Everything is blocked while this machine is in a room or entering one.
 func _build_guild_rooms() -> void:
 	var blocked := _room_blocked()
 	var section := UiKit.vbox(int(UiKit.px(2)))
@@ -1017,6 +1097,16 @@ func _build_guild_rooms() -> void:
 	if is_in_room():
 		room.tooltip_text = tr(&"GUILD_ROOM_LEAVE_FIRST")
 	room_row.add_child(room)
+	if not directory.rooms_supported:
+		_add_guild_room_code(room_row, blocked)
+	section.add_child(room_row)
+	_content.add_child(section)
+	if not room.disabled:
+		_focus_target = room
+
+
+## Fallback for an API without the open rooms: join a guild room of this guild by its room code.
+func _add_guild_room_code(room_row: HBoxContainer, blocked: bool) -> void:
 	var room_code := _line_edit("GuildRoomCode", &"LOBBY_CODE_PLACEHOLDER", _guild_room_code, RelayProtocol.ROOM_CODE_LENGTH, 62.0)
 	room_code.editable = not blocked
 	room_code.tooltip_text = tr(&"GUILD_ROOM_JOIN_HINT")
@@ -1036,10 +1126,6 @@ func _build_guild_rooms() -> void:
 	room_code.text_submitted.connect(func(_text: String) -> void:
 		if not room_join.disabled:
 			_join_guild_room())
-	section.add_child(room_row)
-	_content.add_child(section)
-	if not room.disabled:
-		_focus_target = room
 
 
 ## One open room of the guild: "Raum von <host>", players, and "Beitreten" (greyed out while its run
@@ -1142,7 +1228,7 @@ func _member_row(member: Dictionary, own_role: String, own_id: String) -> Contro
 
 
 func _build_confirm() -> void:
-	var text := UiKit.wrapped_text(str(_confirm.get("text", "")), menu_width, UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT)
+	var text := UiKit.wrapped_text(str(_confirm.get("text", "")), _content_width(), UiKit.SIZE_KEY_HINT, UiKit.COLOR_TEXT)
 	text.name = "ConfirmText"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(text)
@@ -1151,7 +1237,7 @@ func _build_confirm() -> void:
 	var yes := _button(str(_confirm.get("yes", "")), func() -> void:
 		var action: Callable = _confirm.get("action", Callable())
 		var back: View = _confirm.get("back", View.GUILDS)
-		_confirm = {}
+		_return_from_confirm()
 		view = back
 		if action.is_valid():
 			action.call()
@@ -1205,7 +1291,7 @@ func _update_status() -> void:
 		elif directory.is_busy() and directory.loaded:
 			text = tr(&"GUILD_WORKING")
 	_status.text = text
-	_status.visible = not text.is_empty()
+	_status.visible = not text.is_empty() or _scroll_area != null
 	_status.add_theme_color_override("font_color", color)
 
 
@@ -1317,9 +1403,18 @@ func _ask_remove(player_id: String, member_name: String) -> void:
 
 func _ask(text: String, yes_text: String, action: Callable, back: View) -> void:
 	_set_notice("")
-	_confirm = {"text": text, "yes": yes_text, "action": action, "back": back}
+	var focused := _focus_owner()
+	_confirm = {"text": text, "yes": yes_text, "action": action, "back": back,
+		"focus": String(focused.name) if focused != null else "",
+		"scroll": _scroll_area.scroll_vertical if _scroll_area != null else 0}
 	view = View.CONFIRM
 	_rebuild()
+
+
+## Leaving the confirmation: the page that asked gets its focus and scroll back (next build).
+func _return_from_confirm() -> void:
+	_return_to = {"focus": str(_confirm.get("focus", "")), "scroll": int(_confirm.get("scroll", 0))}
+	_confirm = {}
 
 
 func _copy_invite(code: String) -> void:
@@ -1440,7 +1535,7 @@ func _add_form_error(field: String) -> void:
 		return
 	if field.is_empty() and not form_error_field.is_empty():
 		return
-	var error := UiKit.wrapped_text(notice, menu_width, UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
+	var error := UiKit.wrapped_text(notice, _content_width(), UiKit.SIZE_BODY, UiKit.COLOR_DANGER_SOFT)
 	error.name = "FieldError" if not field.is_empty() else "FormError"
 	error.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_content.add_child(error)
@@ -1495,25 +1590,71 @@ func _list_area(list: Control, max_height: float) -> Control:
 	return _scroll(list, max_height)
 
 
-## A vertical scroll area that is never taller than max_height mockup pixels.
-func _scroll(child: Control, max_height: float) -> ScrollContainer:
+## A vertical scroll area that is never taller than max_height mockup pixels; fixed: always exactly
+## that high (the content area of the menu: views of every length keep the dialog's size).
+func _scroll(child: Control, max_height: float, fixed := false) -> ScrollContainer:
 	var scroll := ScrollContainer.new()
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	# The bar shows only when needed, but its room is always kept: the width never jumps (60711d3b).
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_RESERVE
 	scroll.follow_focus = true
+	# The pixel bar of the dialogs instead of Godot's grey one (report e0ca0a4f).
+	Modal._style_scroll_bar(scroll.get_v_scroll_bar())
+	scroll.gui_input.connect(func(event: InputEvent) -> void:
+		if wheel_scroll(scroll, event, Time.get_ticks_msec(), OS.has_feature("web")):
+			scroll.accept_event())
 	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	# Room for the scroll bar on the right, so it never covers the last column.
+	# A small gap before the scroll bar, so it never touches the last column.
 	var margin := MarginContainer.new()
 	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	margin.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	margin.add_theme_constant_override("margin_right", int(UiKit.px(5)))
+	margin.add_theme_constant_override("margin_right", int(UiKit.px(SCROLL_GAP)))
 	margin.add_child(child)
 	scroll.add_child(margin)
 	var limit := UiKit.px(max_height)
+	if fixed:
+		scroll.custom_minimum_size.y = limit
+		return scroll
 	scroll.custom_minimum_size.y = minf(limit, child.get_combined_minimum_size().y)
 	child.minimum_size_changed.connect(func() -> void:
 		if is_instance_valid(scroll):
 			scroll.custom_minimum_size.y = minf(limit, child.get_combined_minimum_size().y))
 	return scroll
+
+
+## Width in mockup pixels a line of the content may take: the menu minus the room of the scroll bar
+## (gap and bar), so every view is exactly as wide as the menu (report 60711d3b).
+func _content_width() -> float:
+	return menu_width - (SCROLL_GAP + Modal.SCROLL_BAR_WIDTH if max_content_height > 0.0 else 0.0)
+
+
+## Mouse wheel in a scroll area (gui_input runs before the ScrollContainer's own handling): WHEEL_STEP
+## per step, times the step's share on the desktop (smooth wheels and touchpads send small ones). In
+## the browser (web) every event counts as a full step, so quick ones only move by the time since the
+## last one (WEB_WHEEL_WINDOW_MSEC). true = used, the ScrollContainer's own step is skipped; false at
+## the end of the area, so a scroll area around it may move.
+static func wheel_scroll(scroll: ScrollContainer, event: InputEvent, now_msec: int, web := false) -> bool:
+	var button := event as InputEventMouseButton
+	if button == null or not button.pressed or button.shift_pressed:
+		return false
+	var direction := 0.0
+	if button.button_index == MOUSE_BUTTON_WHEEL_UP:
+		direction = -1.0
+	elif button.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		direction = 1.0
+	if direction == 0.0:
+		return false
+	var bar := scroll.get_v_scroll_bar()
+	var end := bar.max_value - bar.page
+	if end <= 0.0 or (direction < 0.0 and bar.value <= 0.0) or (direction > 0.0 and bar.value >= end):
+		return false
+	var share := button.factor if button.factor > 0.0 else 1.0
+	if web:
+		var last := int(scroll.get_meta(&"wheel_msec", -1_000_000))
+		scroll.set_meta(&"wheel_msec", now_msec)
+		share = clampf(float(now_msec - last) / WEB_WHEEL_WINDOW_MSEC, 0.0, 1.0)
+	bar.value = clampf(bar.value + direction * UiKit.px(WHEEL_STEP) * share, 0.0, end)
+	return true
 
 
 ## Focus for keyboard and controller, shown as a gold frame.

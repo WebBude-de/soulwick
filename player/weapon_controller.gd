@@ -242,7 +242,7 @@ func is_attacking() -> bool:
 
 func request_attack() -> bool:
 	var weapon := get_active_weapon()
-	if weapon == null or _cooldown_left > 0.0 or is_attacking():
+	if weapon == null or _cooldown_left > 0.0 or is_attacking() or not _owner_is_armed():
 		return false
 	_cooldown_left = StatCalculator.attack_cooldown(get_effective_attack_rate(weapon))
 	match weapon.weapon_type:
@@ -259,7 +259,7 @@ func request_attack() -> bool:
 ## Right mouse ability of the active weapon. Blocked while a swing/slam runs or on cooldown.
 func request_special() -> bool:
 	var weapon := get_active_weapon()
-	if weapon == null or not is_special_ready(_active_slot) or is_attacking():
+	if weapon == null or not is_special_ready(_active_slot) or is_attacking() or not _owner_is_armed():
 		return false
 	_special_cooldowns[_active_slot] = weapon.special_cooldown
 	_cooldown_left = maxf(_cooldown_left, SPECIAL_RECOVERY)
@@ -397,7 +397,15 @@ func _owner_can_attack() -> bool:
 	var player := get_parent() as Player
 	if player == null:
 		return true
-	return player.is_alive() and not player.is_dashing() and not player.is_stunned() and LanternCarry.can_attack(player)
+	return player.is_alive() and player.is_armed() and not player.is_dashing() and not player.is_stunned() \
+		and LanternCarry.can_attack(player)
+
+
+## An unarmed owner (the village, #80c94d8c) never attacks, whoever asks. Standalone controllers
+## (tests) count as armed.
+func _owner_is_armed() -> bool:
+	var player := get_parent() as Player
+	return player == null or player.is_armed()
 
 
 # --- Regular attacks ---

@@ -1,7 +1,7 @@
 extends SpecialContent
 ## Extra upgrade: one free choice out of up to three available upgrades.
-## In a third of these rooms (SpecialTable.pact_chance) a pact altar stands instead (KONZEPT_RAEUME
-## §6.2): the player takes the normal extra upgrade or seals a pact, an upgrade from a better offer
+## In a third of these rooms (SpecialTable.pact_chance) a pact altar stands instead (D-102,
+## D-112): the player takes the normal extra upgrade or seals a pact, an upgrade from a better offer
 ## (more cards, one stack more) against a curse for the rest of the run. The altar shows the price
 ## before the choice. Curses lie on the player who seals the pact (PlayerCurses, co-op: only them).
 ## Every player chooses once. take_choice() decides, choice_taken carries it to the effects.

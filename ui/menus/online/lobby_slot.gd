@@ -115,7 +115,9 @@ static func create_empty(index: int, width: float, on_share: Callable = Callable
 
 
 ## A small framed button that never makes the place wider (text trimmed), focusable for keys and
-## controller (gold frame), a tap target on touch.
+## controller (gold frame), a tap target on touch. Bold like every dialog button (UiKit.dialog_button,
+## report #181dfb78), smaller because the place is narrow; it fills the place's inner width, so
+## "Aussehen ändern" still fits in bold.
 static func small_button(node_name: String, key: StringName, on_pressed: Callable, width: float) -> Button:
 	var button := Button.new()
 	button.name = node_name
@@ -123,9 +125,10 @@ static func small_button(node_name: String, key: StringName, on_pressed: Callabl
 	button.clip_text = true
 	button.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	button.custom_minimum_size = Vector2(UiKit.px(width - PADDING * 2.0 - 2.0), UiKit.px(11))
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.size_flags_horizontal = Control.SIZE_FILL
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	button.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_EYEBROW))
+	button.add_theme_font_override("font", UiKit.bold_font())
 	button.add_theme_stylebox_override("normal", UiKit.padded_style(&"button", 1, 1))
 	button.add_theme_stylebox_override("hover", UiKit.padded_style(&"button_hover", 1, 1))
 	button.add_theme_stylebox_override("pressed", UiKit.padded_style(&"button_hover", 1, 1))

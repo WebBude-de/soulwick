@@ -1,12 +1,12 @@
 class_name EncounterVariation
 extends RefCounted
-## Invisible variation of normal combat rooms (KONZEPT_RAEUME §3.4): enemy groups by theme (mixed,
+## Invisible variation of normal combat rooms (D-113): enemy groups by theme (mixed,
 ## ranged only, swarms only) and the quiet room (1-2 strong enemies with the same total health as the
 ## normal group). Pure rules, no nodes. roll() decides once per room, build_group() turns the result
 ## into the EncounterGroup data the EnemySpawner (A5) reads (RoomController.set_encounter_group):
 ## the theme groups are .tres files in dungeon/rooms/ingredients/groups/, the quiet group is built
 ## here because its health factor depends on the room. See the hook in the A3 report.
-## The enemy shares of the biome tables (PRD 4.2) stay the same on average only if mixed rooms use
+## The enemy shares of the biome tables (D-010, D-075) stay the same on average only if mixed rooms use
 ## compensated weights (mixed_weights(); needs a weight field in EncounterGroup, hook).
 
 enum GroupTheme { MIXED, RANGED, SWARM }

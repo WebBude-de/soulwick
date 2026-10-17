@@ -1,6 +1,6 @@
 class_name LightQuery
 extends RefCounted
-## The one decision "does this point lie in the light?" (A9, KONZEPT_RAEUME §4.3) for any number of
+## The one decision "does this point lie in the light?" (A9, D-116) for any number of
 ## light circles: the own circle of every living player (D-084: each player has one) and every
 ## LightSource with counts_as_light (torches, crystals, lanterns). Flashes, projectiles and enemy
 ## glows do not count. Effects (a guardian freezes, a torch dims enemies) only ask; they never

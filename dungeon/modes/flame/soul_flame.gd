@@ -1,6 +1,6 @@
 class_name SoulFlame
 extends Node2D
-## The soul flame of "Flamme hüten" (KONZEPT_RAEUME_V2 §3.4; before KONZEPT_RAEUME §4.1): a candle
+## The soul flame of "Flamme hüten" (KONZEPT_RAEUME_V2 §3.4; before the variant of D-114): a candle
 ## flame with its own health bar. Its light follows its health (FlameRules.light_radius). Enemies
 ## that chose it as their target (EnemyDecoy) attack it with their normal, telegraphed attacks; its
 ## hurtbox only takes enemy damage (SoulFlameHurtbox). Players cannot hurt it and walk around it.

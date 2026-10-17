@@ -109,6 +109,32 @@ func test_view_starts_on_music_row_of_the_general_tab() -> void:
 	assert_eq(view.get_tab_buttons().size(), 3, "Allgemein · Bild · Tasten")
 
 
+func test_tabs_keep_their_text_on_hover() -> void:
+	# Report 0ca75616: an unframed tab was only as wide as its text; the framed hover look then had no
+	# room left for "Bild". Every tab keeps the frame's padding in every state, with the touch tab too.
+	var touch := TouchState.shared()
+	var old_forced := touch.forced
+	touch.forced = true
+	var panel := OptionsPanel.new()
+	add_child_autofree(panel)
+	await wait_physics_frames(1)
+	var buttons := panel.view.get_tab_buttons()
+	assert_eq(buttons.size(), 4, "Allgemein · Bild · Tasten · Touch: the widest strip")
+	for button in buttons:
+		var hover := button.get_theme_stylebox(&"hover")
+		for state: StringName in [&"normal", &"pressed", &"focus"]:
+			var style := button.get_theme_stylebox(state)
+			for side in [SIDE_LEFT, SIDE_RIGHT, SIDE_TOP, SIDE_BOTTOM]:
+				assert_almost_eq(style.get_margin(side), hover.get_margin(side), 0.01, "%s: %s padded like hover" % [tr(button.text), state])
+		var font := button.get_theme_font(&"font")
+		var text_width := font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x
+		assert_gte(button.size.x - hover.get_minimum_size().x, text_width - 0.5, "%s fits its hovered frame" % tr(button.text))
+	var strip := buttons[0].get_parent() as Control
+	var inner := UiKit.px(OptionsPanel.WIDTH - MenuPanel.PADDING.y * 2.0)
+	assert_lte(strip.get_combined_minimum_size().x, inner + 0.5, "four padded tabs fit the panel")
+	touch.forced = old_forced
+
+
 func test_screen_shake_has_three_strengths_and_is_stored() -> void:
 	var view := _view()
 	view.select_row(OptionsView.Row.SHAKE)

@@ -1,6 +1,6 @@
 class_name DamageNumber
 extends Label
-## Floating damage number. Shield and HP damage use different colours (PRD 4.7, ui_spec
+## Floating damage number. Shield and HP damage use different colours (D-042, ui_spec
 ## "damage_number" #f2cf4a / "shield_damage_number" #6cb2ec), Pixelify Sans with a 1 px shadow.
 ## Online test 16.10.2026 (numbers hid the enemies): numbers stay about half as long, are a little
 ## see-through, fade early and drift aside in turns (STAGGER), so quick hits do not pile up into one

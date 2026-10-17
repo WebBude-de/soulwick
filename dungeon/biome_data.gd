@@ -50,7 +50,7 @@ func get_table(room_index: int) -> Array:
 	return [types, type_weights]
 
 
-## Number of floor hazards for a room (KONZEPT_ENDLOS §2). Special rooms stay safe.
+## Number of floor hazards for a room (D-075). Special rooms stay safe.
 func get_hazard_count(room_index: int, room_type: RoomSequence.RoomType, rng: RandomNumberGenerator) -> int:
 	if hazard_scene == null or room_type == RoomSequence.RoomType.SPECIAL:
 		return 0

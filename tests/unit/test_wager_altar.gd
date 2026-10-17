@@ -1,5 +1,5 @@
 extends GutTest
-## Wager altar (KONZEPT_RAEUME §5, D-104, D-109): one condition per altar (trial or curse), accepted
+## Wager altar (D-104, D-109, D-114): one condition per altar (trial or curse), accepted
 ## with E only while the door is open, broken by a hit / the time / the first weapon, curses make
 ## the room harder (light circle, faster enemies, no healing) and end with the room; success pays
 ## soul crystals, failure costs nothing more.

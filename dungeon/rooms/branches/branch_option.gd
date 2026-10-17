@@ -1,12 +1,12 @@
 class_name BranchOption
 extends RefCounted
-## One of the two ways of a branch (D-105, KONZEPT_RAEUME §7.2): what waits in room n+1 behind its
+## One of the two ways of a branch (D-105, D-117): what waits in room n+1 behind its
 ## door and the sign over the door. Both ways lead to room n+1; cycle, room number and scaling stay.
 
 enum Kind {
 	## Normal combat room without variant or wager altar ("sicherer Weg", heart sign).
 	SAFE,
-	## Elite nest (KONZEPT_RAEUME §4.8): only reachable through a branch (crossed swords).
+	## Elite nest (D-101, D-117): only reachable through a branch (crossed swords).
 	ELITE_NEST,
 	## A random combat variant, drawn in advance and hidden behind the question mark.
 	UNKNOWN,

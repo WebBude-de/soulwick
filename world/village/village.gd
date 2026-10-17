@@ -75,6 +75,9 @@ const AFFORD_LAYER := 3
 ## "!" above the door sign (world px, like the info marker); next to the info marker while that shows.
 const AFFORD_OFFSET := Vector2(0, -24)
 const AFFORD_BESIDE_INFO := Vector2(26, 0)
+## TESTWERT (#80c94d8c): dash cooldown in the village (dungeon 1.5 s). Feels unlimited; the dash
+## itself lasts 0.2 s, the 0.05 s on the ground between two dashes keeps dust and sound apart.
+const DASH_COOLDOWN := 0.25
 
 @onready var _entrance: Interactable = $Buildings/DungeonEntrance/Interactable
 @onready var _ground: VillageTiles = $Ground
@@ -146,6 +149,17 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_update_captions(delta)
+
+
+## Called by the WorldController for every player of this world (register_player), on every
+## machine and for every copy, so all copies of a group game agree (D-088). The village is peaceful
+## (#80c94d8c): no weapon in the hand and a dash that is almost always ready. The dungeon spawns new
+## players (D-041): weapons and the forge's "Dash-Training" apply there as before.
+func on_player_spawned(player: Player) -> void:
+	if player == null:
+		return
+	player.set_armed(false)
+	player.dash_cooldown = DASH_COOLDOWN
 
 
 ## Lock or intro marker per building from the save: locked buildings get the lock (and no intro

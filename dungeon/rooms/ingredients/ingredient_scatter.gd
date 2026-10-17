@@ -1,7 +1,7 @@
 class_name IngredientScatter
 extends Node2D
 ## Scatters 2-3 ingredients of the biome's IngredientSet into a normal combat room when the room is
-## built (KONZEPT_RAEUME §3.3): cover, trap groups, inner wall pieces, chokepoints/niches, light
+## built (D-113): cover, trap groups, inner wall pieces, chokepoints/niches, light
 ## islands with dark zones, explosive barrels and small abyss holes (A4, from room 6). The generator puts this node into every combat
 ## template and lists the ingredients the shape allows (arena: little cover, catacomb: no extra walls).
 ##
@@ -71,7 +71,7 @@ const WALL_SHAPES: Array = [
 	[Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)],
 	[Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(0, 2)],
 ]
-## Niches (KONZEPT_RAEUME §3.3) by open side: wall tiles around the pocket at (0, 0), all of them
+## Niches (D-113) by open side: wall tiles around the pocket at (0, 0), all of them
 ## at least two tiles tall; the pocket and the tile in front of the opening stay free.
 const NICHES := {
 	Vector2i.DOWN: [Vector2i(-1, -2), Vector2i(0, -2), Vector2i(1, -2), Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0)],

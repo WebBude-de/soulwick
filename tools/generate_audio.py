@@ -449,7 +449,7 @@ def build_rooms():
 
 
 # ---------------------------------------------------------------- room kinds v2 (ROADMAP_AUSBAU R9)
-# Sounds from docs/design/claude_design_antwort/09_audio.md: enemy sources (warning while the source
+# Sounds from docs/design/responses/09_audio.md: enemy sources (warning while the source
 # glows ~1 s), the intro pattern (door, banner, countdown), wave gong, souls, collapse, escort,
 # relic, braziers, slime hops, stone guardians, lantern and torch. Only new names: every file above
 # stays byte-identical (own seed). All pitches and lengths are TESTWERTE.
@@ -668,11 +668,38 @@ def build_side():
     return len(fx)
 
 
+# ---------------------------------------------------------------- village (report #ec4f0b9f)
+# A villager the player runs into hops aside with a small confused "hm?" (Villager.dodge_sound).
+# Own seed: every sound above stays byte-identical.
+# Only this block: python tools/generate_audio.py village   (TESTWERTE: pitches and lengths)
+
+def build_village():
+    random.seed(31)
+    fx = {}
+    # "hm?": a short closed hum (soft square through a low-pass feel) and a rising, slightly wobbly
+    # vowel 300 -> 470 Hz with a breath of air; about a quarter second, cute rather than annoyed.
+    hum = mix(tone(250, 0.07, "triangle", 0.5, attack=0.012, release=0.03),
+              tone(500, 0.07, "sine", 0.12, attack=0.012, release=0.03))
+    rise = mix(tone(300, 0.16, "triangle", 0.55, slide_to=470, attack=0.015, release=0.07,
+                    vibrato_rate=9.0, vibrato_depth=0.02),
+               tone(600, 0.16, "sine", 0.14, slide_to=940, attack=0.015, release=0.07),
+               band_noise(0.12, 900, 2600, 0.06, attack=0.02, release=0.08))
+    fx["villager_huh"] = seq(hum, rise, gap=0.025)
+    peaks = {"villager_huh": 0.5}
+    for name, samples in fx.items():
+        write_wav(SFX_DIR / f"{name}.wav", samples, peak=peaks.get(name, 0.6))
+    return len(fx)
+
+
 if __name__ == "__main__":
     import sys
     if sys.argv[1:] == ["side"]:
         side_count = build_side()
         print(f"{side_count} side view sounds (M5) written to {SFX_DIR}")
+        raise SystemExit(0)
+    if sys.argv[1:] == ["village"]:
+        village_count = build_village()
+        print(f"{village_count} village sounds written to {SFX_DIR}")
         raise SystemExit(0)
     count = build_sfx()
     print(f"{count} sound effects written to {SFX_DIR}")
@@ -688,3 +715,5 @@ if __name__ == "__main__":
     print(f"{kind_count} room kind sounds (R9) written to {SFX_DIR}")
     side_count = build_side()
     print(f"{side_count} side view sounds (M5) written to {SFX_DIR}")
+    village_count = build_village()
+    print(f"{village_count} village sounds written to {SFX_DIR}")

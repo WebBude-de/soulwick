@@ -10,7 +10,7 @@ extends SceneTree
 ## and details per picture (user://scene_gallery_manifest.tsv) for the index.
 ##
 ## Usage: godot --path . -s tools/scene_gallery.gd -- [out_dir] [phases] [filter]
-##   out_dir: default docs/design/szenen; relative paths start at the project folder
+##   out_dir: default docs/design/gallery; relative paths start at the project folder
 ##   phases:  comma list of menu,village,run,branch,templates,special,modes,arena,doors,ui
 ##            (default: all of them in this order)
 ##   filter:  templates phase only: template ids containing this text (R1 plan templates); "alle" =
@@ -28,7 +28,7 @@ extends SceneTree
 
 const STORAGE_ROOT := "user://scene_gallery_storage"
 const MANIFEST_PATH := "user://scene_gallery_manifest.tsv"
-const DEFAULT_OUT := "docs/design/szenen"
+const DEFAULT_OUT := "docs/design/gallery"
 const PHASES: PackedStringArray = ["menu", "village", "run", "branch", "templates", "special", "modes", "arena", "doors", "ui"]
 const WINDOW_SIZE := Vector2i(1920, 1080)
 ## Seeds of the dungeon runs (DungeonManager.seed_value).

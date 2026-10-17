@@ -1,5 +1,5 @@
 extends GutTest
-## Ingredient scatter (KONZEPT_RAEUME §3.3, A3). Since the room plans (R1, D-120) the templates no
+## Ingredient scatter (D-113, A3). Since the room plans (R1, D-120) the templates no
 ## longer scatter (allowed = []): a plan room keeps the one dungeon RNG draw and builds nothing. The
 ## planner itself stays a pure function and is still checked on plan layouts: over many seeds and
 ## with the set of every biome it never blocks a way, a door or a spawn marker, places 2-3
@@ -55,7 +55,7 @@ func test_every_biome_has_a_set() -> void:
 		assert_eq(ingredient_set.biome_id, biome)
 		assert_not_null(ingredient_set.trap_scene, "%s trap group" % biome)
 		assert_false(ingredient_set.cover_scenes.is_empty(), "%s cover" % biome)
-	# Explosive barrels: crypt and ember forge only (KONZEPT_RAEUME §3.3).
+	# Explosive barrels: crypt and ember forge only (D-113).
 	assert_gt(IngredientSet.load_for_id(&"crypt").get_weight(IngredientSet.Kind.EXPLOSIVES), 0.0)
 	assert_gt(IngredientSet.load_for_id(&"ember_forge").get_weight(IngredientSet.Kind.EXPLOSIVES), 0.0)
 	assert_eq(IngredientSet.load_for_id(&"slime_grotto").get_weight(IngredientSet.Kind.EXPLOSIVES), 0.0)

@@ -121,6 +121,34 @@ func _open_menu(lobby: LobbyClient = null) -> OnlineMenu:
 	return menu
 
 
+## The menu as the village's guild dialog builds it (fixed content height, one scroll area).
+func _open_village_menu(lobby: LobbyClient = null) -> OnlineMenu:
+	var menu := OnlineMenu.create(lobby, _session, OnlineMenu.DEFAULT_WIDTH, OnlineMenu.VILLAGE_CONTENT_HEIGHT)
+	add_child_autofree(menu)
+	return menu
+
+
+## A guild of the own founder with count members (the page scrolls in the village dialog).
+func _crowded_guild(count: int) -> Dictionary:
+	var detail := _guild_detail("founder")
+	var members: Array = [detail.members[0]]
+	for i in count - 1:
+		members.append({"playerId": "%08d-7b1f-4c4c-8b66-2d3e4f5a6b7c" % i, "name": "Docht %d" % i, "role": "member", "joinedAt": "2026-10-15T10:02:00.000Z"})
+	detail.members = members
+	return detail
+
+
+## A lobby in a quick room without network (state and snapshot set by hand).
+func _lobby_in_quick_room() -> LobbyClient:
+	var lobby := LobbyClient.new()
+	lobby.reload_world = false
+	add_child_autofree(lobby)
+	lobby.state = LobbyClient.State.IN_ROOM
+	lobby.room = {"code": "ABCD23", "mode": "quick", "guildId": null, "maxPlayers": 4,
+		"peers": [{"peerId": 1, "playerId": OWN_ID, "name": "Kerze", "platform": "pc"}, {"peerId": 2, "playerId": OTHER_ID, "name": "Docht", "platform": "pc"}]}
+	return lobby
+
+
 func _node(node: Node, node_name: String) -> Node:
 	return node.find_child(node_name, true, false)
 
@@ -506,6 +534,10 @@ func test_main_menu_rooms_become_launch_wishes() -> void:
 	await wait_physics_frames(2)
 	(_node(menu, "CreateGuildRoom") as Button).pressed.emit()
 	assert_signal_emitted_with_parameters(menu, "launch_requested", [{"action": LobbyClient.LAUNCH_CREATE, "mode": LobbyClient.MODE_GUILD, "guild_id": GUILD_ID, "guild_name": "Lichtwacht", "guild_tag": "LW"}])
+	assert_null(_node(menu, "GuildRoomCode"), "guild rooms are joined from the open rooms, no code (b47bee4a)")
+	# An API without the open rooms: the room code is the fallback.
+	menu.directory.rooms_supported = false
+	menu._rebuild()
 	var room_code := _node(menu, "GuildRoomCode") as LineEdit
 	assert_true((_node(menu, "JoinGuildRoom") as Button).disabled, "join waits for a room code")
 	room_code.text_changed.emit("abcd23")
@@ -689,3 +721,156 @@ func test_guild_building_shows_the_online_menu() -> void:
 	modal.finish()
 	await wait_physics_frames(1)
 	assert_null(ui.get_online_menu())
+
+
+# --- Village dialog: size, scrolling (reports 17.10.2026) ---
+
+func test_village_menu_keeps_its_size_across_tabs() -> void:
+	# Report 60711d3b: switching between the room (quick tab) and the guild list resized the dialog.
+	_fake.answer("GET /me/guilds", 200, {"items": [_guild_summary(GUILD_ID, "Lichtwacht", "LW", "founder", 12)], "maxGuilds": 5})
+	_fake.answer("GET /guilds/%s" % GUILD_ID, 200, _crowded_guild(12))
+	var lobby := _lobby_in_quick_room()
+	var menu := _open_village_menu(lobby)
+	await wait_physics_frames(2)
+	assert_not_null(_node(menu, "LobbyPlayers"), "the quick room")
+	var room_size := menu.get_combined_minimum_size()
+	menu.show_view(OnlineMenu.View.GUILDS)
+	await wait_physics_frames(2)
+	assert_not_null(_node(menu, "GuildList"))
+	assert_eq(menu.get_combined_minimum_size(), room_size, "the short guild list keeps the size")
+	menu.show_view(OnlineMenu.View.DETAIL, GUILD_ID)
+	await wait_physics_frames(3)
+	assert_not_null(_node(menu, "Members"))
+	assert_gt(menu.get_scroll_area().get_v_scroll_bar().max_value, menu.get_scroll_area().size.y, "the guild's page scrolls")
+	assert_eq(menu.get_combined_minimum_size(), room_size, "and so does the long guild page (scroll bar included)")
+	menu.notice = "Docht ist jetzt Offizier."
+	menu._update_status()
+	assert_eq(menu.get_combined_minimum_size(), room_size, "a notice coming or going keeps it too")
+	menu.show_view(OnlineMenu.View.CREATE)
+	await wait_physics_frames(1)
+	assert_eq(menu.get_combined_minimum_size(), room_size, "and the forms")
+	lobby.state = LobbyClient.State.IDLE
+
+
+func test_main_menu_tabs_keep_their_size() -> void:
+	# The main menu's panel (no lobby): the quick tab with its long hint and the guild list.
+	_fake.answer("GET /me/guilds", 200, {"items": [_guild_summary(GUILD_ID, "Lichtwacht", "LW", "member")], "maxGuilds": 5})
+	var menu := OnlineMenu.create(null, _session, OnlinePanel.WIDTH - MenuPanel.PADDING.y * 2.0, OnlinePanel.CONTENT_HEIGHT)
+	add_child_autofree(menu)
+	await wait_physics_frames(2)
+	var quick_size := menu.get_combined_minimum_size()
+	assert_almost_eq(quick_size.x, UiKit.px(menu.menu_width), 0.5, "exactly the menu's width (scroll bar room inside)")
+	menu.show_view(OnlineMenu.View.GUILDS)
+	await wait_physics_frames(2)
+	assert_eq(menu.get_combined_minimum_size(), quick_size)
+
+
+func test_scroll_area_has_the_pixel_bar_and_an_even_wheel_step() -> void:
+	# Report e0ca0a4f: Godot's grey bar, and the page scrolled much too far.
+	_fake.answer("GET /me/guilds", 200, {"items": [_guild_summary(GUILD_ID, "Lichtwacht", "LW", "founder", 20)], "maxGuilds": 5})
+	_fake.answer("GET /guilds/%s" % GUILD_ID, 200, _crowded_guild(20))
+	var menu := _open_village_menu()
+	await wait_physics_frames(2)
+	menu.show_view(OnlineMenu.View.DETAIL, GUILD_ID)
+	await wait_physics_frames(3)
+	var scroll := menu.get_scroll_area()
+	var bar := scroll.get_v_scroll_bar()
+	for style: StringName in [&"scroll", &"grabber", &"grabber_highlight", &"grabber_pressed"]:
+		assert_true(bar.has_theme_stylebox_override(style), "pixel bar: %s" % style)
+	assert_eq(scroll.vertical_scroll_mode, ScrollContainer.SCROLL_MODE_RESERVE, "its room is kept: the width never jumps")
+	assert_true(scroll.gui_input.get_connections().size() > 0, "the wheel goes through OnlineMenu.wheel_scroll")
+	var step := UiKit.px(OnlineMenu.WHEEL_STEP)
+	var down := InputEventMouseButton.new()
+	down.button_index = MOUSE_BUTTON_WHEEL_DOWN
+	down.pressed = true
+	down.factor = 1.0
+	assert_true(OnlineMenu.wheel_scroll(scroll, down, 1000))
+	assert_almost_eq(bar.value, step, 0.5, "one step on the desktop")
+	down.factor = 0.25
+	OnlineMenu.wheel_scroll(scroll, down, 1010)
+	assert_almost_eq(bar.value, step * 1.25, 0.5, "a smooth wheel's small step counts its share")
+	# Browser: a touchpad swipe sends ten full steps 8 ms apart.
+	bar.value = 0.0
+	down.factor = 1.0
+	for i in 10:
+		assert_true(OnlineMenu.wheel_scroll(scroll, down, 5000 + i * 8, true))
+	var expected := step * (1.0 + 9.0 * 8.0 / OnlineMenu.WEB_WHEEL_WINDOW_MSEC)
+	assert_almost_eq(bar.value, expected, 1.0, "a quick burst only moves by its time")
+	assert_lt(bar.value, step * 4.0, "not ten steps")
+	assert_true(OnlineMenu.wheel_scroll(scroll, down, 9000, true))
+	assert_almost_eq(bar.value, expected + step, 1.0, "a single step after a pause is a full one")
+	bar.value = bar.max_value - bar.page
+	assert_false(OnlineMenu.wheel_scroll(scroll, down, 10000), "at the end: left to an outer scroll area")
+	var up := down.duplicate() as InputEventMouseButton
+	up.button_index = MOUSE_BUTTON_WHEEL_UP
+	assert_true(OnlineMenu.wheel_scroll(scroll, up, 11000))
+	assert_almost_eq(bar.value, bar.max_value - bar.page - step, 0.5)
+	var release := down.duplicate() as InputEventMouseButton
+	release.pressed = false
+	assert_false(OnlineMenu.wheel_scroll(scroll, release, 12000), "releases are not steps")
+
+
+func test_a_click_keeps_the_scroll_of_the_guild_page() -> void:
+	# Report b5657bff: in a room, after scrolling down, "Ernennen" jumped back to "Zurück" at the top.
+	_fake.answer("GET /me/guilds", 200, {"items": [_guild_summary(GUILD_ID, "Lichtwacht", "LW", "founder", 12)], "maxGuilds": 5})
+	var crowded := _crowded_guild(12)
+	_fake.answer("GET /guilds/%s" % GUILD_ID, 200, crowded)
+	var last: Dictionary = crowded.members[crowded.members.size() - 1]
+	var promoted := crowded.duplicate(true)
+	promoted.members[promoted.members.size() - 1].role = "officer"
+	_fake.answer("PATCH /guilds/%s/members/%s" % [GUILD_ID, last.playerId], 200, promoted)
+	var lobby := _lobby_in_quick_room()
+	var menu := _open_village_menu(lobby)
+	await wait_physics_frames(2)
+	menu.show_view(OnlineMenu.View.DETAIL, GUILD_ID)
+	await wait_physics_frames(3)
+	var scroll := menu.get_scroll_area()
+	scroll.scroll_vertical = 100000
+	await wait_physics_frames(1)
+	var bottom := scroll.scroll_vertical
+	assert_gt(bottom, 0, "scrolled down to the last members")
+	var role_name := "Role_%s" % OnlineMenu._safe_name(str(last.playerId))
+	var promote := _node(menu, role_name) as Button
+	promote.grab_focus()
+	promote.pressed.emit()
+	await wait_physics_frames(3)
+	assert_eq(_fake.requests[_fake.requests.size() - 1].key, "PATCH /guilds/%s/members/%s" % [GUILD_ID, last.playerId])
+	assert_eq(scroll.scroll_vertical, bottom, "the page stays where it was")
+	var focused := get_viewport().gui_get_focus_owner()
+	assert_not_null(focused)
+	assert_eq(String(focused.name) if focused != null else "", role_name, "the focus stays on the button")
+	assert_eq(tr((_node(menu, role_name) as Button).text), "Absetzen", "the list follows the answer")
+	# A quiet rebuild (open rooms polled) without any focus keeps the place too.
+	focused.release_focus()
+	menu.directory.changed.emit()
+	await wait_physics_frames(2)
+	assert_eq(scroll.scroll_vertical, bottom)
+	assert_null(get_viewport().gui_get_focus_owner(), "nothing grabs the focus (it would scroll)")
+	lobby.state = LobbyClient.State.IDLE
+
+
+func test_confirmation_returns_to_the_same_place() -> void:
+	_fake.answer("GET /me/guilds", 200, {"items": [_guild_summary(GUILD_ID, "Lichtwacht", "LW", "founder", 12)], "maxGuilds": 5})
+	var crowded := _crowded_guild(12)
+	_fake.answer("GET /guilds/%s" % GUILD_ID, 200, crowded)
+	var menu := _open_village_menu()
+	await wait_physics_frames(2)
+	menu.show_view(OnlineMenu.View.DETAIL, GUILD_ID)
+	await wait_physics_frames(3)
+	var scroll := menu.get_scroll_area()
+	scroll.scroll_vertical = 100000
+	await wait_physics_frames(1)
+	var bottom := scroll.scroll_vertical
+	var last: Dictionary = crowded.members[crowded.members.size() - 1]
+	var remove_name := "Remove_%s" % OnlineMenu._safe_name(str(last.playerId))
+	var remove := _node(menu, remove_name) as Button
+	remove.grab_focus()
+	remove.pressed.emit()
+	await wait_physics_frames(1)
+	assert_eq(menu.view, OnlineMenu.View.CONFIRM)
+	(_node(menu, "ConfirmNo") as Button).pressed.emit()
+	await wait_physics_frames(2)
+	assert_eq(menu.view, OnlineMenu.View.DETAIL)
+	assert_eq(scroll.scroll_vertical, bottom, "back at the member")
+	var focused := get_viewport().gui_get_focus_owner()
+	assert_eq(String(focused.name) if focused != null else "", remove_name)

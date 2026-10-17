@@ -1,6 +1,6 @@
 class_name RoomPlanChecks
 extends RefCounted
-## The rules of a built plan room (R1, D-120, docs/design/claude_design_antwort/02_grundrisse.md),
+## The rules of a built plan room (R1, D-120, docs/design/responses/02_grundrisse.md),
 ## checked on the room itself: on a template that is only instantiated (unit tests) as well as on a
 ## live room of a run (smoke test). tools/generate_room_templates.py checks the same rules on the
 ## plan before it writes a template; this is the second line, after door plans, branch doors and

@@ -342,8 +342,13 @@ func _village_collision(coords: Vector2i) -> Array:
 			return [Vector2(-HALF, -4), Vector2(HALF, -4), Vector2(HALF, 6), Vector2(-HALF, 6)]
 		Vector2i(0, 2):  # fence_v
 			return [Vector2(-5, -HALF), Vector2(5, -HALF), Vector2(5, HALF), Vector2(-5, HALF)]
-		Vector2i(1, 2), Vector2i(2, 2):  # bush, stump
-			return [Vector2(-12, -6), Vector2(12, -6), Vector2(12, 12), Vector2(-12, 12)]
+		# TESTWERTE (report #d73e649d, 17.10.2026): inside the visible art, so a player coming from
+		# the north stops with the feet on the upper edge (the bush is ground, z -10, never in front of
+		# him). Bush art x -12..12, y -4..12; stump x -8..8, y -6..11 (tile px from the centre).
+		Vector2i(1, 2):  # bush
+			return [Vector2(-11, -2), Vector2(11, -2), Vector2(11, 10), Vector2(-11, 10)]
+		Vector2i(2, 2):  # stump
+			return [Vector2(-7, -2), Vector2(8, -2), Vector2(8, 10), Vector2(-7, 10)]
 	return []
 
 

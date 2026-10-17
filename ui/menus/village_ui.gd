@@ -21,6 +21,11 @@ extends CanvasLayer
 ## forge goal of Village). Gamepad (P1-3): the building dialogs move a visible focus with the D-pad
 ## or stick, A presses, B closes (Modal, ui_cancel); keyboard arrows do the same. The focus starts on
 ## the first affordable entry when the gamepad is in use, otherwise with the first arrow key.
+## Reports 17.10.2026: every button of the dialogs is a UiKit.dialog_button (bold, the dialog size of
+## the online menu, #181dfb78); affordable cards change only their frame colour, and the line under a
+## card stays (invisible) once bought or maxed, so the dialog keeps its size after a purchase
+## (#bf9c698d); the forge keeps level and "Noch N Gold" on one line and fits a 720 px high screen
+## without scrolling (#0efb405c).
 
 signal opening_closed
 
@@ -58,6 +63,12 @@ const MISSING_COLOR := UiKit.COLOR_DANGER_SOFT
 const FOCUS_BORDER := 3
 ## The colour of the focused button text and its frame.
 const FOCUS_COLOR := Color("#fff1a8")
+## Width of "Schließen", "Verstanden" and the weapon choice (mockup px): like the online menu's buttons.
+const BUTTON_WIDTH := OnlineMenu.BUTTON_WIDTH
+## Card padding in mockup px (vertical, horizontal): the dark and the gold frame alike (#bf9c698d).
+const CARD_PADDING := Vector2(4, 6)
+## Gap between the rows of a card (px).
+const CARD_GAP := 4
 const UPGRADE_ICONS := {
 	MetaProgression.VITALITY: preload("res://art/ui/meta_vitality.png"),
 	MetaProgression.START_SHIELD: preload("res://art/ui/meta_shield.png"),
@@ -170,7 +181,7 @@ func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
 		row.add_child(UiKit.label(MetaProgression.get_upgrade_stat(MetaProgression.ARSENAL), 16))
 		var chosen := MetaProgression.get_second_weapon()
 		for weapon_id in weapons:
-			var pick := UiKit.button(MetaProgression.get_weapon_name(weapon_id), func() -> void:
+			var pick := _button(MetaProgression.get_weapon_name(weapon_id), func() -> void:
 				MetaProgression.set_second_weapon(weapon_id)
 				refresh.call())
 			pick.name = "Weapon_%s" % weapon_id
@@ -190,36 +201,56 @@ func _forge_card(id: StringName, refresh: Callable) -> Control:
 	var level_text := Loc.t(&"VILLAGE_UI_LEVEL", [level, max_level])
 	if id == MetaProgression.ARSENAL and level > 0:
 		level_text += " · %s" % MetaProgression.get_weapon_name(MetaProgression.get_second_weapon())
-	box.add_child(UiKit.label(level_text, 14, UiKit.MUTED_COLOR))
+	var level_label := UiKit.label(level_text, 14, UiKit.MUTED_COLOR)
+	level_label.name = "LevelLabel"
 	var cost := MetaProgression.get_next_cost(id)
-	var buy := UiKit.button("Max." if cost < 0 else "%d Gold" % cost, func() -> void:
+	var buy := _card_button("Max." if cost < 0 else "%d Gold" % cost, func() -> void:
 		if MetaProgression.try_buy(id):
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	buy.name = "Buy_%s" % id
 	buy.disabled = not MetaProgression.can_buy(id)
-	_add_afford_line(box, buy, cost >= 0 and not buy.disabled, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD")
+	_add_afford_line(box, buy, cost >= 0 and not buy.disabled, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD", level_label)
 	box.add_child(buy)
 	return box.get_parent()
 
 
 ## P1-3: under an affordable entry a gold "Leistbar" and a gold card frame; under one that is not
-## yet "Noch N Gold" (key with the missing amount). Nothing for maxed or packed entries.
-func _add_afford_line(box: VBoxContainer, button: Button, affordable: bool, missing: int, missing_key: StringName) -> void:
+## yet "Noch N Gold" (key with the missing amount). Maxed or packed entries keep an invisible line of
+## the same height, and the gold frame has the dark frame's padding: buying never changes the size
+## of a card (#bf9c698d). lead (the forge's level) shares the line, left; the line wraps below it
+## only when both do not fit (HFlowContainer), so the forge stays low enough for a 720 px screen.
+func _add_afford_line(box: VBoxContainer, button: Button, affordable: bool, missing: int, missing_key: StringName, lead: Label = null) -> void:
 	var card := box.get_parent() as PanelContainer
+	var line: Label = null
 	if affordable:
 		if card != null:
-			card.add_theme_stylebox_override("panel", UiKit.panel_style(&"gold"))
-		var tag := UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
-		tag.name = "AffordableTag"
-		tag.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		box.add_child(tag)
+			card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", CARD_PADDING.x, CARD_PADDING.y))
+		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
+		line.name = "AffordableTag"
 		button.add_theme_color_override("font_color", AFFORDABLE_COLOR)
 	elif missing > 0:
-		var line := UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
+		line = UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
 		line.name = "MissingLabel"
+	else:
+		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15)
+		line.name = "AffordSpacer"
+		line.modulate.a = 0.0
+	if lead == null:
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(line)
+		return
+	var row := HFlowContainer.new()
+	row.name = "LevelRow"
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("v_separation", CARD_GAP)
+	for part: Label in [lead, line]:
+		part.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		part.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		row.add_child(part)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	box.add_child(row)
 
 
 ## Text with one number ("Noch %d Gold"); a key without its text yet (a new key before it is in
@@ -245,7 +276,7 @@ func _build_trader(body: VBoxContainer, refresh: Callable) -> void:
 		var pending := SaveManager.has_pending_boost(id)
 		var price := MetaProgression.get_boost_price(id)
 		var price_text := Loc.t(&"VILLAGE_UI_PRICE_CRYSTAL" if price == 1 else &"VILLAGE_UI_PRICE_CRYSTALS", [price])
-		var button := UiKit.button(Loc.t(&"VILLAGE_UI_PACKED") if pending else price_text, func() -> void:
+		var button := _card_button(Loc.t(&"VILLAGE_UI_PACKED") if pending else price_text, func() -> void:
 			if MetaProgression.try_buy_boost(id):
 				Sfx.play_ui(self, &"coin")
 			refresh.call())
@@ -442,7 +473,7 @@ func show_intro(building_id: StringName) -> void:
 		text.add_child(UiKit.wrapped_label("• " + hint, INTRO_TEXT_WIDTH, 15, UiKit.MUTED_COLOR))
 	row.add_child(text)
 	modal.content.add_child(row)
-	var confirm := UiKit.button(Loc.t(&"VILLAGE_UI_UNDERSTOOD"), modal.finish)
+	var confirm := _button(Loc.t(&"VILLAGE_UI_UNDERSTOOD"), modal.finish, true)
 	confirm.name = "ConfirmButton"
 	confirm.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	modal.content.add_child(confirm)
@@ -677,7 +708,7 @@ func _open(building_id: StringName, build: Callable, skip_intro := false) -> voi
 	modal.content.add_child(_currencies)
 	_body = UiKit.vbox(10)
 	modal.content.add_child(_body)
-	var close := UiKit.button(Loc.t(&"MENU_CLOSE"), modal.finish)
+	var close := _button(Loc.t(&"MENU_CLOSE"), modal.finish)
 	close.name = "CloseButton"
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	make_focusable(close)
@@ -705,6 +736,9 @@ func _title_row(building_id: StringName) -> Control:
 	info.name = "InfoButton"
 	info.icon = UiKit.upscale(INFO_ICON, 2)
 	info.flat = true
+	# Flat: the frames are never drawn, but their padding made the title row taller than the title.
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		info.add_theme_stylebox_override(state, StyleBoxEmpty.new())
 	make_focusable(info)
 	info.tooltip_text = Loc.t(&"VILLAGE_UI_SHOW_INTRO")
 	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
@@ -726,6 +760,7 @@ func _rebuild() -> void:
 	# Gamepad: the focus stays on the same entry after a purchase (buttons are rebuilt by name).
 	var focused := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
 	var focused_name := StringName(focused.name) if focused != null and _body.is_ancestor_of(focused) else &""
+	var before := _body.get_combined_minimum_size()
 	for row: Control in [_currencies, _body]:
 		for child in row.get_children():
 			row.remove_child(child)
@@ -734,6 +769,9 @@ func _rebuild() -> void:
 	# Gold and crystals do not count online (D-081): the guild dialog shows none.
 	_currencies.visible = _build != _build_guild
 	_build.call(_body, _request_refresh)
+	# While the dialog is open it never shrinks after a purchase (#bf9c698d): the body keeps the
+	# largest size of this visit (a new body per visit, so the next one starts fresh).
+	_body.custom_minimum_size = _body.custom_minimum_size.max(before)
 	if _build != _build_guild and _build != _build_home:
 		for node in _body.find_children("*", "Button", true, false):
 			make_focusable(node as Button)
@@ -774,7 +812,7 @@ func focus_default() -> Button:
 			if button.focus_mode != Control.FOCUS_ALL or button.disabled:
 				continue
 			var box := button.get_parent()
-			if box != null and box.find_child("AffordableTag", false, false) != null:
+			if box != null and box.find_child("AffordableTag", true, false) != null:
 				button.grab_focus()
 				return button
 			if first_enabled == null:
@@ -816,11 +854,27 @@ func _fill_currencies(row: HBoxContainer) -> void:
 	row.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_CRYSTALS", [SaveManager.get_permanent_crystals()]), 20, Color(0.7, 0.85, 1.0)))
 
 
+## A dialog button like the online menu's (UiKit.dialog_button: bold, the dialog size), BUTTON_WIDTH
+## wide; is_default draws it as the Enter action.
+static func _button(text: String, on_pressed: Callable, is_default := false) -> Button:
+	var button := UiKit.dialog_button(text, "", on_pressed, is_default)
+	button.custom_minimum_size.x = UiKit.px(BUTTON_WIDTH)
+	return button
+
+
+## The buy button of a card: a dialog button as wide as the card.
+static func _card_button(text: String, on_pressed: Callable) -> Button:
+	var button := UiKit.dialog_button(text, "", on_pressed)
+	button.custom_minimum_size.x = 0.0
+	return button
+
+
 ## A dark card with icon, name and effect text; returns the inner VBox (card = get_parent()).
 func _card(icon: Texture2D, title: String, effect: String) -> VBoxContainer:
 	var card := UiKit.panel(&"dark")
+	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", CARD_PADDING.x, CARD_PADDING.y))
 	card.custom_minimum_size = Vector2(CARD_WIDTH, 0)
-	var box := UiKit.vbox(6)
+	var box := UiKit.vbox(CARD_GAP)
 	card.add_child(box)
 	var header := UiKit.hbox(10)
 	if icon != null:

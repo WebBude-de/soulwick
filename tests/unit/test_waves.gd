@@ -1,5 +1,5 @@
 extends GutTest
-## Wave rules (A5, KONZEPT_RAEUME 3.1), overflow into an extra wave (D-086), wall gates and the
+## Wave rules (A5, D-113), overflow into an extra wave (D-086), wall gates and the
 ## spawner hooks for encounter groups. Pure rules and the spawner without a room.
 
 const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")

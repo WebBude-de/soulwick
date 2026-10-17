@@ -61,6 +61,12 @@ static var enabled_override := -1
 ## The pause is released this many frames after the overlay closed, so the key or click that
 ## closed it is no longer "just pressed" when the game runs again. Tests set 0 (synchronous).
 static var release_delay_frames := 2
+## Lighter sending for the browser, which runs game, encoding and file system on one thread
+## (feedback 17.10.2026): the frame is scaled to the upload size (DevFeedbackUpload.MAX_IMAGE_SIZE,
+## the window may be 2560x1440) before anything is encoded, no marked.png is written (nobody opens
+## user:// in a browser; the server copy is evaluated) and the upload (WebP) is encoded one frame
+## later, still under the pause. On by default in the web build; tests switch it on.
+static var light_save := OS.has_feature("web")
 
 static var _enabled_cache := -1
 
@@ -372,26 +378,55 @@ func capture_frame() -> Image:
 	return image
 
 
-## Writes the note now (the overlay calls this through its submitted signal).
+## Writes the note now (the overlay calls this through its submitted signal). With light_save the
+## upload is queued one frame later (see there).
 func save_note(note: Dictionary) -> String:
+	if light_save:
+		_image = shrink_to_upload_size(_image)
 	var record := build_record(note)
-	var dir := DevFeedbackStore.save(root_dir, _image, record)
+	var dir := DevFeedbackStore.save(root_dir, _image, record, not light_save)
 	_last_saved_dir = dir
 	if dir.is_empty():
 		_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SAVE_FAILED"), Color("#ff8a80"))
 		return dir
 	_show_toast(DevFeedbackTexts.kind_text(str(record.get("kind", "bug")), 3), Color("#5fcd62"))
 	print("[DevFeedback] Meldung gespeichert: %s" % ProjectSettings.globalize_path(dir))
-	queue_upload(dir.get_file(), record)
+	if light_save and is_inside_tree():
+		_queue_upload_next_frame(dir.get_file(), record, _image)
+	else:
+		queue_upload(dir.get_file(), record)
 	return dir
 
 
-## Puts the saved report into the outbox (DevFeedbackOutbox sends it in the background).
-func queue_upload(folder: String, record: Dictionary) -> bool:
+## Puts the saved report into the outbox (DevFeedbackOutbox sends it in the background). image:
+## the screenshot to attach (null = the current one).
+func queue_upload(folder: String, record: Dictionary, image: Image = null) -> bool:
 	if outbox == null:
 		return false
 	outbox.root_dir = root_dir
-	return outbox.enqueue(folder, DevFeedbackUpload.build_body(record, _image))
+	return outbox.enqueue(folder, DevFeedbackUpload.build_body(record, image if image != null else _image))
+
+
+## light_save: the WebP of the upload is encoded in the next frame, so saving and encoding do not
+## block the browser in the same frame.
+func _queue_upload_next_frame(folder: String, record: Dictionary, image: Image) -> void:
+	await get_tree().process_frame
+	queue_upload(folder, record, image)
+
+
+## image scaled down (never up) to DevFeedbackUpload.MAX_IMAGE_SIZE, a copy (the caller's image
+## stays as it is); the image itself when it already fits.
+static func shrink_to_upload_size(image: Image) -> Image:
+	if image == null or image.is_empty():
+		return image
+	var size := DevFeedbackUpload.fit_size(image.get_size(), DevFeedbackUpload.MAX_IMAGE_SIZE)
+	if size == image.get_size():
+		return image
+	var small := image.duplicate() as Image
+	if small.is_compressed():
+		small.decompress()
+	small.resize(size.x, size.y, Image.INTERPOLATE_BILINEAR)
+	return small
 
 
 ## note.json content: the overlay note (kind "bug" or "idea") in image pixels and relative units
@@ -432,6 +467,10 @@ func build_record(note: Dictionary) -> Dictionary:
 	# 16.10.2026).
 	context["network"] = DevFeedbackContext.without_room_codes(NetDiagnosticsScript.snapshot())
 	DevFeedbackContext.add_ping(context)
+	# Music state, browser loop fix and frame gaps over 150 ms ("music loops" report 17.10.2026).
+	var music := MusicPlayer.diagnostics_of(get_tree())
+	if not music.is_empty():
+		context["music"] = music
 	var kind := DevFeedbackUpload.kind_of(note)
 	context["kind"] = kind
 	return {
