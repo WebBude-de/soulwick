@@ -35,6 +35,10 @@ on:
       - "Dockerfile"
       - ".dockerignore"
       - ".github/workflows/ci.yml"
+      - ".github/assets/**"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/PULL_REQUEST_TEMPLATE.md"
+      - "tools/make_github_images.py"
   workflow_dispatch:
     inputs:
       env:

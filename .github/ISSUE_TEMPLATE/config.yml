@@ -1,0 +1,14 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Play Soulwick
+    url: https://playsoulwick.com
+    about: Website with the game, the browser version and the leaderboards.
+  - name: Report a bug from inside the game
+    url: https://github.com/WebBude-de/soulwick#status
+    about: In a test build press Ctrl + B (Cmd + B on macOS; F9 or # also work), press Back + Start on a gamepad or tap the bug button on your phone – screenshot and game info are attached automatically.
+  - name: Website, accounts, guild pages or servers
+    url: https://github.com/WebBude-de/soulwick-platform/issues/new/choose
+    about: Problems with playsoulwick.com, the API, the co-op relay or the admin panel belong to the platform repo.
+  - name: Security vulnerability
+    url: https://github.com/WebBude-de/soulwick/security/advisories/new
+    about: Please report security problems privately, never as a public issue.

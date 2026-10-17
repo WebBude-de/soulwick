@@ -1,0 +1,46 @@
+name: Idea
+description: Suggest a feature, a mini-game, a boss, a weapon or an improvement.
+title: "[Idea]: "
+labels: ["idea", "game"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        We love ideas! English or German is fine. In a test build you can also press **F9** and switch to the "Suggest an idea" tab.
+        Please do not attach your own artwork, music or sound as part of a contribution without talking to us first – see [LICENSE-ASSETS.md](https://github.com/WebBude-de/soulwick/blob/main/LICENSE-ASSETS.md). Sketches to explain an idea are fine.
+  - type: textarea
+    id: idea
+    attributes:
+      label: Your idea
+      description: What should Soulwick have or do differently?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it be fun or better?
+      description: The moment in the game where you missed it, or what it would make possible with friends.
+    validations:
+      required: false
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Combat, weapons and upgrades
+        - Rooms and mini-games
+        - Enemies and bosses
+        - Village
+        - Co-op, guilds and leaderboards
+        - Controls, menus and accessibility
+        - Look and sound
+        - Something else
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I searched the existing issues and did not find this idea.
+          required: true

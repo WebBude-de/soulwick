@@ -10,6 +10,7 @@
 #   ios             folder ios/ (Xcode project) plus Soulwick-<version>-<env>-ios-xcode.zip; the
 #                   signed .ipa comes from tools/ci/ios_build.sh on a Mac
 # Only windows and linux get a boot check (on a matching host).
+# Desktop and web zips also carry the licence notices (LICENSE_FILES).
 #
 #   tools/export_build.sh [development|production] [version] [platforms]
 #   tools/export_build.sh development                 # version from project.godot, windows + linux
@@ -50,6 +51,13 @@ case "$ENVIRONMENT" in
 	development|production) ;;
 	*) echo "env must be development or production, not '$ENVIRONMENT'." >&2; exit 1 ;;
 esac
+# Browser version named in LIESMICH.txt ({browser}): test builds point at the test version.
+case "$ENVIRONMENT" in
+	development) BROWSER_URL="https://game-dev.playsoulwick.com (Testversion, Testserver)" ;;
+	production) BROWSER_URL="https://playsoulwick.com" ;;
+esac
+# Licence notices next to LIESMICH.txt in every desktop and web zip (code, content, third parties).
+LICENSE_FILES=(LICENSE LICENSE-ASSETS.md THIRD_PARTY.md art/fonts/OFL-PixelifySans.txt)
 
 PROJECT_VERSION="$(sed -n 's/^config\/version="\([^"]*\)".*/\1/p' "$ROOT/project.godot" | head -n 1)"
 if [ -z "$PROJECT_VERSION" ]; then
@@ -261,9 +269,10 @@ for platform in $PLATFORMS; do
 			exit 1
 		fi
 		readme="$(mktemp)"
-		sed -e "s/{version}/$VERSION/g" -e "s/{env}/$ENVIRONMENT/g" "$ROOT/tools/build_readme.txt" > "$readme"
+		sed -e "s/{version}/$VERSION/g" -e "s/{env}/$ENVIRONMENT/g" -e "s|{browser}|$BROWSER_URL|g" "$ROOT/tools/build_readme.txt" > "$readme"
 		add_to_zip "$zip_file" "$readme" "LIESMICH.txt"
 		rm -f "$readme"
+		for file in "${LICENSE_FILES[@]}"; do add_to_zip "$zip_file" "$ROOT/$file" "$(basename "$file")"; done
 		ZIPS+=("$zip_file")
 		continue
 	fi
@@ -280,6 +289,8 @@ for platform in $PLATFORMS; do
 		fi
 		zip_file="$OUT_DIR/Soulwick-$VERSION-$ENVIRONMENT-web.zip"
 		zip_dir "$web_dir" "$zip_file"
+		# Notices only in the zip; the served folder stays as Godot wrote it.
+		for file in "${LICENSE_FILES[@]}"; do add_to_zip "$zip_file" "$ROOT/$file" "$(basename "$file")"; done
 		ZIPS+=("$zip_file")
 		continue
 	fi
@@ -293,7 +304,8 @@ for platform in $PLATFORMS; do
 		echo "Export of $preset failed." >&2
 		exit 1
 	fi
-	sed -e "s/{version}/$VERSION/g" -e "s/{env}/$ENVIRONMENT/g" "$ROOT/tools/build_readme.txt" > "$platform_dir/LIESMICH.txt"
+	sed -e "s/{version}/$VERSION/g" -e "s/{env}/$ENVIRONMENT/g" -e "s|{browser}|$BROWSER_URL|g" "$ROOT/tools/build_readme.txt" > "$platform_dir/LIESMICH.txt"
+	for file in "${LICENSE_FILES[@]}"; do cp "$ROOT/$file" "$platform_dir/"; done
 	chmod +x "$binary" 2>/dev/null || true
 	if [ "$platform" = "windows" ] && [ "${WINDOWS_SIGN:-0}" = "1" ]; then
 		# Authenticode signature (Godot puts the .pck into its own PE section, so signing keeps it).

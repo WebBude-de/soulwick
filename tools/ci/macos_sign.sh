@@ -69,11 +69,13 @@ fi
 xcrun stapler staple "$app"
 spctl --assess --type execute --verbose=2 "$app"
 
-# Same layout as before: Soulwick.app plus LIESMICH.txt at the top of the zip.
+# Same layout as before: Soulwick.app plus LIESMICH.txt and the licence notices at the top of the zip.
 signed="$APPLE_WORK/signed.zip"
 (cd "$work" && ditto -c -k --sequesterRsrc --keepParent "$(basename "$app")" "$signed")
-if [ -f "$work/LIESMICH.txt" ]; then
-	(cd "$work" && zip -q "$signed" LIESMICH.txt)
-fi
+for extra in LIESMICH.txt LICENSE LICENSE-ASSETS.md THIRD_PARTY.md OFL-PixelifySans.txt; do
+	if [ -f "$work/$extra" ]; then
+		(cd "$work" && zip -q "$signed" "$extra")
+	fi
+done
 mv "$signed" "$ZIP"
 echo "Signed, notarized and stapled: $ZIP"

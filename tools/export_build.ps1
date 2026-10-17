@@ -120,7 +120,11 @@ if (-not (Test-Path $GdIgnore)) { New-Item -ItemType File $GdIgnore | Out-Null }
 
 $OriginalEnv = [System.IO.File]::ReadAllText($EnvFile)
 $OriginalPresets = [System.IO.File]::ReadAllText($PresetsFile)
-$Readme = [System.IO.File]::ReadAllText((Join-Path $Root "tools\build_readme.txt")).Replace("{version}", $Version).Replace("{env}", $Environment)
+# Browser version named in LIESMICH.txt ({browser}): test builds point at the test version.
+$BrowserUrl = if ($Environment -eq "production") { "https://playsoulwick.com" } else { "https://game-dev.playsoulwick.com (Testversion, Testserver)" }
+$Readme = [System.IO.File]::ReadAllText((Join-Path $Root "tools\build_readme.txt")).Replace("{version}", $Version).Replace("{env}", $Environment).Replace("{browser}", $BrowserUrl)
+# Desktop and web zips also carry the licence notices (same list as export_build.sh).
+$LicenseFiles = @("LICENSE", "LICENSE-ASSETS.md", "THIRD_PARTY.md", "art\fonts\OFL-PixelifySans.txt")
 $Outputs = @()
 try {
 	$patched = [regex]::Replace($OriginalEnv, '(?m)^env\s*=.*$', "env=`"$Environment`"")
@@ -159,6 +163,9 @@ try {
 				$writer = New-Object System.IO.StreamWriter($archive.CreateEntry("LIESMICH.txt").Open(), $Utf8)
 				$writer.Write($Readme)
 				$writer.Dispose()
+				foreach ($file in $LicenseFiles) {
+					[System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive, (Join-Path $Root $file), (Split-Path $file -Leaf)) | Out-Null
+				}
 			} finally {
 				$archive.Dispose()
 			}
@@ -177,6 +184,7 @@ try {
 		# The web folder is served as it is (GitHub Pages); it gets no readme.
 		if ($platform -ne "web") {
 			[System.IO.File]::WriteAllText((Join-Path $PlatformDir "LIESMICH.txt"), $Readme.Replace("`n", "`r`n"), $Utf8)
+			foreach ($file in $LicenseFiles) { Copy-Item (Join-Path $Root $file) $PlatformDir }
 		}
 
 		if ($platform -eq "windows" -and -not $SkipBootTest) {

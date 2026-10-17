@@ -1,0 +1,94 @@
+name: Bug report
+description: Something in the game is broken or behaves strangely.
+title: "[Bug]: "
+labels: ["bug", "game"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping! English or German is fine.
+        **Fastest way:** in a test build press **F9** (or **#**) or tap the bug button on your phone – the report gets a screenshot and game info automatically.
+        Website, accounts or servers? Please use the [platform repo](https://github.com/WebBude-de/soulwick-platform/issues/new/choose). Security problems: [report privately](https://github.com/WebBude-de/soulwick/security/advisories/new), not here.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Describe the bug. Screenshots or a short video help a lot (drag them in here).
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we see it ourselves?
+      description: Steps to reproduce, for example room number, biome, weapon, what you did right before.
+      placeholder: |
+        1. Start a run with the bow
+        2. Enter the arena in room 8
+        3. ...
+    validations:
+      required: false
+  - type: input
+    id: version
+    attributes:
+      label: Game version
+      description: Shown in the main menu, or the name of the release you downloaded.
+      placeholder: v0.9.1-dev.11
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options:
+        - Windows
+        - Linux
+        - macOS
+        - Android
+        - Browser on a computer
+        - Browser on a phone or tablet
+        - Started from the Godot editor
+    validations:
+      required: true
+  - type: dropdown
+    id: input
+    attributes:
+      label: Controls
+      multiple: true
+      options:
+        - Mouse and keyboard
+        - Gamepad
+        - Touch
+    validations:
+      required: false
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Playing
+      options:
+        - Alone
+        - Co-op (I hosted)
+        - Co-op (I joined)
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Anything else?
+      description: Error messages, logs, how often it happens.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before you send
+      options:
+        - label: I searched the existing issues and did not find this bug.
+          required: true

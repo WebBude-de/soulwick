@@ -9,7 +9,7 @@ STARTEN
   macOS:   ZIP entpacken, Soulwick.app in "Programme" ziehen. Der Build ist nicht von
            Apple beglaubigt: beim ersten Start Rechtsklick -> "Oeffnen" -> "Oeffnen"
            (oder im Terminal: xattr -cr /Applications/Soulwick.app).
-  Browser: ohne Download ueber https://playsoulwick.com spielen (Knopf "Im Browser spielen").
+  Browser: ohne Download spielen unter {browser}
 
 ONLINE (Koop ueber Raumcode)
   Kein Konto, kein Schluessel noetig: Beim ersten Online-Spiel bekommt dieser PC
