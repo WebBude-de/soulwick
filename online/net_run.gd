@@ -207,6 +207,9 @@ func _begin(new_seed: int, count: int) -> void:
 	_started_msec = Time.get_ticks_msec()
 	controller.game_mode.player_count = clampi(count, 1, GameMode.MAX_PLAYERS)
 	run_begun.emit(seed_value, player_count)
+	if lobby.peer != null:
+		# Host: begin_run and a load announcement leave before the dungeon is built (D-183).
+		lobby.peer.announce_loading()
 	controller.load_world(controller.dungeon_scene)
 	if lobby.peer != null:
 		lobby.peer.set_delivering(true)

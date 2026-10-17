@@ -32,6 +32,18 @@ extends MultiplayerPeerExtension
 ##   slow_consumer instead of losing it silently (the worlds would drift apart).
 ## - Backlog after a hitch: when many packets wait at once, only the newest UNRELIABLE_KEEP
 ##   unreliable packets per sender and channel are kept (old snapshots would only be replayed).
+## Host stall (D-183, a host's browser tab in the background stopped its game): a client measures
+## the silence of peer 1 (game frames only, the relay's pongs do not count, a hang of the client
+## itself neither) and keeps HostStall up to date at every poll; NetPlayerState stops predicting
+## while is_host_stalled(). The host notices its own long frame gaps (host_hitched) so it can be
+## told that its teammates waited. Follow-up of 17.10.2026: the host's world data stops on purpose
+## at a world change (hide_from_peers, a client loading at its own pace), so a running host also sends
+## a beat (RelayProtocol.BEAT_PAYLOAD, unreliable) at every poll to each room peer it sent nothing
+## else to for HostStall.BEAT_MSEC, and before a world load of its own one with BEAT_LOADING
+## (announce_loading, reliable, pushed out at once); a client does not count the silence after that
+## for up to HostStall.LOAD_GRACE_MSEC. Beats never reach SceneMultiplayer. get_last_poll_msec() is
+## the host's clock for the clients' input (NetPlayerState: catch-up physics steps after an own hitch
+## run before the poll, their input waits in the socket and is not stale).
 
 signal welcomed(info: Dictionary)
 ## Created (peer_id 1) or joined (peer_id >= 2).
@@ -46,11 +58,15 @@ signal room_left(reason: String)
 signal relay_error(code: String, message: String, request: String)
 ## The WebSocket closed (close code, -1 if it never opened).
 signal connection_closed(code: int, reason: String)
+## Host with teammates in the room: its own frame stood still for gap_msec
+## (HostStall.HOST_AWAY_NOTICE_MSEC or more; a hidden browser tab, a hang), the others waited.
+signal host_hitched(gap_msec: int)
 
 enum Phase { IDLE, CONNECTING, HELLO, LOBBY, ENTERING, IN_ROOM, CLOSED }
 
 ## Preloaded: works before the global class cache knows NetDiagnostics (new file).
 const Diagnostics := preload("res://online/net_diagnostics.gd")
+const HostStallScript := preload("res://online/host_stall.gd")
 
 ## TESTWERT: WebSocket buffers (bytes) for bursts like the first spawn of every player.
 const BUFFER_BYTES := 1 << 20
@@ -129,6 +145,22 @@ var _send_failed := ""
 var _delayed: Array[Array] = []
 var _last_release_msec := 0
 var _sim_rng := RandomNumberGenerator.new()
+## Client: is the host's game standing still (D-183)? Updated at every poll in a room.
+var host_stall: HostStallScript = HostStallScript.new()
+## Host: how often its own frame stood still long enough to tell it (host_hitched), the last gap.
+var host_away_count := 0
+var last_host_away_msec := 0
+## Time of this machine's last poll in a room and of the last game frame from the host (client).
+var _last_poll_msec := 0
+var _last_host_frame_msec := 0
+## The next poll's frame gap is not a hang (a world was loaded on purpose, forgive_hitch()).
+var _forgive_gap := false
+## Host: when the last frame went to each room peer (local msec), for the beats.
+var _last_sent_to: Dictionary[int, int] = {}
+## Host: beats sent (tests and tools).
+var beats_sent := 0
+## Client: until when the host's silence does not count (it announced a world load; 0 = no grace).
+var _host_loading_until := 0
 
 
 ## Connects and sends hello; action (RelayProtocol.create/join) follows the welcome.
@@ -165,6 +197,52 @@ func is_host() -> bool:
 
 func is_in_room() -> bool:
 	return phase == Phase.IN_ROOM
+
+
+## Client in a room: ms between the last poll and the host's last game frame (pongs of the relay do
+## not count; a hang of this machine does not count either, its poll reads the waiting frames
+## first). 0 for the host and outside a room.
+func get_host_silence_msec() -> int:
+	if _is_host or phase != Phase.IN_ROOM or _last_host_frame_msec <= 0:
+		return 0
+	return maxi(0, _last_poll_msec - _last_host_frame_msec)
+
+
+## Client in a room: the host's game stands still (HostStall, with hysteresis).
+func is_host_stalled() -> bool:
+	return not _is_host and phase == Phase.IN_ROOM and host_stall.stalled
+
+
+## How long the host's game stands still (ms, 0 when it runs).
+func get_host_stall_msec() -> int:
+	return host_stall.stall_msec(_now_msec()) if is_host_stalled() else 0
+
+
+## Client: the host announced a world load and its silence does not count yet (HostStall.LOAD_GRACE_MSEC).
+func is_host_loading() -> bool:
+	return not _is_host and phase == Phase.IN_ROOM and _host_loading_until > 0 and _last_poll_msec < _host_loading_until
+
+
+## Time of this machine's last poll in a room (the clock of RelayPeer, 0 before the first one): the
+## moment received packets were last read.
+func get_last_poll_msec() -> int:
+	return _last_poll_msec if phase == Phase.IN_ROOM else 0
+
+
+## The next poll's frame gap is no hang (a world was just loaded on purpose).
+func forgive_hitch() -> void:
+	_forgive_gap = true
+
+
+## Host: it is about to load a world on purpose (a long frame). Everything queued and a beat with
+## RelayProtocol.BEAT_LOADING go out to every room peer at once (the socket is polled to push them
+## before the frame blocks), so the clients wait calmly instead of reporting a stall.
+func announce_loading() -> void:
+	if not _is_host or phase != Phase.IN_ROOM or socket == null or _peers.is_empty():
+		return
+	flush()
+	_send_beats(_now_msec(), RelayProtocol.BEAT_LOADING)
+	socket.poll()
 
 
 ## Lets peer events through to SceneMultiplayer (after multiplayer_peer was set to this peer).
@@ -213,7 +291,10 @@ func _poll() -> void:
 		return
 	if phase == Phase.IN_ROOM:
 		diagnostics.note_poll(_now_msec())
+		_note_own_gap(_now_msec())
 		flush()
+		if _is_host:
+			_send_beats(_last_poll_msec)
 	socket.poll()
 	if phase == Phase.CLOSED:
 		# Only finishes a close handshake; the session is already over.
@@ -233,6 +314,8 @@ func _poll() -> void:
 	if ready_state != WebSocketPeer.STATE_CONNECTING:
 		# Also when already CLOSED: a room_closed that came with the close frame still counts.
 		_read_packets()
+	if phase == Phase.IN_ROOM and not _is_host and host_stall.update(0 if is_host_loading() else get_host_silence_msec(), _last_poll_msec):
+		diagnostics.note_host_stall(host_stall.stalled, host_stall.longest_msec)
 	if ready_state == WebSocketPeer.STATE_CLOSED:
 		_on_socket_closed(socket.get_close_code(), socket.get_close_reason())
 	elif ready_state == WebSocketPeer.STATE_OPEN:
@@ -305,6 +388,48 @@ func _keep_alive() -> void:
 
 func _now_msec() -> int:
 	return Time.get_ticks_msec() + time_offset_msec
+
+
+## Every poll in a room: remembers its time (the host's silence counts up to it) and, on the host
+## with teammates, reports a long gap since the previous poll (host_hitched).
+func _note_own_gap(now: int) -> void:
+	var previous := _last_poll_msec
+	_last_poll_msec = now
+	if _forgive_gap or previous <= 0:
+		_forgive_gap = false
+		return
+	var gap := now - previous
+	if _is_host and gap >= HostStallScript.HOST_AWAY_NOTICE_MSEC and not _peers.is_empty():
+		host_away_count += 1
+		last_host_away_msec = gap
+		diagnostics.note_host_away(gap)
+		host_hitched.emit(gap)
+
+
+## Host: a beat to every room peer it sent nothing to for HostStall.BEAT_MSEC (flags 0, unreliable:
+## the next one replaces a lost one), or to all of them at once with flags (BEAT_LOADING, reliable).
+func _send_beats(now: int, flags := 0) -> void:
+	if _leaving or not _send_failed.is_empty() or socket.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return
+	var mode := RelayProtocol.MODE_RELIABLE if flags != 0 else RelayProtocol.MODE_UNRELIABLE
+	for peer in _peers.keys():
+		if flags == 0 and now - int(_last_sent_to.get(peer, 0)) < HostStallScript.BEAT_MSEC:
+			continue
+		if _send_frame(peer, RelayProtocol.CAPS_CHANNEL, mode, RelayProtocol.beat_payload(flags), 0, false) == OK:
+			beats_sent += 1
+
+
+## Host: frames that reached the socket count as a sign of life for their receivers (no beat needed).
+func _note_sent_to(to: int) -> void:
+	if not _is_host:
+		return
+	var now := _now_msec()
+	if to > 0:
+		_last_sent_to[to] = now
+		return
+	for peer in _peers:
+		if peer != -to:
+			_last_sent_to[peer] = now
 
 
 ## Seconds since the relay last sent anything (diagnostics).
@@ -470,6 +595,7 @@ func _send_frame(to: int, channel: int, mode: int, payload: PackedByteArray, pac
 			diagnostics.note_dropped(true, packets)
 		return error
 	diagnostics.note_sent(frame.size(), packets, bundled)
+	_note_sent_to(to)
 	return OK
 
 
@@ -614,8 +740,19 @@ func _handle_binary(packet: PackedByteArray) -> void:
 	if frame.is_empty():
 		return
 	var from := int(frame.from)
+	var from_host := from == RelayProtocol.HOST_PEER_ID and not _is_host
+	if from_host:
+		_last_host_frame_msec = _now_msec()
+		# Any frame after a load announcement: the host runs again.
+		_host_loading_until = 0
 	var channel := int(frame.channel)
 	var data: PackedByteArray = frame.data
+	if channel == RelayProtocol.CAPS_CHANNEL and RelayProtocol.is_beat(data):
+		# The host's sign of life; nothing for SceneMultiplayer.
+		diagnostics.note_received(packet.size(), 0)
+		if from_host and RelayProtocol.beat_flags(data) & RelayProtocol.BEAT_LOADING:
+			_host_loading_until = _last_host_frame_msec + HostStallScript.LOAD_GRACE_MSEC
+		return
 	if channel == RelayProtocol.CAPS_CHANNEL and RelayProtocol.is_caps(data):
 		diagnostics.note_received(packet.size(), 0)
 		if from > 0 and from != _unique_id:
@@ -651,6 +788,13 @@ func _enter_room(message: Dictionary) -> void:
 	diagnostics.role = "host" if _is_host else "client"
 	diagnostics.room_code = room_code
 	diagnostics.reset_poll_clock()
+	# The host counts as heard at the start (the client loads its village first).
+	_last_poll_msec = _now_msec()
+	_last_host_frame_msec = _last_poll_msec
+	_forgive_gap = true
+	_host_loading_until = 0
+	_last_sent_to.clear()
+	host_stall.reset()
 	if _is_host:
 		_reconcile_peers()
 	else:
@@ -684,6 +828,8 @@ func _peer_up(id: int) -> void:
 	if id <= 0 or id == _unique_id or _peers.has(id):
 		return
 	_peers[id] = true
+	# The first beat is due HostStall.BEAT_MSEC after a peer came up (its capability frame counts).
+	_last_sent_to[id] = _now_msec()
 	_pending_events.append([true, id])
 	_announce_bundles(id)
 
@@ -694,6 +840,7 @@ func _peer_down(id: int) -> void:
 	_peers.erase(id)
 	_bundle_peers.erase(id)
 	_queues.erase(id)
+	_last_sent_to.erase(id)
 	diagnostics.bundling = bundling_allowed and not _bundle_peers.is_empty()
 	_incoming.assign(_incoming.filter(func(packet: Dictionary) -> bool: return int(packet.from) != id))
 	_pending_events.append([false, id])

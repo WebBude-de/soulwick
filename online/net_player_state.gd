@@ -29,6 +29,16 @@ extends Node
 ## host position is ignored while moving. snap_count counts the corrections (tools/net_smoke.gd
 ## load=). Other players in the side view take the host's velocity once per received state and are
 ## not pulled while in the air (their arc comes from that velocity and the same gravity).
+## Host stall (bug of 17.10.2026, D-183: the host's browser tab in the background, every client was
+## pulled back again and again and could not move): while RelayPeer.is_host_stalled() the own player
+## is locked with its own reason (STALL_LOCK, per player, no pause) and glides once to the host's
+## position, the history is dropped, one empty input goes out and then one per
+## STALL_INPUT_KEEPALIVE_SECONDS; other players stand at the host's positions. When the host's
+## frames flow again the lock goes and the current input is sent at once. The host clears the input
+## of a client it has not heard from for CLIENT_INPUT_STALE_MSEC (a frozen client's player no longer
+## walks on with its last direction), measured up to its own last poll (input_clock_msec): after a
+## hitch of the host its catch-up physics steps run before the poll, the clients' input waits in the
+## socket and is not stale.
 
 const NODE_NAME := &"NetState"
 const SYNCED_PROPERTIES: Array[StringName] = [&"pos", &"move", &"aim", &"held", &"vel", &"side"]
@@ -72,6 +82,14 @@ const HISTORY_TOLERANCE := 24.0
 ## glide instead of a jump); only further off than HARD_SNAP_DISTANCE it jumps.
 const RECONCILE_RATE := 15.0
 const HARD_SNAP_DISTANCE := 256.0
+## Reason of the own player's input lock while the host stands still (Player.set_input_locked).
+const STALL_LOCK := &"host_stall"
+## TESTWERT: while the host stands still the client sends its (empty) input only this often.
+const STALL_INPUT_KEEPALIVE_SECONDS := 1.0
+## TESTWERT: the host clears a client's input when nothing came from it for this long (ms; the
+## client sends at least every SEND_EVERY_FRAMES physics frames).
+const CLIENT_INPUT_STALE_MSEC := 500
+const NO_ACTIONS: Array[StringName] = []
 
 ## Jumps to the host's position (own player and other players) on this machine.
 static var snaps_total := 0
@@ -103,6 +121,12 @@ var _history: Array[Array] = []
 var _fresh_sync := false
 ## Client, own player: gliding to the host's position after a real disagreement.
 var _reconciling := false
+## Client: the host's game stands still (set_host_stalled).
+var _host_stalled := false
+## Client, own player: how often the host stood still while this player existed.
+var stall_count := 0
+## Host: when the owning client's input last arrived (Time.get_ticks_msec(), 0 = never).
+var _input_at_msec := 0
 
 
 static func create(owner_peer: int, start: Vector2) -> NetPlayerState:
@@ -210,9 +234,15 @@ func get_synchronizer() -> MultiplayerSynchronizer:
 
 
 func _physics_process(delta: float) -> void:
-	if _player == null or not is_instance_valid(_player) or not _has_session():
+	if _player == null or not is_instance_valid(_player):
+		return
+	if not _has_session():
+		# The session ended while the host stood still: no lock stays behind.
+		set_host_stalled(false)
 		return
 	if multiplayer.is_server():
+		if not _player.is_local:
+			expire_stale_input(input_clock_msec(multiplayer.multiplayer_peer as RelayPeer))
 		pos = _player.position
 		move = _player.input.move
 		aim = _player.get_aim_direction()
@@ -222,11 +252,61 @@ func _physics_process(delta: float) -> void:
 		held = held_bits_of(_player)
 		vel = _player.velocity
 		side = side_bits_of(_player)
-	elif _player.is_local:
+		return
+	set_host_stalled(_relay_host_stalled())
+	if _player.is_local:
 		_send_input()
 		_correct_self(delta)
 	else:
 		_follow(delta)
+
+
+## Client: the host's game stopped (true) or runs again (false). Called every physics frame from
+## RelayPeer.is_host_stalled(); tests call it directly. Own player: locked while the host stands
+## still (its own reason, D-088), the history goes, and the next input leaves at once.
+func set_host_stalled(stalled: bool) -> void:
+	if stalled == _host_stalled:
+		return
+	_host_stalled = stalled
+	_history.clear()
+	_reconciling = false
+	_last_sent = []
+	_frames_since_send = 0
+	if _player == null or not is_instance_valid(_player) or not _player.is_local:
+		return
+	_player.set_input_locked(STALL_LOCK, stalled)
+	if stalled:
+		stall_count += 1
+
+
+func is_host_stalled() -> bool:
+	return _host_stalled
+
+
+func _relay_host_stalled() -> bool:
+	var relay := multiplayer.multiplayer_peer as RelayPeer
+	return relay != null and relay.is_host_stalled()
+
+
+## Host: the clock of the clients' input, the time packets were last read (RelayPeer's last poll;
+## Time.get_ticks_msec() without a relay or before its first poll). Physics steps that catch up after
+## a hitch of this host run before the next poll: on this clock no time passed for them.
+static func input_clock_msec(relay: RelayPeer) -> int:
+	var polled := relay.get_last_poll_msec() if relay != null else 0
+	return polled if polled > 0 else Time.get_ticks_msec()
+
+
+## Host, a client's player: nothing came from its owner for CLIENT_INPUT_STALE_MSEC up to now_msec
+## (input_clock_msec: its game hangs or sits in a hidden browser tab): the player stops instead of
+## walking on with the last direction. True while the input is stale.
+func expire_stale_input(now_msec: int) -> bool:
+	if _input_at_msec <= 0 or now_msec - _input_at_msec < CLIENT_INPUT_STALE_MSEC:
+		return false
+	var remote := _player.input as RemoteInput if _player != null else null
+	if remote != null:
+		remote.set_move(Vector2.ZERO)
+		remote.set_held_actions(NO_ACTIONS)
+	return true
 
 
 ## Host: the owning client's input for its player (NetRun.submit_input: unreliable ordered,
@@ -237,6 +317,7 @@ func apply_input(sender: int, new_move: Vector2, new_aim: Vector2, new_held: int
 	var remote := _player.input as RemoteInput if _player != null else null
 	if remote == null:
 		return
+	_input_at_msec = input_clock_msec(multiplayer.multiplayer_peer as RelayPeer)
 	remote.set_move(new_move)
 	if new_aim != Vector2.ZERO:
 		remote.set_aim_direction(new_aim)
@@ -252,21 +333,43 @@ func _has_session() -> bool:
 
 
 func _send_input() -> void:
-	var input := _player.input
-	var state := [input.move, _player.get_aim_direction(), held_bits_of(_player)]
-	_frames_since_send += 1
-	if state == _last_sent and _frames_since_send < SEND_EVERY_FRAMES:
+	var state := next_input()
+	if state.is_empty():
 		return
-	_last_sent = state
-	_frames_since_send = 0
 	var lobby := LobbyClient.find(self)
 	if lobby != null and lobby.net_run != null:
 		lobby.net_run.submit_input.rpc_id(RelayProtocol.HOST_PEER_ID, state[0], state[1], state[2])
 
 
+## Client, own player: the input packet of this physics frame ([move, aim, held]) or [] for none.
+## Sent on change and at least every SEND_EVERY_FRAMES frames; while the host stands still one
+## empty input (no movement, no actions, the weapon slot stays) at once and then only one per
+## STALL_INPUT_KEEPALIVE_SECONDS, so nothing piles up at the host.
+func next_input() -> Array:
+	var state: Array
+	if _host_stalled:
+		state = [Vector2.ZERO, _player.get_aim_direction(), slot_bits_of(_player)]
+	else:
+		state = [_player.input.move, _player.get_aim_direction(), held_bits_of(_player)]
+	_frames_since_send += 1
+	if _host_stalled:
+		var every := maxi(1, roundi(STALL_INPUT_KEEPALIVE_SECONDS * Engine.physics_ticks_per_second))
+		if not _last_sent.is_empty() and _frames_since_send < every:
+			return []
+	elif state == _last_sent and _frames_since_send < SEND_EVERY_FRAMES:
+		return []
+	_last_sent = state
+	_frames_since_send = 0
+	return state
+
+
 ## Own player on a client: keep the local simulation, glide to the host once both stand still.
-func _correct_self(delta: float) -> void:
-	_remember_position(Time.get_ticks_msec(), _player.position)
+## now_msec: the clock of the history (tests pass their own, -1 = Time.get_ticks_msec()).
+func _correct_self(delta: float, now_msec := -1) -> void:
+	if _host_stalled:
+		_hold_at_host(delta)
+		return
+	_remember_position(now_msec if now_msec >= 0 else Time.get_ticks_msec(), _player.position)
 	if not _views_agree(delta):
 		return
 	var error := pos - _player.position
@@ -289,6 +392,21 @@ func _correct_self(delta: float) -> void:
 		_player.position += error * minf(1.0, SELF_CORRECTION_RATE * delta)
 
 
+## Own player while the host stands still: no history (old positions mean nothing once it is back)
+## and a calm glide to the host's position of this player, where it waits (locked). A jump only
+## beyond HARD_SNAP_DISTANCE; in the side view only while both stand.
+func _hold_at_host(delta: float) -> void:
+	_history.clear()
+	_reconciling = false
+	if not _views_agree(delta):
+		return
+	var error := pos - _player.position
+	if error.length() > HARD_SNAP_DISTANCE:
+		_snap_to(pos)
+	elif error.length_squared() > 0.25 and _stands_with_host():
+		_player.position += error * minf(1.0, SELF_CORRECTION_RATE * delta)
+
+
 ## Both copies are in the same view (side segment or rooms), or have been apart for too long. While
 ## one machine's transit runs ahead, positions of the other view are not applied (no jump into the
 ## segment before this machine built it, no fall through a room after it).
@@ -308,14 +426,15 @@ func _stands_with_host() -> bool:
 	return own & (standing | SIDE_CLIMBING | SIDE_IN_PIT) == standing and side & (standing | SIDE_CLIMBING | SIDE_IN_PIT) == standing
 
 
-## Other players on a client: replay their input, pull towards the synced position.
+## Other players on a client: replay their input, pull towards the synced position. While the host
+## stands still they replay nothing (no walking on the spot against the pull) and stand at it.
 func _follow(delta: float) -> void:
 	var remote := _player.input as RemoteInput
 	if remote != null:
-		remote.set_move(move)
+		remote.set_move(Vector2.ZERO if _host_stalled else move)
 		if aim != Vector2.ZERO:
 			remote.set_aim_direction(aim)
-		remote.set_held_actions(actions_of(held & REPLAY_MASK))
+		remote.set_held_actions(NO_ACTIONS if _host_stalled else actions_of(held & REPLAY_MASK))
 	apply_slot(_player, held)
 	if not _views_agree(delta):
 		return

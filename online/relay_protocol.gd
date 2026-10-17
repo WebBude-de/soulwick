@@ -89,6 +89,15 @@ const BUNDLE_CHANNEL := 255
 const CAPS_PAYLOAD := [3, 0x53, 0x57, 0x4e, 0x42, 1]
 const BUNDLE_ENTRY_HEADER := 4
 const BUNDLE_ENTRY_MAX := 0xffff
+## Host beat (D-183 follow-up), also on CAPS_CHANNEL: the host's game sends it to every room peer it
+## sent nothing else to for HostStall.BEAT_MSEC, whether that peer has the current world loaded or
+## not, so a client can tell a running host from a stalled one in every phase (village, world
+## change, run end). Payload: RAW command 3, "SWHB", version 1, flags (BEAT_LOADING: the host is about
+## to load a world on purpose, the clients wait calmly up to HostStall.LOAD_GRACE_MSEC). RelayPeer
+## consumes it; an older build (no beats) hands it to the unused peer_packet signal like CAPS_PAYLOAD,
+## so no protocol version change is needed.
+const BEAT_PAYLOAD := [3, 0x53, 0x57, 0x48, 0x42, 1]
+const BEAT_LOADING := 1
 
 
 static func caps_payload() -> PackedByteArray:
@@ -97,6 +106,22 @@ static func caps_payload() -> PackedByteArray:
 
 static func is_caps(data: PackedByteArray) -> bool:
 	return data.size() >= CAPS_PAYLOAD.size() and data.slice(0, CAPS_PAYLOAD.size() - 1) == PackedByteArray(CAPS_PAYLOAD.slice(0, CAPS_PAYLOAD.size() - 1))
+
+
+## Beat payload with flags (BEAT_LOADING or 0).
+static func beat_payload(flags := 0) -> PackedByteArray:
+	var bytes := PackedByteArray(BEAT_PAYLOAD)
+	bytes.append(flags & 0xff)
+	return bytes
+
+
+static func is_beat(data: PackedByteArray) -> bool:
+	return data.size() >= BEAT_PAYLOAD.size() and data.slice(0, BEAT_PAYLOAD.size() - 1) == PackedByteArray(BEAT_PAYLOAD.slice(0, BEAT_PAYLOAD.size() - 1))
+
+
+## Flags of a beat payload (0 for a beat without them).
+static func beat_flags(data: PackedByteArray) -> int:
+	return data.decode_u8(BEAT_PAYLOAD.size()) if data.size() > BEAT_PAYLOAD.size() else 0
 
 
 ## Bundle payload of entries [channel, mode, data].

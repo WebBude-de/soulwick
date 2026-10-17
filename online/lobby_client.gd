@@ -19,6 +19,9 @@ extends Node
 ## village of the started game runs it (take_launch(), VillageUI).
 ## A guild room belongs on its guild's page in the online menu: target_guild_id names the guild while
 ## the room is being created or joined from there (the room itself knows it once entered).
+## Host stall (D-183): in a room the browser build keeps running in a hidden tab (WebKeepAlive, on
+## from IN_ROOM to IDLE); the child HostStallNotice shows "Warte auf den Host …" on a client whose
+## host stands still and tells a host afterwards that the others waited (RelayPeer.host_hitched).
 
 signal state_changed(state: State)
 ## The room snapshot changed (RoomInfo of the contract; {} when not in a room).
@@ -37,6 +40,8 @@ enum State { IDLE, LOGGING_IN, CONNECTING, IN_ROOM, LEAVING }
 const GROUP: StringName = &"lobby_client"
 ## Preloaded: works before the global class cache knows NetDiagnostics (new file).
 const NetDiagnosticsScript := preload("res://online/net_diagnostics.gd")
+const HostStallNoticeScript := preload("res://online/host_stall_notice.gd")
+const WebKeepAliveScript := preload("res://online/web_keep_alive.gd")
 const MODE_QUICK := "quick"
 const MODE_GUILD := "guild"
 ## Local error codes besides the relay's.
@@ -100,6 +105,8 @@ var _pending_notice := ""
 var _net_players: NetPlayers = null
 ## The shared run of this room (MP3), child "NetRun".
 var net_run: NetRun = null
+## "Warte auf den Host …" and the host's notes (D-183), child "HostStallNotice".
+var stall_notice: HostStallNoticeScript = null
 
 
 static func of(node: Node) -> LobbyClient:
@@ -192,6 +199,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	net_run = NetRun.create(self)
 	add_child(net_run)
+	stall_notice = HostStallNoticeScript.new()
+	add_child(stall_notice)
+
+
+func _exit_tree() -> void:
+	# The game scene goes (main menu): a browser tab may sleep again.
+	WebKeepAliveScript.set_enabled(false)
 
 
 func get_session() -> OnlineSession:
@@ -342,12 +356,19 @@ func get_world_controller() -> WorldController:
 ## Called by the WorldController for every new world before it enters the tree (MP3: the dungeon
 ## gets the run's seed and its NetDungeon).
 func configure_world(world: Node) -> void:
+	if peer != null:
+		# Host: the world enters the tree in this frame (a long one on purpose); its clients are told
+		# so they wait calmly instead of seeing "Warte auf den Host …" (D-183).
+		peer.announce_loading()
 	if net_run != null:
 		net_run.configure_world(world)
 
 
 ## Called by the WorldController when the world loads in a networked session.
 func attach_world(controller: Node, world: Node) -> void:
+	if peer != null:
+		# Loading the world was a long frame on purpose, not a hang the others waited through.
+		peer.forgive_hitch()
 	var profile := _local_profile()
 	_net_players = NetPlayers.create(controller, world, profile)
 	world.add_child(_net_players)
@@ -368,6 +389,7 @@ func on_dungeon_requested() -> void:
 
 
 func _process(delta: float) -> void:
+	WebKeepAliveScript.update(delta)
 	if peer == null:
 		return
 	# Until SceneMultiplayer owns the peer it is polled here.
@@ -430,6 +452,7 @@ func _enter(action: Dictionary) -> void:
 	peer.relay_error.connect(_on_relay_error)
 	peer.connection_closed.connect(_on_connection_closed)
 	peer.run_ended.connect(_on_run_ended)
+	peer.host_hitched.connect(_on_host_hitched)
 	var hello := RelayProtocol.hello(session.relay_token, OnlineConfig.PROTOCOL_VERSION, OnlineConfig.get_game_version(), OnlineConfig.get_platform())
 	_assigned = false
 	_connect_left = CONNECT_TIMEOUT
@@ -440,7 +463,7 @@ func _enter(action: Dictionary) -> void:
 		_fail(ERROR_RELAY_UNREACHABLE)
 
 
-func _on_room_entered(new_room: Dictionary, _peer_id: int) -> void:
+func _on_room_entered(new_room: Dictionary, entered_peer_id: int) -> void:
 	room = new_room
 	# Joined from a guild's page: that guild's name and tag, if this is its room.
 	# (The state is not IN_ROOM yet: the snapshot is read directly.)
@@ -466,6 +489,16 @@ func _on_room_entered(new_room: Dictionary, _peer_id: int) -> void:
 			controller.load_world(controller.village_scene)
 	peer.set_delivering(true)
 	room_changed.emit(room)
+	# A host in the browser: its tab must stay alive for the others (D-183; a phone browser or an
+	# energy saver may still stop it).
+	if entered_peer_id == RelayProtocol.HOST_PEER_ID and WebKeepAliveScript.is_supported() and stall_notice != null:
+		stall_notice.show_web_host_hint()
+
+
+## Host: its own game stood still for gap_msec while teammates were in the room.
+func _on_host_hitched(gap_msec: int) -> void:
+	if stall_notice != null and is_host():
+		stall_notice.show_host_away(gap_msec)
 
 
 ## The session of the current room: a guild run for guild rooms (GameMode GUILD with the guild
@@ -579,6 +612,8 @@ func _close_peer() -> void:
 		old.relay_error.disconnect(_on_relay_error)
 		old.connection_closed.disconnect(_on_connection_closed)
 		old.run_ended.disconnect(_on_run_ended)
+	if old.host_hitched.is_connected(_on_host_hitched):
+		old.host_hitched.disconnect(_on_host_hitched)
 	if _assigned:
 		get_tree().get_multiplayer().multiplayer_peer = OfflineMultiplayerPeer.new()
 		_assigned = false
@@ -595,6 +630,8 @@ func _set_state(new_state: State) -> void:
 	if state == new_state:
 		return
 	state = new_state
+	# Browser only: keep running in a hidden tab while in a room (D-183).
+	WebKeepAliveScript.set_enabled(state == State.IN_ROOM or state == State.LEAVING)
 	state_changed.emit(state)
 
 

@@ -9,6 +9,8 @@ extends RefCounted
 ##   in both directions; "rate" is the last full second, "peak" the busiest second of the session.
 ## - Frame hitches: the gap between two polls of the peer (the multiplayer polls every frame). A gap
 ##   of HITCH_MSEC or more counts, LOG_HITCH_MSEC or more is logged with the current numbers.
+## - Host stalls (D-183): a client counts how often the host's game stood still (HostStall) and the
+##   longest stall; the host counts its own long gaps the others waited through (host_away).
 ## - Disconnects: note_disconnect stores the reason in the static last_disconnect, which outlives the
 ##   session (the report after being thrown out still has it) and is logged once.
 ## SOULWICK_NET_STATS=<seconds> (environment) logs one summary line per interval while in a room
@@ -37,6 +39,7 @@ var totals := {
 	"bundles_out": 0, "bundles_in": 0,
 	"dropped_out": 0, "dropped_in": 0, "send_errors": 0,
 	"relay_errors": 0, "hitches": 0,
+	"host_stalls": 0, "host_away": 0,
 }
 ## Error codes of the relay ({code: count}), e.g. rate_limited, frame_too_large.
 var relay_errors: Dictionary = {}
@@ -58,6 +61,9 @@ var last_hitch_msec := 0
 var last_hitch_at := ""
 ## Bundling to the remote peers is on (both sides speak it, RelayPeer).
 var bundling := false
+## Client: longest stall of the host (ms); host: longest own gap the others waited through.
+var longest_host_stall_msec := 0
+var longest_host_away_msec := 0
 
 var _bucket: Dictionary = {}
 var _bucket_start := 0
@@ -133,6 +139,19 @@ func note_rtt(msec: int) -> void:
 	rtt_min = msec if rtt_min < 0 else mini(rtt_min, msec)
 	rtt_max = maxi(rtt_max, msec)
 	rtt_avg = float(msec) if rtt_avg < 0.0 else lerpf(rtt_avg, float(msec), 0.2)
+
+
+## Client: the host's game stopped (stalled true) or runs again (longest: the longest stall so far, ms).
+func note_host_stall(stalled: bool, longest_msec: int) -> void:
+	if stalled:
+		totals.host_stalls += 1
+	longest_host_stall_msec = maxi(longest_host_stall_msec, longest_msec)
+
+
+## Host: its own frame stood still for gap_msec while teammates were in the room.
+func note_host_away(gap_msec: int) -> void:
+	totals.host_away += 1
+	longest_host_away_msec = maxi(longest_host_away_msec, gap_msec)
 
 
 func note_buffers(outbound: int, incoming_queue: int) -> void:
@@ -220,6 +239,8 @@ func to_dict(now_msec := -1) -> Dictionary:
 		"incoming_queue_max": incoming_queue_max,
 		"largest_frame": {"out": largest_frame_out, "in": largest_frame_in},
 		"hitch_ms": {"longest": longest_hitch_msec, "last": last_hitch_msec, "count": totals.hitches, "last_at": last_hitch_at},
+		"host_stall_ms": {"count": totals.host_stalls, "longest": longest_host_stall_msec},
+		"host_away_ms": {"count": totals.host_away, "longest": longest_host_away_msec},
 	}
 
 
@@ -237,17 +258,18 @@ func since(start: Dictionary, now_msec := -1) -> Dictionary:
 	var result := {"seconds": snappedf(seconds, 0.1)}
 	for key in RATE_KEYS:
 		result[key + "_per_s"] = snappedf(float(int(totals[key]) - int(start.get(key, 0))) / seconds, 0.1)
-	for key in ["dropped_out", "dropped_in", "send_errors", "relay_errors", "hitches"]:
+	for key in ["dropped_out", "dropped_in", "send_errors", "relay_errors", "hitches", "host_stalls", "host_away"]:
 		result[key] = int(totals[key]) - int(start.get(key, 0))
 	return result
 
 
 ## One log line: rates (last second), round trip, buffers, hitches, errors.
 func summary_line() -> String:
-	return "%s room %s: out %d fr/%d pk/%d B/s, in %d fr/%d pk/%d B/s (peak out %d B/s %d fr/s, in %d B/s %d fr/s), rtt %d ms (avg %d, max %d), outbuf %d (max %d), inqueue max %d, hitch max %d ms (%d), dropped out %d in %d, send errors %d, relay errors %s, bundling %s" % [
+	return "%s room %s: out %d fr/%d pk/%d B/s, in %d fr/%d pk/%d B/s (peak out %d B/s %d fr/s, in %d B/s %d fr/s), rtt %d ms (avg %d, max %d), outbuf %d (max %d), inqueue max %d, hitch max %d ms (%d), host stalls %d (max %d ms), host away %d (max %d ms), dropped out %d in %d, send errors %d, relay errors %s, bundling %s" % [
 		role, room_code, rate.frames_out, rate.packets_out, rate.bytes_out, rate.frames_in, rate.packets_in, rate.bytes_in,
 		peak.bytes_out, peak.frames_out, peak.bytes_in, peak.frames_in, rtt_last, int(round(rtt_avg)), rtt_max,
 		outbound_buffered, outbound_buffered_max, incoming_queue_max, longest_hitch_msec, totals.hitches,
+		totals.host_stalls, longest_host_stall_msec, totals.host_away, longest_host_away_msec,
 		totals.dropped_out, totals.dropped_in, totals.send_errors, relay_errors, bundling]
 
 

@@ -119,16 +119,21 @@ static func payout_ratio(reason: int) -> float:
 ## more than this far, so with the dead zone (64×48) and the lead (48×36) he stays in view at 1.25×
 ## (half view 512×288 world px). Teammates further away drop out of the middle until they come back.
 const CAMERA_KEEP := Vector2(380.0, 200.0)
+## D-184: in a room each camera follows only its own player - a middle that drifts with the
+## teammates moved the aim on PC. true brings back the group middle of D-128.
+const CAMERA_FOLLOWS_GROUP := false
 
 
-## Nodes the group camera of local keeps in view (CameraRig.set_targets_provider): local itself
-## (also while down) and every living teammate within CAMERA_KEEP of it. players: the session's
-## players (any order, freed or downed ones are skipped).
-static func camera_group(local: Node2D, players: Array, keep := CAMERA_KEEP) -> Array[Node2D]:
+## Nodes the camera of local keeps in view (CameraRig.set_targets_provider): local itself (also
+## while down); with follow_group also every living teammate within CAMERA_KEEP of it. players:
+## the session's players (any order, freed or downed ones are skipped).
+static func camera_group(local: Node2D, players: Array, keep := CAMERA_KEEP, follow_group := CAMERA_FOLLOWS_GROUP) -> Array[Node2D]:
 	var group: Array[Node2D] = []
 	if local == null or not is_instance_valid(local):
 		return group
 	group.append(local)
+	if not follow_group:
+		return group
 	for node: Variant in players:
 		if not is_instance_valid(node) or node == local:
 			continue

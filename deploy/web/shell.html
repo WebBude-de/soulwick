@@ -512,6 +512,143 @@ $GODOT_HEAD_INCLUDE
 	</div>
 </div>
 
+<script>
+// Co-op keep-alive (D-183): a hidden tab gets no requestAnimationFrame, so a host's game (and with
+// it every client) stood still while its window was in the background. Godot's main loop asks for
+// every frame through the global requestAnimationFrame, so this wrapper decides how a frame comes:
+// visible = the browser's own frames; hidden while the game has the keep-alive on (in a co-op
+// room, online/web_keep_alive.gd) = ticks of a small worker (worker timers are not throttled like
+// those of a hidden page; plain timers here are the fallback). Single player never switches it on.
+(function () {
+	'use strict';
+	if (typeof window.requestAnimationFrame !== 'function' || typeof window.cancelAnimationFrame !== 'function') {
+		return;
+	}
+	const TICK_MS = 16; // TESTWERT: frame interval while hidden (about 60 per second, nothing is drawn).
+	const nativeRequest = window.requestAnimationFrame.bind(window);
+	const nativeCancel = window.cancelAnimationFrame.bind(window);
+	const pending = new Map(); // id -> { callback, native }
+	let nextId = 1;
+	let keepAlive = false;
+	let ticking = false;
+	let worker = null;
+	let fallbackTimer = 0;
+	const stats = { ticks: 0, longestGapMs: 0, lastGapMs: 0, hiddenPeriods: 0, worker: false, lastTickAt: 0 };
+
+	function isHidden() {
+		return document.visibilityState === 'hidden';
+	}
+
+	function run(id, time) {
+		const entry = pending.get(id);
+		if (!entry) {
+			return;
+		}
+		pending.delete(id);
+		entry.callback(time);
+	}
+
+	window.requestAnimationFrame = function (callback) {
+		const id = nextId++;
+		const entry = { callback, native: 0 };
+		pending.set(id, entry);
+		entry.native = nativeRequest((time) => run(id, time));
+		return id;
+	};
+	window.cancelAnimationFrame = function (id) {
+		const entry = pending.get(id);
+		if (entry) {
+			pending.delete(id);
+			nativeCancel(entry.native);
+		}
+	};
+
+	// One hidden "frame": every callback waiting right now runs once (new requests wait for the next tick).
+	function tick() {
+		if (!ticking) {
+			return;
+		}
+		const now = performance.now();
+		if (stats.lastTickAt > 0) {
+			stats.lastGapMs = Math.round(now - stats.lastTickAt);
+			stats.longestGapMs = Math.max(stats.longestGapMs, stats.lastGapMs);
+		}
+		stats.lastTickAt = now;
+		stats.ticks += 1;
+		for (const id of Array.from(pending.keys())) {
+			const entry = pending.get(id);
+			if (!entry) {
+				continue;
+			}
+			nativeCancel(entry.native);
+			try {
+				run(id, now);
+			} catch (err) {
+				(window.reportError || console.error)(err);
+			}
+		}
+	}
+
+	function startTicks() {
+		ticking = true;
+		stats.hiddenPeriods += 1;
+		stats.lastTickAt = 0;
+		if (!worker && typeof Worker === 'function') {
+			try {
+				const source = 'let t=0;onmessage=(e)=>{clearInterval(t);t=0;if(e.data>0){t=setInterval(()=>postMessage(0),e.data);}};';
+				worker = new Worker(URL.createObjectURL(new Blob([source], { type: 'text/javascript' })));
+				worker.onmessage = tick;
+			} catch (err) {
+				console.warn('Keep-alive worker unavailable, using timers:', err);
+				worker = null;
+			}
+		}
+		stats.worker = !!worker;
+		if (worker) {
+			worker.postMessage(TICK_MS);
+		} else {
+			fallbackTimer = window.setInterval(tick, TICK_MS);
+		}
+	}
+
+	function stopTicks() {
+		ticking = false;
+		if (worker) {
+			worker.postMessage(0);
+		}
+		if (fallbackTimer) {
+			window.clearInterval(fallbackTimer);
+			fallbackTimer = 0;
+		}
+	}
+
+	function update() {
+		const want = keepAlive && isHidden();
+		if (want && !ticking) {
+			startTicks();
+		} else if (!want && ticking) {
+			// Visible again: the waiting callbacks still hold a real frame request and run with it.
+			stopTicks();
+		}
+	}
+
+	document.addEventListener('visibilitychange', update);
+	window.soulwickShell = Object.freeze({
+		setKeepAlive(on) {
+			keepAlive = !!on;
+			update();
+			return keepAlive;
+		},
+		isHidden,
+		stats() {
+			return {
+				keepAlive, hidden: isHidden(), ticking, worker: stats.worker, ticks: stats.ticks,
+				hiddenPeriods: stats.hiddenPeriods, lastGapMs: stats.lastGapMs, longestGapMs: stats.longestGapMs,
+			};
+		},
+	});
+}());
+</script>
 <script src="$GODOT_URL"></script>
 <script>
 const GODOT_CONFIG = $GODOT_CONFIG;

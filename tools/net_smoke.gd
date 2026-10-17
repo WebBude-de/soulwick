@@ -21,6 +21,10 @@ extends SceneTree
 ## game packets and bytes per second in both directions, round trip, buffers, longest hitch) and
 ## the corrections of the own player (snaps). hitch=<seconds> hitch_role=client|host freezes that
 ## process once in the middle of the window (what a hang does to the other side and the relay).
+## With hitch_role=host (a host whose browser tab went into the background, D-183) the client must
+## notice the host's stall and must not pull its own player back; the host must notice its own gap.
+## In every load run the client must not see a host stall while joining and at the run start (the
+## host's beats and load announcement, D-183 follow-up).
 ## SOULWICK_NET_BUNDLE=0 compares without bundles; relay=ws://127.0.0.1:<port>/v1 of an own relay
 ## started with --sim-latency=<ms> adds latency.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
@@ -264,6 +268,9 @@ func _host_load() -> void:
 		if _living_enemies(room).size() < extra / 2:
 			_spawn_load(room, extra / 2)
 	_report_load(diagnostics, start)
+	# 2000 ms = HostStall.HOST_AWAY_NOTICE_MSEC.
+	if hitch_done and float(_args.get("hitch", "0")) * 1000.0 >= 2000.0 and _lobby.peer != null:
+		_check(int(_lobby.peer.host_away_count) >= 1, "the host noticed its own stall (%d ms)" % int(_lobby.peer.last_host_away_msec))
 	_check(_lobby.is_in_room(), "host still in the room after the load")
 	_lobby.leave()
 	var box := {"text": ""}
@@ -296,6 +303,9 @@ func _client_load() -> void:
 	if not await _until(func() -> bool: return _net().enemies.get_live_count() >= extra / 2, "client sees the load (%d+ puppets)" % (extra / 2), STEP_TIMEOUT * 2):
 		return
 	var diagnostics: Object = _diagnostics()
+	# Joining, the host's world change and this client's own dungeon load (hide_from_peers: no world
+	# data for a while, only the host's beats and its load announcement) are no host stall.
+	_check(int(diagnostics.totals.get("host_stalls", 0)) == 0, "no host stall noticed while joining and at the run start (%d)" % int(diagnostics.totals.get("host_stalls", 0)))
 	var start: Dictionary = diagnostics.mark()
 	var state: Node = _controller.local_player.get_node("NetState")
 	var snaps_before: int = state.snap_count
@@ -306,6 +316,8 @@ func _client_load() -> void:
 	var step := 0
 	var peak_puppets := 0
 	var snaps := 0
+	var host_stalls := 0
+	var locked_frames := 0
 	while _lobby.is_in_room() and Time.get_ticks_msec() - started < int((load_seconds + 30.0) * 1000.0):
 		var held: StringName = directions[step % directions.size()]
 		Input.action_press(held)
@@ -319,10 +331,17 @@ func _client_load() -> void:
 		peak_puppets = maxi(peak_puppets, _net().enemies.get_live_count() if _net() != null else 0)
 		if is_instance_valid(state):
 			snaps = state.snap_count - snaps_before
+			if state.is_host_stalled():
+				locked_frames += 1
+		host_stalls = int(diagnostics.totals.get("host_stalls", 0)) - int(start.get("host_stalls", 0))
 		if not hitch_done and str(_args.get("hitch_role", "")) == "client" and Time.get_ticks_msec() - started > int(load_seconds * 500.0):
 			hitch_done = true
 			_hitch()
-	_say("load: up to %d puppets, own player snapped back %d times" % [peak_puppets, snaps])
+	_say("load: up to %d puppets, own player snapped back %d times, host stalls noticed %d (longest %d ms, %d steps waiting)" % [
+		peak_puppets, snaps, host_stalls, diagnostics.longest_host_stall_msec, locked_frames])
+	if str(_args.get("hitch_role", "")) == "host" and float(_args.get("hitch", "0")) >= 1.0:
+		_check(host_stalls >= 1, "the client noticed the host's stall (%d)" % host_stalls)
+		_check(snaps == 0, "the own player was not pulled back while the host stood still (%d)" % snaps)
 	_report_load(diagnostics, start)
 	_check(_lobby.last_end_reason == "host_left", "the session ended because the host left (%s)" % _lobby.last_end_reason)
 

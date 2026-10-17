@@ -57,10 +57,16 @@ func _body(at: Vector2, alive := true) -> Node2D:
 	return node
 
 
+func test_the_camera_follows_only_the_local_player() -> void:
+	var local := _body(Vector2(100, 100))
+	var near := _body(Vector2(140, 120))
+	assert_eq(CoopRules.camera_group(local, [near, local]), [local] as Array[Node2D], "D-184: only the own player, so the aim does not drift")
+
+
 func test_the_group_camera_keeps_the_local_player_and_near_mates() -> void:
 	var local := _body(Vector2(100, 100))
 	var near := _body(Vector2(400, 220))
-	var group := CoopRules.camera_group(local, [near, local])
+	var group := CoopRules.camera_group(local, [near, local], CoopRules.CAMERA_KEEP, true)
 	assert_eq(group.size(), 2, "local player and the mate near him")
 	assert_eq(group[0], local, "the local player comes first")
 	var middle := (group[0].global_position + group[1].global_position) * 0.5
@@ -73,7 +79,7 @@ func test_the_group_camera_drops_far_and_downed_mates() -> void:
 	var far := _body(Vector2(CoopRules.CAMERA_KEEP.x + 50.0, 0))
 	var downed := _body(Vector2(30, 0), false)
 	var near := _body(Vector2(0, CoopRules.CAMERA_KEEP.y - 10.0))
-	var group := CoopRules.camera_group(local, [far, downed, near, null])
+	var group := CoopRules.camera_group(local, [far, downed, near, null], CoopRules.CAMERA_KEEP, true)
 	assert_eq(group, [local, near] as Array[Node2D], "a downed local player stays the anchor, far and downed mates drop out")
 	assert_eq(CoopRules.camera_group(null, [near]).size(), 0, "no local player: nothing")
 
@@ -84,8 +90,10 @@ func test_the_camera_rig_follows_the_provider() -> void:
 	var mate := _body(Vector2(200, 0))
 	var rig := player.get_node("Camera2D") as CameraRig
 	assert_eq(rig.camera_targets().size(), 1, "alone: the carrier")
-	rig.set_targets_provider(func() -> Array: return CoopRules.camera_group(player, [player, mate]))
+	rig.set_targets_provider(func() -> Array: return CoopRules.camera_group(player, [player, mate], CoopRules.CAMERA_KEEP, true))
 	assert_eq(rig.camera_targets().size(), 2, "with the group provider both are in view")
+	rig.set_targets_provider(func() -> Array: return CoopRules.camera_group(player, [player, mate]))
+	assert_eq(rig.camera_targets().size(), 1, "D-184 default: only the own player")
 
 
 # --- Gate and revive (M2, D-143) ---
