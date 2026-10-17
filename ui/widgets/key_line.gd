@@ -3,6 +3,8 @@ extends VBoxContainer
 ## in use, the gamepad text with button pictures ("{a} los · {b} zurück", PadNav tokens) as a
 ## RichTextLabel. Both texts are translation keys or composed texts; the line follows language and
 ## device changes by itself. Without a gamepad text the Label always shows.
+## Touch (MobileUi.hides_key_hints): the line shows its touch text (set_touch_text, e.g. "Raum 3 ·
+## Spiel pausiert") or hides completely.
 ## Use: const KeyLine := preload("res://ui/widgets/key_line.gd"); var line := KeyLine.new();
 ## line.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED); line.set_texts(&"KEY", &"KEY_PAD").
 
@@ -17,6 +19,9 @@ var pad_label: RichTextLabel = null
 
 var _text := ""
 var _pad_text := ""
+var _touch_text := ""
+## The line shows the touch text / hides for touch right now (undone when keys count again).
+var _touch_shown := false
 var _alignment := HORIZONTAL_ALIGNMENT_CENTER
 
 
@@ -66,6 +71,12 @@ func set_texts(text: String, pad_text := "") -> void:
 	_refresh()
 
 
+## Text while touch is in use instead of the keys ("" = the line hides on touch).
+func set_touch_text(text: String) -> void:
+	_touch_text = text
+	_refresh()
+
+
 func get_text() -> String:
 	return tr(_text)
 
@@ -102,6 +113,17 @@ func _on_device_changed(_kind: int) -> void:
 
 
 func _refresh() -> void:
+	if UiKit.MobileUi.hides_key_hints():
+		_touch_shown = true
+		label.text = _touch_text
+		label.visible = true
+		pad_label.visible = false
+		visible = not _touch_text.is_empty()
+		return
+	if _touch_shown:
+		_touch_shown = false
+		label.text = _text
+		visible = true
 	var pad := not _pad_text.is_empty() and PadNav.is_pad()
 	label.visible = not pad
 	pad_label.visible = pad

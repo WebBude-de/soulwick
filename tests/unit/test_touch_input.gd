@@ -35,8 +35,13 @@ func _forced_state() -> TouchState:
 	return state
 
 
-func _overlay(state: TouchState) -> TouchOverlay:
-	var overlay: TouchOverlay = add_child_autofree(TouchOverlay.new(state))
+## Overlay with fixed options (not the stored ones). The tests below were written for floating
+## sticks; test_touch_options.gd covers fixed sticks, swapped sides and the sizes.
+func _overlay(state: TouchState, floating := true) -> TouchOverlay:
+	var overlay := TouchOverlay.new(state)
+	overlay.follow_options = false
+	overlay.set_options(false, floating, 1, 1.0)
+	add_child_autofree(overlay)
 	overlay.layout(SCREEN)
 	overlay.set_shown(true)
 	return overlay

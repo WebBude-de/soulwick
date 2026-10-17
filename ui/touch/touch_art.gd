@@ -2,8 +2,11 @@ class_name TouchArt
 extends RefCounted
 ## Sprites of the on-screen touch controls (briefing docs/design/sprites/SPRITES_V10.md §1):
 ## res://art/ui/touch/<name>.png replaces the drawn placeholder of the TouchOverlay as soon as the
-## file exists (like EnemyArt/DoorArt); a missing file keeps the drawing. Everything is pixel art
-## drawn at whole screen pixels per art pixel with nearest filtering.
+## file exists (like EnemyArt/DoorArt); a missing file keeps the drawn pixel-art placeholder
+## (TouchPixelArt, same names and sizes). Everything is pixel art drawn at whole screen pixels per
+## art pixel with nearest filtering; the size option picks 2, 3 or 4 screen pixels per art pixel.
+## texture()/frame()/icon()/attack_icon() return files only (null = missing); the *_sprite()
+## functions add the placeholder and return what the overlay draws.
 ##
 ## Names: button frames touch_btn_large / touch_btn / touch_btn_small (+ _pressed, _disabled),
 ## stick touch_stick_base, touch_stick_knob (+ _pressed), touch_stick_arrows (optional), aim stick
@@ -13,7 +16,9 @@ extends RefCounted
 ## hammer) with the HUD item icons art/ui/icon_<weapon>.png and icon_attack as fallbacks.
 
 const DIR := "res://art/ui/touch/"
-## Screen pixels (1280×720 viewport) per art pixel of frames and the stick (= UiKit.ART_SCALE).
+const PixelArt := preload("res://ui/touch/touch_pixel_art.gd")
+## Screen pixels (1280×720 viewport) per art pixel of frames and the stick (= UiKit.ART_SCALE) at
+## the medium size; the size option uses PIXEL - 1 .. PIXEL + 1.
 const PIXEL: int = UiKit.ART_SCALE
 
 ## Button sizes: frame name, frame size in art pixels, screen pixels per icon art pixel.
@@ -27,6 +32,9 @@ const ICON_ART_SIZE := 16
 ## Button states (file suffixes).
 const PRESSED := "_pressed"
 const DISABLED := "_disabled"
+## Tints of a delivered normal sprite while its pressed/disabled file is missing.
+const TINT_PRESSED := Color(1.25, 1.1, 0.8)
+const TINT_DISABLED := Color(0.55, 0.53, 0.62, 0.8)
 
 const STICK_BASE := "touch_stick_base"
 const STICK_KNOB := "touch_stick_knob"
@@ -61,6 +69,7 @@ const WEAPON_NAMES := {
 const ITEM_ICON_DIR := "res://art/ui/icon_"
 
 static var _cache: Dictionary[String, Texture2D] = {}
+static var _placeholders: Dictionary[String, Texture2D] = {}
 
 
 ## art/ui/touch/<name>.png, or null while it does not exist.
@@ -98,9 +107,104 @@ static func attack_icon(weapon_type: int) -> Texture2D:
 	return icon(ICON_ATTACK)
 
 
-## Screen size of a button frame.
-static func frame_screen_size(size: Size) -> float:
-	return float(FRAME_ART_SIZES[size] * PIXEL)
+## Screen size of a button frame at pixel screen pixels per art pixel.
+static func frame_screen_size(size: Size, pixel := PIXEL) -> float:
+	return float(FRAME_ART_SIZES[size] * pixel)
+
+
+## Screen pixels per icon art pixel on a button of size when frames use pixel (large icons one
+## step bigger, small ones one step smaller, never below 1).
+static func icon_pixel(size: Size, pixel := PIXEL) -> int:
+	return maxi(1, pixel + int(ICON_PIXELS[size]) - PIXEL)
+
+
+# --- What the overlay draws: the file, else the drawn pixel-art placeholder ---
+
+## The file of art_name, else its drawn placeholder (null only for unknown names).
+static func sprite(art_name: String) -> Texture2D:
+	var own := texture(art_name)
+	return own if own != null else placeholder(art_name)
+
+
+## Drawn pixel-art placeholder of art_name (TouchPixelArt), cached; null for unknown names.
+static func placeholder(art_name: String) -> Texture2D:
+	if _placeholders.has(art_name):
+		return _placeholders[art_name]
+	var image := PixelArt.image(art_name)
+	var result: Texture2D = ImageTexture.create_from_image(image) if image != null else null
+	_placeholders[art_name] = result
+	return result
+
+
+## Base of a stick: the aim stick's own file, the move stick's file, else the drawn base (each
+## stick its own placeholder look: warm ring, ember ring with crosshair ticks).
+static func stick_base_sprite(aim: bool) -> Texture2D:
+	var own := aim_base() if aim else texture(STICK_BASE)
+	if own != null:
+		return own
+	return placeholder(STICK_AIM_BASE if aim else STICK_BASE)
+
+
+## Direction arrows on the move stick: the file; drawn ones only over the drawn base (a delivered
+## base stands on its own).
+static func arrows_sprite() -> Texture2D:
+	var own := texture(STICK_ARROWS)
+	if own != null or texture(STICK_BASE) != null:
+		return own
+	return placeholder(STICK_ARROWS)
+
+
+## {texture, tint} of the knob: the pressed file, the normal file tinted, else the drawn knob.
+static func knob_sprite(pressed: bool) -> Dictionary:
+	return _stateful(STICK_KNOB, PRESSED if pressed else "")
+
+
+## {texture, tint} of a button frame in a state ("", PRESSED, DISABLED): the file of that state,
+## the normal file tinted, else the drawn frame of that state.
+static func frame_sprite(size: Size, state := "") -> Dictionary:
+	return _stateful(FRAME_NAMES[size], state)
+
+
+## Icon of a button: the file, else the drawn icon.
+static func icon_sprite(id: StringName) -> Texture2D:
+	return sprite("icon_" + String(id))
+
+
+## Attack icon of a weapon type: attack_icon(), else the drawn neutral attack icon.
+static func attack_sprite(weapon_type: int) -> Texture2D:
+	var own := attack_icon(weapon_type)
+	return own if own != null else placeholder("icon_" + String(ICON_ATTACK))
+
+
+## {texture, region} of the cooldown over a button of size: a frame of touch_cooldown_8f.png on
+## normal buttons, else the drawn frame for that size (region = whole texture).
+static func cooldown_sprite(size: Size, share_left: float) -> Dictionary:
+	var frame_index := cooldown_frame(share_left)
+	var strip := texture(COOLDOWN)
+	if strip != null and size == Size.NORMAL:
+		var frame_width := float(strip.get_width()) / COOLDOWN_FRAMES
+		return {"texture": strip, "region": Rect2(frame_width * frame_index, 0.0, frame_width, strip.get_height())}
+	var drawn := placeholder("touch_cooldown_%d_%d" % [FRAME_ART_SIZES[size], frame_index])
+	return {"texture": drawn, "region": Rect2(Vector2.ZERO, drawn.get_size())}
+
+
+## Art pixels the face (and its icon) sits off the frame centre: the drawn frames have a 2 px
+## thickness below the face (pressed: the face sits on it). Delivered frames: centred.
+static func face_offset(size: Size, pressed: bool) -> float:
+	if texture(FRAME_NAMES[size]) != null:
+		return 0.0
+	return PixelArt.face_offset(pressed)
+
+
+static func _stateful(base_name: String, state: String) -> Dictionary:
+	var own := texture(base_name + state)
+	if own != null:
+		return {"texture": own, "tint": Color.WHITE}
+	if not state.is_empty():
+		var normal := texture(base_name)
+		if normal != null:
+			return {"texture": normal, "tint": TINT_PRESSED if state == PRESSED else TINT_DISABLED}
+	return {"texture": placeholder(base_name + state), "tint": Color.WHITE}
 
 
 ## Cooldown frame (0-based) for the share of the cooldown that is left (1 = just used).
@@ -111,6 +215,7 @@ static func cooldown_frame(share_left: float) -> int:
 ## Forgets loaded textures (art dropped in while the game runs, tests).
 static func clear_cache() -> void:
 	_cache.clear()
+	_placeholders.clear()
 
 
 static func _load(path: String) -> Texture2D:

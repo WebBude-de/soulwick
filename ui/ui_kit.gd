@@ -22,6 +22,8 @@ const SHADOW_OFFSET: int = maxi(1, floori(UI_SCALE))
 const SOURCE_THEME_PATH := "res://art/ui/theme.tres"
 const SLIDER_GRABBER_PATH := "res://art/ui/slider_grabber.png"
 const FONT: FontFile = preload("res://art/fonts/PixelifySans-Variable.ttf")
+## Phones and touch screens: menu zoom, safe area, touch sizes (ui/menus/mobile_ui.gd).
+const MobileUi := preload("res://ui/menus/mobile_ui.gd")
 const PANEL_TEXTURE: Texture2D = preload("res://art/ui/panel.png")
 const PANEL_GOLD_TEXTURE: Texture2D = preload("res://art/ui/panel_gold.png")
 const PANEL_DARK_TEXTURE: Texture2D = preload("res://art/ui/panel_dark.png")
@@ -112,6 +114,15 @@ static func font_px(size: float) -> int:
 static func art_px(spec_size: float, texture_size := 0.0) -> float:
 	var source := texture_size if texture_size > 0.0 else spec_size
 	return source * maxi(1, roundi(spec_size * UI_SCALE / source))
+
+
+## Smallest height of menu buttons on a touch screen in layout pixels (48 dp at the menu zoom of
+## this screen, MobileUi); 0 without a touch screen, so the PC keeps the mockup sizes.
+static func touch_button_height() -> float:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null or tree.root == null:
+		return 0.0
+	return MobileUi.min_touch_height(tree.root, MobileUi.menu_zoom(tree.root))
 
 
 # --- Theme ---
@@ -462,7 +473,7 @@ static func overlay() -> ColorRect:
 ## is_default draws it with button_hover (the action Enter triggers).
 static func dialog_button(content: String, sub: String, on_pressed: Callable, is_default := false) -> Button:
 	var result := button(content, on_pressed)
-	result.custom_minimum_size = Vector2(px(90), 0)
+	result.custom_minimum_size = Vector2(px(90), touch_button_height())
 	result.add_theme_font_size_override("font_size", font_px(SIZE_KEY_HINT))
 	result.add_theme_font_override("font", bold_font())
 	var normal_kind := &"button_hover" if is_default else &"button"
@@ -490,7 +501,7 @@ static func menu_button(content: String, hint: String, on_pressed: Callable, dan
 	result.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	result.add_theme_font_size_override("font_size", font_px(SIZE_CARD_NAME))
 	result.add_theme_font_override("font", bold_font())
-	result.custom_minimum_size = Vector2(0, px(22))
+	result.custom_minimum_size = Vector2(0, maxf(px(22), touch_button_height()))
 	result.add_theme_stylebox_override("normal", padded_style(&"button", 4, 8))
 	result.add_theme_stylebox_override("hover", padded_style(&"button_hover", 4, 8))
 	result.add_theme_stylebox_override("pressed", padded_style(&"button_hover", 4, 8))

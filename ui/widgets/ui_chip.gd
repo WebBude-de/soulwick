@@ -5,7 +5,8 @@ extends PanelContainer
 ## of one art pixel without anti-aliasing: the nine-patch panels are too big for 6-8 px text.
 ## While a gamepad is in use (P0-2 step 2) a key cap shows the gamepad button of its key instead
 ## ("Enter" -> A, "Esc" -> B, "←→" -> D-pad, "Tab" -> Back); keys without a gamepad button ("1–3",
-## "N") hide, because the gamepad picks with the D-pad and A. It switches with the device.
+## "N") hide, because the gamepad picks with the D-pad and A. It switches with the device. While
+## touch is in use (MobileUi.hides_key_hints) key caps hide.
 
 ## Key cap: dark face, soft rim, a thicker bottom edge like a key.
 const KEY_FACE := UiKit.COLOR_BG
@@ -119,8 +120,9 @@ func _apply_device() -> void:
 			_pad_glyph.visible = false
 		_label.visible = true
 		add_theme_stylebox_override("panel", _style(KEY_FACE, KEY_RIM, KEY_PADDING, true))
-	# Keys the gamepad has no button for (numbers, letters) are not shown on a gamepad.
-	visible = not (pad and glyph == &"")
+	# Keys the gamepad has no button for (numbers, letters) are not shown on a gamepad; no key caps
+	# at all while touch is in use (MobileUi).
+	visible = not (pad and glyph == &"") and not UiKit.MobileUi.hides_key_hints()
 
 
 static func _style(face: Color, rim: Color, padding: Vector2, keycap: bool) -> StyleBoxFlat:

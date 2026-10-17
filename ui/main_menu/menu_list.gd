@@ -33,6 +33,8 @@ var _hints: Array[Label] = []
 var _cursors: Array[Label] = []
 var _enabled: Array[bool] = []
 var _selected := -1
+## Entry height in layout pixels (UiKit.px(ITEM_HEIGHT); taller on touch screens, set_item_height).
+var _item_height := UiKit.px(ITEM_HEIGHT)
 
 
 func _init() -> void:
@@ -43,7 +45,7 @@ func _init() -> void:
 func add_entry(id: StringName, text: String, hint := "", enabled := true) -> Button:
 	var button := Button.new()
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0, UiKit.px(ITEM_HEIGHT))
+	button.custom_minimum_size = Vector2(0, _item_height)
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	var empty := StyleBoxEmpty.new()
 	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
@@ -98,6 +100,17 @@ func set_entry(id: StringName, text: String, hint := "", enabled := true) -> voi
 	if not enabled and _selected == index:
 		_move(1)
 	_refresh()
+
+
+## Entry height in layout pixels (phones: tall enough to tap, MainMenu decides).
+func set_item_height(height: float) -> void:
+	_item_height = roundf(height)
+	for button in _buttons:
+		button.custom_minimum_size.y = _item_height
+
+
+func get_entry_count() -> int:
+	return _ids.size()
 
 
 func get_selected_id() -> StringName:

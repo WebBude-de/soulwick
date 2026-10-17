@@ -111,6 +111,7 @@ func _ready() -> void:
 	_notice_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_notice_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(_notice_root)
+	UiKit.MobileUi.fit_to_safe_area(_notice_root)
 	_resume_lobby.call_deferred()
 
 

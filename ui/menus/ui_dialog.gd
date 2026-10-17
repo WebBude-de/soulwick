@@ -219,7 +219,10 @@ static func option_button(text: String, sub: String, key: String, on_pressed: Ca
 	button.set_meta(Modal.META_PAD_OPTION, true)
 	if is_default:
 		button.set_meta(Modal.META_PAD_DEFAULT, true)
-	button.custom_minimum_size = Vector2(UiKit.px(OPTION_MIN_WIDTH), 0)
+	button.custom_minimum_size = Vector2(UiKit.px(OPTION_MIN_WIDTH), UiKit.touch_button_height())
+	if UiKit.MobileUi.hides_key_hints():
+		# Touch: no key caps on the buttons (the finger taps the button itself).
+		key = ""
 	button.add_theme_font_size_override("font_size", UiKit.font_px(UiKit.SIZE_KEY_HINT))
 	button.add_theme_font_override("font", UiKit.bold_font())
 	button.add_theme_color_override("font_disabled_color", UiKit.COLOR_DISABLED)

@@ -21,6 +21,12 @@ extends Control
 ## PAD_ACCEPT_GUARD seconds is ignored: A is also the dash, a player mashing it in a fight must not
 ## pick blindly. The key bar shows the gamepad's buttons while a gamepad is in use (number keys
 ## become "D-pad select"), and switches back and forth with the device.
+## Phones and touch screens (MobileUi, 17.10.2026): the panel sits on a stage that is drawn
+## MobileUi.menu_zoom() times larger inside the safe area (layout stays in mockup pixels), lowered per
+## dialog until its width fits (MobileUi.fit_zoom); what is still too tall scrolls (Scroll between
+## frame and its column). Dialogs that close with Esc/B (cancel_allowed or close_action) get a
+## tappable X on the top-right corner of the panel; key hints hide while touch is in use. Without a
+## touch screen nothing of this applies (zoom 1, no X, R8 limits as before).
 
 signal finished(result: Variant)
 
@@ -35,6 +41,13 @@ const META_PAD_DEFAULT: StringName = &"pad_default"
 const FOCUS_COLOR := UiKit.COLOR_GOLD
 const FOCUS_MARGIN := 1.0
 const PadNav := preload("res://ui/widgets/pad_nav.gd")
+const MobileUi := preload("res://ui/menus/mobile_ui.gd")
+## X button: size in mockup pixels (at least MobileUi.MIN_TOUCH_DP on screen) and the share of it
+## that sticks out over the top-right corner of the panel (up and to the right).
+const CLOSE_SIZE := 18.0
+const CLOSE_OUTSIDE := 0.4
+## Scroll bar of a dialog that is taller than a phone screen (mockup pixels).
+const SCROLL_BAR_WIDTH := 3.0
 
 const DIM_COLOR := UiKit.COLOR_OVERLAY
 ## Gap between content rows in mockup pixels (ui_spec dialog.gap; R8 tighter, dialogs max 60 %).
@@ -83,6 +96,11 @@ var result_filter: Callable = Callable()
 ## (group games: an upgrade choice must not hold a player forever). The clock starts on show.
 var auto_finish_after := 0.0
 var auto_finish_result: Variant = null
+## What the X does (touch screens); empty = like Esc (input_handler, then cancel_result when
+## cancel_allowed). The pause menu sets it, because GameUI handles its Esc.
+var close_action: Callable = Callable()
+## Zoom the panel is drawn with right now (MobileUi; 1 on the PC).
+var zoom := 1.0
 
 var _done := false
 var _dim: ColorRect = null
@@ -100,6 +118,13 @@ var _key_entries: Array = []
 var _key_paused := true
 var _key_action: Control = null
 var _has_key_hints := false
+## Centred stage with the panel (scaled on phones), the column in the panel, the scroll around it
+## (only once a dialog was too tall for a phone) and the X.
+var _stage: CenterContainer = null
+var _outer: VBoxContainer = null
+var _scroll: ScrollContainer = null
+var _close_button: Button = null
+var _layout_queued := false
 
 ## Instance ids of the dialogs on screen (any screen), see open_count().
 static var _open_ids: Dictionary = {}
@@ -132,6 +157,7 @@ func show_on(parent: Node) -> void:
 	parent.add_child(self)
 	_open_ids[get_instance_id()] = true
 	_shown_ms = Time.get_ticks_msec()
+	_setup_mobile()
 	# A stick or D-pad still held from the game (walking) must not move the focus.
 	MenuInput.latch()
 	var device := InputDevice.shared()
@@ -173,6 +199,8 @@ func _process(_delta: float) -> void:
 			MenuInput.pump_repeat()
 		if _pad_button != null:
 			_focus_ring.queue_redraw()
+		if _close_button != null:
+			_place_close_button()
 
 
 ## true while the gamepad's A is still ignored after opening (PAD_ACCEPT_GUARD).
@@ -283,6 +311,8 @@ func _on_device_changed(_kind: int) -> void:
 		return
 	if _has_key_hints:
 		_build_key_hints()
+	if _footer != null:
+		_footer.visible = not MobileUi.hides_key_hints()
 	if InputGlyphs.is_gamepad():
 		_focus_default()
 	elif InputDevice.shared().kind == InputDevice.Kind.KEYBOARD_MOUSE and get_focused_button() != null:
@@ -347,6 +377,7 @@ func set_footer(text: String, color := UiKit.COLOR_DISABLED) -> void:
 		add_child(_footer)
 	_footer.text = text
 	_footer.add_theme_color_override("font_color", color)
+	_footer.visible = not MobileUi.hides_key_hints()
 
 
 ## Key bar inside the panel, below everything in content: a divider, then key caps with captions
@@ -396,8 +427,13 @@ func _build_key_hints() -> void:
 		key_bar.remove_child(child)
 		child.queue_free()
 	var entries := pad_key_entries(_key_entries) if InputGlyphs.is_gamepad() else _key_entries
+	if MobileUi.hides_key_hints():
+		# Touch: keys mean nothing; the X, the buttons and "Spiel pausiert" stay.
+		entries = []
 	var paused := _key_paused
-	key_bar.visible = true
+	key_bar.visible = not entries.is_empty() or paused or action != null
+	if not key_bar.visible:
+		return
 	key_bar.add_child(UiKit.separator())
 	var row := UiKit.hbox(int(UiKit.px(8)))
 	row.name = "Keys"
@@ -449,15 +485,17 @@ func _build(panel_kind: StringName) -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	_dim = UiKit.overlay()
 	add_child(_dim)
-	var center := CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(center)
+	_stage = CenterContainer.new()
+	_stage.name = "Stage"
+	_stage.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_stage)
 	frame = UiKit.panel(panel_kind)
 	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	frame.draw.connect(_draw_accent)
-	center.add_child(frame)
+	_stage.add_child(frame)
 	var outer := UiKit.vbox(int(UiKit.px(CONTENT_GAP)))
+	_outer = outer
 	frame.add_child(outer)
 	content = UiKit.vbox(int(UiKit.px(CONTENT_GAP)))
 	outer.add_child(content)
@@ -472,6 +510,225 @@ func _build(panel_kind: StringName) -> void:
 	_focus_ring.visible = false
 	_focus_ring.draw.connect(_draw_focus_ring)
 	add_child(_focus_ring)
+
+
+# --- Phones and touch screens (MobileUi) ---
+
+## The X is on screen (touch screens, dialog can be closed with Esc/B or close_action).
+func has_close_button() -> bool:
+	return _close_button != null and _close_button.visible
+
+
+func get_close_button() -> Button:
+	return _close_button
+
+
+## What the X does: close_action, else like Esc (input_handler first, then cancel_result).
+func request_close() -> void:
+	if _done:
+		return
+	if close_action.is_valid():
+		close_action.call()
+		return
+	var event := InputEventAction.new()
+	event.action = &"ui_cancel"
+	event.pressed = true
+	if input_handler.is_valid() and input_handler.call(event):
+		return
+	if cancel_allowed:
+		UiSound.back(self)
+		finish(cancel_result)
+
+
+## The panel (and the X) lie completely inside the safe area (phone rule of the tests).
+func fits_safe_area() -> bool:
+	var safe := MobileUi.safe_rect(get_viewport()).grow(0.5)
+	if not safe.encloses(get_panel_rect()):
+		return false
+	return not has_close_button() or safe.encloses(Rect2(_close_button.position, _close_button.size * _close_button.scale))
+
+
+## Panel rect in viewport pixels without the pop-in animation (stage transform × layout rect).
+func get_panel_rect() -> Rect2:
+	return _stage.get_transform() * Rect2(frame.position, frame.size)
+
+
+## The dialog scrolls (too tall for the screen at its zoom).
+func is_scrolling() -> bool:
+	return _scroll != null and _scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+
+
+func _setup_mobile() -> void:
+	if MobileUi.is_touch_screen() and _close_button == null:
+		_close_button = create_close_button(request_close)
+		add_child(_close_button)
+		move_child(_close_button, _stage.get_index() + 1)
+	if _close_button != null:
+		_close_button.visible = cancel_allowed or close_action.is_valid()
+		if _close_button.visible:
+			_clear_header_for_close()
+	if _footer != null:
+		_footer.visible = not MobileUi.hides_key_hints()
+	var viewport := get_viewport()
+	if not viewport.size_changed.is_connected(_queue_layout):
+		viewport.size_changed.connect(_queue_layout)
+	if not _outer.minimum_size_changed.is_connected(_queue_layout):
+		_outer.minimum_size_changed.connect(_queue_layout)
+	_layout_mobile()
+
+
+## Menu headers (UiDialog.create_menu) keep their right end free for the X (the shop's gold badge
+## sat under it); an equal spacer on the left keeps the title centred.
+func _clear_header_for_close() -> void:
+	var header := content.get_node_or_null(^"Header") as HBoxContainer
+	if header == null or header.has_node(^"CloseRoom"):
+		return
+	var style := frame.get_theme_stylebox(&"panel")
+	var padding := style.get_margin(SIDE_RIGHT) if style != null else 0.0
+	var room := maxf(0.0, ceilf(_close_size(MobileUi.menu_zoom(get_viewport())) * (1.0 - CLOSE_OUTSIDE) - padding + UiKit.px(2)))
+	if room <= 0.0:
+		return
+	for side in ["CloseRoom", "CloseBalance"]:
+		var spacer := Control.new()
+		spacer.name = side
+		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		spacer.custom_minimum_size.x = room
+		header.add_child(spacer)
+		if side == "CloseBalance":
+			header.move_child(spacer, 0)
+
+
+func _queue_layout() -> void:
+	if _layout_queued or _done:
+		return
+	_layout_queued = true
+	_layout_mobile.call_deferred()
+
+
+## Stage in the safe area at the zoom whose width fits; the height scrolls when it is still too tall.
+func _layout_mobile() -> void:
+	_layout_queued = false
+	if _done or not is_inside_tree():
+		return
+	var viewport := get_viewport()
+	var full := Rect2(Vector2.ZERO, get_viewport_rect().size)
+	var safe := MobileUi.safe_rect(viewport)
+	var target := MobileUi.menu_zoom(viewport)
+	if not MobileUi.is_touch_screen() and is_equal_approx(target, 1.0) and safe.is_equal_approx(full) and _scroll == null:
+		zoom = 1.0
+		MobileUi.place_stage(_stage, full, 1.0, full)
+		return
+	var margin := MobileUi.touch_margin(viewport)
+	if has_close_button():
+		margin = maxf(margin, ceilf(_close_size(target) * target * CLOSE_OUTSIDE + UiKit.px(2)))
+	var area := safe.grow(-margin)
+	var need := _content_minimum()
+	# The width decides the zoom (no sideways scrolling); the height scrolls instead of shrinking text.
+	zoom = MobileUi.fit_zoom(target, Vector2(need.x, 1.0), area.size, MobileUi.device_scale(viewport))
+	var max_height := floorf(area.size.y / zoom)
+	_set_scroll_limit(need.y > max_height + 0.5, max_height)
+	MobileUi.place_stage(_stage, area, zoom, full)
+	if _close_button != null:
+		_close_button.custom_minimum_size = Vector2.ONE * _close_size(zoom)
+		_close_button.size = _close_button.custom_minimum_size
+		_place_close_button()
+
+
+## Panel size the content asks for (without the scroll limit).
+func _content_minimum() -> Vector2:
+	var style := frame.get_theme_stylebox(&"panel")
+	var inner := _outer.get_combined_minimum_size()
+	if is_scrolling():
+		inner.x += UiKit.px(SCROLL_BAR_WIDTH + 2)
+	var result := inner + (style.get_minimum_size() if style != null else Vector2.ZERO)
+	return result.max(frame.custom_minimum_size)
+
+
+## Puts the column into a ScrollContainer (once) and limits its height, or lets it grow again.
+func _set_scroll_limit(scroll: bool, max_frame_height: float) -> void:
+	if not scroll and _scroll == null:
+		return
+	if _scroll == null:
+		_scroll = ScrollContainer.new()
+		_scroll.name = "Scroll"
+		_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+		_scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+		_style_scroll_bar(_scroll.get_v_scroll_bar())
+		frame.remove_child(_outer)
+		frame.add_child(_scroll)
+		_scroll.add_child(_outer)
+		_outer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if scroll:
+		var style := frame.get_theme_stylebox(&"panel")
+		var padding := style.get_minimum_size().y if style != null else 0.0
+		_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		_scroll.custom_minimum_size = Vector2(_outer.get_combined_minimum_size().x + UiKit.px(SCROLL_BAR_WIDTH + 2),
+				maxf(UiKit.px(40), max_frame_height - padding))
+	else:
+		_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_scroll.custom_minimum_size = Vector2.ZERO
+
+
+## Thin pixel scroll bar in the panel colours.
+static func _style_scroll_bar(bar: VScrollBar) -> void:
+	var track := UiKit.bar_style(UiKit.COLOR_BG)
+	track.content_margin_left = UiKit.px(SCROLL_BAR_WIDTH) * 0.5
+	track.content_margin_right = UiKit.px(SCROLL_BAR_WIDTH) * 0.5
+	bar.add_theme_stylebox_override(&"scroll", track)
+	bar.add_theme_stylebox_override(&"scroll_focus", track)
+	bar.add_theme_stylebox_override(&"grabber", UiKit.bar_style(UiKit.COLOR_EMPTY_SLOT))
+	bar.add_theme_stylebox_override(&"grabber_highlight", UiKit.bar_style(UiKit.COLOR_MUTED))
+	bar.add_theme_stylebox_override(&"grabber_pressed", UiKit.bar_style(UiKit.COLOR_GOLD))
+
+
+## X size in layout pixels at stage_zoom: CLOSE_SIZE mockup pixels, at least MIN_TOUCH_DP on screen.
+func _close_size(stage_zoom: float) -> float:
+	var viewport := get_viewport() if is_inside_tree() else null
+	return maxf(UiKit.px(CLOSE_SIZE), MobileUi.min_touch_height(viewport, maxf(stage_zoom, 1.0)))
+
+
+## Pixel-art X button (touch screens): button frame, X symbol, gold on hover. The main menu uses it too.
+static func create_close_button(on_pressed: Callable) -> Button:
+	var button := Button.new()
+	button.name = "Close"
+	button.focus_mode = Control.FOCUS_NONE
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.icon = close_icon()
+	button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	button.add_theme_stylebox_override(&"normal", UiKit.padded_style(&"button", 2, 2))
+	button.add_theme_stylebox_override(&"hover", UiKit.padded_style(&"button_hover", 2, 2))
+	button.add_theme_stylebox_override(&"pressed", UiKit.padded_style(&"button_hover", 2, 2))
+	button.add_theme_color_override(&"icon_hover_color", UiKit.COLOR_GOLD)
+	button.add_theme_color_override(&"icon_pressed_color", UiKit.COLOR_GOLD)
+	button.custom_minimum_size = Vector2.ONE * UiKit.px(CLOSE_SIZE)
+	button.pressed.connect(on_pressed)
+	return button
+
+
+## Pixel X (7×7 art pixels with a shadow), upscaled like all UI art.
+static func close_icon() -> Texture2D:
+	var image := Image.create(8, 8, false, Image.FORMAT_RGBA8)
+	for i in 7:
+		image.set_pixel(i + 1, i + 1, UiKit.COLOR_SHADOW)
+		image.set_pixel(7 - i, i + 1, UiKit.COLOR_SHADOW)
+	for i in 7:
+		image.set_pixel(i, i, UiKit.COLOR_TEXT)
+		image.set_pixel(6 - i, i, UiKit.COLOR_TEXT)
+	return UiKit.upscale(ImageTexture.create_from_image(image))
+
+
+## The X on the top-right corner of the panel, drawn with the stage zoom (follows the pop-in).
+func _place_close_button() -> void:
+	if not _close_button.visible:
+		return
+	var rect := get_global_transform().affine_inverse() * frame.get_global_rect()
+	var scale_now := _stage.scale.x * frame.scale.x
+	_close_button.scale = Vector2.ONE * scale_now
+	var size := _close_button.size * scale_now
+	var center := Vector2(rect.end.x - size.x * (0.5 - CLOSE_OUTSIDE), rect.position.y + size.y * (0.5 - CLOSE_OUTSIDE))
+	_close_button.position = (center - size * 0.5).round()
+	_close_button.modulate.a = frame.modulate.a
 
 
 ## The accent stripe inside the panel border, from top to bottom (drawn under the content).

@@ -4,6 +4,8 @@ extends RefCounted
 ## window mode, VSync, brightness (R8, R6 hook), light effects (L1), screen shake, hit stop, damage numbers, reduced flashes. Global like the
 ## volumes (settings.cfg [options] via SaveManager.get_option/set_option, not per save slot).
 ## Controls (P0-2): gamepad bindings and device watcher (apply_controls), gamepad aim assist.
+## Touch controls (Projektmitglied 17.10.2026): swap sides, fixed or floating sticks, size,
+## opacity, touch aim assist; the TouchOverlay reads them every frame, so a change shows at once.
 ## apply_all() runs at start (scenes/main.gd, scenes/world_controller.gd); the options view calls
 ## the setters, which store and apply at once. F11 toggles the window mode everywhere.
 ##
@@ -41,6 +43,22 @@ const LIGHT_LEVELS: Array[StringName] = [LIGHT_LOW, LIGHT_HIGH]
 ## Light aim assist on the gamepad's right stick, ranged weapons only (P0-2, same rule as touch,
 ## D-155; TouchAimAssist). Read by GamepadInput every frame.
 const GAMEPAD_AIM_ASSIST: StringName = &"gamepad_aim_assist"
+## Touch controls (TouchOverlay, TouchInput). Swap sides: move stick right, aim stick left.
+const TOUCH_SWAP_SIDES: StringName = &"touch_swap_sides"
+## "fixed": the sticks stay at their place (default); "floating": they start under the thumb and
+## follow it (the behaviour before 17.10.2026).
+const TOUCH_STICKS: StringName = &"touch_sticks"
+const TOUCH_FIXED: StringName = &"fixed"
+const TOUCH_FLOATING: StringName = &"floating"
+const TOUCH_STICK_MODES: Array[StringName] = [TOUCH_FIXED, TOUCH_FLOATING]
+## Size step 0 (small), 1 (medium), 2 (large): 2, 3 or 4 screen pixels per art pixel.
+const TOUCH_SIZE: StringName = &"touch_size"
+const TOUCH_SIZE_STEPS := 3
+## Opacity of the whole overlay (TESTWERT steps).
+const TOUCH_OPACITY: StringName = &"touch_opacity"
+const TOUCH_OPACITIES: Array[float] = [0.5, 0.75, 1.0]
+## Touch aim assist (D-155, ranged weapons only; TouchAimAssist). Read by TouchInput every frame.
+const TOUCH_AIM_ASSIST: StringName = &"touch_aim_assist"
 
 const LANGUAGE_AUTO: StringName = &"auto"
 const LANGUAGES: Array[StringName] = [LANGUAGE_AUTO, &"en", &"de"]
@@ -68,6 +86,11 @@ const DEFAULTS := {
 	BRIGHTNESS: 0.0,
 	LIGHT_EFFECTS: "high",
 	GAMEPAD_AIM_ASSIST: true,
+	TOUCH_SWAP_SIDES: false,
+	TOUCH_STICKS: "fixed",
+	TOUCH_SIZE: 1,
+	TOUCH_OPACITY: 1.0,
+	TOUCH_AIM_ASSIST: true,
 }
 
 
@@ -273,6 +296,62 @@ static func is_gamepad_aim_assist_enabled() -> bool:
 
 static func set_gamepad_aim_assist(on: bool) -> void:
 	SaveManager.set_option(GAMEPAD_AIM_ASSIST, on)
+
+
+# --- Touch controls (17.10.2026) ---
+
+static func is_touch_swap_sides() -> bool:
+	return SaveManager.get_option(TOUCH_SWAP_SIDES, false)
+
+
+static func set_touch_swap_sides(on: bool) -> void:
+	SaveManager.set_option(TOUCH_SWAP_SIDES, on)
+
+
+## "fixed" (default) or "floating".
+static func get_touch_stick_mode() -> StringName:
+	var value := StringName(str(SaveManager.get_option(TOUCH_STICKS, "fixed")))
+	return value if TOUCH_STICK_MODES.has(value) else TOUCH_FIXED
+
+
+static func set_touch_stick_mode(mode: StringName) -> void:
+	if not TOUCH_STICK_MODES.has(mode):
+		mode = TOUCH_FIXED
+	SaveManager.set_option(TOUCH_STICKS, String(mode))
+
+
+static func are_touch_sticks_floating() -> bool:
+	return get_touch_stick_mode() == TOUCH_FLOATING
+
+
+## 0 (small), 1 (medium, default), 2 (large).
+static func get_touch_size() -> int:
+	var value: Variant = SaveManager.get_option(TOUCH_SIZE, 1)
+	return clampi(int(value), 0, TOUCH_SIZE_STEPS - 1)
+
+
+static func set_touch_size(step: int) -> void:
+	SaveManager.set_option(TOUCH_SIZE, clampi(step, 0, TOUCH_SIZE_STEPS - 1))
+
+
+## 0.5 .. 1.0 (default 1.0, the designed look).
+static func get_touch_opacity() -> float:
+	var value: Variant = SaveManager.get_option(TOUCH_OPACITY, 1.0)
+	if typeof(value) != TYPE_FLOAT and typeof(value) != TYPE_INT:
+		return 1.0
+	return clampf(float(value), TOUCH_OPACITIES[0], 1.0)
+
+
+static func set_touch_opacity(opacity: float) -> void:
+	SaveManager.set_option(TOUCH_OPACITY, clampf(opacity, TOUCH_OPACITIES[0], 1.0))
+
+
+static func is_touch_aim_assist_enabled() -> bool:
+	return SaveManager.get_option(TOUCH_AIM_ASSIST, true)
+
+
+static func set_touch_aim_assist(on: bool) -> void:
+	SaveManager.set_option(TOUCH_AIM_ASSIST, on)
 
 
 # --- Game feel ---

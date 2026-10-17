@@ -1,10 +1,19 @@
 class_name TouchStick
 extends RefCounted
 ## One on-screen stick of the TouchOverlay (CP2): the finger that holds it, where it went down and
-## where it is now. The move stick on the left floats (it starts wherever the thumb lands); the aim
-## stick on the right starts at its resting place when the thumb lands on its ring, so a touch on
-## the edge aims at once, and floats from anywhere else in its zone. Both follow a thumb that leaves
-## the ring. Pure geometry, no input events: the overlay feeds it.
+## where it is now. Two modes (option "Joysticks", Projektmitglied 17.10.2026):
+## - fixed (default): the stick never leaves its resting place. Only a touch on or near its ring
+##   takes it (grab radius); the deflection is measured from the resting centre, so a touch on the
+##   edge counts at once, and a thumb outside the ring keeps full deflection without dragging the
+##   stick along.
+## - floating: the move stick starts wherever the thumb lands in its zone; the aim stick starts at
+##   its resting place when the thumb lands on its ring and under the thumb anywhere else. Both
+##   follow a thumb that leaves the ring.
+## Pure geometry, no input events: the overlay feeds it.
+
+## Share of the radius around the resting centre that takes a fixed stick (TESTWERT): a thumb
+## landing slightly off the ring still grabs it.
+const FIXED_GRAB_SHARE := 1.5
 
 ## Reach in viewport pixels.
 var radius: float
@@ -12,6 +21,8 @@ var radius: float
 var dead_zone: float
 ## Where the stick waits while no finger holds it.
 var rest := Vector2.ZERO
+## Fixed at its resting place (see above); false = floating.
+var fixed := false
 ## Finger index holding the stick, -1 = free.
 var finger := -1
 var origin := Vector2.ZERO
@@ -40,11 +51,17 @@ func is_on_ring(position: Vector2) -> bool:
 	return position.distance_to(rest) <= radius * 1.15
 
 
-## A finger takes the stick at position. anchored: the stick stays at its resting place and the
-## touch already counts as a deflection; otherwise the stick starts under the finger.
+## A fixed stick only takes touches within its grab radius; a floating one any touch (the overlay
+## checks its zone).
+func can_grab(position: Vector2) -> bool:
+	return not fixed or position.distance_to(rest) <= radius * FIXED_GRAB_SHARE
+
+
+## A finger takes the stick at position. anchored (always when fixed): the stick stays at its
+## resting place and the touch already counts as a deflection; otherwise it starts under the finger.
 func begin(index: int, position: Vector2, anchored := false) -> Vector2:
 	finger = index
-	origin = rest if anchored else position
+	origin = rest if anchored or fixed else position
 	point = position
 	return drag(position)
 
@@ -52,7 +69,7 @@ func begin(index: int, position: Vector2, anchored := false) -> Vector2:
 ## The holding finger moved; returns the stick vector.
 func drag(position: Vector2) -> Vector2:
 	var offset := position - origin
-	if offset.length() > radius:
+	if offset.length() > radius and not fixed:
 		origin = position - offset.normalized() * radius
 	point = position
 	return vector(position - origin, radius, dead_zone)

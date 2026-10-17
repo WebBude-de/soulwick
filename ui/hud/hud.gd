@@ -180,6 +180,8 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	_root = root
+	# Phones: corners stay clear of notch and rounded edges (MobileUi; desktop unchanged).
+	UiKit.MobileUi.fit_to_safe_area(root)
 	_build_status(root)
 	_build_room(root)
 	_build_weapons(root)

@@ -55,6 +55,11 @@ func handle_input(event: InputEvent) -> bool:
 	return first_start and event.is_action_type()
 
 
+## The first start has no way back (no X on touch screens either).
+func can_close() -> bool:
+	return not first_start
+
+
 func _on_saved() -> void:
 	saved.emit()
 	closed.emit()

@@ -16,6 +16,8 @@
 
 Genutzt von `ui/touch/touch_overlay.gd` über `ui/touch/touch_art.gd` (`TouchArt`). Fehlt `_pressed` oder `_disabled`, tönt der Code die normale Grafik heller bzw. grauer.
 
+**Nachtrag 17.10.2026 (Projektmitglied: „so pixelig wie das Spiel“):** Die Platzhalter sind jetzt selbst Pixel-Art in genau diesen Namen, Größen und Farben (`ui/touch/touch_pixel_art.gd`); eine gelieferte Datei ersetzt sie wie bisher. Neu in den Einstellungen (Reiter „Touch“): **Größe** Klein/Mittel/Groß zeichnet alle Teile mit **2, 3 oder 4** Bildschirmpixeln je Grafikpixel (Icons auf großen/kleinen Knöpfen eine Stufe größer/kleiner) – bitte keine Details unter 1 px planen, die bei ×2 verschwinden. **Deckkraft** 50/75/100 % wirkt zusätzlich auf die ganze Steuerung; die Grafiken selbst bitte wie oben beschrieben halbtransparent anlegen. Mit „Seiten tauschen“ wird nur die Position gespiegelt, nicht die Grafik. Die gezeichneten Knöpfe haben unten 2 px „Dicke“; das Icon sitzt 1 px über der Bildmitte (gedrückt 1 px darunter), bei gelieferten Rahmen genau mittig.
+
 | Datei | Größe | Frames | Beschreibung |
 | --- | --- | --- | --- |
 | `touch_stick_base.png` | 60×60 | 1 | Sockel des Bewegungs-Sticks: runde Scheibe, Fläche `#15131f` mit ca. 40 % Deckkraft, Ring 2 px in `#d9b77e` (ca. 60 % Deckkraft) mit 1 px dunkler Innenkante, unten ein Hauch Schatten. Ruhig, nicht verspielt, das Spiel bleibt sichtbar. |

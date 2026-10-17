@@ -3,8 +3,11 @@ extends VBoxContainer
 ## The options content shared by the main menu ("Optionen" panel) and the pause menu, so both look
 ## and behave the same (UX1, UX3). Three tabs under the eyebrow: "Allgemein" (Ton: Musik, Effekte,
 ## Gesamt · Sprache · Steuerung: Zielhilfe (Pad), P0-2), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
-## Trefferstopp, Schadenszahlen, Blitze reduzieren) and "Tasten" (key overview from ControlsInfo; it
-## shows the gamepad's buttons while a gamepad is in use).
+## Trefferstopp, Schadenszahlen, Blitze reduzieren), "Tasten" (key overview from ControlsInfo; it
+## shows the gamepad's buttons while a gamepad is in use) and, only on a device with a touch screen
+## (TouchState.is_touch_possible), "Touch" (Touch-Steuerung: Seiten tauschen, Joysticks fest/
+## mitwandernd, Größe, Deckkraft, Zielhilfe (Touch); Projektmitglied 17.10.2026). Elsewhere that tab
+## is hidden and skipped by Q/E and ←/→.
 ## "Zurücksetzen" (all options and volumes, after a confirmation) sits next to "Zurück".
 ## The view keeps one size whatever tab or row is shown (_fix_layout): every page gets the size of
 ## the largest one, captions the width of the longest "> caption", the key line the height of its
@@ -27,8 +30,12 @@ signal back_requested
 
 ## Kept for hosts and tests: CONTROLS = the "Tasten" tab, SETTINGS = the other two.
 enum Page { SETTINGS, CONTROLS }
-enum Tab { GENERAL, DISPLAY, CONTROLS }
-enum Row { TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES, BRIGHTNESS, LIGHT_EFFECTS, RESET, AIM_ASSIST }
+enum Tab { GENERAL, DISPLAY, CONTROLS, TOUCH }
+enum Row {
+	TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES,
+	BRIGHTNESS, LIGHT_EFFECTS, RESET, AIM_ASSIST,
+	TOUCH_SWAP, TOUCH_STICKS, TOUCH_SIZE, TOUCH_OPACITY, TOUCH_AIM_ASSIST,
+}
 
 const STEP := 0.05
 ## Brightness slider step (GameOptions.BRIGHTNESS, -1 .. +1).
@@ -42,12 +49,13 @@ const CHOICE_WIDTH := 44.0
 const CHOICE_HEIGHT := 12.0
 const KEY_WIDTH := 50.0
 const KeyLine := preload("res://ui/widgets/key_line.gd")
-const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPLAY", &"OPTIONS_TAB_CONTROLS"]
+const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPLAY", &"OPTIONS_TAB_CONTROLS", &"OPTIONS_TAB_TOUCH"]
 ## Rows per tab, in keyboard order.
 const TAB_ROWS := {
 	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.AIM_ASSIST, Row.RESET],
 	Tab.DISPLAY: [Row.TABS, Row.WINDOW, Row.VSYNC, Row.BRIGHTNESS, Row.LIGHT_EFFECTS, Row.SHAKE, Row.HIT_STOP, Row.DAMAGE_NUMBERS, Row.REDUCE_FLASHES, Row.RESET],
 	Tab.CONTROLS: [Row.TABS, Row.RESET],
+	Tab.TOUCH: [Row.TABS, Row.TOUCH_SWAP, Row.TOUCH_STICKS, Row.TOUCH_SIZE, Row.TOUCH_OPACITY, Row.TOUCH_AIM_ASSIST, Row.RESET],
 }
 const SLIDER_BUSES := {Row.MUSIC: &"Music", Row.SFX: &"SFX", Row.MASTER: &"Master"}
 const BUSES: Array[StringName] = [&"Music", &"SFX", &"Master"]
@@ -62,6 +70,11 @@ const CHOICE_VALUES := {
 	Row.REDUCE_FLASHES: [false, true],
 	Row.LIGHT_EFFECTS: [&"low", &"high"],
 	Row.AIM_ASSIST: [false, true],
+	Row.TOUCH_SWAP: [false, true],
+	Row.TOUCH_STICKS: [&"fixed", &"floating"],
+	Row.TOUCH_SIZE: [0, 1, 2],
+	Row.TOUCH_OPACITY: [0.5, 0.75, 1.0],
+	Row.TOUCH_AIM_ASSIST: [false, true],
 }
 
 ## true: the view reads keys in _unhandled_input (pause menu); false: the host calls handle_input.
@@ -109,7 +122,7 @@ func _ready() -> void:
 	for side in ["left", "top", "right", "bottom"]:
 		_pages_host.add_theme_constant_override("margin_" + side, 0)
 	add_child(_pages_host)
-	_pages = [_build_general(), _build_display(), _build_controls()]
+	_pages = [_build_general(), _build_display(), _build_controls(), _build_touch()]
 	for page in _pages:
 		page.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 		_pages_host.add_child(page)
@@ -318,8 +331,19 @@ func _on_back_pressed() -> void:
 
 # --- Tabs and rows ---
 
+## Next shown tab in direction (the touch tab only on a touch device).
 func _next_tab(direction: int) -> Tab:
-	return posmod(int(_tab) + direction, Tab.size()) as Tab
+	var tab := int(_tab)
+	for i in Tab.size():
+		tab = posmod(tab + direction, Tab.size())
+		if is_tab_available(tab as Tab):
+			break
+	return tab as Tab
+
+
+## The touch tab only exists on a device with a touch screen (or -- touch=1).
+static func is_tab_available(tab: Tab) -> bool:
+	return tab != Tab.TOUCH or TouchState.is_touch_possible()
 
 
 func _show_tab(tab: Tab) -> void:
@@ -381,8 +405,9 @@ func _fix_layout() -> void:
 		(_captions[key] as Label).custom_minimum_size.x = ceilf(caption_width)
 	_pages_host.custom_minimum_size = Vector2.ZERO
 	var page_size := Vector2.ZERO
-	for page in _pages:
-		page_size = page_size.max(page.get_combined_minimum_size())
+	for i in _pages.size():
+		if is_tab_available(i as Tab):
+			page_size = page_size.max(_pages[i].get_combined_minimum_size())
 	_pages_host.custom_minimum_size = page_size.ceil()
 	if _footer != null:
 		var width := maxf(page_size.x, get_combined_minimum_size().x)
@@ -432,10 +457,22 @@ func _choice_index(row: Row) -> int:
 			current = GameOptions.get_light_effects()
 		Row.AIM_ASSIST:
 			current = GameOptions.is_gamepad_aim_assist_enabled()
+		Row.TOUCH_SWAP:
+			current = GameOptions.is_touch_swap_sides()
+		Row.TOUCH_STICKS:
+			current = GameOptions.get_touch_stick_mode()
+		Row.TOUCH_SIZE:
+			current = GameOptions.get_touch_size()
+		Row.TOUCH_OPACITY:
+			current = GameOptions.get_touch_opacity()
+		Row.TOUCH_AIM_ASSIST:
+			current = GameOptions.is_touch_aim_assist_enabled()
 	var index := values.find(current)
 	if index < 0 and row == Row.SHAKE:
 		# Any other strength (hand-edited file) shows as the nearest step.
 		index = 2 if float(current) > 0.75 else (1 if float(current) > 0.0 else 0)
+	if index < 0 and row == Row.TOUCH_OPACITY:
+		index = 2 if float(current) > 0.875 else (1 if float(current) > 0.625 else 0)
 	return maxi(index, 0)
 
 
@@ -467,6 +504,16 @@ func _pick(row: Row, index: int) -> void:
 			GameOptions.set_light_effects(value)
 		Row.AIM_ASSIST:
 			GameOptions.set_gamepad_aim_assist(value)
+		Row.TOUCH_SWAP:
+			GameOptions.set_touch_swap_sides(value)
+		Row.TOUCH_STICKS:
+			GameOptions.set_touch_stick_mode(value)
+		Row.TOUCH_SIZE:
+			GameOptions.set_touch_size(value)
+		Row.TOUCH_OPACITY:
+			GameOptions.set_touch_opacity(value)
+		Row.TOUCH_AIM_ASSIST:
+			GameOptions.set_touch_aim_assist(value)
 	_refresh_choices()
 
 
@@ -493,6 +540,9 @@ func _build_tabs() -> HBoxContainer:
 	var strip := UiKit.hbox(int(UiKit.px(4)))
 	strip.alignment = BoxContainer.ALIGNMENT_CENTER
 	for i in TAB_KEYS.size():
+		if not is_tab_available(i as Tab):
+			# Hidden tabs are the last ones (touch): the buttons keep their tab index.
+			continue
 		var button := Button.new()
 		button.text = TAB_KEYS[i]
 		button.focus_mode = Control.FOCUS_NONE
@@ -559,6 +609,19 @@ func _build_display() -> VBoxContainer:
 	box.add_child(_choice_row(Row.HIT_STOP, &"OPTIONS_HIT_STOP", [&"COMMON_OFF", &"COMMON_ON"]))
 	box.add_child(_choice_row(Row.DAMAGE_NUMBERS, &"OPTIONS_DAMAGE_NUMBERS", [&"COMMON_OFF", &"COMMON_ON"]))
 	box.add_child(_choice_row(Row.REDUCE_FLASHES, &"OPTIONS_REDUCE_FLASHES", [&"COMMON_OFF", &"COMMON_ON"]))
+	return box
+
+
+## Touch tab (Projektmitglied 17.10.2026): the TouchOverlay reads every option each frame.
+func _build_touch() -> VBoxContainer:
+	var box := UiKit.vbox(int(UiKit.px(4)))
+	box.add_child(_section(&"OPTIONS_SECTION_TOUCH"))
+	box.add_child(_choice_row(Row.TOUCH_SWAP, &"OPTIONS_TOUCH_SWAP", [&"COMMON_OFF", &"COMMON_ON"]))
+	box.add_child(_choice_row(Row.TOUCH_STICKS, &"OPTIONS_TOUCH_STICKS", [&"OPTIONS_TOUCH_FIXED", &"OPTIONS_TOUCH_FLOATING"]))
+	box.add_child(_choice_row(Row.TOUCH_SIZE, &"OPTIONS_TOUCH_SIZE", [&"OPTIONS_TOUCH_SMALL", &"OPTIONS_TOUCH_MEDIUM", &"OPTIONS_TOUCH_LARGE"]))
+	# Percentages read the same in every language.
+	box.add_child(_choice_row(Row.TOUCH_OPACITY, &"OPTIONS_TOUCH_OPACITY", ["50 %", "75 %", "100 %"]))
+	box.add_child(_choice_row(Row.TOUCH_AIM_ASSIST, &"OPTIONS_AIM_ASSIST_TOUCH", [&"COMMON_OFF", &"COMMON_ON"]))
 	return box
 
 

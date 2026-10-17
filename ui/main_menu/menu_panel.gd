@@ -20,6 +20,8 @@ const PAD_KEYS := {"Enter": "{a}", "Esc": "{b}"}
 const PADDING := Vector2(8, 10)
 
 var content: VBoxContainer = null
+## Phones: ScrollContainer around content once the panel is taller than the screen (set_max_content_height).
+var _scroll: ScrollContainer = null
 var _eyebrow: Label = null
 var _title: Label = null
 var _footer: Label = null
@@ -86,6 +88,48 @@ func handle_input(_event: InputEvent) -> bool:
 	return false
 
 
+## Override: false when the panel cannot be left (no X on touch screens), e.g. the first start.
+func can_close() -> bool:
+	return true
+
+
+## Size the panel asks for without a height limit (layout pixels).
+func get_unlimited_minimum_size() -> Vector2:
+	var style := get_theme_stylebox(&"panel")
+	var inner := content.get_combined_minimum_size()
+	if _scroll != null and _scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED:
+		inner.x += UiKit.px(Modal.SCROLL_BAR_WIDTH + 2)
+	var result := inner + (style.get_minimum_size() if style != null else Vector2.ZERO)
+	return result.max(custom_minimum_size)
+
+
+## Phones: the panel is at most height layout pixels high, the content scrolls (0 = no limit).
+func set_max_height(height: float) -> void:
+	var limit := height > 0.0 and get_unlimited_minimum_size().y > height + 0.5
+	if not limit and _scroll == null:
+		return
+	if _scroll == null:
+		_scroll = ScrollContainer.new()
+		_scroll.name = "Scroll"
+		_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+		_scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+		Modal._style_scroll_bar(_scroll.get_v_scroll_bar())
+		remove_child(content)
+		add_child(_scroll)
+		_scroll.add_child(content)
+		content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if limit:
+		var style := get_theme_stylebox(&"panel")
+		var padding := style.get_minimum_size().y if style != null else 0.0
+		_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
+		_scroll.custom_minimum_size = Vector2(content.get_combined_minimum_size().x + UiKit.px(Modal.SCROLL_BAR_WIDTH + 2),
+				maxf(UiKit.px(40), height - padding))
+	else:
+		_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_scroll.custom_minimum_size = Vector2.ZERO
+
+
 func close() -> void:
 	UiSound.back(self)
 	closed.emit()
@@ -95,6 +139,9 @@ func close() -> void:
 ## gamepad button shown instead of the key while a gamepad is in use (PadNav token, e.g. "{y}");
 ## "" = from PAD_KEYS (Enter -> A, Esc -> B) or none.
 static func action_button(text: String, key_hint: String, on_pressed: Callable, is_default := false, pad_key := "") -> Button:
+	if UiKit.MobileUi.hides_key_hints():
+		# Touch: no key line under the label (the button is tapped).
+		key_hint = ""
 	var button := UiKit.dialog_button(text, key_hint, on_pressed, is_default)
 	button.custom_minimum_size.x = UiKit.px(70)
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND

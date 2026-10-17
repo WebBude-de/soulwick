@@ -6,6 +6,8 @@ extends CanvasLayer
 ## Gamepad (P0-2 step 2): Start opens and closes the pause menu, D-pad/stick move through it, A
 ## presses, B resumes; the run end takes D-pad + A on its two buttons (Modal focus). The key lines
 ## show the gamepad's buttons while a gamepad is in use (KeyLine).
+## Touch screens (MobileUi): the pause menu has an X (resume) and no key hints; Modal draws it larger
+## on phones.
 ## P1-3: the run end names what the village gold buys now ("Im Dorf leistbar: Vitalität I (40 Gold)")
 ## or how much is missing for the cheapest forge step; the first run always counts as a record.
 
@@ -82,6 +84,10 @@ func open_pause_menu() -> void:
 	var modal := Modal.create(GameManager.PAUSE_MENU)
 	modal.cancel_allowed = false
 	modal.accent = UiKit.COLOR_GOLD
+	# The X (touch screens) resumes like Esc, which GameUI handles itself (pause_menu action).
+	modal.close_action = func() -> void:
+		UiSound.back(self)
+		modal.finish(&"resume")
 	_pause_modal = modal
 	modal.frame.add_theme_stylebox_override("panel", UiKit.padded_style(&"normal", 10, 10))
 	modal.set_width(PAUSE_WIDTH)
@@ -105,6 +111,7 @@ func open_pause_menu() -> void:
 	footer.name = "Footer"
 	footer.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 	footer.set_texts(_pause_footer_text(), _pause_footer_text(true))
+	footer.set_touch_text(_pause_footer_text(false, true))
 	_pause_texts.append([footer, &"", []])
 	modal.content.add_child(footer)
 	modal.input_handler = _on_pause_key
@@ -128,6 +135,8 @@ func open_pause_menu() -> void:
 ## The texts are resolved now (tools press buttons by their text) and again on a language change.
 func _pause_button(key: StringName, hint_key: StringName, hint_args: Array, on_pressed: Callable, danger := false) -> Button:
 	var hint := "Esc" if key == &"GAME_UI_RESUME" else (Loc.t(hint_key, hint_args) if hint_key != &"" else "")
+	if key == &"GAME_UI_RESUME" and UiKit.MobileUi.hides_key_hints():
+		hint = ""
 	var button := UiKit.menu_button(Loc.t(key), hint, on_pressed, danger)
 	_pause_texts.append([button, key, []])
 	if hint_key != &"" and button.get_child_count() > 0 and button.get_child(0) is Label:
@@ -135,13 +144,14 @@ func _pause_button(key: StringName, hint_key: StringName, hint_args: Array, on_p
 	return button
 
 
-## pad: the gamepad line ("{dpad} {a} · {b} fortsetzen", KeyLine tokens).
-func _pause_footer_text(pad := false) -> String:
+## pad: the gamepad line ("{dpad} {a} · {b} fortsetzen", KeyLine tokens); touch: without keys.
+func _pause_footer_text(pad := false, touch := false) -> String:
 	var footer_parts: PackedStringArray = []
 	if in_dungeon:
 		footer_parts.append(Loc.t(&"GAME_UI_ROOM", [maxi(1, RunManager.get_current_room())]))
 	footer_parts.append(Loc.t(&"MENU_PAUSED"))
-	footer_parts.append(PadNav.text(&"GAME_UI_PAUSE_KEYS_PAD", [], "{dpad} {a} · {b} resume") if pad else Loc.t(&"GAME_UI_PAUSE_KEYS"))
+	if not touch:
+		footer_parts.append(PadNav.text(&"GAME_UI_PAUSE_KEYS_PAD", [], "{dpad} {a} · {b} resume") if pad else Loc.t(&"GAME_UI_PAUSE_KEYS"))
 	return " · ".join(footer_parts)
 
 
@@ -156,6 +166,7 @@ func _notification(what: int) -> void:
 		var text := _pause_footer_text() if entry[1] == &"" else Loc.t(entry[1], entry[2])
 		if node is KeyLine:
 			(node as KeyLine).set_texts(text, _pause_footer_text(true))
+			(node as KeyLine).set_touch_text(_pause_footer_text(false, true))
 		elif node is Button:
 			(node as Button).text = text
 		elif node is Label:

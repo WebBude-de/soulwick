@@ -328,6 +328,8 @@ func test_view_respects_limits() -> void:
 	rig.limit_bottom = 1200
 	_run(rig, 0.5)
 	var half := rig.get_viewport_rect().size / rig.zoom * 0.5
+	# A view larger than the map (test window taller than 16:9, aspect "expand") is centred.
+	half = Vector2(minf(half.x, 1000.0), minf(half.y, 600.0))
 	assert_almost_eq(_view(rig), half, Vector2(0.5, 0.5), "never outside the map")
 	assert_almost_eq(rig.clamp_to_limits(Vector2(100, 100)), half, Vector2(0.01, 0.01), "same clamp as Camera2D")
 

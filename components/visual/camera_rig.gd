@@ -220,13 +220,19 @@ func clamp_to_limits(point: Vector2) -> Vector2:
 		return point
 	var size := get_viewport_rect().size / zoom
 	var corner := point - size * 0.5
-	if corner.x < limit_left:
+	# A view larger than the limits is centred on them, like Camera2D in 4.7 (aspect "expand":
+	# a 4:3 tablet or a test window can be taller than a short room).
+	if size.x > limit_right - limit_left:
+		corner.x = (limit_left + limit_right - size.x) * 0.5
+	elif corner.x < limit_left:
 		corner.x = limit_left
-	if corner.x + size.x > limit_right:
+	elif corner.x + size.x > limit_right:
 		corner.x = limit_right - size.x
-	if corner.y + size.y > limit_bottom:
+	if size.y > limit_bottom - limit_top:
+		corner.y = (limit_top + limit_bottom - size.y) * 0.5
+	elif corner.y + size.y > limit_bottom:
 		corner.y = limit_bottom - size.y
-	if corner.y < limit_top:
+	elif corner.y < limit_top:
 		corner.y = limit_top
 	return corner + size * 0.5
 

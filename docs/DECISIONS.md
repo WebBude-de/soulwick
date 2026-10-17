@@ -1306,6 +1306,29 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `enemies/data/boss_bone_king.tres`, `enemies/data/turret_crypt.tres`, `dungeon/biomes/crypt.tres`, `economy/economy_config.gd`, `meta/meta_progression.gd`.
 - **Ersetzt:** Knochenkönig Salve 12, Warnung 1,0 s, Betäubung 1,0 s, Abklingzeit 0,9 s; Krypta-Gewichte 0,04/0,04; Kryptaturm 1,8 s; Champion-Gold ×9 (D-118).
 
+### D-168 – Touch-Steuerung in Pixel-Art, Einstellungen „Touch“, feste Sticks
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Die Mobile Controls … sollen auch im Gamedesign so pixelig … Laufen, Zielen, Seiten wechseln … auf static einstellen, weil aktuell fliegen die immer weg“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen TESTWERT · ergänzt D-155
+- **Beschluss:**
+  - Sticks, Knöpfe, Abklingzeit und Icons der Touch-Steuerung sind Pixel-Art (im Code gezeichnet nach SPRITES_V10 §1, ganzzahlig skaliert, harte Kanten); echte Dateien unter `art/ui/touch/` ersetzen die Platzhalter automatisch.
+  - Neuer Reiter „Touch“ in den Optionen (nur auf Touch-Geräten): Seiten tauschen (aus), Joysticks **fest** (Standard) oder mitwandernd, Größe klein/mittel/groß (×2/×3/×4, Standard mittel), Deckkraft 50/75/100 % (Standard 100 %), Zielhilfe Touch (an). Gespeichert in settings.cfg `[options]`, wirkt sofort.
+  - Fester Stick: nimmt Berührungen bis zum 1,5-fachen Ringradius (`TouchStick.FIXED_GRAB_SHARE`), Ausschlag vom festen Mittelpunkt, wandert nicht mit.
+  - Anordnung an den echten Bildrändern (aspect „expand“) und in der Safe Area (Android/iOS über `DisplayServer`, Web über CSS `env(safe-area-inset-*)`).
+- **Folgen:** `ui/touch/{touch_overlay,touch_art,touch_stick,touch_pixel_art}.gd`, `player/input/touch_input.gd`, `ui/options/{options_view,game_options}.gd`, `docs/design/sprites/SPRITES_V10.md`, Tests `test_touch_options.gd`, `test_touch_input.gd`.
+- **Ersetzt:** mitwandernde Sticks als einzige Form (D-155).
+
+### D-169 – Handy: Menüs größer, X zum Schließen, keine schwarzen Balken, Bildschirmtastatur im Browser
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Pause … kein X und das Menü könnte viel größer am kleinen Smartphone-Bildschirm“, „Seitenverhältnisse dynamisch aufm Handy anpassen, sodass man die schwarzen Balken nicht hat“, „in der Web-App öffnet sich das Keyboard nicht“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen TESTWERT
+- **Beschluss:**
+  - `window/stretch/aspect="expand"`: Breitere Handys (19,5:9, 20:9) zeigen mehr Spielwelt statt Balken, 4:3 wird höher; am PC mit 16:9 unverändert. `CameraRig.clamp_to_limits` zentriert eine Sicht, die größer als der Raum ist, wie Camera2D.
+  - Menüs und Dialoge auf Touch-Geräten per Bühnen-Zoom (`MobileUi`) auf etwa 14 dp Fließtext (`TARGET_BODY_DP`), gerundet auf ganze Art-Pixel, Faktor 1–2; zu breite Dialoge zoomen weniger, zu hohe scrollen. Knöpfe mindestens 48 dp. Safe Area für Dialoge, Hauptmenü, HUD und Hinweisebenen. Ohne Touchscreen Faktor 1 (PC unverändert, R8 gilt dort weiter).
+  - Jeder mit Esc/B schließbare Dialog hat auf Touch oben rechts ein X (Pausemenü: fortsetzen); Tastenhinweise sind auf Touch aus, ein Gamepad bringt sie zurück.
+  - Web-Export: `html/experimental_virtual_keyboard=true`, ein Tipp auf ein Textfeld öffnet die Handy-Tastatur.
+- **OFFEN:** Option „UI-Größe“ (Auto/Normal/Groß, Haken vorhanden); Upgrade-Wahl und Shop auf dem Handy zweispaltig; feste Knopfreihe in Weltenliste und Profil; Gerätetest auf echtem iPhone und Android.
+- **Folgen:** `project.godot`, `export_presets.cfg`, `deploy/web/web_preset.py`, `ui/menus/{mobile_ui,modal,ui_dialog,game_ui,dungeon_ui,village_ui}.gd`, `ui/ui_kit.gd`, `ui/main_menu/*`, `ui/widgets/{key_line,ui_chip}.gd`, `ui/hud/hud.gd`, `components/visual/camera_rig.gd`, Tests `test_mobile_ui.gd`, `test_camera.gd`.
+- **Ersetzt:** Seitenverhältnis „keep“ (schwarze Balken).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

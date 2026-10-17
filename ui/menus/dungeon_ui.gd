@@ -1491,6 +1491,7 @@ func _build_banner() -> void:
 	_banner_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_banner_root.theme = UiKit.get_theme()
 	add_child(_banner_root)
+	UiKit.MobileUi.fit_to_safe_area(_banner_root)
 
 
 func _build_hint_root() -> void:
@@ -1499,6 +1500,8 @@ func _build_hint_root() -> void:
 	_hint_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hint_root.theme = UiKit.get_theme()
 	add_child(_hint_root)
+	# Teaching cards sit on the left edge: clear of a notch on phones (MobileUi).
+	UiKit.MobileUi.fit_to_safe_area(_hint_root)
 
 
 ## Task bar at the top centre and the intro countdown (R3).
