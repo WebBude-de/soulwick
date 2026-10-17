@@ -1394,9 +1394,10 @@ func _build_torches() -> void:
 	var spots: Array[Vector2] = []
 	var pivot := Vector2(16, 18)
 	if style.is_boss():
-		# On the holders of the pillars (frame art x 8 / 56, y 22).
+		# On the holders of the pillars (frame art x 8 / 56, y 22 of the tall frame, lowered with it).
 		var frame_pos := -Vector2(style.leaf_offset) * PIXEL_SCALE
-		spots = [frame_pos + Vector2(8, 22) * PIXEL_SCALE, frame_pos + Vector2(56, 22) * PIXEL_SCALE]
+		var holder_y := DoorArt.lowered_row(style, 22)
+		spots = [frame_pos + Vector2(8, holder_y) * PIXEL_SCALE, frame_pos + Vector2(56, holder_y) * PIXEL_SCALE]
 		pivot = Vector2(16, 24)
 	elif style.torch_mode == DoorStyle.TORCH_BRAZIER:
 		# Braziers stand at the wall foot beside the frame.

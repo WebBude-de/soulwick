@@ -206,6 +206,8 @@ func test_delivered_boss_gate_brings_its_own_torches() -> void:
 	var door := _door()
 	door.configure(&"crypt", DoorStyle.KIND_BOSS)
 	assert_eq(door.view.get_torches().size(), 0, "torches are painted on the pillars")
-	assert_eq(door.view.get_frame_sprite().texture.get_size(), Vector2(64, 56))
+	# The 64x56 art, shown lowered to the crown (DoorStyle.MAX_FRAME_RISE, bug report #67215ac5).
+	assert_eq(door.view.get_frame_sprite().texture.get_size(), Vector2(door.get_style().frame_size))
+	assert_eq(door.get_style().frame_size.y, 32 + DoorStyle.MAX_FRAME_RISE)
 	DoorArt.art_dir = "user://test_door_node_no_art/"
 	DoorArt.clear_cache()

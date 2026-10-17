@@ -75,6 +75,15 @@ const ARCH_FRAME_SIZE := Vector2i(48, 48)
 const ARCH_LEAF_OFFSET := Vector2i(8, 16)
 const SOFT_ARCH_FRAME_SIZE := Vector2i(64, 56)
 const SOFT_ARCH_LEAF_OFFSET := Vector2i(16, 24)
+## Bug report 17.10.2026 (#67215ac5, "Cutted der Eingang"): M2 keeps exactly one corridor tile, so
+## over a north door's tile lies one tile of crown (32 art px) and then the next room's floor. A frame
+## reaches at most this many art px above its door tile; a taller one (the boss gate and the V9 soft
+## arch, 24: their top touched the crown's edge and looked cut off) is shown lowered: its
+## <name>_low.png when delivered (SPRITES_V10 §9), else DoorArt takes rows out of it (lower_rows).
+## TESTWERT
+const MAX_FRAME_RISE := 16
+## Suffix of a delivered low frame (door_frame_boss_low.png, door_frame_<biome>_soft_low.png).
+const LOW_SUFFIX := "_low"
 ## Fallback while a room template has no "cave" field of its own (plan header, M1): these biomes dig
 ## their combat rooms into the rock (11_makeover3_komplett.md §2.1); crypt halls, boss, rest and
 ## campfire rooms are built. TESTWERT (design choice until every plan says it)
@@ -119,6 +128,11 @@ var way_color := Color(0, 0, 0, 0)
 var frame_size := Vector2i(48, 48)
 var leaf_size := GATE_SIZE
 var leaf_offset := Vector2i(8, 16)
+## The frame is shown lowered (MAX_FRAME_RISE): low_frame = its delivered <name>_low.png is used;
+## rise_cut = rows DoorArt takes out of the picture (of the low file, else of the tall one). frame_size
+## and leaf_offset are those of the picture as shown.
+var low_frame := false
+var rise_cut := 0
 ## Material of the biome's doors: the placeholder of a side leaf and the burst of particles.
 var leaf_kind: StringName = LEAF_WOOD
 ## The gate of a north exit (GATE_SLAB / GATE_BARS); &"" for the boss gate (chained double door).
@@ -181,12 +195,13 @@ func apply_room_look(cave: bool, soft_palette := false, arena := false) -> void:
 	if cave:
 		frame_size = CAVE_FRAME_SIZE
 		leaf_offset = CAVE_LEAF_OFFSET
-	elif soft and DoorArt.has_art(get_frame_path()):
+	elif soft and (DoorArt.has_art(get_frame_path()) or DoorArt.has_art(get_low_frame_path())):
 		frame_size = SOFT_ARCH_FRAME_SIZE
 		leaf_offset = SOFT_ARCH_LEAF_OFFSET
 	else:
 		frame_size = ARCH_FRAME_SIZE
 		leaf_offset = ARCH_LEAF_OFFSET
+	_fit_rise()
 	if has_side_bars():
 		# The side portcullis rattles like the gate.
 		side_open_sound = GATE_SOUNDS[GATE_BARS]
@@ -296,6 +311,54 @@ func get_frame_path() -> String:
 	return ART_DIR + "door_frame_%s%s.png" % [biome_id, SOFT_SUFFIX if soft else ""]
 
 
+## The low version of the frame file (MAX_FRAME_RISE, SPRITES_V10 §9); may not exist.
+func get_low_frame_path() -> String:
+	return get_frame_path().get_basename() + LOW_SUFFIX + ".png"
+
+
+## The frame file this style shows: the low one when it is used (low_frame), else get_frame_path().
+func get_shown_frame_path() -> String:
+	return get_low_frame_path() if low_frame else get_frame_path()
+
+
+## Is the frame shown lower than its file (rows taken out, or the low file)?
+func is_lowered() -> bool:
+	return low_frame or rise_cut > 0
+
+
+## This style with the frame as tall as the picture it is made from (before rise_cut rows are taken
+## out): the placeholder painters draw at that size. self when nothing is taken out.
+func tall() -> DoorStyle:
+	if rise_cut <= 0:
+		return self
+	var copy := DoorStyle.new()
+	for property: Dictionary in get_property_list():
+		if int(property["usage"]) & PROPERTY_USAGE_SCRIPT_VARIABLE:
+			copy.set(property["name"], get(property["name"]))
+	copy.frame_size.y += rise_cut
+	copy.leaf_offset.y += rise_cut
+	copy.rise_cut = 0
+	return copy
+
+
+## Lowers a frame that rises more than MAX_FRAME_RISE over its door tile: the delivered low file when
+## there is one (its own size, the door tile at the bottom centre), and rows taken out of the picture
+## for whatever is still too tall.
+func _fit_rise() -> void:
+	low_frame = false
+	rise_cut = 0
+	if leaf_offset.y <= MAX_FRAME_RISE:
+		return
+	var low_size := DoorArt.art_size(get_low_frame_path())
+	if low_size.x >= leaf_size.x and low_size.y >= 32:
+		low_frame = true
+		leaf_offset = Vector2i(leaf_offset.x + (low_size.x - frame_size.x) / 2, low_size.y - 32)
+		frame_size = low_size
+	rise_cut = maxi(0, leaf_offset.y - MAX_FRAME_RISE)
+	frame_size.y -= rise_cut
+	leaf_offset.y -= rise_cut
+
+
 ## Four-frame leaf strip of a north door (frame 1 closed, frame 4 open): the gate (32x48 frames,
 ## gates.json) or the boss gate's double door (32x32).
 func get_leaf_path() -> String:
@@ -335,7 +398,8 @@ static func get_symbols_path() -> String:
 
 ## Cache key for generated art.
 func get_key() -> String:
-	return "%s_%s_%s_%s%s" % [biome_id, kind, frame_kind, gate, SOFT_SUFFIX if soft else ""]
+	var lowered := (LOW_SUFFIX if low_frame else "") + ("_r%d" % rise_cut if rise_cut > 0 else "")
+	return "%s_%s_%s_%s%s%s" % [biome_id, kind, frame_kind, gate, SOFT_SUFFIX if soft else "", lowered]
 
 
 func _apply_gate(gate_kind: StringName) -> void:
@@ -421,3 +485,4 @@ func _apply_boss() -> void:
 	side_open_sound = &"door_boss_unlock"
 	close_sound = &"door_boss_close"
 	symbol = &""
+	_fit_rise()

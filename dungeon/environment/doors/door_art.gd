@@ -6,6 +6,10 @@ extends RefCounted
 ## Visual only: randomness here is a fixed hash, so every door of a style looks the same.
 ## Gates (M2, gates.json) are one neutral strip per kind (slab, bars), tinted by DoorView; the
 ## placeholder cave mouth is the biome's arch on a wider rock lintel.
+## Frames taller than the crown allows (DoorStyle.MAX_FRAME_RISE: the boss gate, the V9 soft arch) are
+## shown lowered: the delivered <name>_low.png, else the tall picture with rows taken out of it where
+## that leaves the least seam (lower_rows: empty rows on top, rows equal to their neighbours in the
+## posts), never scaled. Glow and inner shadow lose the same rows.
 
 ## Colour of the dark passage inside delivered frames (art/environment/doors/doors.json) and of the
 ## soft palette (cave_mouth_crypt_soft, the gates' space behind the slab and between the bars). Every
@@ -97,7 +101,17 @@ static func warm_symbols() -> void:
 
 ## True when the delivered file for this style's frame exists.
 static func has_frame_file(style: DoorStyle) -> bool:
-	return _file_exists(_art_path(style.get_frame_path()))
+	return _file_exists(_art_path(style.get_shown_frame_path()))
+
+
+## Size of a delivered door file (art px), zero while it is missing. Cached.
+static func art_size(default_path: String) -> Vector2i:
+	var path := _art_path(default_path)
+	var key := "size_%s" % path
+	if not _cache.has(key):
+		var file := _load_file(path)
+		_cache[key] = Vector2i(file.get_size()) if file != null else Vector2i.ZERO
+	return _cache[key]
 
 
 static func has_leaf_file(style: DoorStyle) -> bool:
@@ -114,24 +128,25 @@ static func has_symbol_file(symbol_id: StringName) -> bool:
 	return sheet != null and index >= 0 and sheet.get_width() >= (index + 1) * SYMBOL_SIZE.x
 
 
-## Frame texture (arch 48x48, cave mouth 64x48, boss 64x56): delivered file or placeholder. A missing
-## soft crypt mouth falls back to the plain crypt mouth.
+## Frame texture (arch 48x48, cave mouth 64x48, boss gate and V9 soft arch 64x56, shown lowered to
+## 64x48): delivered file or placeholder. A missing soft crypt mouth falls back to the plain crypt mouth.
 static func get_frame(style: DoorStyle) -> Texture2D:
 	var key := "frame_%s" % style.get_key()
 	if not _cache.has(key):
-		var path := _art_path(style.get_frame_path())
+		var path := _art_path(style.get_shown_frame_path())
 		var file := _load_file(path)
 		if file == null and style.soft:
-			path = _art_path(style.get_frame_path().replace(DoorStyle.SOFT_SUFFIX, ""))
+			path = _art_path(style.get_shown_frame_path().replace(DoorStyle.SOFT_SUFFIX, ""))
 			file = _load_file(path)
 		# Styles that differ only in their gate (an arena's portcullis) share the frame of one file.
-		var shared := "frame_of_%s_%s_%s" % [path, style.is_cave(), style.is_boss()] if file != null else ""
+		var shared := "frame_of_%s_%s_%s_%d" % [path, style.is_cave(), style.is_boss(), style.rise_cut] if file != null else ""
 		if shared != "" and _cache.has(shared):
 			var built: Array = _cache[shared]
 			_cache[key] = built[0]
 			_cache["frame_image_%s" % style.get_key()] = built[1]
+			_cache["cut_rows_%s" % style.get_key()] = built[2]
 			return _cache[key]
-		var image := open_passage(file.get_image()) if file != null else paint_frame(style)
+		var image := open_passage(file.get_image()) if file != null else paint_frame(style.tall())
 		# Old mouths are a rock block with the arch in it: only the arch stays. The V9 soft mouths are
 		# the arch band alone already (transparent corners).
 		if style.is_cave() and not style.is_boss() and image.get_pixel(0, 0).a > 0.5:
@@ -139,11 +154,118 @@ static func get_frame(style: DoorStyle) -> Texture2D:
 		if image.is_compressed():
 			image.decompress()
 		image.convert(Image.FORMAT_RGBA8)
+		var rows: Array[int] = []
+		if style.rise_cut > 0:
+			rows = lower_rows(image, style.rise_cut)
+			image = without_rows(image, rows)
 		_cache[key] = ImageTexture.create_from_image(image)
 		_cache["frame_image_%s" % style.get_key()] = image
+		_cache["cut_rows_%s" % style.get_key()] = rows
 		if shared != "":
-			_cache[shared] = [_cache[key], image]
+			_cache[shared] = [_cache[key], image, rows]
 	return _cache[key]
+
+
+## Rows of the tall picture taken out of this style's frame (DoorStyle.rise_cut), ascending; empty
+## for a frame shown as it is.
+static func frame_cut_rows(style: DoorStyle) -> Array[int]:
+	get_frame(style)
+	var rows: Array[int] = []
+	rows.assign(_cache.get("cut_rows_%s" % style.get_key(), []))
+	return rows
+
+
+## Where a row of the tall picture lands in the lowered frame (a row taken out: the next one kept).
+static func lowered_row(style: DoorStyle, row: int) -> int:
+	var shift := 0
+	for cut in frame_cut_rows(style):
+		if cut < row:
+			shift += 1
+	return row - shift
+
+
+## Base rows of a frame (plinth, pillar feet) never taken out by lower_rows. TESTWERT
+const LOWER_KEEP_BOTTOM := 4
+
+
+## The count rows to take out of image to lower it without scaling (bug report #67215ac5), ascending.
+## One at a time, the cheapest: empty rows on top first (nothing moves), then rows whose neighbours
+## above and below match best (a row in the middle of a brick course or a plain post: no seam); on a
+## tie the one farthest from the rows already taken, then the lowest (the head of the arch stays as
+## drawn). Changes of the silhouette count double, so the curve of the arch is kept.
+static func lower_rows(image: Image, count: int) -> Array[int]:
+	var height := image.get_height()
+	var kept: Array[int] = []
+	for row in height:
+		kept.append(row)
+	var removed: Array[int] = []
+	while removed.size() < count and kept.size() > LOWER_KEEP_BOTTOM + 1:
+		var best_index := -1
+		var best_cost := INF
+		var best_gap := -1
+		for i in kept.size():
+			var row := kept[i]
+			if row >= height - LOWER_KEEP_BOTTOM:
+				break
+			var cost := 0.0
+			if i == 0:
+				var ink := _row_ink(image, row)
+				cost = -1.0 if ink <= 0.0 else ink
+			else:
+				cost = _row_difference(image, kept[i - 1], kept[i + 1])
+			var gap := height
+			for cut in removed:
+				gap = mini(gap, absi(cut - row))
+			var better := cost < best_cost - 0.001
+			if not better and absf(cost - best_cost) <= 0.001:
+				better = gap > best_gap or (gap == best_gap and row > kept[best_index])
+			if better:
+				best_index = i
+				best_cost = cost
+				best_gap = gap
+		if best_index < 0:
+			break
+		removed.append(kept[best_index])
+		kept.remove_at(best_index)
+	removed.sort()
+	return removed
+
+
+## Copy of image without the given rows (shorter by their number), RGBA8.
+static func without_rows(image: Image, rows: Array[int]) -> Image:
+	if image == null or rows.is_empty():
+		return image
+	var source := image.duplicate() as Image
+	if source.is_compressed():
+		source.decompress()
+	source.convert(Image.FORMAT_RGBA8)
+	var result := Image.create_empty(source.get_width(), source.get_height() - rows.size(), false, Image.FORMAT_RGBA8)
+	var target := 0
+	for row in source.get_height():
+		if rows.has(row):
+			continue
+		result.blit_rect(source, Rect2i(0, row, source.get_width(), 1), Vector2i(0, target))
+		target += 1
+	return result
+
+
+## Sum of the alpha of one row.
+static func _row_ink(image: Image, row: int) -> float:
+	var ink := 0.0
+	for x in image.get_width():
+		ink += image.get_pixel(x, row).a
+	return ink
+
+
+## How different two rows are (colour times alpha, the silhouette counted double).
+static func _row_difference(image: Image, a: int, b: int) -> float:
+	var total := 0.0
+	for x in image.get_width():
+		var p := image.get_pixel(x, a)
+		var q := image.get_pixel(x, b)
+		total += absf(p.r * p.a - q.r * q.a) + absf(p.g * p.a - q.g * q.a) + absf(p.b * p.a - q.b * q.a)
+		total += 2.0 * absf(p.a - q.a)
+	return total
 
 
 ## The frame of get_frame() as an image (RGBA8), kept from building it: get_image() on the texture
@@ -384,10 +506,14 @@ const SIDE_MOUTH_PATH := "res://art/environment/doors/side_mouth_%s_soft.png"
 ## The delivered inner shadow for this style (a V9 soft mouth or arch, the shade of its size), else
 ## null (the shadow is made from the opening, opening_image).
 static func get_delivered_shade(style: DoorStyle) -> Image:
-	if style.is_boss() or not style.soft or not has_art(style.get_frame_path()):
+	if style.is_boss() or not style.soft or not has_frame_file(style):
 		return null
 	var path := TUNNEL_SHADE_CAVE if style.is_cave() else TUNNEL_SHADE_ARCH
-	var key := "delivered_shade_%s" % path
+	# A low frame comes with its own low shade (tunnel_shade_arch_low.png); a lowered frame's shade
+	# loses the same rows as the frame.
+	if style.low_frame:
+		path = path.get_basename() + DoorStyle.LOW_SUFFIX + ".png"
+	var key := "delivered_shade_%s_%d" % [path, style.rise_cut]
 	if not _cache.has(key):
 		var file := _load_file(_art_path(path))
 		var image: Image = null
@@ -396,6 +522,9 @@ static func get_delivered_shade(style: DoorStyle) -> Image:
 			if image.is_compressed():
 				image.decompress()
 			image.convert(Image.FORMAT_RGBA8)
+			if style.rise_cut > 0:
+				var tall := image.get_height() == style.frame_size.y + style.rise_cut
+				image = without_rows(image, frame_cut_rows(style)) if tall else null
 		_cache[key] = image
 	var shade: Image = _cache[key]
 	if shade == null or shade.get_size() != style.frame_size:
@@ -745,7 +874,8 @@ static func get_glow(style: DoorStyle) -> Texture2D:
 		if has_frame_file(style):
 			image = glow_from_frame(frame_image(style), style)
 		else:
-			image = paint_glow(style)
+			# Painted at the size of the tall placeholder frame, then lowered like it.
+			image = without_rows(paint_glow(style.tall()), frame_cut_rows(style))
 		_cache[key] = ImageTexture.create_from_image(image) if image != null and not image.is_invisible() else null
 	return _cache[key]
 
@@ -1389,7 +1519,9 @@ static func paint_leaf_strip(style: DoorStyle) -> Image:
 		return paint_gate_strip(style.gate)
 	var size := style.leaf_size
 	var strip := _new_image(Vector2i(size.x * LEAF_FRAMES, size.y))
-	var visible := _leaf_mask(style)
+	# Cut to the opening of the placeholder frame as it is painted (tall, before rows are taken out).
+	var shape := style.tall()
+	var visible := _leaf_mask(shape)
 	for f in LEAF_FRAMES:
 		var frame := _paint_void(size)
 		match style.leaf_kind:
@@ -1406,7 +1538,7 @@ static func paint_leaf_strip(style: DoorStyle) -> Image:
 		# The leaf is drawn over the frame: cut it to the arch of the placeholder frame.
 		for y in size.y:
 			for x in size.x:
-				if not visible.has(Vector2i(x, y) + style.leaf_offset):
+				if not visible.has(Vector2i(x, y) + shape.leaf_offset):
 					frame.set_pixel(x, y, Color(0, 0, 0, 0))
 		strip.blit_rect(frame, Rect2i(Vector2i.ZERO, size), Vector2i(f * size.x, 0))
 	return strip

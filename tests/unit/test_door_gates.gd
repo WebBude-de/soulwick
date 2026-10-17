@@ -204,7 +204,8 @@ func test_soft_rooms_use_the_v9_frames_and_their_inner_shadow() -> void:
 				pending("V9 frame of %s cave %s not delivered" % [biome, cave])
 				continue
 			var key := "%s cave %s" % [biome, cave]
-			assert_eq(style.frame_size, DoorStyle.CAVE_FRAME_SIZE if cave else DoorStyle.SOFT_ARCH_FRAME_SIZE, key)
+			# The soft arch (64x56) is shown lowered to the crown (DoorStyle.MAX_FRAME_RISE).
+			assert_eq(style.frame_size, DoorStyle.CAVE_FRAME_SIZE if cave else Vector2i(DoorStyle.SOFT_ARCH_FRAME_SIZE.x, 32 + DoorStyle.MAX_FRAME_RISE), key)
 			assert_eq(Vector2i(DoorArt.get_frame(style).get_size()), style.frame_size, key)
 			var frame := _image(DoorArt.get_frame(style))
 			assert_almost_eq(frame.get_pixel(0, 0).a, 0.0, 0.01, "%s: no rock block around the arch" % key)

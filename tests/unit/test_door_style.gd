@@ -120,7 +120,8 @@ func test_boss_gate() -> void:
 		var style := DoorStyle.for_door(biome, DoorStyle.KIND_BOSS, &"shop")
 		assert_true(style.is_boss())
 		assert_eq(style.biome_id, biome, "boss gate keeps the biome for its tint")
-		assert_eq(style.frame_size, Vector2i(64, 56))
+		# 64x56 art, shown lowered to the crown (DoorStyle.MAX_FRAME_RISE, bug report #67215ac5).
+		assert_eq(style.frame_size, Vector2i(64, 32 + DoorStyle.MAX_FRAME_RISE))
 		assert_eq(style.leaf_kind, DoorStyle.LEAF_DOUBLE)
 		assert_eq(style.glow_mode, DoorStyle.GLOW_THREAT, "closed boss gate looks threatening")
 		assert_eq(style.open_sound, &"door_boss_unlock")
