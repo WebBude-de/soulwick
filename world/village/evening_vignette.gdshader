@@ -34,7 +34,8 @@ float bayer4(vec2 cell) {
 }
 
 void fragment() {
-	vec2 cell = floor(SCREEN_UV * screen_size / pixel_size);
+	// UV, not SCREEN_UV: in portrait mode (D-182) the rect is only the game picture.
+	vec2 cell = floor(UV * screen_size / pixel_size);
 	vec2 uv = (cell + 0.5) * pixel_size / screen_size;
 	vec2 aspect = vec2(screen_size.x / screen_size.y, 1.0);
 	float d = length((uv - 0.5) * aspect) / length(aspect * 0.5);

@@ -369,63 +369,6 @@ body {
 	}
 }
 
-/* ---------------------------------------------------------------- turn the phone */
-
-#rotate {
-	position: fixed;
-	inset: 0;
-	z-index: 30;
-	display: none;
-	flex-direction: column;
-	align-items: center;
-	justify-content: center;
-	gap: 16px;
-	padding: 24px 16px;
-	box-sizing: border-box;
-	background: rgba(11, 10, 17, 0.94);
-	text-align: center;
-	cursor: pointer;
-}
-
-#rotate svg {
-	width: 72px;
-	height: 72px;
-	color: var(--gold);
-	shape-rendering: crispEdges;
-	animation: tilt 2.4s infinite steps(1);
-}
-
-#rotate strong {
-	font-size: 22px;
-	font-weight: 600;
-	color: var(--gold);
-	text-shadow: 2px 2px 0 var(--shadow);
-}
-
-#rotate span {
-	max-width: 320px;
-	font-size: 16px;
-	line-height: 1.4;
-	color: var(--muted);
-}
-
-#rotate small {
-	font-size: 14px;
-	color: var(--dim);
-}
-
-@keyframes tilt {
-	0% { transform: rotate(0deg); }
-	50% { transform: rotate(-90deg); }
-}
-
-/* Only once the game runs, only on touch screens held upright; a tap hides it for this visit. */
-@media (orientation: portrait) and (pointer: coarse) {
-	body.running:not(.rotate-dismissed) #rotate {
-		display: flex;
-	}
-}
-
 /* ---------------------------------------------------------------- install dialog */
 
 #install-panel {
@@ -506,7 +449,6 @@ body {
 @media (prefers-reduced-motion: reduce) {
 	.logo-wrap::before,
 	#start,
-	#rotate svg,
 	.bar.indeterminate .bar-fill {
 		animation: none;
 	}
@@ -570,13 +512,6 @@ $GODOT_HEAD_INCLUDE
 	</div>
 </div>
 
-<div id="rotate" role="dialog" aria-labelledby="rotate-title">
-	<svg viewBox="0 0 12 12" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M3 0h6v12H3zM4 1v9h4V1z"/></svg>
-	<strong id="rotate-title" data-i18n="rotateTitle"></strong>
-	<span data-i18n="rotateText"></span>
-	<small data-i18n="rotateHint"></small>
-</div>
-
 <script src="$GODOT_URL"></script>
 <script>
 const GODOT_CONFIG = $GODOT_CONFIG;
@@ -610,9 +545,6 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 			installOther: 'Dein Browser bietet das Installieren gerade nicht an. In Chrome oder Edge klappt es über den Knopf „Als App installieren“, auf dem iPhone und iPad in Safari über „Teilen“ → „Zum Home-Bildschirm“.',
 			installDone: 'Soulwick ist installiert. Du findest es jetzt bei deinen Apps.',
 			close: 'Schließen',
-			rotateTitle: 'Dreh dein Gerät',
-			rotateText: 'Soulwick spielt sich im Querformat.',
-			rotateHint: 'Tippen zum Ausblenden',
 			imprint: 'Impressum',
 			privacy: 'Datenschutz',
 		},
@@ -639,9 +571,6 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 			installOther: 'Your browser does not offer installing right now. In Chrome or Edge use the “Install as app” button; on iPhone and iPad use Safari: “Share” → “Add to Home Screen”.',
 			installDone: 'Soulwick is installed. You will find it with your apps.',
 			close: 'Close',
-			rotateTitle: 'Turn your device',
-			rotateText: 'Soulwick is played in landscape.',
-			rotateHint: 'Tap to hide',
 			imprint: 'Imprint',
 			privacy: 'Privacy',
 		},
@@ -882,15 +811,6 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 			installPanel.remove();
 		}, (err) => fail(err, false));
 	}
-
-	// Turn hint (portrait on a touch screen, CSS decides): a tap hides it for this visit.
-	$('rotate').addEventListener('click', () => {
-		document.body.classList.add('rotate-dismissed');
-		const canvas = $('canvas');
-		if (canvas) {
-			canvas.focus();
-		}
-	});
 
 	shell.addEventListener('click', startGame);
 	// Escape closes the install dialog wherever the focus is.

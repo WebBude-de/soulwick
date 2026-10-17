@@ -180,8 +180,9 @@ func _ready() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(root)
 	_root = root
-	# Phones: corners stay clear of notch and rounded edges (MobileUi; desktop unchanged).
-	UiKit.MobileUi.fit_to_safe_area(root)
+	# Phones: corners stay clear of notch and rounded edges (MobileUi; desktop unchanged). Portrait
+	# (phone held upright, D-180): the HUD sits in the corners of the game screen, drawn larger.
+	UiKit.MobileUi.fit_to_safe_area(root, true)
 	_build_status(root)
 	_build_room(root)
 	_build_weapons(root)
@@ -675,12 +676,14 @@ static func room_detail_text(room_index: int, type_name: String, named_mode := f
 ## would cover it (wide boss bar, narrow windows).
 func _dodge_top_center() -> void:
 	var top := UiKit.px(ROOM_LINE_TOP)
-	var line := Rect2(_room_box.global_position.x, top, _room_box.size.x, _room_box.size.y)
+	# In the HUD root's own coordinates (the root is zoomed in portrait, D-180; else identity).
+	var to_local := _root.get_global_transform().affine_inverse()
+	var line := Rect2((to_local * _room_box.global_position).x, top, _room_box.size.x, _room_box.size.y)
 	for node in get_tree().get_nodes_in_group(TOP_CENTER_GROUP):
 		var bar := node as Control
 		if bar == null or not bar.is_visible_in_tree():
 			continue
-		var rect := bar.get_global_rect()
+		var rect := to_local * bar.get_global_rect()
 		if rect.intersects(line.grow(UiKit.px(ROOM_LINE_GAP))):
 			top = maxf(top, rect.end.y + UiKit.px(ROOM_LINE_GAP))
 	if not is_equal_approx(_room_box.position.y, top):

@@ -3,6 +3,8 @@ extends Control
 ## save slot is loaded or created. Applies the global options (window mode, screen shake) at start.
 
 const GAME_SCENE_PATH := "res://scenes/game.tscn"
+## Phone held upright: game screen on top, controller field below (D-180), from the main menu on.
+const PortraitMode := preload("res://ui/touch/portrait_mode.gd")
 
 var menu: MainMenu = null
 
@@ -11,6 +13,7 @@ func _ready() -> void:
 	GameManager.set_phase(GameManager.Phase.MENU)
 	GameOptions.apply_all()
 	GameCursor.use_pointer()
+	PortraitMode.ensure(get_tree())
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	menu = MainMenu.new()
 	add_child(menu)

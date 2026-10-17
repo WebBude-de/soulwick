@@ -125,10 +125,14 @@ func _process(delta: float) -> void:
 	_rect.visible = active
 	if not active:
 		return
-	var screen := get_viewport().get_visible_rect().size
+	# Portrait mode (D-182) scales and shifts the whole canvas: the game picture is the visible
+	# rect, so screen size and focus are taken in its units (identity in landscape).
+	var xf := get_viewport().get_final_transform()
+	var screen := Vector2(get_viewport().size) / xf.get_scale()
 	var focus := screen * 0.5
 	if _player != null and is_instance_valid(_player) and _player.is_inside_tree():
 		focus = get_viewport().get_canvas_transform() * _player.global_position
+		focus += Vector2(0.0, xf.origin.y / xf.get_scale().y)
 	_material.set_shader_parameter(&"screen_size", screen)
 	_material.set_shader_parameter(&"focus", focus)
 	_material.set_shader_parameter(&"chroma", _chroma)

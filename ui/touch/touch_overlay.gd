@@ -18,8 +18,12 @@ extends CanvasLayer
 ## player that can act polls it, so menus, pauses and the main menu get every tap (emulated mouse).
 ## Lives under the root window (ensure()), across scene changes. Places everything inside the
 ## visible viewport (aspect "expand": any phone format) shrunk to the display's safe area.
+## Portrait (phone held upright, PortraitLayout): this overlay hides, the handheld controller field
+## below the game screen (PortraitPad) writes the same TouchState instead.
 
 const LAYER := 25
+const PortraitLayout := preload("res://ui/touch/portrait_layout.gd")
+const PortraitMode := preload("res://ui/touch/portrait_mode.gd")
 ## Stick reach in viewport pixels at the medium size and the dead zone as a share of it.
 const STICK_RADIUS := 90.0
 const STICK_DEAD_ZONE := 0.18
@@ -89,7 +93,11 @@ var _finger_button: Dictionary[int, StringName] = {}
 
 ## Adds the overlay under the root window once (deferred: called from physics frames).
 static func ensure(tree: SceneTree) -> void:
-	if tree == null or (is_instance_valid(_instance) and not _instance.is_queued_for_deletion()):
+	if tree == null:
+		return
+	# The portrait switch comes along (also when game.tscn is started directly).
+	PortraitMode.ensure(tree)
+	if is_instance_valid(_instance) and not _instance.is_queued_for_deletion():
 		return
 	_instance = TouchOverlay.new()
 	_instance.name = "TouchOverlay"
@@ -131,7 +139,7 @@ func _process(_delta: float) -> void:
 	var rect := _screen_rect()
 	if rect.size != _layout_size or state.side_view != _side_view:
 		layout(rect)
-	set_shown(state.wants_overlay() and not _menu_open())
+	set_shown(state.wants_overlay() and not _menu_open() and not PortraitLayout.is_active())
 	if _shown:
 		_view.queue_redraw()
 
@@ -244,7 +252,7 @@ func _input(event: InputEvent) -> void:
 		if event.pressed and not state.touched:
 			state.touched = true
 			# The first touch also counts when the player is already waiting for it.
-			set_shown(state.wants_overlay() and not _menu_open())
+			set_shown(state.wants_overlay() and not _menu_open() and not PortraitLayout.is_active())
 		if _shown and handle_touch(event.index, event.position, event.pressed):
 			get_viewport().set_input_as_handled()
 	elif event is InputEventScreenDrag:

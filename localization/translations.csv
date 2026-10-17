@@ -1151,3 +1151,5 @@ BUG_REPORT_NOTE_IDEA,"What would you like to see? (note, several lines)","Was w�
 BUG_REPORT_SAVED_IDEA,"Thanks! Idea saved","Danke! Idee gespeichert"
 BUG_REPORT_HINT_KEYBOARD,"Game paused · Drag: mark an area · Shift+drag: draw a line · Right-click: remove · Open with {open} or Select + Start","Spiel pausiert · Ziehen: Bereich markieren · Umschalt+Ziehen: Strich · Rechtsklick: entfernen · Öffnen mit {open} oder Select + Start"
 BUG_REPORT_KEY_CTRL,"Ctrl","Strg"
+TOUCH_PAD_START,"START","START"
+TOUCH_PAD_SELECT,"SELECT","SELECT"

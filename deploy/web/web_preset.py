@@ -24,7 +24,7 @@ OPTIONS = {
     # 0 fullscreen, 1 standalone, 2 minimal UI, 3 browser
     "progressive_web_app/display": "1",
     # 0 any, 1 landscape, 2 portrait
-    "progressive_web_app/orientation": "1",
+    "progressive_web_app/orientation": "0",
     "progressive_web_app/icon_144x144": '"res://deploy/web/icons/icon_144.png"',
     "progressive_web_app/icon_180x180": '"res://deploy/web/icons/icon_180.png"',
     "progressive_web_app/icon_512x512": '"res://deploy/web/icons/icon_512.png"',

@@ -16,6 +16,10 @@ extends RefCounted
 ## Usage (no class_name, new classes are preloaded): const MobileUi := preload("res://ui/menus/mobile_ui.gd")
 ## Desktop testing: "-- mobile_ui=1" simulates a phone (touch screen, short side SIMULATED_SHORT_DP dp),
 ## "-- safe_inset=90" a notch of 90 window pixels on the left and the right.
+## Portrait (phone held upright, PortraitLayout): the visible rect is the game screen at the top, already
+## placed below the notch, so safe_rect() is the visible rect; dialogs stay on that screen (as wide as
+## the phone, so the text gets no smaller than over the whole screen; too tall dialogs scroll).
+## fit_to_safe_area(control, true) additionally zooms an overlay by PortraitLayout.ui_zoom() (HUD).
 
 ## UI size option (hook for ui/options): AUTO = by screen, NORMAL = like the PC, LARGE = a step more.
 enum SizeMode { AUTO, NORMAL, LARGE }
@@ -32,6 +36,7 @@ const MAX_ZOOM := 2.0
 const MIN_TOUCH_DP := 48.0
 ## Short side of the phone simulated by FORCE_ARG in dp (Pixel 7: 412, browser with bars: ~360).
 const SIMULATED_SHORT_DP := 400.0
+const PortraitLayout := preload("res://ui/touch/portrait_layout.gd")
 ## Body text and art pixel of the menus at zoom 1 in viewport pixels (UiKit.SIZE_BODY × UiKit.UI_SCALE
 ## and UiKit.ART_SCALE; no UiKit reference here, UiKit preloads this file).
 const BODY_PX := 7.0 * 1280.0 / 480.0
@@ -172,6 +177,9 @@ static func touch_margin(viewport: Viewport) -> float:
 ## Visible area of viewport without notch, camera hole and rounded corners (viewport pixels).
 static func safe_rect(viewport: Viewport) -> Rect2:
 	var rect := viewport.get_visible_rect() if viewport != null else Rect2(0, 0, 1280, 720)
+	if PortraitLayout.is_active():
+		# The screen already sits below the notch; the bottom insets lie in the controller field.
+		return rect
 	var insets := safe_insets()
 	if insets == Vector4.ZERO or viewport == null:
 		return rect
@@ -231,24 +239,43 @@ static func _web_safe_insets() -> Vector4:
 
 ## Keeps a full-rect Control (HUD root, card layers) inside the safe area: its offsets follow the
 ## insets, also after the window turns. Call once the control is in the tree. Desktop: offsets 0.
-static func fit_to_safe_area(control: Control) -> void:
+## zoomed: in portrait the control is drawn PortraitLayout.ui_zoom() times larger (its layout size
+## shrinks by that, so anchored children keep their places on the screen); 1 elsewhere.
+static func fit_to_safe_area(control: Control, zoomed := false) -> void:
 	if not control.is_inside_tree():
 		return
-	apply_safe_offsets(control)
+	apply_safe_offsets(control, zoomed)
 	var viewport := control.get_viewport()
-	viewport.size_changed.connect(func() -> void:
+	var follow := func() -> void:
 		if is_instance_valid(control) and control.is_inside_tree():
-			apply_safe_offsets(control))
+			apply_safe_offsets(control, zoomed)
+	viewport.size_changed.connect(follow)
+	# Connected only while the control is in the tree: a freed control would otherwise stay
+	# connected (turning the phone later logged a freed lambda capture).
+	control.tree_exiting.connect(func() -> void:
+		var leaving := control.get_viewport()
+		if leaving != null and leaving.size_changed.is_connected(follow):
+			leaving.size_changed.disconnect(follow))
+	control.tree_entered.connect(func() -> void:
+		var entering := control.get_viewport()
+		if entering != null and not entering.size_changed.is_connected(follow):
+			entering.size_changed.connect(follow)
+		follow.call())
 
 
-static func apply_safe_offsets(control: Control) -> void:
+static func apply_safe_offsets(control: Control, zoomed := false) -> void:
 	var viewport := control.get_viewport()
 	var visible := viewport.get_visible_rect()
 	var safe := safe_rect(viewport)
+	var zoom := 1.0
+	if zoomed:
+		zoom = PortraitLayout.ui_zoom()
+		control.pivot_offset = Vector2.ZERO
+		control.scale = Vector2.ONE * zoom
 	control.offset_left = safe.position.x - visible.position.x
 	control.offset_top = safe.position.y - visible.position.y
-	control.offset_right = safe.end.x - visible.end.x
-	control.offset_bottom = safe.end.y - visible.end.y
+	control.offset_right = safe.position.x + safe.size.x / zoom - visible.end.x
+	control.offset_bottom = safe.position.y + safe.size.y / zoom - visible.end.y
 
 
 # --- Stage ---

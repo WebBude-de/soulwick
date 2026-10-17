@@ -14,6 +14,10 @@ extends Camera2D
 ## to one side and sways ("the screen goes crooked"). Shake is sized for zoom 1.0 and divided by the
 ## zoom, so it looks the same on screen at every zoom.
 ##
+## Portrait (phone held upright, PortraitLayout): the game screen is about half as wide as in
+## landscape; the zoom is multiplied by PortraitLayout.world_zoom() so the world stays readable (1 in
+## landscape and on the desktop).
+##
 ## Coop (M4 hook): camera_targets() is the single place that says what the camera keeps in view.
 ## Today the player carrying this camera; the multiplayer session hands in a provider
 ## (set_targets_provider: group middle, catch-up) without touching the follow or zoom logic.
@@ -33,6 +37,7 @@ const AIMED_THRESHOLD := 0.5
 ## the overview shows where it goes, not the corridor behind. TESTWERT.
 const OVERVIEW_LEAN := 240.0
 const OVERVIEW_LEAN_SPEED := 5.0
+const PortraitLayout := preload("res://ui/touch/portrait_layout.gd")
 
 var _trauma := 0.0
 var _time := 0.0
@@ -63,7 +68,7 @@ func _ready() -> void:
 	process_priority = -10
 	_connect_world()
 	_zoom.set_base(_resting_zoom(), true)
-	zoom = Vector2.ONE * _zoom.value
+	zoom = Vector2.ONE * _zoom.value * PortraitLayout.world_zoom()
 
 
 # --- Coop hook: what the camera keeps in view ---
@@ -155,7 +160,7 @@ func _process(delta: float) -> void:
 		var sway := get_sway_amount() if _sway_left > 0.0 else 0.0
 		roll += (STUN_TILT * _sway_side + STUN_SWING * sin(_sway_time * 5.0)) * sway
 		shake_offset += Vector2(sin(_sway_time * 3.7), sin(_sway_time * 2.9) * 0.6) * STUN_DRIFT * sway
-	zoom = Vector2.ONE * _zoom.step(delta, _intro_holds_overview())
+	zoom = Vector2.ONE * _zoom.step(delta, _intro_holds_overview()) * PortraitLayout.world_zoom()
 	_update_view(delta)
 	# Shake is sized for zoom 1.0: the same on screen at every zoom.
 	offset = _view_offset + shake_offset / zoom.x
