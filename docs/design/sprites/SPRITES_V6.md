@@ -1,6 +1,6 @@
 # Grafik-Briefing V6 – Soulwick: einheitliche Innenmauern
 
-> **Status 15.10.2026: abgelöst.** Nicht mehr einzeln liefern: Das Wand-System kam mit der Design-Antwort ([04_wandsystem.md](../claude_design_antwort/04_wandsystem.md), `wall_autotile_<biom>`, D-131) und für Höhlenräume das Fels-Terrain (`rock_blob_<biom>`, D-142). Übersicht aller Briefings: [README.md](README.md).
+> **Status 15.10.2026: abgelöst.** Nicht mehr einzeln liefern: Das Wand-System kam mit der Design-Antwort ([04_wandsystem.md](../responses/04_wandsystem.md), `wall_autotile_<biom>`, D-131) und für Höhlenräume das Fels-Terrain (`rock_blob_<biom>`, D-142). Übersicht aller Briefings: [README.md](README.md).
 >
 > **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V5.md](SPRITES_V5.md). Anlass: Im Playtest wirken Innenmauern mal flach (nur Oberseite), mal halb-3D (mit Vorderseite), mal mit, mal ohne Kante. Das gelieferte Set `inner_wall_tiles*.png` (8 Teile) reicht für Ecken, dicke Blöcke und Seitenkanten nicht.
 > **Ablage:** `art/environment/tiles/`, Dateinamen exakt übernehmen. Bis dahin erzeugt der Code die Kanten aus der vorhandenen Krone.

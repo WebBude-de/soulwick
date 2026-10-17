@@ -1,224 +1,93 @@
-# ARCHITECTURE – Systemgrenzen, Szenen und Datenfluss
+# ARCHITECTURE – Landkarte des Spiels
 
-> **Stand:** 15.10.2026 · **Status:** Verbindliche Architektur, im Spiel umgesetzt (ROADMAP M0–M15, Ausbau in ROADMAP_AUSBAU). Abschnitt 6 nennt die ursprünglichen Ziel-Schnittstellen aus dem GDD; maßgeblich sind die Signaturen im Code.  
-> **Quelle:** Überarbeitetes GDD Master 1.0, Kapitel 8, 10–15 (10.10.2026), ergänzt um spätere Entscheidungen (D-Nummern).
+> **Stand:** 17.10.2026 · Wo was liegt und wem welcher Zustand gehört. Einzelheiten stehen im Code (Kopfkommentar jeder Klasse), Gründe in [DECISIONS.md](DECISIONS.md), Regeln für Koop in [MULTIPLAYER.md](MULTIPLAYER.md) (D-178).
 
-## 1. Anwendung („Apps“) und Laufzeit
+## 1. Anwendung und Laufzeit
 
-**Eine Spielanwendung in Godot 4.7.2** (zuerst Windows-Desktop, später Android und iOS, D-119). Gameplay, Physik, UI und Speichern laufen vollständig im Spiel; es ist **ohne Server spielbar**. Die Online-Teile (Konto, Gilden, Ranglisten, Koop-Relay) liegen im eigenen Repo `soulwick-platform` (D-093, D-119) und sind optional: Jeder Aufruf aus dem Spiel darf scheitern, Spiellogik läuft nie auf dem Server.
-
-```text
-scenes/main.tscn  (Hauptmenü: ui/main_menu/)
-          |
-       scenes/game.tscn  (WorldController / aktive Welt)
-          |
-          +-- world/village/village.tscn
-          +-- dungeon/dungeon.tscn
-                  +-- DungeonManager
-                  +-- RoomContainer (maximal 3 lebende Rauminstanzen)
-                  +-- room_base.tscn / Vorlagen aus Plänen (dungeon/rooms/plans/)
-```
-
-`game.tscn` ist der Weltkontext; `village.tscn` und `dungeon.tscn` sind **unterschiedliche Welten**. Beim Wechsel Dorf ↔ Dungeon wird `player.tscn` neu instanziiert; beim Raumwechsel **innerhalb** des Dungeons bleibt die Spielerinstanz erhalten.
-
-## 2. Domains / Verantwortlichkeiten (Single Source of Truth)
-
-| Domain / Eigentümer | Besitzt | Besitzt ausdrücklich nicht |
-| --- | --- | --- |
-| `GameManager` (**Autoload**) | Spielphase, Pausengründe, Szenenwechsel | Run-Gold, Feind-KI |
-| `RunManager` (**Autoload**) | Aktueller Run, Raumnummer, Run-Gold, Run-Abschluss/Quote | Preise, permanentes Gold |
-| `SaveManager` (**Autoload**) | Versionsgeführter permanenter Spielstand, dauerhaftes Gold und Freischaltungen | Temporäre Waffen/Upgrades eines Runs |
-| `EventBus` (**Autoload**) | Globale systemübergreifende Signale | **Keinerlei Gameplay-Zustand** |
-| `WorldController` / `game.tscn` | Aktive Weltinstanz, Spielererzeugung bei Weltwechsel | Berechnung von Upgrades oder Shoppreisen |
-| `DungeonManager` | Raumfolge, Auswahl der `.tscn`-Vorlagen, Platzierung, Raum-Streaming | Eigenständiges Gegner-Spawning |
-| `RoomController` | Begegnungsstatus, Türen, aktive Gegner, Raumabschluss | Permanente Progression |
-| `EnemySpawner` | Einmalige Anzahl-/Marker-/Gegnertypziehung pro Encounter | Raumtyp- und Run-Fortschritt |
-| `WeaponController` | Zwei Slots, aktive Waffe, Auslösen von Angriffen | Finale Schadensermittlung |
-| `UpgradeManager` | Runweite Upgrade-Stacks und Verfügbarkeit | Permanenter Speicherstand |
-| `StatCalculator` | Einheitliche effektive Angriffs-/Waffenwerte | UI-Darstellung |
-| `DamageProcessor` | Trefferberechtigung, Rundung, Schild/HP, Effektreihenfolge | Raum-Streaming |
-| `EconomySystem` | Preislogik, Shopangebot, Kaufberechtigung/Transaktionsprüfung | Zweite Kopie von Run-Gold |
-| `UIManager` | HUD, Menüs, Visualisierung und Eingaben | Autoritative Gameplay-Berechnungen |
-
-**Regel:** Ein Zustand hat genau einen fachlichen Eigentümer. Andere Systeme lesen ihn über definierte, typisierte Methoden und reagieren auf Signale; sie halten keine unabhängigen autoritativen Kopien.
-
-## 3. Verbindliche Verzeichnisstruktur
+Eine Godot-4.7.2-Anwendung für Windows, Linux, macOS, Android, iOS und Browser (D-108, D-148). Sie ist **ohne Server spielbar**; Konto, Gilden, Ranglisten und Koop-Relay liegen im Repo `soulwick-platform`, jeder Aufruf darf scheitern, Spiellogik läuft nie auf dem Server (D-083, D-119).
 
 ```text
-res://
-├── project.godot
-├── scenes/                   # main.tscn (Hauptmenü), game.tscn
-├── world/village/            # village.tscn, NPCs, Interaktionen
-├── dungeon/
-│   ├── dungeon.tscn          # DungeonManager, RoomContainer, Übergänge
-│   ├── rooms/                # room_base.tscn, plans/, templates/, special/, trials/, campfire/, walls/ …
-│   ├── modes/                # Minispiele (escort/, flame/, relic/, souls/, rifts/, hunt/, lightfire/, collapse/)
-│   ├── variants/             # Wagnis-Altar, Elite-Nest, ältere Kampf-Varianten
-│   ├── side/                 # Gang-Segmente in Seitenansicht (D-144)
-│   ├── biomes/               # BiomeData je Biom (.tres)
-│   ├── environment/          # TileSets, doors/, corridors/, deco/, traps/
-│   └── spawning/             # enemy_spawner.gd, Gegner-Quellen
-├── player/                   # player.tscn, Movement, WeaponController, Seitenansicht
-├── characters/               # CharacterData (Held, Kleidungsfarbe)
-├── enemies/                  # enemy_base, types/, data/
-├── weapons/                  # weapon_data.gd, types/, data/, projectiles/
-├── upgrades/                 # upgrade_manager, effects/, data/
-├── economy/                  # economy_system, shop_offer, data/
-├── meta/                     # Meta-Progression, Freischaltungen, Spielstände, Statistik
-├── localization/             # translations.csv (en, de), Loc
-├── components/               # health/, shield/, hitbox/, hurtbox/, combat/, visual/, audio/
-├── ui/                       # main_menu/, hud/, menus/, options/, widgets/, damage_numbers/, boss_intro/
-├── autoload/                 # game_manager, run_manager, save_manager, event_bus
-├── art/                      # characters/, environment/, weapons/, ui/
-├── audio/                    # music/, sfx/, ambient/
-├── tests/                    # unit/ (GUT), manual/
-├── tools/                    # Prüf-, Simulations- und Generator-Skripte
-└── docs/
+scenes/main.tscn            Hauptmenü (ui/main_menu/)
+  → scenes/game.tscn        WorldController: aktive Welt, Spieler, GameMode (Solo/Koop)
+       ├─ world/village/village.tscn     Dorf
+       └─ dungeon/dungeon.tscn           DungeonManager + RoomContainer
+             ├─ Räume aus Plänen (höchstens 3 lebend, während einer Abzweigungswahl 4)
+             └─ Gang-Segmente in Seitenansicht (dungeon/side/)
 ```
 
-Unterordner dürfen passend ergänzt werden. **Nur die vier genannten Kern-Autoloads** sind vorgesehen. Dungeon-, Upgrade-, Economy- und UI-Manager sind **Feature-/Szenenkomponenten** und keine weiteren globalen Autoloads.
+Dorf und Dungeon sind verschiedene Welten: Beim Wechsel entsteht der Spieler neu, von Raum zu Raum bleibt er derselbe (D-041).
 
-## 4. Zentrale Szenen und Nodes
+## 2. Wem welcher Zustand gehört
 
-| Szene | Erwartete Bausteine |
+Ein Zustand hat genau einen Eigentümer; andere lesen über typisierte Methoden und reagieren auf Signale (D-046). **Genau vier Autoloads** (D-044), alles andere hängt an Szenen oder ist `static`/`class_name`.
+
+| Eigentümer | besitzt |
 | --- | --- |
-| `scenes/game.tscn` | WorldController, gemeinsamer Gameplay-Kontext |
-| `world/village/village.tscn` | `TileMapLayer`, Buildings, NPCs, `DungeonEntrance` (`Area2D`), SpawnPoints |
-| `dungeon/dungeon.tscn` | `RoomContainer`, `DungeonManager`, Übergangslogik, Effekte |
-| `dungeon/rooms/room_base.tscn` | `Ground`/`Walls` (`TileMapLayer`), Doors, Gegner-Quellen bzw. `Marker2D`-Spawnpunkte (früher genau fünf, heute aus dem Plan, D-086, D-132), `EnemyContainer`, `EnemySpawner`, `RoomController` |
-| `player/player.tscn` | `CharacterBody2D`, Visuals, Collision, Bewegung, Waffen, Health/Shield, Hurtbox |
-| `enemies/enemy_base.tscn` | Visuelle/physische Basis, `HealthComponent`, Hitbox/Hurtbox, typabhängige KI |
+| `GameManager` (Autoload) | Spielphase, Pausengründe, Szenenwechsel |
+| `RunManager` (Autoload) | laufender Run: Raumnummer, Run-Gold, Kristalle im Run, Run-Ende und Auszahlung |
+| `SaveManager` (Autoload) | dauerhafter Spielstand je Welt, Einstellungen, Profil-Ablage |
+| `EventBus` (Autoload) | nur systemübergreifende Signale, **kein** Zustand |
+| `GameMode` (am WorldController) | Sitzung: Solo, Schnelles Spiel, Gilde; Spielerzahl; ob Menüs pausieren |
+| `DungeonManager` | Raumfolge, Vorlagenwahl, Raumkette, Dungeon-RNG (`DungeonContext`) |
+| `RoomController` | ein Raum: Kampf, Türen, Gegner, Abschluss |
+| `Player` + Komponenten | HP, Schild, Waffen (`WeaponController`), Zustand je Spieler (Flüche, getragene Dinge, letzte sichere Stelle) |
+| `UpgradeManager`, `StatCalculator`, `DamageProcessor` | Upgrade-Stufen, effektive Werte, Trefferverrechnung |
+| `EconomySystem` | Preise und Kaufprüfung (das Gold selbst führt `RunManager`) |
+| `online/*` | Koop: Lobby, Run, Dungeon- und Gegner-Spiegelung (nur aktiv, wenn `GameMode` vernetzt ist) |
 
-Raumvorlagen sind eigenständig in Godot bearbeitbar. Der DungeonManager ist für die Rauminstanzen zuständig, **nicht** der EnemySpawner für die Raumliste oder das UI für den Encounter-Status.
+## 3. Ordner
 
-## 5. Datenmodell und Persistenz
+| Ordner | Inhalt |
+| --- | --- |
+| `autoload/`, `scenes/` | die vier Autoloads; Hauptmenü, `game.tscn`, `WorldController`, `GameMode` |
+| `world/village/` | Dorf, Gebäude, Bewohner, Deko |
+| `dungeon/` | `DungeonManager`, `rooms/` (Pläne, erzeugte Vorlagen, Spezial-, Boss-, Lagerfeuer-, Prüfungsräume), `modes/` (Minispiele), `variants/` (Wagnis, Elite-Nest, Modus-Tabelle), `spawning/` (Gegner-Quellen), `environment/` (Tilesets, Türen, Gänge, Deko, Fallen), `side/` (Seitenansicht), `biomes/` |
+| `player/` | Spieler, Eingabe (`input/`, Tastatur/Maus, Gamepad, Touch, Netz), Waffen-Controller, Flüche |
+| `enemies/` | Gegner-Basis, KI (`ai/`), Bosse, Türme, Daten (`data/`), Skalierung |
+| `weapons/`, `upgrades/`, `economy/` | Daten (`data/*.tres`) und Logik |
+| `components/` | wiederverwendbare Bausteine: Health, Shield, Hitbox/Hurtbox, Kampf, Licht und Kamera (`visual/`), Audio |
+| `characters/`, `meta/` | Figuren, Aussehen, Spielerprofil; Dorf-Fortschritt, Freischaltungen, Statistik, Spielstände |
+| `ui/` | Hauptmenü, HUD, Dialoge, Optionen, Touch, Dev-Feedback (F9) |
+| `online/`, `localization/` | API-Client, Relay, Lobby, Koop-Spiegelung; `translations.csv` (en, de), `Loc` |
+| `art/`, `audio/` | Grafik und Klang (Rechte vorbehalten, D-177) |
+| `tests/`, `tools/` | GUT-Tests; Prüf-, Simulations- und Generator-Werkzeuge ([AGENTS.md](../AGENTS.md) §7) |
+| `deploy/`, `.github/` | Browser-Version, CI und Releases ([WEB_BUILD.md](WEB_BUILD.md), [RELEASE.md](RELEASE.md)) |
+| `docs/` | Doku; Godot liest den Ordner nicht (`docs/.gdignore`) |
 
-**Statische Definitionen:** Typisierte Godot-`Resource`-Klassen und `.tres`-Dateien, beispielsweise `WeaponData`, `UpgradeData`, `EnemyData`, Balancingparameter. **Kein JSON als Gameplay-Definitionsformat im MVP.** Technische Properties der Resources werden beim jeweiligen Feature finalisiert und validiert.
+## 4. Szenen und Bausteine
 
-**Laufzeitstatus (nicht mit Resources verwechseln):**
+- `player/player.tscn`, `enemies/enemy_base.tscn`: `CharacterBody2D` mit Komponenten aus `components/`.
+- **Räume werden erzeugt, nie von Hand bearbeitet:** Pläne als Text in `dungeon/rooms/plans/` → `python tools/generate_room_templates.py` → Szenen und `RoomTemplate`-Daten in `dungeon/rooms/templates/`. Das Dorf entsteht genauso aus `tools/generate_village.py`.
+- Grafik wird nach Namenskonvention aus `art/` geladen; fehlt eine Datei, zeichnet der Code einen Platzhalter ([HANDOUT.md](HANDOUT.md)).
 
-| Modell / Status | Inhalte | Eigentümer | Persistiert nach Neustart? |
-| --- | --- | --- | --- |
-| `GameState` | Spielphase, Pausengründe | GameManager | Nein |
-| `RunState` | Aktuelle Raumnummer, Run-Gold, Runstatus, aktive Run-Daten | RunManager | **Nein** |
-| `PlayerState` im Run | HP, Schild, aktive Waffenslots, Attack-Status | Spieler/entsprechende Komponenten | **Nein** |
-| `UpgradeState` | Upgrade-ID → aktuelle Stackzahl | UpgradeManager | **Nein** |
-| `RoomState` | Raumindex, `PREPARED`/`ACTIVE`/`CLEARED`/`UNLOADED`, Encounter-Flag | DungeonManager / RoomController | **Nein** |
-| `DamageData` | `amount`, `source`, `tags`, `origin` (`PRIMARY`/`SECONDARY`), `hit_id`, `knockback` | Angriffs-/Damage-Pfad | **Nein** |
-| `PermanentSave` | Version, permanentes Gold, freigeschaltete Inhalte | SaveManager | **Ja** |
+## 5. Daten und Speichern
 
-**Wichtige Invarianten:** Kein Run wird nach Programmneustart fortgesetzt; Run-Ende vergütet **höchstens einmal**; gespeicherte Dateien werden versioniert und validiert, fehlende oder defekte Dateien kontrolliert behandelt. **Speicherformat:** Godot-`ConfigFile` je Spielstand mit `[meta] version` und Migration älterer Stände (D-059, VORGESCHLAGEN; Code: `autoload/save_manager.gd`). Die Festlegung „kein JSON“ betrifft Godot-Gameplay-Resources, nicht das Speicherformat.
+- **Definitionen** sind typisierte `Resource`-Klassen mit `.tres` (Waffen, Upgrades, Gegner, Biome, Raumvorlagen), kein JSON als Gameplay-Definition (D-045). Ausnahmen: Raumpläne als Text, Animationsdaten der Grafiken als JSON.
+- **Laufzeitzustand** liegt nie in Resources und wird nicht gespeichert; gespeichert werden nur dauerhafte Werte (D-040).
+- **Spielstand:** `ConfigFile` je Welt mit Version und Migration, sicher geschrieben (D-059, D-152, D-165); Einstellungen global in `settings.cfg`, Name und Aussehen in `profile.cfg`. Code: `autoload/save_manager.gd`.
+- **Texte:** Schlüssel in `localization/translations.csv`, auch in Daten (D-111, D-164).
 
-## 6. Interne „API“-Konventionen – keine HTTP-API
+## 6. Schnittstellen im Spiel
 
-Godot-intern gelten **typisierte Methoden + Signale**, **keine REST-Endpunkte**:
+1. Zustand lesen über typisierte Methoden.
+2. Aktionen über Methoden mit eindeutigem Erfolg oder Fehler (z. B. `try_spend_run_gold`).
+3. Signale **nach** erfolgreicher Änderung.
+4. Lokal direkt verbundene Signale; `EventBus` nur systemübergreifend.
+5. Geänderte Schnittstellen im Pull Request nennen; Namen, die `online/` nutzt, nicht ohne Absprache umbenennen ([MULTIPLAYER.md](MULTIPLAYER.md) §6).
 
-1. **Zustand lesen:** Typisierter direkter Methodenaufruf (`get_current_room()`).
-2. **Aktion ausführen:** Methode mit eindeutiger Erfolgs-/Fehlerrückgabe (`try_spend_run_gold(...)`).
-3. **Zustandsänderung melden:** Signal **nach** erfolgreicher Änderung (`room_completed`, `weapon_changed`).
-4. **Lokal kommunizieren:** Direkt gebundene Signale verwenden; **EventBus nur systemübergreifend**.
-5. **Verträge ändern:** Schnittstellenänderung und Auswirkungen im Merge Request dokumentieren.
+## 7. Datenfluss und Grenzen
 
-### Ziel-Schnittstellen (GDD-Designvertrag, noch nicht getestete Signaturen)
+### 7.1 Dorf → Run → Rückkehr
 
-```gdscript
-# Autoloads
-GameManager.request_pause(reason)
-GameManager.release_pause(reason)
-GameManager.is_game_paused()
-GameManager.change_scene(path)
+1. Dorf: Eingang benutzen → `GameManager.change_scene` lädt den Dungeon, `RunManager.start_run()` beginnt den Run, die Dorf-Boni kommen aus `MetaProgression` (nur Solo).
+2. Dungeon: `DungeonManager` baut Raum für Raum aus dem Dungeon-RNG (gleicher Seed = gleiche Räume). Beim Betreten von Raum N wird zuerst N−2 entfernt, dann N+1 gebaut, damit nie ein vierter Raum lebt. Ein Kampf startet beim ersten Betreten genau einmal; der Abschluss wird genau einmal gemeldet; eine kaputte Vorlage gilt nie als geschafft.
+3. Käufe: `EconomySystem` prüft Angebot und Preis, `RunManager` bucht; Abbuchung und Lieferung zusammen oder gar nicht (D-038).
+4. Ende: Portal, Tod oder Abbruch → `RunManager.end_run()` rechnet die Quote (100 % bzw. 50 %), `SaveManager` bucht genau einmal → zurück ins Dorf mit neuem Spieler.
 
-RunManager.start_run()
-RunManager.get_current_room()
-RunManager.advance_room()
-RunManager.add_run_gold(...)
-RunManager.try_spend_run_gold(...)
-RunManager.end_run(reason)
+### 7.2 Treffer
 
-SaveManager.load_game()
-SaveManager.save_game()
-SaveManager.get_permanent_gold()
-SaveManager.add_permanent_gold(...)
-SaveManager.unlock_content(id)
+Hitbox/Hurtbox → Hit-ID und Unverwundbarkeit prüfen → `StatCalculator` (effektive Werte) → `DamageProcessor` (einmal auf 0,5 runden, Schild vor HP) → Rückmeldung, Tod, erlaubte Sekundäreffekte ohne Kette. Formeln: DECISIONS §6.
 
-# Domänendienste / Komponenten
-DamageProcessor.process_hit(...) # exakte Signatur OFFEN
-WeaponController.equip_weapon(weapon, slot)
-WeaponController.switch_weapon()
-WeaponController.get_active_weapon()
-WeaponController.request_attack()
-UpgradeManager.acquire_upgrade(...)
-UpgradeManager.get_active_upgrades()
-UpgradeManager.get_available_upgrades()
-DungeonManager.prepare_next_room()
-DungeonManager.activate_room(...)
-DungeonManager.unload_unused_rooms()
-RoomController.start_encounter()
-RoomController.check_completion()
-```
+## 8. Sicherheit
 
-**Globale Signale** beispielsweise `room_entered`, `room_completed`, `weapon_changed`, `upgrade_acquired`, `run_ended`. **Lokale Signale** beispielsweise `health_changed`, `shield_changed`, `died`. Namen sind Designziele; Parametertypen, Fehlerformen und finale Signaturen vor Implementierung festlegen.
-
-## 7. Wichtige Abläufe und Transaktionsgrenzen
-
-### 7.1 Dungeon-Streaming (strikte Grenze: drei Instanzen)
-
-- Raumstart: Raum 1 laden; bei Aktivierung Raum 2 vorbereiten.
-- Raumzustände: `PREPARED` → `ACTIVE` → `CLEARED` → `UNLOADED`.
-- Fenster um aktiven Raum N: höchstens `N−1`, `N`, `N+1`.
-- Beim Betreten von N zunächst **N−2 vollständig entfernen**, **erst danach N+1 instanziieren**. `queue_free()` entfernt Nodes erst zum Frame-Ende: Die vierte existierende Rauminstanz muss auch temporär vermieden werden.
-- Raumvorbereitung startet **keinen** Gegner-Encounter. Encounter startet beim ersten tatsächlichen Aktivieren des Raums genau **einmal**.
-- `RoomController` meldet Raumabschluss genau einmal nach dem letzten erforderlichen Gegnertod; daraufhin Ausgang öffnen.
-- Fehlerhafte Vorlagen/Marker niemals als erfolgreich abgeschlossenen Raum behandeln.
-
-### 7.2 Spawn-Pipeline
-
-```text
-DungeonManager: Raumtyp + Vorlage
-    -> RoomController: start_encounter() einmalig
-    -> EnemySpawner: gültigen Raumtyp prüfen
-    -> Anzahl und Wellen je Raumnummer (TESTWERTE, D-074, D-118)
-    -> verschiedene Quellen/Marker ohne Zurücklegen wählen, bevorzugt hinter dem Spieler (D-132)
-    -> Typ je Platz aus der Gegner-Tabelle des Bioms (D-075)
-    -> EnemyContainer: Gegner instanziieren
-    -> RoomController: Tode verfolgen -> room_completed einmalig
-```
-
-Miniboss/Boss haben **eigenen Encounter-Pfad**; Spezialräume bekommen **keinen normalen Wellenspawn**.
-
-### 7.3 Schaden / Effekte
-
-```text
-Hitbox/Hurtbox-Kontakt
-  -> Zielberechtigung + Hit-ID-Historie
-  -> Unverwundbarkeit (ggf. blockiert, keine schadensabhängigen Folgen)
-  -> StatCalculator: D_raw = (D_base + Σ flat) * (1 + Σ pct) * Π context
-  -> DamageProcessor: einmalig auf 0,5 runden; gültiger Schaden min. 0,5
-  -> Schild vollständig vor HP verrechnen
-  -> Trefferfeedback, ggf. Spieler-Hit-I-Frames (0,5 s), Tod
-  -> zulässige sekundäre Effekte, ON_KILL-Belohnungen
-```
-
-Die Herkunft `PRIMARY`/`SECONDARY` verhindert Rekursion. Ein sekundärer Treffer darf das Primärziel treffen, aber **keine neue sekundäre Explosion** auslösen. Ein Magierstab-Primär-AOE umfasst das direkt getroffene Ziel **einmal**. Sekundäre Kills gewähren die normalen ON_KILL-Heilungs-/Schildboni. **Hit-ID** gilt pro Angriffsinstanz; jeder Doppelschuss-Pfeil besitzt eigene Historie.
-
-### 7.4 Gold und Shop – atomare Operationen
-
-`EconomySystem` prüft Gültigkeit/Preis/Angebot; **`RunManager` führt Run-Gold**. Der Kauf wird nur als Gesamtaktion verbucht (Geld weg **und** Gegenstand erhalten, sonst keine Änderung). Bei Run-Ende berechnet RunManager die Quote **50 % (Tod/Abbruch)** oder **100 % (regulär)**; **SaveManager** sichert die dauerhafte Gutschrift **einmalig**. Bei ungeraden Beständen wird die 50-%-Auszahlung **aufgerundet** (D-062).
-
-### 7.5 Pause / UI
-
-`GameManager` hält **mehrere Pausengründe** separat. Simulation und sämtliche Gameplay-Timer/Projektile pausieren; UI bleibt trotz Pause bedienbar (entsprechender Godot-Process-Mode). Shop, Waffen-, Upgrade-Auswahl, Tab-Übersicht und Esc-Menü können unterschiedliche Pausengründe besitzen. Veraltete Gründe nach Szenenwechsel sicher entfernen.
-
-## 8. Auth, Sicherheit und Entwicklungsumgebung
-
-- **Authentifizierung:** Das Einzelspieler-Spiel braucht kein Konto. Anmeldung (Gerät, später Steam, Google Play, Game Center) gibt es nur für die Online-Teile; Ablauf und Verträge im Repo `soulwick-platform` (D-108, D-119).
-- **Netzwerk-/Server-API:** HTTPS-API und WebSocket-Relay der Plattform, Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`. Keine Geheimnisse oder API-Schlüssel im Spiel-Repo; Spiellogik läuft nur beim Host (D-119).
-- **Dateisicherheit:** Save-Daten validieren, Version überprüfen, fehlende/defekte Dateien kontrolliert behandeln; persistente Goldgutschrift nicht doppelt durchführen.
-- **Dev-Umgebung:** Godot 4.7.2 stable, Standard-Build (D-051), GDScript, `.tres` und `.tscn` im Git; `.godot/` nicht versionieren; von Godot erzeugte `.uid`-Dateien im Git behalten.
-- **Repository/Workflow:** privates GitHub-Repo `WebBude-de/soulwick`; Integrations-Branch `dev`, Feature-Branches von `dev`, Pull Request mit mindestens einem Review. Siehe [TECHSTACK.md](TECHSTACK.md) §3.
-
-## 9. Nicht final spezifiziert
-
-Im Code umgesetzt, aber nur als **Vorschlag** festgehalten und vom Team zu bestätigen: Speicherformat und Migration (D-059), Spezialraum-Portalziehung (D-058), eine Upgrade-Explosion je Angriffsinstanz (D-056), Physik-Layer (D-053). Weiter ohne Festlegung: gleichzeitige ON_KILL-Auslöser im selben Frame (heute seriell). Rückwärtsnavigation gibt es nicht (ein Tor pro Übergang, kein Zurück, D-143). Entschieden: Goldrundung aufrunden (D-062).
-
-**Weiterlesen:** [PRD.md](PRD.md) · [TECHSTACK.md](TECHSTACK.md) · [ROADMAP.md](ROADMAP.md) · [DECISIONS.md](DECISIONS.md)
+Beide Repos sind öffentlich: keine Geheimnisse im Repo, der Dev-Schlüssel kommt nie in einen Build (D-148, D-177). Spielstände beim Laden prüfen, defekte kontrolliert behandeln, dauerhaftes Gold nie doppelt gutschreiben.

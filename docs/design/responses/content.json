@@ -1,5 +1,5 @@
 {
-  "intro": "Antwort auf BRIEFING_RAEUME_V2 (14.10.2026). Gameplay aus KONZEPT_RAEUME_V2 übernommen; hier Look, Bau, Quellen, Türen, Intro-Muster, Wand-System, Dorf, UI. Mockups: docs/design/claude_design_antwort/mockups (2×, Beleuchtung als Vorschlag: Umgebung 45–55 % sichtbar statt schwarz, Lichtkreis 5 Kacheln, jede Quelle wirft Licht).",
+  "intro": "Antwort auf BRIEFING_RAEUME_V2 (14.10.2026). Gameplay aus KONZEPT_RAEUME_V2 übernommen; hier Look, Bau, Quellen, Türen, Intro-Muster, Wand-System, Dorf, UI. Mockups: docs/design/responses/mockups (2×, Beleuchtung als Vorschlag: Umgebung 45–55 % sichtbar statt schwarz, Lichtkreis 5 Kacheln, jede Quelle wirft Licht).",
   "principles": [
     "Jeder Raum hat eine Bühne: ein Objekt in der Mitte oder am Ziel, das die Aufgabe erklärt (Flamme, Altar, Pfad, Feuerschalen), bevor ein Wort fällt.",
     "Gegner kommen aus Quellen, die zum Grundriss gehören und meist hinter dem Spieler liegen; Quellen leuchten 1 s vor dem Erscheinen.",

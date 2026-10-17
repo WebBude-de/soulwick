@@ -1,7 +1,7 @@
 # Grafik-Briefing V9 – Soulwick: Makeover-Welle A, offene Teile
 
 > **Für Claude Design.** Diese Teile sind im Spiel heute **Platzhalter aus Code**. Sie laufen schon, sehen aber noch nicht sauber aus. Liefert ihr eine Datei mit genau diesem Namen, baut der Code sie automatisch ein.
-> **Stand:** 15.10.2026 (Abschnitte 1–5 geliefert, siehe `design/claude_design_antwort/SPRITES_V9_lieferung.md`; **offen: Nachlieferung Abschnitt 1 und Abschnitt 6**) · Stil wie bisher: Pixel-Art, 32-px-Kacheln, Kontur `#1c1a2b`, weiche Palette aus `crypt_soft` (andere Biome per Palettentausch). Animationen als Streifen mit Frame-Anzahl im Namen. Zu jeder Datei ein JSON mit fps und Pivot, wie bei den gelieferten Teilen.
+> **Stand:** 15.10.2026 (Abschnitte 1–5 geliefert, siehe `design/responses/SPRITES_V9_lieferung.md`; **offen: Nachlieferung Abschnitt 1 und Abschnitt 6**) · Stil wie bisher: Pixel-Art, 32-px-Kacheln, Kontur `#1c1a2b`, weiche Palette aus `crypt_soft` (andere Biome per Palettentausch). Animationen als Streifen mit Frame-Anzahl im Namen. Zu jeder Datei ein JSON mit fps und Pivot, wie bei den gelieferten Teilen.
 > **Leitlinie des Projektmitglieds:** „Das Game muss clean sein.“ Keine sichtbaren Rechteckkanten, keine Stummel, keine harten Schatten. Jedes Teil schließt nahtlos an die Nachbarkacheln an.
 > `<biom>` = `crypt`, `slime_grotto`, `shadow_realm`, `ember_forge`. `_soft` = weiche Palette.
 

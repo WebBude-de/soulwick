@@ -1,20 +1,19 @@
 # AGENTS.md – So arbeiten wir mit KI-Agenten
 
 > Gilt für **jeden** Agenten und jeden neuen Chat in diesem Repository (Claude Code, Subagenten, andere Werkzeuge). Erst diese Datei lesen, dann die genannten Dokumente. Claude-Code-Besonderheiten: [CLAUDE.md](CLAUDE.md).
-> **Stand:** 15.10.2026
+> **Stand:** 17.10.2026
 
 ## 1. Projekt in Kürze
 
-**Soulwick** (D-094): 2D-Top-down-Dungeon-Roguelite in Godot 4.7.2. Endloser, dunkler Dungeon mit Biomen, Bossen und Minispiel-Räumen, Dorf mit Meta-Progression; geplant: Koop, Gilden, Ranglisten, Steam und Mobil. Teamprojekt (Idee eines Kollegen), nach außen „Made with ♥ by WebBude“ ([PRODUKT.md](docs/PRODUKT.md)). Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen lassen, am Ende spielbar testen.
+**Soulwick** (D-094): Pixel-Roguelite in Godot 4.7.2, in das man mit Freunden reinrennt (D-173): endloser Dungeon mit Biomen, Bossen und Minispiel-Räumen, Dorf mit Meta-Progression, Koop, Gilden, Ranglisten; Browser, Steam und Handy. Zielgruppe 12 bis 25, Freundesgruppen; Ton: Dungeon atmosphärisch, Dorf süß, moderne Pixel-Art (D-174); Maskottchen Wick (D-175). Teamprojekt (Idee eines Kollegen), nach außen „Made with ♥ by WebBude“ ([PRODUKT.md](docs/PRODUKT.md)). Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen lassen, am Ende spielbar testen.
 
 ## 2. Repositories (D-093)
 
-Beide Repositories liegen privat auf GitHub in der Organisation **`WebBude-de`**.
+Beide Repositories liegen **öffentlich** auf GitHub in der Organisation **`WebBude-de`**: Code GPL-3.0, Grafik, Audio, Name und Figuren alle Rechte vorbehalten ([LICENSE-ASSETS.md](LICENSE-ASSETS.md), D-177). Also nie Geheimnisse ins Repo.
 
 | Repository / Ordner | Was | Wichtigste Doku |
 | --- | --- | --- |
 | **`soulwick`** (dieses Repo) | Godot-Spiel im Repo-Root (`project.godot`, `dungeon/`, `player/` …), GUT-Tests, Tools | [docs/README.md](docs/README.md) (Inhaltsverzeichnis) |
-| **`../soulwick-mp`** (Worktree dieses Repos, Branch `feature/multiplayer`) | Multiplayer-Arbeit (Phase 3) parallel zu den Räumen | dort `docs/ROADMAP_MULTIPLAYER.md` |
 | **`../soulwick-platform`** (eigenes Repo) | Bun-Workspaces mit Turborepo, Prisma, Biome (Ultracite): `apps/api` (Spieler- und Admin-API, Hono auf Bun), `apps/relay` (Koop-Relay), `apps/web` (Website), `apps/admin` (Admin-Panel), `packages/contracts` (API- und Relay-Verträge, Quelle der Wahrheit), `packages/db` (Prisma-Schema, Migrationen), `infra/` (lokales Postgres, Dokploy-Anleitung) | dortige `AGENTS.md` und `README.md` |
 
 **Warum getrennt:** kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, das Spiel-Repo bleibt schlank (D-093). Produkt-Entscheidungen (D-Nummern) und die Spiel-Roadmaps stehen hier in `docs/`; die Plattform hat eigene Anforderungen, Roadmap und technische Entscheidungen (P-Nummern). Ändert sich die API, zuerst die Verträge in `soulwick-platform/packages/contracts`, dann den GDScript-Client im Spiel.
@@ -23,10 +22,10 @@ Beide Repositories liegen privat auf GitHub in der Organisation **`WebBude-de`**
 
 Inhaltsverzeichnis mit Lesereihenfolge: [docs/README.md](docs/README.md). Kurz:
 
-1. [docs/PRODUKT.md](docs/PRODUKT.md): Produktüberblick für beide Repositories; zuerst lesen, wenn der Kontext fehlt.
-2. [docs/ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md): **was jetzt dran ist** (D-106): Phase 1 spielbar machen (fertig), Phase 2 Räume, 2b Raum-Rework, 2c Makeover. Für Räume gilt [docs/KONZEPT_RAEUME_V2.md](docs/KONZEPT_RAEUME_V2.md), jedes Paket mit Koop-Check.
-3. [docs/ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md): Phase 3 (Koop, Steam, Gilden, Ranglisten), läuft im Worktree `../soulwick-mp`; das Plattform-Repo darf jederzeit parallel laufen. Danach [ROADMAP_CROSSPLAY.md](docs/ROADMAP_CROSSPLAY.md) (Entscheidungen CP0 vor MP2) und Phase 4 [ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md).
-4. Fehlende Grafiken: [docs/design/sprites/README.md](docs/design/sprites/README.md) (Stand je Briefing; offen sind vor allem SPRITES_V8 und Teile von SPRITES_V9).
+1. [docs/PRODUKT.md](docs/PRODUKT.md): wofür Soulwick da ist, für wen, Ton, Geschäftsmodell; zuerst lesen, wenn der Kontext fehlt. Begriffe: [docs/GLOSSAR.md](docs/GLOSSAR.md).
+2. [docs/ROADMAP.md](docs/ROADMAP.md): **was jetzt dran ist**, Übersicht über alle Phasen in Reihenfolge (D-179): Phase 2 Räume ([ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md), für Räume gilt [KONZEPT_RAEUME_V2.md](docs/KONZEPT_RAEUME_V2.md)), Phase 3 Koop ([ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md)), Phase 4 KI-Bosse ([ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md)), Phase 5 Party-Modus, dazu Crossplay und Stores ([ROADMAP_CROSSPLAY.md](docs/ROADMAP_CROSSPLAY.md)) und die parallelen Stränge Look (LK) und Wick (WK). Jedes Paket mit Koop-Check; das Plattform-Repo darf jederzeit parallel laufen.
+3. **Doku-Regel (D-178):** Doku beschreibt Absicht, Gründe, Regeln, Begriffe und was kommt; was gebaut ist, steht im Code. Gebautes nicht in Doku nacherzählen, erledigte Pakete auf eine Zeile kürzen, Konzepte nach dem Bau auf Entscheidung und Glossar eindampfen. Jede Klasse sagt im Kopfkommentar, wofür sie da ist.
+4. Fehlende Grafiken: [docs/design/sprites/README.md](docs/design/sprites/README.md) (Stand je Briefing; offen sind vor allem SPRITES_V8, Teile von SPRITES_V9, SPRITES_V12 mit Wick, Huhn und erster Kosmetik sowie die offenen Teile von SPRITES_V10: Eingabe-Symbole, niedrige Torbögen, Hochkant-Controller).
 5. Mockups für UI und Stimmung: [docs/design/](docs/design/README.md) – als Inspiration lesen, bevor UI gebaut wird, nicht pixelgenau nachbauen.
 6. Rückmeldungen aus dem Spiel: Dev-Feedback-Modus **F9** (nur Debug-Builds), Anleitung und Auswertung in [docs/feedback/README.md](docs/feedback/README.md).
 
@@ -49,14 +48,14 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 - **Ein Paket = ein Agent = eigene Dateien.** Parallel nur, wenn sich die Dateilisten nicht überschneiden. Im Auftrag steht immer eine **Besitzliste** („Du darfst nur … ändern“).
 - **Gemeinsame Hotspots** ändert nur der Integrator oder ein Agent nach dem anderen: `project.godot`, `dungeon/dungeon_manager.gd`, `dungeon/rooms/room_controller.gd`, `enemies/enemy_base.gd`, `player/player.gd`, `scenes/game.tscn`, `autoload/*`, `docs/DECISIONS.md`; in `soulwick-platform`: Root-`package.json`, `packages/contracts`, `packages/db` (Schema und Migrationen).
 - Braucht ein Agent eine Änderung in einem Hotspot, baut er in seinen Dateien einen **Haken** (Funktion/Signal) und schreibt in den Bericht, wo der Integrator ihn anschließen soll.
-- **Andere Sitzungen:** Oft laufen mehrere Chats im selben Ordner und im Worktree `../soulwick-mp`. Vor größeren Umbauten prüfen, wer gerade arbeitet (zuletzt geänderte Dateien, `git status`, offene Sitzungen), und keine fremde Arbeit überschreiben oder zurücksetzen. Dateien, die der Multiplayer-Zweig neuer hat (`docs/MULTIPLAYER.md`, `docs/ROADMAP_MULTIPLAYER.md`, `docs/ROADMAP_CROSSPLAY.md`), hier nur im Notfall ändern, sonst gibt es Merge-Konflikte.
+- **Andere Sitzungen:** Oft laufen mehrere Chats im selben Ordner (Räume und Multiplayer im selben Branch, kein eigener Worktree mehr). Vor größeren Umbauten prüfen, wer gerade arbeitet (zuletzt geänderte Dateien, `git status`, offene Sitzungen), und keine fremde Arbeit überschreiben oder zurücksetzen.
 - Ein abgebrochener Agent hinterlässt halbfertige Dateien: Der Integrator prüft sie mit `validate_project.gd`, bevor weitergebaut wird. Unterbrochene Agenten nicht ungefragt neu starten.
 
 ## 6. Harte Regeln
 
 1. **Kein Commit und kein Push**, außer das Projektmitglied sagt es ausdrücklich. Branch-Modell und Commit-Format: [docs/TECHSTACK.md](docs/TECHSTACK.md) §3 (`feature/*` von `dev`, Pull Request mit Review).
 2. **Entscheidungen:** Nichts als `OFFEN` Markiertes still festlegen. Balance- und Testwerte sind an Claude delegiert: als `TESTWERT` markieren und in DECISIONS festhalten. Echte Design- und Produktfragen gehen an das Projektmitglied.
-3. **D-Nummern:** Vor einem neuen Eintrag die **höchste vorhandene Nummer** in `docs/DECISIONS.md` suchen (`grep -n "^### D-" docs/DECISIONS.md | sort -t- -k2 -n | tail`). Parallele Chats haben schon doppelte Nummern erzeugt; D-121 bis D-129 sind für den Multiplayer-Zweig reserviert.
+3. **D-Nummern:** Vor einem neuen Eintrag die **höchste vorhandene Nummer** in `docs/DECISIONS.md` suchen (`grep -n "^### D-" docs/DECISIONS.md | sort -t- -k2 -n | tail`). Parallele Chats haben schon doppelte Nummern erzeugt (D-121 bis D-129 gehören zum Multiplayer).
 4. **Tests fassen den echten Spielstand nie an:** In jedem Test und Tool `SaveManager.save_path` vorher auf eine Testdatei umbiegen (`before_all`). Echter Stand: `%APPDATA%/Godot/app_userdata/Soulwick/` (ein alter Stand aus `…/Dungeon Roguelite/` wird beim ersten Start einmal kopiert).
 5. **Genau vier Autoloads** (GameManager, RunManager, SaveManager, EventBus, D-044). Hilfen als `static func`/`class_name`, nicht als neuer Autoload.
 6. **Multiplayer-Leitplanken** für neuen Spielcode (D-088, Koop-Check in ROADMAP_AUSBAU): kein neues `get_first_node_in_group(&"player")`, Logik von Effekten trennen, Zufall nur über den Dungeon-RNG, keine neuen globalen Pausen, Zustand je Spieler am Spieler.
@@ -93,7 +92,8 @@ Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. check + typecheck + te
 - Bis dahin erzeugt der Code **Platzhalter**; echte Dateien mit dem vereinbarten Namen werden automatisch übernommen (z. B. `EnemyArt` lädt nach Namenskonvention).
 - Nach dem Ablegen: `godot --headless --path . --import`. Überschreibt das Projektmitglied `art/` komplett, Mauszeiger neu erzeugen (`python tools/generate_cursors.py`) und veraltete `.import`-/UID-Reste prüfen.
 - Audio wird synthetisch erzeugt: `python tools/generate_audio.py` (Effekte), `python tools/generate_music.py` (Musik, Details in [docs/AUDIO.md](docs/AUDIO.md)). Eigene Dateien gleichen Namens ersetzen die erzeugten.
-- Dateinamen in `docs/design/claude_design_antwort/` nicht ändern: Code und Werkzeuge verweisen darauf.
+- Dateinamen in `docs/design/responses/` (Antworten von Claude Design) nicht ändern: Code und Werkzeuge verweisen darauf. Ordnernamen unter `docs/design/` sind Englisch (D-178).
+- Grafik- und Audio-Beiträge von außen nur nach Absprache (D-177); Kommentare und Doku verweisen auf D-Nummern statt auf gelöschte Konzepte.
 
 ## 9. Bekannte Stolperfallen
 
@@ -113,4 +113,4 @@ Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. check + typecheck + te
 
 ## 11. Neuer Chat – Startprompt
 
-> Lies `AGENTS.md`. Stand: siehe `docs/ROADMAP_AUSBAU.md`. Arbeite als Orchestrator: Nimm die nächsten offenen Pakete der aktuellen Phase, starte sie mit getrennten Besitzlisten parallel, integriere danach, prüfe alles und berichte mir auf Deutsch. Für Räume gilt `docs/KONZEPT_RAEUME_V2.md`, für jedes Paket der Koop-Check.
+> Lies `AGENTS.md`. Stand: siehe `docs/ROADMAP.md` (Phasen nach D-179 und parallele Stränge; Details in den verlinkten Roadmaps). Arbeite als Orchestrator: Nimm die nächsten offenen Pakete nach der Vorrang-Regel, starte sie mit getrennten Besitzlisten parallel, integriere danach, prüfe alles und berichte mir auf Deutsch. Für Räume gilt `docs/KONZEPT_RAEUME_V2.md`, für jedes Paket der Koop-Check.

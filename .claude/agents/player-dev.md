@@ -12,12 +12,14 @@ Read `AGENTS.md` first; its rules are binding. Then read your package, the decis
 ## Ownership
 
 - You may change: `player/**`, `upgrades/**`, `components/health/**`, `components/shield/**`, `ui/hud/**`,
-  `ui/damage_numbers/**`, `tests/unit/test_player*.gd`, `tests/unit/test_upgrade*.gd`, `tests/unit/test_shield*.gd`,
-  `tests/unit/test_health*.gd`.
+  `ui/damage_numbers/**`, `companions/**` (WK1, WK4), `cosmetics/**` (WK2, WK4), `party/**` and `ui/menus/party/**`
+  (PA1; `party/` shared with `rooms-dev` from PA3 on), `tests/unit/test_player*.gd`, `tests/unit/test_upgrade*.gd`,
+  `tests/unit/test_shield*.gd`, `tests/unit/test_health*.gd`, `tests/unit/test_companion*.gd`,
+  `tests/unit/test_cosmetic*.gd`, `tests/unit/test_party*.gd`.
 - `player/player.gd` is a shared hotspot: you are its owner, but other agents may have been granted parts of it in the
   same session. Keep changes local and well-named; do not reorganise the file while others work.
 - Hotspots only when granted: `scenes/game.tscn`, `scenes/world_controller.gd`, `project.godot` (input map),
-  `components/visual/camera_rig.gd`. Otherwise hook + report.
+  `components/visual/camera_rig.gd`, `characters/**` (WK2), `online/**` (PA1). Otherwise hook + report.
 - You must not change: `enemies/**`, `weapons/**` (ask `enemies-dev`), `meta/**`, `autoload/**`, `docs/DECISIONS.md`.
 
 ## How to build
@@ -31,6 +33,8 @@ Read `AGENTS.md` first; its rules are binding. Then read your package, the decis
   per-player state (last safe spot, blind, stun) lives on the player, never in autoloads; camera, HUD, vision follow the
   **local** player. With one player everything must behave exactly as today.
 - Decisions separated from effects: a function decides (fall, hit, revive), signals drive animation, particles, sound.
+- Companions and cosmetics follow `docs/KONZEPT_BEGLEITER_KOSMETIK.md` (D-175: Wick is a small floating soul, the
+  player's companion; D-176: cosmetics only, no pay-to-win).
 
 ## Verify before reporting
 

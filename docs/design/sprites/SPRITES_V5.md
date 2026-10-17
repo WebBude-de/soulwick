@@ -1,6 +1,6 @@
 # Grafik-Briefing V5 – Soulwick: neue Räume (Phase 2)
 
-> **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V4.md](SPRITES_V4.md) (Dorf, Türen, Lagerfeuer – geliefert). Gehört zu Phase 2 in [ROADMAP_AUSBAU.md](../../ROADMAP_AUSBAU.md) und zum Raumkonzept [KONZEPT_RAEUME.md](../../KONZEPT_RAEUME.md).
+> **Für Claude Design.** Eigenständig lesbar. Ergänzt [SPRITES_V4.md](SPRITES_V4.md) (Dorf, Türen, Lagerfeuer – geliefert). Gehört zu Phase 2 in [ROADMAP_AUSBAU.md](../../ROADMAP_AUSBAU.md) und zum Raumkonzept [KONZEPT_RAEUME_V2.md](../../KONZEPT_RAEUME_V2.md) (D-120).
 > **Ablage:** im Spiel-Repo unter `art/` im angegebenen Unterordner. **Dateinamen exakt übernehmen**, dann baut der Code sie automatisch ein; bis dahin zeigt das Spiel Platzhalter. Zu jeder Gruppe gern eine JSON-Datei mit Pivots wie bei den Türen (`doors.json`).
 > **Stand:** 14.10.2026
 

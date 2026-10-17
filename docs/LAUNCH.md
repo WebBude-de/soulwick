@@ -1,6 +1,6 @@
 # Launch-Checkliste: Web-App und Produktion
 
-> **Stand:** 16.10.2026 (Claude, nach der lokalen Prüfung mit Docker, [WEB_BUILD.md](WEB_BUILD.md) §9–§11).
+> **Stand:** 17.10.2026 (Claude; lokale Prüfung mit Docker in [WEB_BUILD.md](WEB_BUILD.md) §9–§11). Produkt: [PRODUKT.md](PRODUKT.md), Reihenfolge: [ROADMAP.md](ROADMAP.md).
 > Reihenfolge einhalten, abhaken mit Datum. **[PM]** = Projektmitglied klickt (Cloudflare, Dokploy,
 > GitHub, eRecht24, Geräte in der Hand), **[C]** = Claude (Code, lokale Prüfung, Doku, Smoke-Test per
 > `curl`/Playwright). Agenten committen und pushen nie; Merge, Push und Branches macht das Projektmitglied.
@@ -8,34 +8,64 @@
 
 **Ziel:** `https://game.playsoulwick.com` (Spiel), `https://playsoulwick.com` (Website),
 `https://api.playsoulwick.com` (API), `wss://play.playsoulwick.com/v1` (Relay). Heute läuft nur
-`development` (`game-dev`, `dev`, `api-dev`, `play-dev`).
+`development` (`game-dev`, `dev`, `api-dev`, `play-dev`); `game.playsoulwick.com` zeigt vorerst denselben
+development-Build (D-157). Den aktuellen Zustand prüft der Smoke-Test (§8), nicht diese Datei.
 
-**Stand der Prüfung am 16.10.2026, 07:20:** `dev.playsoulwick.com`, `api-dev` und `play-dev` antworten 200.
-**`game-dev.playsoulwick.com` antwortet 502** (Cloudflare „error code: 502“, auch `/healthz`): Container
-läuft nicht oder baut gerade. `api.playsoulwick.com` antwortet 404 (Produktion noch nicht eingerichtet),
-`game.playsoulwick.com` 404.
+**Wofür der Browser da ist (D-173, D-176):** kostenlos, ohne Konto, sofort per Link mit Freunden; das
+Schaufenster für alle anderen Plattformen. Keine Werbung im Browser, solange es geht; Käufe später.
+
+**Website vor dem Release (D-179):** `playsoulwick.com` darf schon in Produktion gehen. Sie beschreibt den
+Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Wick als Begleiter, Dorf
+ausbauen und Freunde ins Dorf einladen; unter „Was kommt“ nur Späteres (Party-Modus, neue Minispiele, Bosse
+und Modi). Bis zum Release ist `LIVE_FEATURES=false`: Spielen und Installieren zeigen „zum Release“, keine
+Ranglisten- und Gildenseiten. Store-Knöpfe sind bis dahin eigene Pixel-Knöpfe ohne fremde Logos; offizielle
+Badges erst mit echten Store-Links ([STORES.md](STORES.md) §6). Social-Media-Links stehen in
+`apps/web/content/social.json`, Store-Links in `apps/web/content/stores.json`; nur ausgefüllte erscheinen.
+Öffentlich (Social Media) geht es erst ab dem Release; Release-Tor: [ROADMAP.md](ROADMAP.md).
+
+**Release auf allen Versionen (D-179):** Browser, Steam, Android und iOS gehen gemeinsam live. Diese Datei
+deckt Browser-Version, Website und Server ab; Stores, Konten und Signaturen stehen in [STORES.md](STORES.md)
+und [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP7.
 
 ## 1. Vorab entscheiden
 
-- [ ] **[PM]** Freigabe der Browser-Version in Produktion (D-148 steht auf `OFFEN`). Bis dahin bleibt
-  `GAME_URL` von `soulwick-web` in `production` leer (keine Knöpfe auf der Website).
-- [ ] **[PM]** Online-Teil zum Launch: `LIVE_FEATURES` der Website (`false` = Teaser ohne Ranglisten) und ob
-  `soulwick-relay`/`soulwick-admin` in `production` schon laufen sollen (DOKPLOY.md §4 „Produktion vorerst“).
+- [x] Freigabe der Browser-Version in Produktion: öffentlich zum Release, gleichzeitig mit Steam, Android und
+  iOS (D-179, D-148 Ergänzung; 17.10.2026). Bis dahin bleibt `GAME_URL` von `soulwick-web` in `production`
+  leer (Spielen und Installieren zeigen „zum Release“); am Release-Tag `GAME_URL` setzen und
+  `LIVE_FEATURES=true` (§5).
+- [x] `LIVE_FEATURES=false` in `production` bis zum Release (D-179, 17.10.2026): schaltet nur Live-Funktionen
+  ab (Spielen, Installieren, Ranglisten- und Gildenseiten); die Texte beschreiben trotzdem den Release-Umfang.
+- [ ] **[PM]** Ob `soulwick-relay`/`soulwick-admin` in `production` schon vor dem Release laufen sollen
+  (DOKPLOY.md §4 „Produktion vorerst“).
+- [ ] **[PM]** Social-Media-Links: nur Kanäle eintragen, die es schon gibt (`apps/web/content/social.json`,
+  D-179); leere Einträge erscheinen nicht.
+- [ ] **[PM]** Store-Links (`apps/web/content/stores.json`: `steam`, `google_play`, `app_store`) eintragen,
+  sobald die Store-Seiten stehen; mit `LIVE_FEATURES=true` zeigt die Website dann die offiziellen Badges
+  unverändert als Link ([STORES.md](STORES.md) §6).
 - [ ] **[PM]** Bug-Reports in Produktion an oder aus. Heute: im `production`-Build **aus** (DevFeedback ist
   nur außerhalb von `production` an), in `development` an (F9/#, Touch-Knopf oben rechts).
 - [ ] **[PM]** Support-Adresse für `SUPPORT_EMAIL` (Pflicht in `production`; Vorlage: `hello@playsoulwick.com`).
-- [ ] **[PM]** Vorschläge für `project.godot` annehmen oder ablehnen (WEB_BUILD.md §11: Boot-Splash,
-  Rendern in 1280 × 720 auf Handys, Bildrate 60, Musik als Ogg).
+- [ ] **[PM]** Vorschläge für `project.godot` annehmen oder ablehnen (WEB_BUILD.md §11: App-Icon,
+  Rendern in 1280 × 720 auf Handys, Bildrate 60, Musik als Ogg). Der dunkle Boot-Splash ohne
+  Engine-Bild ist schon in `project.godot` eingestellt.
+- [x] Modell im Browser: kostenlos, ohne Konto, keine Werbung (D-176, 17.10.2026).
+- [ ] **[PM]** Zielgruppe ab 13 (D-173): Website, Startseite des Spiels und Store-Texte sprechen Spieler
+  ab 13 an, keine Werbung an Kinder; Texte vor dem Launch einmal daraufhin lesen.
+- [ ] **[PM]** Lizenz (D-177): [`LICENSE-ASSETS.md`](../LICENSE-ASSETS.md) liegt in beiden Repos; in den
+  READMEs verlinken und den Lizenztext juristisch prüfen lassen. Vorschlag: Fußzeile der Website und
+  „Über“-Bereich im Spiel nennen „Code GPL-3.0, Inhalte © WebBude“.
 
 ## 2. Spiel-Code fertig machen
 
-- [ ] **[C]** Zwei-Stick-Steuerung im Browser reparieren (Blocker für Handys): `ui/touch/touch_overlay.gd`,
-  `_is_desktop_input()` wertet emulierte Mausbewegungen (`device = 32`) als echte Maus. Korrektur und
-  Nachweis in WEB_BUILD.md §11; danach Touch-Lauf wiederholen und Android-Export gegenprüfen.
-- [ ] **[C]** Konsolenfehler `keyboard_get_keycode_from_physical` im Web abstellen (`input_glyphs.gd`,
-  `controls_info.gd`).
-- [ ] **[C]** Optional: Fenstermodus im Browser nicht anwenden, dann Vollbild + Querformat beim Start-Tipp auf
-  Android (WEB_BUILD.md §11); Link „Impressum · Datenschutz“ im Hauptmenü (Web).
+- [ ] **[C]** Android-Export gegenprüfen (Zwei-Stick-Steuerung auf dem Gerät). Im Browser ist der
+  Touch-Fehler behoben (`_is_desktop_input()` in `ui/touch/touch_overlay.gd`, ebenso die Konsolenfehler
+  in `input_glyphs.gd` und `controls_info.gd`); der Touch-Lauf Pixel 7/iPhone 14 lief danach ohne
+  Fehler (WEB_BUILD.md §9, 16.10.2026).
+- [ ] **[C]** **Einladen per Link** (ROADMAP_MULTIPLAYER MP2b) gehört zum Koop und damit zum Release-Tor
+  (D-179, ROADMAP.md); für die Website vor dem Release kein Blocker.
+- [ ] **[C]** Optional: Fenstermodus im Browser nicht anwenden, dann Vollbild beim Start-Tipp auf Android
+  (WEB_BUILD.md §11; Ausrichtung nicht festlegen, hochkant geht seit D-182); Link „Impressum · Datenschutz“
+  im Hauptmenü (Web).
 - [ ] **[C]** Prüfen: `validate_project`, GUT, `smoke_test`, Docker-Build `development` und `production`,
   Browser-Lauf bis Raum 2 (Tastatur) und Touch-Lauf (Pixel 7, iPhone 14). Ergebnis in WEB_BUILD.md §9.
 - [ ] **[PM]** Pull Requests `feature/*` → `dev` → `main` mergen (TECHSTACK.md §3).
@@ -181,12 +211,15 @@ curl -sI https://www.playsoulwick.com/ | head -3      # 301 → https://playsoul
   unten rechts nur die Version und „Online bereit“; „Als App installieren“ → eigenes Fenster.
 - [ ] Desktop Firefox und Safari (Mac): Spiel startet (Installieren gibt es dort nicht, der Dialog erklärt das).
 - [ ] Android (Chrome, Mittelklasse): Laden (Zeit notieren), Tipp → Spiel (Zeit notieren), Zwei-Stick-
-  Steuerung, Hinweis „Dreh dein Gerät“ hochkant, installieren, App vom Startbildschirm, Flugmodus →
-  App startet trotzdem (Einzelspieler). Gerät warm? Bildrate ruckelt?
-- [ ] iPhone (Safari): Start, Ton nach dem ersten Tipp (Stummschalter aus), „Als App installieren“ →
+  Steuerung quer, hochkant Spielbild oben und Handheld-Controller unten (D-182, Drehen schaltet live um),
+  installieren, App vom Startbildschirm, Flugmodus → App startet trotzdem (Einzelspieler). Gerät warm?
+  Bildrate ruckelt?
+- [ ] iPhone (Safari): Start quer und hochkant (D-182), Ton nach dem ersten Tipp (Stummschalter aus), „Als App installieren“ →
   Anleitung → Zum Home-Bildschirm → App öffnet ohne Safari-Leisten, Spielstand bleibt nach Neustart.
-- [ ] Website `https://playsoulwick.com`: Knöpfe „Im Browser spielen“ und „Web-App installieren“ (nur
-  nach Freigabe), Impressum, Datenschutz, `/delete-account` mit Support-Adresse.
+- [ ] Website `https://playsoulwick.com`: Knöpfe „Im Browser spielen“ und „Web-App installieren“ (erst
+  ab Release, vorher „zum Release“), Store-Knöpfe (vorher eigene Pixel-Knöpfe ohne fremde Logos, danach
+  offizielle Badges mit Link auf die Store-Seite), Impressum, Datenschutz, `/delete-account` mit
+  Support-Adresse; nur vorhandene Social-Media-Kanäle verlinkt.
 - [ ] Neue Version: kleine Änderung deployen, offene Startseite lädt einmal neu, laufendes Spiel nicht.
 
 ## 9. Fehlt im Plattform-Repo (dort nichts geändert, offene Arbeit einer anderen Sitzung)

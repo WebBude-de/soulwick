@@ -1,23 +1,19 @@
 # TECHSTACK – Werkzeuge und technische Leitplanken
 
-> **Stand:** 15.10.2026 · **Basis:** Überarbeitetes GDD Master 1.0 und die Branch-Regeln aus D-047 (ursprünglich für GitLab beschlossen, gelten sinngemäß auf GitHub).  
-> **Wichtig:** Diese Datei beschreibt **Technologieentscheidungen** des Spiels. Der Stack der Plattform (Bun, Turborepo, Prisma, Biome) steht in `soulwick-platform/docs/TECHSTACK.md`. **Nicht beschlossene Tools werden nicht als bereits ausgewählt ausgegeben.**
+> **Stand:** 17.10.2026 · Technologieentscheidungen und Konventionen des **Spiels**. Der Stack der Plattform (Bun, Turborepo, Prisma, Biome) steht in `soulwick-platform/docs/TECHSTACK.md`. Nicht beschlossene Werkzeuge werden nicht als gewählt ausgegeben.
 
 ## 1. Kernstack – VERBINDLICH
 
-| Baustein | Technologie | Warum / GDD-Bezug |
+| Baustein | Technologie | Warum |
 | --- | --- | --- |
-| Spiel-Engine | **Godot 4.7.2** | Native 2D-Szenen, Nodes, Physik, Signale, Laufzeitverwaltung und Editor für unabhängig gestaltbare Räume. |
-| Sprache | **GDScript** | Direkte Godot-Integration, typisierte Methoden/Variablen, Signal- und Resource-API. |
-| Szenen/Level | **`.tscn`**, `Node2D`, `TileMapLayer` | Wiederverwendbare und im Editor bearbeitbare Dungeonräume, Dorf und UI. |
-| Spielfiguren/Bewegung | **`CharacterBody2D`** | Steuerbare Spieler- und Gegnerkörper mit Kollisionen. |
-| Trigger/Interaktion | **`Area2D`**, `Marker2D` | Dungeon-Eingang, Interaktionen, feste Spawnpunkte und Zonen. |
-| Definitionsdaten | **Eigene typisierte `Resource`-Klassen + `.tres`** | Waffendaten, Upgrades und Gegner-/Balancewerte unabhängig vom instanziierten Zustand; **kein JSON für MVP-Definitionsdaten**. |
-| Entkopplung | **Godot-Signale**, vier Kern-Autoloads | Zustandsverantwortlichkeiten klar halten, lokale Events lokal lassen. |
-| Versionskontrolle | **Git + GitHub** (privat, Organisation `WebBude-de`, Repo `soulwick`) | Parallele Teamarbeit, Reviews und stabile Versionsstände. |
-| Dokumentation | **Markdown** in `docs/`, konsolidiertes GDD als Referenz | Änderungen und Entscheidungen neben dem Code versionieren. |
-
-**Engine-Version:** **Godot 4.7.2 stable, Standard-Build** (kein .NET), festgelegt am 13.10.2026 ([D-051](DECISIONS.md)). Alle Teammitglieder nutzen genau diese Version.
+| Spiel-Engine | **Godot 4.7.2 stable, Standard-Build** (kein .NET, D-051) | 2D-Szenen, Nodes, Physik, Signale, Editor für Räume; alle im Team nutzen genau diese Version |
+| Sprache | **GDScript**, statisch typisiert | direkte Godot-Integration, Signal- und Resource-API |
+| Szenen | **`.tscn`**, `Node2D`, `TileMapLayer`, `CharacterBody2D`, `Area2D` | wiederverwendbare, im Editor bearbeitbare Räume, Dorf und UI |
+| Definitionsdaten | **typisierte `Resource`-Klassen + `.tres`** | Werte getrennt vom Laufzeitzustand, Balancing ohne Code; **kein JSON als Gameplay-Definition** (D-045) |
+| Entkopplung | **Signale**, genau **vier Autoloads** (D-044) | klare Zuständigkeiten, lokale Ereignisse bleiben lokal |
+| Tests | **GUT 9.7.1** in `addons/gut/` (D-052) | Headless-Läufe lokal und in der CI |
+| Versionskontrolle | **Git + GitHub**, Organisation `WebBude-de`, Repo öffentlich (D-146, D-148) | Reviews, Releases über GitHub Actions |
+| Dokumentation | **Markdown** in `docs/`, Deutsch | Absicht und Gründe neben dem Code; das Gebaute beschreibt der Code (D-178) |
 
 ## 2. Programmierrichtlinien – VERBINDLICH
 
@@ -28,95 +24,69 @@
 | Klassen, Nodes | `PascalCase` | `HealthComponent`, `DungeonManager` |
 | Konstanten | `UPPER_SNAKE_CASE` | `MAX_WEAPON_SLOTS` |
 | Dateien | `snake_case` | `weapon_controller.gd` |
-| Codekommentare/Bezeichner | **Englisch** | `# Prevent duplicate hit registration` |
-| Game-Design-Dokumentation | Deutsch erlaubt | `docs/PRD.md` |
+| Code und Kommentare | **Englisch** | `# Prevent duplicate hit registration` |
+| Doku | Deutsch | `docs/PRD.md` |
+| Texte im Spiel | Übersetzungsschlüssel, en + de (D-111) | `&"MENU_CONTINUE"` |
 
-- Variablen und Methoden nach Möglichkeit **statisch typisieren**.
-- `const` für technische Konstanten, `@export` für Inspector-konfigurierbare Parameter, `.tres` für Balancing- und Inhaltsdaten.
-- Kommentare begründen nicht offensichtliche Regeln oder Schnittstellen statt triviale Codezeilen zu wiederholen.
-- **Vier und nur vier Kern-Autoloads:** `GameManager`, `RunManager`, `SaveManager`, `EventBus`.
-- Feature-Manager bleiben **szenenbezogen** (Dungeon, Upgrades, Economy, UI).
-- Bei gemeinsamer Arbeit `.tscn`/`.tres`-Konflikte vermeiden, Node-Umbenennungen abstimmen und gelöste Merge-Konflikte im Godot-Editor prüfen.
+- Variablen und Methoden statisch typisieren; `const` für technische Konstanten, `@export` für Inspector-Werte, `.tres` für Balancing und Inhalt. Vorläufige Zahlen mit Kommentar `TESTWERT`.
+- Kommentare begründen nicht offensichtliche Regeln oder Schnittstellen, statt Code zu wiederholen. Jede Klasse hat einen Kopfkommentar, der sagt, wofür sie da ist.
+- Hilfen als `static func` bzw. `class_name`, nie als weiterer Autoload; Feature-Manager hängen an ihrer Szene.
+- Erzeugte Dateien (Raumvorlagen, Dorf, Tilesets, Ton) nie von Hand bearbeiten, sondern den Generator in `tools/`.
+- `.tscn`/`.tres`-Konflikte vermeiden, Node-Umbenennungen abstimmen, gelöste Merge-Konflikte im Editor prüfen.
 
 ## 3. Git und GitHub – VERBINDLICH
 
-### Branch-Modell
-
 | Branch | Rolle | Regel |
 | --- | --- | --- |
-| Haupt-Branch (`master` laut D-047, Name auf GitHub beim ersten Push festlegen) | Stabile Release-Versionen | Geschützt, nur getestete Stände per Pull Request |
-| `dev` | Integration | Geschützt, gemeinsames Ziel der Pull Requests |
-| `feature/*` | Neue Features | Von `dev` erstellen, per MR zurückführen |
-| `fix/*` | Normale Fehlerkorrekturen | Von `dev` erstellen |
-| `hotfix/*` | Dringende Release-Fehler | Gegen den Haupt-Branch und anschließend in `dev` zurückführen |
+| `main` (Name laut D-146 offen; Repo und CI nutzen `main`) | stabile Releases | geschützt, nur getestete Stände per Pull Request |
+| `dev` | Integration; jeder Push wird eine Testversion (D-157) | geschützt, Ziel der Pull Requests |
+| `feature/*`, `fix/*` | neue Features, Fehlerkorrekturen | von `dev` erstellen |
+| `hotfix/*` | dringende Release-Fehler | gegen `main`, danach nach `dev` |
 
-**Jeder Pull Request braucht mindestens ein Review durch eine andere Person.** Kein direkter Push auf den Haupt-Branch und `dev`. Kurzlebige Feature-Branches nach dem Merge entfernen, freigegebene Stände taggen. Längere Parallelarbeit läuft in eigenen Worktrees (z. B. `../soulwick-mp` für `feature/multiplayer`).
-
-### Commit-Konvention
+**Jeder Pull Request braucht mindestens ein Review durch eine andere Person** (D-047). Kein direkter Push auf `main` und `dev`; kurzlebige Branches nach dem Merge löschen; Releases per Tag `v*` ([RELEASE.md](RELEASE.md)).
 
 ```text
 feat(player): add dash movement
 fix(dungeon): prevent duplicate enemy spawns
 refactor(combat): simplify damage processing
-docs(gdd): update master specification
+docs: shorten the PRD
 test(economy): cover gold payout scenarios
 chore: update gitignore
 ```
 
-Gültige Präfixe: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`. Bereich in Klammern optional (`feat(rooms,side): …`).
+Gültige Präfixe: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`; Bereich in Klammern optional (`feat(rooms,side): …`).
 
-### Gitignore / Projektdateien
+- **Versionieren:** `project.godot`, `.gd`, `.tscn`, `.tres`, `.uid`, Quell-Grafik und -Ton (Ton über Git LFS), Doku.
+- **Nicht versionieren:** `.godot/`, `builds/`, Bilder der Szenen-Galerie (`docs/design/gallery/*.png`), lokale Dev-Feedback-Auswertungen (`docs/feedback/` außer README), `_inbox/`.
+- **Nie ins Repo:** Schlüssel, Keystores, Tokens, Dev-Keys (die Repos sind öffentlich, D-148).
 
-- **Versionieren:** `project.godot`, `.gd`, `.tscn`, `.tres`, Source-Assets, Dokumentation, von Godot erzeugte `.uid`-Dateien.
-- **Nicht versionieren:** generierte Godot-Editor-/Import-Caches, insbesondere `.godot/`; neu erzeugbare Bilder der Szenen-Galerie (`docs/design/szenen/*.png`); lokale Dev-Feedback-Auswertungen (`docs/feedback/` außer README).
-- Optional weitere **generierte** Dateien ausschließen, sobald tatsächlich verwendet. Keine pauschal unbestätigten Ausschlussregeln für echte Quellen/Assets festlegen.
+## 4. Godot-Bauweise
 
-## 4. Konkrete Godot-APIs (aus dem GDD)
+- Eingaben über die Input-Map und die `PlayerInput`-Schicht (Tastatur/Maus, Gamepad, Touch, Netz), nie `Input` direkt im Spieler.
+- Interaktion über `Area2D` und die Aktion „Benutzen“ (E); Kampf über Hitbox-/Hurtbox-Komponenten mit Hit-IDs.
+- UI zeigt, was Signale melden, und rechnet nichts selbst nach (D-034).
+- Pixel-Art mit Texturfilter **Nearest**; Grafik nach Namenskonvention aus `art/`, Platzhalter im Code, solange eine Datei fehlt ([HANDOUT.md](HANDOUT.md)).
+- Renderer: Forward+ auf dem PC, Compatibility (GLES 3 / WebGL 2) auf Handy und im Browser.
 
-| Anforderung | GDD-konformer Ansatz |
-| --- | --- |
-| Maussteuerung/WASD/Dash | Godot-Input-Map, CharacterBody2D, normalisierte Bewegung |
-| Ein-/Ausgang und Interaktion | `Area2D` plus Aktion `E` |
-| Kampfkontakt | Hitbox-/Hurtbox-Komponenten, eindeutige Hit-IDs |
-| Spieler-Unverwundbarkeit | Separate Ursachen für Dash und Treffer-I-Frames |
-| Shader-/Sprite-Darstellung | Godot-2D-Visuals; **konkrete Asset-Packs/Renderer nicht verbindlich gewählt** |
-| Status und UI | Signale statt selbstständig nachgerechneter HUD-Zustände |
-| Weltwechsel | Aktivwelt unter `game.tscn` austauschen; Spieler bei Weltwechsel neu instanziieren |
-| Dungeon-Raumwechsel | Raumcontainer mit maximal drei gleichzeitig existierenden Rauminstanzen |
-| Game-Pause | Godot-SceneTree-Pause plus fortlaufend verarbeitete Menü-UI |
-| Save | SaveManager, Datenversion/Validierung; `ConfigFile` je Spielstand (D-059, VORGESCHLAGEN) |
+## 5. Testen
 
-## 5. Testing / Qualitätssicherung
+**VERBINDLICH:** automatisierte Tests für Schaden, Upgrades, Gold und Speichern (D-048), dazu Simulationen und Smoke-Tests für ganze Runs. Unit-Tests liegen in `tests/unit/test_*.gd`, manuelle Testszenen in `tests/manual/`. Alle Prüfbefehle: [AGENTS.md](../AGENTS.md) §7; die CI (`ci.yml`) lässt validate und GUT bei jedem Pull Request laufen.
 
-**VERBINDLICH:** Gezielte **automatisierte Tests** für Schadensberechnung, Upgrade-Regeln, Economy und Speichern; zusätzlich manuelle Szenen-Tests für Input, Streaming, Kampf und UI. Test-Framework: **GUT 9.7.1** in `addons/gut/` ([D-052](DECISIONS.md)).
+Was Tests mindestens absichern:
 
-```text
-# Alle Unit-Tests headless ausführen (liest .gutconfig.json)
-godot --headless --path . -s addons/gut/gut_cmdln.gd
-```
+- Schaden: Formel, einmalige Rundung auf 0,5, Blockieren, Schild zuerst, Mindestschaden (DECISIONS §6).
+- I-Frames: auch reiner Schildschaden schützt; Dash und Treffer sind getrennte Ursachen.
+- Geschosse: Hit-IDs, getrennte Historien bei Doppelschuss, Durchschlag, Abprall.
+- Upgrades: Tag-Regeln, Limits, keine Dubletten im Angebot, keine Sekundär-Ketten.
+- Gold: Kauf ganz oder gar nicht, Auszahlung 50/100 %, **nie doppelt**.
+- Speichern: dauerhafter Fortschritt bleibt, Run nicht; defekte Dateien sicher behandeln; Tests fassen den echten Spielstand nie an (AGENTS.md §6).
+- Dungeon: Fünferzyklus, Bossräume, höchstens drei lebende Räume, Kampf genau einmal, gleicher Seed = gleiche Räume.
 
-Unit-Tests liegen in `tests/unit/test_*.gd`; manuelle Testszenen in `tests/manual/` (z. B. `combat_sandbox.tscn`). Alle Prüfbefehle (Smoke-Test, Kampf- und Boss-Simulation, Balance-Bot): [AGENTS.md](../AGENTS.md) §7.
+## 6. Bewusst nicht Teil des Spiel-Stacks
 
-Mindesttestfelder:
-
-- Damage: Basis + flache/prozentuale Boni, einmalige Rundung auf 0,5, Blockierung, Schild zuerst, Mindestschaden.
-- I-Frames: Auch schildexklusiver Schaden aktiviert 0,5 s; Dash und Treffer-Ursachen unabhängig.
-- Projektile: Hit-IDs, getrennte Doppelschuss-Historien, Durchschlag und Abprall.
-- Upgrades: OR-Anwendbarkeit + `required_tags`, Stacklimits, keine Auswahl-Duplikate, keine Sekundärrekursion, normale Kills durch Sekundäreffekte.
-- Economy: Kauf vollständig oder gar nicht, Auszahlungen 50/100 %, **keine doppelte Gutschrift**.
-- Save: Permanenter Fortschritt bleibt nach Neustart, Run nicht; defekte Dateien sicher behandeln.
-- Dungeon: Fünf-Raum-Zyklus, Bossersetzung, 3-Raum-Obergrenze **inkl. Freigabe-Frame**, eindeutige Spawnpunkte, echte Raumabschlusslogik.
-- UI: Vollständige Pause (Timer/Projektile), weiter bedienbare Menüs, Waffenvergleich mit effektiven Werten.
-
-## 6. Bewusst nicht als Stack-Bestandteil beschlossen
-
-> **Nach dem MVP geändert (D-083, D-093, D-119):** Für Konten, Gilden, Ranglisten, Koop-Relay, Website und Admin-Panel gibt es das eigene Repository `soulwick-platform` (TypeScript auf Bun, Hono, Prisma mit PostgreSQL, Next.js). Das **Spiel selbst** bleibt ohne Server spielbar; die Punkte unten gelten weiter für den Spielkern.
-
-- **Backend / Accounts / Datenbank im Spiel:** keine; der Spielstand liegt lokal. Online-Funktionen sprechen nur die Plattform-API an.
-- **Interne Schnittstellen:** Godot-Methoden und Signale, keine HTTP-Aufrufe zwischen Spielsystemen.
-- **JSON-Gameplay-Konfiguration:** Stattdessen typisierte Godot-Resources.
-- **C#, C++ oder Visual-Scripting als primäre Sprache:** Nicht die beschlossene Implementierungssprache.
-- **Grafik und Audio:** eigene Pixel-Art aus Claude Design (Briefings in `docs/design/sprites/`), synthetisch erzeugte Musik und Effekte (`tools/generate_*.py`); fremde Quellen nur mit geprüfter Lizenz (heute: Pixelify Sans, OFL).
-- **Build-/Release-CI und Exportziele:** geplant in ROADMAP_CROSSPLAY CP7 (Windows, Linux, Android, später iOS); CI-Anbieter noch festzulegen.
-
-**Weiterlesen:** [ARCHITECTURE.md](ARCHITECTURE.md) · [PRD.md](PRD.md) · [ROADMAP.md](ROADMAP.md) · [DECISIONS.md](DECISIONS.md)
+- **Server, Konten, Datenbank im Spiel:** keine; der Spielstand liegt lokal. Online-Funktionen sprechen nur die Plattform-API an (`soulwick-platform`: Bun, Hono, Prisma, PostgreSQL, Next.js; D-083, D-093, D-119).
+- **HTTP zwischen Spielsystemen:** nein, nur Methoden und Signale.
+- **JSON als Gameplay-Konfiguration:** nein, typisierte Resources.
+- **C#, C++ oder Visual Scripting** als Hauptsprache: nein.
+- **Fremde Grafik- oder Ton-Pakete:** nicht gewählt. Grafik kommt aus Claude Design (Briefings in `docs/design/sprites/`), Musik und Effekte synthetisch aus `tools/generate_*.py` als Platzhalter; fremde Dateien nur mit geprüfter Lizenz (heute Pixelify Sans, OFL). Grafik, Ton, Name und Figuren sind von der GPL ausgenommen (D-177).
+- **Build und Release:** GitHub Actions für Windows, Linux, macOS, Android (D-148); die Browser-Version baut Dokploy aus dem `Dockerfile` ([WEB_BUILD.md](WEB_BUILD.md)).

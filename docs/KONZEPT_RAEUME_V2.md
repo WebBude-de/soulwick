@@ -1,190 +1,130 @@
 # Konzept Räume v2 – klare Modi, mehr Varianz, lebendige Räume
 
-> **Status:** FREIGEGEBEN (Projektmitglied, 14.10.2026, D-120): Modi-Liste, Abgrund als Raumart gestrichen, 30–40 % Minispiele, Koop-Ideen vormerken. Look und Grundrisse folgen aus Claude Design. Löst [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md) in den Raumarten und Modi ab (was dort weiter gilt, steht in dessen Status-Kasten). Die nächsten Schritte aus §9 sind erledigt: Design-Antwort in [design/claude_design_antwort/](design/claude_design_antwort/README.md), Briefing [SPRITES_V8](design/sprites/SPRITES_V8.md), Pakete der Phasen 2b und 2c in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) (Stand 15.10.2026).
-> **Anlass:** Playtest 14.10.2026. Die Balance passt, aber es macht noch nicht richtig Spaß: Räume sind leer und zufällig, die Modi sind unklar und überschneiden sich, man sieht nicht, woher Gegner kommen.
-> **Arbeitsteilung:** Dieses Dokument legt das **Gameplay** fest (was passiert, Regeln, Ablauf). **Claude Design** entwirft den **Look** dazu: Grundrisse, Wände, Deko-Gruppen, Gegner-Auftritt, Türen, UI ([design/BRIEFING_RAEUME_V2.md](design/BRIEFING_RAEUME_V2.md)). Danach schneidet Claude daraus die Pakete der Phase 2b.
+> **Stand:** 17.10.2026 · **Status:** freigegeben (Projektmitglied 14.10.2026, D-120) und in Phase 2b gebaut (D-130 bis D-137); seit dem Makeover (D-138 bis D-144) entstehen die Räume aus Fels-Plänen. Hier stehen **Absicht, Regeln und Offenes**; Abläufe und Zahlen stehen im Code (`dungeon/modes/<modus>/*_rules.gd`, `dungeon/variants/mode_registry.gd`, `variant_table.tres`, alle `TESTWERT`).
+> **Arbeitsteilung:** Dieses Konzept legt das Gameplay fest, Claude Design den Look ([design/responses/](design/responses/README.md), Anfrage [design/BRIEFING_RAEUME_V2.md](design/BRIEFING_RAEUME_V2.md)).
+> **Anlass:** Playtest 14.10.2026: Die Balance passte, aber Räume waren leer und zufällig, die Modi unklar, man sah nicht, woher Gegner kamen.
 
 ## 1. Leitlinien
 
 1. **Ein Raum, eine Aufgabe, ein Satz.** Jeder Raum ist in einem Satz erklärbar („Bring den Dorfbewohner zum Ausgang“). Keine Mischformen, keine zwei Regeln gleichzeitig.
-2. **Man sieht es vorher.** Schon an der Tür erkennt man die Raumart: eigenes Symbol, eigene Farbe, eigenes Licht durch den Spalt.
-3. **Einführung immer gleich (Intro-Muster):** Tür zu → kurzer Kameraschwenk auf das Ziel (1,5 s) → großes Ziel-Banner mit Satz → Countdown 3-2-1 → los. Beim ersten Mal je Spielstand zusätzlich die Erklärkarte; später nur Banner und Countdown (ca. 2 s).
-4. **Fortschritt ist immer sichtbar:** eine Aufgabenleiste oben in der Mitte (Wellen 2/3, Geleit 60 %, Fahne 1/2, Zeit 0:24). Ende mit deutlichem Erfolgs- oder Misserfolgs-Moment.
-5. **Misserfolg kostet nie den Run**, nur den Bonus. Erfolg gibt immer etwas Sichtbares (Bonus-Truhe, Kristalle).
-6. **Immer etwas los:** lieber viele schwache Gegner als einzelne. Gegner greifen auch von hinten an (Rudel, Flankieren), damit Im-Kreis-Weglaufen nicht reicht.
-7. **Gegner kommen aus sichtbaren Quellen:** Nie einfach aufploppen. Je Biom eine Quelle (siehe §5), mit 1 s Warnung.
-8. **Lebendige Räume:** handgebaute Grundrisse mit Varianten statt Rechteck + Zufallsstreuung; Deko in Gruppen mit kleiner Geschichte (Claude Design).
-9. **Endlos-Rhythmus:** Die ersten Räume sind leicht, aber voll; neue Modi kommen schrittweise (einer je Zyklus neu), danach gemischt.
+2. **Man sieht es vorher.** Schon an der Tür erkennt man die Raumart: eigenes Symbol, eigene Farbe, eigenes Licht durch den Spalt (D-137).
+3. **Einführung immer gleich (Intro-Muster):** Tür zu → Kamera auf das Ziel → Ziel-Banner mit Satz → Countdown → los. Beim ersten Mal je Spielstand zusätzlich die Erklärkarte (D-133).
+4. **Fortschritt ist immer sichtbar:** Aufgabenleiste oben in der Mitte; Ende mit deutlichem Erfolgs- oder Misserfolgs-Moment.
+5. **Misserfolg kostet nie den Run**, nur den Bonus. Erfolg gibt immer etwas Sichtbares (Bonus-Truhe, Kristalle, D-109).
+6. **Immer etwas los:** lieber viele schwache Gegner als einzelne; Gegner greifen auch von hinten an (§6).
+7. **Gegner kommen aus sichtbaren Quellen,** nie einfach aufploppen (§5).
+8. **Lebendige Räume:** handgebaute Grundrisse mit Varianten statt Rechteck und Zufallsstreuung; Deko in Gruppen mit kleiner Geschichte.
+9. **Endlos-Rhythmus:** Die ersten Räume sind leicht, aber voll; neue Modi kommen schrittweise, danach gemischt.
+10. **Wiederholbar statt auswendig lernbar** (aus v1): kein Quiz, keine festen Abfolgen; was nicht Kampf ist, ist Geschick, Timing oder Entscheidung und wird über den Dungeon-RNG je Raum neu gewürfelt.
+11. **Dunkelheit und Licht nutzen** (aus v1): Der Lichtkreis ist das Motiv von Soulwick; Räume, die mit Sicht spielen, haben Vorrang. **Belohnung vor dem Risiko sichtbar** (Truhe hinter der Falle, Symbol an der Tür).
+12. **Koop-tauglich:** allein lösbar, zu zweit bis viert interessanter, nie „einer wartet“ (Koop-Check in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md)).
 
 ## 2. Die Raumarten auf einen Blick
 
-| Gruppe | Raumart | Satz für den Spieler | Ab |
+| Gruppe | Raumart | Satz für den Spieler | Ab (TESTWERT) |
 | --- | --- | --- | --- |
 | **Kampf** | **Säubern** | „Besiege alle Gegner.“ | Raum 1 |
-| | **Arena** | „Überlebe 3 Wellen.“ | kurz vor dem 1. Boss (Raum 11–14), danach regelmäßig |
-| **Minispiele** | **Geleit** (Eskorte) | „Bring den verirrten Dorfbewohner sicher zum Ausgang.“ | Zyklus 2 |
-| | **Flamme hüten** (Verteidigen) | „Halte die Seelenflamme 40 s am Leben.“ | Zyklus 2 |
-| | **Reliquie holen** (Capture the Flag) | „Hol die Reliquie und bring sie zum Altar.“ | Zyklus 3 |
-| | **Seelen sammeln** (Zeitdruck) | „Sammle 12 Seelen, bevor sie verlöschen.“ | Zyklus 3 |
-| | **Risse schließen** (Zerstören) | „Zerstöre die Risse, aus denen Gegner kommen.“ | Zyklus 4 |
-| | **Jagd** (Verfolgen) | „Fang den Gekrönten, bevor er entkommt.“ | Zyklus 4 |
-| | **Lichtfeuer** (Licht) | „Entzünde alle Feuer – im Dunkeln sind die Wächter unbesiegbar.“ | 2. Biom |
-| | **Einsturz** (Überleben) | „Überlebe, während der Boden einbricht.“ | 2. Biom |
+| | **Arena** | „Überlebe 3 Wellen.“ | kurz vor dem 1. Boss, danach regelmäßig |
+| **Minispiele** | **Geleit** | „Bring den verirrten Dorfbewohner sicher zum Ausgang.“ | Zyklus 2 |
+| | **Flamme hüten** | „Halte die Seelenflamme am Leben.“ | Zyklus 2 |
+| | **Reliquie holen** | „Hol die Reliquie und bring sie zum Altar.“ | Zyklus 3 |
+| | **Seelen sammeln** | „Sammle die Seelen, bevor sie verlöschen.“ | Zyklus 3 |
+| | **Risse schließen** | „Zerstöre die Risse, aus denen Gegner kommen.“ | 2. Biom |
+| | **Jagd** | „Fang den Gekrönten, bevor er entkommt.“ | 2. Biom |
+| | **Lichtfeuer** | „Entzünde alle Feuer – im Dunkeln sind die Wächter unbesiegbar.“ | 2. Biom |
+| | **Einsturz** | „Überlebe, während der Boden einbricht.“ | 2. Biom |
 | **Herausforderung** | **Wagnis** (Zusatz vor einem Kampfraum) | „Nimm eine Bedingung an für Kristalle.“ | Raum 6 |
 | | **Elite-Nest** (nur über Abzweigung) | „Starke Elite-Gegner, große Belohnung.“ | Raum 6 |
-| **Ruhe** | **Händler, Waffenkammer, Brunnen, Altar/Pakt** | keine Gegner | Platz 4 |
+| **Ruhe** | **Händler, Waffenauswahl, Brunnen, Altar/Pakt** | keine Gegner | Platz 4 |
 | | **Prüfung** (Parcours ohne Gegner) | „Lauf durch den Parcours zur Truhe.“ | Platz 4 |
-| **Höhepunkte** | **Miniboss, Boss, Lagerfeuer** | wie bisher | Platz 5, jeder 15. Raum |
+| **Höhepunkte** | **Miniboss, Boss, Lagerfeuer** | – | Platz 5, jeder 15. Raum |
 | **Geheimnis** | **Geheimnische** | rissige Wand sprengen | Raum 6 |
 
-**Gestrichen oder umgebaut:**
+Aus v1 umgebaut (D-120): Abgrund ist keine Raumart mehr, sondern Bauteil der Grundrisse und Kern von Einsturz; Hinterhalt entfällt; Katakombe ist ein Grundriss; Laternenträger geht in Reliquie auf, Steinwächter und Fackelraum in Lichtfeuer, Kopfgeld wird Jagd, Seelenflamme wird Flamme hüten, Beschwörungsrisse werden Risse schließen; Totengräber ist eine Eigenschaft der Krypta-Skelette.
 
-| Bisher | Wird |
-| --- | --- |
-| Raumart **Abgrund** | entfällt als eigene Art. Abgründe werden Bauteil der Grundrisse (Brücken, Kanten zum Hineinstoßen) und Kern von **Einsturz** |
-| **Hinterhalt** | entfällt; die Arena bekommt das Intro-Muster |
-| **Katakombe** | wird ein Grundriss (Labyrinth), passend für **Jagd** und **Seelen sammeln** |
-| **Laternenträger** | geht in **Reliquie holen** auf (gleiche Mechanik: Tragen, langsamer, kein Angriff) |
-| **Steinwächter** | wird Gegner in **Lichtfeuer** |
-| **Fackelraum** | wird **Lichtfeuer** |
-| **Totengräber** | wird Gegner-Eigenschaft der Krypta (Skelette stehen einmal wieder auf), kein eigener Modus |
-| **Kopfgeld** | wird **Jagd** |
-| **Seelenflamme** | wird **Flamme hüten**, mit Intro |
-| **Beschwörungsrisse** | wird **Risse schließen** |
+## 3. Die Modi
 
-## 3. Die Modi im Detail
+Jeder Modus hat einen Ablauf in drei Schritten, Sieg, Niederlage (nur Bonus weg), Bonus, eine Koop-Rolle und ein Tür-Symbol. Abläufe und Zahlen: `dungeon/modes/<modus>/`.
 
-Jeder Modus: Ablauf in drei Schritten, Sieg, Niederlage, Bonus, Koop (2–4 Spieler), Tür-Erkennung.
+### 3.1 Säubern
 
-### 3.1 Säubern (Kampf-Grundraum)
-- **Ablauf:** Raum betreten → Gegner kommen aus den Biom-Quellen (§5) in 1–2 Schüben → alle besiegt → Tür auf.
-- **Gegner:** viele schwache plus wenige stärkere; Rudel-Verhalten (§6).
-- **Bonus:** keiner (Gold der Gegner); gelegentlich eine Truhe in einer Nebennische des Grundrisses.
-- **Tür:** normales Biom-Tor ohne Symbol.
+Grundraum: Gegner aus den Biom-Quellen in 1–2 Schüben, alle besiegt → Tür auf. Kein Bonus außer gelegentlicher Truhe in einer Nebennische.
 
 ### 3.2 Arena
-- **Ablauf:** Tür fällt zu, Gitter schließen sich, Banner „Arena – 3 Wellen“, Countdown → Welle 1 aus den Wandtoren → nächste Welle erst, wenn die laufende leer ist (Pause 2 s mit Anzeige „Welle 2/3“) → nach der letzten Welle öffnet sich das Tor zur Belohnung.
-- **Gegner:** nur aus Wandtoren (sichtbar, mit Warnung); deutlich mehr als im Säubern-Raum.
-- **Bonus:** Bonus-Truhe.
-- **Koop:** mehr Gegner je Welle.
-- **Tür:** gekreuzte Schwerter, rotes Licht.
 
-### 3.3 Geleit (Eskorte)
-- **Figur:** ein verirrter Dorfbewohner mit kleiner Laterne (passt zum Licht-Thema und zum Dorf: Gerettete tauchen später im Dorf auf). Selten (ca. 5 %) stattdessen ein **Huhn** als süße Überraschung. Endgültige Figur und Look schlägt Claude Design vor.
-- **Ablauf:** Die Figur läuft langsam einen sichtbaren Pfad vom Eingang zum Ausgang → Gegner greifen bevorzugt sie an → kommt sie an, ist der Raum geschafft.
-- **Niederlage:** Figur fällt → Gegner bleiben, Raum normal säubern, kein Bonus.
-- **Spieler-Mittel:** Die Figur bleibt stehen, wenn ein Gegner nah ist, und läuft weiter, wenn ein Spieler daneben steht.
-- **Bonus:** Bonus-Truhe; der Gerettete erscheint im Dorf (Chronik-Eintrag).
-- **Koop:** ein Spieler begleitet, die anderen räumen vor.
-- **Tür:** Laternen-Figur-Symbol, warmes Licht.
+Wellen nur aus Wandtoren, deutlich mehr Gegner, Pause mit „Welle n/N“ zwischen den Wellen, Bonus-Truhe am Ende.
 
-### 3.4 Flamme hüten (Verteidigen)
-- **Ablauf:** Intro schwenkt auf die Flamme in der Raummitte, Banner „Halte die Flamme 40 s“ → Gegner kommen in kurzen Schüben und greifen die Flamme an, Leiste zeigt Flammen-HP und Zeit → nach 40 s erlöschen die Quellen, Rest besiegen.
-- **Niederlage:** Flamme erlischt → Raum wird dunkler, kein Bonus.
-- **Bonus:** Bonus-Truhe; volle Flamme = zusätzlich 1 Kristall.
-- **Tür:** Flammen-Symbol, bläuliches Licht.
+### 3.3 Geleit
 
-### 3.5 Reliquie holen (Capture the Flag)
-- **Ablauf:** Reliquie (Banner, Laterne oder Schädel je Biom) liegt am anderen Ende, bewacht → aufnehmen mit E (Träger langsamer, kein Angriff, Dash geht) → zum Altar am Eingang bringen. Bei Treffer fällt sie hin.
-- **Gegner:** jagen den Träger, kommen von hinten.
-- **Varianten:** ab Zyklus 6 zwei Reliquien.
-- **Bonus:** Bonus-Truhe.
-- **Koop:** Träger plus Beschützer; Übergeben möglich.
-- **Tür:** Banner-Symbol.
+Ein verirrter Dorfbewohner mit Laterne (selten ein Huhn) läuft zum Ausgang; Gegner zielen auf ihn, er bleibt bei Gefahr stehen und läuft schneller, wenn ein Spieler daneben ist. Gerettete tauchen im Dorf auf (D-138). Koop: einer begleitet, die anderen räumen vor.
 
-### 3.6 Seelen sammeln (Zeitdruck)
-- **Ablauf:** Seelen-Lichter erscheinen nacheinander an Plätzen im Raum (je 6 s sichtbar) → 12 einsammeln in 45 s, während Gegner nachkommen → Leiste zählt mit.
-- **Niederlage:** Zeit vorbei → Rest-Gegner besiegen, kein Bonus.
-- **Grundriss:** gern Labyrinth (Katakombe).
-- **Bonus:** Kristalle nach Anzahl.
-- **Tür:** Seelen-Symbol, türkis.
+### 3.4 Flamme hüten
 
-### 3.7 Risse schließen (Zerstören)
-- **Ablauf:** 2–3 Risse in den Wänden spucken Gegner aus → Risse haben HP-Leisten und sind die eigentlichen Ziele → alle Risse zu, Rest besiegen.
-- **Bonus:** Bonus-Truhe; schnell = Kristall.
-- **Tür:** Riss-Symbol, grün.
+Eine Seelenflamme in der Mitte eine feste Zeit verteidigen; ihr Licht schrumpft mit ihren HP. Erlischt sie, wird der Raum dunkler.
 
-### 3.8 Jagd (Verfolgen)
-- **Ablauf:** Ein Gekrönter mit Beute sieht den Spieler und flieht zu einem Fluchtloch, das sich langsam öffnet (Zeitanzeige) → fangen, bevor er hineinspringt; Wachen stellen sich in den Weg.
-- **Niederlage:** Er entkommt (ohne Beute), Rest normal.
-- **Bonus:** seine Beute (viel Gold, gelegentlich ein Upgrade).
-- **Tür:** Kronen-Symbol.
+### 3.5 Reliquie holen
 
-### 3.9 Lichtfeuer (Licht)
-- **Ablauf:** dunkler Raum, 4–6 Feuerschalen → anzünden mit Treffer oder E → Steinwächter rücken im Dunkeln vor und sind nur im Licht verwundbar.
-- **Sieg:** alle Feuer brennen und alle Wächter zerschlagen.
-- **Bonus:** Bonus-Truhe.
-- **Tür:** Feuerschalen-Symbol, sehr dunkler Spalt.
+Reliquie aufnehmen (Träger langsamer, kein Angriff), zum Altar bringen; bei Treffer fällt sie. Koop: Träger plus Beschützer, Übergeben möglich.
 
-### 3.10 Einsturz (Überleben)
-- **Ablauf:** Banner „Der Boden bricht – überlebe 30 s“ → der Boden bricht in sichtbar markierten Feldern nach und nach ein (Warnung 1 s, Risse), Gegner fallen mit → nach 30 s steht nur noch ein Rest-Weg zum Ausgang.
-- **Gefahr:** Fallen kostet ein Herz (wie bisher). Gegner kann man in Löcher stoßen.
-- **Bonus:** Bonus-Truhe am Ende des Rest-Wegs.
-- **Tür:** Riss-im-Boden-Symbol.
+### 3.6 Seelen sammeln
 
-### 3.11 Nur im Koop (vorgemerkt für MP5, nicht jetzt bauen)
+Seelen erscheinen nacheinander an festen Plätzen und verlöschen wieder; einsammeln unter Zeitdruck, Kristalle nach Anzahl. Passt zur Katakombe.
+
+### 3.7 Risse schließen
+
+Wandrisse spucken Gegner aus und sind selbst das Ziel; schnell = Kristall.
+
+### 3.8 Jagd
+
+Ein Gekrönter flieht zu einem Fluchtloch, Wachen stellen sich in den Weg; gefangen = seine Beute.
+
+### 3.9 Lichtfeuer
+
+Dunkler Raum, Feuerschalen anzünden; Steinwächter sind nur im Licht verwundbar.
+
+### 3.10 Einsturz
+
+Der Boden bricht in angekündigten Feldern ein, Gegner fallen mit; am Ende bleibt ein Restweg zur Truhe. Fallen kostet ein Herz.
+
+### 3.11 Nur im Koop (vorgemerkt für MP5, nicht gebaut)
 
 Räume, die nur mit 2–4 Spielern gezogen werden; im Einzelspiel nie.
 
-- **Doppelgänger:** Ein Mitspieler sieht für die anderen wie ein Gegner aus; wer ihn trifft, verliert den Bonus. Er muss sich durch eine Geste (Emote) oder durch das Aufheben eines Lichts zu erkennen geben.
+- **Doppelgänger:** Ein Mitspieler sieht für die anderen wie ein Gegner aus; wer ihn trifft, verliert den Bonus. Er gibt sich durch eine Geste (Emote) oder das Aufheben eines Lichts zu erkennen.
 - **Staffel:** Die Reliquie muss durch die Hände aller Spieler gehen, bevor sie auf den Altar darf.
 - **Geteiltes Licht:** Nur ein Spieler trägt Licht; die anderen sehen nur in seiner Nähe und müssen zusammenbleiben.
 - **Zwei Schalter:** Zwei Altäre an entgegengesetzten Enden müssen gleichzeitig gehalten werden, während Gegner beide Seiten angreifen.
 - **Wettstreit:** Wer sammelt in 30 s die meisten Seelen? Der Gewinner wählt zuerst die Belohnung (freundlich, kein Schaden zwischen Spielern).
-- **Rettung:** Ein Spieler wird zu Beginn gefangen (Käfig); die anderen müssen den Schlüssel holen.
+- **Rettung:** Ein Spieler wird zu Beginn gefangen (Käfig); die anderen holen den Schlüssel.
 
-## 4. Zyklus-Rhythmus und Häufigkeiten (TESTWERTE)
+Die Minispiele sind auch die Grundlage des Party-Modus ([KONZEPT_PARTY_MODUS.md](KONZEPT_PARTY_MODUS.md), D-179).
 
-Ein Zyklus hat weiter 5 Plätze: 1 Kampf · 2 Kampf · 3 Kampf + Upgrade · 4 Ruhe/Prüfung · 5 Miniboss; jeder 15. Raum Boss, danach Lagerfeuer.
+## 4. Zyklus-Rhythmus und Häufigkeiten
 
-| Platz | Zyklus 1 (Raum 1–5) | ab Zyklus 2 |
-| --- | --- | --- |
-| 1 | Säubern | Säubern |
-| 2 | Säubern | Säubern oder Minispiel |
-| 3 | Säubern (mit Upgrade) | Säubern, Arena (ab Raum 11) oder Minispiel |
-| 4 | Ruhe | Ruhe / Prüfung |
-| 5 | Miniboss | Miniboss |
+Ein Zyklus hat fünf Plätze: Kampf · Kampf · Kampf mit Upgrade-Wahl · Ruhe oder Prüfung · Miniboss; jeder 15. Raum Boss, danach Lagerfeuer.
 
-- **Anteil (freigegeben):** hauptsächlich Kämpfen; **30–40 % der Kampfräume ab Zyklus 2 sind Minispiele** (TESTWERT 35 %), verteilt auf die Plätze 1–3, höchstens 2 je Zyklus.
-- **Neue Modi:** jeder Modus erscheint zum ersten Mal an einem festen Punkt (Tabelle §2), danach zufällig; nie zweimal derselbe Modus hintereinander, kein Modus zweimal im selben Zyklus.
-- **Arena:** höchstens eine je Zyklus, erstmals Raum 11–14.
-- **Abzweigung** (ab Raum 6, höchstens 1 je Zyklus): zwei Türen mit sichtbarem Modus-Symbol. Der Spieler wählt zwischen zwei Modi (z. B. Jagd oder Geleit) oder Elite-Nest gegen sicheren Weg. Beide Räume sind schon da und liegen im Dunkeln; nichts ploppt auf.
+- Im ersten Zyklus nur Säubern.
+- Ab Zyklus 2 sind **30–40 % der Kampfräume Minispiele** (freigegeben, D-120), höchstens 2 je Zyklus.
+- Jeder Modus erscheint zum ersten Mal an einem festen Punkt (Tabelle §2), danach zufällig; nie derselbe Modus zweimal hintereinander, keiner zweimal im Zyklus.
+- Arena höchstens einmal je Zyklus.
+- Abzweigung höchstens einmal je Zyklus: zwei Türen mit sichtbarem Modus-Symbol; beide Räume sind schon gebaut und liegen im Dunkeln, nichts ploppt auf (D-105, D-137).
 
 ## 5. Woher die Gegner kommen
 
-| Biom | Quelle im Boden/Raum | Auftritt (Warnung 1 s) |
-| --- | --- | --- |
-| Krypta | Gräber, Sarkophage | Erde bricht auf, Hand greift heraus, Skelett steigt hoch |
-| Schleimgrotte | Schleimpfützen | Pfütze blubbert, Schleim springt heraus |
-| Schattenreich | Schattenrisse am Boden | Riss leuchtet, Gestalt zieht sich hoch |
-| Glutkammer | Lava-Spalten | Glut glüht auf, Gegner steigt aus der Glut |
-| **Arena (alle)** | Wandtore | Gitter hebt sich, Gegner tritt heraus |
+Je Biom eine eigene Quelle als fester Teil des Grundrisses, meist an den Rändern und **hinter** dem Spieler, damit man nicht nur nach vorn kämpft; 1 s Warnung mit Licht und Ton (D-132): Krypta Gräber und Sarkophage, Schleimgrotte Pfützen, Schattenreich Bodenrisse, Glutkammer Lavaspalten, Arena Wandtore.
 
-Quellen sind feste Teile des Grundrisses (nicht zufällig), meist an den Rändern und **hinter** dem Spieler, damit man nicht nur nach vorn kämpft. Die bisherigen Spawnpunkte werden zu diesen Quellen.
+## 6. Gegner-Verhalten
 
-## 6. Gegner-Verhalten (mehr los, von hinten)
+Mehr, aber einzeln schwächere Gegner; Slimes springen in Rudeln und landen auch hinter dem Spieler, Nahkämpfer verteilen sich und schneiden den Weg ab, Fernkämpfer wechseln die Seite (D-118, D-130). Ziel: Im-Kreis-Weglaufen funktioniert nicht, man muss sich stellen.
 
-- **Mehr, aber schwächere Gegner:** ca. 1,5–2× so viele je Raum, einzeln schwächer; die ersten Räume leicht (Balance-Agent misst, D-118).
-- **Slime-Bande:** Slimes springen in kleinen Rudeln (3–5) im Takt hintereinander, kreisen den Spieler ein und landen auch hinter ihm.
-- **Flankieren:** Nahkämpfer verteilen sich auf mehrere Seiten statt hintereinander herzulaufen; ein Teil schneidet den Weg ab.
-- **Fernkämpfer** halten Abstand und wechseln die Seite.
-- Ziel: Im-Kreis-Weglaufen funktioniert nicht mehr, man muss sich stellen.
+## 7. Aus v1 weiter gültig
 
-## 7. Was bleibt aus v1
+Wagnis-Altar (D-104), Prüfungsräume und Pakt-Altar (D-112), Lagerfeuer nach jedem Boss (D-103), Wegführung mit Ausgängen an mehreren Seiten, Abzweigungen und Geheimnischen (D-105, D-117), Belohnungen (D-109). Alle bekommen Intro-Muster, Tür-Erkennung und Grundrisse aus Plänen.
 
-- Ruhe-Räume (Händler, Waffenkammer, Brunnen, Altar/Pakt), Prüfungen, Miniboss, Boss, Lagerfeuer, Geheimnische, Wagnis, Elite-Nest: bleiben, bekommen das Intro-Muster, Tür-Erkennung und neue Grundrisse.
-- Wegführung (Ausgänge an allen Seiten, Abzweigungen): bleibt; Abzweigungen zeigen künftig Modus-Symbole.
+**Verworfen** (mit Grund): Druckplatten in Zufallsfolge (Merken statt Geschick, Warten im Koop) · Glücksspiel-Statue (reiner Zufall) · Spiegelraum (zu teuer für einen seltenen Raum, Idee für einen Boss) · „Die Flut kommt“ (deckt Einsturz ab) · Geschoss-Ausweichen als Raum (Muster für Bossphasen) · Seelenbrunnen (dritter Heilraum).
 
-## 8. Entscheidungen des Projektmitglieds (14.10.2026)
+## 8. Offen
 
-1. Modi-Liste passt.
-2. Eskorte: Huhn war nur eine Idee; passender ist z. B. ein Bewohner → verirrter Dorfbewohner, Huhn als seltene Überraschung; Claude Design darf Besseres vorschlagen.
-3. Hauptsächlich Kämpfen, 30–40 % Minispiele.
-4. Abgrund als eigene Raumart gestrichen.
-5. Koop-exklusive Ideen vormerken (§3.11).
-
-## 9. Nächste Schritte
-
-1. Projektmitglied gibt dieses Konzept frei (oder ändert es).
-2. Claude Design entwirft dazu den Look (Briefing §4) → Ablage in `docs/design/claude_design_antwort/`.
-3. Claude macht daraus `SPRITES_V8.md`, D-Einträge und die Pakete der Phase 2b (u. a. Wand-System, Grundrisse und Deko, Gegner-Quellen, Intro-Muster und Aufgabenleiste, je Modus ein Paket, Gegner-Verhalten, Türen, Dorf, UI).
+- **Koop-Räume** aus §3.11 (MP5) und Koop-Skalierung der Minispiele.
+- **Geleit im Koop:** Die Rettung landet heute nur im Spielstand des Hosts (MULTIPLAYER.md §3e). OFFEN, ob jeder Spieler sie bekommt.
+- **Später:** Gefangener als Spezialraum, der im Dorf etwas freischaltet (braucht Dorf-Freischaltungen); Mimic als normaler Gegner in Truhen-Nischen; Wasser/Schlamm, langer Korridor, Höhle als weitere Grundrisse; Höhe mit Plateaus, Treppen und Leitern (M3 in ROADMAP_AUSBAU).

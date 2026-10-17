@@ -1,8 +1,8 @@
 # Briefing für Claude Design – Soulwick: Räume, Raumarten und Look neu denken
 
-> **Status 15.10.2026: erledigt.** Claude Design hat geantwortet ([claude_design_antwort/](claude_design_antwort/README.md)); daraus sind D-120 bis D-144, die Pakete der Phasen 2b und 2c in [ROADMAP_AUSBAU.md](../ROADMAP_AUSBAU.md) und die Briefings [SPRITES_V8](sprites/SPRITES_V8.md) und [SPRITES_V9](sprites/SPRITES_V9.md) entstanden. Das Briefing bleibt als Anfrage zum Nachlesen.
+> **Status 15.10.2026: erledigt.** Claude Design hat geantwortet ([responses/](responses/README.md)); daraus sind D-120 bis D-144, die Pakete der Phasen 2b und 2c in [ROADMAP_AUSBAU.md](../ROADMAP_AUSBAU.md) und die Briefings [SPRITES_V8](sprites/SPRITES_V8.md) und [SPRITES_V9](sprites/SPRITES_V9.md) entstanden. Das Briefing bleibt als Anfrage zum Nachlesen.
 >
-> **Für Claude Design.** Eigenständig lesbar. Dazu gehören das Gameplay-Konzept [../KONZEPT_RAEUME_V2.md](../KONZEPT_RAEUME_V2.md) (zuerst lesen) und die Bilder in `docs/design/szenen/` (Übersicht und Beobachtungen: `szenen/INDEX.md`). Die Bilder zeigen den **heutigen** Stand mit allen Schwächen.
+> **Für Claude Design.** Eigenständig lesbar. Dazu gehören das Gameplay-Konzept [../KONZEPT_RAEUME_V2.md](../KONZEPT_RAEUME_V2.md) (zuerst lesen) und die Bilder in `docs/design/gallery/` (Übersicht und Beobachtungen: `gallery/INDEX.md`). Die Bilder zeigen den **heutigen** Stand mit allen Schwächen.
 > **Stand:** 14.10.2026 · Projektmitglied + Claude (Entwicklung)
 
 ## 1. Das Spiel in drei Sätzen
@@ -49,7 +49,7 @@ Soulwick ist ein 2D-Top-down-Dungeon-Roguelite in Pixel-Art mit leichter Schräg
 | **Abzweigung** | zwei Türen, eine wählen (z. B. Elite-Nest gegen sicheren Weg) | zwei Türen mit Symbol |
 | **Geheimnische** | rissige Wand sprengen → Truhe/Kristalle/Händler | Nische hinter der Nordwand |
 
-**Befunde aus der Galerie** (Details je Bild in `szenen/INDEX.md`):
+**Befunde aus der Galerie** (Details je Bild in `gallery/INDEX.md`):
 
 - Spielansicht fast schwarz: Gegner, Boss und Ziele außerhalb des Lichtkreises unsichtbar (011, 024, 104, 110) – Dunkelheit soll Stimmung machen, nicht die Übersicht nehmen.
 - Banner, Welt-Beschriftungen und HUD überdecken einander und das Wichtige (026, 034, 076, 087, 114, 139).
@@ -91,7 +91,7 @@ Bitte Bilder (Mockups im Spielstil) und kurze Texte, aus denen wir Pakete für d
 
 ## 6. Form und Ablage der Antwort
 
-**Ablage:** alle Ergebnisse (Bilder, Texte, Exporte) nach `docs/design/claude_design_antwort/` im Spiel-Repository. Dateinamen frei, gern mit Nummer und Thema (z. B. `01_raumarten.md`, `02_grundriss_krypta_halle.png`).
+**Ablage:** alle Ergebnisse (Bilder, Texte, Exporte) nach `docs/design/responses/` im Spiel-Repository. Dateinamen frei, gern mit Nummer und Thema (z. B. `01_raumarten.md`, `02_grundriss_krypta_halle.png`).
 
 - Mockups als Bilder, gern mehrere Varianten.
 - Je Raumart und Grundriss ein kurzer Steckbrief (Name, Fantasie, Bau, Gegner-Auftritt, Belohnung, Erkennungsmerkmal).

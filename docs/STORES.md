@@ -1,6 +1,6 @@
 # Stores und Signaturen: Checkliste je Plattform
 
-> **Stand:** 16.10.2026 · Pipeline: [RELEASE.md](RELEASE.md), [`.github/workflows/release.yml`](../.github/workflows/release.yml) · Roadmap: [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP7, [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP10 · Entscheidungen: D-119 (Steam → Android → iOS, Publisher WebBude), D-148 (Releases, Open Source)
+> **Stand:** 17.10.2026 · Pipeline: [RELEASE.md](RELEASE.md), [`.github/workflows/release.yml`](../.github/workflows/release.yml) · Roadmap: [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP6/CP7, [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP10 · Entscheidungen: D-119 (Publisher WebBude), **D-179** (gemeinsamer Release auf allen Stores, Store-Knöpfe der Website), D-148 (Releases), **D-173** (Zielgruppe ab 13, keine Kinder-Bereiche), **D-176** (Preise und Modell), **D-177** (Code offen, Inhalte geschützt)
 >
 > Preise, Fristen und Store-Vorgaben ändern sich. Sie sind hier nach bestem Wissen (Oktober 2026) eingetragen und **vor jeder Zahlung bzw. Einreichung auf der Seite des Stores zu prüfen**. Alles mit Geld, Konten und Verträgen entscheidet das Projektmitglied für WebBude.
 
@@ -18,7 +18,14 @@ Die Pipeline ist für alle Stores **vorbereitet**: Ohne Secrets läuft sie wie b
 | Steam | – | Upload per SteamPipe auf einen Beta-Branch | Steam Direct 100 USD je App |
 | Browser | Dokploy (D-148, nicht hier) | – | – |
 
-**Reihenfolge (D-119):** Steam → Google Play → App Store. Windows-Signatur lohnt sich zuerst für Steam nicht (Steam startet die EXE ohne SmartScreen), sondern für den Direkt-Download auf GitHub und der Website.
+**Release (D-179):** gemeinsam auf Steam, Google Play und App Store, dazu die Browser-Version; das ersetzt die Reihenfolge Steam → Google Play → App Store aus D-119. Darum alle drei Konten früh anlegen (Apple braucht die D-U-N-S-Nummer, Tage bis Wochen) und den Termin erst festlegen, wenn alle Prüfungen durch sind: Steam 30 Tage Wartezeit nach Steam Direct und mindestens 2 Wochen „Demnächst verfügbar“ (§5), Google einige Tage beim ersten Produktions-Release (§3), Apple meist 1–3 Tage (§4). Windows-Signatur lohnt sich zuerst für Steam nicht (Steam startet die EXE ohne SmartScreen), sondern für den Direkt-Download auf GitHub und der Website.
+
+**Was in jeden Store-Eintrag gehört:**
+
+- **Preis und Modell (D-176, Arbeitsentscheidung):** Steam mit kleinem Preis (Größenordnung 3–5 €, genauer Preis OFFEN), ohne Werbung, Start-Kosmetik inklusive; Google Play und App Store **kostenlos**, später Werbung (nur Handy, nur zwischen Runs), „Werbefrei“ als Einmalkauf und Kosmetik (ROADMAP_CROSSPLAY CP6); Browser kostenlos. Verkauft werden nur Kosmetik und Werbefreiheit, **keine Lootboxen**.
+- **Umfang (D-179):** Store-Seiten beschreiben den Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Wick als Begleiter, Dorf ausbauen und Freunde ins Dorf einladen. Der Party-Modus kommt nach dem Release. Released wird erst nach dem Release-Tor in [ROADMAP.md](ROADMAP.md), auf allen Stores gemeinsam.
+- **Zielgruppe (D-173):** ab 13; nie für Kinder-Bereiche anmelden (Google Play Familienprogramm, Apple Kids), keine Werbung an Kinder. Die Altersfreigabe ergibt sich aus den Fragebögen (§7), nicht aus unserer Wahl.
+- **Lizenz (D-177):** Code GPL-3.0; Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Wick, Huhn) alle Rechte vorbehalten (`LICENSE-ASSETS.md` in beiden Repos). GPL mit App-Store- und Steamworks-Bedingungen vor dem ersten Store-Release mit Fachanwalt klären (D-177 OFFEN).
 
 **Wo die Secrets hinkommen:** GitHub → Repository `WebBude-de/soulwick` → *Settings → Secrets and variables → Actions*. **Secrets** sind geheim (Schlüssel, Passwörter, Zertifikate; GitHub maskiert sie im Log). **Variables** sind nicht geheim (App-ID, Branch-Namen). Das Repo ist öffentlich: Schlüsseldateien, Passwörter, Zertifikate und Profile **nie** ins Repo, nie in Issues, Chats oder Mails. Dateien als Base64 hinterlegen:
 
@@ -84,7 +91,7 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 ## 2. macOS
 
-**Stand:** Universal-App (Intel + Apple Silicon), ad-hoc signiert, **nicht notarisiert**: Gatekeeper blockiert den ersten Start (Anleitung in [RELEASE.md](RELEASE.md) §6). Für Steam reicht das zum Testen, für einen öffentlichen Download nicht.
+**Stand:** Universal-App (Intel + Apple Silicon), ad-hoc signiert, **nicht notarisiert**: Gatekeeper blockiert den ersten Start (Anleitung in [RELEASE.md](RELEASE.md) §6). Für Steam reicht das zum Testen, für einen öffentlichen Download nicht; zum Release (D-179) kommt die notarisierte Version mit dem Apple-Konto.
 
 **Mit Konto** (`tools/ci/macos_sign.sh`, Job `macos_sign` auf `macos-latest`): signiert mit „Developer ID Application“ und Hardened Runtime (ohne Ausnahmen: kein JIT, keine fremden Bibliotheken), notarisiert mit `notarytool`, heftet das Ticket an (`stapler`) und ersetzt das ZIP. GitHub-Release und Steam nehmen dann die notarisierte App; die Release-Notizen lassen den Gatekeeper-Hinweis weg.
 
@@ -101,13 +108,13 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 **Werte im Bundle:** Paket `com.webbude.soulwick`, `minSdk` 24 (Android 7), **`targetSdk` 36** (Android 16). Google Play verlangt für neue Apps und Updates die Ziel-API des Vorjahres; ab 31.08.2026 ist das API 36 (vor der Einreichung in der Play Console unter „Richtlinienstatus“ prüfen; die Prüfung im Lauf schlägt unter 36 fehl, Wert `MIN_TARGET_SDK` in `check_aab.sh`). 64-Bit (arm64-v8a) und 32-Bit-ARM sind drin; 16-KB-Speicherseiten unterstützt Godot 4.7 mit AGP 8.6.
 
-**Warum die Build-Vorlage nicht im Repo liegt:** Godot legt sie mit `--install-android-build-template` aus den Export-Vorlagen derselben Godot-Version an (`android/`, rund 160 Dateien). Godots eigene `.gitignore` für neue Projekte schließt `/android/` aus; wir ändern an der Vorlage nichts, also baut die Pipeline sie bei jedem Lauf frisch, und ein Godot-Update kann nicht an einer veralteten Kopie scheitern. `tools/export_build.sh` löscht den Ordner nach dem lokalen Export wieder (außer mit `KEEP_ANDROID_BUILD=1`). Erst wenn wir die Vorlage anpassen müssen (z. B. für ein Plugin von Google Play Games), wird `android/` eingecheckt.
+**Build-Vorlage:** `android/` liegt nicht im Repo; die Pipeline legt sie je Lauf frisch aus den Export-Vorlagen an (`--install-android-build-template`). Erst wenn ein Plugin (Google Play Games, Billing, Werbung) Änderungen daran braucht, wird `android/` eingecheckt.
 
 **Bis zur Veröffentlichung:**
 
 1. **Konto:** Google Play Console als **Organisation** WebBude (25 USD einmalig, D-U-N-S-Nummer, Identitätsprüfung). Persönliche Konten, die nach November 2023 angelegt wurden, müssen vor der Produktion 14 Tage lang mit mindestens 12 Testern geschlossen testen; Organisationskonten nicht (ROADMAP_CROSSPLAY CP7).
 2. **Release-Schlüssel** erzeugen und hinterlegen: [RELEASE.md](RELEASE.md) §4 („Release-Keystore erzeugen“); Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Dieser Schlüssel ist für Play der **Upload-Schlüssel**.
-3. App in der Play Console anlegen (Name „Soulwick“, Spiel, kostenlos/kostenpflichtig nach CP0 Frage 1, **OFFEN**).
+3. App in der Play Console anlegen (Name „Soulwick“, Spiel, **kostenlos**, D-176). Eine kostenlose App lässt sich bei Google später nicht mehr kostenpflichtig machen; Geld kommt über In-App-Käufe (CP6).
 4. Tag `v<version>-beta.1` pushen → Artefakt `store-android-aab` aus dem Lauf herunterladen → **das erste AAB von Hand** hochladen: *Testen → Interner Test → Neuer Release*. Dabei **Play App Signing** aktivieren (Google verwaltet den App-Signaturschlüssel, unser Schlüssel bleibt Upload-Schlüssel und ist bei Verlust über den Support ersetzbar).
 5. **Interner Test:** Tester-Liste (bis 100 Google-Konten per E-Mail), Opt-in-Link an die Tester schicken. Interne Tests brauchen keine Prüfung durch Google.
 6. **Automatischer Upload (optional):**
@@ -115,15 +122,15 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
    2. Play Console → *Nutzer und Berechtigungen* → Dienstkonto-E-Mail einladen, für die App: „Releases für Test-Tracks verwalten“ (für Produktion zusätzlich „Releases in Produktion …“).
    3. Secret `PLAY_SERVICE_ACCOUNT_JSON` = Inhalt der JSON-Datei (so wie sie ist oder Base64).
    4. Ab jetzt lädt jeder Lauf das AAB in den Track `PLAY_TRACK` (Standard `internal`) hoch (`tools/ci/play_upload.sh`, ohne Fremd-Action). Ist die App selbst in der Console noch ein Entwurf, verlangt Google `PLAY_RELEASE_STATUS=draft` (Variable) und die Freigabe von Hand.
-7. **Store-Eintrag:** Texte DE/EN, Grafiken (§6), Datenschutzerklärung-URL, Kontakt-E-Mail, Kategorie „Spiele → Action“ oder „Rollenspiel“, Formular **„Datensicherheit“** (§8), **Inhaltsbewertung** (IARC, §7), **Zielgruppe ab 13** (sonst greifen die Familien-Richtlinien; die USK-Freigabe ist davon unabhängig), Werbung: nein, App-Zugriff: „ohne Anmeldung nutzbar“.
+7. **Store-Eintrag:** Texte DE/EN, Grafiken (§6), Datenschutzerklärung-URL, Kontakt-E-Mail, Kategorie „Spiele → Action“ oder „Rollenspiel“, Formular **„Datensicherheit“** (§8), **Inhaltsbewertung** (IARC, §7), **Zielgruppe ab 13** (D-173; nicht im Familienprogramm, sonst greifen die Familien-Richtlinien; die Altersfreigabe ist davon unabhängig; OFFEN in D-173: ob Google das Spiel wegen des niedlichen Maskottchens trotzdem als „spricht Kinder an“ einstuft), **Werbung: nein**, bis CP6 Werbung auf dem Handy einbaut (dann „Ja“ und das Formular „Datensicherheit“ neu), App-Zugriff: „ohne Anmeldung nutzbar“.
 8. Konto-Löschung als **Webseite** angeben (Pflicht für Apps mit Konto; Plattform P15) und in der App (Hauptmenü).
 9. Geschlossener Test → offener Test → Produktion (gestaffelter Rollout). Google prüft beim ersten Produktions-Release einige Tage.
 
 ## 4. iOS / App Store
 
-**Stand:** Job `ios` auf `macos-latest` exportiert bei jedem Lauf das **Xcode-Projekt** (Artefakt `store-ios-xcode`, 30 Tage) – Version aus `project.godot`, Build-Nummer wie Android, Bundle-ID `com.webbude.soulwick`, iPhone und iPad, Querformat, deckendes Übergangs-Icon `deploy/web/icons/icon_512.png`. Ohne Apple-Secrets ist das alles; Fehler in diesem Job färben den Lauf nicht rot. **Mit Secrets** baut `tools/ci/ios_build.sh` daraus Archiv und **IPA** (Artefakt `store-ios-ipa`) und lädt sie optional zu **TestFlight** hoch.
+**Stand:** Job `ios` auf `macos-latest` exportiert bei jedem Lauf das **Xcode-Projekt** (Artefakt `store-ios-xcode`, 30 Tage) – Version aus `project.godot`, Build-Nummer wie Android, Bundle-ID `com.webbude.soulwick`, iPhone und iPad, Ausrichtung nach Sensor (quer und hochkant, D-182), deckendes Übergangs-Icon `deploy/web/icons/icon_512.png`. Ohne Apple-Secrets ist das alles; Fehler in diesem Job färben den Lauf nicht rot. **Mit Secrets** baut `tools/ci/ios_build.sh` daraus Archiv und **IPA** (Artefakt `store-ios-ipa`) und lädt sie optional zu **TestFlight** hoch.
 
-**Voraussetzung: Apple Developer Program** (99 USD bzw. 99 €/Jahr, Organisation WebBude mit D-U-N-S-Nummer). **Das entscheidet das Projektmitglied**; ohne Konto keine IPA, kein TestFlight, kein App Store. Ein eigener Mac ist nicht nötig: Signieren und Hochladen laufen auf dem macOS-Läufer von GitHub (für öffentliche Repos kostenlos). Zum Ansehen auf dem iPhone reicht dann TestFlight.
+**Voraussetzung: Apple Developer Program** (99 USD bzw. 99 €/Jahr, Organisation WebBude mit D-U-N-S-Nummer). Weil iOS zum Release gehört (D-179), muss das Konto vor dem Release stehen; anlegen und bezahlen entscheidet das Projektmitglied für WebBude. Ohne Konto keine IPA, kein TestFlight, kein App Store. Ein eigener Mac ist nicht nötig: Signieren und Hochladen laufen auf dem macOS-Läufer von GitHub (für öffentliche Repos kostenlos). Zum Ansehen auf dem iPhone reicht dann TestFlight.
 
 **Bis zur Veröffentlichung:**
 
@@ -134,17 +141,17 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 5. **Bereitstellungsprofil** „App Store Connect“ (früher „App Store“) für die App-ID und das Distributionszertifikat anlegen, herunterladen → `IOS_PROVISIONING_PROFILE_BASE64`. Läuft nach einem Jahr ab, mit dem Zertifikat erneuern.
 6. **App in App Store Connect anlegen** (Name, Hauptsprache Deutsch, Bundle-ID, SKU z. B. `soulwick`). Ohne diesen Eintrag nimmt TestFlight keinen Upload an.
 7. Tag `v<version>-beta.1` pushen → IPA landet in TestFlight (Verarbeitung durch Apple: Minuten bis eine Stunde). **Interne Tester** (bis 100 Mitglieder des Teams) sofort; **externe Tester** (bis 10 000, per Link) nach einer kurzen Beta-Prüfung.
-8. **Store-Eintrag:** Texte, Screenshots für iPhone **und** iPad (§6), Datenschutz-URL, Support-URL, **App-Datenschutz** („Nutrition Labels“, §8), **Altersfreigabe** (Apple-Fragebogen, §7), Exportvorschriften: nur HTTPS → „keine Verschlüsselung außer der Standard-Ausnahme“ (Godot setzt `ITSAppUsesNonExemptEncryption = NO`).
-9. Prüfregeln, die uns betreffen: Konto löschen **in der App** (5.1.1 (v)), Melden und Filtern nutzergenerierter Namen (1.2; Filter für anstößige Namen ist laut D-152 noch offen), Sign in with Apple nur bei Social-Login (CP0 Frage 8, OFFEN), Spiel muss ohne Konto spielbar sein (ist es: Gastkonto).
+8. **Store-Eintrag:** Texte, Screenshots für iPhone **und** iPad (§6), Datenschutz-URL, Support-URL, **App-Datenschutz** („Nutrition Labels“, §8), **Altersfreigabe** (Apple-Fragebogen, §7; Kategorie nicht „Kinder“, D-173), Exportvorschriften: nur HTTPS → „keine Verschlüsselung außer der Standard-Ausnahme“ (Godot setzt `ITSAppUsesNonExemptEncryption = NO`).
+9. Prüfregeln, die uns betreffen: digitale Käufe nur über In-App-Kauf (3.1.1), keine Lootboxen (D-176); Konto löschen **in der App** (5.1.1 (v)), Melden und Filtern nutzergenerierter Namen (1.2; Filter für anstößige Namen ist laut D-152 noch offen), Sign in with Apple nur bei Social-Login (CP0 Frage 8, OFFEN), Spiel muss ohne Konto spielbar sein (ist es: Gastkonto).
 10. Einreichen zur App-Prüfung (meist 1–3 Tage).
 
-**Noch offen im Projekt:** Touch-Steuerung auf dem iPhone getestet? (CP2: Gerätetest offen); Renderer `gl_compatibility` läuft auf iOS über ANGLE/Metal, Leistung auf einem echten Gerät prüfen; Safe Area (Notch, Dynamic Island) prüfen.
+**Noch offen im Projekt:** GPL-3.0 und App-Store-Nutzungsbedingungen (D-177 OFFEN); Touch-Steuerung auf dem iPhone getestet? (CP2: Gerätetest offen); Renderer `gl_compatibility` läuft auf iOS über ANGLE/Metal, Leistung auf einem echten Gerät prüfen; Safe Area (Notch, Dynamic Island) prüfen.
 
 ## 5. Steam
 
 **Stand:** Job `steam` lädt Windows, Linux und macOS (notarisiert, falls §2 eingerichtet) per **steamcmd/SteamPipe** hoch und setzt den Build auf einen **Beta-Branch** live. Vorlagen: [`tools/steam/app_build.vdf`](../tools/steam/app_build.vdf), [`tools/steam/depot_build.vdf`](../tools/steam/depot_build.vdf), Skript [`tools/steam/steam_upload.sh`](../tools/steam/steam_upload.sh). Den Standard-Branch (`default`) schaltet immer ein Mensch in Steamworks frei; das Skript verweigert ihn.
 
-**Nicht hier:** Steamworks im Spiel (GodotSteam, Anmeldung, Freunde einladen, Rich Presence, Erfolge, Steam Cloud) gehört zur Multiplayer-Roadmap ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP6 und MP10, Sitzung soulwick-16). Der Upload funktioniert auch ohne: Steam startet die EXE einfach.
+**Nicht hier:** Steamworks im Spiel (GodotSteam, Anmeldung, Freunde einladen, Rich Presence, Erfolge, Steam Cloud) gehört zur Multiplayer-Roadmap ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP6 und MP10). Der Upload funktioniert auch ohne: Steam startet die EXE einfach.
 
 **Bis zur Veröffentlichung:**
 
@@ -158,13 +165,22 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 8. **`config.vdf` erzeugen** (einmal, auf einem eigenen Rechner): steamcmd installieren, `steamcmd +login <build-konto>` → Passwort und Steam-Guard-Code eingeben → `quit`. Die Datei `config/config.vdf` im steamcmd-Ordner (Linux/macOS oft `~/Steam/config/config.vdf`) enthält danach den Anmelde-Token. Secrets: `STEAM_USERNAME` = Kontoname, `STEAM_CONFIG_VDF` = Base64 dieser Datei. Meldet der Lauf später „Steam login failed“, ist der Token abgelaufen → Schritt wiederholen.
 9. Tag pushen → Build erscheint unter SteamPipe → Builds und ist im Branch live. Testen: Steam-Bibliothek → Soulwick → Eigenschaften → Betas.
 10. **Steam Playtest** (eigene Playtest-App, kostenlos) für Freunde ohne Kauf, optional.
-11. **Store-Seite:** Texte DE/EN, Grafiken (§6), Systemanforderungen, Fragebogen zu Inhalten (§7), Preis (CP0 Frage 1, **OFFEN**). Dann „Demnächst verfügbar“, nach mindestens 2 Wochen Release.
+11. **Store-Seite:** Texte DE/EN, Grafiken (§6), Systemanforderungen, Fragebogen zu Inhalten (§7), **kleiner Preis** (Größenordnung 3–5 €, D-176, genauer Preis OFFEN), keine Werbung, Start-Kosmetik inklusive; Kosmetik später als Steam-Mikrotransaktion (CP6). Dann „Demnächst verfügbar“, nach mindestens 2 Wochen Release.
 
 **Probelauf ohne Upload:** Variable `STEAM_PREVIEW=1` setzen: steamcmd prüft Anmeldung, Depots und Dateien, lädt aber nichts hoch und setzt nichts live. Danach die Variable wieder löschen.
 
-## 6. Store-Texte und Grafiken (Briefing)
+## 6. Store-Texte, Grafiken und Screenshots
 
-Fehlt alles noch. Die Grafiken stehen als Briefing in [SPRITES_V11.md](design/sprites/SPRITES_V11.md) (Ablage `art/store/`); Screenshots nimmt Claude aus dem Spiel auf. Pixel-Art bitte ganzzahlig skaliert (kein Weichzeichnen), Texte im Bild vermeiden oder je Sprache eine Fassung (DE/EN). Screenshots aus dem echten Spiel (`tools/screenshots.gd`, dann zuschneiden), keine Mockups.
+**Grafiken geliefert** (17.10.2026, Maße und Dateinamen in [SPRITES_V11.md](design/sprites/SPRITES_V11.md), Ablage `art/store/`). Neue Motive mit dem Maskottchen Wick folgen mit [SPRITES_V12.md](design/sprites/SPRITES_V12.md). **Es fehlen noch Texte und Screenshots.**
+
+**Store-Knöpfe auf der Website (D-179):**
+
+- **Vor dem Release** (noch keine Store-Links): eigene Pixel-Knöpfe ohne fremde Logos oder Badges, nur mit Plattformnamen („Browser“, „PC · Steam“, „Android“, „iPhone & iPad“) und dem Zustand „zum Release“ / „at release“.
+- **Mit echtem Store-Link** (`soulwick-platform/apps/web/content/stores.json`: `steam`, `google_play`, `app_store`) und `LIVE_FEATURES=true`: das offizielle Badge des Stores, unverändert, als Link auf die Produktseite; es darf in unserem Pixel-Rahmen stehen, wird aber nicht nachgezeichnet.
+- **Regeln der Stores** (vor dem Einbau auf deren Badge-Seiten nachlesen): **Apple** – Badge unverändert, nur als Link auf die App im App Store, in einer Reihe mit anderen Stores zuerst. **Google** – Farbe, Proportionen und Abstand nicht ändern, Link auf die App, mindestens so groß wie andere Badges daneben. **Valve** – nur freigegebene Steam-Grafiken, unverändert, nicht mit anderen Logos verbunden.
+- **Badge-Dateien** nur von den offiziellen Badge-Seiten und nur, wenn sie ohne Anmeldung herunterladbar sind; sonst bleibt ein Platz mit Dateinamen in `soulwick-platform/apps/web/public/brand/README.md` und `soulwick-platform/docs/design/web/BRIEFING_WEB.md`.
+
+**Ton der Texte:** für Spieler ab 13, nicht an Kinder gerichtet (D-173); Kernsatz „Das Pixel-Roguelite, in das du mit Freunden reinrennst“ und Tagline „Grab your friends. Light the dark.“ (D-173, D-174); nach außen „moderne Pixel-Art“, nicht „8-Bit“; alles aus dem Release-Umfang (§0) steht wie vorhanden da, nur Späteres (Party-Modus) als „kommt“ (D-179); Beispiele für Wunschbosse sind erfunden, keine echten Personen (D-179 OFFEN); keine Engine-, Server- oder API-Wörter.
 
 **Texte (je DE und EN):**
 
@@ -178,33 +194,15 @@ Fehlt alles noch. Die Grafiken stehen als Briefing in [SPRITES_V11.md](design/sp
 | Neuigkeiten je Version | kurz, aus den Release-Notizen | alle |
 | Support-E-Mail, Datenschutz-URL, Website | `/de/datenschutz`, `/en/privacy` (eRecht24) | alle |
 
-Grundlage: Website-Texte (Plattform P9), Ton wie dort: für Spieler, ohne Technik-Begriffe (keine Engine-, Server- oder API-Wörter).
+**Screenshots und Trailer** (aus dem echten Spiel mit `tools/screenshots.gd`, dann zuschneiden; keine Mockups; Pixel-Art ganzzahlig skaliert):
 
-**Grafiken:**
-
-| Datei (Vorschlag) | Maße | Format | Store | Inhalt |
-| --- | --- | --- | --- | --- |
-| `art/store/icon_1024.png` | 1024×1024 | PNG **ohne Transparenz** | Apple (im Spiel-Bundle), Quelle für alle | App-Icon (Kerze + Kristall), Motiv in den mittleren 80 %; ersetzt das Übergangs-Icon im iOS-Preset |
-| `art/store/play_icon_512.png` | 512×512 | PNG 32 Bit, ≤ 1 MB | Google Play | wie oben; Google rundet die Ecken selbst |
-| `art/store/android_adaptive_fg_432.png`, `…_bg_432.png`, `…_mono_432.png` | je 432×432 | PNG | Android (im Spiel) | adaptives Icon: Vordergrund mit Motiv in den mittleren 66 %, Hintergrund flach, Monochrom-Version; heute nutzt das Preset nur das 64-px-Logo |
-| `art/store/play_feature_1024x500.png` | 1024×500 | PNG/JPG ohne Transparenz | Google Play | Feature-Grafik: Logo/Schriftzug + Szene; wichtige Teile nicht an den Rändern |
-| `art/store/steam_header_capsule.png` | 920×430 | PNG/JPG | Steam | Kopf-Kapsel: Logo gut lesbar |
-| `art/store/steam_small_capsule.png` | 462×174 | PNG/JPG | Steam | kleine Kapsel: nur Logo, muss winzig lesbar bleiben |
-| `art/store/steam_main_capsule.png` | 1232×706 | PNG/JPG | Steam | Haupt-Kapsel (Startseite) |
-| `art/store/steam_vertical_capsule.png` | 748×896 | PNG/JPG | Steam | senkrechte Kapsel (Aktionen) |
-| `art/store/steam_library_capsule.png` | 600×900 | PNG/JPG | Steam | Bibliothek, Hochformat |
-| `art/store/steam_library_header.png` | 920×430 | PNG/JPG | Steam | Bibliothek, Kopf |
-| `art/store/steam_library_hero.png` | 3840×1240 | PNG/JPG | Steam | Bibliothek, Hintergrund **ohne** Logo/Text, Motiv mittig |
-| `art/store/steam_library_logo.png` | 1280×720 (Logo ≤ 1280 breit oder ≤ 720 hoch) | PNG **mit** Transparenz | Steam | Schriftzug über dem Hero |
-| `art/store/steam_page_background.png` | 1438×810 | PNG/JPG | Steam (optional) | dunkle, ruhige Fläche |
-| `art/store/steam_community_icon.jpg` | 184×184 | JPG | Steam | quadratisches Icon |
-| `art/store/screenshots/desktop_*.png` | 1920×1080 (16:9) | PNG | Steam (≥ 5), Play (Tablet/Chromebook) | Dorf, Kampf im Dungeon, Boss, Minispiel-Raum, Koop mit Raumcode, Upgrade-Auswahl |
-| `art/store/screenshots/play_phone_*.png` | 1920×1080 quer | PNG/JPG | Google Play (2–8, für Empfehlungen ≥ 4 im Querformat) | wie oben, mit Touch-Knöpfen |
-| `art/store/screenshots/iphone69_*.png` | 2868×1320 quer (iPhone 6,9″) | PNG/JPG | Apple (1–10) | wie oben, mit Touch-Knöpfen |
-| `art/store/screenshots/ipad13_*.png` | 2752×2064 quer (iPad 13″) | PNG/JPG | Apple (1–10, Pflicht, weil iPad unterstützt) | wie oben |
-| Trailer (optional) | 1920×1080, 30–90 s | MP4 (Steam), YouTube-Link (Play), App-Vorschau 886×1920/1920×886 (Apple, 15–30 s) | alle | Spielszenen, kein Text-Overload |
-
-Steam-Maße nach der Kapsel-Umstellung von 2025 (doppelte Auflösung); vor dem Hochladen mit der Vorlage in Steamworks → Grafische Elemente abgleichen.
+| Datei (Vorschlag) | Maße | Store | Inhalt |
+| --- | --- | --- | --- |
+| `art/store/screenshots/desktop_*.png` | 1920×1080 | Steam (≥ 5), Play (Tablet/Chromebook) | Koop mit Freunden zuerst (D-173), Wunschboss mit Banner, Boss, Minispiel-Raum, Dorf mit Wick und Besuch, Upgrade-Auswahl |
+| `art/store/screenshots/play_phone_*.png` | 1920×1080 quer | Google Play (2–8, für Empfehlungen ≥ 4 quer) | wie oben, mit Touch-Knöpfen |
+| `art/store/screenshots/iphone69_*.png` | 2868×1320 quer (iPhone 6,9″) | Apple (1–10) | wie oben, mit Touch-Knöpfen |
+| `art/store/screenshots/ipad13_*.png` | 2752×2064 quer (iPad 13″) | Apple (1–10, Pflicht, weil iPad unterstützt) | wie oben |
+| Trailer (optional) | 1920×1080, 30–90 s; Apple-Vorschau 886×1920/1920×886, 15–30 s | alle (Play als YouTube-Link) | Spielszenen, kein Text-Overload |
 
 ## 7. Altersfreigabe
 
@@ -214,7 +212,7 @@ Steam-Maße nach der Kapsel-Umstellung von 2025 (doppelte Auflösung); vor dem H
 | Apple | eigener Fragebogen in App Store Connect (Stufen 4+, 9+, 13+, 16+, 18+) | Pflicht vor der Einreichung |
 | Steam | Inhaltsfragebogen in Steamworks (Gewalt, Online-Interaktion); Altersfreigaben (USK/PEGI) können dort ergänzt werden | Pflicht vor der Store-Prüfung |
 
-Antworten, die für Soulwick gelten (Stand des Spiels, zur Prüfung durch das Team): Fantasy-Gewalt gegen nicht-menschliche Gegner (Skelette, Schleim, Schatten) in Pixel-Optik, kein Blut, keine Sprache mit Schimpfwörtern, keine Glücksspiel-Mechanik mit Echtgeld, keine Käufe (bis CP6), **Nutzer interagieren** (Koop über Raumcode, Spieler- und Gildennamen sind für andere sichtbar), keine Weitergabe des Standorts. Erwartung aus ROADMAP_CROSSPLAY CP0 Frage 6: **USK 6 / PEGI 7** (Schätzung, OFFEN; der Fragebogen entscheidet).
+Antworten, die für Soulwick gelten (Stand des Spiels, zur Prüfung durch das Team): Fantasy-Gewalt gegen nicht-menschliche Gegner (Skelette, Schleim, Schatten) in Pixel-Optik, kein Blut, keine Sprache mit Schimpfwörtern, keine Glücksspiel-Mechanik mit Echtgeld, bis CP6 keine Käufe (danach In-App-Käufe nur Kosmetik und Werbefrei, **keine zufälligen Gegenstände**, D-176), **Nutzer interagieren** (Koop über Raumcode, Spieler- und Gildennamen sind für andere sichtbar), keine Weitergabe des Standorts. Die Freigabe ergibt sich aus dem Fragebogen, wir wählen sie nicht (D-173, CP0 Frage 6); erwartet wird eine niedrige Stufe. Davon unabhängig ist die **Zielgruppe ab 13** (§0, §3). OFFEN (D-173): ob KI-Bosse (nutzergenerierte Inhalte), Käufe und Koop mit Fremden die Freigabe anheben. KI-Bosse und Dorf-Besuche gehören zum Release-Umfang (D-179) und damit schon in den ersten Fragebogen vor dem Release; mit Käufen und Werbung (CP6) neu ausfüllen.
 
 ## 8. Datenschutz-Angaben
 
@@ -227,9 +225,13 @@ Was das Spiel online schickt (Server `api.playsoulwick.com`, Relay `play.playsou
 | Run-Berichte (Räume, Zeit, Gold, Mitspieler), Gilde, Ranglisten | nach einem Online-Run | Spielfunktion, Ranglisten | App-Aktivitäten → Sonstige Aktionen | Nutzerinhalte → Gameplay-Inhalte |
 | **Bug-Reports**: Text, Kategorien, Markierungen, **Screenshot des Spiels**, Kontext (Ort im Spiel, Seed, Auflösung, Sprache), Spielversion, Plattform | nur wenn der Spieler eine Meldung abschickt | Fehlerbehebung | App-Info und Leistung → Diagnose; Sonstige nutzergenerierte Inhalte | Diagnose; Nutzerinhalte → Kundensupport |
 | IP-Adresse, Zeitpunkt (technisch, Server-Logs und Relay-Verbindung) | jede Verbindung | Betrieb, Missbrauchsschutz | (in der Datenschutzerklärung nennen; Google zählt reine Protokolldaten nicht als „erhoben“, prüfen) | – |
+| Zum Release: Wünsche für KI-Bosse (Bausteine, ggf. Freitext), erzeugte Bosse (Beschreibung, Bilder), Meldungen (KI3, KI8) | beim Wünschen bzw. Melden | Spielfunktion, Moderation, Kosten; Verarbeitung beim KI-Anbieter als Auftragsverarbeiter in der Datenschutzerklärung nennen | App-Aktivitäten → Sonstige nutzergenerierte Inhalte | Nutzerinhalte → Gameplay-Inhalte |
+| Zum Release: Dorf-Schnappschuss (Gebäudestufen, Deko, Zeitpunkt; keine Freitexte, WK6) | beim Freigeben des Dorfs für Besuche | Dorf besuchen | App-Aktivitäten → Sonstige nutzergenerierte Inhalte | Nutzerinhalte → Gameplay-Inhalte |
 | Später: Steam-ID, Google-Play-Games-ID, Game-Center-ID (CP1) | Verknüpfung | Anmeldung | Nutzer-IDs | Kennungen |
+| Später: Käufe (Store, Bestell-ID, Produkt, Quittung) und Berechtigungen (CP6) | Kauf | Kauf am Konto prüfen (D-177) | Finanzinformationen → Kaufverlauf | Käufe → Kaufverlauf |
+| Später, nur Handy: Werbe-ID und Daten des Werbenetzwerks (CP6) | Anzeige zwischen Runs | Werbung (D-176) | Geräte- oder andere IDs; Werbung | Kennungen → Geräte-ID; ggf. Tracking |
 
-Für alle Zeilen: **verknüpft mit dem Konto**, **nicht für Tracking oder Werbung**, **nicht an Dritte verkauft**, Übertragung **verschlüsselt** (HTTPS/WSS), **Löschung** auf Anfrage in der App und per Webseite (Plattform P15). Keine Werbe-ID, keine Analyse-SDKs, kein Standort.
+Für alle Zeilen: **verknüpft mit dem Konto**, **nicht für Tracking oder Werbung**, **nicht an Dritte verkauft**, Übertragung **verschlüsselt** (HTTPS/WSS), **Löschung** auf Anfrage in der App und per Webseite (Plattform P15). Bis CP6: keine Werbe-ID, keine Analyse-SDKs, kein Standort. Mit Werbung auf dem Handy (D-176) ändern sich Formulare, Privacy Manifest und Datenschutzerklärung; dazu Einwilligung nach DSGVO und auf iOS App Tracking Transparency, nicht personalisierte Werbung als Standard (Vorschlag, Rücksicht auf jüngere Mitspieler, D-173).
 
 iOS verlangt dieselben Angaben zusätzlich im **Privacy Manifest** (`PrivacyInfo.xcprivacy`, Godot-Optionen `privacy/collected_data/*` im iOS-Preset). Die Godot-Vorlage trägt die Gründe für die genutzten System-APIs (Dateizeit, Speicherplatz, Startzeit) schon ein; die erhobenen Datentypen setzen wir erst, wenn die Tabelle oben vom Team bestätigt ist.
 

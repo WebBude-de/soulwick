@@ -2,7 +2,7 @@
 
 Fotos aus dem echten Spiel (Stand 14.10.2026, Branch `feature/phase2-rooms`) als Vorlage für Claude Design: Raumstrukturen, Raumarten, Türen, Dorf und UI, **so wie sie heute aussehen** – mit allen Schwächen, nichts beschönigt.
 
-- **143 Bilder**, 1920×1080, erzeugt mit `tools/scene_gallery.gd` (neu erzeugen: `"C:/Tools/Godot/Godot_v4.7.2-stable_win64.exe" --path . -s tools/scene_gallery.gd -- docs/design/szenen`, Dauer ca. 12 min, braucht ein Fenster).
+- **143 Bilder**, 1920×1080, erzeugt mit `tools/scene_gallery.gd` (neu erzeugen: `"C:/Tools/Godot/Godot_v4.7.2-stable_win64.exe" --path . -s tools/scene_gallery.gd -- docs/design/gallery`, Dauer ca. 12 min, braucht ein Fenster).
 - **Übersicht** = ganzer Raum, volles Licht, ohne HUD/Banner/Karten, eigene Kamera. **Spielansicht** = normale Kamera (Zoom 1), normale Dunkelheit, HUD an.
 - Kampfraum-Vorlagen, Spezialräume, Bosse, Varianten, Arena/Hinterhalt und Biom-Türen sind mit denselben Schritten wie im Spiel gebaut (`DungeonManager._prepare_slot`: Vorlage, Türplan, gestreute Zutaten, Gegnergruppe, Variante), aber gezielt mit Vorlage, Raumnummer und Biom – ein echter Einzelspieler-Run würfelt nur S/M-Größen und wechselt das Biom erst alle 15 Räume. Eingang immer Süd, Ausgang Nord. Raumkette, Gänge, Abzweigung, Geheimnische, Gegner-Erscheinen, Boss-Intro, Lagerfeuer, Upgrade-Wahl und Run-Ende stammen aus echten, geseedeten Runs.
 - Der Spieler gilt als erfahren: keine Steuerungs-/Erklärkarten außer in Raum 1 (Gegnerkarte) und beim Bild „Genre-Banner mit Erklärkarte". Gegner werden vom Werkzeug direkt entfernt, deshalb zeigt das Run-Ende „0 Gegner".

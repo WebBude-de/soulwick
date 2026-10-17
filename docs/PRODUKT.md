@@ -1,143 +1,110 @@
 # Soulwick – Produktüberblick
 
-> **Stand:** 15.10.2026 · **Gilt für beide Repositories:** `soulwick` (Spiel) und `soulwick-platform` (Online-Teil). Diese Datei erklärt das Produkt an **einer** Stelle; Regeln und Zahlen stehen in den verlinkten Dokumenten und werden hier nicht wiederholt. Bei Widerspruch gelten [PRD.md](PRD.md) (Anforderungen ans Spiel), [`soulwick-platform/docs/PRD.md`](../../soulwick-platform/docs/PRD.md) (Online-Teil) und [DECISIONS.md](DECISIONS.md).
+> **Stand:** 17.10.2026 · **Gilt für beide Repositories:** `soulwick` (Spiel) und `soulwick-platform` (Online-Teil).
+> **Zweck:** Was Soulwick sein soll, für wen und warum, an **einer** Stelle. Was schon gebaut ist, steht im Code, nicht hier (D-178). Begriffe: [GLOSSAR.md](GLOSSAR.md). Entscheidungen: [DECISIONS.md](DECISIONS.md). Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md).
 > **Leseregel:** `OFFEN` = noch nicht entschieden; nichts in dieser Datei legt eine offene Frage fest.
 
 ## 1. Was ist Soulwick
 
-Soulwick ist ein 2D-Top-down-Dungeon-Roguelite mit direkter, mausgesteuerter Action, gebaut in Godot 4.7.2. Vom Dorf aus steigt man in einen endlosen, dunklen Dungeon mit Biomen und Bossen; was man im Run findet, geht verloren, ein Teil des Golds bleibt und baut das Dorf aus. Geplant sind Koop bis vier Spieler, Gilden, Ranglisten und ein Konto, das über Steam, Google Play und App Store hinweg gilt.
+Ein Pixel-Roguelite, in das man mit Freunden reinrennt: Top-down, direkte Action mit Maus, Touch oder Gamepad, ein endloser Dungeon mit Biomen, Bossen und Minispiel-Räumen, dazu ein Dorf, das man ausbaut, verschönert und anderen zeigt. Gebaut in Godot 4.7.2, Online-Teil in `soulwick-platform`.
 
-- **Name:** Soulwick (Docht + Seele: der Lichtkreis als letztes Licht im Dunkel, Seelenkristalle als Währung), D-094.
-- **Tagline** (Untertitel im Hauptmenü): „Das letzte Licht im endlosen Dunkel“ (D-094). Englische Fassung: „The last light in the endless dark“ (aus dem Website-Handoff des Projektmitglieds, `copy.en.json`, 14.10.2026; im Spiel über UX3/D-111 übernehmen).
-- **Herkunft:** Idee eines Kollegen des Projektmitglieds; kein Hochschulprojekt (Klarstellung Projektmitglied 14.10.2026). Nach außen erscheint nur „Made with ♥ by WebBude“ im Footer der Website. Marken- und Domainprüfung vor dem Steam-Start (MP10). Website: playsoulwick.com (D-111).
+- **Name:** Soulwick (Docht + Seele, D-094). Das Licht ist das Motiv: Du bringst Licht in den Dungeon.
+- **Tagline** (D-174, Arbeitsfassung): „Grab your friends. Light the dark.“ / „Schnapp dir deine Freunde. Bring Licht ins Dunkel.“
+- **Herkunft:** Idee eines Kollegen des Projektmitglieds, Teamprojekt. Nach außen „Made with ♥ by WebBude“. Website: playsoulwick.com (D-111).
 
-## 2. Für wen
+## 2. Positionierung (D-173)
 
-- **Zielgruppe** (Projektmitglied 14.10.2026): Spieler, die kurze, knackige Runs mögen, allein oder mit Freunden, auf PC und Handy; internationales Publikum (Englisch als Standardsprache, D-111). Pixel-Kampf ohne Blut, deshalb voraussichtlich **ab 6** (USK/PEGI über den IARC-Fragebogen zu bestätigen, ROADMAP_CROSSPLAY CP0 Frage 6). Freunde-Koop und Gilden sind der soziale Kern.
-- **Spielgefühl** (Designziele, PRD §2): direkte Steuerung, die sich präzise anfühlt; bedeutsame Run-Entscheidungen; nachvollziehbare Regeln; dunkel und warm: lila-schwarzer Grund, alles Wichtige leuchtt in Gold ([HANDOUT.md](HANDOUT.md)). Ton nach außen: ehrlich, nichts Geplantes als fertig ausgeben.
+**Kernsatz:** Das Pixel-Roguelite, in das du mit Freunden reinrennst – jeder Run anders, jeder Boss ein Clip.
 
-## 3. Die fünf Säulen
+**Das Gefühl, das wir wollen:** wie Among Us, als es rauskam. Ein Spiel, das man in einer Minute versteht, mit Freunden sofort startet, in dem ständig etwas Lustiges oder Verrücktes passiert und das man deshalb teilt. Es wird laufend erweitert (neue Minispiele, neue Bosse, neue Modi), damit es interessant bleibt.
 
-1. **Endloser Dungeon mit Biomen und Bossen.** Vorgefertigte, nahtlos verbundene Räume im Fünferzyklus; alle 15 Räume ein Boss, danach Lagerfeuer und ein neues Biom: Krypta, Schleimgrotte, Schattenreich, Glutkammer, dann stärker von vorn (D-073, [KONZEPT_ENDLOS.md](KONZEPT_ENDLOS.md)). Jeder Raum hat eine Aufgabe: Säubern, Arena oder eines von acht Minispielen ([KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md), D-120).
-2. **Direkte Maussteuerung.** WASD, 360°-Zielen mit der Maus, Angriff halten, Spezialangriff rechts, Dash mit Leertaste, Q Waffenwechsel, E Interaktion (PRD §4.3). Touch-Steuerung für Mobil: OFFEN (CP0 Frage 5, Prototyp in CP2).
-3. **Run-Entscheidungen.** Fünf Waffen (Schwert, Bogen, Magierstab, Dolche, Kriegshammer, D-090) in zwei Slots, 15 Upgrades mit Stack-Logik, Spezialräume Händler, Waffenauswahl, Brunnen, Upgrade-Altar, Prüfungsraum und Pakt-Altar, dazu Wagnis-Altar, Abzweigungen und Geheimnischen (PRD §4).
-4. **Dorf und Meta-Progression.** Gold-Regel: 100 % am Portal, 50 % bei Tod oder Abbruch (PRD §4.6). Begehbare Gebäude Schmiede, Handelsposten (Seelenkristalle), Chronik, Zuhause, Gildenhaus; schrittweise Freischaltung, jedes Gebäude erklärt sich beim ersten Betreten (D-087, PRD §4.8).
-5. **Zusammen spielen (in Arbeit).** Koop für 2 bis 4 Spieler: ein Spieler ist Host, die Pakete laufen über einen eigenen Relay mit Raumcode (D-119); Schnelles Spiel und Gilde; im Multiplayer gemeinsame Kasse und getrennter Fortschritt; Ranglisten; Crossplay Steam → Android → iOS (PRD §7, D-080 bis D-085, D-108, D-119).
+**Leicht zu lernen, schwer zu meistern:** Die ersten Räume schafft jeder. Tief im Dungeon, in den Ranglisten und bei hohen Schwierigkeiten lohnt sich Können; wer will, kann sich reinsweaten.
 
-## 4. Der Loop in fünf Sätzen
+**Zielgruppe:**
 
-1. Im Dorf startest du am Dungeon-Eingang einen Run: ohne Ausrüstung aus dem letzten Run, aber mit deinen dauerhaften Dorf-Verbesserungen.
-2. Jeder Fünferzyklus bringt drei Kampf- oder Minispielräume (nach dem dritten eine Upgrade-Wahl), einen Spezialraum und einen Miniboss; auf jedem 15. Raum wartet stattdessen der Boss des Bioms.
-3. Unterwegs kombinierst du Waffen und Upgrades, sammelst Gold und entscheidest freiwillig, ob du kaufst, tauschst oder ein Portal nimmst.
-4. Nach jedem Boss folgt ein Lagerfeuer zwischen den Biomen mit Portal: Ausstieg mit 100 % des Golds oder weiter, der Dungeon endet nie.
-5. Stirbst du oder brichst ab, bleibt die Hälfte des Run-Golds; damit und mit Seelenkristallen baust du im Dorf aus und kehrst stärker zurück.
+- **Kern:** 12 bis 25 Jahre, Freundesgruppen, die zusammen zocken (Discord, Schulhof, nach der Arbeit eine halbe Stunde). Allein spielen geht, ist aber nicht das, wofür man Soulwick kennt.
+- **Offiziell:** Store-Zielgruppe ab 13; wir bewerben das Spiel nicht an Kinder unter 12 und melden es nicht für Kinder-Bereiche der Stores an (Google Play Familienprogramm, Apple Kids). Jüngere spielen trotzdem mit, weil sie es über TikTok und Freunde finden; deshalb bleibt der Inhalt harmlos (kein Blut, keine Lootboxen, Moderation bei KI-Inhalten).
+- **Altersfreigabe:** ergibt sich aus dem IARC-Fragebogen der Stores, nicht aus unserer Wahl; erwartet niedrig (Pixel-Kampf ohne Blut). OFFEN: ob KI-Bosse, Kosmetik-Käufe und Koop mit Fremden die Freigabe anheben.
+- **Sprache:** international, Englisch Standard, Deutsch zweite Sprache (D-111).
 
-## 5. Was online dazukommt
+**Vergleiche, die wir benutzen dürfen:**
 
-Alles davon ist **optional**: Das Spiel bleibt ohne Server spielbar, jeder Aufruf aus dem Spiel darf scheitern (D-083, D-093). Koop bleibt im Host-Modell: Ein Spieler rechnet die Spielwelt; die Pakete laufen über den eigenen Relay `soulwick-relay` mit Raumcodes, der nur weiterleitet und keine Spiellogik kennt (entschieden in D-119, CP0 Frage 3; ENet im LAN nur optional, D-124).
-
-| Baustein | Was | Wo |
-| --- | --- | --- |
-| **Konto / Identität** | Anmeldung aus dem Spiel: Testphase mit Geräte-ID, später Steam, Google Play, Game Center. Ein Soulwick-Konto mit beliebig vielen Plattform-Identitäten (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort; Geräte verknüpfen per Code, Zusammenführen zweier Konten nach festen Regeln (D-121, D-122, Plattform P-014). Konto löschen in-App und per Web-Formular. | `apps/api` |
-| **Relay** | Räume mit Raumcode, leitet die Pakete zwischen Host und Clients weiter (D-119) | `apps/relay` (geplant) |
-| **Gilden** | gründen, Beitritt per Einladungscode, jederzeit verlassen; bis zu 5 Gilden je Spieler, höchstens 30 Mitglieder (D-147); Gildenkasse und Gilden-Schmiede auf dem Server (D-080, D-081 als Vorschlag) | `apps/api`, im Spiel das Gildenhaus |
-| **Run-Berichte und Ranglisten** | der Host meldet das Run-Ende; Plausibilitätsprüfung **markiert statt löscht**; Tafeln Spieler Solo, Spieler Gruppe, Gilden, jeweils Allzeit und Saison (D-082) | `apps/api`, Website, später im Spiel |
-| **Koop-Relay** | Räume mit Raumcode, leitet Pakete weiter, ohne sie zu lesen (D-119) | `apps/relay` |
-| **Website** | playsoulwick.com, Englisch und Deutsch: Landingpage, Spielseite, Ranglisten, Gildenseiten, Rechtstexte aus eRecht24 | `apps/web` |
-| **Admin-Panel** | Spieler sperren, Gilden verwalten, Runs prüfen, Rechtstexte, Protokoll jeder Aktion; Rollen `admin` und `moderator` | `apps/admin` |
-
-Datenschutz: gespeichert werden nur Plattform-Identitäten (Nutzer-ID des Providers), Name, Gilde und Run-Berichte; keine E-Mail-Adressen von Spielern, keine Zahlungsdaten (Plattform-PRD §3.6).
-
-## 6. Plattformen und Sprachen
-
-- **Zielbild** (D-108; Architektur D-119): Steam, Google Play und App Store, mit Crossplay über alle drei. Reihenfolge entschieden: **Steam → Android → iOS**, iOS später (kein Mac); Publisher WebBude (D-119). Vor Steam: Windows-Test-Build und Schnelles Spiel per Raumcode über den eigenen Relay (MP4, D-124).
-- **Website** zeigt die Stores als „geplant“ mit Crossplay-Hinweis; keine Store-Badges oder Markenlogos, bis es echte Links gibt.
-- **Sprachen** (D-111, VERBINDLICH): Englisch Standard, Deutsch zweite Sprache in Spiel und Website; Dokumentation bleibt Deutsch. Das Spiel erkennt die Systemsprache und lässt in den Optionen umschalten (UX3); die Website leitet `/` auf `/en`, deutsche Browser auf `/de` (Plattform P-012).
-- **Domain:** playsoulwick.com (D-111).
-
-## 7. Geschäftsmodell (OFFEN)
-
-Nicht entschieden (D-108, CP0 Frage 1). Optionen: (a) mobil kostenlos und PC bezahlt (wie Among Us), (b) überall kostenlos mit Kosmetik später, (c) überall bezahlt. Entscheidet das Projektmitglied mit dem Team (Rechte am Spiel im Team klären, MP10). Ebenfalls OFFEN (PRD §7.6): Zeitpunkt, Lizenzen für den Verkauf, Preis; die Store-Konten führt WebBude als Publisher (D-119). Bis dahin gilt: keine Preise, keine Termine, keine Käufe; Tabellen für Käufe erst mit CP6.
-
-## 8. Status (15.10.2026)
-
-**Spiel** (`soulwick`, Branch `feature/phase2-rooms`, [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md)):
-
-- Phase 1 „Spielbar für mich“ ist fertig: Hauptmenü, Spielstände, UX-Pass, Dorf.
-- Phase 2 „Räume“ und die Umbauten 2b (Räume v2 mit Minispielen, D-120, D-130 bis D-139) und 2c (Fels-Makeover, Kamera, Seitenansicht, D-140 bis D-144) laufen; Stand und offene Pakete in [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md).
-- Entscheidungen bis D-146 (D-121 bis D-129 Multiplayer, D-145 Dev-Feedback, D-146 GitHub).
-- Grafik: offen sind vor allem [SPRITES_V8](design/sprites/SPRITES_V8.md) und Teile von [SPRITES_V9](design/sprites/SPRITES_V9.md); Übersicht in [design/sprites/](design/sprites/README.md).
-- Phase 3 Multiplayer (MP1–MP4: Eingaben, Lobby, gemeinsamer Run über den eigenen Relay, Gast-Anmeldung, Test-Build) ist seit 15.10.2026 im selben Branch wie die Räume (kein eigener Worktree mehr); Test-Build mit `tools/export_build.ps1`. Crossplay und Phase 4 KI-Bosse: geplant.
-
-**Plattform** (`soulwick-platform`, [ROADMAP](../../soulwick-platform/docs/ROADMAP.md)):
-
-- Stack: Bun-Workspaces mit Turborepo, Prisma (PostgreSQL), Biome; Apps API, Relay, Website, Admin-Panel. Stand und Pakete: [Plattform-ROADMAP](../../soulwick-platform/docs/ROADMAP.md).
-
-## 9. Zwei Repositories und ihre Doku
-
-Warum zwei Repos: kein gemeinsamer Code, verschiedene Werkzeuge und Release-Zyklen, das Spiel-Repo bleibt schlank (D-093). Schnittstelle ist die HTTPS-API; Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`, der GDScript-Client im Spiel folgt ihnen.
-
-| `soulwick/` (Spiel) | Wofür |
+| Spiel | Was wir davon wollen |
 | --- | --- |
-| [AGENTS.md](../AGENTS.md) | Arbeitsweise mit Agenten, gilt für beide Repos |
-| [README.md](README.md) | Inhaltsverzeichnis der Spiel-Doku mit Lesereihenfolge |
-| [PRD.md](PRD.md) | Anforderungen ans Spiel (Kern §4, Vision §7) |
-| [ARCHITECTURE.md](ARCHITECTURE.md), [TECHSTACK.md](TECHSTACK.md) | Zielarchitektur, Szenen, Datenfluss; Godot, GUT, Branch-Modell, Commit-Format |
-| [DECISIONS.md](DECISIONS.md) | Produkt-Entscheidungen, D-Nummern |
-| [ROADMAP.md](ROADMAP.md), [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) | MVP und Endlos-Ausbau mit Prüfstand; Phasen 1, 2, 2b, 2c (jetzt) |
-| [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md), [MULTIPLAYER.md](MULTIPLAYER.md) | Phase 3: MP0 bis MP10; Technik des Host-Modells |
-| [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) | CP0 bis CP6: Konto, Mobil, Lobby/Relay, Stores, Cloud-Save, Käufe |
-| [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md), [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) | Phase 4: KI-Wunschbosse „Traumweber“ |
-| [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md), [KONZEPT_RAEUME.md](KONZEPT_RAEUME.md), [KONZEPT_ENDLOS.md](KONZEPT_ENDLOS.md) | Räume v2 mit Minispielen (D-120, gültig); Raumkonzept v1 (teilweise abgelöst); Schwierigkeit, Biome (umgesetzt) |
-| [GLOSSAR.md](GLOSSAR.md), [KONZEPT_SPRACHEN_EINSTELLUNGEN.md](KONZEPT_SPRACHEN_EINSTELLUNGEN.md), [AUDIO.md](AUDIO.md) | Begriffe Deutsch ↔ Englisch; Sprachen und Optionen; Musik und Übergänge |
-| [HANDOUT.md](HANDOUT.md) | Palette, Maßstab, Namensregeln für Code und Grafik (Spiel und Web) |
-| [design/sprites/](design/sprites/README.md) | Grafik-Briefings `SPRITES*.md` für Claude Design mit Stand; Ablage unter `art/` |
-| [design/](design/README.md) | Mockups und Referenzen (`screens/`, `scenes/`, `szenen/`, `ui_spec.json`), Antworten von Claude Design; Inspiration, keine Vorlage |
+| Among Us | Gefühl, Einstieg, Clips, Spielfigur als Maskottchen, Kosmetik |
+| Soul Knight | engster Genre-Nachbar (Pixel-Roguelite, Koop, Handy). Unser Unterschied: Minispiel-Räume, KI-Bosse, Crossplay PC/Handy/Browser, Dorf zum Zeigen |
+| Stardew Valley | Lebendigkeit und Gemütlichkeit des Dorfs |
+| Dead Cells, Eastward, Celeste | moderne Pixel-Art: Licht, Bewegung, Feinschliff |
 
-| `soulwick-platform/` (Online-Teil) | Wofür |
+## 3. Ton und Aufmachung (D-174)
+
+- **Dungeon:** spannend und atmosphärisch, darf düster sein (wie das Raumschiff in Among Us), wird aber nie ernst oder lächerlich. Das Licht des Spielers ist warm und positiv.
+- **Dorf:** süß, gemütlich, lebendig. Hier gibt man gern Gold und Geld aus, verschönert sein Dorf und lädt Freunde ein, es anzuschauen.
+- **Moderne Pixel-Art statt Retro-Look:** Pixel-Stil bleibt, wirkt aber wie heute gemacht: dynamisches Licht, Bloom, weiche Schatten, Unschärfe hinter Menüs, Partikel, Wind in Gras und Stoff, Squash and Stretch, weiche Kamera, klares, animiertes UI. Keine gewollten Grafikfehler, kein „authentisch alt“.
+- **Klang:** Chiptune-Wurzeln, aber modern produziert (Bässe, Hall, echte Instrumente gemischt), nicht nur Piepen. OFFEN: ob dafür Komponist oder Werkzeug nötig ist; die synthetischen Skripte (`tools/generate_*.py`) bleiben Platzhalter.
+- **Nach außen** sagen wir „moderne Pixel-Art“, nicht „8-Bit“. Website und Store-Seiten beschreiben den Release-Umfang (§5) schon vor dem Release als Teil des Spiels, ohne „kommt“ oder „in Arbeit“; unter „Was kommt“ steht nur, was nach dem Release kommt (D-179).
+
+## 4. Maskottchen (D-175)
+
+- **Wick**, ein kleines Docht-Wesen (eine lebende Kerze mit Flamme), ist das Gesicht von Soulwick (wie die Crewmates bei Among Us). Im Spiel ist Wick dein **persönlicher Begleiter von Anfang an**, Grundlage für Begleiter und Pets; er gehört zum Release-Umfang (§5).
+- **Das Huhn** ist Neben-Maskottchen (wie das Schwein bei Minecraft) und taucht immer wieder mit Wick auf.
+- Kosmetik gibt es für Spielfigur, Wick und Dorf.
+- OFFEN: Name endgültig, Aussehen im Einzelnen (Briefing für Claude Design; eine etwas schlankere Kerze ist erlaubt, wenn Wick so sympathisch bleibt, lieber etwas höher als schmaler, damit er nicht wie ein Quadrat wirkt), was Wick spielerisch tut (Vorschlag: Wick ist die Quelle deines Lichtkreises).
+
+## 5. Spielidee
+
+1. **Endloser Abstieg:** Räume im Fünferzyklus, alle 15 Räume ein Boss, dann Lagerfeuer und neues Biom, der Dungeon endet nie (D-073). Jeder Raum hat eine Aufgabe: Kampf, Arena oder Minispiel (D-120).
+2. **Direkte Steuerung:** präzise, sofort verständlich; Maus und Tastatur, Touch (D-168), Gamepad.
+3. **Run-Entscheidungen:** Waffen, Upgrades, Spezialräume, Abzweigungen; Gold ist eine Entscheidung (Portal 100 %, Tod 50 %).
+4. **Dorf:** ausbauen (Meta-Progression), verschönern (Kosmetik und Deko) und Freunde einladen: gemeinsam im Koop oder als Besuch, auch wenn du nicht da bist (Dorf besuchen).
+5. **Zusammen:** Koop für 2 bis 4 Spieler, Einladen per Link oder Raumcode über den eigenen Relay (D-119), Gilden, Ranglisten.
+
+**Modi:**
+
+| Modus | Wann |
 | --- | --- |
-| [README.md](../../soulwick-platform/README.md), [AGENTS.md](../../soulwick-platform/AGENTS.md) | Starten, Prüfen, Ordner; Ergänzungen zur Arbeitsweise (Verträge zuerst, Agenten `api-dev`, `web-dev`, `admin-dev`) |
-| [docs/PRD.md](../../soulwick-platform/docs/PRD.md) | Anforderungen an API, Website und Admin-Panel |
-| [docs/ARCHITECTURE.md](../../soulwick-platform/docs/ARCHITECTURE.md), [docs/TECHSTACK.md](../../soulwick-platform/docs/TECHSTACK.md) | Systemgrenzen, Datenmodell, Abläufe; Bun, Turborepo, Prisma, Befehle |
-| [docs/ROADMAP.md](../../soulwick-platform/docs/ROADMAP.md) | Pakete P1 bis P17 |
-| [docs/DECISIONS.md](../../soulwick-platform/docs/DECISIONS.md) | technische Entscheidungen, P-Nummern |
-| [docs/design/README.md](../../soulwick-platform/docs/design/README.md) | Design-Index: Ordnerregeln, Dateien, wer was schreibt |
-| [docs/design/TOKENS.md](../../soulwick-platform/docs/design/TOKENS.md) | Design-Tokens für Website und Admin-Panel |
-| [docs/design/web/HANDOFF_WEB.md](../../soulwick-platform/docs/design/web/HANDOFF_WEB.md), Mockups | Übergabe aus Claude Design, verbindlich für die Landingpage |
-| [docs/design/web/KONZEPT_WEB.md](../../soulwick-platform/docs/design/web/KONZEPT_WEB.md) | Website-Konzept: Seiten jenseits der Landingpage, Mockup-Liste, offene Fragen |
-| [docs/design/admin/README.md](../../soulwick-platform/docs/design/admin/README.md) | Admin-Design (Platzhalter) |
-| [infra/DOKPLOY.md](../../soulwick-platform/infra/DOKPLOY.md), [apps/web/public/brand/README.md](../../soulwick-platform/apps/web/public/brand/README.md) | Betrieb auf dem VPS; Ablage der Website-Grafiken |
+| Abstieg (endlos, allein oder im Koop mit Freunden) | Kern, zum Release |
+| KI-Bosse („Wünsch dir einen Boss“, der Traumweber baut ihn: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md)) | zum Release (D-179); stärkster Clip-Moment |
+| Party-Modus (nur Minispiele, Spieler gegeneinander, gleiche Grafik) | nach dem Release (D-179) |
 
-## 10. Begriffe
+**Release-Umfang (D-179):**
 
-Deutsch ist die Doku-Sprache, Englisch die Standardsprache von Spiel und Website (D-111). Englische Begriffe sind **verbindlich**, wo sie aus Verträgen oder Routen stammen (in Backticks); sonst Vorschlag für UI-Texte.
+| Zum Release im Spiel | Nach dem Release („Was kommt“) |
+| --- | --- |
+| Koop mit Freunden (Einladen per Link, Gilden, Ranglisten), KI-Bosse, Wick als Begleiter, Dorf ausbauen und verschönern sowie Outfits zum Freispielen (Lesart, D-179), Freunde ins Dorf einladen (Dorf besuchen); spielbar im Browser, auf Steam, Android und iOS (§6) | Party-Modus, laufend neue Minispiele, Bosse und Modi |
 
-| Deutsch | Englisch | Erklärung |
-| --- | --- | --- |
-| Run | run (`runs`) | ein zusammenhängender Dungeon-Durchlauf mit temporären Waffen, Upgrades und Gold |
-| Raum | room | kleinste Einheit des Dungeons, vorgefertigte Vorlage, nahtlos mit der nächsten verbunden; gezählt ab 1 |
-| Fünferzyklus | cycle of five | drei Kampf- oder Minispielräume (nach dem dritten eine Upgrade-Wahl), ein Spezialraum, ein Miniboss; alle 15 Räume stattdessen der Boss |
-| Spezialraum | special room | Raum 4 im Zyklus: Händler, Waffenauswahl, Brunnen, Upgrade-Altar (manchmal Pakt-Altar), Prüfungsraum; Angebote freiwillig, in 30 % ein Ausgangsportal |
-| Raumart | room kind | Aufgabe eines Kampfraums (Säubern, Arena, Minispiele, D-120), unabhängig vom Biom |
-| Biom | biome | Optik, Gegner und Boss eines 15-Raum-Abschnitts: Krypta, Schleimgrotte, Schattenreich, Glutkammer |
-| Boss, Miniboss | boss, miniboss | Boss auf Raum 15, 30, 45 (einer je Biom); Miniboss auf Raum 5 jedes Zyklus |
-| Lagerfeuer | campfire | Rast zwischen den Biomen nach einem Boss |
-| Dorf | village | Start- und Rückkehrpunkt mit Schmiede, Handelsposten, Chronik und Gildenhaus |
-| Seelenkristall | soul crystal | zweite Währung für den Handelsposten (Proviant für den nächsten Run); in der Lore Reste verloschener Seelen |
-| Gold-Regel | gold rule | 100 % des Run-Golds am Portal, 50 % (aufgerundet) bei Tod oder Abbruch |
-| Host, Client | host, client | im Koop rechnet der Host die Spielwelt, die anderen sind Clients; der Relay leitet nur weiter |
-| Schnelles Spiel | quick play (`quick`) | Koop ohne Bindung, ohne Meta-Boni und Auszahlung |
-| Gilde | guild (`guild`, `guilds`) | dauerhafte Gruppe mit Einladungscode, höchstens 30 Mitglieder, eine je Spieler |
-| Gildenkasse, Gilden-Schmiede | guild treasury, guild forge | gemeinsamer Gilden-Fortschritt auf dem Server, abgesichert über eine Versionsnummer (Vorschlag D-081) |
-| Rangliste | leaderboard (`leaderboards`, `solo`, `group`, `guild`) | Wertung nach höchstem Raum, bei Gleichstand kürzere Zeit; markierte Runs und gesperrte Spieler zählen nicht |
-| Saison | season (`season=YYYY-MM`) | Kalendermonat als Ranglisten-Zeitraum, neben Allzeit (`all`) |
-| Konto, Identität | account, identity (`player_identities`) | Konto = Spieler auf dem Server; Identität = ein Plattform-Login daran (`steam`, `device`, `google_play`, `game_center`); verknüpft per Code (D-121, D-122) |
-| Relay, Raumcode | relay, room code | eigener Server, der Koop-Pakete nur weiterleitet; der Host teilt einen Raumcode, die anderen treten damit bei (D-119) |
-| Crossplay | crossplay | zusammen spielen über Steam, Google Play und App Store hinweg (Zielbild D-108) |
+- **Release** auf allen Versionen gleichzeitig: Browser, Steam, Android und iOS (D-179; ersetzt die Reihenfolge Steam → Android → iOS aus D-119), erst wenn das Release-Tor in [ROADMAP.md](ROADMAP.md) erfüllt ist.
+- **Öffentlich erst ab Release:** Die Social-Media-Phase beginnt mit dem Release (D-179; ob die Steam-Seite „Demnächst verfügbar“ schon dazu zählt, ist OFFEN). Die Website darf vorher online sein; sie beschreibt den Release-Umfang wie vorhanden und schaltet nur Live-Funktionen ab (Spielen und Installieren zeigen „zum Release“, keine Ranglisten- und Gildenseiten). Social-Media-Links erscheinen nur, wenn es den Kanal gibt. Store-Knöpfe sind vor dem Release eigene Pixel-Knöpfe ohne fremde Logos; offizielle Badges kommen erst mit echten Store-Links (D-179, [STORES.md](STORES.md) §6).
+- **Echte Personen als KI-Boss:** OFFEN (D-179, Team und Fachanwalt; Risiken in [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) §9); bis dahin sind alle Beispiele für Wunschbosse in Doku, Website und Store erfunden.
 
-## 11. Wo Entscheidungen stehen
+## 6. Plattformen und Geschäftsmodell (D-176)
 
-- **Produkt:** D-Nummern in [DECISIONS.md](DECISIONS.md) (Spiel-Repo), aktuell bis D-146. Vor einem neuen Eintrag die höchste Nummer suchen (`grep -n "^### D-" docs/DECISIONS.md | tail`); nichts als OFFEN Markiertes still festlegen (AGENTS.md §6).
-- **Technik der Plattform:** P-Nummern in [`soulwick-platform/docs/DECISIONS.md`](../../soulwick-platform/docs/DECISIONS.md): P-001 bis P-029 (Stack, i18n, eRecht24, Identitäten, WebP) und P-101 bis P-109 (Annahmen, VORGESCHLAGEN, vom Team zu bestätigen).
-- **Offene Produktfragen gesammelt:** CP0 Fragen 1 bis 8 in [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md), MP0 in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md), Website in [`KONZEPT_WEB.md`](../../soulwick-platform/docs/design/web/KONZEPT_WEB.md) §12.
-- **Bei Widerspruch** zwischen den Repos gilt für Produktfragen das Spiel-Repo; Verträge (`packages/contracts`) gelten für die API.
+Zum Release ist Soulwick auf allen Versionen spielbar – Browser, Steam, Android und iOS – mit Crossplay über alle (D-108, D-179); die frühere Reihenfolge Steam → Android → iOS (D-119) gilt nicht mehr. Das Geschäftsmodell ist eine Arbeitsentscheidung, damit gebaut werden kann; Preise und Termine bleiben OFFEN:
+
+| Wo | Zum Release | Preis | Geld durch |
+| --- | --- | --- | --- |
+| **Browser** (Web-App) | spielbar (D-148) | kostenlos, ohne Konto, sofort per Link mit Freunden | später Kosmetik; keine Werbung, solange es geht |
+| **Handy**: **Android** (Google Play) und **iOS** (App Store, iPhone und iPad) | spielbar | kostenlos | Werbung (freiwillige Belohnungsvideos, ruhige Banner zwischen Runs), „Werbefrei“ als Einmalkauf, Kosmetik |
+| **Steam** (PC) | spielbar | kleiner Preis (Größenordnung 3 bis 5 €, OFFEN) | Kaufpreis, Kosmetik; ohne Werbung, Start-Kosmetik inklusive, Steam-Freunde und -Erfolge |
+
+- **Vor dem Release** braucht es dafür alle Store-Konten, auch das Apple Developer Program (iOS und eine notarisierte macOS-Version); Schritte in [STORES.md](STORES.md).
+
+- **Kein Pay-to-win:** Verkauft werden nur Kosmetik und Werbefreiheit, kein Gold, keine Kristalle, keine Stärke. **Keine Lootboxen**, nur direkt kaufbare Gegenstände.
+- **Nicht jetzt:** bezahlte Web-App (Hürde widerspricht „schnell reinrennen“), Windows Store (später möglich, dann wie Steam).
+- **Später:** Lizenzen, Merch, Plattform-Deals. Die Geschäftsplanung läuft außerhalb des Repos; hier steht nur, was das Produkt betrifft.
+
+## 7. Open Source (D-177)
+
+- **Code** beider Repositories ist öffentlich unter **GPL-3.0**. **Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Wick, Huhn)** sind davon ausgenommen: alle Rechte vorbehalten ([LICENSE-ASSETS.md](../LICENSE-ASSETS.md)).
+- **Offizielle Server** sind für alle offen, weil Browser und Handy kostenlos sind. Geschützt wird nicht der Zugang, sondern das Gekaufte: Kosmetik und Werbefreiheit liegen am Konto auf dem Server und werden über die Quittungen der Stores bzw. das Steam-Ticket geprüft (Steam Web API). Ein selbst gebautes Spiel kann lokal alles freischalten, online aber nichts Gekauftes vortäuschen.
+- Missbrauch online behandeln Plausibilitätsprüfung, Sperren und Moderation wie bei allen Spielern.
+
+## 8. Online (optional)
+
+Das Spiel bleibt ohne Server spielbar; jeder Aufruf darf scheitern (D-083, D-093). Online kommen dazu: Konto ohne E-Mail und Passwort (Plattform-Identitäten, D-121, D-122), Relay mit Raumcodes (D-119), Gilden (D-147), Run-Berichte und Ranglisten (D-082), Website und Admin-Panel. Gespeichert werden nur Plattform-IDs, Name, Gilde und Run-Berichte. Details: [`soulwick-platform/docs/PRD.md`](https://github.com/WebBude-de/soulwick-platform/blob/main/docs/PRD.md).
+
+## 9. Wo was steht
+
+- Doku-Inhaltsverzeichnis: [README.md](README.md); Arbeitsweise mit Agenten: [AGENTS.md](../AGENTS.md).
+- Produkt-Entscheidungen (D-Nummern): [DECISIONS.md](DECISIONS.md); Technik der Plattform (P-Nummern): [`soulwick-platform/docs/DECISIONS.md`](https://github.com/WebBude-de/soulwick-platform/blob/main/docs/DECISIONS.md).
+- Bei Widerspruch zwischen den Repos gilt für Produktfragen das Spiel-Repo; für die API gelten die Verträge in `soulwick-platform/packages/contracts`.

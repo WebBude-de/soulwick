@@ -1,11 +1,11 @@
 # Claude-Design-Antwort: Räume V2 (14.10.2026)
 
-Antwort auf BRIEFING_RAEUME_V2 (14.10.2026). Gameplay aus KONZEPT_RAEUME_V2 übernommen; hier Look, Bau, Quellen, Türen, Intro-Muster, Wand-System, Dorf, UI. Mockups: docs/design/claude_design_antwort/mockups (2×, Beleuchtung als Vorschlag: Umgebung 45–55 % sichtbar statt schwarz, Lichtkreis 5 Kacheln, jede Quelle wirft Licht).
+Antwort auf BRIEFING_RAEUME_V2 (14.10.2026). Gameplay aus KONZEPT_RAEUME_V2 übernommen; hier Look, Bau, Quellen, Türen, Intro-Muster, Wand-System, Dorf, UI. Mockups: docs/design/responses/mockups (2×, Beleuchtung als Vorschlag: Umgebung 45–55 % sichtbar statt schwarz, Lichtkreis 5 Kacheln, jede Quelle wirft Licht).
 
 | Datei | Inhalt |
 | --- | --- |
 | 01_raumarten.md | Steckbriefe aller Raumarten (Fantasie, Bau, Quellen, Licht, Tür, Intro, Belohnung, Geleit-Figur) |
-| 02_grundrisse.md + 02_grundrisse_uebersicht.png + skizzen/ | 17 Grundrisse als ASCII mit Legende und Skizzen, Deko-Regeln |
+| 02_grundrisse.md + 02_grundrisse_uebersicht.png + sketches/ | 17 Grundrisse als ASCII mit Legende und Skizzen, Deko-Regeln |
 | 03_gegner_auftritt.md | 6 Quellen mit Ablauf Warnung → Erscheinen → Angriff |
 | 04_wandsystem.md | Autotile-Regel, Einbauten, Seitenwände, Abgrund |
 | 05_tueren.md | Torbogen, Seitentür, Modusfarben, Gänge, Abzweigung |

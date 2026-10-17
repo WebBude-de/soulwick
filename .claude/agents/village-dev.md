@@ -7,7 +7,8 @@ model: inherit
 
 You are the village developer of Soulwick, a 2D top-down dungeon roguelite in Godot 4.7.2 (GDScript, typed).
 Read `AGENTS.md` first; its rules are binding. Then read your package in `docs/ROADMAP_AUSBAU.md`, the decisions it
-names (`docs/DECISIONS.md`: D-078, D-087, D-059 save format) and `docs/KONZEPT_ENDLOS.md` §6.
+names (`docs/DECISIONS.md`: D-078, D-087, D-059 save format) and the meta progression in `meta/meta_progression.gd`; companions, cosmetics and village decoration follow
+`docs/KONZEPT_BEGLEITER_KOSMETIK.md` (D-175, D-176: cosmetics only, no pay-to-win).
 
 ## Ownership
 

@@ -1,13 +1,13 @@
 # Grafik-Briefing V10 – Soulwick: Touch-Steuerung und Eingabe-Symbole
 
 > **Für Claude Design.** Die Bildschirm-Steuerung für Handys und die kleinen Tasten-Symbole in HUD und Hinweisen sind heute **Platzhalter aus Code** (Kreise, Striche, Mini-Pixelbilder). Liefert ihr eine Datei mit genau diesem Namen, baut der Code sie automatisch ein; fehlt eine Datei, bleibt der Platzhalter.
-> **Stand:** 17.10.2026 · **geliefert und übernommen**, 14 Eingabe-Symbole offen (siehe Lieferstand) · Stil wie das Spiel: Pixel-Art ohne Anti-Aliasing, PNG mit Transparenz, Kontur 1 px `#1c1a2b`, Palette aus [HANDOUT.md](../../HANDOUT.md) (Gold `#f2cf4a`, Text `#e9e4d2`, Panel `#2a2638`/`#3b3650`, Kanten `#5d577a`/`#8f88ad`, warmer Ring der heutigen Knöpfe `#d9b77e`).
+> **Stand:** 17.10.2026 · **geliefert und übernommen**, 14 Eingabe-Symbole offen (siehe Lieferstand), neu offen: §9 niedrige Torbögen · Stil wie das Spiel: Pixel-Art ohne Anti-Aliasing, PNG mit Transparenz, Kontur 1 px `#1c1a2b`, Palette aus [HANDOUT.md](../../HANDOUT.md) (Gold `#f2cf4a`, Text `#e9e4d2`, Panel `#2a2638`/`#3b3650`, Kanten `#5d577a`/`#8f88ad`, warmer Ring der heutigen Knöpfe `#d9b77e`).
 > **Wunsch des Projektmitglieds:** „Richtige Controls statt selbst gezeichneter Kreise. Auf dem Handy soll nirgends ‚Leertaste‘ stehen, sondern ein Icon, in dem man den Dash erkennt.“
 > **Leitlinien:** Ein Symbol muss **ohne Text** verständlich sein, auch klein und mit dem Daumen halb darüber. Knöpfe liegen über dem laufenden Spiel: Fläche halbtransparent dunkel, Ring und Icon hell und klar. Icons der Touch-Knöpfe und die kleinen HUD-Symbole zeigen **dasselbe Motiv** (gleiches Dash-Bild auf dem Knopf und im HUD).
 
 ## Lieferstand 17.10.2026
 
-Lieferung von Claude Design (`claude_design_antwort/SPRITES_V10_lieferung.md` liegt nur im Export in `_inbox/`), geprüft auf Maße, Frames, Transparenz und im Spiel (Screenshots), übernommen nach `art/`:
+Lieferung von Claude Design (`responses/SPRITES_V10_lieferung.md` liegt nur im Export in `_inbox/`), geprüft auf Maße, Frames, Transparenz und im Spiel (Screenshots), übernommen nach `art/`:
 
 | Abschnitt | Stand |
 | --- | --- |
@@ -19,6 +19,7 @@ Lieferung von Claude Design (`claude_design_antwort/SPRITES_V10_lieferung.md` li
 | §7b Lobby | **geliefert**: `slot_normal/own/host/empty`, `ready`, `../icon_world`; überarbeitete `icon_host` (kleiner) und `icon_ping_*` (vier Balken) übernommen. |
 | §7c Spiegel | **geliefert**: `mirror.png`. |
 | §8 App-Icons | geliefert 16.10.2026; die Fassung vom 17.10. ist pixelgleich (nur RGBA statt RGB), daher nicht ersetzt. |
+| §9 Niedrige Torbögen | **offen** (17.10.2026, Fehlermeldung #67215ac5): `door_frame_boss_low`, `door_frame_<biom>_soft_low`, optional `tunnel_shade_arch_low`; bis dahin kürzt der Code die hohen Bögen. |
 
 ## Maßstab
 
@@ -282,3 +283,60 @@ Die Browser-Version (game-dev/game.playsoulwick.com) lässt sich als App install
 | `icon_144.png` | 144×144 | Favicon, App-Liste | Gleiches Motiv, 48×48 Pixel-Art ×3; muss auch auf 32 px (Browser-Tab) erkennbar bleiben. |
 
 Nach dem Ablegen baut Dokploy die Browser-Version beim nächsten Push neu; kein Godot-Import nötig.
+
+## 9. Niedrige Torbögen (`art/environment/doors/`, offen seit 17.10.2026)
+
+**Warum:** Fehlermeldung #67215ac5 („Cutted der Eingang“, Bosstor in Raum 14). Zwischen zwei Räumen liegt genau **eine** Gangkachel (M2): Über der Türkachel (32×32) folgt eine Kachel Krone (32 px), dann beginnt schon der Boden des nächsten Raums. Die hohen Bögen (64×56, Türkachel bei y 24) reichten bis 8 px unter diese Kante und wirkten oben abgeschnitten. Ein Rahmen darf deshalb höchstens **16 px über die Türkachel** ragen (`DoorStyle.MAX_FRAME_RISE`), also **48 px hoch** sein, wie die normalen Bögen (48×48) und Höhlenmäuler (64×48).
+
+**Bis zur Lieferung** nimmt der Code aus den hohen Bildern 8 Zeilen heraus (leere Zeilen oben, gleiche Ziegelreihen in den Pfeilern, beim Bosstor Säulenzeilen), nie skaliert. Das sieht ordentlich aus, aber Ziegelreihen werden ungleich hoch und der Schlussstein flacher. Eigene Bilder mit genau diesen Namen ersetzen das automatisch (`DoorArt`, `DoorStyle._fit_rise`).
+
+| Datei | Größe | Beschreibung |
+| --- | --- | --- |
+| `door_frame_boss_low.png` | 64×48, 1 Frame | Das Bosstor aus [SPRITES_V4 §4](SPRITES_V4.md) (`door_frame_boss.png`) in niedrig: zwei Säulen mit Fackelhaltern und gemalten Fackeln, Schädelkrone über dem Bogen, Ketten, biomneutral grau (`#b4aecb`/`#8f88ad`/`#5d577a`, wird je Biom eingefärbt). Säulen kürzer bzw. Bogen flacher, **Schädel und Krone ganz im Bild**, oben 1–2 px Luft. Fackelhalter bei etwa y 14. Öffnung mit `#0b0a12` füllen (der Code macht sie durchsichtig), unten 32 px breit für das Doppeltor `door_boss_open_4f.png` (32×32). |
+| `door_frame_<biom>_soft_low.png` für `crypt`, `slime_grotto`, `shadow_realm`, `ember_forge` | 64×48, 1 Frame | Der gemauerte Torbogen mit **runder Öffnung** aus [SPRITES_V9 §2](SPRITES_V9.md) (`door_frame_<biom>_soft.png`) in niedrig, gleiche Farben je Biom. Ziegelreihen gleich hoch lassen, Bogenkopf etwa 6–8 px stark, Scheitel der Öffnung bei etwa y 6–8 (also 8–10 px über der Türkachel, damit der Spieler im Bogen sichtbar bleibt). Die Krone läuft durch, Umfeld durchsichtig, kein Aufsatz über dem Bogen. |
+| `tunnel_shade_arch_low.png` *(optional)* | 64×48 | Innenschatten zu den niedrigen Bögen wie `tunnel_shade_arch.png` (V9 §2): weicher Verlauf (≈ 18 px) in Form der Öffnung. Fehlt er, entsteht der Schatten aus der Öffnung. |
+
+**Für alle:** Pixel-Art ohne Anti-Aliasing, Kontur 1 px `#1c1a2b`, PNG mit Transparenz. **Fußlinie und Pivot:** unten Mitte (32, 47); die Türkachel liegt bei **(16, 16)** bis (47, 47), die Unterkante des Bildes ist die Bodenlinie der Wandfront. Die Öffnung beginnt unten in voller Türkachel-Breite (Säulen-Innenkante bei x 16 bzw. 47 oder weiter außen). Gilt auch für das spätere Bosstor je Biom aus [SPRITES_V8](SPRITES_V8.md) (`door_frame_boss_<biom>.png`): bitte gleich in 64×48 liefern.
+
+Nach dem Ablegen: `godot --headless --path . --import`.
+
+## 10. Hochkant-Controller (`art/ui/touch/`, offen seit 17.10.2026)
+
+**Wunsch des Projektmitglieds:** „Hochkant schauen wäre so cool: oben zocken und unten wie ein Gamepad. Voll retro.“ Hält man das Handy hochkant, zeigt das Spiel oben das Spielbild über die volle Breite und darunter ein **Handheld-Gehäuse** mit Steuerkreuz links, runden Knöpfen rechts (A Gold, B Violett, X und Y kleiner, Anordnung wie beim SNES: A rechts, B unten, X oben, Y links), flachen Select/Start-Knöpfen in der Mitte und einem kleinen Benutzen-Knopf oben im Feld. Heute zeichnet der Code alles als Pixel-Art-Platzhalter (`ui/touch/portrait_pixel_art.gd`); eine Datei mit genau diesem Namen ersetzt den Platzhalter automatisch (`PortraitPad`).
+
+**Maßstab:** Der Code zeichnet je Grafikpixel eine **ganze Zahl** Bildschirmpixel (Handybreite / 176, auf 1080 px breiten Handys ×6; Option „Größe“ Klein/Groß ×5/×7). Die Teile sind **deckend** (das Gehäuse liegt nicht über dem Spiel). Icons auf den Knöpfen kommen weiter aus §1 (`icon_*.png`, auf A die aktive Waffe), Buchstaben A/B/X/Y und der Schriftzug „SOULWICK“ zeichnet der Code in einer 3×5-Pixelschrift neben die Knöpfe – bitte **nicht** in die Knopfgrafik malen. Pivot aller Teile: Mitte.
+
+Palette: Gehäuse dunkel mit Lila-Ton `#2b2540`, Licht `#3b3356`/`#4a4170`, Schatten `#211c33`, Rille `#1c1a2b`, Kontur `#15131f`, Aufdruck `#7a7396`; A Gold `#f2cf4a` (Licht `#fff0a8`, Schatten `#c9a227`), B Violett `#a66ef0` (Licht `#cba6ff`, Schatten `#7a48c0`), kleine Knöpfe `#5d577a`/`#8f88ad`/`#3b3650`.
+
+| Datei | Größe | Frames | Beschreibung |
+| --- | --- | --- | --- |
+| `portrait_panel.png` | 24×24 | 1 | **9-Slice** des Gehäuses (Rand je Seite **8 px**, die Mitte wird gestreckt): Kunststoff dunkel-lila, oben 2 px dunkle Rille unter dem Bildschirm, darunter eine helle Glanzkante, links etwas heller, rechts und unten dunkler, unten runde Ecken (Radius ≈ 5 px, außerhalb durchsichtig). Ruhige Fläche, keine Muster in der gestreckten Mitte. |
+| `dpad.png` | 52×52 | 1 | Steuerkreuz von oben: Kreuz aus Armen **16 px** breit und **18 px** lang (Mittelquadrat 16×16 bei (18, 18)), erhabene Fläche `#2f2a45` mit heller Kante oben links und dunkler unten rechts, kleine Pfeile (≈ 5×3 px) außen auf jedem Arm, Mulde in der Mitte. Außerhalb des Kreuzes durchsichtig. |
+| `dpad_pressed.png` | 52×52 | 1 | Gleiches Kreuz **mit allen vier Armen eingedrückt** (dunkler, helle Kante weg, Innenschatten). Der Code zeigt davon nur den gedrückten Arm (Ausschnitt oben (18,0,16,18), unten (18,34,16,18), links (0,18,18,16), rechts (34,18,18,16)); diagonal zwei Arme. Kreuz-Umriss daher **deckungsgleich** mit `dpad.png`. |
+| `button_a.png` | 28×28 | 1 | Runder Knopf A, Gold: Fläche ⌀ 26 oben (Mitte bei (14, 13)), darunter 2 px „Dicke“ in dunklem Gold `#7d6114`, Glanz oben links, Kontur. Ohne Buchstaben und ohne Icon. |
+| `button_a_pressed.png` | 28×28 | 1 | A gedrückt: Fläche 2 px tiefer auf der Dicke (Mitte (14, 15)), etwas dunkler, ohne Glanz. |
+| `button_b.png` | 28×28 | 1 | Runder Knopf B, Violett, Aufbau wie A (Dicke `#45286f`). |
+| `button_b_pressed.png` | 28×28 | 1 | B gedrückt, wie A. |
+| `button_small.png` | 20×20 | 1 | Kleiner runder Knopf (X, Y, Benutzen, in der Seitenansicht Waffe wechseln), grau-lila `#5d577a`, Fläche ⌀ 18, 2 px Dicke. |
+| `button_small_pressed.png` | 20×20 | 1 | Gedrückt, Fläche 2 px tiefer. |
+| `button_flat.png` | 20×8 | 1 | Flacher Gummiknopf Select/Start (Pille, runde Enden), `#4a4466`, helle Oberkante, 1 px dunkle Dicke unten. Beschriftung setzt der Code darunter. |
+| `button_flat_pressed.png` | 20×8 | 1 | Gedrückt: dunkler, 1 px tiefer. |
+
+Fehlt eine `_pressed`-Datei, zeigt der Code die normale Datei heller getönt. Gelieferte runde Knöpfe: Icon sitzt genau mittig (bei Platzhaltern 1 px über der Mitte).
+
+```json
+{
+  "group": "touch_portrait",
+  "pixel_scale": 6,
+  "items": [
+    { "name": "portrait_panel", "file": "portrait_panel.png", "frame_size": [24, 24], "frames": 1, "nine_slice": { "left": 8, "right": 8, "top": 8, "bottom": 8 } },
+    { "name": "dpad", "file": "dpad.png", "frame_size": [52, 52], "frames": 1, "pivot": [26, 26], "states": ["", "_pressed"] },
+    { "name": "button_a", "file": "button_a.png", "frame_size": [28, 28], "frames": 1, "pivot": [14, 14], "states": ["", "_pressed"] },
+    { "name": "button_b", "file": "button_b.png", "frame_size": [28, 28], "frames": 1, "pivot": [14, 14], "states": ["", "_pressed"] },
+    { "name": "button_small", "file": "button_small.png", "frame_size": [20, 20], "frames": 1, "pivot": [10, 10], "states": ["", "_pressed"] },
+    { "name": "button_flat", "file": "button_flat.png", "frame_size": [20, 8], "frames": 1, "pivot": [10, 4], "states": ["", "_pressed"] }
+  ]
+}
+```
+
+Nach dem Ablegen: `godot --headless --path . --import`.

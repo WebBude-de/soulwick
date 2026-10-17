@@ -2,7 +2,8 @@
 
 > **Stand:** 13.10.2026 · **Quelle:** Überarbeitetes GDD Master 1.0 (10.10.2026), einschließlich darin konsolidierter GDD 01–11 und bestätigter GitLab-Regeln.  
 > **Zweck:** Getroffene Entscheidungen sichtbar halten. Nicht ohne neue Fakten, protokollierten Grund und Teamfreigabe erneut aufrollen.  
-> **Abgrenzung:** Beschlüsse hier stammen **nicht** aus dem später verworfenen ChatGPT-Testprojekt.
+> **Abgrenzung:** Beschlüsse hier stammen **nicht** aus dem später verworfenen ChatGPT-Testprojekt.  
+> **Aufgelöste Dokumente:** `KONZEPT_RAEUME.md` (v1) und `KONZEPT_ENDLOS.md` wurden am 17.10.2026 aufgelöst (D-178); Abschnittsverweise in älteren Einträgen sind historisch, die Regeln stehen in den jeweiligen D-Einträgen und im Code.
 
 ## 1. Hierarchie, Status und Änderungsprozess
 
@@ -55,7 +56,7 @@
 | D-023 | VERBINDLICH | **Drei Startwaffentypen**: Schwert, Bogen, Magierstab; weitere Waffen erst nach MVP. | Begrenzter Implementierungsumfang und gemeinsame Waffenschnittstelle. |
 | D-024 | VERBINDLICH | **Magierstab:** langsames, größeres Geschoss; beim Einschlag **ein einziger primärer AOE-Treffer** einschließlich direktem Ziel. | Direktschaden wird **nicht** zusätzlich zum Basis-AOE gerechnet. |
 | D-025 | VERBINDLICH | **Attack-Rate** = Angriffe pro Sekunde; Prozentsätze additiv. | Konsistente Waffenwerte und DPS-Berechnung; kein Begriffswechsel zu „Attack Delay“. |
-| D-026 | VERBINDLICH | MVP-Pool besteht aus **genau 15 Upgrades**: 7 Attribute, 5 Mechaniken, 3 Effekte (Liste in [PRD.md](PRD.md)). | Frühere Feuer-/Gift-/Zusatzvorschläge sind **nicht** im MVP. |
+| D-026 | VERBINDLICH | MVP-Pool besteht aus **genau 15 Upgrades**: 7 Attribute, 5 Mechaniken, 3 Effekte (Daten in `upgrades/data/*.tres`). | Frühere Feuer-/Gift-/Zusatzvorschläge sind **nicht** im MVP. |
 | D-027 | VERBINDLICH | Upgrades sind **runweit**, bleiben nach Waffenersatz erhalten und wirken auf kompatible Angriffe; Auswahl bis zu **3 unterschiedliche verfügbare** Angebote. | Keine Upgrades an einzelne Waffeninstanzen binden. |
 | D-028 | VERBINDLICH | Tag-Anwendbarkeit mit **OR** (mindestens ein passender Tag), `required_tags` zusätzlich vollständig nötig. | Eindeutige Filterregel ohne implizites All-Tags-Erfordernis. |
 | D-029 | VERBINDLICH | Numerische Upgrades mehrfach stapelbar; Mechanik-Stufenlimits: **Durchschlag 3**, **Wandabprall 1**, **Doppelschuss 1**, **Schwungwinkel 3**, **AOE-Radius 3**. | Stack-Grenzen bleiben reproduzierbar. |
@@ -321,7 +322,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-074 – Schwierigkeitskurve und Schild-Nerf
 
 - **Status:** VERBINDLICH (Werte = TESTWERTE) · **Datum:** 2026-10-13 / Projektmitglied („viel zu easy“)
-- **Beschluss:** Werte siehe [KONZEPT_ENDLOS.md](KONZEPT_ENDLOS.md) §3: Gegner pro Raum 1–2 → bis 3–5, Wellen (2 ab Raum 30, 3 ab Raum 60), HP ×1,18 und Schaden ×1,14 je Block, Angriffstempo und Lauftempo steigen, Elite-Chance +2 %/Block (max. 50 %), Schildverstärkung +4, Schild/Heilung bei Tötung +0,5, Shop-Schild +3, Schild-Softcap ab 15.
+- **Beschluss:** Werte heute in `enemies/enemy_scaling.gd`, Faktoren in D-154; Ausgangslage: Gegner pro Raum 1–2 → bis 3–5, Wellen (2 ab Raum 30, 3 ab Raum 60), HP ×1,18 und Schaden ×1,14 je Block, Angriffstempo und Lauftempo steigen, Elite-Chance +2 %/Block (max. 50 %), Schildverstärkung +4, Schild/Heilung bei Tötung +0,5, Shop-Schild +3, Schild-Softcap ab 15.
 - **Ersetzt:** D-009 (Anzahl), D-011 (Faktoren), Zahlenwerte aus D-014, D-036 (Schild +4 → +3).
 
 ### D-075 – Biome
@@ -580,7 +581,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-100 – Raumarten Normal / Arena / Abgrund, Formen statt „Strukturiert“
 
 - **Status:** VERBINDLICH (Raumkonzept vom Projektmitglied bestätigt) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
-- **Beschluss:** Raumarten sind **Normal** (`normal`), **Arena** (`arena`, Wellen) und **Abgrund** (`chasm`). Die Raumart „Strukturiert“ entfällt: Innenmauern, Säulen, Engstellen sind **Formen** und **Zutaten** des normalen Kampfraums ([KONZEPT_RAEUME.md](KONZEPT_RAEUME.md) §3). Gewichte ab Raum 6: Normal 40 / Arena 35 / Abgrund 25, kein Abgrund zweimal hintereinander; Raum 1–5 nur normale Kampfräume. Raumarten, Formen und Größen werden im Spiel **nie angezeigt**.
+- **Beschluss:** Raumarten sind **Normal** (`normal`), **Arena** (`arena`, Wellen) und **Abgrund** (`chasm`). Die Raumart „Strukturiert“ entfällt: Innenmauern, Säulen, Engstellen sind **Formen** und **Zutaten** des normalen Kampfraums ([KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md), D-113). Gewichte ab Raum 6: Normal 40 / Arena 35 / Abgrund 25, kein Abgrund zweimal hintereinander; Raum 1–5 nur normale Kampfräume. Raumarten, Formen und Größen werden im Spiel **nie angezeigt**.
 - **Ersetzt:** D-086 (Raumart-Liste und Gewichte; Abgrund-Regeln bleiben), PRD 7.4. Umsetzung: Nacharbeit A1 in ROADMAP_AUSBAU.
 
 ### D-101 – Kampf-Varianten
@@ -641,7 +642,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Neue Roadmap [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) (CP0–CP6) als Phase nach dem Multiplayer; Verweise in AGENTS.md §3 und ROADMAP_MULTIPLAYER „Überblick“. Website (Plattform P9): Steam, Google Play, App Store als „geplant“ mit Crossplay-Hinweis.
   - **Zu entscheiden vor MP2** (CP0): Geschäftsmodell, Konto-Modell, Lobby/Relay, Plattform-Reihenfolge, Touch-Steuerung, Altersfreigabe, Ranglisten je Plattform oder gemeinsam.
 - **Ergänzt:** D-083, D-093. **Ersetzt:** keine.
-- **Teilweise entschieden in D-119, D-121, D-122** (Relay, Plattform-Reihenfolge und Publisher; Konto-Modell; Zusammenführen von Konten). Geschäftsmodell, Touch, Altersfreigabe, Ranglisten je Plattform und Relay-Regionen bleiben OFFEN (CP0).
+- **Teilweise entschieden in D-119, D-121, D-122** (Relay, Plattform-Reihenfolge und Publisher; Konto-Modell; Zusammenführen von Konten), **weiter entschieden in D-155/D-168** (Touch), **D-173** (Zielgruppe; Freigabe aus IARC) und **D-176** (Geschäftsmodell). Ranglisten je Plattform und Relay-Regionen bleiben OFFEN (CP0).
 
 ### D-109 – Belohnungen der neuen Räume
 
@@ -780,12 +781,13 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Plattform: neuer Dienst `apps/relay` (P-016), Steam nur Zusatz (P-017), Domains `play.playsoulwick.com` und Umgebungen (P-018); Pakete P13–P17 in `soulwick-platform/docs/ROADMAP.md`, Konzept `soulwick-platform/docs/KONZEPT_ONLINE.md`.
   - Datenschutz: Relay-Verbindungsdaten (IP, Spieler-ID, Zeitpunkt, keine Inhalte) und die Plattform-IDs in die Datenschutzerklärung (eRecht24).
 - **Ergänzt:** D-083, D-108. **Ersetzt:** keine.
+- **Ergänzung 17.10.2026:** Reihenfolge der Stores durch D-179 ersetzt (alle Plattformen zum Release).
 
 ### D-120 – Räume v2: klare Modi, Minispiele, Abgrund-Raumart gestrichen
 
 - **Status:** VERBINDLICH (Gameplay) · Look folgt aus Claude Design · **Datum:** 2026-10-14 / Projektmitglied
 - **Beschluss:** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
-- **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/claude_design_antwort/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
+- **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/responses/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
 
 ### D-121 – Konto-Modell: ein Soulwick-Konto mit verknüpften Plattform-Identitäten
 
@@ -907,7 +909,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-131 – Räume aus Plänen, einheitliches Wand-System (R1)
 
 - **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach Claude-Design-Antwort (D-120)
-- **Beschluss:** Alle Raumvorlagen entstehen aus ASCII-Plänen (`dungeon/rooms/plans/`, Legende aus `docs/design/claude_design_antwort/02_grundrisse.md` plus `a F D Z m j`); je Biom eigene Vorlagen (Bodenquellen wechseln auf die Biomquelle), Spiegelungen als eigene Vorlagen. Der Generator prüft: Wandregel (Krone + Vorderseite, Nordwand 2 Kronen + 1 Vorderseite, Pfeiler 2×2), Einbauten bündig in der Vorderseite, Türen frei, jede Bodenkachel zu Fuß erreichbar, keine Deko im einzigen Gang, Fallen nur mit Grund, höchstens 1 Deko-Gruppe je 20 Bodenkacheln (Auffüllen bis 1 je 30). Keine Zufallsstreuung von Requisiten mehr. Raumart-Gewichte ab Raum 10: Normal 0,65 / Arena 0,35 / Abgrund 0. Boss-, Miniboss- und Ruheräume je Biom aus eigenen Plänen. Wasser bremst Spieler auf 70 %. Geheimnische bis zum Sprengen als Fels gemalt, Bruchkante in Biomfarbe.
+- **Beschluss:** Alle Raumvorlagen entstehen aus ASCII-Plänen (`dungeon/rooms/plans/`, Legende aus `docs/design/responses/02_grundrisse.md` plus `a F D Z m j`); je Biom eigene Vorlagen (Bodenquellen wechseln auf die Biomquelle), Spiegelungen als eigene Vorlagen. Der Generator prüft: Wandregel (Krone + Vorderseite, Nordwand 2 Kronen + 1 Vorderseite, Pfeiler 2×2), Einbauten bündig in der Vorderseite, Türen frei, jede Bodenkachel zu Fuß erreichbar, keine Deko im einzigen Gang, Fallen nur mit Grund, höchstens 1 Deko-Gruppe je 20 Bodenkacheln (Auffüllen bis 1 je 30). Keine Zufallsstreuung von Requisiten mehr. Raumart-Gewichte ab Raum 10: Normal 0,65 / Arena 0,35 / Abgrund 0. Boss-, Miniboss- und Ruheräume je Biom aus eigenen Plänen. Wasser bremst Spieler auf 70 %. Geheimnische bis zum Sprengen als Fels gemalt, Bruchkante in Biomfarbe.
 - **Stand:** 39 Pläne → 124 Kampf- und 25 weitere Vorlagen; Säubern je Biom 11–16 Pläne.
 
 ### D-132 – Gegner-Quellen: Warnung, Erscheinen, Wahl hinter dem Spieler (R2)
@@ -1041,7 +1043,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Server-Umgebung normaler Releases über die Repository-Variable `RELEASE_ENV` (Standard `development`, bis die Produktiv-Server laufen).
   - Umsetzung (16.10.2026, Claude): jeder development-Build ist ein Pre-Release; manueller Start („Run workflow“) taggt `v<version>-dev.<Lauf>` bzw. `-rc.<Lauf>`; GitHub Pages entfällt. Android-Secrets: `ANDROID_DEBUG_KEYSTORE_BASE64` (Updates über lokal gebaute APKs) sowie `ANDROID_KEYSTORE_BASE64`/`_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` für production; fehlen sie, signiert die Pipeline mit einem Wegwerf-Schlüssel und markiert das Release als „nur Test“. Details: `docs/RELEASE.md`.
 - **Lizenz** (Projektmitglied 16.10.2026: „GPL“): beide Repos unter **GPL-3.0-or-later** (`LICENSE`), fremde Bestandteile in `THIRD_PARTY.md`.
-- **OFFEN:** Freigabe der Browser-Version in Produktion (Domain `game.playsoulwick.com` gewählt, 16.10.2026; Website-Knöpfe „Im Browser spielen“/„Web-App installieren“ über `GAME_URL`, in Produktion noch leer).
+- **OFFEN** (bis 17.10.2026, siehe Ergänzung): Freigabe der Browser-Version in Produktion (Domain `game.playsoulwick.com` gewählt, 16.10.2026; Website-Knöpfe „Im Browser spielen“/„Web-App installieren“ über `GAME_URL`, in Produktion noch leer).
+- **Ergänzung 17.10.2026:** Browser-Version ist zum Release öffentlich (D-179): `game.playsoulwick.com` geht mit dem Release in Produktion, gleichzeitig mit Steam, Android und iOS. Bis dahin bleiben die Website-Knöpfe auf „zum Release“ (`LIVE_FEATURES=false`, `GAME_URL` in `production` leer).
 - **Folgen:** `export_presets.cfg` (Vorlagen „macOS“, „Web“), `tools/export_build.sh`/`.ps1` (`macos`, `web`), `tools/build_readme.txt`, `online/online_config.gd`, Haupt- und Pausenmenü, `.github/`; Plattform: `packages/contracts/src/lobby.ts` (`web`), `CORS_ORIGINS` der API.
 - **Ersetzt:** keine.
 
@@ -1366,6 +1369,177 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **OFFEN (Projektmitglied):** Hohe Torbögen (Boss-Tor, V9-Bogen, je 56 px) reichen fast an die Bodenkante des nächsten Raums und wirken oben abgeschnitten – zweite Kronen-Kachel vor hohen Toren oder niedrigere Bogengrafik (`door_frame_boss_low.png` 64×48)?
 - **Folgen:** `dungeon/rooms/{room_tiles,walls/rock_terrain,secrets/secret_niche}.gd`, `dungeon/environment/{spawn/spawn_source,corridors/passage_seam,doors/door,doors/door_view,doors/door_art}.gd`, `dungeon/side/side_decor.gd`, Tests `test_room_feedback_walls.gd`, `test_door_tunnel_view.gd`, `test_room_sorting.gd`.
 - **Ersetzt:** ganze Kachel tiefe Seitennische.
+
+### D-173 – Positionierung und Zielgruppe
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026 nach Gesprächen mit Freunden: „so ein ähnliches Feeling wie Among Us, als es rauskam … ein geiles Spiel, wo man mit Freunden reinrennen kann“; „ab 12 freigeben … nicht offiziell an Sechsjährige vermarkten“) · Formulierung **VORGESCHLAGEN** (Claude)
+- **Kontext:** PRODUKT.md nannte nur „kurze, knackige Runs, allein oder mit Freunden, ab 6“; die Website war eine Feature-Liste ohne Aussage, für wen das Spiel ist.
+- **Beschluss:**
+  - Kernsatz: „Das Pixel-Roguelite, in das du mit Freunden reinrennst – jeder Run anders, jeder Boss ein Clip.“ Koop ist der Kern, allein spielen geht auch.
+  - Leicht zu lernen, schwer zu meistern: Einstieg für alle, Tiefe für Könner (tiefe Räume, Ranglisten, hohe Schwierigkeit).
+  - Zielgruppe Kern 12 bis 25, Freundesgruppen. Store-Zielgruppe ab 13: keine Anmeldung für Kinder-Bereiche (Google Play Familienprogramm, Apple Kids), keine Werbung an Kinder. Inhalt bleibt trotzdem harmlos, weil Jüngere mitspielen.
+  - Die Altersfreigabe ergibt sich aus dem IARC-Fragebogen; wir wählen sie nicht.
+  - Vergleiche: Among Us (Gefühl), Soul Knight (Genre-Nachbar, Abgrenzung über Minispiele, KI-Bosse, Crossplay mit Browser, Dorf zum Zeigen), Stardew Valley (lebendiges Dorf), Dead Cells/Eastward/Celeste (moderne Pixel-Art).
+  - Das Spiel wird laufend erweitert (Minispiele, Bosse, Modi).
+- **OFFEN:** ob KI-Bosse, Käufe und Koop mit Fremden die Freigabe anheben; ob Google ein Spiel mit niedlichem Maskottchen trotz Zielgruppe 13+ als „spricht Kinder an“ einstuft (dann gelten Teile der Familienregeln).
+- **Folgen:** `docs/PRODUKT.md` §2, Website-Texte (`soulwick-platform/apps/web/messages/*`), `docs/STORES.md`, ROADMAP_CROSSPLAY CP0 Frage 6.
+- **Ersetzt:** Zielgruppe „ab 6“ aus PRODUKT.md (Projektmitglied 14.10.2026).
+
+### D-174 – Ton und Aufmachung: atmosphärischer Dungeon, süßes Dorf, moderne Pixel-Art
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „nicht so düster … ein Game-Spiel-Image“; „ein Dungeon kann ruhig schon düster sein … aber das Dorf vor allem kann süß sein“; „den Style behalten, aber es soll modern wirken“) · Tagline **VORGESCHLAGEN** (Claude)
+- **Beschluss:**
+  - Dungeon spannend und atmosphärisch, darf düster sein, nie ernst oder lächerlich. Das Licht des Spielers ist warm und positiv: Du bringst Licht ins Dunkel.
+  - Dorf süß, gemütlich, lebendig; Ort für Kosmetik, Deko und Besuche.
+  - Moderne Pixel-Art: dynamisches Licht, Bloom, weiche Schatten, Unschärfe hinter Menüs, Partikel, Wind, Squash and Stretch, weiche Kamera, klares animiertes UI. Kein Retro-Look mit gewollten Fehlern. Nach außen „moderne Pixel-Art“, nicht „8-Bit“.
+  - Klang: Chiptune-Wurzeln, modern produziert.
+  - Tagline neu: „Grab your friends. Light the dark.“ / „Schnapp dir deine Freunde. Bring Licht ins Dunkel.“ Der Name Soulwick bleibt.
+- **OFFEN:** Komponist oder Werkzeug für moderne Musik; ob die Palette (HANDOUT) für das Dorf heller wird.
+- **Folgen:** `docs/PRODUKT.md` §3, `docs/HANDOUT.md`, `MENU_TAGLINE` in `localization/translations.csv`, Website (`common.json`, `landing.json`), künftige Makeover-Pakete.
+- **Ersetzt:** Tagline „Das letzte Licht im endlosen Dunkel“ (D-094); „dunkel und warm, lila-schwarzer Grund“ als Leitbild für alles.
+
+### D-175 – Maskottchen Wick und Huhn
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Maskottchen kann gerne ein Dochtwesen sein … dein persönlicher Begleiter von Anfang an … wegen Pets“; Huhn als „Side-Maskottchen“) · Name „Wick“ **VORGESCHLAGEN** (Claude)
+- **Beschluss:** Wick, ein kleines Docht-Wesen, ist das Maskottchen und im Spiel der persönliche Begleiter jedes Spielers ab dem ersten Start; Grundlage für Begleiter und Pets. Das Huhn ist Neben-Maskottchen und spielt mit Wick zusammen. Kosmetik gibt es für Spielfigur, Wick und Dorf.
+- **Ergänzung 17.10.2026** (Projektmitglied: „Wick ist ja ein Dochtwesen … ich finde Docht an sich damit zufrieden, ich war nur ein bisschen verwirrt“): Wick bleibt ein Docht-Wesen (kleine lebende Kerze mit Flamme); eine etwas schlankere Kerze ist erlaubt, wenn er so sympathisch bleibt; lieber etwas höher als schmaler, damit der Körper nicht wie ein Quadrat wirkt (Rückmeldung zum Website-Platzhalter mit 10×12-Körper, 17.10.2026). Ein kurz erwogener Umbau zur schwebenden Seele ist verworfen. Briefing: `docs/design/sprites/SPRITES_V12.md`.
+- **OFFEN:** Aussehen im Einzelnen (drei Entwürfe im Konzeptblatt, darunter eine schlankere Kerze, SPRITES_V12 §0), Namenskonflikt mit der Standard-Spielfigur „Wick“ (KONZEPT_BEGLEITER_KOSMETIK §2), Rolle im Spiel (Vorschlag: Wick ist die Quelle des Lichtkreises), ob Pets eigene Fähigkeiten haben (Achtung Pay-to-win, D-176).
+- **Folgen:** `docs/PRODUKT.md` §4, Grafik-Briefing in `docs/design/sprites/`, Konzept für Begleiter und Kosmetik, Website.
+- **Ersetzt:** keine.
+
+### D-176 – Geschäftsmodell (Arbeitsentscheidung)
+
+- **Status:** VERBINDLICH als Arbeitsgrundlage (Projektmitglied 17.10.2026: „vielleicht kannst du da eine Entscheidung treffen, sodass du jetzt einfach anfangen kannst zu bauen“; Handy kostenlos wie Among Us, PC bezahlt auf Steam) · Ausgestaltung **VORGESCHLAGEN** (Claude) · Preise und Termine OFFEN
+- **Kontext:** CP0 Frage 1 war offen. Das Projektmitglied will eine schnelle Web-App, ist sich aber unsicher, ob PC und Browser etwas kosten sollen.
+- **Beschluss:**
+  - Browser kostenlos, ohne Konto, Einladen per Link; Geld später über Kosmetik, möglichst ohne Werbung.
+  - Handy kostenlos mit Werbung (freiwillige Belohnungsvideos, ruhige Banner zwischen Runs, keine Werbung mitten im Kampf), „Werbefrei“ als Einmalkauf, Kosmetik.
+  - Steam mit kleinem Preis (Größenordnung 3 bis 5 €), ohne Werbung, Start-Kosmetik inklusive, Steam-Freunde und -Erfolge; Kosmetik zusätzlich kaufbar.
+  - Verkauft werden nur Kosmetik und Werbefreiheit: kein Gold, keine Kristalle, keine Stärke. Keine Lootboxen.
+  - Nicht jetzt: bezahlte Web-App, Windows Store.
+- **Gründe:** Der kostenlose Browser ist das Schaufenster und der schnellste Weg, Freunde reinzuholen; eine Kaufhürde dort widerspricht D-173. Steam verkauft trotzdem (Among Us, Mindustry): native Leistung, Gamepad, offline, keine Werbung, Steam-Funktionen, Unterstützer. Verworfen: alles bezahlt (bremst die Verbreitung), Web-App bezahlt (Hürde, Zahlungsabwicklung im Browser).
+- **OFFEN:** Preise; Zahlungsweg für Kosmetik im Browser; ob Käufe plattformübergreifend am Konto gelten (Store-Regeln von Apple und Google prüfen); Lizenzen, Merch, Plattform-Deals (Geschäftsplanung außerhalb des Repos).
+- **Folgen:** `docs/PRODUKT.md` §6, ROADMAP_CROSSPLAY CP0 Frage 1 und CP6 (Käufe), `docs/STORES.md`, Website.
+- **Ersetzt:** CP0 Frage 1 „OFFEN“.
+
+### D-177 – Code offen, Inhalte geschützt
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Grafik und Audio kannst du da dann gerne rausnehmen“; Open Source bleibt, „weil wir mögen halt Open Source“) · Lizenztext **VORGESCHLAGEN** (Claude), juristisch prüfen lassen
+- **Beschluss:**
+  - Code beider Repositories bleibt GPL-3.0.
+  - Ausgenommen und mit allen Rechten vorbehalten: Grafik (`art/`, Website-Grafiken), Musik und Klänge (`audio/` bzw. erzeugte Dateien), Logo, der Name „Soulwick“ und die Figuren (Wick, Huhn). Regeln in `LICENSE-ASSETS.md` beider Repos; Drittanbieter-Dateien behalten ihre eigene Lizenz (z. B. Pixelify Sans, OFL).
+  - Offizielle Server bleiben für alle offen (Browser und Handy sind kostenlos, D-176); geschützt wird das Gekaufte über serverseitige Prüfung (Store-Quittungen, Steam-Ticket über die Steam Web API).
+- **OFFEN:** Was bereits unter GPL veröffentlicht wurde, bleibt für diese Stände GPL. Ob KI-erzeugte Grafiken überhaupt urheberrechtlich geschützt sind, ist unsicher; der eigentliche Schutz sind Marke und Name (Markenprüfung MP10). GPL mit App Store und Steamworks-SDK sowie Beiträge Fremder (Beitragsvereinbarung, CLA) mit Fachanwalt klären.
+- **Folgen:** `LICENSE-ASSETS.md`, `README.md` beider Repos, `docs/PRODUKT.md` §7, Plattform-API (Prüfung von Käufen erst mit CP6).
+- **Ersetzt:** „alles unter GPL-3.0“ seit der Veröffentlichung am 16.10.2026.
+
+### D-178 – Doku beschreibt Absicht, der Code das Gebaute
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „man sollte nicht in den Dokumentationen das bereits Gebaute beschreiben … so verlieren wir die Source of Truth“; Design-Ordner „keine Ordner auf Deutsch“)
+- **Beschluss:**
+  - Doku hält fest, was der Code nicht zeigt: Ziel und Zielgruppe (PRODUKT), Begriffe (GLOSSAR), Gründe (DECISIONS), Regeln und Arbeitsweise (AGENTS, HANDOUT, TECHSTACK), was kommt (Roadmaps, Konzepte für Ungebautes), Arbeitsaufträge (Grafik-Briefings) und Anleitungen (Release, Web-Build, Stores).
+  - Ist etwas gebaut, wird sein Konzept auf Entscheidung und Glossar eingedampft; Roadmaps behalten nur Offenes und eine kurze Erledigt-Liste. Kein Archiv: Git hat die Historie.
+  - Ordnernamen in `docs/design/` auf Englisch.
+- **Folgen:** Aufräumen von `docs/` (PRD, ARCHITECTURE, Konzepte, Roadmaps), `docs/design/` neu gegliedert, `AGENTS.md`, `docs/README.md`.
+- **Ersetzt:** keine.
+
+### D-179 – Reihenfolge: Koop, dann KI-Bosse, dann Party-Modus
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „KI-Bosse vorziehen, direkt nach Koop, ja. Und auch … Party-Modus wäre auch schon ganz nice“)
+- **Beschluss:** Nach Phase 2 (Räume) kommt Phase 3 Koop mit Einladen per Link, dann Phase 4 KI-Bosse („Traumweber“), dann Phase 5 Party-Modus (nur Minispiele, Spieler gegeneinander, gleiche Grafik). Parallel möglich, weil andere Dateien: moderner Look (Makeover), Wick als Begleiter, Kosmetik und Dorf-Deko. Store-Reihenfolge Steam → Android → iOS bleibt (D-119; durch die Ergänzung „Plattformen“ unten ersetzt: gemeinsamer Release auf allen Versionen).
+- **Gründe:** Koop ist der Kern (D-173), KI-Bosse sind der stärkste Clip-Moment, der Party-Modus nutzt die vorhandenen Minispiele.
+- **Ergänzung 17.10.2026** (Projektmitglied: „Ich gehe erst, wenn das Game fertig ist. Released ist, dann gehe ich in die Social-Media-Phase“; „beim Release muss das Koop stehen. Und auch das mit den Bossen, das ist ja das Konzept des Spiels, weshalb die Clips entstehen“; „Der Party-Modus, den kannst du reinmachen bei Was kommt“; „Dorf ausbauen … ist auch schon drin zum Release, und Freunde einladen auch“; „bau alles schon ready aus, auch wenn es noch nicht da ist … zum Release ist ja dann alles da“):
+  - **Release-Umfang:** Koop mit Freunden, die KI-Bosse („Wünsch dir einen Boss“), Wick als Begleiter, Dorf ausbauen und Freunde ins Dorf einladen (Dorf besuchen) sind beim Release im Spiel; der Party-Modus kommt nach dem Release. Release-Tor und Mindestumfang (Vorschlag): `docs/ROADMAP.md`.
+  - **Plattformen** (Projektmitglied: „zum Release ist auf allen Versionen das spielbar … auch auf Android und iOS“): Zum Release ist Soulwick auf allen Versionen spielbar – Browser, Steam, Android und iOS – in einem gemeinsamen Release mit Crossplay (D-108). Das ersetzt die Store-Reihenfolge aus D-119 (Steam → Android → iOS, iOS später); die Browser-Version ist damit zum Release öffentlich (D-148). Anmerkung: iOS und eine notarisierte macOS-Version brauchen vor dem Release das Apple Developer Program für WebBude (D-U-N-S-Nummer, Vorlauf Tage bis Wochen) sowie Signieren und Notarisieren auf dem macOS-Läufer der CI; die Pipeline liegt bereit (`tools/ci/ios_build.sh`, `tools/ci/macos_sign.sh`, `docs/STORES.md` §2 und §4).
+  - **Öffentlich** (Social Media) geht es erst ab dem Release.
+  - **Website:** beschreibt den Release-Stand schon vor dem Release: alles aus dem Release-Umfang als Teil des Spiels (Wick ist „dein Begleiter“, nicht „kommt“ oder „in Arbeit“), unter „Was kommt“ nur Späteres (Party-Modus, neue Minispiele, Bosse und Modi). `LIVE_FEATURES=false` schaltet nur die Live-Funktionen ab: Spielen und Installieren zeigen „zum Release“, keine Ranglisten- und Gildenseiten.
+  - **Social-Media-Links** werden in einer Datei der Website gepflegt; nur ausgefüllte erscheinen (Vorschlag: ins Admin-Panel erst, wenn sie sich oft ändern).
+  - **Store-Knöpfe** (Vorschlag Claude, folgt aus den Badge-Regeln von Apple, Google und Valve): Vor dem Release zeigt die Website eigene Pixel-Knöpfe ohne fremde Logos oder Badges, nur mit Plattformnamen („Browser“, „PC · Steam“, „Android“, „iPhone & iPad“) und „zum Release“. Offizielle Badges erst mit echtem Store-Link und `LIVE_FEATURES=true`, unverändert als Link auf die Produktseite (nicht nachzeichnen, umfärben, verzerren oder mit anderen Logos verbinden; App-Store-Badge in der Reihe zuerst, Google-Play-Badge mindestens gleich groß). Store-Links in `apps/web/content/stores.json`, Regeln in `docs/STORES.md` §6.
+  - Beispiele für Wunschbosse sind erfunden, solange die Frage nach echten Personen offen ist.
+- **OFFEN:** Kosten der KI-Erzeugung je Boss und wer sie trägt; Moderation (für Jüngere vorgegebene Bausteine statt Freitext); Regeln des Party-Modus; ob echte Personen (z. B. Politiker) als KI-Boss gewünscht werden dürfen (Persönlichkeitsrecht, Store-Regeln für KI-Inhalte über reale Personen) – mit Team und Fachanwalt klären (das Projektmitglied wünscht es sich für Clips; Risiken in `docs/KONZEPT_KI_BOSS.md` §9); ob die Steam-Seite „Demnächst verfügbar“ (mindestens 2 Wochen vor dem Release sichtbar) und Wunschlisten schon zur öffentlichen Phase zählen.
+- **Folgen:** `docs/ROADMAP.md` (Übersicht), `docs/ROADMAP_KI_BOSS.md`, neues Konzept Party-Modus; Ergänzung: `docs/ROADMAP.md` (Release-Tor), `docs/PRODUKT.md` §2 und §5, `docs/KONZEPT_KI_BOSS.md`, `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/LAUNCH.md`, `docs/STORES.md`, ROADMAP_MULTIPLAYER MP10, ROADMAP_CROSSPLAY CP4, Website (`landing.json`: KI-Bosse, Wick, Dorf, „Was kommt“; Datei für Social-Media-Links); Ergänzung Plattformen und Store-Knöpfe: D-148, `docs/PRODUKT.md` §5 und §6, `docs/ROADMAP.md` (Release-Tor), ROADMAP_CROSSPLAY (CP0 Frage 4, CP2, CP4, CP7), `docs/STORES.md`, `docs/LAUNCH.md`, Website (`content/stores.json`, Store-Knöpfe), `soulwick-platform/infra/DOKPLOY.md`.
+- **Ersetzt:** keine (bestätigt die Phasen 3 und 4, ergänzt Phase 5); die Ergänzung „Plattformen“ ersetzt die Store-Reihenfolge Steam → Android → iOS aus D-119 durch einen gemeinsamen Release.
+
+### D-180 – Melde-Dialog öffnen: Strg + B, am Gamepad Select + Start
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Einfache Tastenkombi, die nicht belegt ist. Ich habe ein 65%-Keyboard“) · Umsetzung **VORGESCHLAGEN** (Claude) · ergänzt D-170
+- **Beschluss:** **Strg + B** (macOS **Cmd + B**) öffnet „Fehler melden / Idee einreichen“; F9 und `#` bleiben. B war nirgends belegt (InputMap inkl. `ui_*`, GamepadInput, Modal-Hotkeys geprüft); Strg + B tippt nichts und geht auch in Textfeldern, nicht mit AltGr. Am Gamepad öffnet **Select (Back) + Start** innerhalb von 250 ms (`PAD_COMBO_MSEC`, TESTWERT, gleiches Pad); ein Druck auf eine der beiden Tasten wird so lange zurückgehalten und danach per `Input.parse_input_event` nachgereicht, damit Pause (Start) und Übersicht (Select, D-163) allein weiter funktionieren. Gilt nur, solange die Meldefunktion an ist.
+- **OFFEN:** Firefox belegt Strg + B (Lesezeichen-Leiste) – im Browser ungeprüft; F9 und `#` gehen dort.
+- **Folgen:** `ui/dev/{dev_feedback,dev_feedback_overlay,dev_feedback_texts,dev_feedback_store}.gd`, `docs/feedback/README.md`, `tests/unit/test_dev_feedback_keys.gd`.
+- **Ersetzt:** keine.
+
+### D-181 – Torbögen passen unter die Krone (niedrige Bogengrafik)
+
+- **Status:** VORGESCHLAGEN (Claude; Entscheidung vom Projektmitglied an Claude delegiert, 17.10.2026, Meldung #67215ac5 „Cutted der Eingang“) · Zahl TESTWERT · ergänzt D-172
+- **Beschluss:** Statt einer zweiten Gangkachel eine niedrigere Bogengrafik; die Regel „genau eine Gangkachel“ (M2) bleibt. Ein Rahmen ragt höchstens `DoorStyle.MAX_FRAME_RISE` = 16 Art-px über die Türkachel (höchstens 48 px hoch). Eine gelieferte `<name>_low.png` hat Vorrang; bis dahin nimmt `DoorArt.lower_rows` ganze Zeilen aus dem hohen Bild heraus (zuerst leere oben, dann sich wiederholende in Pfeilern/Ziegeln, Sockel und Bogenkopf bleiben), ohne Skalierung; Glow und Innenschatten werden gleich gekürzt. Briefing SPRITES_V10 §9 (`door_frame_boss_low.png`, `door_frame_<biom>_soft_low.png`, je 64×48).
+- **Folgen:** `dungeon/environment/doors/{door_style,door_art,door_view}.gd`, Tests `test_door_frame_rise.gd`, `test_door_style.gd`, `test_door_gates.gd`, `test_door_node.gd`, `docs/design/sprites/SPRITES_V10.md` §9.
+- **Ersetzt:** 56 px hohe Bögen (Bosstor, weicher V9-Bogen) in voller Höhe.
+
+### D-182 – Hochkant-Modus: oben Spielbild, unten Handheld-Controller
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Hochkant schauen wäre so cool. Dass man oben zockt und unten wie ein Gamepad hat. Voll retro“; „automatisch drehen“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen TESTWERT · ergänzt D-155, D-168, D-169
+- **Beschluss:**
+  - Auf Handhelds (App, Browser auf Handy/Tablet) mit Fenster höher als breit zeigt das Spiel oben das Spielbild über die volle Breite (1280 Einheiten breit, 45 % der Höhe, 16:9 bis quadratisch, unter der Notch) und darunter ein Handheld-Gehäuse; Umschalten live beim Drehen. Der Desktop schaltet nie um; Querformat wie D-168/D-169.
+  - Umsetzung: Hauptfenster `content_scale_aspect = IGNORE`, `content_scale_size` = Spielbild plus globale Canvas-Transformation – Kameras, Dunkelheit, HUD, Dialoge und Eingabe arbeiten wie im Querformat; Post-Process und Abend-Vignette rechnen in Spielbild-Einheiten.
+  - Belegung Draufsicht: Steuerkreuz läuft (8 Richtungen ±15°, sonst analog), A Angriff in Laufrichtung (Touch-Zielhilfe für Fernwaffen), B Dash, X Spezial, Y Waffe wechseln, oben Benutzen, Select Übersicht, Start Pause. Seitenansicht: A springen, B Seiten-Dash, X Spezial, Y Angriff, oben Waffe. In Menüs Steuerkreuz/A/B als `ui_*` (0,6 s Sperre nach dem Öffnen). Optionen: Seiten tauschen, Größe; Deckkraft hochkant 100 %.
+  - Werte: Kamera-Zoom hochkant ×1,25, HUD ×1,5, Hauptreihe bei 46 % der Feldhöhe.
+  - Export: `display/window/handheld/orientation=6` (Sensor), PWA-Orientation „any“, Web-Hinweis „Dreh dein Gerät“ entfernt.
+  - Grafik: Platzhalter im Code, Briefing SPRITES_V10 §10 (`portrait_panel.png`, `dpad(_pressed).png`, `button_a/b(_pressed).png`, `button_small(_pressed).png`, `button_flat(_pressed).png`).
+- **OFFEN:** Gerätetest (Daumenreichweite, Zoom); Glüh-Proben der Vision bei hoher Lichtqualität hochkant; Upgrade-Karten hochkant untereinander; Banner/Hinweise hochkant größer.
+- **Folgen:** `ui/touch/portrait_{layout,mode,pad,pixel_art}.gd`, `ui/touch/touch_overlay.gd`, `ui/menus/mobile_ui.gd`, `ui/hud/hud.gd`, `components/visual/camera_rig.gd`, `ui/effects/post_process.gd`, `world/village/evening_vignette.gdshader`, `scenes/main.gd`, `project.godot`, `export_presets.cfg`, `deploy/web/{web_preset.py,shell.html}`, Test `test_portrait_layout.gd`.
+- **Ersetzt:** feste Querformat-Ausrichtung und den Web-Hinweis „Dreh dein Gerät“.
+
+### D-183 – Koop: Host im Hintergrund – Mitspieler warten ruhig statt zurückzuspringen
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „… dann buggen die anderen Spieler alle zurück und können sich nicht bewegen. Das ist schlecht. Beheb das“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen TESTWERT · ergänzt D-088, D-119, D-123
+- **Kontext:** Der Host spielte die Browser-Version. Ein verdeckter oder minimierter Tab bekommt kein `requestAnimationFrame` mehr; Godots Hauptschleife und damit Simulation, Netz und Schnappschüsse des Hosts standen still. Die Clients sagten ihre Bewegung weiter voraus; nach 1 s lag die eingefrorene Host-Lage außerhalb ihres Verlaufs, und der Abgleich zog sie zurück (nachgestellt: 4 Korrekturen in 5 s). Der Relay hält den Raum offen, weil der Browser die WebSocket-Pings weiter beantwortet. Im Spiel pausiert nichts bei Fokusverlust (Pause nur im Solo, D-043/D-123); das bleibt so.
+- **Beschluss:**
+  - **Der Host hält im Koop nie an:** Fokus- oder Sichtbarkeitsverlust pausiert und drosselt nichts, keine neue Pause. Im Browser hüllt `deploy/web/shell.html` `requestAnimationFrame` ein: Ist der Tab versteckt und das Spiel in einem Raum (`WebKeepAlive`, an von IN_ROOM bis IDLE, für Host und Client), treibt ein kleiner Worker die Bilder alle 16 ms; gezeichnet wird dann nicht (`render_loop_enabled`). Einzelspieler, Desktop und Apps bleiben unverändert. Messwert im Browser: `soulwickShell.stats()`.
+  - **Clients erkennen einen stillen Host:** `RelayPeer` misst die Stille von Peer 1 (nur Spiel-Frames; Pongs des Relays und eigene Hänger zählen nicht), `HostStall` mit Hysterese. Ab 500 ms Stille (über einer TCP-Neuübertragung, unter dem 1-s-Verlauf) endet die Vorhersage: Der eigene Spieler wird mit eigenem Grund gesperrt (`host_stall`, je Spieler, D-088), gleitet einmal ruhig zur Host-Lage und wartet dort, ohne Verlauf und ohne Korrektur; andere Spieler stehen. Die Eingabe geht einmal leer und danach 1×/s hinaus. Frei, sobald 300 ms lang Frames mit Lücken unter 150 ms kamen; dann geht die aktuelle Eingabe sofort hinaus.
+  - **Hinweis beim Client:** ab 1 s „Warte auf den Host …“ mit Namen und Sekunden (`HostStallNotice` unter dem `LobbyClient`), ab 15 s der Knopf „Raum verlassen“ (wie Verlassen, D-123).
+  - **Host-Seite:** Ein Client, von dem 500 ms keine Eingabe kam, bleibt beim Host stehen (kein Weiterlaufen mit der letzten Richtung). Stand das Spiel des Hosts mit Mitspielern 2 s oder länger, sagt ihm danach ein Hinweis „Deine Mitspieler haben X s auf dich gewartet“, im Browser mit dem Tipp, den Tab sichtbar zu lassen oder die Desktop-Version zu nutzen. Web-Hosts sehen beim Öffnen eines Raums einmal „Host im Browser: Lass diesen Tab sichtbar …“.
+- **OFFEN:**
+  - Den Takt des Workers im Hintergrund nicht in echten Browsern gemessen (erwartet: Chrome, Edge, Firefox ungedrosselt). Energie- oder Speicher-Sparen kann einen Tab trotzdem einfrieren; Safari/iOS und Handy-Browser im Hintergrund lassen sich nicht wach halten (dann bleiben Hinweis und „Raum verlassen“).
+  - Frage an das Projektmitglied: Soll ein lange stiller Host (z. B. über 2 min) automatisch als „weg“ gelten (Run endet für alle mit 50 %, D-123)?
+  - Echtzeit-Fristen des Hosts (Upgrade-Wahl, Client-Bereitschaft) laufen nach einem langen Stillstand sofort ab.
+  - Ein Build-Check, ob die Godot-Vorlage noch das globale `requestAnimationFrame` nutzt, fehlt (Vorschlag: Prüfschritt im `Dockerfile`).
+- **Folgen:** `online/{host_stall,host_stall_notice,web_keep_alive}.gd` (neu), `online/{relay_peer,net_player_state,lobby_client,net_diagnostics}.gd`, `deploy/web/shell.html`, `localization/translations.csv` (`NET_HOST_STALL_*`, `NET_HOST_AWAY*`, `LOBBY_WEB_HOST_HINT*`), `tools/net_smoke.gd` (`hitch_role=host` prüft Erkennung und 0 Korrekturen), Test `tests/unit/test_net_host_stall.gd`, `docs/MULTIPLAYER.md`.
+- **Ersetzt:** keine.
+- **Ergänzung (17.10.2026, Nachprüfung):** Bei Run-Start und -Ende schickt der Host einem Client absichtlich nichts von seiner Welt, bis dieser geladen hat (`hide_from_peers`); das wirkte wie ein stiller Host („Warte auf den Host …“, eigener Spieler kurz gesperrt). Jetzt sendet der Host bei jedem Poll jedem Raum-Peer, dem er 80 ms nichts geschickt hat, ein Lebenszeichen (Beat auf Kanal 254, unzuverlässig, unabhängig vom Ladezustand), vor einem eigenen Weltwechsel einmal zuverlässig mit „lädt“ (danach zählen bis zu 8 s Stille nicht); ältere Builds reichen den Beat an das ungenutzte `peer_packet` weiter, keine neue Protokoll-Version. Stille-Schwelle 500 → 750 ms (kurze WLAN-Lücken bleiben unsichtbar, weiter unter dem 1-s-Verlauf bis ~250 ms Round-Trip inkl. Host-Takt; darüber kann es vor der Sperre kurz zurückziehen – OFFEN: `HISTORY_SECONDS` ~1,25 s oder kein neues Zurückziehen während Host-Stille). Der Host lässt die Eingabe eines Clients erst veralten, wenn bis zu seinem letzten Poll 500 ms nichts kam (nicht nach der Uhr: Nachhol-Physikschritte nach einem Host-Hänger laufen vor dem Poll). Zahlen TESTWERT (`HostStall.STALL_MSEC`, `BEAT_MSEC`, `LOAD_GRACE_MSEC`); Folgen zusätzlich `online/{relay_protocol,net_run}.gd`, Tests in `tests/unit/test_net_host_stall.gd`.
+
+### D-184 – Koop-Kamera folgt nur dem eigenen Spieler
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Am besten lass die Kamera nur auf sich selber reagieren, man kann schwer aimen am PC, wenn sich wegen anderen die Mitte der Spieler verändert, dann aimt man oft falsch“) · Umsetzung Claude · ändert D-128 (Kamera)
+- **Kontext:** D-128 ließ die Raumkamera im Koop der Mitte aus lokalem Spieler und nahen Mitspielern (380×200 px) folgen. Bewegen sich Mitspieler, wandert die Bildmitte und damit der Zielpunkt unter der Maus.
+- **Beschluss:** Im Raum folgt jede Kamera nur ihrem eigenen Spieler (`CoopRules.CAMERA_FOLLOWS_GROUP = false`); die Gruppenmitte bleibt als Schalter erhalten. Die Kamera der Seitenwege (Gang-Segmente) folgt weiter der Gruppe, weil dort Nachzügler nach 3 s zurückgeholt werden (D-128).
+- **OFFEN:** Hinweis auf Mitspieler außerhalb des Bildes (Pfeil am Rand), falls sie im großen Raum verloren gehen.
+- **Folgen:** `online/coop_rules.gd`, Tests `tests/unit/test_net_makeover.gd`.
+- **Ersetzt:** in D-128 den Punkt „Kamera“ für Räume.
+
+### D-185 – Dorf, Menüs und Sarkophag nach den Meldungen vom 17.10.2026 (Teil 2)
+
+- **Status:** VERBINDLICH für die Wünsche des Projektmitglieds (17.10.2026: „Im Dorf sollte man einfach keine Waffen haben. Und man sollte unendlich dashen können. Halt nur nicht Buggy“; „Gilden-Räume brauchen eigentlich keine Raumcodes … in der Gildenübersicht einfach joinen“; „Scrollleiste in Game Style machen“; „dass es nicht passieren kann, dass man hier leicht scrollen kann“; „Die [Bewohner] sollen um mich herumlaufen und wenn ich sie anrenne beiseite huschen und kleinen Sound machen, verwirrt“) · Umsetzung **VORGESCHLAGEN** (Claude; Anlass 20 Meldungen vom 17.10.2026) · Zahlen TESTWERT · ergänzt D-132, D-138, D-147, D-161, D-166, D-174; präzisiert D-169
+- **Beschluss:**
+  - **Dorf ohne Waffe (#80c94d8c):** Zustand je Spieler `Player.set_armed()`/`is_armed()`; `Village.on_player_spawned` setzt jede Spielerkopie (auch im Koop) auf unbewaffnet und `dash_cooldown` auf `Village.DASH_COOLDOWN` 0,25 s (Dash dauert 0,2 s; bewusst unter dem Schmiede-Minimum 0,3 s, eigene Dorf-Regel). Ohne Waffe kein Angriff, Spezialangriff oder Wechsel (auch `request_attack`/`request_special` lehnen ab), die Waffe ist unsichtbar, die Plätze bleiben belegt; die Tastenzeile des HUD nennt im Dorf keine Waffentasten. Dungeon unverändert (1,5 s, „Dash-Training“ wirkt).
+  - **Dorf-Dialoge (#181dfb78, #bf9c698d, #0efb405c):** alle Knöpfe `UiKit.dialog_button` (fett, Spec-Größe 8), Platz-Knöpfe fett und füllend. Gold- und dunkle Karten mit gleichem Innenabstand, unsichtbare Platzhalterzeile unter eingepackten oder ausgebauten Karten, ein Dialog behält während eines Besuchs seine größte Größe. Schmiede kompakter (Kartenabstand 4, Stufe und „Leistbar“ in einer Zeile): 620 statt 714 px bei 720 px Ansichtshöhe. **Präzisierung D-169:** Am PC (ohne Touch, Größe AUTO) ist der Menü-Zoom genau 1 (`MobileUi.zoom_for`); ein PC-Dialog, der höher als der Bildschirm ist, scrollt statt abgeschnitten zu werden.
+  - **Hitboxen im Dorf (#5a560cd1, #0a088654, #90544fa9, #d73e649d):** Rechtecke statt Kreise, etwa die untere Hälfte der Grafik wie bei den Strohballen: Beete 60×16 (keine begehbaren Deko-Beete mehr an Hauswänden), Kisten 48×22, Fässer 40×20, Marktstand 116×30 (Welt-px); Busch (−11,−2)…(11,10), Stumpf (−7,−2)…(8,10) Kachel-px.
+  - **Flache Deko (#d83bda23):** Grasbüschel, Steine, Blumen und Geröll liegen auf `z_index` −3 unter Figuren, Waffen und Schatten; nur `bush_small` sortiert weiter nach y.
+  - **Bewohner weichen aus (#ec4f0b9f):** weiter ohne Kollision (Bewohner blockieren nie). Ein gehender Bewohner weicht einem Spieler im Weg seitlich aus und kehrt auf seine Route zurück (`AVOID_RADIUS` 44, `AVOID_SIDE` 30, `AVOID_SPEED` 70, `RETURN_SPEED` 40); angerannt (`DODGE_RADIUS` 26, ab 60 px/s) huscht er 36 px in 0,25 s zur Seite (Hüpfer 6 px, 0,8 s Stehen), zeigt 1 s ein „?“ und macht den Laut `villager_huh` (0,28 s, höchstens alle 2,5 s, −8 dB); Tiere weichen stumm aus. Zielpunkte nie in Festes; zählt alle Spieler der Gruppe, rein lokale Optik (kein Dungeon-RNG, keine Pause).
+  - **Online-Menü (#60711d3b, #e0ca0a4f, #b5657bff, #b47bee4a):** feste Inhaltshöhe (Dorf 140, Hauptmenü `OnlinePanel.CONTENT_HEIGHT` 160), Platz der Scrollleiste immer frei, die Statuszeile hält eine Zeile frei; Pixel-Scrollleiste der Dialoge; ein Mausrad-Schritt 14 Mockup-px (`WHEEL_STEP`), im Browser höchstens ein Schritt je 40 ms (`WEB_WHEEL_WINDOW_MSEC`). Nach einem Neuaufbau derselben Ansicht bleiben Scrollposition und Fokus (auch nach einer Bestätigungsfrage). **Ergänzung D-161/D-147:** Gilden-Räume zeigen keinen Raumcode und kein „Code teilen“; beigetreten wird über „Offene Räume“, Codefeld und Code nur noch als Rückfall ohne `GET /guilds/:id/rooms`.
+  - **Optionen (#0ca75616):** Reiter in jedem Zustand mit gleichem Innenabstand (`TAB_PADDING` 1×6 Mockup-px), Abstand 6 statt 4 (`TAB_GAP`).
+  - **Sarkophag (#a461e6ff, ergänzt D-132):** Nur die Sarkophag-Quelle hat einen festen, immer aktiven Fuß über die Deckelfläche (`SOLID_FOOT` 44×44 vor dem Knotenmaßstab), der `SOLID_PIVOT_GAP` 12 px über dem Pivot endet; der Champion steigt am Pivot frei auf. Die Quelle sperrt ihre Navigationskachel selbst und gibt beim Verlassen nur diese frei; vergrößerte Quellen sitzen mit dem Pivot genau am Champion.
+  - **Musik im Browser (#1dad55c3, ergänzt D-166):** `audio/general/default_playback_type.web` = Sample ist schon Engine-Standard (OFFEN-Punkt aus D-166 erledigt). Godot 4.7.2 loopt ein Browser-Sample ab seinem Startpunkt statt ab dem Loop-Anfang; `MusicChannel` startet ein mitten im Stück begonnenes Sample kurz vor dem Ende des ersten Durchlaufs einmal am Loop-Anfang neu (Vorlauf 1,5 Frames, `LOOP_ANCHOR_LEAD` 0,03 bis `LOOP_ANCHOR_MAX_LEAD` 0,1 s) und rechnet Positionen mit eigener Uhr; Desktop unverändert. Frame-Abstände ab 150 ms werden gezählt (`HITCH_COUNT_MS`), jede Meldung trägt `context.music`; im Web speichert die Meldefunktion leicht (`light_save`: Bild 1280×720, kein `marked.png`, WebP einen Frame später).
+  - **#b44db654** (graue Fläche im Torbogen): mit D-181 schon behoben, nichts geändert.
+- **OFFEN:**
+  - #3c907027 („Wenn man Online-Raum schließt … oder gekickt wird …, soll der Player einfach dort … stehen, wo er zuvor stand. Und es soll sich auch kein Menü schließen“) folgt nach dem Host-Fix (D-183).
+  - #1dad55c3 im Web-Build bestätigen: Champion-Raum der Krypta mindestens 70 s, nach dem Sieg noch einmal; danach eine Meldung mit `music.sample_playback = true` und `music.loop_restarts ≥ 1`. Den Engine-Fehler upstream bei Godot melden.
+  - #b44db654 im aktuellen Web-Build gegenprüfen (Krypta-Nordtor mit weichem Bogen, z. B. Händlerstube).
+  - Mausrad-Schritt im Web-Build mit echtem Touchpad prüfen; Frage: Soll die Gildenliste je Gilde „1 Raum offen“ zeigen (mehr API-Abfragen)?
+  - Koop-Restrisiko Dash im Dorf: Kopien spielen Tasten nach; an der Grenze der Abklingzeit kann der Host anders entscheiden (bis ~54 px, gleitet zurück). Sauberer: Dash als Ereignis senden (Online-Workflow).
+  - Offene Haken: Touch-Angriffsknopf im Dorf (`player/input/touch_input.gd`); „→“ fehlt in Pixelify Sans (`meta/meta_progression.gd`, `describe_level_step`, Vorschlag „»“); `ProfileEditor` hält die übergebene Breite nicht ein (+8 Mockup-px); Knopf-Schrift zentral in `UiKit.get_theme()`; Deko „K“ unter dem Sarkophag (`dungeon/rooms/plans/miniboss/kampfgrube.txt`); feste Wartezeit in `tools/scene_gallery.gd`; Kommentar in `online/net_diagnostics.gd`; eigene Tierlaute; `docs/AUDIO.md` (`villager_huh`, Browser-Loop-Korrektur).
+  - Idee #b2653f02 (Zuhause betreten und einrichten, Pets): Vorschlag in `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, Entscheidung beim Projektmitglied.
+- **Folgen:** `player/{player,weapon_controller}.gd`, `world/village/{village,village_decor,villager}.gd`, `world/village/{village.tscn,village_tileset.tres}` (erzeugt), `tools/{generate_village.py,build_tilesets.gd,generate_audio.py}`, `audio/sfx/villager_huh.wav`, `ui/menus/{village_ui,modal,mobile_ui}.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/options/options_view.gd`, `ui/hud/hud.gd`, `dungeon/environment/spawn/spawn_source.gd`, `components/audio/{music_channel,music_player}.gd`, `ui/dev/{dev_feedback,dev_feedback_store}.gd`, Tests `test_player_village.gd`, `test_music_web_loop.gd`, `test_dev_feedback_web.gd` (neu), `test_village_{affordable,layout,life}.gd`, `test_mobile_ui.gd`, `test_lobby_slots.gd`, `test_online_menu.gd`, `test_guild_rooms.gd`, `test_ux_options.gd`, `test_spawn_source.gd`, `test_hud_compact.gd`; `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/feedback/FEEDBACK_2026-10-17.md`.
+- **Ersetzt:** Schwert und 1,5 s Dash im Dorf; Kreis-Hitboxen von Kisten, Fässern und Marktstand; begehbare Beete; Raumcode in Gilden-Räumen (nur noch Rückfall); Zoom-Einrasten am PC.
 
 ## 8. Vorlagen für spätere Entscheidungen
 

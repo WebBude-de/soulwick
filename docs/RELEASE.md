@@ -1,6 +1,6 @@
 # Releases und Builds
 
-> **Stand:** 16.10.2026 · Entscheidung: [D-148](DECISIONS.md) · Workflows: [`.github/workflows/`](../.github/workflows/) · Hilfsskripte: [`tools/ci/`](../tools/ci/), [`tools/steam/`](../tools/steam/) · Stores, Signaturen, Konten: [STORES.md](STORES.md)
+> **Stand:** 17.10.2026 · Entscheidung: [D-148](DECISIONS.md) · Workflows: [`.github/workflows/`](../.github/workflows/) · Hilfsskripte: [`tools/ci/`](../tools/ci/), [`tools/steam/`](../tools/steam/) · Stores, Signaturen, Konten: [STORES.md](STORES.md)
 
 Windows-, Linux-, macOS- und Android-Builds baut **GitHub Actions** und legt sie als **GitHub-Release** ins Repo. Dieselbe Pipeline ist für die Stores vorbereitet (Google-Play-Bundle, iOS, Steam, Signaturen für Windows und macOS); diese Schritte laufen nur, wenn ihre Secrets gesetzt sind ([STORES.md](STORES.md)). Die **Browser-Version** baut und hostet Dokploy selbst (`Dockerfile`, `deploy/web/`, D-148); sie ist nicht Teil dieser Pipeline. Lokal geht dasselbe mit `tools/export_build.sh` bzw. `tools/export_build.ps1` (§7).
 
@@ -8,39 +8,22 @@ Windows-, Linux-, macOS- und Android-Builds baut **GitHub Actions** und legt sie
 
 | Workflow | Auslöser | Ergebnis |
 | --- | --- | --- |
-| `ci.yml` | Push auf `main`/`dev`, jeder Pull Request, „Run workflow“ | `validate_project.gd` + GUT (Linux, headless, ohne Ton); `actionlint` und `shellcheck` für Workflows und Skripte |
-| `release.yml` | Tag `v*` oder „Run workflow“ | Prüfen → Exporte → GitHub-Release mit allen Dateien |
+| `ci.yml` | Push auf `main`/`dev`, jeder Pull Request, „Run workflow“ | `validate_project.gd` + GUT (Linux, headless, ohne Ton); `actionlint` und `shellcheck` |
+| `release.yml` | Tag `v*`, Push auf `dev` (D-157) oder „Run workflow“ | Prüfen → Exporte (Windows, Linux, macOS, Android) → Boot-Check des Linux-Builds → GitHub-Release |
 
-Ablauf von `release.yml` (auf `ubuntu-latest`, iOS und macOS-Signatur auf `macos-latest`):
-
-1. **Version und Tests:** Version aus `project.godot` lesen und mit dem Tag vergleichen (Abbruch bei Abweichung, wie im PowerShell-Skript), Umgebung festlegen, `validate_project.gd` und GUT.
-2. **Desktop** (parallel zu 3): Godot 4.7.2 und die Export-Vorlagen von den offiziellen Godot-Releases laden (SHA-512 geprüft, danach im Cache), Projekt importieren, `tools/export_build.sh` für Windows, Linux und macOS, dann **Boot-Check**: das Linux-ZIP entpacken und `Soulwick.x86_64 --headless --audio-driver Dummy --quit-after 300 -- offline` starten; Skript- oder Ladefehler brechen ab.
-3. **Android:** JDK 17 (Temurin), Android-SDK (platform-tools, build-tools 35.0.1 und 36.1.0, platforms 35 und 36; kein NDK, kein Gradle), Signaturschlüssel aus den Secrets (§4), Export, danach `apksigner verify` und `aapt dump badging` (Paket, Version, Architekturen im Log).
-4. **Release:** Dateien einsammeln, Prüfsummen, Release-Notizen (Anleitung + Commits seit dem letzten Tag), Release anlegen.
-
-Zusätzlich, je nach Secrets (`tools/ci/store_flags.sh` entscheidet und schreibt eine Übersicht in die Lauf-Zusammenfassung; ohne Secrets übersprungen, der Lauf bleibt grün):
-
-| Job | Läuft, wenn | Ergebnis |
-| --- | --- | --- |
-| Windows-Signatur (im Desktop-Job) | `AZURE_SIGNING_*` oder `WINDOWS_SIGN_PFX_*` | signierte `Soulwick.exe` im Windows-ZIP |
-| `macos_sign` | Developer-ID-Zertifikat + API-Schlüssel | notarisierte App im macOS-ZIP (ersetzt das ad-hoc signierte) |
-| `android_aab` | `ANDROID_KEYSTORE_*` | `Soulwick-<v>-<env>-android.aab` (Artefakt), mit `PLAY_SERVICE_ACCOUNT_JSON` Upload in Play „Interner Test“ |
-| `ios` | **immer** | Xcode-Projekt (Artefakt); mit Apple-Secrets signierte IPA, mit API-Schlüssel Upload zu TestFlight |
-| `steam` | `STEAM_USERNAME`, `STEAM_CONFIG_VDF`, Variable `STEAM_APP_ID` | Windows, Linux, macOS per SteamPipe auf den Beta-Branch |
-
-AAB, IPA und Xcode-Projekt kommen **nicht** ins öffentliche Release (sie sind nur für die Stores), sondern liegen 30 Tage als Artefakte am Lauf (`store-android-aab`, `store-ios-ipa`, `store-ios-xcode`).
+Store-Schritte laufen nur, wenn ihre Secrets gesetzt sind (`tools/ci/store_flags.sh`; ohne Secrets übersprungen, der Lauf bleibt grün): Windows-Signatur, macOS-Notarisierung, Google-Play-Bundle (AAB) mit Upload in den internen Test, iOS-Xcode-Projekt bzw. IPA mit TestFlight, Steam-Beta-Branch ([STORES.md](STORES.md)). AAB, IPA und Xcode-Projekt kommen **nicht** ins öffentliche Release, sondern liegen 30 Tage als Artefakte am Lauf.
 
 Dateien im Release (`<v>` = Version, `<env>` = Umgebung):
 
 | Plattform | Datei | Hinweis |
 | --- | --- | --- |
-| Windows | `Soulwick-<v>-<env>-windows.zip` | `Soulwick.exe` + `LIESMICH.txt`. Nicht signiert: SmartScreen warnt („Weitere Informationen → Trotzdem ausführen“). |
-| Linux | `Soulwick-<v>-<env>-linux.zip` | x86_64, `Soulwick.x86_64` + `LIESMICH.txt`, Boot-Check in der Pipeline |
-| macOS | `Soulwick-<v>-<env>-macos.zip` | `Soulwick.app`, Universal (Intel + Apple Silicon), nur ad-hoc signiert, **nicht notarisiert** (§6) |
-| Android | `Soulwick-<v>-<env>-android.apk` | Android 7+, armeabi-v7a + arm64-v8a; Installation aus unbekannten Quellen |
-| alle | `Soulwick-<v>-<env>-SHA256SUMS.txt` | Prüfsummen der Dateien |
+| Windows | `Soulwick-<v>-<env>-windows.zip` | ohne Signatur warnt SmartScreen („Weitere Informationen → Trotzdem ausführen“) |
+| Linux | `Soulwick-<v>-<env>-linux.zip` | x86_64 |
+| macOS | `Soulwick-<v>-<env>-macos.zip` | Universal, nur ad-hoc signiert, **nicht notarisiert** (§6) |
+| Android | `Soulwick-<v>-<env>-android.apk` | Android 7+, Installation aus unbekannten Quellen |
+| alle | `Soulwick-<v>-<env>-SHA256SUMS.txt` | Prüfsummen |
 
-Die Dateien liegen danach unter **Releases** im Repo (`https://github.com/WebBude-de/soulwick/releases`). Jeder Lauf hängt sie zusätzlich 90 Tage als Artefakte an (Actions → Lauf → „Artifacts“).
+Releases: `https://github.com/WebBude-de/soulwick/releases`; jeder Lauf hängt die Dateien zusätzlich 90 Tage als Artefakte an.
 
 ## 2. Eine Version veröffentlichen
 
@@ -81,7 +64,7 @@ Regeln:
 
 ## 3. development und production
 
-`<env>` ist die **Server-Umgebung** des Builds ([MULTIPLAYER.md](MULTIPLAYER.md) §3d, Plattform P-018). Das Skript schreibt sie für den Export in `online/environment.cfg`; ein Build spricht nur mit den Servern seiner Umgebung.
+`<env>` ist die **Server-Umgebung** des Builds (Plattform P-018). Das Skript schreibt sie für den Export in `online/environment.cfg`; ein Build spricht nur mit den Servern seiner Umgebung. Im Editor gilt immer `local` (localhost), `-- env=development` schaltet auf den Dev-Server.
 
 | | development | production |
 | --- | --- | --- |
@@ -146,20 +129,7 @@ Hinterlegen: Base64 wie oben (`soulwick-release.p12` statt `debug.keystore`) als
 
 ## 5. Was die Pipeline prüft
 
-| Prüfung | Wo | Bricht ab bei |
-| --- | --- | --- |
-| Version = Tag | `tools/ci/release_meta.sh` | Abweichung, Tag ohne `v`, unbekannte Umgebung |
-| Alle Dateien laden | `validate_project.gd` | Lade-/Parse-Fehler |
-| Unit-Tests | GUT (≈ 8 Minuten; Systemsprache Deutsch über `LANG=de_DE.UTF-8`, weil einige Tests die deutschen Texte der Sprache „auto“ erwarten) | rotem Test |
-| Downloads | SHA-512 aus den Godot-Releases | veränderter oder kaputter Download |
-| Boot-Check | `tools/ci/boot_check.sh` (Linux-ZIP) | Exit-Code ≠ 0, `SCRIPT ERROR`, `Parse Error`, `Failed to load` |
-| APK-Signatur | `apksigner verify` | ungültiger Signatur |
-| AAB | `tools/ci/check_aab.sh` (bundletool, jarsigner) | falsches Paket, falscher `versionCode`, `targetSdk` unter der Play-Vorgabe, fehlende Signatur |
-| Windows-Signatur | `tools/ci/sign_windows.sh` (jsign, Zeitstempel) | Signatur oder Zeitstempel schlägt fehl |
-| macOS-Notarisierung | `tools/ci/macos_sign.sh` (`codesign --verify`, `notarytool`, `spctl`) | Apple lehnt ab (Protokoll im Lauf) |
-| Workflows, Skripte | `ci.yml`: `actionlint`, `shellcheck` | Fehler in YAML oder Shell |
-
-Der Windows-Build wird auf dem Linux-Läufer exportiert und dort nicht gestartet; lokal startet `tools/export_build.ps1` ihn wie bisher einmal headless.
+Ein Lauf bricht ab bei: Version ≠ Tag (`tools/ci/release_meta.sh`), Lade- oder Parse-Fehlern (`validate_project.gd`), rotem GUT-Test (Systemsprache Deutsch über `LANG=de_DE.UTF-8`, weil einige Tests die deutschen Texte von „auto“ erwarten), veränderten Godot-Downloads (SHA-512), Fehlern im Boot-Check (`tools/ci/boot_check.sh`), ungültiger APK- oder AAB-Signatur (`apksigner`, `tools/ci/check_aab.sh`), fehlgeschlagener Windows-Signatur oder macOS-Notarisierung und Fehlern in Workflows oder Shell-Skripten. Der Windows-Build wird auf Linux exportiert und dort nicht gestartet; lokal startet `tools/export_build.ps1` ihn einmal headless.
 
 ## 6. macOS
 
@@ -188,7 +158,15 @@ powershell -ExecutionPolicy Bypass -File tools/export_build.ps1 -Platforms windo
 powershell -ExecutionPolicy Bypass -File tools/export_build.ps1 -Env development -Platforms android
 ```
 
-Die Export-Vorlagen von Godot 4.7.2 müssen installiert sein (Editor → Export-Vorlagen verwalten). Android braucht zusätzlich JDK 17 und das Android-SDK ([MULTIPLAYER.md](MULTIPLAYER.md) §3d). Die Dateien landen in `builds/<env>/<version>/` (nicht versioniert).
+Die Dateien landen in `builds/<env>/<version>/` (nicht versioniert).
+
+**Einmalig auf dem Build-PC:**
+
+1. **Export-Vorlagen** für Godot 4.7.2: Editor → *Export-Vorlagen verwalten* → *Herunterladen und installieren* (oder *Aus Datei installieren* mit `Godot_v4.7.2-stable_export_templates.tpz`); sie liegen danach in `%APPDATA%/Godot/export_templates/4.7.2.stable/`.
+2. **Android:** JDK 17; Android-SDK nach `%LOCALAPPDATA%\Android\Sdk` (Command-line Tools nach `cmdline-tools\latest`, dann `sdkmanager --licenses` und `sdkmanager "platform-tools" "build-tools;35.0.1" "platforms;android-35" "build-tools;36.1.0" "platforms;android-36"`); in den Godot-Editoreinstellungen *Export → Android* `java_sdk_path` und `android_sdk_path` setzen. NDK, CMake und Gradle braucht nur das Google-Play-Bundle.
+3. **Debug-Schlüssel** `%APPDATA%\Godot\keystores\debug.keystore` (Alias `androiddebugkey`, Passwort `android`; das Skript legt ihn an). Er gehört zu diesem PC: Baut ein anderer PC die APK, müssen Freunde die alte App erst deinstallieren (Spielstand weg). Deshalb als Secret hinterlegen (§4).
+
+APK prüfen: `aapt dump badging <apk>` (Paket, `versionCode`, Architekturen), `apksigner verify --print-certs <apk>`. Installieren am PC mit USB-Debugging: `adb install -r <apk>`.
 
 ## 8. Stores
 

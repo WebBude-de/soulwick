@@ -9,7 +9,7 @@ Englisch ist Standard, Deutsch die zweite Sprache. Die Sprache kommt aus dem Sys
 | `loc.gd` | `Loc.install()` (registriert beide Übersetzungen zur Laufzeit), `Loc.apply(option)`, `Loc.t(key, args)`, `Loc.current_language()`. |
 | `data_texts.gd` | `DataTexts`: Namen und Beschreibungen von Upgrades/Waffen nach Konvention (`UPGRADE_<ID>_NAME`, `WEAPON_<ID>_SPECIAL` …), Rückfall auf das deutsche `.tres`-Feld. |
 
-`DungeonTexts` (`ui/menus/dungeon_texts.gd`) hält das Deutsch der Dungeon-Menüs; ihr Englisch steht hier in der CSV. Fehlt es für neue Schlüssel: `python tools/i18n_check.py --dungeon-texts --export` gibt die fehlenden Zeilen aus (Konzept §11).
+`DungeonTexts` (`ui/menus/dungeon_texts.gd`) hält das Deutsch der Dungeon-Menüs; ihr Englisch steht hier in der CSV. Fehlt es für neue Schlüssel: `python tools/i18n_check.py --dungeon-texts --export` gibt die fehlenden Zeilen aus (Konzept §2).
 
 ## Text hinzufügen
 

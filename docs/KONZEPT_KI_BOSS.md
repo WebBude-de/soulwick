@@ -1,13 +1,13 @@
 # Konzept „Traumweber“ – KI-generierte Wunschbosse
 
-> **Stand:** 13.10.2026 · **Status:** Idee und Konzept für später (Advanced Feature). **Nichts davon ist beschlossen oder gebaut.** Offene Punkte: Abschnitt 11.  
-> **Umsetzungsplan:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · **Voraussetzung:** Server aus [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP7 · **Grafikregeln:** [SPRITES.md](design/sprites/SPRITES.md)
+> **Stand:** 17.10.2026 · **Status:** **Phase 4, direkt nach Koop, und beim Release im Spiel** (D-179, VERBINDLICH); KI-Bosse („Wünsch dir einen Boss“) sind der stärkste Clip-Moment (D-173). Alles Weitere in diesem Konzept ist Vorschlag, gebaut ist nichts. Offene Punkte: Abschnitt 11.  
+> **Umsetzungsplan:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · **Voraussetzung:** Server und Konten aus [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP7 · **Grafikregeln:** [SPRITES.md](design/sprites/SPRITES.md), [HANDOUT.md](HANDOUT.md)
 
 ## 1. Die Idee in drei Sätzen
 
 Nach einem Bosskampf erscheint ein geheimnisvoller **Traumweber**, und der Spieler beschreibt ihm in einem Chat seinen eigenen **Albtraum-Boss**, z. B. „ein Riesenzombie, der Grabsteine wirft“ oder „ein Lach-Emoji, das mich beißt“. Im Hintergrund erzeugt eine KI daraus Verhalten, Werte, Texte und **Sprites im Stil des Spiels**, während der Spieler normal weiterspielt. Ein paar Räume später tritt der Spieler gegen genau diesen Boss an.
 
-**Warum das stark ist:** Jeder Run kann etwas Einmaliges enthalten, Spieler erzählen sich ihre verrücktesten Bosse („Ich hab gegen einen Toaster mit Laseraugen gekämpft“), und es entstehen Inhalte zum Teilen mit Freunden und Gilden.
+**Warum das stark ist:** Jeder Run kann etwas Einmaliges enthalten, Spieler erzählen sich ihre verrücktesten Bosse („Ich hab gegen einen Toaster mit Laseraugen gekämpft“), und es entstehen Inhalte zum Teilen mit Freunden und Gilden. Genau das meint der Kernsatz „jeder Boss ein Clip“ (D-173): Der Auftritt des Wunschbosses und der Sieg im Koop sind die Momente, die man aufnimmt und weiterschickt. Deshalb kommt das Feature direkt nach Koop und gehört zum Release-Umfang (D-179); das Teilen ist ein eigenes Paket (ROADMAP KI9, Abschnitt 10).
 
 ## 2. Leitprinzip: Die KI wählt aus einem Baukasten, sie programmiert nicht
 
@@ -34,9 +34,9 @@ Nebeneffekt: Derselbe Baukasten erlaubt auch **handgeschriebene Bosse als JSON**
 
 ## 3. Ablauf für den Spieler
 
-1. **Boss besiegt** (Raum 15, 30, …). Im Checkpoint-Raum steht zusätzlich zum Portal der **Schrein des Traumwebers** (optional, E zum Benutzen).
-2. **Chat im Spielstil:** Ein Dialog wie die anderen Menüs, mit Pixel-Rahmen. Der Traumweber spricht in seiner Rolle: *„Flüstere mir deinen Albtraum zu, Wanderer …“* Der Spieler tippt eine Beschreibung (max. 300 Zeichen).
-3. **Nachfrage (höchstens zwei):** Ist die Beschreibung zu dünn („ein Boss“), fragt der Traumweber nach: *„Und womit greift er an?“* Ist sie zu wild für den Baukasten, schlägt er die nächstbeste Umsetzung vor.
+1. **Boss besiegt** (Raum 15, 30, …). Im Lagerfeuer-Raum steht zusätzlich zum Portal der **Schrein des Traumwebers** (optional, E zum Benutzen).
+2. **Wunsch im Spielstil:** Ein Dialog wie die anderen Menüs, mit Pixel-Rahmen. Der Traumweber spricht in seiner Rolle: *„Flüstere mir deinen Albtraum zu, Wanderer …“* **Standard (Vorschlag, D-179 OFFEN): Bausteine statt Freitext.** Der Spieler wählt per Antippen aus Karten, z. B. Gestalt (Riesenzombie, Toaster, Emoji, Pilz …), Material (Knochen, Schleim, Gold, Feuer …), Angriff (wirft, beißt, springt, schießt Strahlen …), Laune (wütend, albern, eitel …) und Farbe. Das ist schnell, geht mit Touch und Gamepad, ist für Jüngere sicher und bleibt trotzdem verrückt genug für Clips. Freitext (max. 300 Zeichen) gibt es nur, wenn er eigens entschieden wird (Abschnitt 9).
+3. **Nachfrage (höchstens zwei):** Ist der Wunsch zu dünn („ein Boss“), fragt der Traumweber nach: *„Und womit greift er an?“* Ist er zu wild für den Baukasten, schlägt er die nächstbeste Umsetzung vor. Bei Bausteinen entfällt die Nachfrage meist.
 4. **Zusammenfassung und Schwierigkeit:** Eine Karte zeigt, was entstehen wird: Name, 3–4 Stichpunkte zu den Angriffen. Der Spieler wählt **Leicht, Normal, Schwer oder Albtraum** und bestätigt.
 5. **Weiterspielen:** Im HUD steht dezent *„Der Traumweber webt … (2/3)“*. Die Erzeugung dauert typischerweise 1–3 Minuten.
 6. **Der Albtraum erscheint:** Frühestens **3 Räume** später ersetzt der Wunschboss den nächsten **Miniboss-Raum**. Es gibt einen Titel-Banner mit Name und Spruch, dann folgt der Kampf.
@@ -69,6 +69,7 @@ Fast alles existiert schon in `EnemyData`, `enemy_base.gd` und `BossRules`. Neu 
 | **neu:** Strahl (mit langer Vorwarnung) | Laseraugen | – |
 
 **Fairness-Regeln (fest, nicht von der KI änderbar):**
+
 - Jeder Angriff hat eine sichtbare Vorwarnung von mindestens 0,5 s.
 - Höchstens 40 gegnerische Geschosse gleichzeitig.
 - Keine Sofort-Tode.
@@ -124,25 +125,36 @@ Spiel ──HTTPS──► soulwick-platform apps/api (Server, MP7)
 - **Multiplayer:** Der Host verteilt JSON und PNGs (wenige KB) an alle Clients.
 
 **Kosten (grobe Schätzung, messen in KI3):**
+
 - Sprachmodell: Listenpreis von `claude-opus-5-5` ist 4 $ bzw. 20 $ pro Million Ein- bzw. Ausgabe-Token (Stand 09/2026). Chat mit bis zu zwei Nachfragen, Beschreibung und Bildprüfung kosten je Boss grob **0,05–0,20 $**.
 - Bildgenerierung kommt hinzu, abhängig vom Anbieter.
-- Dagegen helfen: Kontingent je Spieler (Testphase: 3 Bosse pro Tag) und eine **Tagesobergrenze** für Ausgaben auf dem Server, ab der der Schrein „ruht“.
+- Dagegen helfen: Kontingent je Spieler (Testphase: 3 Bosse pro Tag) und eine **Tagesobergrenze** für Ausgaben auf dem Server, ab der der Schrein „ruht“. Bausteine (Abschnitt 3) sparen außerdem Nachfragen und machen Ergebnisse wiederverwendbar (gleiche Kombination → zwischengespeicherter Boss, Vorschlag).
+- **Wer die Kosten trägt, ist OFFEN** (D-179). Browser und Handy sind kostenlos, Geld kommt nur über Kosmetik und Werbefrei (D-176). Bezahlte Erzeugungen wären ein neues Kaufprodukt neben Kosmetik und Werbefrei und brauchen eine eigene Entscheidung; Spielwährungen (Gold, Kristalle) werden nie gegen Echtgeld verkauft (D-176).
 
 ## 8. Beispiele
+
+Alle Beispiele sind erfunden, solange die Frage nach echten Personen OFFEN ist (D-179, Abschnitt 9).
 
 | Wunsch des Spielers | Daraus wird (Schwierigkeit Normal, Budget 10) |
 | --- | --- |
 | „Ein Riesenzombie, der Grabsteine wirft“ | **Der Modernde Koloss**: langsam verfolgend; Fächer aus 3 Grabsteinen (2); Sprung mit Aufprall-Ring (3); Phase zwei: beschwört 2 Skelette (3); stirbt und zerfällt (Rest). |
-| „Cristiano Ronaldo, der mich mit Fußbällen beschießt“ | Echte Personen werden zu einer **fiktiven Hommage** (Abschnitt 9): **Der Goldene Stürmer** (Nr. 7, ohne Namen, ohne echtes Gesicht); abprallende Bälle (3); Sturmangriff „Sprint“ (3); Phase zwei: Ballring (4). |
+| „Ein berühmter Fußballstar, der mich mit Fußbällen beschießt“ (Wunsch nach einer echten Person) | Solange die Frage OFFEN ist, wird daraus eine **fiktive Hommage** (Abschnitt 9): **Der Goldene Stürmer** (ohne Namen, Rückennummer und echtes Gesicht); abprallende Bälle (3); Sturmangriff „Sprint“ (3); Phase zwei: Ballring (4). |
 | „Ein Lach-Emoji, das mich beißt“ | **Grinsender Schrecken**: schnell, Nahkampf-Biss (2); Teleport (3); beim Tod zerfällt er in 4 Mini-Emojis (3); Phase zwei: Lach-Schrei blendet (2). |
 | „asdf“ oder „der stärkste Boss aller Zeiten“ | Nachfrage des Traumwebers; das Budget begrenzt die Stärke trotzdem. |
 | beleidigende oder verbotene Inhalte | Ablehnung in der Rolle des Traumwebers, normaler Miniboss. |
 
 ## 9. Grenzen, Recht und Moderation
 
-- **Echte Personen:** Name und Gesicht realer Menschen (Persönlichkeitsrechte, Recht am eigenen Bild) werden **nicht** übernommen. Die KI macht daraus eine **fiktive Figur** mit ähnlichem Thema. Gilt auch für Politiker und Influencer. *(Empfehlung, Teamentscheidung nötig.)*
+- **Echte Personen (OFFEN, D-179):** Das Projektmitglied wünscht sich echte Personen als Wunschboss (z. B. Politiker), weil gerade das Clips erzeugt. Entscheiden Team und Fachanwalt. **Bis dahin gilt die fiktive Hommage:** Name und Gesicht realer Menschen werden nicht übernommen, die KI macht daraus eine fiktive Figur mit ähnlichem Thema, und alle Beispiele in Doku, Website und Store sind erfunden. Risiken, die die Entscheidung abwägen muss:
+  - **Persönlichkeitsrecht:** Name, Bild und erkennbare Darstellung realer Menschen (Recht am eigenen Bild, Namensrecht); schon ein KI-Bild, das jemandem deutlich ähnelt, kann reichen. Gilt für Sportler, Influencer und Stars genauso wie für Politiker.
+  - **Satire oder Schmähung:** Satire über Personen des öffentlichen Lebens ist erlaubt, aber nicht grenzenlos. Ein Boss, der eine reale Person herabwürdigt oder ihr Aussagen in den Mund legt, kann Beleidigung oder üble Nachrede sein. Die Grenze liegt im Einzelfall; ein Sprachmodell zieht sie nicht verlässlich.
+  - **Politische Inhalte:** Politiker als Gegner machen das Spiel politisch (Parteinahme, Wahlkampfzeiten, extremistische Figuren als Wunsch, Shitstorms und Meldungen); in anderen Ländern gelten teils strengere Regeln.
+  - **Store-Regeln:** Google Play (Richtlinien zu KI-generierten Inhalten, Mobbing und Belästigung, Identitätstäuschung), Apple (App Review 1.1.1 verleumderische oder herabwürdigende Inhalte, Ausnahme nur für professionelle Satiriker; 1.2 nutzergenerierte Inhalte) und Steam (Angaben zu live erzeugten KI-Inhalten); vor der Entscheidung im aktuellen Wortlaut prüfen. Dazu prüfen lassen, ob die EU-KI-Verordnung (Art. 50, Kennzeichnung KI-erzeugter Darstellungen realer Personen) greift.
+  - **Jüngere spielen mit (D-173):** Wer echte Personen zulässt, bekommt auch Mitschüler, Lehrer und Ex-Freunde als Boss, also Mobbing mit Clip. Eine Freigabe bräuchte mindestens eine Beschränkung auf bekannte Personen des öffentlichen Lebens (Liste statt Freitext), Melden und schnelles Ausblenden.
+  - **Haftung und Freigabe:** Der Boss entsteht auf unserem Server und wird über Galerie und Teilen verbreitet; wie weit wir dafür haften, gehört zur Frage an den Fachanwalt. Inhalte über reale Personen können außerdem die Altersfreigabe (IARC) anheben.
 - **Geschützte Figuren und Marken** (z. B. Figuren aus anderen Spielen, Logos, Vereinswappen): ebenfalls nur als freie Anlehnung, keine Logos, kein Text im Bild.
-- **Verbotene Inhalte:** sexuelle Inhalte, Hass und Hetze, extremistische Symbole, Gewalt gegen reale Gruppen, Selbstverletzung. Gewalt nur im Rahmen des Spiels (Fantasy-Kampf). Prüfung des Wunschs **und** des Ergebnisses (Text und Bild).
+- **Verbotene Inhalte:** sexuelle Inhalte, Hass und Hetze, extremistische Symbole, Gewalt gegen reale Gruppen, Selbstverletzung. Gewalt nur im Rahmen des Spiels (Fantasy-Kampf), ohne Blut (D-173). Prüfung des Wunschs **und** des Ergebnisses (Text und Bild).
+- **Jüngere spielen mit** (D-173: Zielgruppe ab 13, Jüngere finden das Spiel trotzdem). Deshalb Moderation in drei Stufen: (1) **vorgegebene Bausteine statt Freitext** als Standard; (2) **Filter** für Wunsch und Ergebnis; (3) **Melden** nach dem Kampf und in jeder Galerie, gemeldete Bosse sofort für andere ausgeblendet, Prüfung im Admin-Panel. Freitext ist OFFEN: Wir fragen kein Alter ab (Konto ohne E-Mail, D-121), eine Freischaltung „nur für Ältere“ bräuchte also einen eigenen Weg.
 - **Melden-Knopf** im Spiel, Admin-Ansicht auf dem Server, Löschen von Bossen.
 - **Steam:** KI-generierte Inhalte müssen bei Steam **angegeben** werden; für **live im Spiel erzeugte** Inhalte verlangt Steam eine Beschreibung der Schutzmaßnahmen gegen unzulässige Inhalte. Dieses Konzept (Baukasten, Moderation, Melden) ist genau diese Beschreibung.
 - **Datenschutz:** Wünsche werden gespeichert (für Galerie, Moderation, Kosten). Speicherdauer festlegen, in der Datenschutzerklärung nennen, Löschen auf Wunsch (wie MP7).
@@ -150,6 +162,7 @@ Spiel ──HTTPS──► soulwick-platform apps/api (Server, MP7)
 
 ## 10. Was das Feature später noch kann
 
+- **Clip teilen** (ROADMAP KI9, auch für normale Bosse und den Party-Modus; Stufe 1 zum Release, Vorschlag im Release-Tor von ROADMAP.md): nach dem Sieg eine Bildkarte mit Bossname, Raum und Link zum Spiel (Einladen per Link, ROADMAP_MULTIPLAYER MP2b), später ein kurzer Clip der letzten Sekunden. Machbarkeit für Godot, Browser und Handy ist OFFEN und wird mit einem Prototyp geprüft.
 - **Gilden-Albträume:** Die Gilde stimmt ab, welcher Albtraum im nächsten Gilden-Run kommt.
 - **Albtraum der Woche:** Der beliebteste Community-Boss ist für alle spielbar, mit eigener Rangliste.
 - **Wunsch-Effekte und -Waffen:** Mit demselben Baukasten-Prinzip könnten Spieler später auch Upgrades oder Waffen „erträumen“ (eigene Entscheidung, Balance-Risiko).
@@ -159,12 +172,17 @@ Spiel ──HTTPS──► soulwick-platform apps/api (Server, MP7)
 
 | Punkt | Empfehlung |
 | --- | --- |
-| Feature überhaupt, und wann | nach Multiplayer (D-088); Baukasten KI1/KI2 schon vorher möglich |
-| Umgang mit echten Personen und Marken | fiktive Hommage, nie Name oder Gesicht |
+| Feature überhaupt, und wann | **entschieden:** Phase 4 direkt nach Koop, beim Release im Spiel (D-179); Baukasten KI1/KI2 und Clip teilen KI9 schon vorher möglich |
+| Wunsch aus Bausteinen oder Freitext | Bausteine als Standard für alle; Freitext nur nach eigener Entscheidung (Abschnitt 9) |
+| Echte Personen als Wunschboss | **OFFEN** (D-179, Team und Fachanwalt; Risiken in Abschnitt 9); bis dahin fiktive Hommage, nie Name oder Gesicht, Beispiele erfunden |
+| Marken und fremde Figuren | freie Anlehnung, kein Logo, kein Text im Bild |
 | Anbieter Bildgenerierung | nach Stilreferenz-Fähigkeit, Preis, Lizenz für kommerzielle Nutzung, Datenschutz (EU) auswählen |
-| Kontingent und Kosten | Testphase 3 pro Tag, Tagesobergrenze auf dem Server; später ggf. Kristalle als Preis im Spiel |
+| Kontingent und Kosten | Testphase 3 pro Tag, Tagesobergrenze auf dem Server; Kristalle als Preis im Spiel möglich (Spielwährung, kein Echtgeld) |
+| Wer die Kosten trägt | OFFEN (D-179); bezahlte Erzeugungen nur mit eigener Entscheidung neben D-176 |
+| Clip teilen (Bild, Kurzclip) | Stufe 1 Bildkarte zuerst und zum Release; Machbarkeit von Kurzclips je Plattform mit Prototyp prüfen (ROADMAP KI9) |
+| Altersfreigabe | IARC-Fragebogen mit „nutzergenerierte Inhalte“ vorab durchspielen (D-173 OFFEN) |
 | Wo im Run | Schrein nach Bossen, Wunschboss ersetzt einen Miniboss ≥3 Räume später |
-| Eigener Modus „Arena der Albträume“ | ja, nach dem Einbau in den Run |
+| Eigener Modus „Arena der Albträume“ | ja, nach dem Einbau in den Run; darf nach dem Release kommen |
 | Teilen und Community-Galerie | erst mit Melde- und Moderationswerkzeugen |
 
-**Weiterlesen:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · [PRD.md](PRD.md) · [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [SPRITES.md](design/sprites/SPRITES.md) · [DECISIONS.md](DECISIONS.md)
+**Weiterlesen:** [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) · [PRODUKT.md](PRODUKT.md) · [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) · [SPRITES.md](design/sprites/SPRITES.md) · [DECISIONS.md](DECISIONS.md)

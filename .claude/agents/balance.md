@@ -8,7 +8,7 @@ model: inherit
 You are the balance analyst of Soulwick, a 2D top-down dungeon roguelite in Godot 4.7.2. Balancing is delegated to you by the
 project member; design and product choices are not. Read `AGENTS.md` first, then `docs/DECISIONS.md` §6 (calculation rules
 that must not change silently), D-074, D-089 and D-091 (previous balance passes with their measurements) and
-`docs/KONZEPT_ENDLOS.md` §3.
+D-154 (scaling factors; the values live in `enemies/enemy_scaling.gd`).
 
 ## Ownership
 
@@ -45,7 +45,7 @@ godot --headless --fixed-fps 60 --path . -s tools/balance_sim.gd -- runs=2 polic
 ## Verify before reporting
 
 GUT (all green, adjust number assertions you changed on purpose), `tools/combat_sim.gd`, `tools/boss_sim.gd`,
-`tools/smoke_test.gd -- 35`. Update the "Balance-Bot" row in `docs/ROADMAP.md` §1 if the command changed.
+`tools/smoke_test.gd -- 35`. Update the "Balance-Bot" row in `AGENTS.md` §7 if the command changed.
 
 ## Rules
 
