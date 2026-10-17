@@ -1,9 +1,24 @@
 # Grafik-Briefing V10 – Soulwick: Touch-Steuerung und Eingabe-Symbole
 
 > **Für Claude Design.** Die Bildschirm-Steuerung für Handys und die kleinen Tasten-Symbole in HUD und Hinweisen sind heute **Platzhalter aus Code** (Kreise, Striche, Mini-Pixelbilder). Liefert ihr eine Datei mit genau diesem Namen, baut der Code sie automatisch ein; fehlt eine Datei, bleibt der Platzhalter.
-> **Stand:** 15.10.2026 · **offen** · Stil wie das Spiel: Pixel-Art ohne Anti-Aliasing, PNG mit Transparenz, Kontur 1 px `#1c1a2b`, Palette aus [HANDOUT.md](../../HANDOUT.md) (Gold `#f2cf4a`, Text `#e9e4d2`, Panel `#2a2638`/`#3b3650`, Kanten `#5d577a`/`#8f88ad`, warmer Ring der heutigen Knöpfe `#d9b77e`).
+> **Stand:** 17.10.2026 · **geliefert und übernommen**, 14 Eingabe-Symbole offen (siehe Lieferstand) · Stil wie das Spiel: Pixel-Art ohne Anti-Aliasing, PNG mit Transparenz, Kontur 1 px `#1c1a2b`, Palette aus [HANDOUT.md](../../HANDOUT.md) (Gold `#f2cf4a`, Text `#e9e4d2`, Panel `#2a2638`/`#3b3650`, Kanten `#5d577a`/`#8f88ad`, warmer Ring der heutigen Knöpfe `#d9b77e`).
 > **Wunsch des Projektmitglieds:** „Richtige Controls statt selbst gezeichneter Kreise. Auf dem Handy soll nirgends ‚Leertaste‘ stehen, sondern ein Icon, in dem man den Dash erkennt.“
 > **Leitlinien:** Ein Symbol muss **ohne Text** verständlich sein, auch klein und mit dem Daumen halb darüber. Knöpfe liegen über dem laufenden Spiel: Fläche halbtransparent dunkel, Ring und Icon hell und klar. Icons der Touch-Knöpfe und die kleinen HUD-Symbole zeigen **dasselbe Motiv** (gleiches Dash-Bild auf dem Knopf und im HUD).
+
+## Lieferstand 17.10.2026
+
+Lieferung von Claude Design (`claude_design_antwort/SPRITES_V10_lieferung.md` liegt nur im Export in `_inbox/`), geprüft auf Maße, Frames, Transparenz und im Spiel (Screenshots), übernommen nach `art/`:
+
+| Abschnitt | Stand |
+| --- | --- |
+| §1 Touch-Steuerung | **geliefert**: alle 15 Rahmen/Sticks und 14 Aktions-Icons übernommen. |
+| §2 Eingabe-Symbole | **teilweise**: 32 von 46 übernommen. **Nicht übernommen** (der Code-Platzhalter ist lesbarer, Vergleichsbild beim Projektmitglied): `input_pad_a`, `_b`, `_x`, `_y` (Buchstaben zerfallen), `input_pad_lb`, `_rb`, `_lt`, `_rt` (Buchstaben unleserlich, z. B. „Γc“ statt „LB“), `input_gesture_tap`, `_hold`, `_swipe` (Hand nicht erkennbar), `input_escape` (kein Pfeil, nur Ecke und Rahmen), `input_pad_select` (statt zwei Rechtecken ein geteilter Kreis), `input_touch_interact` (Oval statt Hand). Bitte neu liefern: Buchstaben in einer 3×5-Pixelschrift wie der Platzhalter, Hand mit erkennbaren Fingern. |
+| §5 Türme | **geliefert** mit Nachbesserung: Bei `bone_turret`, `slime_spitter`, `shadow_eye` war die Augenhöhle in Idle-Frame 2–4 und im Angriff **durchsichtig** (Boden schien durch den Kopf), die Ladeglut ersetzte die Kopfpixel halbtransparent. Beim Übernehmen per Skript den Kopf aus Idle-Frame 1 hinterlegt (Auge in den übrigen Frames gedimmt, Schussframe 4 über dem hellen Auge). Für eine Neulieferung: Glut **über** das Auge legen, Kopf deckend lassen. Geschosse und `slow_status_6f` unverändert übernommen. |
+| §6 Seitenansicht | **geliefert**: `mid_<biom>_parallax`, `pool_<biom>_4f`, `hang_roots`, `hang_crystals`. |
+| §7a Figuren | **geliefert**: Ember, Moss, Frost je 10 Streifen, Schlüsselfarben exakt (keine Zwischentöne). Hinweis: `<id>_climb_4f` zeigt die Figur seitlich statt mit dem Rücken zur Kamera; `fall`, `down`, `revive` liegen bereit, der Code nutzt dafür noch Wicks Bilder (Haken in `CharacterData.STRIP_ANIMATIONS` bzw. Spielerdateien). Die mitgelieferten `<id>_frames.tres` sind **nicht** übernommen (falsche Animationsnamen `jump`/`land`/`climb` statt `side_*`, sie würden die Streifen-Logik von `CharacterData` aushebeln). |
+| §7b Lobby | **geliefert**: `slot_normal/own/host/empty`, `ready`, `../icon_world`; überarbeitete `icon_host` (kleiner) und `icon_ping_*` (vier Balken) übernommen. |
+| §7c Spiegel | **geliefert**: `mirror.png`. |
+| §8 App-Icons | geliefert 16.10.2026; die Fassung vom 17.10. ist pixelgleich (nur RGBA statt RGB), daher nicht ersetzt. |
 
 ## Maßstab
 
@@ -170,7 +185,7 @@ Je Biom:
 
 ## 6. Seitenansicht (Jump'n'Run)
 
-> **Stand:** 16.10.2026 · **offen** · Runde 3 der Gang-Segmente (D-144): Türme, Becken, Stachel-Wellen, Biom-Deko und Parallax. Heute zeichnet der Code alles hier als Platzhalter; liefert ihr eine Datei mit genau diesem Namen, ersetzt sie den Platzhalter automatisch.
+> **Stand:** 16.10.2026 · **geliefert 17.10.2026** · Runde 3 der Gang-Segmente (D-144): Türme, Becken, Stachel-Wellen, Biom-Deko und Parallax. Heute zeichnet der Code alles hier als Platzhalter; liefert ihr eine Datei mit genau diesem Namen, ersetzt sie den Platzhalter automatisch.
 > **Schon geliefert und weiter genutzt:** `bg_<biom>_parallax.png`, `spikes_side_3f.png`, `platform_edge_<biom>.png`, `golden_coin_4f.png` (SPRITES_V9 §4), die Deko-Gruppen `deco_group_<biom>_{1..3}.png`, Kerzen, Pilze, Kristalle, Amboss, Fass, Glutbecken, Ketten, Tropfen (Räume). **Weiter offen und hier nicht doppelt:** SPRITES_V9 §6 (Doppelsprung, Wandrutschen, Staub).
 > **Türme:** Die Seitenansicht nutzt dieselben Turm-Grafiken wie §5 (`bone_turret`, `slime_spitter`, `shadow_eye`, `ember_cauldron`). Der Code dreht sie für Decke (180°) und Wand (90°); bitte den Fuß (16,30) wie in §5 einhalten, dann sitzt der Turm sauber im Fels.
 

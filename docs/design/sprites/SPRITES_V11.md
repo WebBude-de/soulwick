@@ -1,7 +1,9 @@
 # Grafik-Briefing V11 – Soulwick: Store-Grafiken (Google Play, App Store, Steam)
 
 > **Für Claude Design.** Grafiken für die Store-Seiten und das App-Icon in voller Größe. Quelle der Maße: [STORES.md §6](../../STORES.md) (dort auch Texte, Screenshots und Trailer).
-> **Stand:** 16.10.2026 · **offen** · Ablage: `art/store/` mit genau diesen Namen (Lieferung wie immer nach `_inbox/`).
+> **Stand:** 17.10.2026 · **geliefert** (alle 16 Dateien in `art/store/`) · Ablage: `art/store/` mit genau diesen Namen (Lieferung wie immer nach `_inbox/`).
+>
+> **Lieferstand 17.10.2026:** Maße und Transparenz stimmen (nur `steam_library_logo` und Adaptive-Vordergrund/Monochrom transparent). `steam_community_icon.jpg` war ein PNG mit falscher Endung und ist beim Übernehmen in ein echtes JPG (Grund `#15131f`) gewandelt. `art/store/` hat ein `.gdignore`: Godot importiert und exportiert die 7 MB nicht in die Spiel-Builds. Wer `icon_1024.png` bzw. `android_adaptive_*` im iOS-/Android-Preset einträgt (`tools/ci/store_presets.py`, `export_presets.cfg`), muss diese Dateien dafür an eine importierte Stelle legen oder das `.gdignore` durch einen `exclude_filter` ersetzen. Gestaltung zum Nachschärfen: In `steam_header_capsule` und `steam_library_header` überdecken sich Spieler, Schleim und Skelett; in `play_feature_1024x500` ist der Mond am Rand angeschnitten.
 
 ## Regeln
 

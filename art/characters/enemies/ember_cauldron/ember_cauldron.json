@@ -1,0 +1,53 @@
+{
+  "name": "ember_cauldron",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {
+    "muzzle": [
+      16,
+      10
+    ]
+  },
+  "notes": [
+    "Stationär; attack: Frame 0-3 Aufladen, Frame 4 = Schuss (Geschoss bei muzzle), Frame 5 Rückstoß.",
+    "Seitenansicht: Code dreht 90°/180°, Fuß bleibt (16,30)."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "ember_cauldron_idle_4f.png",
+      "frames": 4,
+      "fps": 3,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "ember_cauldron_walk_4f.png",
+      "frames": 4,
+      "fps": 3,
+      "loop": true
+    },
+    {
+      "name": "attack",
+      "file": "ember_cauldron_attack_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "ember_cauldron_death_6f.png",
+      "frames": 6,
+      "fps": 6,
+      "loop": false
+    }
+  ]
+}

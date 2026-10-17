@@ -101,7 +101,7 @@ func test_new_figures_are_visibly_different_placeholders() -> void:
 				if image.get_pixel(x, y).a > 0.5:
 					opaque += 1
 		counts[id] = opaque
-		assert_eq(data.get_placeholder_mark(), &"" if id == &"wick" else id, "%s mark until its art exists" % id)
+		assert_eq(data.get_placeholder_mark(), &"" if id == &"wick" or data.has_own_art() else id, "%s mark until its art exists" % id)
 	for id in [&"ember", &"moss", &"frost"]:
 		assert_gt(counts[id], counts[&"wick"], "%s has more on its head than wick" % id)
 	assert_ne(counts[&"ember"], counts[&"moss"])

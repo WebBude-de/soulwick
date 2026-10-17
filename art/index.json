@@ -9083,6 +9083,2229 @@
       ],
       "module": "v9c",
       "priority": 26
+    },
+    {
+      "id": "ui/input/input",
+      "title": "Eingabe-Symbole (V10 §2)",
+      "dir": "art/ui/input",
+      "notes": [
+        "Alle 10 px hoch, ×2–×3 zeichnen. Kappen: Rand #5d577a, Fläche #15131f, Symbol #e9e4d2, 2 px Tastenkante unten.",
+        "input_key_cap: 9-Slice links 2, rechts 2, oben 1, unten 2.",
+        "Touch-Minis tragen dasselbe Motiv wie die 16×16 Aktions-Icons."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "input_key_cap",
+          "file": "art/ui/input/input_key_cap.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_space",
+          "file": "art/ui/input/input_space.png",
+          "w": 17,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_shift",
+          "file": "art/ui/input/input_shift.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_tab",
+          "file": "art/ui/input/input_tab.png",
+          "w": 13,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_enter",
+          "file": "art/ui/input/input_enter.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_backspace",
+          "file": "art/ui/input/input_backspace.png",
+          "w": 13,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_arrow_up",
+          "file": "art/ui/input/input_arrow_up.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_arrow_down",
+          "file": "art/ui/input/input_arrow_down.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_arrow_left",
+          "file": "art/ui/input/input_arrow_left.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_arrow_right",
+          "file": "art/ui/input/input_arrow_right.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_escape",
+          "file": "art/ui/input/input_escape.png",
+          "w": 13,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_mouse_left",
+          "file": "art/ui/input/input_mouse_left.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_mouse_right",
+          "file": "art/ui/input/input_mouse_right.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_mouse_middle",
+          "file": "art/ui/input/input_mouse_middle.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_mouse_wheel",
+          "file": "art/ui/input/input_mouse_wheel.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_mouse",
+          "file": "art/ui/input/input_mouse.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_special",
+          "file": "art/ui/input/input_touch_special.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_dash",
+          "file": "art/ui/input/input_touch_dash.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_switch",
+          "file": "art/ui/input/input_touch_switch.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_attack",
+          "file": "art/ui/input/input_touch_attack.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_interact",
+          "file": "art/ui/input/input_touch_interact.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_jump",
+          "file": "art/ui/input/input_touch_jump.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_side_dash",
+          "file": "art/ui/input/input_touch_side_dash.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_pause",
+          "file": "art/ui/input/input_touch_pause.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_menu",
+          "file": "art/ui/input/input_touch_menu.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_touch_stick",
+          "file": "art/ui/input/input_touch_stick.png",
+          "w": 9,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            4,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_gesture_tap",
+          "file": "art/ui/input/input_gesture_tap.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_gesture_hold",
+          "file": "art/ui/input/input_gesture_hold.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_gesture_swipe",
+          "file": "art/ui/input/input_gesture_swipe.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_south",
+          "file": "art/ui/input/input_pad_south.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_east",
+          "file": "art/ui/input/input_pad_east.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_west",
+          "file": "art/ui/input/input_pad_west.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_north",
+          "file": "art/ui/input/input_pad_north.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_a",
+          "file": "art/ui/input/input_pad_a.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_b",
+          "file": "art/ui/input/input_pad_b.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_x",
+          "file": "art/ui/input/input_pad_x.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_y",
+          "file": "art/ui/input/input_pad_y.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_lb",
+          "file": "art/ui/input/input_pad_lb.png",
+          "w": 13,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_rb",
+          "file": "art/ui/input/input_pad_rb.png",
+          "w": 13,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            6,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_lt",
+          "file": "art/ui/input/input_pad_lt.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_rt",
+          "file": "art/ui/input/input_pad_rt.png",
+          "w": 11,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_stick_left",
+          "file": "art/ui/input/input_pad_stick_left.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_stick_right",
+          "file": "art/ui/input/input_pad_stick_right.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_dpad",
+          "file": "art/ui/input/input_pad_dpad.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_start",
+          "file": "art/ui/input/input_pad_start.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "input_pad_select",
+          "file": "art/ui/input/input_pad_select.png",
+          "w": 10,
+          "h": 10,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            5,
+            5
+          ]
+        }
+      ],
+      "module": "v10_input",
+      "priority": 27
+    },
+    {
+      "id": "ui/touch/touch",
+      "title": "Touch-Steuerung (V10 §1)",
+      "dir": "art/ui/touch",
+      "notes": [
+        "pixel_scale 3. Pivot Mitte. Knöpfe halbtransparent dunkel, Ring #d9b77e; _pressed warm/gold ohne untere Dicke; _disabled Ring grau.",
+        "touch_cooldown_8f: Frame nach Restanteil wählen (Frame 1 = gerade benutzt), kein Icon darin.",
+        "Aktions-Icons 16×16, helles Motiv mit Schattenkante und Kontur; Waffen-Icons farbig. icon_dash = Pfeil + drei Streifen (kein >>)."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "touch_stick_base",
+          "file": "art/ui/touch/touch_stick_base.png",
+          "w": 60,
+          "h": 60,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            30,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_stick_arrows",
+          "file": "art/ui/touch/touch_stick_arrows.png",
+          "w": 60,
+          "h": 60,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            30,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_stick_knob",
+          "file": "art/ui/touch/touch_stick_knob.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_stick_knob_pressed",
+          "file": "art/ui/touch/touch_stick_knob_pressed.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_stick_aim_base",
+          "file": "art/ui/touch/touch_stick_aim_base.png",
+          "w": 60,
+          "h": 60,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            30,
+            30
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_large",
+          "file": "art/ui/touch/touch_btn_large.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            24
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_large_pressed",
+          "file": "art/ui/touch/touch_btn_large_pressed.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            24
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_large_disabled",
+          "file": "art/ui/touch/touch_btn_large_disabled.png",
+          "w": 48,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            24,
+            24
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn",
+          "file": "art/ui/touch/touch_btn.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_pressed",
+          "file": "art/ui/touch/touch_btn_pressed.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_disabled",
+          "file": "art/ui/touch/touch_btn_disabled.png",
+          "w": 32,
+          "h": 32,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_small",
+          "file": "art/ui/touch/touch_btn_small.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_small_pressed",
+          "file": "art/ui/touch/touch_btn_small_pressed.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "touch_btn_small_disabled",
+          "file": "art/ui/touch/touch_btn_small_disabled.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            12,
+            12
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "touch_cooldown",
+          "file": "art/ui/touch/touch_cooldown_8f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 8,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            16
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack",
+          "file": "art/ui/touch/icon_attack.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack_sword",
+          "file": "art/ui/touch/icon_attack_sword.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack_bow",
+          "file": "art/ui/touch/icon_attack_bow.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack_staff",
+          "file": "art/ui/touch/icon_attack_staff.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack_dagger",
+          "file": "art/ui/touch/icon_attack_dagger.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_attack_hammer",
+          "file": "art/ui/touch/icon_attack_hammer.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_dash",
+          "file": "art/ui/touch/icon_dash.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_side_dash",
+          "file": "art/ui/touch/icon_side_dash.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_jump",
+          "file": "art/ui/touch/icon_jump.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_special",
+          "file": "art/ui/touch/icon_special.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_interact",
+          "file": "art/ui/touch/icon_interact.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_switch",
+          "file": "art/ui/touch/icon_switch.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_pause",
+          "file": "art/ui/touch/icon_pause.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_menu",
+          "file": "art/ui/touch/icon_menu.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_touch",
+      "priority": 27
+    },
+    {
+      "id": "characters/enemies/bone_turret/bone_turret",
+      "title": "Turm bone_turret",
+      "dir": "art/characters/enemies/bone_turret",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "muzzle": [
+          16,
+          10
+        ]
+      },
+      "notes": [
+        "Stationär; attack: Frame 0-3 Aufladen, Frame 4 = Schuss (Geschoss bei muzzle), Frame 5 Rückstoß.",
+        "Seitenansicht: Code dreht 90°/180°, Fuß bleibt (16,30)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/bone_turret/bone_turret_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/bone_turret/bone_turret_walk_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/bone_turret/bone_turret_attack_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/bone_turret/bone_turret_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "characters/enemies/ember_cauldron/ember_cauldron",
+      "title": "Turm ember_cauldron",
+      "dir": "art/characters/enemies/ember_cauldron",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "muzzle": [
+          16,
+          10
+        ]
+      },
+      "notes": [
+        "Stationär; attack: Frame 0-3 Aufladen, Frame 4 = Schuss (Geschoss bei muzzle), Frame 5 Rückstoß.",
+        "Seitenansicht: Code dreht 90°/180°, Fuß bleibt (16,30)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/ember_cauldron/ember_cauldron_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/ember_cauldron/ember_cauldron_walk_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/ember_cauldron/ember_cauldron_attack_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/ember_cauldron/ember_cauldron_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "characters/enemies/shadow_eye/shadow_eye",
+      "title": "Turm shadow_eye",
+      "dir": "art/characters/enemies/shadow_eye",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "muzzle": [
+          16,
+          10
+        ]
+      },
+      "notes": [
+        "Stationär; attack: Frame 0-3 Aufladen, Frame 4 = Schuss (Geschoss bei muzzle), Frame 5 Rückstoß.",
+        "Seitenansicht: Code dreht 90°/180°, Fuß bleibt (16,30)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/shadow_eye/shadow_eye_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/shadow_eye/shadow_eye_walk_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/shadow_eye/shadow_eye_attack_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/shadow_eye/shadow_eye_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "characters/enemies/slime_spitter/slime_spitter",
+      "title": "Turm slime_spitter",
+      "dir": "art/characters/enemies/slime_spitter",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "muzzle": [
+          16,
+          10
+        ]
+      },
+      "notes": [
+        "Stationär; attack: Frame 0-3 Aufladen, Frame 4 = Schuss (Geschoss bei muzzle), Frame 5 Rückstoß.",
+        "Seitenansicht: Code dreht 90°/180°, Fuß bleibt (16,30)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/enemies/slime_spitter/slime_spitter_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/enemies/slime_spitter/slime_spitter_walk_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 3,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "attack",
+          "file": "art/characters/enemies/slime_spitter/slime_spitter_attack_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/enemies/slime_spitter/slime_spitter_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": false
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "effects/slow_status",
+      "title": "Verlangsamung",
+      "dir": "art/effects",
+      "notes": [
+        "32×32 mittig auf dem Spieler (Pivot 16,30), 6 fps Schleife."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "slow_status",
+          "file": "art/effects/slow_status_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            16,
+            30
+          ]
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "environment/side/hangers",
+      "title": "Hängende Deko",
+      "dir": "art/environment/side",
+      "notes": [
+        "Oberkante = Fels, 32×48."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "hang_roots",
+          "file": "art/environment/side/hang_roots.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "hang_crystals",
+          "file": "art/environment/side/hang_crystals.png",
+          "w": 32,
+          "h": 48,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            16,
+            0
+          ]
+        }
+      ],
+      "module": "v10_side",
+      "priority": 28
+    },
+    {
+      "id": "environment/side/side2_crypt",
+      "title": "Seitenansicht crypt (V10 §6)",
+      "dir": "art/environment/side",
+      "notes": [
+        "mid_<biom>_parallax 480×270 bei ¾ Kamera-Tempo, links/rechts kachelbar, transparent bis auf Silhouetten.",
+        "pool_<biom>_4f: Becken-Zelle, Oberfläche y≈13, 75 % Deckkraft, nahtlos."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "mid_crypt_parallax",
+          "file": "art/environment/side/mid_crypt_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "pool_crypt",
+          "file": "art/environment/side/pool_crypt_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v10_side",
+      "priority": 28
+    },
+    {
+      "id": "environment/side/side2_ember_forge",
+      "title": "Seitenansicht ember_forge (V10 §6)",
+      "dir": "art/environment/side",
+      "notes": [
+        "mid_<biom>_parallax 480×270 bei ¾ Kamera-Tempo, links/rechts kachelbar, transparent bis auf Silhouetten.",
+        "pool_<biom>_4f: Becken-Zelle, Oberfläche y≈13, 75 % Deckkraft, nahtlos."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "mid_ember_forge_parallax",
+          "file": "art/environment/side/mid_ember_forge_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "pool_ember_forge",
+          "file": "art/environment/side/pool_ember_forge_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v10_side",
+      "priority": 28
+    },
+    {
+      "id": "environment/side/side2_shadow_realm",
+      "title": "Seitenansicht shadow_realm (V10 §6)",
+      "dir": "art/environment/side",
+      "notes": [
+        "mid_<biom>_parallax 480×270 bei ¾ Kamera-Tempo, links/rechts kachelbar, transparent bis auf Silhouetten.",
+        "pool_<biom>_4f: Becken-Zelle, Oberfläche y≈13, 75 % Deckkraft, nahtlos."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "mid_shadow_realm_parallax",
+          "file": "art/environment/side/mid_shadow_realm_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "pool_shadow_realm",
+          "file": "art/environment/side/pool_shadow_realm_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v10_side",
+      "priority": 28
+    },
+    {
+      "id": "environment/side/side2_slime_grotto",
+      "title": "Seitenansicht slime_grotto (V10 §6)",
+      "dir": "art/environment/side",
+      "notes": [
+        "mid_<biom>_parallax 480×270 bei ¾ Kamera-Tempo, links/rechts kachelbar, transparent bis auf Silhouetten.",
+        "pool_<biom>_4f: Becken-Zelle, Oberfläche y≈13, 75 % Deckkraft, nahtlos."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "mid_slime_grotto_parallax",
+          "file": "art/environment/side/mid_slime_grotto_parallax.png",
+          "w": 480,
+          "h": 270,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "anim",
+          "name": "pool_slime_grotto",
+          "file": "art/environment/side/pool_slime_grotto_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 6,
+          "loop": true,
+          "pivot": [
+            0,
+            0
+          ]
+        }
+      ],
+      "module": "v10_side",
+      "priority": 28
+    },
+    {
+      "id": "projectiles/bone_turret_shot",
+      "title": "Geschoss bone_turret",
+      "dir": "art/projectiles",
+      "notes": [
+        "16×16, 8 fps, zur Flugrichtung drehen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "bone_turret_shot",
+          "file": "art/projectiles/bone_turret_shot_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "projectiles/ember_cauldron_shot",
+      "title": "Geschoss ember_cauldron",
+      "dir": "art/projectiles",
+      "notes": [
+        "16×16, 8 fps, zur Flugrichtung drehen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "ember_cauldron_shot",
+          "file": "art/projectiles/ember_cauldron_shot_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "projectiles/shadow_eye_shot",
+      "title": "Geschoss shadow_eye",
+      "dir": "art/projectiles",
+      "notes": [
+        "16×16, 8 fps, zur Flugrichtung drehen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "shadow_eye_shot",
+          "file": "art/projectiles/shadow_eye_shot_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "projectiles/slime_spitter_shot",
+      "title": "Geschoss slime_spitter",
+      "dir": "art/projectiles",
+      "notes": [
+        "16×16, 8 fps, zur Flugrichtung drehen."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "slime_spitter_shot",
+          "file": "art/projectiles/slime_spitter_shot_4f.png",
+          "w": 16,
+          "h": 16,
+          "frames": 4,
+          "fps": 8,
+          "loop": true,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_turrets",
+      "priority": 28
+    },
+    {
+      "id": "characters/ember/ember",
+      "title": "Glut / Ember",
+      "dir": "art/characters/ember",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "weapon_hand": [
+          19,
+          19
+        ]
+      },
+      "notes": [
+        "Schlüsselfarben: Haare #c7542e/#86351c, Kleidung #3690da/#2a6cb0/#6cb2ec, Haut #f3c9a3/#d99c6c, Akzent #3f3b58/#2f2b45; keine Tint-Masken nötig.",
+        "Waffe nicht eingezeichnet (weapon_hand 19,19)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/ember/ember_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/ember/ember_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "dash",
+          "file": "art/characters/ember/ember_dash_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 12,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/ember/ember_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "jump",
+          "file": "art/characters/ember/ember_jump_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "land",
+          "file": "art/characters/ember/ember_land_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 14,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "climb",
+          "file": "art/characters/ember/ember_climb_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "fall",
+          "file": "art/characters/ember/ember_fall_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "down",
+          "file": "art/characters/ember/ember_down_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 2,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "revive",
+          "file": "art/characters/ember/ember_revive_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
+    },
+    {
+      "id": "characters/frost/frost",
+      "title": "Frost",
+      "dir": "art/characters/frost",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "weapon_hand": [
+          19,
+          19
+        ]
+      },
+      "notes": [
+        "Schlüsselfarben: Haare #c7542e/#86351c, Kleidung #3690da/#2a6cb0/#6cb2ec, Haut #f3c9a3/#d99c6c, Akzent #3f3b58/#2f2b45; keine Tint-Masken nötig.",
+        "Waffe nicht eingezeichnet (weapon_hand 19,19)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/frost/frost_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/frost/frost_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "dash",
+          "file": "art/characters/frost/frost_dash_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 12,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/frost/frost_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "jump",
+          "file": "art/characters/frost/frost_jump_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "land",
+          "file": "art/characters/frost/frost_land_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 14,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "climb",
+          "file": "art/characters/frost/frost_climb_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "fall",
+          "file": "art/characters/frost/frost_fall_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "down",
+          "file": "art/characters/frost/frost_down_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 2,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "revive",
+          "file": "art/characters/frost/frost_revive_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
+    },
+    {
+      "id": "characters/moss/moss",
+      "title": "Moos / Moss",
+      "dir": "art/characters/moss",
+      "pivot": [
+        16,
+        30
+      ],
+      "anchors": {
+        "weapon_hand": [
+          19,
+          19
+        ]
+      },
+      "notes": [
+        "Schlüsselfarben: Haare #c7542e/#86351c, Kleidung #3690da/#2a6cb0/#6cb2ec, Haut #f3c9a3/#d99c6c, Akzent #3f3b58/#2f2b45; keine Tint-Masken nötig.",
+        "Waffe nicht eingezeichnet (weapon_hand 19,19)."
+      ],
+      "items": [
+        {
+          "kind": "anim",
+          "name": "idle",
+          "file": "art/characters/moss/moss_idle_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 4,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "walk",
+          "file": "art/characters/moss/moss_walk_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 10,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "dash",
+          "file": "art/characters/moss/moss_dash_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 12,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "death",
+          "file": "art/characters/moss/moss_death_6f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 6,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "jump",
+          "file": "art/characters/moss/moss_jump_3f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 3,
+          "fps": 10,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "land",
+          "file": "art/characters/moss/moss_land_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 14,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "climb",
+          "file": "art/characters/moss/moss_climb_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "fall",
+          "file": "art/characters/moss/moss_fall_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        },
+        {
+          "kind": "anim",
+          "name": "down",
+          "file": "art/characters/moss/moss_down_2f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 2,
+          "fps": 2,
+          "loop": true
+        },
+        {
+          "kind": "anim",
+          "name": "revive",
+          "file": "art/characters/moss/moss_revive_4f.png",
+          "w": 32,
+          "h": 32,
+          "frames": 4,
+          "fps": 8,
+          "loop": false
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
+    },
+    {
+      "id": "environment/village/mirror",
+      "title": "Spiegel (V10 §7c)",
+      "dir": "art/environment/village",
+      "notes": [
+        "16×28, Fußpunkt (8,27); rechts neben dem Zuhause, E öffnet Name und Aussehen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "mirror",
+          "file": "art/environment/village/mirror.png",
+          "w": 16,
+          "h": 28,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            27
+          ]
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
+    },
+    {
+      "id": "ui/lobby_icons",
+      "title": "Lobby-Icons",
+      "dir": "art/ui",
+      "notes": [
+        "icon_world für die Weltenliste; icon_host (Krone 9 px breit) und Ping-Balken überarbeitet, gleiche Namen."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "icon_world",
+          "file": "art/ui/icon_world.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_host",
+          "file": "art/ui/icon_host.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_good",
+          "file": "art/ui/icon_ping_good.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_mid",
+          "file": "art/ui/icon_ping_mid.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "icon_ping_bad",
+          "file": "art/ui/icon_ping_bad.png",
+          "w": 16,
+          "h": 16,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            8,
+            8
+          ]
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
+    },
+    {
+      "id": "ui/lobby/lobby",
+      "title": "Lobby-Plätze (V10 §7b)",
+      "dir": "art/ui/lobby",
+      "notes": [
+        "9-Slice Rand 6 px, Mindestgröße 24×24, Mitte einfarbig."
+      ],
+      "items": [
+        {
+          "kind": "image",
+          "name": "slot_normal",
+          "file": "art/ui/lobby/slot_normal.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "slot_own",
+          "file": "art/ui/lobby/slot_own.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "slot_host",
+          "file": "art/ui/lobby/slot_host.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "slot_empty",
+          "file": "art/ui/lobby/slot_empty.png",
+          "w": 24,
+          "h": 24,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            0,
+            0
+          ]
+        },
+        {
+          "kind": "image",
+          "name": "ready",
+          "file": "art/ui/lobby/ready.png",
+          "w": 7,
+          "h": 7,
+          "frames": 1,
+          "fps": 0,
+          "loop": false,
+          "pivot": [
+            3,
+            3
+          ]
+        }
+      ],
+      "module": "v10_chars",
+      "priority": 29
     }
   ]
 }

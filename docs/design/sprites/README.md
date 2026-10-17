@@ -15,7 +15,7 @@ Briefings für Claude Design: welche Grafik fehlt, mit Dateiname, Größe, Frame
 | [SPRITES_V7.md](SPRITES_V7.md) | geliefert | Seitentüren und Abgrund-Nachträge (A4, A10) |
 | [SPRITES_V8.md](SPRITES_V8.md) | **offen** (Deko-Gruppen geliefert) | Räume v2: Bosstor je Biom, Gänge, Dorf-Eingang v2, Aufgabenleiste, Minispiel-Objekte, Quellen |
 | [SPRITES_V9.md](SPRITES_V9.md) | **teilweise offen** (§1 Nachlieferung, §6) | Makeover-Welle A: Fels-Innenecken, Tunnel-Tore, Wasser, Seitenansicht (Doppelsprung, Wandrutschen) |
-| [SPRITES_V10.md](SPRITES_V10.md) | **offen** (§8 App-Icons geliefert 16.10.2026) | Touch-Steuerung, Eingabe-Symbole, Türme, Seitenansicht, Figuren und Lobby, App-Icons |
-| [SPRITES_V11.md](SPRITES_V11.md) | **offen** | Store-Grafiken: App-Icon 1024, Android-Adaptive-Icon, Play-Feature-Grafik, Steam-Kapseln, Bibliothek |
+| [SPRITES_V10.md](SPRITES_V10.md) | geliefert 17.10.2026, **14 Eingabe-Symbole offen** (§2: Gamepad-Buchstaben, Gesten, Esc, Select, Touch-Benutzen) | Touch-Steuerung, Eingabe-Symbole, Türme, Seitenansicht, Figuren und Lobby, App-Icons |
+| [SPRITES_V11.md](SPRITES_V11.md) | geliefert 17.10.2026 | Store-Grafiken: App-Icon 1024, Android-Adaptive-Icon, Play-Feature-Grafik, Steam-Kapseln, Bibliothek |
 
 Antworten und Lieferlisten von Claude Design liegen daneben in [claude_design_antwort/](../claude_design_antwort/README.md) (`SPRITES_V8_vorschlag.md`, `SPRITES_V9_lieferung.md`); diese Dateinamen nicht ändern, der Code und die Werkzeuge verweisen darauf.
