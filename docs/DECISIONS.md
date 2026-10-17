@@ -1329,6 +1329,18 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `project.godot`, `export_presets.cfg`, `deploy/web/web_preset.py`, `ui/menus/{mobile_ui,modal,ui_dialog,game_ui,dungeon_ui,village_ui}.gd`, `ui/ui_kit.gd`, `ui/main_menu/*`, `ui/widgets/{key_line,ui_chip}.gd`, `ui/hud/hud.gd`, `components/visual/camera_rig.gd`, Tests `test_mobile_ui.gd`, `test_camera.gd`.
 - **Ersetzt:** Seitenverhältnis „keep“ (schwarze Balken).
 
+### D-170 – Meldefunktion: Fehler oder Idee, keine Kategorien, Ort automatisch
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Mach Kategorieauswahl weg. Er soll einfach speichern, wo ich den Screenshot mache … by default auf Fehler melden, aber man kann auf einen anderen Tab gehen und Idee einreichen“) · Umsetzung **VORGESCHLAGEN** (Claude) · ersetzt die Kategorien der Meldefunktion
+- **Beschluss:**
+  - Zwei Reiter im Melde-Dialog: „Fehler melden“ (Standard) und „Idee einreichen“; keine Kategorie-Auswahl mehr. Maus, Touch und Gamepad (LB/RB wechselt).
+  - Feld `kind` = `bug` | `idea` im Upload (Vertrag `CreateBugReportRequest.kind`, Standard `bug`, ältere Spiele gültig; zusätzlich `context.kind`), DB-Spalte mit Default `bug`, Admin-Panel filtert „Alle / Fehler / Ideen“.
+  - Automatisch im `context`: `screen` (offener Bildschirm/Dialog, z. B. „Hauptmenü · Online · Gilden · Gildenseite“), `boss` (Boss, Phase, HP), `coop` (Rolle, Spieler, Ping), `device` (Plattform, Eingabe, Bildschirm, UI-Zoom), lesbares Biom und Raumart. `location` immer deutsch, höchstens 200 Zeichen; keine Raumcodes im Kontext.
+  - `tools/collect_feedback.py` gruppiert nach Art (Fehler/Ideen).
+- **OFFEN:** Tastenkombination, um den Dialog mit dem Gamepad zu öffnen; Ideen ohne Screenshot; Name des Admin-Menüpunkts.
+- **Folgen:** `ui/dev/*`, `tools/collect_feedback.py`, `docs/feedback/README.md`, `localization/translations.csv`; Plattform `packages/contracts/src/bug-report.ts`, Migration `20261017012818_bug_report_kind`, `apps/api/src/services/bug-reports.ts`, `apps/admin/src/app/(panel)/bug-meldungen/*`.
+- **Ersetzt:** Kategorien UI/Grafik/Licht/Layout/Gameplay/Bug/Text im Dialog.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

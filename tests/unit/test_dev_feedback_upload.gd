@@ -256,7 +256,6 @@ func test_strokes_and_marks_are_relative_and_limited() -> void:
 		"image_size": [1000, 720],
 		"strokes": [{"points_px": points}],
 		"marks": [{"rect_rel": {"x": 0.9, "y": -0.1, "w": 0.5, "h": 0.2}, "note": "z".repeat(500)}],
-		"categories": ["ui", "Grafik", "ui", "light"],
 	}
 	var strokes := DevFeedbackUpload.relative_strokes(record, Vector2(1000, 720))
 	assert_eq(strokes.size(), 1)
@@ -267,7 +266,19 @@ func test_strokes_and_marks_are_relative_and_limited() -> void:
 	assert_almost_eq(float(marks[0]["y"]), 0.0, 0.0001, "clamped to 0..1")
 	assert_lte(float(marks[0]["x"]) + float(marks[0]["w"]), 1.0001, "inside the image")
 	assert_eq(str(marks[0]["note"]).length(), DevFeedbackUpload.MAX_MARK_NOTE)
-	assert_eq(DevFeedbackUpload.categories_of(record), ["ui", "light"], "known keys, each once")
+
+
+
+func test_kind_defaults_to_bug() -> void:
+	assert_eq(DevFeedbackUpload.kind_of({}), "bug", "older notes without kind are bugs")
+	assert_eq(DevFeedbackUpload.kind_of({"kind": "idea"}), "idea")
+	assert_eq(DevFeedbackUpload.kind_of({"kind": " IDEA "}), "idea")
+	assert_eq(DevFeedbackUpload.kind_of({"kind": "wish"}), "bug", "unknown kinds are bugs")
+	var body := DevFeedbackUpload.build_body({"text": "Mehr Hüte", "kind": "idea", "categories": ["ui"]}, null)
+	assert_eq(body["kind"], "idea")
+	assert_eq(body["categories"], [], "no categories any more")
+	assert_eq(body["context"]["kind"], "idea", "also in the context (older servers drop unknown fields)")
+	assert_eq(DevFeedbackUpload.build_body({"text": "x"}, null)["kind"], "bug")
 
 
 func _screenshot() -> void:
@@ -277,7 +288,7 @@ func _screenshot() -> void:
 
 
 func _body() -> Dictionary:
-	return {"note": "Knopf unlesbar", "categories": ["ui"], "marks": [], "strokes": [], "context": {"location": "Dorf"},
+	return {"note": "Knopf unlesbar", "kind": "bug", "categories": [], "marks": [], "strokes": [], "context": {"location": "Dorf"},
 		"gameVersion": "0.9.0", "platform": "windows", "image": "UklGRg=="}
 
 

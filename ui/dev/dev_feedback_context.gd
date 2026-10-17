@@ -1,8 +1,14 @@
 class_name DevFeedbackContext
 extends RefCounted
 ## Context of a dev feedback note (DevFeedback, F9): where the game was (scene, phase, room, biome,
-## mode, template, seed, players, camera) and which UI and world nodes lie under each marked
-## rectangle. Everything is read defensively (get(), has_method(), class names looked up at run
+## mode, template, seed, players, camera), which screen or dialog was open (screen: main menu panel,
+## options tab, online tab and guild page, pause menu, upgrade choice, shop, campfire, run end,
+## village building ...), the boss fight (boss), co-op (coop: players, host/client, ping, never a
+## room code), the device (device: platform, input device, screen size, UI zoom) and which UI and
+## world nodes lie under each marked rectangle. location is one readable German line for the admin
+## list and the overview, e.g. "Dungeon · Raum 23 · Schleimgrotte · Kampf + Upgrade" or
+## "Hauptmenü · Online · Gilden · Gildenseite" (German whatever the game language, so reports group
+## the same way). Everything is read defensively (get(), has_method(), class names looked up at run
 ## time): game classes may be half finished by other agents and a missing value is simply left out,
 ## it never stops a note from being saved. Rectangles are in view coordinates (the canvas of the
 ## root viewport, the same space the overlay draws in).
@@ -19,6 +25,35 @@ const LAYOUT_CLASSES: Array[String] = ["Control", "Container", "BoxContainer", "
 	"HFlowContainer", "VFlowContainer", "ScrollContainer", "HSplitContainer", "VSplitContainer"]
 ## Fallback world tile size when RoomTiles cannot be read.
 const TILE_WORLD_FALLBACK := 64.0
+## No class_name (mobile_ui.gd): preloaded.
+const MobileUiScript := preload("res://ui/menus/mobile_ui.gd")
+## Readable names of the open dialogs by Modal.pause_reason (GameManager, GameUI, DungeonUI, VillageUI).
+const DIALOG_NAMES := {
+	"pause_menu": "Pausemenü", "upgrade_choice": "Upgrade-Wahl", "shop": "Shop", "weapon_choice": "Waffenwahl",
+	"upgrade_overview": "Upgrade-Übersicht", "confirm": "Abfrage", "run_end": "Run-Ende", "options": "Optionen",
+	"village_dialog": "Gebäude", "village_intro": "Dorf-Einführung", "dialog_queue": "Dialog",
+}
+## Main menu panels (MenuPanel subclasses) -> readable name.
+const MENU_PANELS := {
+	&"SlotPanel": "Welten", &"CreateSlotPanel": "Neue Welt", &"ProfilePanel": "Profil",
+	&"OptionsPanel": "Optionen", &"OnlinePanel": "Online",
+}
+## OnlineMenu.View -> readable path (CREATE, JOIN, DETAIL ... belong to the guild tab).
+const ONLINE_VIEWS := {
+	"QUICK": ["Schnell"], "GUILDS": ["Gilden"], "CREATE": ["Gilden", "Gilde gründen"],
+	"JOIN": ["Gilden", "Gilde beitreten"], "DETAIL": ["Gilden", "Gildenseite"], "CONFIRM": ["Gilden", "Bestätigen"],
+	"PROFILE": ["Gilden", "Aussehen"],
+}
+## RunManager.EndReason -> readable.
+const RUN_END_REASONS := {"DEATH": "Tod", "EXIT": "Ausgang", "ABORT": "Abbruch"}
+## InputDevice.Kind -> context value.
+const INPUT_NAMES := {"KEYBOARD_MOUSE": "mouse", "GAMEPAD": "gamepad", "TOUCH": "touch"}
+## Keys of NetDiagnostics.snapshot() that hold a room code: never sent.
+const ROOM_CODE_KEYS: Array[String] = ["room", "room_code", "code_room"]
+const MAX_TITLE := 80
+
+## Last input device seen by DevFeedback (note_input), when InputDevice cannot be read.
+static var _last_input := ""
 
 
 ## Scene, phase, window, camera, pause reasons, run, dungeon room and players.
@@ -44,8 +79,362 @@ static func collect(tree: SceneTree, exclude: Node = null) -> Dictionary:
 		info.erase("_room")
 		context["dungeon"] = info
 	context["players"] = _players_info(tree, room)
+	context["screen"] = screen_info(tree, str(context["phase"]), room, exclude)
+	var boss := boss_info(tree, room)
+	if not boss.is_empty():
+		context["boss"] = boss
+	context["coop"] = coop_info(tree)
+	context["device"] = device_info(tree)
 	context["location"] = describe_location(context)
 	return context
+
+
+# --- screen and dialogs ------------------------------------------------------------------------
+
+## The open screen: {label: "Hauptmenü · Online · Gilden · Gildenseite", parts: [...], nodes: [...]}.
+## parts come after the phase name (main menu panel and its tabs, then every visible dialog);
+## nodes name the dialogs found (path, pause reason, title in the game language).
+static func screen_info(tree: SceneTree, phase: String, room: Node = null, exclude: Node = null) -> Dictionary:
+	var parts: Array = []
+	var nodes: Array = []
+	var scene := tree.current_scene if tree != null else null
+	if phase == "menu":
+		parts.append_array(_menu_parts(scene, exclude))
+	if scene != null:
+		var intro := find_by_class(scene, &"BossIntro", exclude)
+		if intro != null and intro.has_method(&"is_running") and intro.call(&"is_running"):
+			parts.append("Boss-Intro")
+	var modals: Array[Node] = []
+	_find_visible(tree.root if tree != null else null, &"Modal", exclude, modals)
+	for modal in modals:
+		var reason := str(modal.get(&"pause_reason")) if modal.get(&"pause_reason") != null else ""
+		var title := _title_of(modal)
+		parts.append_array(_dialog_parts(modal, reason, title, room))
+		var entry := {"path": str(modal.get_path()), "reason": reason}
+		if not title.is_empty():
+			entry["title"] = title
+		nodes.append(entry)
+	var label: PackedStringArray = [phase_label(phase, scene)]
+	for part in parts:
+		label.append(str(part))
+	return {"label": " · ".join(label), "parts": parts, "nodes": nodes}
+
+
+## "Hauptmenü", "Dorf", "Dungeon" or the scene name.
+static func phase_label(phase: String, scene: Node = null) -> String:
+	match phase:
+		"menu":
+			return "Hauptmenü"
+		"village":
+			return "Dorf"
+		"dungeon":
+			return "Dungeon"
+	return str(scene.name) if scene != null else "?"
+
+
+## Main menu: the open panel, the options tab, the online tab and guild page.
+static func _menu_parts(scene: Node, exclude: Node) -> Array:
+	var parts: Array = []
+	if scene == null:
+		return parts
+	var menu: Variant = scene.get(&"menu")
+	if not (menu is Node) or not is_instance_valid(menu):
+		menu = find_by_class(scene, &"MainMenu", exclude)
+	if menu == null or not (menu as Node).has_method(&"get_open_panel"):
+		return parts
+	var panel: Variant = (menu as Node).call(&"get_open_panel")
+	if not (panel is Node) or not is_instance_valid(panel):
+		return parts
+	var name := str((panel as Node).name)
+	for panel_class: StringName in MENU_PANELS:
+		if has_class(panel, panel_class):
+			name = MENU_PANELS[panel_class]
+			break
+	if has_class(panel, &"ProfilePanel") and bool((panel as Node).get(&"first_start")):
+		name += " (erster Start)"
+	parts.append(name)
+	parts.append_array(_options_parts(panel as Node))
+	parts.append_array(_online_parts(panel as Node))
+	return parts
+
+
+## Tab of the OptionsView at or below node ("Allgemein", "Bild", "Tasten", "Touch").
+static func _options_parts(node: Node) -> Array:
+	var view := find_by_class(node, &"OptionsView")
+	if view == null or not view.has_method(&"get_tab"):
+		return []
+	var tab := int(view.call(&"get_tab"))
+	var keys: Variant = class_constant(&"OptionsView", &"TAB_KEYS", [])
+	if keys is Array and tab >= 0 and tab < (keys as Array).size():
+		return [de_text(keys[tab])]
+	return [enum_key(&"OptionsView", &"Tab", tab).capitalize()]
+
+
+## Tab and page of the OnlineMenu at or below node ("Gilden", "Gildenseite"), plus the lobby room.
+static func _online_parts(node: Node) -> Array:
+	var menu := find_by_class(node, &"OnlineMenu")
+	if menu == null or menu.get(&"view") == null:
+		return []
+	var key := enum_key(&"OnlineMenu", &"View", menu.get(&"view"))
+	var parts: Array = (ONLINE_VIEWS.get(key, [key.capitalize()]) as Array).duplicate()
+	if menu.has_method(&"is_in_room") and menu.call(&"is_in_room"):
+		parts.append("Lobby-Raum")
+	return parts
+
+
+## Readable name of one dialog: campfire and upgrade choice share a reason, the run end names its
+## cause, options name the tab, village buildings their name (the guild building its online tab).
+static func _dialog_parts(modal: Node, reason: String, title: String, room: Node) -> Array:
+	var name := str(DIALOG_NAMES.get(reason, ""))
+	var parts: Array = []
+	match reason:
+		"upgrade_choice":
+			var campfire: bool = room != null and room.has_method(&"is_campfire") and bool(room.call(&"is_campfire"))
+			if campfire or (not title.is_empty() and title == _translated(&"CAMPFIRE_TITLE")):
+				name = "Lagerfeuer"
+		"run_end":
+			var run_manager := modal.get_tree().root.get_node_or_null(^"RunManager") if modal.is_inside_tree() else null
+			if run_manager != null and run_manager.has_method(&"get_last_summary"):
+				var summary: Variant = run_manager.call(&"get_last_summary")
+				if summary is Dictionary and (summary as Dictionary).has("reason"):
+					var cause := str(RUN_END_REASONS.get(enum_key(&"RunManager", &"EndReason", summary["reason"]), ""))
+					if not str(cause).is_empty():
+						name += " (%s)" % cause
+	if str(modal.name) == "MirrorModal":
+		name = "Spiegel"
+	elif str(modal.name) == "BuildingModal" or reason == "village_dialog":
+		var building := _village_building(modal)
+		if not building.is_empty():
+			name = building
+	if name.is_empty():
+		name = str(modal.name) if not str(modal.name).begins_with("@") else (reason if not reason.is_empty() else "Dialog")
+	parts.append(name)
+	parts.append_array(_options_parts(modal))
+	parts.append_array(_online_parts(modal))
+	return parts
+
+
+## German name of the village building whose name a label of modal shows (VillageBuildings).
+static func _village_building(modal: Node) -> String:
+	var info: Variant = class_constant(&"VillageBuildings", &"INFO", {})
+	if not (info is Dictionary):
+		return ""
+	var names := {}
+	for id: Variant in info:
+		var key: Variant = (info[id] as Dictionary).get("name", "")
+		names[_translated(StringName(str(key)))] = de_text(key)
+	for label in modal.find_children("*", "Label", true, false):
+		var text := str((label as Label).text).strip_edges()
+		if names.has(text):
+			return names[text]
+	return ""
+
+
+## Title label of a dialog built with UiDialog (content/Header/.../TitleRow/Title), "" otherwise.
+static func _title_of(modal: Node) -> String:
+	var title := modal.find_child("Title", true, false)
+	if title is Label:
+		return _short(str((title as Label).text))
+	return ""
+
+
+static func _find_visible(node: Node, global_name: StringName, exclude: Node, found: Array[Node], depth := 0) -> void:
+	if node == null or node == exclude or _skips_subtree(node, depth):
+		return
+	if has_class(node, global_name):
+		found.append(node)
+		return
+	for child in node.get_children():
+		_find_visible(child, global_name, exclude, found, depth + 1)
+
+
+# --- boss, co-op, device -----------------------------------------------------------------------
+
+## The boss of the current fight: {id, name (German, with tier), phase, hp, hp_max, count, miniboss,
+## intro}; {} without a living boss. Bosses inside the active room win; minibosses count when no
+## real boss is there.
+static func boss_info(tree: SceneTree, room: Node = null) -> Dictionary:
+	if tree == null:
+		return {}
+	var bosses: Array[Node] = []
+	var minis: Array[Node] = []
+	for node in tree.get_nodes_in_group(&"enemies"):
+		if not is_instance_valid(node) or not node.is_inside_tree():
+			continue
+		if node is CanvasItem and not (node as CanvasItem).is_visible_in_tree():
+			continue
+		var data: Variant = node.get(&"data")
+		if not (data is Object) or data == null:
+			continue
+		var health: Variant = node.get(&"health")
+		if health is Object and health != null and (health as Object).has_method(&"is_dead") and (health as Object).call(&"is_dead"):
+			continue
+		if bool((data as Object).get(&"is_boss")):
+			bosses.append(node)
+		elif bool(node.get(&"is_miniboss")):
+			minis.append(node)
+	var list := bosses if not bosses.is_empty() else minis
+	if list.is_empty():
+		return {}
+	if room != null:
+		var inside: Array[Node] = []
+		for node in list:
+			if room.is_ancestor_of(node):
+				inside.append(node)
+		if not inside.is_empty():
+			list = inside
+	var boss := list[0]
+	var boss_data: Object = boss.get(&"data")
+	var info := {"id": str(boss_data.get(&"id")), "count": list.size(), "miniboss": bosses.is_empty()}
+	var name := de_text(boss_data.get(&"display_name"), str(boss_data.get(&"id")))
+	if boss.has_method(&"get_boss_tier"):
+		var tier := int(boss.call(&"get_boss_tier"))
+		var rules := class_script(&"BossRules")
+		if tier > 0 and rules != null:
+			name = "%s %s" % [name, str(rules.call(&"tier_numeral", tier))]
+	info["name"] = name
+	if boss.get(&"phase") != null:
+		info["phase"] = int(boss.get(&"phase"))
+	var health: Variant = boss.get(&"health")
+	if health is Object and health != null and (health as Object).has_method(&"get_health"):
+		info["hp"] = snappedf(float((health as Object).call(&"get_health")), 0.1)
+		info["hp_max"] = snappedf(float((health as Object).call(&"get_max_health")), 0.1)
+	if boss.has_method(&"is_in_intro"):
+		info["intro"] = bool(boss.call(&"is_in_intro"))
+	return info
+
+
+## Co-op: {mode (solo/quick/guild), players, local_players, role (solo/local/host/client), online}.
+## Never a room code (LobbyClient.room, NetDiagnostics) and no other player's name.
+static func coop_info(tree: SceneTree) -> Dictionary:
+	var info := {}
+	if tree == null:
+		return info
+	var players := 0
+	var local := 0
+	for node in tree.get_nodes_in_group(&"player"):
+		if is_instance_valid(node):
+			players += 1
+			if node.get(&"is_local") == null or bool(node.get(&"is_local")):
+				local += 1
+	var mode_script := class_script(&"GameMode")
+	if mode_script != null:
+		var mode: Variant = mode_script.call(&"of_tree", tree)
+		if mode is Object and mode != null:
+			info["mode"] = enum_key(&"GameMode", &"Kind", (mode as Object).get(&"kind")).to_lower()
+			if (mode as Object).has_method(&"get_player_count"):
+				players = maxi(players, int((mode as Object).call(&"get_player_count")))
+	info["players"] = players
+	info["local_players"] = local
+	# Group lookup only: LobbyClient.of() / OnlineSession.of() would create a node.
+	var lobby := tree.get_first_node_in_group(&"lobby_client")
+	var online := lobby != null and lobby.has_method(&"is_in_room") and bool(lobby.call(&"is_in_room"))
+	info["online"] = online
+	if online:
+		info["role"] = "host" if lobby.has_method(&"is_host") and lobby.call(&"is_host") else "client"
+	else:
+		info["role"] = "local" if players > 1 else "solo"
+	return info
+
+
+## Copies the ping of context.network (NetDiagnostics, connection.rtt_ms.last) to context.coop.ping_ms.
+static func add_ping(context: Dictionary) -> void:
+	var network: Variant = context.get("network", {})
+	if not (network is Dictionary):
+		return
+	var connection: Variant = (network as Dictionary).get("connection", {})
+	if connection is Dictionary and (connection as Dictionary).get("rtt_ms") is Dictionary:
+		var coop: Dictionary = context.get("coop", {})
+		coop["ping_ms"] = int((connection["rtt_ms"] as Dictionary).get("last", -1))
+		context["coop"] = coop
+
+
+## Deep copy of value without room codes (NetDiagnostics.snapshot carries connection.room and
+## last_disconnect.room).
+static func without_room_codes(value: Variant) -> Variant:
+	if value is Dictionary:
+		var result := {}
+		for key: Variant in value:
+			if not ROOM_CODE_KEYS.has(str(key)):
+				result[key] = without_room_codes(value[key])
+		return result
+	if value is Array:
+		var list: Array = []
+		for item: Variant in value:
+			list.append(without_room_codes(item))
+		return list
+	return value
+
+
+## Platform, phone UI, input device, screen size and UI zoom.
+static func device_info(tree: SceneTree) -> Dictionary:
+	var info := {"platform": DevFeedbackUpload.platform(), "input": input_device()}
+	info["mobile_ui"] = bool(MobileUiScript.is_phone())
+	if MobileUiScript.is_forced():
+		info["mobile_ui_forced"] = true
+	info["touch_screen"] = bool(MobileUiScript.is_touch_screen())
+	if DisplayServer.get_name() != "headless":
+		var screen := DisplayServer.window_get_current_screen()
+		info["screen_size"] = _vec(DisplayServer.screen_get_size(screen))
+		info["screen_scale"] = snappedf(DisplayServer.screen_get_scale(screen), 0.01)
+	if tree != null:
+		info["ui_zoom"] = snappedf(float(MobileUiScript.menu_zoom(tree.root)), 0.01)
+		info["content_scale"] = snappedf(tree.root.content_scale_factor, 0.01)
+	info["ui_size"] = str(MobileUiScript.SizeMode.find_key(MobileUiScript.size_mode)).to_lower()
+	return info
+
+
+## "mouse", "gamepad" or "touch" (InputDevice.shared().kind; DevFeedback's own record otherwise).
+static func input_device() -> String:
+	var script := class_script(&"InputDevice")
+	if script != null:
+		var device: Variant = script.call(&"shared")
+		if device is Object and device != null and (device as Object).get(&"kind") != null:
+			var key := enum_key(&"InputDevice", &"Kind", (device as Object).get(&"kind"))
+			if INPUT_NAMES.has(key):
+				return INPUT_NAMES[key]
+	return _last_input if not _last_input.is_empty() else "mouse"
+
+
+## DevFeedback passes every input event: the fallback for input_device().
+static func note_input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		_last_input = "touch"
+	elif event is InputEventJoypadButton:
+		_last_input = "gamepad"
+	elif event is InputEventJoypadMotion:
+		if absf((event as InputEventJoypadMotion).axis_value) > 0.5:
+			_last_input = "gamepad"
+	elif event is InputEventKey or (event is InputEventMouseButton and event.device != InputEvent.DEVICE_ID_EMULATION):
+		_last_input = "mouse"
+
+
+# --- texts -------------------------------------------------------------------------------------
+
+## German text of a translation key whatever the game language (location stays comparable); the
+## fallback (or the key itself) when there is none.
+static func de_text(key: Variant, fallback := "") -> String:
+	var text_key := str(key) if key != null else ""
+	if text_key.is_empty():
+		return fallback
+	Loc.install()
+	var translation := TranslationServer.get_translation_object("de")
+	if translation != null:
+		var text := String(translation.get_message(StringName(text_key)))
+		if not text.is_empty():
+			return text
+	return fallback if not fallback.is_empty() else text_key
+
+
+## Text of a key in the current game language (to recognise a shown title).
+static func _translated(key: StringName) -> String:
+	Loc.install()
+	return String(TranslationServer.translate(key))
+
+
+static func _short(text: String) -> String:
+	text = text.strip_edges()
+	return text if text.length() <= MAX_TITLE else text.substr(0, MAX_TITLE - 1) + "…"
 
 
 ## Visible Controls whose rectangle meets rect, smallest first (then deepest), at most MAX_NODES.
@@ -68,32 +457,44 @@ static func world_nodes_in(root: Node, rect: Rect2, exclude: Node = null) -> Arr
 	return _strip(result)
 
 
-## One line for index.md and the overview: "Dungeon · Raum 12 · Krypta · COMBAT · arena".
+## One readable German line for index.md, the admin list and the overview (at most 200 characters):
+## "Dungeon · Raum 23 · Schleimgrotte · Kampf + Upgrade · Arena · Bosskampf: Knochenkönig (Phase 2)
+## · Pausemenü", "Hauptmenü · Online · Gilden · Gildenseite", "Dorf · Schmiede".
 static func describe_location(context: Dictionary) -> String:
 	var parts: PackedStringArray = []
 	var phase := str(context.get("phase", ""))
 	match phase:
-		"menu":
-			parts.append("Menü")
-		"village":
-			parts.append("Dorf")
-		"dungeon":
-			parts.append("Dungeon")
+		"menu", "village", "dungeon":
+			parts.append(phase_label(phase))
 		_:
 			parts.append(str(context.get("scene_name", "?")))
 	var dungeon: Dictionary = context.get("dungeon", {})
 	if not dungeon.is_empty():
 		if dungeon.has("room_index"):
 			parts.append("Raum %d" % int(dungeon["room_index"]))
-		for key in ["biome_name", "room_type", "mode", "variant"]:
+		for key in ["biome_name", "room_type_name", "genre_name"]:
 			var value := str(dungeon.get(key, ""))
-			if not value.is_empty() and value != "<null>":
+			if not value.is_empty() and value != "<null>" and not parts.has(value):
 				parts.append(value)
-		if bool(dungeon.get("side_view", false)):
+		var side_view := bool(dungeon.get("side_view", false))
+		for player: Variant in context.get("players", []):
+			if player is Dictionary and bool((player as Dictionary).get("side_view", false)):
+				side_view = true
+		if side_view:
 			parts.append("Seitenansicht")
-	elif phase != "dungeon" and context.get("scene", "") != "":
+	var boss: Dictionary = context.get("boss", {})
+	if not boss.is_empty():
+		var fight := "%s: %s" % ["Miniboss" if bool(boss.get("miniboss", false)) else "Bosskampf", str(boss.get("name", "?"))]
+		if boss.has("phase"):
+			fight += " (Phase %d)" % int(boss["phase"])
+		parts.append(fight)
+	var screen: Dictionary = context.get("screen", {})
+	for part: Variant in screen.get("parts", []):
+		parts.append(str(part))
+	if parts.size() == 1 and not ["menu", "village", "dungeon"].has(phase) and str(context.get("scene", "")) != "":
 		parts.append(str(context["scene"]).get_file())
-	return " · ".join(parts)
+	var line := " · ".join(parts)
+	return line if line.length() <= 200 else line.substr(0, 199) + "…"
 
 
 ## First node below from whose script (or a base script) has the given class_name.
@@ -212,7 +613,9 @@ static func _dungeon_info(dungeon: Node) -> Dictionary:
 		info["cycle"] = floori(float(room_index - 1) / maxi(1, cycle_length)) + 1
 		var sequence := class_script(&"RoomSequence")
 		if sequence != null:
-			info["biome_name"] = str(sequence.call(&"get_biome_name", sequence.call(&"get_biome", room_index)))
+			var biome_index: Variant = sequence.call(&"get_biome", room_index)
+			info["biome_name"] = de_text(sequence.call(&"get_biome_name_key", biome_index),
+					str(sequence.call(&"get_biome_name", biome_index)))
 	if room == null:
 		return info
 	info["_room"] = room
@@ -225,6 +628,10 @@ static func _dungeon_info(dungeon: Node) -> Dictionary:
 	var type_value: Variant = room.get(&"room_type")
 	if type_value != null:
 		info["room_type"] = enum_key(&"RoomSequence", &"RoomType", type_value)
+		# Readable like the HUD line (HUD_ROOM_TYPE_*), German.
+		var sequence_script := class_script(&"RoomSequence")
+		var german_type := str(sequence_script.call(&"get_type_name", type_value)) if sequence_script != null else ""
+		info["room_type_name"] = de_text("HUD_ROOM_TYPE_" + str(info["room_type"]), german_type)
 	var kind_value: Variant = room.get(&"room_kind")
 	if kind_value != null:
 		info["room_kind"] = enum_key(&"RoomSequence", &"RoomKind", kind_value)
@@ -243,6 +650,15 @@ static func _dungeon_info(dungeon: Node) -> Dictionary:
 		info["mode"] = str(signs.call(&"mode_of", room))
 	if dungeon.has_method(&"get_room_kind_label"):
 		info["kind_label"] = str(dungeon.call(&"get_room_kind_label", room))
+	var genre_script := class_script(&"RoomGenre")
+	if genre_script != null and has_class(room, &"RoomController"):
+		var genre := str(genre_script.call(&"of_room", room))
+		var table: Variant = class_constant(&"RoomGenre", &"TABLE", {})
+		if not genre.is_empty():
+			info["genre"] = genre
+			if table is Dictionary and (table as Dictionary).has(StringName(genre)):
+				var genre_key := str(((table as Dictionary)[StringName(genre)] as Dictionary).get("key", ""))
+				info["genre_name"] = de_text(genre_key + "_TITLE", genre.capitalize())
 	var spawner: Variant = room.get(&"spawner")
 	if spawner is Object and is_instance_valid(spawner) and (spawner as Object).has_method(&"get_biome"):
 		var biome: Variant = (spawner as Object).call(&"get_biome", room_index)
@@ -250,7 +666,8 @@ static func _dungeon_info(dungeon: Node) -> Dictionary:
 			info["biome"] = str((biome as Object).get(&"id"))
 			var display: Variant = (biome as Object).get(&"display_name")
 			if display != null and str(display) != "":
-				info["biome_name"] = str(display)
+				# display_name is a translation key (BIOME_SLIME_GROTTO): German text.
+				info["biome_name"] = de_text(display)
 	return info
 
 

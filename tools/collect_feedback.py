@@ -4,7 +4,7 @@
 Aufruf (im Repo-Root):
     python tools/collect_feedback.py                         # lokale Meldungen -> docs/feedback/FEEDBACK_<heute>.md
     python tools/collect_feedback.py --since 2026-10-15      # nur Meldungen ab diesem Tag (auch "2026-10-15 14:00")
-    python tools/collect_feedback.py --group location        # nach Ort (Menue, Dorf, Biom) statt nach Kategorie
+    python tools/collect_feedback.py --group location        # nach Ort (Menue, Dorf, Biom) statt nach Art
     python tools/collect_feedback.py --out C:/tmp/review.md  # andere Zieldatei (Bilder landen daneben in <datum>/)
     python tools/collect_feedback.py --src <ordner>          # anderer Quellordner (Standard siehe unten)
     python tools/collect_feedback.py --no-copy               # Bilder nicht kopieren, Links zeigen auf die Quelle
@@ -29,10 +29,13 @@ Quelle Server: GET /admin/bug-reports (Liste), /admin/bug-reports/:id (Details) 
 /admin/bug-reports/:id/image (Bild), Vertrag soulwick-platform/packages/contracts/src/bug-report.ts.
 Die Markierungen werden lokal ins Bild gezeichnet (marked.png, mit Pillow; ohne Pillow nur das
 Originalbild und die Liste der Markierungen).
-Ziel: die Markdown-Uebersicht (gruppiert nach Kategorie oder Ort, mit Text, Markierungen, den
+Ziel: die Markdown-Uebersicht (Abschnitte "Fehler" und "Ideen" oder nach Ort, mit Text, Markierungen, den
 UI- und Welt-Knoten unter jeder Markierung, dem Kontext und einer Spalte "pruefen?", die der
 auswertende Agent setzt) und eine Kopie der Dateien je Meldung unter docs/feedback/<datum>/<ordner>/;
 die Links in der Uebersicht sind relativ. docs/feedback/ ist bis auf README.md gitignored.
+Art der Meldung (Feld "kind", seit 17.10.2026): "bug" (Reiter "Fehler melden", Standard) oder "idea"
+("Idee einreichen"); aeltere Meldungen ohne "kind" zaehlen als Fehler. Kategorien waehlt der Spieler
+nicht mehr; alte Meldungen zeigen ihre Kategorien noch als "Kategorien (alt)".
 Nur Python-Standardbibliothek (Pillow optional).
 """
 import argparse
@@ -47,13 +50,15 @@ import urllib.request
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-# Category keys of the game and the API (contract BugReportCategory) -> heading in the report.
+# Report kinds (contract field "kind") -> section heading; reports without a kind are bugs.
+KIND_LABELS = {"bug": "Fehler", "idea": "Ideen"}
+KIND_SINGULAR = {"bug": "Fehler", "idea": "Idee"}
+# Old reports (before 17.10.2026) still carry category keys (contract BugReportCategory).
 CATEGORY_LABELS = {
     "ui": "UI", "graphics": "Grafik", "light": "Licht", "layout": "Raum/Layout",
     "gameplay": "Gameplay", "bug": "Bug", "text": "Text",
 }
-CATEGORIES = list(CATEGORY_LABELS.values())
-NO_CATEGORY = "Ohne Kategorie"
+INPUT_LABELS = {"mouse": "Maus/Tastatur", "keyboard": "Tastatur", "touch": "Touch", "gamepad": "Gamepad"}
 COPY_FILES = ["marked.png", "screenshot.png", "note.json", "upload.json"]
 MAX_NODES_IN_REPORT = 6
 HTTP_TIMEOUT = 20
@@ -302,6 +307,7 @@ def api_record(detail: dict, item: dict, when: dt.datetime, image_path: Path | N
         "id": str(detail.get("id", item.get("id", "")))[:8],
         "time": when.isoformat(sep=" "),
         "text": detail.get("note", ""),
+        "kind": detail.get("kind") or item.get("kind") or context.get("kind") or "bug",
         "categories": detail.get("categories") or item.get("categories") or [],
         "location": detail.get("location") or context.get("location", ""),
         "marks": marks,
@@ -571,14 +577,15 @@ def build_runs_report(runs: list[dict], source: str, since: dt.datetime | None, 
 
 # --- report --------------------------------------------------------------------------------------
 
-def category_label(category) -> str:
-    return CATEGORY_LABELS.get(str(category), str(category))
+def record_kind(record: dict) -> str:
+    """ "bug" or "idea"; reports without a kind (older games, older servers) are bugs."""
+    kind = str(record.get("kind") or (record.get("context") or {}).get("kind") or "bug").strip().lower()
+    return kind if kind in KIND_LABELS else "bug"
 
 
-def ordered_categories(record: dict) -> list[str]:
-    chosen = [category_label(c) for c in record.get("categories", [])]
-    known = [c for c in CATEGORIES if c in chosen]
-    return known + [c for c in dict.fromkeys(chosen) if c not in known]
+def old_categories(record: dict) -> list[str]:
+    """Readable categories of an old report (empty for new ones)."""
+    return list(dict.fromkeys(CATEGORY_LABELS.get(str(c), str(c)) for c in record.get("categories", []) or []))
 
 
 def location_group(record: dict) -> str:
@@ -637,13 +644,48 @@ def describe_node(entry: dict) -> str:
 def context_lines(record: dict) -> list[str]:
     context = record.get("context", {}) or {}
     lines = []
+    screen = context.get("screen")
+    if isinstance(screen, dict) and screen.get("label"):
+        lines.append(f"Bildschirm {screen['label']}")
+    boss = context.get("boss")
+    if isinstance(boss, dict) and boss:
+        bits = [str(boss.get("name") or boss.get("id") or "?")]
+        if boss.get("phase") not in (None, ""):
+            bits.append(f"Phase {boss['phase']}")
+        if boss.get("hp") is not None and boss.get("hp_max"):
+            bits.append(f"HP {boss['hp']}/{boss['hp_max']}")
+        if int(boss.get("count", 1) or 1) > 1:
+            bits.append(f"{boss['count']} Bosse")
+        lines.append("Bosskampf: " + ", ".join(bits))
+    coop = context.get("coop")
+    if isinstance(coop, dict) and coop:
+        bits = [f"{coop.get('players', '?')} Spieler", str(coop.get("role", "solo"))]
+        if coop.get("ping_ms") is not None and int(coop["ping_ms"]) >= 0:
+            bits.append(f"Ping {coop['ping_ms']} ms")
+        lines.append("Koop: " + ", ".join(bits))
+    device = context.get("device")
+    if isinstance(device, dict) and device:
+        bits = []
+        if device.get("platform"):
+            bits.append(str(device["platform"]) + (" (Handy-UI)" if device.get("mobile_ui") else ""))
+        if device.get("input"):
+            bits.append("Eingabe " + INPUT_LABELS.get(str(device["input"]), str(device["input"])))
+        if device.get("screen_size"):
+            bits.append(f"Bildschirm {device['screen_size']}")
+        if device.get("ui_zoom"):
+            bits.append(f"UI-Zoom {device['ui_zoom']}")
+        if bits:
+            lines.append(", ".join(bits))
     scene = context.get("scene")
     if scene:
         lines.append(f"Szene `{scene}`")
-    dungeon = context.get("dungeon", {}) or {}
+    dungeon = dict(context.get("dungeon", {}) or {})
     if dungeon:
         bits = []
+        # Readable room type (since 17.10.2026), older reports only have the enum name.
+        dungeon["room_type"] = dungeon.get("room_type_name") or dungeon.get("room_type")
         for key, label in (("room_index", "Raum"), ("cycle", "Zyklus"), ("biome_name", "Biom"), ("room_type", "Art"),
+                           ("genre_name", "Genre"),
                            ("room_kind", "Sorte"), ("room_size", "Größe"), ("special_type", "Spezial"), ("mode", "Modus"),
                            ("variant", "Variante"), ("kind_label", "Name"), ("seed", "Seed")):
             value = dungeon.get(key)
@@ -718,8 +760,10 @@ def render_note(record: dict, link_dir: Path, base: Path) -> list[str]:
     if text:
         out.extend("> " + line if line else ">" for line in text.splitlines())
         out.append("")
-    categories = ordered_categories(record)
-    out.append(f"- **Kategorien:** {', '.join(categories) if categories else '–'}")
+    out.append(f"- **Art:** {KIND_SINGULAR[record_kind(record)]}")
+    categories = old_categories(record)
+    if categories:
+        out.append(f"- **Kategorien (alt):** {', '.join(categories)}")
     out.append(f"- **Quelle:** {source_text(record)}")
     out.append("- **prüfen?** _(setzt der auswertende Agent: leer = plausibel, sonst `ja: Grund`; "
                "siehe README „Meldungen auswerten“)_")
@@ -761,30 +805,28 @@ def build_report(notes: list[dict], group: str, links: dict, base: Path, source:
         out.append("Keine Meldungen gefunden.")
         return "\n".join(out) + "\n"
 
-    by_category: dict[str, list[dict]] = {}
+    by_kind: dict[str, list[dict]] = {}
     for record in notes:
-        for category in ordered_categories(record) or [NO_CATEGORY]:
-            by_category.setdefault(category, []).append(record)
+        by_kind.setdefault(record_kind(record), []).append(record)
     by_location: dict[str, list[dict]] = {}
     for record in notes:
         by_location.setdefault(location_group(record), []).append(record)
 
-    out += ["## Übersicht", "", "| Kategorie | Meldungen |", "| --- | --- |"]
-    for category in CATEGORIES + sorted(set(by_category) - set(CATEGORIES)):
-        if category in by_category:
-            out.append(f"| {category} | {len(by_category[category])} |")
+    out += ["## Übersicht", "", "| Art | Meldungen |", "| --- | --- |"]
+    for kind, label in KIND_LABELS.items():
+        out.append(f"| {label} | {len(by_kind.get(kind, []))} |")
     out += ["", "| Ort | Meldungen |", "| --- | --- |"]
     for location in sorted(by_location):
         out.append(f"| {md_escape(location)} | {len(by_location[location])} |")
     out += ["", "## Alle Meldungen", "",
             "Spalte **prüfen?** setzt der auswertende Agent: leer = plausibel, umsetzen; `ja: Grund` = unplausibel oder "
             "offensichtlich falsch, dem Projektmitglied zeigen (Bild, Notiz, Begründung), nicht still umsetzen oder verwerfen.",
-            "", "| Nr | Zeit | Kategorien | Ort | Text | Quelle | prüfen? |", "| --- | --- | --- | --- | --- | --- | --- |"]
+            "", "| Nr | Zeit | Art | Ort | Text | Quelle | prüfen? |", "| --- | --- | --- | --- | --- | --- | --- |"]
     for record in notes:
         text = str(record.get("text", "")).strip()
         if not text:
             text = next((str(m.get("note", "")) for m in record.get("marks", []) or [] if m.get("note")), "")
-        out.append(f"| #{record.get('id', '?')} | {record['_time']:%Y-%m-%d %H:%M} | {', '.join(ordered_categories(record)) or '–'} | "
+        out.append(f"| #{record.get('id', '?')} | {record['_time']:%Y-%m-%d %H:%M} | {KIND_SINGULAR[record_kind(record)]} | "
                    f"{one_line(record.get('location', '') or location_group(record), 40)} | {one_line(text)} | "
                    f"{md_escape(source_text(record))} |  |")
     out.append("")
@@ -795,19 +837,13 @@ def build_report(notes: list[dict], group: str, links: dict, base: Path, source:
             for record in by_location[location]:
                 out += render_note(record, links[id(record)], base)
     else:
-        order = [c for c in CATEGORIES if c in by_category] + sorted(set(by_category) - set(CATEGORIES))
-        for category in order:
-            records = by_category[category]
-            out += [f"## {category} ({len(records)})", ""]
-            refs = []
+        for kind, label in KIND_LABELS.items():
+            records = by_kind.get(kind, [])
+            out += [f"## {label} ({len(records)})", ""]
+            if not records:
+                out += ["Keine.", ""]
             for record in records:
-                primary = (ordered_categories(record) or [NO_CATEGORY])[0]
-                if primary == category:
-                    out += render_note(record, links[id(record)], base)
-                else:
-                    refs.append(f"#{record.get('id', '?')} (siehe {primary})")
-            if refs:
-                out += ["Auch hier: " + ", ".join(refs), ""]
+                out += render_note(record, links[id(record)], base)
     return "\n".join(out) + "\n"
 
 
@@ -824,7 +860,8 @@ def main() -> int:
     parser.add_argument("--mark-seen", action="store_true", help="nur mit --api: geholte neue Meldungen auf seen setzen")
     parser.add_argument("--since", type=parse_since, default=None, help="nur Meldungen ab Datum (YYYY-MM-DD [HH:MM])")
     parser.add_argument("--out", type=Path, default=None, help="Zieldatei (Standard: docs/feedback/FEEDBACK_<heute>.md)")
-    parser.add_argument("--group", choices=["category", "location"], default="category", help="Gruppierung")
+    parser.add_argument("--group", choices=["kind", "location"], default="kind",
+                        help="Gruppierung: kind = Abschnitte Fehler und Ideen (Standard), location = nach Ort")
     parser.add_argument("--no-copy", action="store_true", help="lokal: Bilder nicht kopieren, auf die Quelle verlinken")
     args = parser.parse_args()
 

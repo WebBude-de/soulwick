@@ -4,8 +4,9 @@ extends Node
 ## the key # (German keyboard; the same physical key elsewhere, F9 as a second key) or the small
 ## touch button at the top right (DevFeedbackTouchButton, temporary) grabs the current frame
 ## (before anything of the tool is drawn), freezes the game through the regular pause system
-## (pause reason &"dev_feedback", D-043) and opens DevFeedbackOverlay. There the player marks
-## rectangles and types notes; sending writes screenshot, marked copy, note.json with context
+## (pause reason &"dev_feedback", D-043) and opens DevFeedbackOverlay. There the player picks the
+## tab "Fehler melden" (kind "bug", default) or "Idee einreichen" ("idea"), marks rectangles and
+## types notes; sending writes screenshot, marked copy, note.json with context
 ## (DevFeedbackContext) and a line in index.md under root_dir (DevFeedbackStore), and queues the
 ## report for the platform API (DevFeedbackOutbox, POST /bug-reports, in the background).
 ## Evaluate with tools/collect_feedback.py (docs/feedback/README.md).
@@ -65,6 +66,8 @@ var _last_saved_dir := ""
 ## reports touches during a run; the button is wanted in the menus too).
 var _finger_seen := false
 var _opening := false
+## A gamepad button came after the last key, mouse or touch input (the overlay names pad buttons).
+var _pad_seen := false
 
 
 ## Bug reports on? Command line bug_reports=0/1, else the project setting soulwick/beta/bug_reports,
@@ -183,6 +186,13 @@ func _text_field_focused() -> bool:
 
 
 func _track_touch(event: InputEvent) -> void:
+	DevFeedbackContext.note_input(event)
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		if event is InputEventJoypadButton or absf((event as InputEventJoypadMotion).axis_value) > 0.5:
+			_pad_seen = true
+		return
+	if event is InputEventKey or event is InputEventMouseButton or event is InputEventScreenTouch:
+		_pad_seen = false
 	if event is InputEventScreenTouch:
 		if (event as InputEventScreenTouch).pressed:
 			_finger_seen = true
@@ -232,6 +242,7 @@ func open(image: Image = null, touch: Variant = null) -> bool:
 	_overlay.name = "Overlay"
 	_overlay.setup(_image, get_viewport().get_visible_rect().size)
 	_overlay.touch_mode = bool(touch) if touch != null else is_touch_active()
+	_overlay.pad_mode = _pad_seen and not _overlay.touch_mode
 	_overlay.needs_consent = not has_consent()
 	_overlay.consent_given.connect(store_consent)
 	_overlay.submitted.connect(_on_submitted)
@@ -278,7 +289,7 @@ func save_note(note: Dictionary) -> String:
 	if dir.is_empty():
 		_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SAVE_FAILED"), Color("#ff8a80"))
 		return dir
-	_show_toast(DevFeedbackTexts.t(&"BUG_REPORT_SAVED"), Color("#5fcd62"))
+	_show_toast(DevFeedbackTexts.kind_text(str(record.get("kind", "bug")), 3), Color("#5fcd62"))
 	print("[DevFeedback] Meldung gespeichert: %s" % ProjectSettings.globalize_path(dir))
 	queue_upload(dir.get_file(), record)
 	return dir
@@ -292,7 +303,8 @@ func queue_upload(folder: String, record: Dictionary) -> bool:
 	return outbox.enqueue(folder, DevFeedbackUpload.build_body(record, _image))
 
 
-## note.json content: the overlay note in image pixels and relative units plus the context.
+## note.json content: the overlay note (kind "bug" or "idea") in image pixels and relative units
+## plus the context.
 func build_record(note: Dictionary) -> Dictionary:
 	var view_size: Vector2 = note.get("view_size", get_viewport().get_visible_rect().size)
 	var image_size := Vector2(_image.get_size()) if _image != null else view_size
@@ -327,13 +339,16 @@ func build_record(note: Dictionary) -> Dictionary:
 	var context := DevFeedbackContext.collect(get_tree(), self)
 	# Frame rate, main-thread stalls and, online, traffic, rtt and the last disconnect (online test
 	# 16.10.2026).
-	context["network"] = NetDiagnosticsScript.snapshot()
+	context["network"] = DevFeedbackContext.without_room_codes(NetDiagnosticsScript.snapshot())
+	DevFeedbackContext.add_ping(context)
+	var kind := DevFeedbackUpload.kind_of(note)
+	context["kind"] = kind
 	return {
 		"time": Time.get_datetime_string_from_system(false, false),
 		"unix": int(Time.get_unix_time_from_system()),
 		"version": version_info(),
 		"text": str(note.get("text", "")),
-		"categories": note.get("categories", []),
+		"kind": kind,
 		"location": context.get("location", ""),
 		"image_size": [int(image_size.x), int(image_size.y)],
 		"view_size": [view_size.x, view_size.y],

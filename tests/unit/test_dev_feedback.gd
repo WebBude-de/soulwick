@@ -217,12 +217,16 @@ func test_overlay_texts_are_translated() -> void:
 	var overlay := _overlay()
 	var send := overlay.find_child("Send", true, false) as Button
 	assert_eq(send.text, DevFeedbackTexts.t(&"BUG_REPORT_SEND"))
-	assert_eq((overlay.find_child("Category_graphics", true, false) as Button).text, "Graphics")
+	assert_eq((overlay.find_child("Tab_bug", true, false) as Button).text, "Report a bug")
+	assert_eq((overlay.find_child("Tab_idea", true, false) as Button).text, "Suggest an idea")
+	assert_null(overlay.find_child("Category_ui", true, false), "no categories any more")
 	assert_string_contains((overlay.find_child("Header", true, false) as Label).text, "#", "the key is named in the hint")
 	assert_false((overlay.find_child("Privacy", true, false) as Label).text.is_empty(), "privacy line")
 	TranslationServer.set_locale("de")
 	assert_eq(DevFeedbackTexts.t(&"BUG_REPORT_SAVED"), "Danke! Meldung gespeichert")
-	assert_eq(DevFeedbackTexts.category_label("graphics"), "Grafik")
+	assert_eq(DevFeedbackTexts.kind_text("idea", 0), "Idee einreichen")
+	assert_eq(DevFeedbackTexts.kind_text("bug", 0), "Fehler melden")
+	assert_eq(DevFeedbackTexts.kind_text("nonsense", 0), "Fehler melden", "unknown kinds read as bug")
 	TranslationServer.set_locale(old_locale)
 	for key: StringName in DevFeedbackTexts.TEXTS:
 		var pair: Array = DevFeedbackTexts.TEXTS[key]
@@ -300,8 +304,6 @@ func test_save_writes_three_files_and_an_index_line() -> void:
 	var view := get_tree().root.get_visible_rect().size
 	overlay.add_mark(Rect2(view * 0.25, view * 0.25), "Rahmen zu dunkel")
 	overlay.set_text("Der Knopf ist kaum lesbar\nzweite Zeile")
-	overlay.set_category("ui", true)
-	overlay.set_category("light", true)
 	var closed_dirs: Array[String] = []
 	feedback.closed.connect(func(dir: String) -> void: closed_dirs.append(dir))
 	overlay.submit()
@@ -317,7 +319,8 @@ func test_save_writes_three_files_and_an_index_line() -> void:
 
 	var record: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(dir.path_join(DevFeedbackStore.NOTE_FILE)))
 	assert_eq(record["text"], "Der Knopf ist kaum lesbar\nzweite Zeile")
-	assert_eq(record["categories"], ["ui", "light"])
+	assert_eq(record["kind"], "bug", "the default tab is bug")
+	assert_false(record.has("categories"), "no categories in note.json")
 	assert_eq(int(record["id"]), 1)
 	assert_eq((record["marks"] as Array).size(), 1)
 	var mark: Dictionary = record["marks"][0]
@@ -339,7 +342,7 @@ func test_save_writes_three_files_and_an_index_line() -> void:
 
 	var index := FileAccess.get_file_as_string(TEST_ROOT.path_join(DevFeedbackStore.INDEX_FILE))
 	assert_string_contains(index, dir.get_file())
-	assert_string_contains(index, "ui, light")
+	assert_string_contains(index, "| Fehler |")
 	assert_string_contains(index, "Der Knopf ist kaum lesbar zweite Zeile")
 
 	var outbox := feedback.outbox
@@ -348,7 +351,8 @@ func test_save_writes_three_files_and_an_index_line() -> void:
 	assert_true(outbox.outbox_path(dir.get_file()).begins_with(TEST_ROOT), "outbox in the test folder")
 	var body: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(outbox.outbox_path(dir.get_file())))
 	assert_eq(body["note"], "Der Knopf ist kaum lesbar\nzweite Zeile")
-	assert_eq(body["categories"], ["ui", "light"])
+	assert_eq(body["kind"], "bug")
+	assert_eq(body["categories"], [])
 	assert_eq((body["marks"] as Array).size(), 1)
 	assert_almost_eq(float(body["marks"][0]["x"]), 0.25, 0.001, "marks relative")
 	assert_eq(body["marks"][0]["note"], "Rahmen zu dunkel")
@@ -418,6 +422,84 @@ func test_world_nodes_under_a_rectangle_are_found() -> void:
 	assert_does_not_have(outside.map(func(entry: Dictionary) -> String: return str(entry["path"])), str(sprite.get_path()))
 
 
+func test_tabs_pick_bug_or_idea() -> void:
+	var old_locale := TranslationServer.get_locale()
+	TranslationServer.set_locale("de")
+	var overlay := _overlay()
+	var bug_tab := overlay.find_child("Tab_bug", true, false) as Button
+	var idea_tab := overlay.find_child("Tab_idea", true, false) as Button
+	var note := overlay.find_child("Note", true, false) as TextEdit
+	var header := overlay.find_child("Header", true, false) as Label
+	assert_eq(overlay.get_kind(), "bug", "Fehler melden is the default")
+	assert_true(bug_tab.button_pressed)
+	assert_false(idea_tab.button_pressed)
+	assert_string_contains(note.placeholder_text, "Was ist kaputt?")
+	assert_string_starts_with(header.text, "FEHLER MELDEN")
+
+	idea_tab.pressed.emit()
+	assert_eq(overlay.get_kind(), "idea", "click on the tab")
+	assert_string_contains(note.placeholder_text, "Was wünschst du dir?")
+	assert_string_starts_with(header.text, "IDEE EINREICHEN")
+	assert_false(bug_tab.button_pressed)
+
+	overlay.set_text("Text bleibt")
+	overlay.add_mark(Rect2(10, 10, 40, 40))
+	var ctrl_tab := _key(KEY_TAB)
+	ctrl_tab.ctrl_pressed = true
+	overlay._input(ctrl_tab)
+	assert_eq(overlay.get_kind(), "bug", "Ctrl+Tab switches")
+	assert_eq(overlay.build_note()["text"], "Text bleibt", "switching keeps the note")
+	assert_eq(overlay.mark_count(), 1, "and the marks")
+
+	assert_true(overlay.handle_pad_button(_pad(JOY_BUTTON_RIGHT_SHOULDER)))
+	assert_eq(overlay.get_kind(), "idea", "RB")
+	assert_true(overlay.handle_pad_button(_pad(JOY_BUTTON_LEFT_SHOULDER)))
+	assert_eq(overlay.get_kind(), "bug", "LB")
+	assert_true(overlay.pad_mode, "pad hint shown")
+	assert_eq((overlay.find_child("Status", true, false) as Label).text, DevFeedbackTexts.t(&"BUG_REPORT_KEYS_PAD"))
+	overlay.set_kind("idea")
+	overlay.set_kind("wish")
+	assert_eq(overlay.get_kind(), "idea", "unknown kinds are ignored")
+	assert_eq(overlay.build_note()["kind"], "idea")
+	TranslationServer.set_locale(old_locale)
+
+
+func test_phone_tabs_are_large() -> void:
+	var overlay := _overlay(true)
+	var tab := overlay.find_child("Tab_idea", true, false) as Button
+	assert_gte(tab.custom_minimum_size.y, DevFeedbackOverlay.TAB_HEIGHT_TOUCH)
+	assert_eq((overlay.find_child("Status", true, false) as Label).text, "", "no key hints on a phone")
+
+
+func test_gamepad_sends_and_cancels() -> void:
+	var feedback := _feedback()
+	assert_true(feedback.open(_image()))
+	var overlay := feedback.get_overlay()
+	overlay.handle_pad_button(_pad(JOY_BUTTON_RIGHT_SHOULDER))
+	overlay.set_text("Gilden-Chat wäre schön")
+	var closed_dirs: Array[String] = []
+	feedback.closed.connect(func(dir: String) -> void: closed_dirs.append(dir))
+	overlay.handle_pad_button(_pad(JOY_BUTTON_START))
+	assert_false(feedback.is_open(), "Start sends")
+	assert_eq(closed_dirs.size(), 1)
+	var record: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(closed_dirs[0].path_join(DevFeedbackStore.NOTE_FILE)))
+	assert_eq(record["kind"], "idea")
+	assert_eq(record["context"]["kind"], "idea")
+	var index := FileAccess.get_file_as_string(TEST_ROOT.path_join(DevFeedbackStore.INDEX_FILE))
+	assert_string_contains(index, "| Idee |")
+	var body: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(feedback.outbox.outbox_path(closed_dirs[0].get_file())))
+	assert_eq(body["kind"], "idea")
+
+	assert_true(feedback.open(_image()))
+	overlay = feedback.get_overlay()
+	assert_eq(overlay.get_kind(), "bug", "every report starts as bug")
+	overlay.set_text("etwas")
+	overlay.handle_pad_button(_pad(JOY_BUTTON_B))
+	assert_true(feedback.is_open(), "first B with content only warns")
+	overlay.handle_pad_button(_pad(JOY_BUTTON_B))
+	assert_false(feedback.is_open(), "second B discards")
+
+
 func test_context_without_a_dungeon_does_not_fail() -> void:
 	var context := DevFeedbackContext.collect(get_tree())
 	assert_true(context.has("phase"))
@@ -474,6 +556,13 @@ func _f9() -> InputEventKey:
 func _key(keycode: Key) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.keycode = keycode
+	event.pressed = true
+	return event
+
+
+func _pad(button: JoyButton) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.button_index = button
 	event.pressed = true
 	return event
 

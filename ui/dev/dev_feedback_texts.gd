@@ -3,7 +3,8 @@ extends RefCounted
 ## Player-facing texts of the bug report tool (DevFeedback, overlay, toasts; D-111). Every text is
 ## a translation key with an English and a German fallback, looked up like Hud.hud_text: while a
 ## key is missing in localization/translations.csv the fallback of the current language is shown.
-## TEXTS is the list to copy into the CSV (key, en, de).
+## TEXTS is the list to copy into the CSV (key, en, de). The report has two kinds (tabs): "bug" (default)
+## and "idea"; there are no categories any more (17.10.2026).
 
 const TEXTS := {
 	&"BUG_REPORT_TITLE": ["REPORT A BUG", "FEHLER MELDEN"],
@@ -15,16 +16,13 @@ const TEXTS := {
 		"Game paused · Drag: mark an area · Long press: remove",
 		"Spiel pausiert · Ziehen: Bereich markieren · Lange drücken: entfernen",
 	],
-	&"BUG_REPORT_CATEGORY": ["Category:", "Kategorie:"],
-	&"BUG_REPORT_CAT_UI": ["UI", "UI"],
-	&"BUG_REPORT_CAT_GRAPHICS": ["Graphics", "Grafik"],
-	&"BUG_REPORT_CAT_LIGHT": ["Light", "Licht"],
-	&"BUG_REPORT_CAT_LAYOUT": ["Room/Layout", "Raum/Layout"],
-	&"BUG_REPORT_CAT_GAMEPLAY": ["Gameplay", "Gameplay"],
-	&"BUG_REPORT_CAT_BUG": ["Bug", "Bug"],
-	&"BUG_REPORT_CAT_TEXT": ["Text", "Text"],
-	&"BUG_REPORT_SHORTCUTS": ["Ctrl+Enter: send · Esc: cancel", "Strg+Enter: senden · Esc: abbrechen"],
-	&"BUG_REPORT_NOTE_PLACEHOLDER": ["What is wrong here? (note, several lines)", "Was stimmt hier nicht? (Notiz, mehrzeilig)"],
+	&"BUG_REPORT_TAB_BUG": ["Report a bug", "Fehler melden"],
+	&"BUG_REPORT_TAB_IDEA": ["Suggest an idea", "Idee einreichen"],
+	&"BUG_REPORT_TITLE_IDEA": ["SUGGEST AN IDEA", "IDEE EINREICHEN"],
+	&"BUG_REPORT_KEYS_DESKTOP": ["Ctrl+Enter: send · Ctrl+Tab: switch tab · Esc: cancel", "Strg+Enter: senden · Strg+Tab: Reiter wechseln · Esc: abbrechen"],
+	&"BUG_REPORT_KEYS_PAD": ["LB/RB: switch tab · Start: send · B: cancel", "LB/RB: Reiter wechseln · Start: senden · B: abbrechen"],
+	&"BUG_REPORT_NOTE_BUG": ["What is broken? (note, several lines)", "Was ist kaputt? (Notiz, mehrzeilig)"],
+	&"BUG_REPORT_NOTE_IDEA": ["What would you like to see? (note, several lines)", "Was wünschst du dir? (Notiz, mehrzeilig)"],
 	&"BUG_REPORT_MARKS_EMPTY": ["No mark yet: drag a rectangle", "Noch keine Markierung: Rechteck aufziehen"],
 	&"BUG_REPORT_MARKS_HINT": ["Note per mark (optional):", "Notiz je Markierung (optional):"],
 	&"BUG_REPORT_MARK_PLACEHOLDER": ["short note on %d", "kurze Notiz zu %d"],
@@ -46,19 +44,15 @@ const TEXTS := {
 	&"BUG_REPORT_CONSENT_OK": ["Agree and send", "Einverstanden, senden"],
 	&"BUG_REPORT_CONSENT_BACK": ["Back", "Zurück"],
 	&"BUG_REPORT_SAVED": ["Thanks! Report saved", "Danke! Meldung gespeichert"],
+	&"BUG_REPORT_SAVED_IDEA": ["Thanks! Idea saved", "Danke! Idee gespeichert"],
 	&"BUG_REPORT_SENT": ["Report sent", "Meldung gesendet"],
 	&"BUG_REPORT_SAVE_FAILED": ["Could not save the report", "Meldung konnte nicht gespeichert werden"],
 }
 
-## Category key (API contract BugReportCategory, note.json) -> text key.
-const CATEGORY_TEXT := {
-	"ui": &"BUG_REPORT_CAT_UI",
-	"graphics": &"BUG_REPORT_CAT_GRAPHICS",
-	"light": &"BUG_REPORT_CAT_LIGHT",
-	"layout": &"BUG_REPORT_CAT_LAYOUT",
-	"gameplay": &"BUG_REPORT_CAT_GAMEPLAY",
-	"bug": &"BUG_REPORT_CAT_BUG",
-	"text": &"BUG_REPORT_CAT_TEXT",
+## Kind of report (contract field `kind`) -> tab text, overlay title and note placeholder.
+const KIND_TEXT := {
+	"bug": [&"BUG_REPORT_TAB_BUG", &"BUG_REPORT_TITLE", &"BUG_REPORT_NOTE_BUG", &"BUG_REPORT_SAVED"],
+	"idea": [&"BUG_REPORT_TAB_IDEA", &"BUG_REPORT_TITLE_IDEA", &"BUG_REPORT_NOTE_IDEA", &"BUG_REPORT_SAVED_IDEA"],
 }
 
 
@@ -69,5 +63,7 @@ static func t(key: StringName) -> String:
 	return DataTexts.text_or(key, fallback)
 
 
-static func category_label(category: String) -> String:
-	return t(CATEGORY_TEXT[category]) if CATEGORY_TEXT.has(category) else category
+## part: 0 tab, 1 title, 2 note placeholder, 3 "saved" toast; unknown kinds read as "bug".
+static func kind_text(kind: String, part: int) -> String:
+	var keys: Array = KIND_TEXT.get(kind, KIND_TEXT["bug"])
+	return t(keys[clampi(part, 0, keys.size() - 1)])

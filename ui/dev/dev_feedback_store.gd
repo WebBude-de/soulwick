@@ -2,7 +2,7 @@ class_name DevFeedbackStore
 extends RefCounted
 ## Writes one bug report (DevFeedback, # or F9) into its own folder under the feedback root:
 ## screenshot.png (the frame as it was), marked.png (the frame with the numbered rectangles and
-## strokes burnt in) and note.json (text, categories, marks, context), and appends one line to the
+## strokes burnt in) and note.json (text, kind, marks, context), and appends one line to the
 ## running index.md. Folder names: <YYYY-MM-DD_HH-MM-SS>_<nr>, nr counts up across all notes.
 ## The marked image is drawn straight into the Image (no font, no SubViewport) so saving works the
 ## same in headless tests: numbers use a tiny built-in 3x5 pixel digit font.
@@ -89,13 +89,13 @@ static func append_index(root_dir: String, record: Dictionary) -> void:
 		file.seek_end()
 	else:
 		file.store_string("# Dev-Feedback\n\nEine Zeile je Meldung (# oder F9 im Spiel). Auswerten: `python tools/collect_feedback.py`.\n\n")
-		file.store_string("| Zeit | Kategorien | Ort | Text | Ordner |\n| --- | --- | --- | --- | --- |\n")
+		file.store_string("| Zeit | Art | Ort | Text | Ordner |\n| --- | --- | --- | --- | --- |\n")
 	file.store_string(index_line(record) + "\n")
 	file.close()
 
 
 static func index_line(record: Dictionary) -> String:
-	var categories: Array = record.get("categories", [])
+	var kind := "Idee" if str(record.get("kind", "bug")) == "idea" else "Fehler"
 	var text := _one_line(str(record.get("text", "")))
 	if text.is_empty():
 		for mark: Dictionary in record.get("marks", []):
@@ -108,7 +108,7 @@ static func index_line(record: Dictionary) -> String:
 	var folder := str(record.get("folder", ""))
 	return "| %s | %s | %s | %s | [%s](%s/%s) |" % [
 		str(record.get("time", "")).replace("T", " "),
-		_cell(", ".join(PackedStringArray(categories))),
+		kind,
 		_cell(str(record.get("location", ""))),
 		_cell(text),
 		folder, folder, MARKED_FILE,

@@ -2,14 +2,17 @@ class_name DevFeedbackOverlay
 extends CanvasLayer
 ## Full-screen bug report overlay (DevFeedback, # / F9 or the touch button): shows the frozen
 ## screenshot, lets the player drag numbered rectangles, type a shared note and one short note per
-## rectangle, pick categories, then send (Ctrl+Enter / "Senden") or discard (Esc / "Abbrechen").
+## rectangle, then send (Ctrl+Enter / "Senden") or discard (Esc / "Abbrechen"). Two tabs at the top
+## of the panel pick the kind: "Fehler melden" (bug, always the default) or "Idee einreichen" (idea);
+## both work the same, only title and placeholder differ. No categories (17.10.2026): where the
+## report was made is read automatically (DevFeedbackContext).
 ## Desktop: left mouse drags a rectangle, Shift + drag draws a free stroke, right click removes the
 ## mark under the cursor. Touch (touch_mode, phones): a finger drags a rectangle, a long press on a
 ## mark removes it, the text fields open the on-screen keyboard (the panel moves above it) and the
-## buttons replace the shortcuts.
+## buttons replace the shortcuts. Ctrl+Tab switches the tab. Gamepad: LB/RB switch the tab, Start
+## sends, B cancels (twice when something is written, like Esc).
 ## Every text is a translation key with fallback (DevFeedbackTexts, D-111); auto_translate is off so
-## no other text is ever looked up as a key. Categories are the keys of the API contract (ui,
-## graphics, …), shown translated. One line tells the player what is sent to the developer team;
+## no other text is ever looked up as a key. One line tells the player what is sent to the developer team;
 ## before the very first send (needs_consent) a short notice has to be confirmed once.
 ## All input is swallowed while it is open: the GUI consumes mouse and focused text input, every
 ## other key is marked handled, so nothing reaches the game (no attack, no pause menu).
@@ -20,8 +23,10 @@ signal cancelled
 signal consent_given
 
 const LAYER := 120
-## Category keys (contract BugReportCategory), in the order of the buttons.
-const CATEGORIES: Array[String] = ["ui", "graphics", "light", "layout", "gameplay", "bug", "text"]
+## Report kinds (contract field `kind`), in the order of the tabs; the first is the default.
+const KINDS: Array[String] = ["bug", "idea"]
+## Minimum height of a tab on phones (view pixels), large enough for a thumb.
+const TAB_HEIGHT_TOUCH := 46.0
 ## Smaller drags are taken as clicks, not as rectangles (view pixels).
 const MIN_RECT := 6.0
 const STROKE_STEP := 3.0
@@ -54,6 +59,11 @@ var strokes: Array[PackedVector2Array] = []
 var touch_mode := false
 ## The privacy notice has to be confirmed before this send (first report of the installation).
 var needs_consent := false
+## "bug" or "idea" (KINDS); set_kind() keeps tabs, title and placeholder in step.
+var kind := "bug"
+## A gamepad was the last input: the status line names the pad buttons (set before _ready, and
+## switched on by the first pad button).
+var pad_mode := false
 
 var _texture: Texture2D = null
 var _view_size := Vector2(1280, 720)
@@ -65,7 +75,8 @@ var _mark_box: VBoxContainer
 var _mark_hint: Label
 var _status: Label
 var _side_button: Button
-var _category_buttons: Dictionary[String, Button] = {}
+var _header: Label
+var _kind_buttons: Dictionary[String, Button] = {}
 var _panel_on_top := false
 var _drag_mode := 0  # 0 none, 1 rectangle, 2 stroke
 var _drag_start := Vector2.ZERO
@@ -154,17 +165,28 @@ func set_text(text: String) -> void:
 	_text.text = text
 
 
-func set_category(category: String, on: bool) -> void:
-	if _category_buttons.has(category):
-		_category_buttons[category].button_pressed = on
+## Switches the tab ("bug" or "idea"; anything else is ignored). Text and marks stay.
+func set_kind(value: String) -> void:
+	if not KINDS.has(value):
+		return
+	kind = value
+	for key in _kind_buttons:
+		_kind_buttons[key].set_pressed_no_signal(key == kind)
+	if _header != null:
+		_header.text = "%s · %s" % [DevFeedbackTexts.kind_text(kind, 1),
+			DevFeedbackTexts.t(&"BUG_REPORT_HINT_TOUCH" if touch_mode else &"BUG_REPORT_HINT_DESKTOP")]
+	if _text != null:
+		_text.placeholder_text = DevFeedbackTexts.kind_text(kind, 2)
 
 
-func get_categories() -> Array[String]:
-	var chosen: Array[String] = []
-	for category in CATEGORIES:
-		if _category_buttons[category].button_pressed:
-			chosen.append(category)
-	return chosen
+func get_kind() -> String:
+	return kind
+
+
+## The other tab (direction 1 = right, -1 = left, wraps).
+func switch_kind(direction := 1) -> void:
+	var index := KINDS.find(kind)
+	set_kind(KINDS[posmod(index + direction, KINDS.size())])
 
 
 func has_content() -> bool:
@@ -178,7 +200,7 @@ func build_note() -> Dictionary:
 		mark_list.append({"rect": mark["rect"], "note": str(mark["note"]).strip_edges()})
 	return {
 		"text": _text.text.strip_edges(),
-		"categories": get_categories(),
+		"kind": kind,
 		"marks": mark_list,
 		"strokes": strokes.duplicate(),
 		"view_size": _view_size,
@@ -299,6 +321,10 @@ func check_long_press(now_msec: int) -> bool:
 func _input(event: InputEvent) -> void:
 	if _finished:
 		return
+	if event is InputEventJoypadButton:
+		handle_pad_button(event as InputEventJoypadButton)
+		_handled()
+		return
 	if event is InputEventKey:
 		var key := event as InputEventKey
 		if key.pressed and not key.echo:
@@ -310,6 +336,10 @@ func _input(event: InputEvent) -> void:
 				submit()
 				_handled()
 				return
+			if key.keycode == KEY_TAB and key.is_command_or_control_pressed():
+				switch_kind(-1 if key.shift_pressed else 1)
+				_handled()
+				return
 		if key.keycode == KEY_F9:
 			_handled()
 			return
@@ -317,6 +347,31 @@ func _input(event: InputEvent) -> void:
 		var focus := _root.get_viewport().gui_get_focus_owner() if _root.is_inside_tree() else null
 		if focus == null or not _root.is_ancestor_of(focus):
 			_handled()
+
+
+## Gamepad: LB/RB switch the tab, Start sends (or confirms the privacy notice), B cancels like Esc.
+## true when the button was used.
+func handle_pad_button(event: InputEventJoypadButton) -> bool:
+	if not event.pressed or _finished:
+		return false
+	if not pad_mode:
+		pad_mode = true
+		_set_status(DevFeedbackTexts.t(&"BUG_REPORT_KEYS_PAD"), COLOR_MUTED)
+	match event.button_index:
+		JOY_BUTTON_LEFT_SHOULDER:
+			switch_kind(-1)
+		JOY_BUTTON_RIGHT_SHOULDER:
+			switch_kind(1)
+		JOY_BUTTON_START:
+			if is_consent_open():
+				confirm_consent()
+			else:
+				submit()
+		JOY_BUTTON_B:
+			_on_escape()
+		_:
+			return false
+	return true
 
 
 ## Whatever the GUI did not take (keys a text field ignores, wheel, ...) stops here.
@@ -432,9 +487,8 @@ func _build() -> void:
 	_root.add_child(_canvas)
 
 	var header := Label.new()
+	_header = header
 	header.name = "Header"
-	header.text = "%s · %s" % [DevFeedbackTexts.t(&"BUG_REPORT_TITLE"),
-		DevFeedbackTexts.t(&"BUG_REPORT_HINT_TOUCH" if touch_mode else &"BUG_REPORT_HINT_DESKTOP")]
 	header.add_theme_color_override(&"font_color", COLOR_ACCENT)
 	header.add_theme_stylebox_override(&"normal", _box(Color(0.0, 0.0, 0.0, 0.6), Color(0, 0, 0, 0), 0))
 	header.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
@@ -455,28 +509,32 @@ func _build() -> void:
 	column.add_theme_constant_override(&"separation", 6)
 	margin.add_child(column)
 
-	var category_row := HBoxContainer.new()
-	category_row.add_theme_constant_override(&"separation", 4)
-	column.add_child(category_row)
-	var category_label := Label.new()
-	category_label.text = DevFeedbackTexts.t(&"BUG_REPORT_CATEGORY")
-	category_label.add_theme_color_override(&"font_color", COLOR_MUTED)
-	category_row.add_child(category_label)
-	for category in CATEGORIES:
+	var tab_row := HBoxContainer.new()
+	tab_row.name = "Tabs"
+	tab_row.add_theme_constant_override(&"separation", 4)
+	column.add_child(tab_row)
+	var group := ButtonGroup.new()
+	for key in KINDS:
 		var button := Button.new()
-		button.name = "Category_" + category
-		button.text = DevFeedbackTexts.category_label(category)
+		button.name = "Tab_" + key
+		button.text = DevFeedbackTexts.kind_text(key, 0)
 		button.toggle_mode = true
+		button.button_group = group
 		button.focus_mode = Control.FOCUS_NONE
-		category_row.add_child(button)
-		_category_buttons[category] = button
+		if touch_mode:
+			button.custom_minimum_size = Vector2(0.0, TAB_HEIGHT_TOUCH)
+		_style_tab(button)
+		button.pressed.connect(set_kind.bind(key))
+		tab_row.add_child(button)
+		_kind_buttons[key] = button
 	var spacer := Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	category_row.add_child(spacer)
+	tab_row.add_child(spacer)
 	_status = Label.new()
-	_status.text = "" if touch_mode else DevFeedbackTexts.t(&"BUG_REPORT_SHORTCUTS")
+	_status.name = "Status"
+	_status.text = _keys_hint()
 	_status.add_theme_color_override(&"font_color", COLOR_MUTED)
-	category_row.add_child(_status)
+	tab_row.add_child(_status)
 
 	var body := HBoxContainer.new()
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -484,7 +542,6 @@ func _build() -> void:
 	column.add_child(body)
 	_text = TextEdit.new()
 	_text.name = "Note"
-	_text.placeholder_text = DevFeedbackTexts.t(&"BUG_REPORT_NOTE_PLACEHOLDER")
 	_text.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_text.size_flags_stretch_ratio = 3.0
@@ -535,6 +592,25 @@ func _build() -> void:
 	buttons.add_child(save_button)
 	_update_side_button()
 	_rebuild_mark_list()
+	set_kind(kind)
+
+
+## Shortcut line: pad buttons after a pad input, keys on a desktop, nothing on a phone (buttons).
+func _keys_hint() -> String:
+	if pad_mode:
+		return DevFeedbackTexts.t(&"BUG_REPORT_KEYS_PAD")
+	return "" if touch_mode else DevFeedbackTexts.t(&"BUG_REPORT_KEYS_DESKTOP")
+
+
+## Tabs: the chosen one is lit in the accent colour, the other stays plain.
+func _style_tab(button: Button) -> void:
+	var chosen := _box(Color(0.24, 0.19, 0.08), COLOR_ACCENT, 2)
+	chosen.border_width_top = 3
+	button.add_theme_stylebox_override(&"pressed", chosen)
+	button.add_theme_stylebox_override(&"hover_pressed", chosen)
+	button.add_theme_color_override(&"font_pressed_color", COLOR_ACCENT)
+	button.add_theme_color_override(&"font_hover_pressed_color", COLOR_ACCENT)
+	button.add_theme_color_override(&"font_color", COLOR_MUTED)
 
 
 ## Dimmed full screen with a centred box: title, notice, "Zurück" and "Einverstanden, senden".

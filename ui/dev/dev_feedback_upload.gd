@@ -2,7 +2,8 @@ class_name DevFeedbackUpload
 extends RefCounted
 ## Body of POST /bug-reports (soulwick-platform packages/contracts/src/bug-report.ts,
 ## CreateBugReportRequest) built from a saved note (DevFeedback.build_record) and its screenshot:
-## note, category keys, marks and strokes relative to the screenshot (0..1), a context object of at
+## note, kind ("bug" or "idea"; notes without one are bugs), no categories any more (empty list,
+## the contract allows it), marks and strokes relative to the screenshot (0..1), a context object of at
 ## most 16 KiB (shrunk when larger), game version, platform and the screenshot as base64 WebP
 ## (lossy, at most 1280x720, at most 1.5 MiB decoded; JPEG when WebP fails). The limits mirror the
 ## contract; the server checks them again. Pure functions, no network (DevFeedbackOutbox sends).
@@ -22,6 +23,8 @@ const SMALL_IMAGE_QUALITIES: Array[float] = [0.6, 0.45, 0.3]
 const QUALITIES: Array[float] = [0.8, 0.65, 0.5, 0.35]
 ## Named context fields of the contract with their length limits; never dropped when shrinking.
 const CONTEXT_FIELDS := {"location": 200, "scene": 300, "seed": 64, "resolution": 32, "locale": 16}
+## Report kinds of the contract (`kind`); the first one is the default.
+const KINDS: Array[String] = ["bug", "idea"]
 ## Entries per node list under a mark once the context is too large.
 const SHRUNK_NODE_LIST := 3
 
@@ -31,7 +34,9 @@ static func build_body(record: Dictionary, screenshot: Image) -> Dictionary:
 	var image_size := _image_size(record, screenshot)
 	var body := {
 		"note": str(record.get("text", "")).strip_edges().left(MAX_NOTE),
-		"categories": categories_of(record),
+		"kind": kind_of(record),
+		# The player picks no category any more (17.10.2026); older servers expect the field.
+		"categories": [],
 		"marks": relative_marks(record),
 		"strokes": relative_strokes(record, image_size),
 		"context": build_context(record),
@@ -60,14 +65,10 @@ static func reencode(screenshot: Image, jpeg: bool, small: bool) -> String:
 	return Marshalls.raw_to_base64(bytes) if not bytes.is_empty() else ""
 
 
-## Known category keys only, each once.
-static func categories_of(record: Dictionary) -> Array:
-	var result: Array = []
-	for category in record.get("categories", []):
-		var key := str(category)
-		if DevFeedbackTexts.CATEGORY_TEXT.has(key) and not result.has(key):
-			result.append(key)
-	return result
+## "bug" or "idea"; a missing or unknown kind (older notes) is a bug.
+static func kind_of(record: Dictionary) -> String:
+	var kind := str(record.get("kind", "")).strip_edges().to_lower()
+	return kind if KINDS.has(kind) else KINDS[0]
 
 
 static func relative_marks(record: Dictionary) -> Array:
@@ -114,6 +115,8 @@ static func build_context(record: Dictionary, max_bytes := MAX_CONTEXT_BYTES) ->
 	var source: Dictionary = record.get("context", {})
 	var context := {}
 	context["location"] = str(record.get("location", source.get("location", "")))
+	# Also in the context: survives a server that does not know the field `kind` yet.
+	context["kind"] = kind_of(record)
 	context["scene"] = str(source.get("scene", ""))
 	var dungeon: Dictionary = source.get("dungeon", {})
 	if dungeon.has("seed"):
