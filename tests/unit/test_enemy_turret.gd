@@ -231,7 +231,7 @@ func test_turret_shoots_the_player_and_slows_him() -> void:
 	await wait_seconds(3.0)
 	assert_signal_emitted_with_parameters(turret, "ability_used", [turret, &"turret_shot"])
 	var lost := before - player.health.get_health() - player.shield.get_shield()
-	assert_almost_eq(lost, 0.5, 0.01, "one small hit (0.25 raw, rounded to 0.5)")
+	assert_almost_eq(lost, 0.5, 0.01, "one hit (0.4 raw in room 4, rounded to 0.5)")
 	assert_true(SlowStatus.is_slowed(player), "the hit slows")
 	assert_almost_eq(player.move_speed, base * TurretRules.SLOW_FACTOR, 0.01)
 	assert_eq(turret.global_position, start, "never moves")
@@ -277,21 +277,48 @@ func test_turret_telegraph_lights_up_before_the_shot() -> void:
 	assert_true(line.visible, "the aim line shows where")
 	assert_gt(line.points[1].x, 0.0, "towards the player")
 	assert_eq((turret.get_node(^"Sprite") as AnimatedSprite2D).animation, &"attack")
+	var light := turret.get_node(^"Glow") as LightSource
+	assert_not_null(light, "a turret carries its own glow")
+	var idle_radius := (load(CRYPT_TURRET) as EnemyData).light_radius
+	for i in 60:
+		await wait_physics_frames(1)
+		if turret.rules.is_aim_locked():
+			break
+	await wait_process_frames(1)
+	assert_gt(light.radius, idle_radius * 1.5, "the glow flares up before the shot")
 
 
-func test_turret_can_be_destroyed_and_drops_little_gold() -> void:
+func test_turret_is_never_hidden_in_the_dark() -> void:
+	var turret := _turret(Vector2.ZERO)
+	await wait_physics_frames(1)
+	assert_true(turret.has_meta(DarknessVisibility.ALWAYS_VISIBLE_META), "feedback #3aae30f6: always visible")
+	assert_false(DarknessVisibility.can_hide(turret))
+	var darkness := DarknessVisibility.new()
+	add_child_autofree(darkness)
+	# The viewer's light ends 100 px away, the turret stands 400 px away in the dark.
+	darkness.set_viewer([Vector3(400.0, 0.0, 100.0)] as Array[Vector3], 1.0)
+	darkness.refresh(true)
+	assert_eq(darkness.get_enemy_alpha(turret), 1.0)
+	assert_eq((turret.get_node(^"Sprite") as CanvasItem).self_modulate.a, 1.0)
+
+
+func test_turret_is_tough_but_can_be_destroyed() -> void:
 	var turret := _turret(Vector2.ZERO, 10)
 	watch_signals(turret)
 	await wait_physics_frames(2)
-	assert_almost_eq(turret.health.get_max_health(), 12.0 * EnemyScaling.health_multiplier(10, false), 0.01)
+	assert_almost_eq(turret.health.get_max_health(), 60.0 * EnemyScaling.health_multiplier(10, false), 0.01)
 	assert_eq(turret.get_knockback_resistance(), 1.0, "no knockback")
 	assert_false(turret.uses_tactics(), "no group tactics")
 	var damage := DamageData.new()
-	damage.amount = 100.0
+	damage.amount = 17.0
+	turret.hurtbox.receive_hit(damage)
+	assert_false(turret.is_dead(), "one sword hit is not enough")
+	damage = DamageData.new()
+	damage.amount = 200.0
 	turret.hurtbox.receive_hit(damage)
 	assert_true(turret.is_dead())
 	assert_signal_emitted(turret, "died")
-	assert_eq((load(CRYPT_TURRET) as EnemyData).gold_drop, 1, "a coin at most")
+	assert_eq((load(CRYPT_TURRET) as EnemyData).gold_drop, 2, "a little more gold for a tough target")
 
 
 func test_turret_emerges_before_it_shoots() -> void:
@@ -354,24 +381,59 @@ func _room_tiles() -> Dictionary:
 	return walkable
 
 
-func test_spots_stand_at_walls_away_from_doors_and_never_in_the_way() -> void:
+func test_spots_stand_in_the_open_near_the_centre_away_from_doors() -> void:
 	var walkable: Dictionary[Vector2i, bool] = _room_tiles()
 	var free := walkable.duplicate()
 	var doors: Array[Vector2i] = [Vector2i(5, 7), Vector2i(6, 0)]
 	var pits: Dictionary[Vector2i, bool] = {}
+	var centre := TurretPlacement.centre_of(free)
+	# The legal open tiles (clear of the doors), closest to the centre first.
+	var legal: Array[Vector2i] = []
+	for tile: Vector2i in free.keys():
+		if TurretPlacement.is_open_spot(tile, walkable) and VariantSpots.is_clear_of(tile, doors, TurretPlacement.DOOR_CLEARANCE):
+			legal.append(tile)
+	legal = TurretPlacement.sort_by_centre(legal, centre)
+	assert_gt(legal.size(), TurretPlacement.CENTRE_POOL)
+	var farthest_central := Vector2(legal[TurretPlacement.CENTRE_POOL - 1]).distance_to(centre)
 	var rng := RandomNumberGenerator.new()
 	for seed_value in 40:
 		rng.seed = seed_value
 		var spots := TurretPlacement.pick_tiles(free, walkable, pits, doors, [] as Array[Vector2i], 2, rng)
 		assert_between(spots.size(), 1, 2)
 		for spot in spots:
-			assert_gt(TurretPlacement.count_walls(spot, walkable, pits), 0, "%s at a wall" % spot)
+			assert_true(TurretPlacement.is_open_spot(spot, walkable), "%s free in the room, not at a wall" % spot)
+			assert_eq(TurretPlacement.count_walls(spot, walkable, pits), 0)
 			for door in doors:
 				assert_gte(Vector2(spot - door).length(), TurretPlacement.DOOR_CLEARANCE, "%s away from the doors" % spot)
 			assert_ne(spot, Vector2i(8, 4), "not in the passage")
 			assert_true(TurretPlacement.keeps_way(spot, walkable))
+		# The first one is among the open tiles closest to the centre.
+		assert_lte(Vector2(spots[0]).distance_to(centre), farthest_central + 0.001, "%s near the centre %s" % [spots[0], centre])
 		if spots.size() == 2:
 			assert_gte(Vector2(spots[0] - spots[1]).length(), TurretPlacement.SPACING)
+
+
+func test_narrow_room_falls_back_to_a_tile_that_keeps_the_way() -> void:
+	# 12 x 2 corridor room: no tile has eight walkable neighbours.
+	var walkable: Dictionary[Vector2i, bool] = {}
+	for y in 2:
+		for x in 12:
+			walkable[Vector2i(x, y)] = true
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var spots := TurretPlacement.pick_tiles(walkable.duplicate(), walkable, {} as Dictionary[Vector2i, bool], [Vector2i(0, 0)] as Array[Vector2i], [] as Array[Vector2i], 1, rng)
+	assert_eq(spots.size(), 1)
+	assert_false(TurretPlacement.is_open_spot(spots[0], walkable))
+	assert_true(TurretPlacement.keeps_way(spots[0], walkable))
+	assert_false(TurretPlacement.is_passage(spots[0], walkable, {} as Dictionary[Vector2i, bool]))
+
+
+func test_sort_by_centre_is_stable() -> void:
+	var tiles: Array[Vector2i] = [Vector2i(0, 0), Vector2i(4, 0), Vector2i(2, 0), Vector2i(1, 0), Vector2i(3, 0)]
+	var sorted := TurretPlacement.sort_by_centre(tiles, Vector2(2, 0))
+	assert_eq(sorted[0], Vector2i(2, 0))
+	assert_eq(sorted.slice(1, 3), [Vector2i(1, 0), Vector2i(3, 0)] as Array[Vector2i], "ties keep the given order")
+	assert_eq(sorted.slice(3), [Vector2i(0, 0), Vector2i(4, 0)] as Array[Vector2i])
 
 
 func test_way_check_rejects_tiles_that_cut_a_path() -> void:
@@ -458,6 +520,7 @@ func test_populate_places_tracked_turrets_in_a_plain_combat_room() -> void:
 		assert_true(floor_mask.has(tile), "stands on a floor tile of the room (%s)" % tile)
 		assert_true(room.tiles.get_floor_rect().has_point(room.to_local(turret.global_position)), "inside the room")
 		assert_true(room.tiles.is_navigation_blocked(tile), "others walk around it")
+		assert_eq(TurretPlacement.count_walls(tile, room.tiles.get_walkable_tiles(), {} as Dictionary[Vector2i, bool]), 0, "free in the room, not at a wall")
 		for door in doors:
 			assert_gte(Vector2(tile - door).length(), TurretPlacement.DOOR_CLEARANCE, "not at a door")
 	var tile := RoomTiles.local_to_tile(room.to_local(turrets[0].global_position))

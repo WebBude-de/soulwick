@@ -36,6 +36,11 @@ const LINE_ALPHA := Vector2(0.15, 0.8)
 const LINE_WIDTH := 2.0
 const RECOIL_TIME := 0.2
 const DEATH_TIME := 0.6
+## The room turret got much stronger on 17.10.2026 (feedback #3aae30f6: health 12 -> 60, damage
+## 0.1 -> 0.4 in turret_*.tres); the small side-view turret keeps the D-151 numbers (12 health and
+## 0.1 damage before depth scaling). TESTWERT
+const SIDE_HEALTH_SHARE := 0.2
+const SIDE_DAMAGE_SHARE := 0.25
 const SHOT_FPS := 8.0
 const SHOT_LIGHT := 40.0
 const SHOT_TRAIL := 6
@@ -125,7 +130,7 @@ func _ready() -> void:
 
 	health = HealthComponent.new()
 	health.name = "HealthComponent"
-	var base := data.max_health if data != null else 12.0
+	var base := data.max_health * SIDE_HEALTH_SHARE if data != null else 12.0
 	health.max_health = maxf(1.0, roundf(base * EnemyScaling.health_multiplier(room_index, false) * SideRules.TURRET_HEALTH_FACTOR))
 	add_child(health)
 	health.died.connect(_on_died)
@@ -260,7 +265,7 @@ func _show_charge(aim: Vector2) -> void:
 func _fire(direction: Vector2) -> void:
 	shots += 1
 	var damage := DamageData.new()
-	damage.amount = (data.damage if data != null else 0.25) * EnemyScaling.damage_multiplier(room_index, false)
+	damage.amount = (data.damage * SIDE_DAMAGE_SHARE if data != null else 0.1) * EnemyScaling.damage_multiplier(room_index, false)
 	damage.source = self
 	if data != null:
 		damage.tags.assign(data.tags)

@@ -1,15 +1,20 @@
 class_name Turret
 extends Enemy
 ## Stationary tower (D-151): never moves, watches for the nearest living player in range and sight
-## and shoots a slow orb at it in a fixed cadence. A hit does little damage but slows the player
-## (SlowStatus), so running circles around the other enemies costs something. It can be destroyed,
-## counts as an enemy of the room (clearing needs it gone) and drops a coin at most.
+## and shoots a slow orb at it in a fixed cadence. A hit hurts and slows the player (SlowStatus), so
+## running circles around the other enemies costs something. Since 17.10.2026 (feedback #3aae30f6,
+## "zentraler, dafür viel stärker, wie ein Turm in League of Legends") it stands near the middle of
+## the room (TurretPlacement) and is a tough target (turret_*.tres: health 60, damage 0.4, 2 gold,
+## all TESTWERT). It can be destroyed and counts as an enemy of the room (clearing needs it gone).
 ## Rules (target, cadence, aim) live in TurretRules, the look in TurretArt; this node only connects
 ## them to the Enemy body: health, hits, death, coming out of the ground (begin_emerge), network
 ## puppets (NetEnemies sends the scene path of this node; a puppet runs no physics, the snapshots
 ## carry its animation, the glow circle and the aim line).
 ## Telegraph: the eye lights up (attack animation, a growing glow circle in the eye colour) and a
 ## red aim line shows where the shot goes; the line holds still for TurretRules.AIM_LOCK_TIME.
+## Always visible (feedback #3aae30f6, 17.10.2026: "den hat man nie gesehen"): a turret never fades
+## out in the dark (DarknessVisibility.ALWAYS_VISIBLE_META) and carries its own red glow, which
+## flares up while it charges (CHARGE_LIGHT_FACTOR), so a shot never comes out of nowhere.
 
 const SCENE_PATH := "res://enemies/turret/turret.tscn"
 const TAG := &"turret"
@@ -19,6 +24,11 @@ const MUZZLE_OFFSET := Vector2(0.0, -24.0)
 const GLOW_RADIUS := Vector2(5.0, 14.0)
 const LINE_COLOR := Color(1.0, 0.25, 0.15)
 const LINE_ALPHA := Vector2(0.2, 0.85)
+## Aim line width while the aim follows and once it holds.
+const LINE_WIDTH := Vector2(2.0, 3.0)
+## Own glow (Enemy "Glow" light, data.light_radius) at the shot, as a multiple of its idle radius;
+## it grows over the charge. Optics only. TESTWERT
+const CHARGE_LIGHT_FACTOR := 2.2
 ## Back to idle this long after a shot.
 const RECOIL_TIME := 0.2
 ## Shot look: fps of the orb strip, light around it, trail.
@@ -38,6 +48,8 @@ var _recoil_left := 0.0
 var _body_sprite: AnimatedSprite2D = null
 var _glow: PlaceholderShape = null
 var _line: Line2D = null
+## Idle radius of the own glow (0 until the glow exists).
+var _glow_light_radius := 0.0
 
 
 ## A turret of data for room_index, not yet in the tree (position it, add it, then begin_emerge).
@@ -56,6 +68,8 @@ func _ready() -> void:
 	_body_sprite = get_node(^"Sprite") as AnimatedSprite2D
 	_glow = get_node(^"TelegraphCircle") as PlaceholderShape
 	_line = get_node(^"TelegraphLine") as Line2D
+	# Before Enemy._ready: DarknessVisibility registers enemies when they are ready.
+	set_meta(DarknessVisibility.ALWAYS_VISIBLE_META, true)
 	super._ready()
 	if data == null:
 		return
@@ -186,6 +200,32 @@ func _update_look(delta: float) -> void:
 	if _recoil_left <= 0.0 and _body_sprite.animation != &"idle" and _body_sprite.sprite_frames != null and _body_sprite.sprite_frames.has_animation(&"idle"):
 		_body_sprite.speed_scale = 1.0
 		_body_sprite.play(&"idle")
+
+
+## Optics that follow the telegraph nodes, so network puppets (no physics, snapshots set the glow
+## circle and the line) flare up the same way: the own glow grows with the glow circle, the aim line
+## thickens once it holds (full alpha).
+func _process(_delta: float) -> void:
+	if _glow == null or _line == null:
+		return
+	var factor := 1.0
+	if _glow.visible:
+		var progress := inverse_lerp(GLOW_RADIUS.x, GLOW_RADIUS.y, _glow.radius)
+		factor = lerpf(1.0, CHARGE_LIGHT_FACTOR, clampf(progress, 0.0, 1.0))
+	_set_glow_light(factor)
+	if _line.visible:
+		_line.width = LINE_WIDTH.y if _line.default_color.a >= LINE_ALPHA.y - 0.01 else LINE_WIDTH.x
+
+
+## Own glow at factor times its idle radius (1 = idle).
+func _set_glow_light(factor: float) -> void:
+	var light := get_node_or_null(^"Glow") as LightSource
+	if light == null:
+		return
+	if _glow_light_radius <= 0.0:
+		_glow_light_radius = light.radius
+	light.radius = _glow_light_radius * factor
+	light.intensity = lerpf(0.8, 1.0, clampf(factor - 1.0, 0.0, 1.0))
 
 
 func _hide_telegraph() -> void:

@@ -6,11 +6,15 @@ extends RefCounted
 ## Rules (all TESTWERTE):
 ## - Only plain normal combat rooms (no arena, no combat variant or mode, no wager altar, no
 ##   boss/champion/special room), from room FROM_ROOM on; the chance and a second turret grow with depth (CHANCES).
-## - Spots: free floor tiles (VariantSpots.free_tiles: reachable, no prop, not the door tiles) with a
-##   wall or rock next to them, corners preferred; never in a one-tile passage, never where the tile
-##   would cut the way around it, at least DOOR_CLEARANCE tiles from every door, SOURCE_CLEARANCE
-##   from enemy sources, objectives and the player start, no water, not next to an abyss, SPACING
-##   apart. A room without such a spot gets none.
+## - Spots (Projektmitglied 17.10.2026, feedback #3aae30f6: "Türme gerne zentraler, dafür viel
+##   stärker"): free floor tiles (VariantSpots.free_tiles: reachable, no prop, not the door tiles)
+##   near the middle of the room. A spot stands in the open (all eight neighbours walkable, so it
+##   never cuts a way and never stands in or against a wall); one of the CENTRE_POOL tiles closest
+##   to the centre of the free floor is drawn (at most CENTRE_SPREAD tiles behind the closest). A
+##   room without an open tile takes the closest tile that keeps the way (never a one-tile
+##   passage). Always at least DOOR_CLEARANCE tiles from every
+##   door, SOURCE_CLEARANCE from enemy sources, objectives and the player start, never on a spawn
+##   marker, no water, not next to an abyss, SPACING apart. A room without such a spot gets none.
 ## - Chance from a generator derived from the dungeon seed and the room number: it never draws from
 ##   the dungeon RNG, so the dungeon of a seed stays the same (like EnemyPack). Host only: network
 ##   clients get the turrets as puppets (NetEnemies).
@@ -19,11 +23,14 @@ const FROM_ROOM := 4
 ## [first room, chance of one turret, chance of a second one] - the last row whose room is reached.
 const CHANCES: Array[Vector3] = [Vector3(4, 0.4, 0.0), Vector3(15, 0.5, 0.3), Vector3(30, 0.6, 0.45)]
 const MAX_TURRETS := 2
-const DOOR_CLEARANCE := 4.0
+## Tiles from every door (3: the middle of a room with doors at both ends stays allowed). TESTWERT
+const DOOR_CLEARANCE := 3.0
 const SOURCE_CLEARANCE := 1.5
 const SPACING := 5.0
-## Corners (walls on two sides) are this many times as likely as a plain wall spot.
-const CORNER_WEIGHT := 2
+## The turret is drawn among at most this many candidate tiles closest to the room centre, and only
+## among those at most CENTRE_SPREAD tiles farther from it than the closest one. TESTWERT
+const CENTRE_POOL := 6
+const CENTRE_SPREAD := 2.5
 ## Coming out of the ground: hidden this long, then rising (Enemy.begin_emerge).
 const EMERGE_WAIT := 0.6
 const EMERGE_RISE := 0.6
@@ -56,6 +63,11 @@ static func populate(room: RoomController) -> Array[Enemy]:
 	for tile: Vector2i in free.keys():
 		if tiles.is_water(tile):
 			free.erase(tile)
+	# Plain spawn markers stay usable: only their own tile is taken (sources, objectives and the
+	# player start keep SOURCE_CLEARANCE, _avoid_tiles). Markers spread over the middle of a room,
+	# a wider ring around each would push the turret back to the walls.
+	for marker in room.get_spawn_markers():
+		free.erase(RoomTiles.local_to_tile(room.to_local(marker.global_position)))
 	var pits: Dictionary[Vector2i, bool] = {}
 	for tile in tiles.get_pit_tiles():
 		pits[tile] = true
@@ -137,42 +149,90 @@ static func data_for_biome(biome_id: StringName) -> EnemyData:
 
 ## Up to count spots out of free (see the class comment). walkable: floor and door corridors without
 ## walls, props and pits; pits: abyss tiles (no wall); doors: floor tiles at the doors; avoid: tiles
-## to keep SOURCE_CLEARANCE from. Corners weigh CORNER_WEIGHT; draws with rng, stable order.
+## to keep SOURCE_CLEARANCE from. Open tiles closest to the centre of free first; draws with rng,
+## stable order.
 static func pick_tiles(free: Dictionary[Vector2i, bool], walkable: Dictionary[Vector2i, bool], pits: Dictionary[Vector2i, bool],
 		doors: Array[Vector2i], avoid: Array[Vector2i], count: int, rng: RandomNumberGenerator) -> Array[Vector2i]:
-	var pool: Array[Vector2i] = []
+	var open: Array[Vector2i] = []
+	var fallback: Array[Vector2i] = []
 	for tile in VariantSpots.sorted_tiles(free):
-		if not is_wall_spot(tile, walkable, pits) or touches_pit(tile, pits):
+		if touches_pit(tile, pits):
 			continue
 		if not VariantSpots.is_clear_of(tile, doors, DOOR_CLEARANCE) or not VariantSpots.is_clear_of(tile, avoid, SOURCE_CLEARANCE):
 			continue
-		if not keeps_way(tile, walkable):
-			continue
-		for i in (CORNER_WEIGHT if count_walls(tile, walkable, pits) >= 2 else 1):
-			pool.append(tile)
+		if is_open_spot(tile, walkable):
+			open.append(tile)
+		elif keeps_way(tile, walkable) and not is_passage(tile, walkable, pits):
+			fallback.append(tile)
+	var pool := open if not open.is_empty() else fallback
+	var centre := centre_of(free)
+	pool = sort_by_centre(pool, centre)
 	var picked: Array[Vector2i] = []
-	while picked.size() < count and not pool.is_empty():
-		var tile: Vector2i = pool[rng.randi_range(0, pool.size() - 1)]
-		# Drop every copy of the drawn tile (corners are in the pool twice).
-		var rest: Array[Vector2i] = []
-		for other in pool:
-			if other != tile:
-				rest.append(other)
-		pool = rest
-		if VariantSpots.is_clear_of(tile, picked, SPACING):
-			picked.append(tile)
+	while picked.size() < count:
+		var choices: Array[Vector2i] = []
+		var limit := INF
+		for tile in pool:
+			if not VariantSpots.is_clear_of(tile, picked, SPACING):
+				continue
+			var distance := Vector2(tile).distance_to(centre)
+			if choices.is_empty():
+				limit = distance + CENTRE_SPREAD
+			elif distance > limit:
+				break
+			choices.append(tile)
+			if choices.size() >= CENTRE_POOL:
+				break
+		if choices.is_empty():
+			break
+		picked.append(choices[rng.randi_range(0, choices.size() - 1)])
 	return picked
 
 
-## Wall or rock on at least one side, but not on two opposite sides (a one-tile passage).
-static func is_wall_spot(tile: Vector2i, walkable: Dictionary[Vector2i, bool], pits: Dictionary[Vector2i, bool]) -> bool:
-	if count_walls(tile, walkable, pits) == 0:
-		return false
+## All eight neighbours walkable: the turret stands free in the room, nothing walks into a dead end
+## because of it and it never stands in or against a wall.
+static func is_open_spot(tile: Vector2i, walkable: Dictionary[Vector2i, bool]) -> bool:
+	for offset in RING_8:
+		if not walkable.has(tile + offset):
+			return false
+	return true
+
+
+## Wall or rock (no abyss) on two opposite sides: a one-tile passage.
+static func is_passage(tile: Vector2i, walkable: Dictionary[Vector2i, bool], pits: Dictionary[Vector2i, bool]) -> bool:
 	var north := _is_solid(tile + Vector2i.UP, walkable, pits)
 	var south := _is_solid(tile + Vector2i.DOWN, walkable, pits)
 	var west := _is_solid(tile + Vector2i.LEFT, walkable, pits)
 	var east := _is_solid(tile + Vector2i.RIGHT, walkable, pits)
-	return not (north and south) and not (west and east)
+	return (north and south) or (west and east)
+
+
+## Mean tile of a set (its centre of mass, in tile units); ZERO for an empty set.
+static func centre_of(tiles: Dictionary[Vector2i, bool]) -> Vector2:
+	if tiles.is_empty():
+		return Vector2.ZERO
+	var sum := Vector2.ZERO
+	for tile: Vector2i in tiles.keys():
+		sum += Vector2(tile)
+	return sum / float(tiles.size())
+
+
+## tiles ordered by distance to centre (closest first), ties in the given (stable) order. Insertion
+## sort: rooms have a few hundred tiles at most and no lambda is needed.
+static func sort_by_centre(tiles: Array[Vector2i], centre: Vector2) -> Array[Vector2i]:
+	var sorted: Array[Vector2i] = []
+	var distances: Array[float] = []
+	for tile in tiles:
+		var distance := Vector2(tile).distance_squared_to(centre)
+		var at := distances.bsearch(distance, false)
+		sorted.insert(at, tile)
+		distances.insert(at, distance)
+	return sorted
+
+
+## Wall or rock on at least one side, but not on two opposite sides (a one-tile passage). The
+## former turret spot (D-151 before 17.10.2026); kept for tools and tests.
+static func is_wall_spot(tile: Vector2i, walkable: Dictionary[Vector2i, bool], pits: Dictionary[Vector2i, bool]) -> bool:
+	return count_walls(tile, walkable, pits) > 0 and not is_passage(tile, walkable, pits)
 
 
 ## An abyss next to the tile (eight neighbours): nobody should have to fight at the edge for it.
@@ -234,9 +294,6 @@ static func _avoid_tiles(room: RoomController) -> Array[Vector2i]:
 	if start != null:
 		markers.append(start)
 	for marker in markers:
-		avoid.append(RoomTiles.local_to_tile(room.to_local(marker.global_position)))
-	for marker in room.get_spawn_markers():
-		# Plain spawn markers stay usable as well.
 		avoid.append(RoomTiles.local_to_tile(room.to_local(marker.global_position)))
 	return avoid
 

@@ -24,8 +24,8 @@ const MIN_COOLDOWN_FACTOR := 0.75
 ## The shot flies this many times the sight range before it fades.
 const SHOT_DISTANCE_FACTOR := 1.6
 ## What a hit does to the player: speed x0.65 (-35 %) for 2.0 s, refreshed, never stacked.
-## The damage stays the minimum hit (turret data damage 0.1 = 0.5 up to room 90): it slows, it
-## does not kill.
+## Damage comes from the turret data (room turret 0.4 since 17.10.2026: 0.5 per hit early, about
+## 1.0 from room 30; the side-view turret keeps 0.1, SideTurret.SIDE_DAMAGE_SHARE).
 const SLOW_FACTOR := 0.65  # TESTWERT (D-151)
 const SLOW_DURATION := 2.0  # TESTWERT (D-151 follow-up: 1.5 -> 2.0, pressure through the slow instead of damage)
 

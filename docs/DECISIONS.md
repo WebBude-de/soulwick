@@ -1341,6 +1341,18 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `ui/dev/*`, `tools/collect_feedback.py`, `docs/feedback/README.md`, `localization/translations.csv`; Plattform `packages/contracts/src/bug-report.ts`, Migration `20261017012818_bug_report_kind`, `apps/api/src/services/bug-reports.ts`, `apps/admin/src/app/(panel)/bug-meldungen/*`.
 - **Ersetzt:** Kategorien UI/Grafik/Licht/Layout/Gameplay/Bug/Text im Dialog.
 
+### D-171 – Türme mittig, stark und immer sichtbar
+
+- **Status:** VERBINDLICH (Projektmitglied 17.10.2026, Meldung #3aae30f6: „Den hat man nie gesehen und der war generell zu weit weg. Die Türme gerne zentraler, dafür viel stärker, so bisschen wie in League of Legends ein Turm, der schwer zu besiegen ist“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen TESTWERT · ändert D-151
+- **Kontext:** Türme standen an Wänden und Ecken; `DarknessVisibility` blendete sie außerhalb des Spieler-Lichts aus (ab etwa 200 px), während sie weiter aus 300 px schossen – Schüsse „aus dem Nichts“.
+- **Beschluss:**
+  - Raum-Türme stehen frei nahe der Raummitte: alle 8 Nachbarkacheln begehbar, Ziehung unter den 6 mittigsten Kacheln, höchstens 2,5 Kacheln Streuung (`CENTRE_POOL`, `CENTRE_SPREAD`); Ersatz in schmalen Räumen: mittigste Kachel, die keinen Weg abschneidet. Abstand zu Türen 3 Kacheln; Spawn-Marker sperren nur ihre eigene Kachel.
+  - Türme sind im Dunkeln nie ausgeblendet (`ALWAYS_VISIBLE_META`); rotes Eigenlicht 64 px, beim Aufladen bis ×2,2; Ziellinie 3 px, sobald das Ziel feststeht.
+  - Werte aller vier Biome: Leben 12 → 60, Schaden 0,1 → 0,4, Gold 1 → 2; Takt, Reichweite und Verlangsamung unverändert. Der kleine Turm der Seitenansicht behält 12 Leben und 0,1 Schaden (`SIDE_HEALTH_SHARE` 0,2, `SIDE_DAMAGE_SHARE` 0,25).
+- **OFFEN:** Stärke nach einem Testspiel (mehr Leben, Zone wie in LoL?); Turm größer als Blickfang; Bot-Messung mit Turm-Spalten.
+- **Folgen:** `enemies/turret/{turret,turret_placement,side_turret,turret_rules}.gd`, `enemies/data/turret_*.tres`, Turm-Hinweise in `translations.csv`, `tests/unit/test_enemy_turret.gd`.
+- **Ersetzt:** D-151 „Türme an Wänden, wenig Schaden, verlangsamen“ für den Raum-Turm.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
