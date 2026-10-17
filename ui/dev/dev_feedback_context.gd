@@ -1,6 +1,6 @@
 class_name DevFeedbackContext
 extends RefCounted
-## Context of a dev feedback note (DevFeedback, F9): where the game was (scene, phase, room, biome,
+## Context of a dev feedback note (DevFeedback, Ctrl + B): where the game was (scene, phase, room, biome,
 ## mode, template, seed, players, camera), which screen or dialog was open (screen: main menu panel,
 ## options tab, online tab and guild page, pause menu, upgrade choice, shop, campfire, run end,
 ## village building ...), the boss fight (boss), co-op (coop: players, host/client, ping, never a

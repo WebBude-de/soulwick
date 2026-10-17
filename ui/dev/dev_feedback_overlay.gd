@@ -1,8 +1,8 @@
 class_name DevFeedbackOverlay
 extends CanvasLayer
-## Full-screen bug report overlay (DevFeedback, # / F9 or the touch button): shows the frozen
-## screenshot, lets the player drag numbered rectangles, type a shared note and one short note per
-## rectangle, then send (Ctrl+Enter / "Senden") or discard (Esc / "Abbrechen"). Two tabs at the top
+## Full-screen bug report overlay (DevFeedback: Ctrl + B, # / F9, pad Back + Start or the touch
+## button): shows the frozen screenshot, lets the player drag numbered rectangles, type a shared
+## note and one short note per rectangle, then send (Ctrl+Enter / "Senden") or discard (Esc / "Abbrechen"). Two tabs at the top
 ## of the panel pick the kind: "Fehler melden" (bug, always the default) or "Idee einreichen" (idea);
 ## both work the same, only title and placeholder differ. No categories (17.10.2026): where the
 ## report was made is read automatically (DevFeedbackContext).
@@ -173,8 +173,7 @@ func set_kind(value: String) -> void:
 	for key in _kind_buttons:
 		_kind_buttons[key].set_pressed_no_signal(key == kind)
 	if _header != null:
-		_header.text = "%s · %s" % [DevFeedbackTexts.kind_text(kind, 1),
-			DevFeedbackTexts.t(&"BUG_REPORT_HINT_TOUCH" if touch_mode else &"BUG_REPORT_HINT_DESKTOP")]
+		_header.text = "%s · %s" % [DevFeedbackTexts.kind_text(kind, 1), DevFeedbackTexts.hint(touch_mode)]
 	if _text != null:
 		_text.placeholder_text = DevFeedbackTexts.kind_text(kind, 2)
 
@@ -340,7 +339,8 @@ func _input(event: InputEvent) -> void:
 				switch_kind(-1 if key.shift_pressed else 1)
 				_handled()
 				return
-		if key.keycode == KEY_F9:
+		# The open keys do nothing while open (Ctrl + B would reach the text field).
+		if key.keycode == KEY_F9 or DevFeedback.is_shortcut(key):
 			_handled()
 			return
 		# Keys go to the focused text field; without focus in the overlay they are swallowed.

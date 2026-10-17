@@ -220,7 +220,10 @@ func test_overlay_texts_are_translated() -> void:
 	assert_eq((overlay.find_child("Tab_bug", true, false) as Button).text, "Report a bug")
 	assert_eq((overlay.find_child("Tab_idea", true, false) as Button).text, "Suggest an idea")
 	assert_null(overlay.find_child("Category_ui", true, false), "no categories any more")
-	assert_string_contains((overlay.find_child("Header", true, false) as Label).text, "#", "the key is named in the hint")
+	var header := (overlay.find_child("Header", true, false) as Label).text
+	assert_string_contains(header, DevFeedbackTexts.shortcut_hint(), "the shortcut is named in the hint")
+	assert_string_contains(header, "Select + Start", "the pad combo too")
+	assert_false(header.contains("{open}"), "placeholder filled")
 	assert_false((overlay.find_child("Privacy", true, false) as Label).text.is_empty(), "privacy line")
 	TranslationServer.set_locale("de")
 	assert_eq(DevFeedbackTexts.t(&"BUG_REPORT_SAVED"), "Danke! Meldung gespeichert")

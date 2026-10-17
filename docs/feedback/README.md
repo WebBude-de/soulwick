@@ -1,4 +1,4 @@
-# Fehler melden und Ideen einreichen (Taste #, F9, Käfer-Knopf)
+# Fehler melden und Ideen einreichen (Strg + B, am Pad Select + Start, Käfer-Knopf)
 
 Werkzeug für alle Spieler, solange Beta-/Test-/Entwicklungsphase ist: Während des Spiels eine Stelle markieren und aufschreiben, was nicht stimmt (Reiter **Fehler melden**, Standard) oder was man sich wünscht (Reiter **Idee einreichen**). Eine Kategorie wählt der Spieler nicht (seit 17.10.2026): Das Spiel schreibt selbst dazu, wo die Meldung entstand (Raum, Biom, Bosskampf, offenes Menü oder Dialog, Koop, Gerät, siehe „Was automatisch mitkommt“). Jede Meldung wird lokal gespeichert und zusätzlich an die Plattform-API geschickt. Claude wertet die Meldungen danach aus.
 
@@ -10,13 +10,13 @@ Schalter in dieser Reihenfolge (das Erste, was gesetzt ist, gilt):
 2. Projekteinstellung `soulwick/beta/bug_reports` (true/false). Steht noch nicht in `project.godot`; ohne sie entscheidet Punkt 3.
 3. Umgebung des Builds (`OnlineConfig`): im Editor (`local`) und in `development`-Exporten **an**, in `production`-Exporten **aus**.
 
-Ist es aus, entsteht kein Knoten, keine Taste und kein Knopf.
+Ist es aus, entsteht kein Knoten, keine Taste, keine Pad-Kombination und kein Knopf.
 
 ## Bedienung
 
 ### PC
 
-1. Im Spiel **#** drücken (deutsche Tastatur; auf anderen Layouts die Taste an derselben Stelle neben Enter, z. B. `\`) oder **F9**. Geht überall: Hauptmenü, Dorf, Dungeon, Seitenansicht, Dialoge, Pausenmenü. In einem Textfeld (z. B. Gildenname) bleibt # ein Zeichen, F9 geht trotzdem. Das Spiel friert ein, das aktuelle Bild bleibt stehen.
+1. Im Spiel **Strg + B** drücken (macOS: **Cmd + B**). Geht überall: Hauptmenü, Dorf, Dungeon, Seitenansicht, Dialoge, Pausenmenü, auch in einem Textfeld (Strg + B tippt nichts). Seit 17.10.2026 die Haupttaste, weil 65-%-Tastaturen F-Tasten nur mit Fn haben; B ist sonst nirgends belegt. Weiter gehen **#** (deutsche Tastatur; auf anderen Layouts die Taste an derselben Stelle neben Enter, z. B. `\`; in einem Textfeld bleibt # ein Zeichen) und **F9**. Das Spiel friert ein, das aktuelle Bild bleibt stehen.
 2. **Markieren:** mit gedrückter linker Maustaste Rechtecke aufziehen (werden 1, 2, 3 … nummeriert). **Umschalt + Ziehen** zeichnet einen freien Strich. **Rechtsklick** auf ein Rechteck (oder einen Strich) entfernt es.
 3. **Reiter:** oben in der Leiste „Fehler melden“ (immer vorausgewählt) oder „Idee einreichen“. Beide funktionieren gleich, nur Überschrift und Platzhalter wechseln („Was ist kaputt?“ / „Was wünschst du dir?“). Wechseln per Klick oder **Strg+Tab**; Text und Markierungen bleiben beim Wechsel erhalten.
 4. **Text:** unten links die gemeinsame Notiz (mehrzeilig), rechts daneben optional eine kurze Notiz je Rechteck. Verdeckt die Leiste etwas, schiebt „Leiste nach oben“ sie nach oben.
@@ -25,7 +25,9 @@ Ist es aus, entsteht kein Knoten, keine Taste und kein Knopf.
 
 ### Gamepad
 
-Im offenen Dialog: **LB/RB** wechselt den Reiter, **Start** sendet (bestätigt auch den Datenschutz-Hinweis), **B** bricht ab (mit Inhalt zweimal). Sobald eine Pad-Taste kommt, zeigt die Leiste diese Tasten statt der Tastenkürzel. Öffnen geht per Pad noch nicht (offen: eigene Tastenkombination).
+**Öffnen:** **Select (Back) + Start** gleichzeitig drücken (beide innerhalb von 0,25 s, Reihenfolge egal, auf demselben Pad). Damit dabei weder Pause (Start) noch Übersicht (Select) aufgehen, hält das Spiel einen Druck auf Start oder Select bis zu 0,25 s zurück und gibt ihn erst danach weiter (beim Loslassen oder einer anderen Pad-Taste sofort). Start allein pausiert also wie gewohnt, nur minimal später; das gilt nur, solange die Meldefunktion an ist.
+
+Im offenen Dialog: **LB/RB** wechselt den Reiter, **Start** sendet (bestätigt auch den Datenschutz-Hinweis), **B** bricht ab (mit Inhalt zweimal). Sobald eine Pad-Taste kommt, zeigt die Leiste diese Tasten statt der Tastenkürzel.
 
 ### Handy (temporär, nur Beta)
 
@@ -88,7 +90,7 @@ python tools/collect_feedback.py --runs --src <ordner>       # Protokolle eines 
 
 Die Übersicht zeigt Endgründe und End-Raum, die häufigsten Todesursachen, Zeit, Schaden und Gold je Biom und Raumart und den End-Raum je Startwaffe. Für einen Dev-Test: Mitspieler schicken ihren Ordner `%APPDATA%/Godot/app_userdata/Soulwick/runs/`.
 
-Bug-Meldungen (F9) enthalten seit D-159 unter `context.network` Bildrate, längsten Hänger des Hauptthreads und online Ping, Datenmenge und den letzten Trennungsgrund.
+Bug-Meldungen (Strg + B) enthalten seit D-159 unter `context.network` Bildrate, längsten Hänger des Hauptthreads und online Ping, Datenmenge und den letzten Trennungsgrund.
 
 ## Meldungen auswerten (alle Spieler, Server)
 

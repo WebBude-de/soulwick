@@ -1,7 +1,9 @@
 class_name DevFeedback
 extends Node
 ## Bug report tool (beta: for every player while bug reports are switched on, see is_enabled):
-## the key # (German keyboard; the same physical key elsewhere, F9 as a second key) or the small
+## Ctrl + B (Cmd + B on macOS; 65 % keyboards have no F keys without Fn, 17.10.2026), the key #
+## (German keyboard; the same physical key elsewhere) or F9, on a gamepad Back (Select) + Start
+## pressed together (handle_pad_event), or the small
 ## touch button at the top right (DevFeedbackTouchButton, temporary) grabs the current frame
 ## (before anything of the tool is drawn), freezes the game through the regular pause system
 ## (pause reason &"dev_feedback", D-043) and opens DevFeedbackOverlay. There the player picks the
@@ -27,6 +29,17 @@ const TRIGGER_KEY := KEY_F9
 ## next to Enter) so other layouts have a sensible key at the same spot.
 const HASH_KEY := KEY_NUMBERSIGN
 const HASH_PHYSICAL_KEY := KEY_BACKSLASH
+## Main shortcut: Ctrl + this key (Cmd on macOS). B is bound nowhere else (InputMap incl. the
+## built-in ui_* actions, GamepadInput, modal hotkeys; checked 17.10.2026) and types nothing.
+const SHORTCUT_KEY := KEY_B
+## Gamepad: these two buttons pressed together open the tool (Start alone pauses, Back alone opens
+## the overview, D-163).
+const PAD_COMBO: Array[int] = [JOY_BUTTON_BACK, JOY_BUTTON_START]
+## Both within this time count as the combo (TESTWERT). Back or Start alone reach the game at most
+## this much later (held back, then replayed).
+const PAD_COMBO_MSEC := 250
+## Meta of a replayed pad event: it passes the tool untouched.
+const REPLAY_META := &"dev_feedback_replay"
 const TOAST_LAYER := 121
 const TOAST_SECONDS := 2.4
 const SENT_TOAST_SECONDS := 1.6
@@ -68,6 +81,11 @@ var _finger_seen := false
 var _opening := false
 ## A gamepad button came after the last key, mouse or touch input (the overlay names pad buttons).
 var _pad_seen := false
+## Replays a held-back pad event (tests capture them); invalid = Input.parse_input_event.
+var replay := Callable()
+## Back or Start waiting for its partner (PAD_COMBO_MSEC), null when none.
+var _held_pad: InputEventJoypadButton = null
+var _held_pad_msec := 0
 
 
 ## Bug reports on? Command line bug_reports=0/1, else the project setting soulwick/beta/bug_reports,
@@ -129,6 +147,7 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
+	flush_pad(Time.get_ticks_msec())
 	if touch_button != null:
 		touch_button.set_wanted(wants_touch_button())
 		if touch_button.visible:
@@ -154,12 +173,15 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 
-## # or F9 opens the overlay; true when the event was used. # is left alone while a text field
-## has the focus (guild names, player name), F9 always works.
+## Ctrl + B, # or F9 opens the overlay, a gamepad Back + Start too (handle_pad_event); true when the
+## event was used. # is left alone while a text field has the focus (guild names, player name);
+## Ctrl + B and F9 type nothing and always work.
 func handle_event(event: InputEvent) -> bool:
+	if event is InputEventJoypadButton:
+		return handle_pad_event(event as InputEventJoypadButton, Time.get_ticks_msec())
 	if not is_trigger(event) or not is_enabled() or is_open():
 		return false
-	if not _is_f9(event) and _text_field_focused():
+	if not (_is_f9(event) or is_shortcut(event)) and _text_field_focused():
 		return false
 	return open()
 
@@ -170,14 +192,83 @@ static func is_trigger(event: InputEvent) -> bool:
 	var key := event as InputEventKey
 	if not key.pressed or key.echo:
 		return false
-	if _is_f9(key):
+	if _is_f9(key) or is_shortcut(key):
 		return true
 	return key.keycode == HASH_KEY or key.key_label == HASH_KEY or key.unicode == 35 or key.physical_keycode == HASH_PHYSICAL_KEY
+
+
+## Ctrl + B (Cmd + B on macOS, where Ctrl + B stays the text caret key). The B as labelled on the
+## layout; the physical key only when the layout reports none. Not with Alt: AltGr is Ctrl + Alt
+## on Windows and types characters.
+static func is_shortcut(event: InputEvent) -> bool:
+	var key := event as InputEventKey
+	if key == null or not key.pressed or key.echo or key.alt_pressed or not key.is_command_or_control_pressed():
+		return false
+	if key.keycode != KEY_NONE:
+		return key.keycode == SHORTCUT_KEY
+	return key.physical_keycode == SHORTCUT_KEY
+
+
+## The shortcut as shown in hints: "Cmd" on macOS, else ctrl_name ("Ctrl" / "Strg").
+static func shortcut_text(ctrl_name: String) -> String:
+	return "%s + B" % ("Cmd" if OS.has_feature("macos") else ctrl_name)
 
 
 static func _is_f9(event: InputEvent) -> bool:
 	var key := event as InputEventKey
 	return key != null and (key.keycode == TRIGGER_KEY or key.physical_keycode == TRIGGER_KEY)
+
+
+## Gamepad: Back (Select) and Start pressed together within PAD_COMBO_MSEC open the overlay. A press
+## of either is held back that long and then replayed (flush_pad), so Start alone still pauses and
+## Back alone still opens the overview, only up to PAD_COMBO_MSEC later; the combo itself never
+## reaches the game. Releasing the button or pressing another one replays at once (order kept).
+## true when the event was held back or used (the caller marks it handled).
+func handle_pad_event(event: InputEventJoypadButton, now_msec: int) -> bool:
+	if event.has_meta(REPLAY_META) or not is_enabled() or is_open():
+		return false
+	var combo := PAD_COMBO.has(int(event.button_index))
+	if _held_pad == null:
+		if not combo or not event.pressed:
+			return false
+		_held_pad = event
+		_held_pad_msec = now_msec
+		return true
+	var partner := combo and event.pressed and event.device == _held_pad.device \
+			and event.button_index != _held_pad.button_index and now_msec - _held_pad_msec <= PAD_COMBO_MSEC
+	if partner:
+		var held := _held_pad
+		_held_pad = null
+		if open():
+			return true
+		_replay(held)
+		_replay(event)
+		return true
+	# Anything else of a pad while one waits: the waiting press first, then this event.
+	flush_pad(now_msec, true)
+	_replay(event)
+	return true
+
+
+## A held Back or Start goes to the game once the combo window is over (force: now).
+func flush_pad(now_msec: int, force := false) -> void:
+	if _held_pad == null or (not force and now_msec - _held_pad_msec <= PAD_COMBO_MSEC):
+		return
+	var held := _held_pad
+	_held_pad = null
+	_replay(held)
+
+
+func is_pad_held() -> bool:
+	return _held_pad != null
+
+
+func _replay(event: InputEvent) -> void:
+	event.set_meta(REPLAY_META, true)
+	if replay.is_valid():
+		replay.call(event)
+	else:
+		Input.parse_input_event(event)
 
 
 func _text_field_focused() -> bool:

@@ -8,10 +8,12 @@ extends RefCounted
 
 const TEXTS := {
 	&"BUG_REPORT_TITLE": ["REPORT A BUG", "FEHLER MELDEN"],
-	&"BUG_REPORT_HINT_DESKTOP": [
-		"Game paused · Drag: mark an area · Shift+drag: draw a line · Right-click: remove · Key # or F9",
-		"Spiel pausiert · Ziehen: Bereich markieren · Umschalt+Ziehen: Strich · Rechtsklick: entfernen · Taste # oder F9",
+	# {open}: the keyboard shortcut (shortcut_hint), "Ctrl + B" / "Strg + B", "Cmd + B" on macOS.
+	&"BUG_REPORT_HINT_KEYBOARD": [
+		"Game paused · Drag: mark an area · Shift+drag: draw a line · Right-click: remove · Open with {open} or Select + Start",
+		"Spiel pausiert · Ziehen: Bereich markieren · Umschalt+Ziehen: Strich · Rechtsklick: entfernen · Öffnen mit {open} oder Select + Start",
 	],
+	&"BUG_REPORT_KEY_CTRL": ["Ctrl", "Strg"],
 	&"BUG_REPORT_HINT_TOUCH": [
 		"Game paused · Drag: mark an area · Long press: remove",
 		"Spiel pausiert · Ziehen: Bereich markieren · Lange drücken: entfernen",
@@ -61,6 +63,18 @@ static func t(key: StringName) -> String:
 	var pair: Array = TEXTS.get(key, [String(key), String(key)])
 	var fallback := str(pair[1]) if Loc.current_language() == &"de" else str(pair[0])
 	return DataTexts.text_or(key, fallback)
+
+
+## Hint line of the overlay header: the phone one, or the desktop one naming the shortcuts.
+static func hint(touch: bool) -> String:
+	if touch:
+		return t(&"BUG_REPORT_HINT_TOUCH")
+	return t(&"BUG_REPORT_HINT_KEYBOARD").replace("{open}", shortcut_hint())
+
+
+## "Strg + B" / "Ctrl + B" in the current language, "Cmd + B" on macOS.
+static func shortcut_hint() -> String:
+	return DevFeedback.shortcut_text(t(&"BUG_REPORT_KEY_CTRL"))
 
 
 ## part: 0 tab, 1 title, 2 note placeholder, 3 "saved" toast; unknown kinds read as "bug".
