@@ -11,7 +11,7 @@ extends SceneTree
 ## - the client leaves cleanly (host: back to one player) and joins again;
 ## - the host leaves: the room closes for the client (host_left, D-123), both are solo again.
 ## Usage (API and relay running, see docs/MULTIPLAYER.md §3b):
-##   godot --headless --path . -s tools/net_smoke.gd -- api=http://localhost:8787 relay=ws://localhost:8790/v1 dev_key=<DEV_AUTH_KEY>
+##   godot --headless --path . -s tools/net_smoke.gd -- api=http://localhost:3101 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
 ## The dev key can also come from the environment (SOULWICK_DEV_KEY). spawn_client=0 starts no
 ## client (start it yourself with role=client run=<id>). Real time, no --fixed-fps.
 ## load=<enemies> (network load, online test 16.10.2026): instead of the village checks the host
@@ -29,8 +29,8 @@ extends SceneTree
 ## started with --sim-latency=<ms> adds latency.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
-const DEFAULT_API := "http://localhost:8787"
-const DEFAULT_RELAY := "ws://localhost:8790/v1"
+const DEFAULT_API := "http://localhost:3101"
+const DEFAULT_RELAY := "ws://localhost:3103/v1"
 const HOST_INSTANCE := 11
 const CLIENT_INSTANCE := 12
 ## Seconds for each step (TESTWERT; generous for RELAY_SIM_LATENCY_MS runs).

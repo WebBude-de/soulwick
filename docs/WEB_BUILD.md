@@ -98,11 +98,11 @@ Im Projekt `soulwick`, je Umgebung eine Application:
 ```bash
 docker build -t soulwick-game .                                          # development
 docker build --build-arg SOULWICK_ENV=production -t soulwick-game:prod .
-docker run --rm -p 18080:80 soulwick-game                                # http://localhost:18080
-curl -sI http://localhost:18080/index.wasm -H "Accept-Encoding: br"      # Header prüfen
+docker run --rm -p 3110:80 soulwick-game                                 # http://localhost:3110
+curl -sI http://localhost:3110/index.wasm -H "Accept-Encoding: br"       # Header prüfen
 ```
 
-Gegen die lokale Plattform (`bun dev` in `soulwick-platform`; die lokale API erlaubt CORS von `http://localhost:18080`): `docker build --build-arg SOULWICK_ENV=local -t soulwick-game:local .`, dann wie oben starten. Ein `development`-Container auf `localhost` spricht mit `api-dev`, die ihn per CORS ablehnt (erwartet, das Spiel läuft dann offline).
+Gegen die lokale Plattform (`bun dev` in `soulwick-platform`; die lokale API erlaubt CORS von `http://localhost:3110`): `docker build --build-arg SOULWICK_ENV=local -t soulwick-game:local .`, dann wie oben starten. Ein `development`-Container auf `localhost` spricht mit `api-dev`, die ihn per CORS ablehnt (erwartet, das Spiel läuft dann offline).
 
 `localhost` gilt als sichere Umgebung: Service Worker und Install-Knopf gehen dort ohne HTTPS; ein anderer Rechner im Netz braucht HTTPS. Browser-Tests (Playwright/Chromium) immer stumm mit `--mute-audio` (AGENTS.md §7).
 

@@ -3,7 +3,7 @@
 # an app (PWA). Build context: repository root. Dokploy app soulwick-game, see docs/WEB_BUILD.md.
 #   docker build -t soulwick-game .                                         # development (default)
 #   docker build --build-arg SOULWICK_ENV=production -t soulwick-game .
-#   docker run --rm -p 18080:80 soulwick-game                               # http://localhost:18080
+#   docker run --rm -p 3110:80 soulwick-game                                # http://localhost:3110
 # Layers: Godot and the web export template are cached (stage godot); a change of the game only
 # runs the export again (stage export); nginx (stage runtime) is cached as well.
 
@@ -42,7 +42,7 @@ RUN python3 /tmp/fetch_template.py "${RELEASE_URL}/Godot_v${GODOT_VERSION}-stabl
 FROM godot AS export
 # development or production: selects API and relay addresses (online/online_config.gd), written
 # into online/environment.cfg exactly like tools/export_build.sh does. local = the services of
-# `bun dev` in soulwick-platform (http://localhost:8787, ws://localhost:8790), for a container on
+# `bun dev` in soulwick-platform (http://localhost:3101, ws://localhost:3103), for a container on
 # this machine only.
 ARG SOULWICK_ENV=development
 WORKDIR /project
