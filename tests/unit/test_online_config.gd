@@ -103,10 +103,10 @@ func test_room_codes() -> void:
 
 
 func test_relay_url_gets_its_path() -> void:
-	assert_eq(RelayProtocol.with_ws_path("ws://localhost:8790"), "ws://localhost:8790/v1")
-	assert_eq(RelayProtocol.with_ws_path("ws://localhost:8790/v1"), "ws://localhost:8790/v1")
+	assert_eq(RelayProtocol.with_ws_path("ws://localhost:3103"), "ws://localhost:3103/v1")
+	assert_eq(RelayProtocol.with_ws_path("ws://localhost:3103/v1"), "ws://localhost:3103/v1")
 	assert_eq(RelayProtocol.with_ws_path("wss://play.playsoulwick.com/"), "wss://play.playsoulwick.com/v1")
-	assert_eq(RelayProtocol.prefer_ipv4_loopback("ws://localhost:8790/v1"), "ws://127.0.0.1:8790/v1")
+	assert_eq(RelayProtocol.prefer_ipv4_loopback("ws://localhost:3103/v1"), "ws://127.0.0.1:3103/v1")
 	assert_eq(RelayProtocol.prefer_ipv4_loopback("wss://play.playsoulwick.com/v1"), "wss://play.playsoulwick.com/v1")
 	assert_eq(RelayProtocol.prefer_ipv4_loopback("ws://localhostish:1/v1"), "ws://localhostish:1/v1")
 

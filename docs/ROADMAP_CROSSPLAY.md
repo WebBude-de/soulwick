@@ -144,9 +144,9 @@
 
 | Was | Wie |
 | --- | --- |
-| Dienste | im Plattform-Repo `bun run services:up`, dann `bun dev` (API 8787, Relay 8790) |
+| Dienste | im Plattform-Repo `bun run services:up`, dann `bun dev` (API 3101, Relay 3103) |
 | Vier Spieler auf einem PC | Godot *Debug → Ausführungsinstanzen anpassen*, `-- instance=1..4`, Beitritt per Raumcode ([MULTIPLAYER.md](MULTIPLAYER.md) §3b) |
-| Handy (Android) | Export per USB, `adb reverse tcp:8787 tcp:8787` und `adb reverse tcp:8790 tcp:8790` |
+| Handy (Android) | Export per USB, `adb reverse tcp:3101 tcp:3101` und `adb reverse tcp:3103 tcp:3103` |
 | Browser | `game-dev.playsoulwick.com` gegen die Test-Server; lokal [WEB_BUILD.md](WEB_BUILD.md) §7 |
 | Steam | Test-AppID 480 mit `steam_appid.txt`; zwei Steam-Konten brauchen zwei Rechner |
 | Schlechtes Netz | Relay-Optionen `--sim-latency` und `--sim-loss` |
