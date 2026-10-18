@@ -39,7 +39,7 @@ Server, Website und Admin-Panel haben eine eigene Roadmap im Repo `soulwick-plat
 | [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) | KI-Bosse aus einem Wunsch (Phase 4) |
 | [KONZEPT_PARTY_MODUS.md](KONZEPT_PARTY_MODUS.md) | Party-Modus: nur Minispiele, Spieler gegeneinander (Phase 5) |
 | [KONZEPT_BEGLEITER_KOSMETIK.md](KONZEPT_BEGLEITER_KOSMETIK.md) | Wick als Begleiter, Kosmetik und Dorf-Deko |
-| [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md) | Ein Konto, viele Anmeldungen, Welten in der Cloud, Konto-Level (D-188, Vorschlag) |
+| [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md) | Ein Konto, viele Anmeldungen, Welten in der Cloud, Konto-Level (D-188) |
 | [KONZEPT_SPRACHEN_EINSTELLUNGEN.md](KONZEPT_SPRACHEN_EINSTELLUNGEN.md) | Regeln für Texte, Übersetzungen und Optionen (D-111) |
 
 ## Regeln und Anleitungen
