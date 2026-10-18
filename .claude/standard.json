@@ -4,7 +4,12 @@
   "type": "spiel",
   "profile": "org",
   "stack": "godot",
-  "skipped": [],
+  "skipped": [
+    "claude-md-env",
+    "conventions",
+    "prd",
+    "claude-settings"
+  ],
   "_hinweis": "Stand von Bastians Projekt-Standard (claude/skills/_standard im desktop-Repo). Aktualisieren mit /project (Standard angleichen); skipped = nie wieder fragen.",
   "notSecrets": [
     "art/environment/rooms/secrets.json"
