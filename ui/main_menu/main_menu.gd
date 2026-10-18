@@ -12,6 +12,9 @@ extends Control
 ## first confused players); a room starts in the world of "Weiterspielen", without any world a fresh
 ## one is created in the first free slot ("Welt 1"). Name and look are the profile (D-152), not the
 ## world's, and can also be changed in the village (mirror, Zuhause) and in the lobby.
+## Account level (D-188, KF2): AccountCard top right (on phones bottom right over gold and record)
+## with level badge, name, XP bar and "340 / 700 XP"; a click opens "Fortschritt". Hidden while a
+## panel is open, like the record.
 ## First start (D-152): without a profile the menu opens "Wie heißt du?" (ProfilePanel, first_start)
 ## before anything else; the name of the save slots of older builds is suggested once.
 ## P1-1 "Ein Einstieg statt zwei": when that first "Los geht's" finds no world, a fresh "Welt 1" is
@@ -95,6 +98,7 @@ var _gold_value: Label = null
 var _crystal_value: Label = null
 var _profile_label: Label = null
 var _status: PanelContainer = null
+var _account_card: AccountCard = null
 var _record_label: Label = null
 var _keys_label: Label = null
 var _keys_line: KeyLine = null
@@ -172,6 +176,8 @@ func refresh() -> void:
 	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
 	_list.set_entry(ENTRY_PROGRESS, &"MENU_PROGRESS", progress_hint(slot))
 	_list.set_entry(ENTRY_PROFILE, &"MENU_PROFILE", PlayerProfile.current().get_display_name())
+	if _account_card != null:
+		_account_card.refresh()
 	_refresh_online_entry()
 	if _keys_line != null:
 		var build := build_text(_environment_tag())
@@ -195,6 +201,10 @@ func get_list() -> MenuList:
 
 func get_open_panel() -> MenuPanel:
 	return _panel
+
+
+func get_account_card() -> AccountCard:
+	return _account_card
 
 
 func get_background() -> MenuBackground:
@@ -390,6 +400,7 @@ func close_panel() -> void:
 	# The first start's "Los geht's" may already be fading into the game.
 	_list.active = not _starting
 	_status.visible = true
+	_account_card.visible = true
 	refresh()
 
 
@@ -410,6 +421,7 @@ func _open_panel(panel: MenuPanel) -> void:
 	_panel = panel
 	_list.active = false
 	_status.visible = false
+	_account_card.visible = false
 	# Deferred: the panel may be removed by the handler while one of its buttons is still emitting.
 	panel.closed.connect(close_panel, CONNECT_DEFERRED)
 	_panel_area.add_child(panel)
@@ -522,8 +534,14 @@ func _layout() -> void:
 		var lift := _status.get_combined_minimum_size().y + UiKit.px(4)
 		_currency.offset_top -= lift
 		_currency.offset_bottom -= lift
+		# The account card stands over gold and crystals (top right is the moon and the feedback button).
+		_anchor_corner(_account_card, true)
+		lift += _currency.get_combined_minimum_size().y + UiKit.px(4)
+		_account_card.offset_top -= lift
+		_account_card.offset_bottom -= lift
 	else:
 		_anchor_corner(_currency, false)
+		_anchor_top_right(_account_card)
 	if _panel != null:
 		_place_panel(_panel)
 
@@ -659,6 +677,13 @@ func _build_corners() -> void:
 	_anchor_corner(_status, true)
 	_stage.add_child(_status)
 
+	_account_card = AccountCard.new()
+	_account_card.pressed.connect(func() -> void:
+		if not _starting and _panel == null:
+			open_progress())
+	_anchor_top_right(_account_card)
+	_stage.add_child(_account_card)
+
 
 ## "v0.4.0" from project.godot (application/config/version) or the fallback.
 static func version_text() -> String:
@@ -728,6 +753,17 @@ func _show_online_status() -> void:
 		var url := _online_config.get_web_url() if _online_config != null else OnlineConfig.DEFAULT_WEB_URL
 		_update_link.uri = url
 		_update_link.text = tr(&"ONLINE_UPDATE_LINK") % url.trim_prefix("https://")
+
+
+func _anchor_top_right(control: Control) -> void:
+	var margin := UiKit.px(CORNER_MARGIN)
+	control.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	control.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	control.grow_vertical = Control.GROW_DIRECTION_END
+	control.offset_right = -margin
+	control.offset_left = -margin
+	control.offset_top = margin
+	control.offset_bottom = margin
 
 
 func _anchor_corner(control: Control, right: bool) -> void:

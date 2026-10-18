@@ -6,6 +6,8 @@ extends RefCounted
 ## (world_from_save) or from a slot file without loading it (world_from_file, migrated in memory);
 ## build() is a pure function over that snapshot, so the main menu, the chronicle and tests share
 ## one rule. Texts are translation keys (D-111) resolved by the *_text helpers.
+## The account part (KF2) comes from AccountProgress (account_snapshot): level, XP, the account record
+## and all defeated bosses, plus the next level reward as a goal.
 ## Bosses per biome are derived from the world's record and boss count (the save keeps no list):
 ## a boss counts as beaten once a room behind it was reached, or when the record ends in its room
 ## and the world has beaten at least that many bosses (the campfire after it keeps its number).
@@ -102,10 +104,16 @@ static func world_from_file(path: String) -> Dictionary:
 	return world
 
 
+## The account part for build(): {"xp", "best_room", "bosses"} of this machine's AccountProgress.
+static func account_snapshot() -> Dictionary:
+	var progress := AccountProgress.current()
+	return {"xp": progress.get_total_xp(), "best_room": progress.best_room, "bosses": progress.bosses}
+
+
 # --- The summary (pure) ---
 
 ## Everything the overview shows. world: a snapshot (world_from_save/world_from_file); account:
-## {"level", "xp"} of the account level (KF2), {} = no account part. Keys: forge_level, forge_max,
+## account_snapshot() ({"xp", "best_room", "bosses"}), {} = no account part. Keys: forge_level, forge_max,
 ## deepest_room, bosses, runs, biomes [{biome, reached, beaten}], unlocks [{event, done}],
 ## forge_step ({} or {id, level, cost, missing}), next_boss {number, room, biome}, account ({} or
 ## {level, xp, into, needed, ratio, next_reward, reward_missing}), goals [{kind, ...}] (at most
@@ -138,14 +146,21 @@ static func build(world: Dictionary, account := {}) -> Dictionary:
 	for event in MetaUnlocks.EVENTS:
 		unlocks.append({"event": event, "done": events.has(event)})
 	summary["unlocks"] = unlocks
-	summary["account"] = account.duplicate()
+	if not account.is_empty():
+		var info := AccountProgress.level_info(int(account.get("xp", 0)))
+		var reward := AccountProgress.next_reward_level(int(info["level"]))
+		info["next_reward"] = reward
+		info["reward_missing"] = maxi(0, AccountProgress.xp_for_level(reward) - int(info["xp"])) if reward > 0 else 0
+		info["best_room"] = _int(account.get("best_room", 0))
+		info["bosses"] = _int(account.get("bosses", 0))
+		summary["account"] = info
 	summary["goals"] = goals(summary, events)
 	return summary
 
 
-## The next goals, most useful first: buy a forge step the gold pays for, else the next unlock (its
-## first boss replaces the boss goal), the next boss, save gold for the cheapest step, the next
-## level reward. At most MAX_GOALS.
+## The next goals, most useful first: buy a forge step the gold pays for, the next unlock or else
+## the next boss, save gold for the cheapest step, the next level reward. One forge goal, one dungeon
+## goal and the reward: at most MAX_GOALS.
 static func goals(summary: Dictionary, events: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var step: Dictionary = summary.get("forge_step", {})
@@ -158,7 +173,7 @@ static func goals(summary: Dictionary, events: Array) -> Array[Dictionary]:
 			break
 	if unlock != &"":
 		result.append({"kind": GOAL_UNLOCK, "event": unlock, "room": RoomSequence.BOSS_INTERVAL})
-	if unlock != MetaUnlocks.EVENT_FIRST_BOSS:
+	else:
 		var boss: Dictionary = summary.get("next_boss", {})
 		result.append({"kind": GOAL_BOSS, "room": boss["room"], "biome": boss["biome"], "number": boss["number"]})
 	if not step.is_empty() and int(step["missing"]) > 0:

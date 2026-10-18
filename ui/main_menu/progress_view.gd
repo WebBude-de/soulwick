@@ -1,7 +1,8 @@
 class_name ProgressView
 extends VBoxContainer
 ## "Dein Fortschritt" (D-188, KF1): one view for the main menu (ProgressPanel) and the chronicle in
-## the village (VillageUI). From top to bottom: "Nächstes Ziel" in gold, this world (forge levels
+## the village (VillageUI). From top to bottom: "Nächstes Ziel" in gold, the account (KF2: level
+## badge, XP bar, account record, all bosses; every world), this world (forge levels
 ## x/20 with a bar, record, bosses), the four biomes (reached, boss defeated), unlocks (open or what
 ## opens them) and the next goals. Built from ProgressSummary (read only); compact drops the unlocks
 ## and keeps two goals (the chronicle shows its statistics next to it).
@@ -35,14 +36,14 @@ static func create(world_snapshot: Dictionary, progress: Dictionary, spec_width 
 ## The view of the loaded save (village chronicle).
 static func for_loaded_save(spec_width := DEFAULT_WIDTH, is_compact := false) -> ProgressView:
 	var snapshot := ProgressSummary.world_from_save()
-	return create(snapshot, ProgressSummary.build(snapshot), spec_width, is_compact)
+	return create(snapshot, ProgressSummary.build(snapshot, ProgressSummary.account_snapshot()), spec_width, is_compact)
 
 
 ## The view of the world "Weiterspielen" continues (main menu), read from its file; no world =
 ## an empty one.
 static func for_continue_world(spec_width := DEFAULT_WIDTH, is_compact := false) -> ProgressView:
 	var snapshot := continue_world()
-	return create(snapshot, ProgressSummary.build(snapshot), spec_width, is_compact)
+	return create(snapshot, ProgressSummary.build(snapshot, ProgressSummary.account_snapshot()), spec_width, is_compact)
 
 
 ## Snapshot of the world of "Weiterspielen" (empty_world() without one); its name is the display name.
@@ -87,9 +88,38 @@ func _build() -> void:
 	add_child(_goal_section())
 
 
-## Hook for the account part (KF2).
+## Level badge, "Level 7", the XP bar, "340 / 700 XP" and the account's record and bosses (KF2).
 func _build_account() -> void:
-	pass
+	var account: Dictionary = summary.get("account", {})
+	if account.is_empty():
+		return
+	var box := UiKit.vbox(int(UiKit.px(2)))
+	box.name = "Account"
+	box.add_child(UiKit.eyebrow(Loc.t(&"PROGRESS_ACCOUNT")))
+	var row := UiKit.hbox(int(UiKit.px(5)))
+	row.add_child(LevelBadge.create(int(account["level"]), 14.0))
+	var right := UiKit.vbox(0)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var line := UiKit.hbox(int(UiKit.px(4)))
+	var level := UiKit.text_label(Loc.t(&"ACCOUNT_LEVEL", [int(account["level"])]), UiKit.SIZE_BODY, UiKit.COLOR_GOLD, true)
+	level.name = "AccountLevel"
+	line.add_child(level)
+	var bar := PixelBar.create(float(account["ratio"]), UiKit.COLOR_GOLD)
+	bar.name = "AccountBar"
+	bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	line.add_child(bar)
+	var xp := UiKit.text_label(Loc.t(&"ACCOUNT_XP_OF", [int(account["into"]), int(account["needed"])]), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	xp.name = "AccountXp"
+	line.add_child(xp)
+	right.add_child(line)
+	var best := int(account.get("best_room", 0))
+	var record := Loc.t(&"PROGRESS_ROOM", [best]) if best > 0 else "–"
+	var facts := UiKit.text_label(Loc.t(&"PROGRESS_ACCOUNT_FACTS", [record, int(account.get("bosses", 0))]), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
+	facts.name = "AccountFacts"
+	right.add_child(facts)
+	row.add_child(right)
+	box.add_child(row)
+	add_child(box)
 
 
 func _world_section() -> Control:

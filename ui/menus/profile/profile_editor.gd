@@ -13,6 +13,8 @@ extends VBoxContainer
 ## Saving (commit): the profile is written at once; with a live login the change goes to the server
 ## (OnlineSession.push_profile, PATCH /me). A refused name change ("Namen kannst du in 5 h wieder
 ## ändern") is shown here and the editor stays open; everything else emits saved.
+## show_level (main menu "Figur", mirror and Zuhause; D-188 KF2): the account level with its bar
+## and the next reward above the rows (ProfileLevelRow), never on the first start.
 ## Sizes in mockup pixels (UiKit.px), texts are translation keys (D-111).
 
 ## Name and look are saved (and sent, if online).
@@ -40,6 +42,8 @@ const PREVIEW_SCALE := 4
 var first_start := false
 ## Show "Zurück" (the village's Zuhause dialog has its own close button).
 var show_cancel := true
+## Show the account level above the rows (not on the first start).
+var show_level := false
 var width := DEFAULT_WIDTH
 var row := Row.NAME
 var look: Dictionary = PlayerLook.default_look()
@@ -76,6 +80,8 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	add_theme_constant_override("separation", int(UiKit.px(4)))
 	custom_minimum_size.x = UiKit.px(width)
+	if show_level and not first_start:
+		add_child(ProfileLevelRow.create())
 	_build_name_row()
 	var columns := UiKit.hbox(int(UiKit.px(6)))
 	columns.add_child(_build_figure_column())

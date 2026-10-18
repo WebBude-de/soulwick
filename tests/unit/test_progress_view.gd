@@ -11,6 +11,7 @@ var _old_saves_dir: String
 var _old_settings_path: String
 var _old_legacy_path: String
 var _old_locale: String
+var _old_root_size: Vector2i
 
 
 func before_all() -> void:
@@ -21,6 +22,7 @@ func before_all() -> void:
 	_old_settings_path = SaveManager.settings_path
 	_old_legacy_path = SaveManager.legacy_save_path
 	_old_locale = TranslationServer.get_locale()
+	_old_root_size = get_tree().root.size
 
 
 func before_each() -> void:
@@ -32,6 +34,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	# Layout tests use a 720 px high screen; later tests expect the size they started with.
+	get_tree().root.size = _old_root_size
 	GameManager.clear_pause_reasons()
 
 

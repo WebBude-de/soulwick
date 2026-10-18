@@ -437,6 +437,8 @@ func open_mirror() -> void:
 func _profile_editor() -> ProfileEditor:
 	var profile := PlayerProfile.current()
 	var editor := ProfileEditor.create(profile.player_name, profile.look, false, PROFILE_EDITOR_WIDTH)
+	# D-188 (KF2): the account level at the mirror and in Zuhause.
+	editor.show_level = true
 	return editor
 
 

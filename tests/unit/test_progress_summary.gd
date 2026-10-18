@@ -71,10 +71,11 @@ func test_fresh_world_aims_at_the_first_run() -> void:
 	var summary := ProgressSummary.build(_world())
 	assert_eq(summary["forge_level"], 0)
 	assert_eq(summary["forge_max"], 20, "D-087: 20 forge levels")
-	assert_eq(_kinds(summary), [ProgressSummary.GOAL_UNLOCK, ProgressSummary.GOAL_BOSS, ProgressSummary.GOAL_FORGE_SAVE])
+	assert_eq(_kinds(summary), [ProgressSummary.GOAL_UNLOCK, ProgressSummary.GOAL_FORGE_SAVE], "the unlock is the dungeon goal")
 	assert_eq(summary["goals"][0]["event"], MetaUnlocks.EVENT_FIRST_RUN)
 	assert_eq(ProgressSummary.next_goal_text(summary), "Nächstes Ziel: Beende deinen ersten Run – öffnet: Chronik")
-	var save: Dictionary = summary["goals"][2]
+	assert_eq(summary["next_boss"]["room"], 15)
+	var save: Dictionary = summary["goals"][1]
 	assert_eq(save["id"], MetaProgression.VITALITY, "the cheapest open step (D-167: Vitalität I for 20)")
 	assert_eq(ProgressSummary.goal_text(save), "Noch 20 Gold bis Vitalität I")
 	for biome: Dictionary in summary["biomes"]:
@@ -91,7 +92,7 @@ func test_affordable_forge_step_comes_first() -> void:
 	assert_false(_kinds(summary).has(ProgressSummary.GOAL_FORGE_SAVE), "no 'save gold' when it is affordable")
 
 
-func test_first_boss_unlock_replaces_the_boss_goal() -> void:
+func test_first_boss_is_the_unlock_goal() -> void:
 	var events: Array[StringName] = [MetaUnlocks.EVENT_FIRST_RUN, MetaUnlocks.EVENT_FIRST_CRYSTAL]
 	var summary := ProgressSummary.build(_world({}, events, 12))
 	assert_eq(_kinds(summary), [ProgressSummary.GOAL_UNLOCK, ProgressSummary.GOAL_FORGE_SAVE])
@@ -135,7 +136,12 @@ func test_forge_step_skips_locked_and_maxed_upgrades() -> void:
 
 func test_reward_goal_comes_from_the_account() -> void:
 	var events: Array[StringName] = MetaUnlocks.EVENTS.duplicate()
-	var summary := ProgressSummary.build(_world({}, events, 20, 1), {"level": 3, "next_reward": 5, "reward_missing": 340})
+	var summary := ProgressSummary.build(_world({}, events, 20, 1), {"xp": 660, "best_room": 31, "bosses": 4})
+	var account: Dictionary = summary["account"]
+	assert_eq(account["level"], 4, "660 XP")
+	assert_eq(account["next_reward"], 5)
+	assert_eq(account["reward_missing"], 340, "level 5 at 1000 XP")
+	assert_eq(account["best_room"], 31)
 	assert_true(_kinds(summary).has(ProgressSummary.GOAL_REWARD))
 	var goal: Dictionary = summary["goals"].filter(func(g: Dictionary) -> bool: return g["kind"] == ProgressSummary.GOAL_REWARD)[0]
 	assert_eq(ProgressSummary.goal_text(goal), "Level 5: neue Belohnung (noch 340 XP)")
