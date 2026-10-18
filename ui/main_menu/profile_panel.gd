@@ -5,6 +5,8 @@ extends MenuPanel
 ## the save slots of older builds once (PlayerProfile.legacy_suggestion), otherwise the profile.
 ## The scene figure behind the menu follows the editor (look_changed). On the first start "Los geht's"
 ## also starts the game when there is no world yet (MainMenu creates Welt 1, P1-1).
+## Invite by link (MP2b, D-190): the same page says who is waiting ("Einladung · Wie heißt du?" and
+## the room code); "Los geht's" goes straight into that room (MainMenu.join_invite).
 
 signal saved
 signal look_changed(look: Dictionary)
@@ -12,18 +14,23 @@ signal look_changed(look: Dictionary)
 const WIDTH := 262.0
 
 var first_start := false
+## Room code of the invite link of this start ("" = an ordinary first start).
+var invite_code := ""
 var editor: ProfileEditor = null
 
 
-static func create(is_first_start := false) -> ProfilePanel:
+static func create(is_first_start := false, invite := "") -> ProfilePanel:
 	var panel := ProfilePanel.new()
 	panel.first_start = is_first_start
+	panel.invite_code = invite if is_first_start else ""
 	return panel
 
 
 func _ready() -> void:
 	set_width(WIDTH)
-	if first_start:
+	if first_start and not invite_code.is_empty():
+		add_header(&"INVITE_FIRST_EYEBROW", &"PROFILE_FIRST_TITLE")
+	elif first_start:
 		add_header(&"PROFILE_FIRST_EYEBROW", &"PROFILE_FIRST_TITLE")
 	else:
 		add_header(&"PROFILE_EYEBROW", &"PROFILE_TITLE")
@@ -36,7 +43,8 @@ func _ready() -> void:
 			start_name = str(suggestion.get("name", ""))
 			start_look = suggestion.get("look", start_look)
 	if first_start:
-		var intro := UiKit.wrapped_text(tr(&"PROFILE_FIRST_HINT"), WIDTH - MenuPanel.PADDING.y * 2.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		var hint := tr(&"PROFILE_FIRST_HINT") if invite_code.is_empty() else tr(&"INVITE_FIRST_HINT") % invite_code
+		var intro := UiKit.wrapped_text(hint, WIDTH - MenuPanel.PADDING.y * 2.0, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 		intro.name = "Intro"
 		content.add_child(intro)
 	editor = ProfileEditor.create(start_name, start_look, first_start, WIDTH - MenuPanel.PADDING.y * 2.0)

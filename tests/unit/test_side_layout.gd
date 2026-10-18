@@ -5,7 +5,7 @@ extends GutTest
 ## coordinates the segment uses. Round 2: the double jump (golden coin in every plan, on the way in
 ## half of them), crumbling ledges in the other half. Round 3: six plans per biome, a turret mount in
 ## every plan (floor, ceiling or wall, away from start and door), pools that slow and shorten jumps,
-## spike runs.
+## spike runs. D-144: a chest niche in every plan, off the way, a detour without the double jump.
 
 const MINI := [
 	"##########",
@@ -123,6 +123,30 @@ func test_coordinates() -> void:
 	assert_eq(layout.ladder_rect_at(Vector2(6 * 64.0 + 30.0, 4 * 64.0)), ladder, "feet on the top step")
 	assert_false(layout.ladder_rect_at(Vector2(5 * 64.0, 6 * 64.0)).has_area(), "next column")
 	assert_almost_eq(layout.kill_y(), 7.75 * 64.0, 0.01)
+
+
+func test_every_plan_has_a_chest_niche_off_the_way() -> void:
+	for biome in [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]:
+		assert_eq(SidePlans.chest_ids_for(biome), SidePlans.ids_for(biome), "every %s plan has a niche" % biome)
+	for id in SidePlans.all_ids():
+		for mirrored in [false, true]:
+			var layout := SidePlans.build(id, mirrored)
+			assert_true(layout.chest.x >= 0, "%s: chest niche" % id)
+			assert_false(layout.way_cells().has(layout.chest), "%s: the chest stands off the way" % id)
+			assert_false(layout.pit_columns().has(layout.chest.x), "%s: never over a pit" % id)
+			var open_side := layout.is_standable(layout.chest + Vector2i.LEFT) or layout.is_standable(layout.chest + Vector2i.RIGHT)
+			assert_true(open_side, "%s: an open stand cell beside the chest" % id)
+
+
+func test_a_chest_on_the_way_or_none_breaks_the_rules() -> void:
+	var rows := SidePlans.get_rows(&"crypt_shaft")
+	# The old niche on the door floor: the way to the door walks over it.
+	rows[5] = rows[5].substr(0, 38) + "C" + rows[5].substr(39)
+	rows[8] = rows[8].substr(0, 4) + "#" + rows[8].substr(5)
+	var errors := ",".join(SideLayout.parse(rows, &"on_way").check())
+	assert_string_contains(errors, "stands on the way")
+	rows[5] = rows[5].substr(0, 38) + "." + rows[5].substr(39)
+	assert_string_contains(",".join(SideLayout.parse(rows, &"none").check()), "no chest niche")
 
 
 func test_every_golden_coin_needs_the_double_jump() -> void:

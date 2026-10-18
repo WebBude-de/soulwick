@@ -1,7 +1,7 @@
 # Multiplayer – Host-Modell und Regeln
 
 > **Stand:** 17.10.2026 · **Gebaut:** MP1 bis MP4 (lokale Basis, Anmeldung, Raum mit Raumcode, gemeinsamer Run, Testversion), Online-Menü mit Gilden und Profil; Plan und Abnahme in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md). Hier stehen **Absicht und Regeln**: wer was rechnet, was gespiegelt wird, was für neuen Code gilt und wie man testet. Wie es gebaut ist, steht im Code unter `online/` (D-178).
-> **Entscheidungen:** D-080 bis D-085 (Umfang), D-119 und D-121 bis D-128 (Netz, Konto, Lobby, Run, Tore), D-147 (Online-Menü), D-152 (Profil), D-158, D-159 (Raumwechsel, Synchronisierung). Im Koop bringt niemand seine Dorf-Boni mit, und Run-Gold ist eine gemeinsame Kasse (D-081).
+> **Entscheidungen:** D-080 bis D-085 (Umfang), D-119 und D-121 bis D-128 (Netz, Konto, Lobby, Run, Tore), D-147 (Online-Menü), D-152 (Profil), D-158, D-159 (Raumwechsel, Synchronisierung), D-190 (Einladen per Link). Im Koop bringt niemand seine Dorf-Boni mit, und Run-Gold ist eine gemeinsame Kasse (D-081).
 
 ## 1. Ziel
 
@@ -42,7 +42,7 @@ Ablauf: Host erstellt einen Raum und bekommt einen Raumcode → Clients treten m
 ### 3b. Anmeldung und Raum (MP1b, MP2)
 
 - Alles Online liegt in `online/`; der Einzelspieler braucht nichts davon. Jeder Aufruf liefert ein Ergebnis statt einer Ausnahme und darf scheitern.
-- **Zwei Tokens:** Session-Token der API (30 Tage, in `user://online.cfg`, nie im Spielstand) und ein kurzlebiges Relay-JWT (nur im Speicher, vor jedem Verbinden neu geholt). Ein 401 meldet einmal neu an, ein Bann zeigt den Hinweis. Keine E-Mail, kein Passwort (D-121).
+- **Zwei Tokens:** Session-Token der API (30 Tage, in `user://online.cfg`, nie im Spielstand) und ein kurzlebiges Relay-JWT (nur im Speicher, vor jedem Verbinden neu geholt). Ein 401 meldet einmal neu an, ein Bann zeigt den Hinweis. Weitere Anmeldearten (Benutzername, Magic Link, Social-Logins) kommen nach D-188 über die Web-Anmeldung, das Token bleibt dasselbe.
 - Im Relay ist der Host Peer 1; Clients schicken alles an den Host. Endet der Raum (Host weg, Verbindung weg, Neustart des Relays), geht es zurück ins Solo-Dorf mit Hinweis (D-123).
 - **Host steht still** (Browser-Tab im Hintergrund, Hänger; D-183): Clients merken die Stille von Peer 1 (Spiel-Frames und Lebenszeichen des Hosts alle 80 ms auf Kanal 254, auch beim Weltwechsel; `HostStall`: ab 750 ms, nach angekündigtem Laden des Hosts bis 8 s Schonfrist), sperren den eigenen Spieler je Spieler (`host_stall`), lassen ihn einmal zur Host-Lage gleiten und senden die Eingabe nur noch 1×/s; ab 1 s „Warte auf den Host …“, ab 15 s „Raum verlassen“. Der Host lässt einen Client, von dem 500 ms nichts kam, stehen. Im Browser läuft das Spiel in einem Raum auch im versteckten Tab weiter (`WebKeepAlive`, `deploy/web/shell.html`); Safari/iOS und Handy-Browser im Hintergrund nicht.
 
@@ -81,6 +81,13 @@ Ein Menü an zwei Orten: Hauptmenü „Online spielen“ und Gildengebäude im D
 ### 3g. Profil und Welten (D-152)
 
 Name und Aussehen gehören dem Spieler (`profile.cfg`), nicht dem Spielstand; Spielstände sind Welten. Lokal geändert und noch nicht gesendet → `PATCH /me`, sonst gewinnt der Server. Im Raum gehen Änderungen über den Host an alle.
+
+### 3h. Einladen per Link (MP2b, D-190)
+
+- **Absicht:** Link antippen, schon in der Lobby: im Browser ohne Download, Konto oder Code-Tippen. Der Link `https://game.playsoulwick.com/?room=ABC123` (Testumgebung `game-dev.…`) trägt nur den Raumcode; `online/invite_link.gd` baut und liest ihn, die Startseite (`deploy/web/shell.html`) gibt ihn als `-- room=ABC123` ans Spiel, ungültige Codes fallen weg.
+- **Ablauf:** Hauptmenü überspringen → ohne Profil „Einladung · Wie heißt du?“ → Welt von „Weiterspielen“ oder „Welt 1“ → Dorf → Beitritt wie mit Raumcode über `LobbyClient` (Gast-Anmeldung unterwegs). Fehler zeigt das Online-Menü als ein Satz mit „Erneut versuchen“ (wo es hilft) und „Selbst spielen“; bei laufendem Run wartet der Beitritt bis zum Run-Ende.
+- **Testen:** Unit-Tests `tests/unit/test_invite_{link,arrival,lobby}.gd`. Ende zu Ende gegen die lokale Plattform (`bun dev`): `SOULWICK_TEST_API=http://localhost:3101 SOULWICK_TEST_RELAY=ws://localhost:3103/v1 SOULWICK_TEST_DEV_KEY=<DEV_AUTH_KEY> godot --headless --audio-driver Dummy --path . -s addons/gut/gut_cmdln.gd -gselect=test_invite_e2e -gexit` (Link lesen → Beitritt, Warten auf den Run, abgelaufener Raum). Von Hand ohne Browser: `godot --path . -- instance=2 room=ABC123`. Im Browser: lokale Browser-Version (WEB_BUILD.md, Port 3110) mit `http://localhost:3110/?room=ABC123` öffnen.
+- **Noch nicht:** Native Builds nehmen angeklickte Links nicht an (App Links, Universal Links, Steam, OFFEN in D-190); ein stummer Playwright-Test gegen die Test-Server fehlt noch.
 
 ## 4. Schritte
 

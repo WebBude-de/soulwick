@@ -40,12 +40,13 @@ static func sanitize_name(text: String, slot: int) -> String:
 ## What the slot list shows. Never changes the file. Keys: exists, broken, name (the world's name or
 ## "Welt <n>"), world_name (stored name, "" = default), version, gold, crystals, deepest_room,
 ## play_time (s), last_played (unix s, 0 = unknown), all_seen, from_backup (the file is broken, the
-## values come from its last good copy, which loading will use too; P1-8).
+## values come from its last good copy, which loading will use too; P1-8), forge_level and
+## forge_max (forge levels bought / all levels, see forge_progress; D-188 progress at a glance).
 static func read_summary(path: String, slot: int) -> Dictionary:
 	var summary := {
 		"exists": false, "broken": false, "name": default_name(slot), "world_name": "", "version": 0,
 		"gold": 0, "crystals": 0, "deepest_room": 0, "play_time": 0.0, "last_played": 0, "all_seen": false,
-		"from_backup": false,
+		"from_backup": false, "forge_level": 0, "forge_max": forge_max_level(),
 	}
 	if not FileAccess.file_exists(path):
 		return summary
@@ -77,7 +78,29 @@ static func read_summary(path: String, slot: int) -> Dictionary:
 		last_played = FileAccess.get_modified_time(path)
 	summary["last_played"] = last_played
 	summary["all_seen"] = not config.has_section("seen") or config.get_value("seen", "all", false) == true
+	summary["forge_level"] = forge_progress(config)
 	return summary
+
+
+## Forge levels bought in a slot file: the sum over MetaProgression.UPGRADES, each at most its
+## maximum; levels of saves before v3 count as migrated (D-087). Unknown keys do not count.
+static func forge_progress(config: ConfigFile) -> int:
+	var version: Variant = config.get_value("meta", "version", 0)
+	var total := 0
+	for id: StringName in MetaProgression.UPGRADE_ORDER:
+		var level := _non_negative_int(config.get_value("meta_upgrades", String(id), 0))
+		if typeof(version) == TYPE_INT and version < 3:
+			level = SaveManager.migrate_level_to_v3(String(id), level)
+		total += mini(level, MetaProgression.get_max_level(id))
+	return total
+
+
+## All forge levels together (D-087: 20).
+static func forge_max_level() -> int:
+	var total := 0
+	for id: StringName in MetaProgression.UPGRADE_ORDER:
+		total += MetaProgression.get_max_level(id)
+	return total
 
 
 ## What an MM1 slot stored about the player: {name, character (StringName), color (alpha 0 = the
