@@ -4,9 +4,10 @@ extends RefCounted
 ## segment like a person would - it follows the layout's jump graph (SideLayout.find_path) from the
 ## stand cell it is on to the door, walks, jumps from platform edges, climbs ladders, steers in the
 ## air, takes the double jump where the graph asks for it (and as a rescue when a jump falls short),
-## fetches the golden coin with a double jump on the way - and only talks to the player through
-## PlayerSideMotion.input_source, the same door a network peer uses. Replans whenever it lands
-## somewhere unexpected.
+## fetches the golden coin with a double jump on the way, on request walks up to the niche chest (it
+## never opens it; the chest box blocks, so its cell ends a run) - and only talks to the player
+## through PlayerSideMotion.input_source, the same door a network peer uses. Replans whenever it
+## lands somewhere unexpected.
 
 const EDGE_INSET := 14.0
 const ARRIVE_DISTANCE := 8.0
@@ -14,6 +15,9 @@ const STUCK_TIME := 1.2
 const LADDER_ALIGN := 6.0
 ## The second jump is pressed once the first has slowed down to this (near the apex).
 const DOUBLE_JUMP_AT_SPEED := -120.0
+## The niche chest counts as visited with the feet this close to its base (px): well inside the
+## interaction range (player area 44 px + chest area 56 px).
+const CHEST_REACH := 72.0
 
 var segment: SideSegment = null
 var player: Player = null
@@ -23,6 +27,11 @@ var double_jumps := 0
 var replans := 0
 ## Go for the golden coin before the door (check tool: proves every golden coin is reachable).
 var fetch_golden := true
+## Walk up to the niche chest before the door (check tool: proves every chest is in easy reach).
+## Off by default, so the other tools cross as fast as before.
+var fetch_chest := false
+## The bot stood next to the chest (fetch_chest).
+var chest_visited := false
 
 var _path: Array[Vector2i] = []
 var _current := Vector2i(-1, -1)
@@ -59,6 +68,9 @@ func next_input() -> PlayerSideMotion.SideInput:
 		_climb(input, feet)
 		return _finish(input, false)
 	if motion.is_on_floor():
+		if _chest_pending() and _near_chest(feet):
+			chest_visited = true
+			_current = Vector2i(-1, -1)
 		if _golden_try:
 			# Back on the ground after the golden coin jump: on to the door.
 			_golden_try = false
@@ -89,14 +101,51 @@ func _finish(input: PlayerSideMotion.SideInput, want_jump: bool) -> PlayerSideMo
 
 func _replan() -> void:
 	replans += 1
-	var goal := segment.layout.door
+	var layout := segment.layout
+	var goal := layout.door
+	var golden := false
+	var chest := false
 	if fetch_golden and not _golden_done and segment.has_golden_coin():
 		if _golden_launch.x < 0:
-			_golden_launch = segment.layout.launch_cell_for(segment.layout.golden_coin, segment.layout.reachable_from(segment.layout.start))
+			_golden_launch = layout.launch_cell_for(layout.golden_coin, layout.reachable_from(layout.start))
 		if _golden_launch.x >= 0:
 			goal = _golden_launch
-	_path = segment.layout.find_path(_current, goal)
+			golden = true
+	if _chest_pending():
+		# The chest first when it lies before the golden coin's launch cell on the way.
+		var direction := layout.run_direction()
+		if not golden or layout.chest.x * direction < _golden_launch.x * direction:
+			goal = _chest_visit_cell()
+			chest = true
+	_path = layout.find_path(_current, goal)
+	if _path.is_empty() and chest:
+		# Out of the graph's reach (never in a checked plan): on to the door, the tool reports it.
+		chest_visited = true
+		_path = layout.find_path(_current, layout.door)
 	_target = _path[1] if _path.size() > 1 else _current
+
+
+func _chest_pending() -> bool:
+	return fetch_chest and not chest_visited and segment.get_chest() != null and segment.layout.chest.x >= 0
+
+
+## Where the bot stands to visit the chest: the open stand cell beside it on its row (a niche has
+## one; the jump graph's straight drops into a niche under rock are not real).
+func _chest_visit_cell() -> Vector2i:
+	var layout := segment.layout
+	var best := layout.chest
+	var best_distance := 1000000
+	for side in [-1, 1]:
+		var cell := layout.chest + Vector2i(side, 0)
+		var distance := absi(cell.x - _current.x) + absi(cell.y - _current.y)
+		if layout.is_standable(cell) and distance < best_distance:
+			best = cell
+			best_distance = distance
+	return best
+
+
+func _near_chest(feet: Vector2) -> bool:
+	return feet.distance_to(SideLayout.feet_of(segment.layout.chest)) <= CHEST_REACH
 
 
 func _at_golden_launch() -> bool:
@@ -119,6 +168,9 @@ func _golden_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 ## On the ground: walk, start a jump at the edge, or step onto a ladder. Returns "jump now".
 func _ground_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 	if _target == _current or _path.size() < 2:
+		if _chest_pending() and _current == _chest_visit_cell():
+			# Beside the chest but still out of reach: the last steps up to it.
+			input.axis.x = signf(SideLayout.feet_of(segment.layout.chest).x - feet.x)
 		return false
 	var layout := segment.layout
 	var target_x := SideLayout.feet_of(_target).x
@@ -208,14 +260,15 @@ func _climb(input: PlayerSideMotion.SideInput, feet: Vector2) -> void:
 	input.axis.y = -1.0 if target_feet.y < feet.y else 1.0
 
 
-## The last stand cell walking from cell towards target on cell's row (the edge before a gap or a
-## wall); the target column itself when the row reaches it.
+## The last stand cell walking from cell towards target on cell's row (the edge before a gap, a
+## wall or the chest box); the target column itself when the row reaches it.
 func _run_end(cell: Vector2i, target: Vector2i) -> Vector2i:
 	var direction := signi(target.x - cell.x)
 	var end := cell
+	var chest := segment.layout.chest if segment.get_chest() != null else Vector2i(-1, -1)
 	while end.x != target.x:
 		var next := Vector2i(end.x + direction, cell.y)
-		if not segment.layout.is_standable(next):
+		if not segment.layout.is_standable(next) or next == chest:
 			break
 		end = next
 	return end
