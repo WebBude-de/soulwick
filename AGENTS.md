@@ -80,7 +80,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 11. **Keine neue Abhängigkeit ohne Rückfrage** (Godot-Addon, Python- oder Bun-Paket, Docker-Image); Grund in TECHSTACK, Entscheidung in DECISIONS.
 12. **Größeres erst planen:** als Paket in die passende Roadmap schneiden (Dateien, Prüfung, Koop-Check), dann bauen.
 13. **Kein `sudo`** ohne Rückfrage.
-14. **Konventionen:** Commits als Conventional Commits auf Englisch (`feat|fix|refactor|docs|test|chore|perf|build|balance|art(scope): was`, höchstens 72 Zeichen, Body = warum; Details [docs/TECHSTACK.md](docs/TECHSTACK.md) §3). `TODO:` nur mit Ziel (`TODO: → ROADMAP_AUSBAU M3`). Stil: kurze Funktionen, sprechende Namen, keine Vorab-Abstraktion; Fehlermeldungen sagen, was zu tun ist.
+14. **Konventionen:** Commits als Conventional Commits auf Englisch (`feat|fix|refactor|docs|test|chore|perf|build|ci|balance|art(scope): was`, höchstens 72 Zeichen, Body = warum; Details [docs/TECHSTACK.md](docs/TECHSTACK.md) §3). `TODO:` nur mit Ziel (`TODO: → ROADMAP_AUSBAU M3`). Stil: kurze Funktionen, sprechende Namen, keine Vorab-Abstraktion; Fehlermeldungen sagen, was zu tun ist.
 
 ## 7. Prüfen
 
