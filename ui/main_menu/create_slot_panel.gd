@@ -2,7 +2,8 @@ class_name CreateSlotPanel
 extends MenuPanel
 ## "Neue Welt" (D-152): a save slot is a world. Only its name is chosen here (empty = "Welt <n>");
 ## the figure is the player's profile and comes along into every world (shown small with a hint).
-## Enter (gamepad A) starts, Esc (B) goes back. Typing ticks softly (UiSound). A new world has seen nothing, so the
+## Enter (gamepad A) starts, Esc (B) goes back, Y opens the on-screen keyboard (PadKeyboard, D-192).
+## Typing ticks softly (UiSound). A new world has seen nothing, so the
 ## village explains itself (D-087). Texts are translation keys (D-111).
 
 signal confirmed(slot: int, world_name: String)
@@ -12,6 +13,7 @@ const WIDTH := 236.0
 const PREVIEW_SCALE := 3
 const FOOTER: StringName = &"CREATE_FOOTER"
 const FOOTER_PAD: StringName = &"CREATE_FOOTER_PAD"
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 
 var slot := 1
 
@@ -104,7 +106,10 @@ func confirm() -> void:
 func _input(event: InputEvent) -> void:
 	if _name_edit == null or not _name_edit.has_focus():
 		return
-	if MenuInput.is_confirm(event):
+	if PadKeyboard.is_open_event(event):
+		get_viewport().set_input_as_handled()
+		open_keyboard()
+	elif MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm()
 	elif MenuInput.is_back(event):
@@ -122,7 +127,15 @@ func handle_input(event: InputEvent) -> bool:
 	if MenuInput.is_up(event) or MenuInput.is_down(event):
 		_name_edit.grab_focus()
 		return true
+	if PadKeyboard.is_open_event(event):
+		open_keyboard()
+		return true
 	return false
+
+
+## The on-screen keyboard for the name (gamepad Y).
+func open_keyboard() -> Modal:
+	return PadKeyboard.open_for(_name_edit)
 
 
 func _on_name_changed(text: String) -> void:

@@ -22,7 +22,7 @@ const TEXTS := {
 	&"BUG_REPORT_TAB_IDEA": ["Suggest an idea", "Idee einreichen"],
 	&"BUG_REPORT_TITLE_IDEA": ["SUGGEST AN IDEA", "IDEE EINREICHEN"],
 	&"BUG_REPORT_KEYS_DESKTOP": ["Ctrl+Enter: send · Ctrl+Tab: switch tab · Esc: cancel", "Strg+Enter: senden · Strg+Tab: Reiter wechseln · Esc: abbrechen"],
-	&"BUG_REPORT_KEYS_PAD": ["LB/RB: switch tab · Start: send · B: cancel", "LB/RB: Reiter wechseln · Start: senden · B: abbrechen"],
+	&"BUG_REPORT_KEYS_PAD": ["LB/RB: switch tab · Y: keyboard · Start: send · B: cancel", "LB/RB: Reiter wechseln · Y: Tastatur · Start: senden · B: abbrechen"],
 	&"BUG_REPORT_NOTE_BUG": ["What is broken? (note, several lines)", "Was ist kaputt? (Notiz, mehrzeilig)"],
 	&"BUG_REPORT_NOTE_IDEA": ["What would you like to see? (note, several lines)", "Was wünschst du dir? (Notiz, mehrzeilig)"],
 	&"BUG_REPORT_MARKS_EMPTY": ["No mark yet: drag a rectangle", "Noch keine Markierung: Rechteck aufziehen"],

@@ -21,6 +21,9 @@ extends Control
 ## PAD_ACCEPT_GUARD seconds is ignored: A is also the dash, a player mashing it in a fight must not
 ## pick blindly. The key bar shows the gamepad's buttons while a gamepad is in use (number keys
 ## become "D-pad select"), and switches back and forth with the device.
+## Scrolling with the gamepad (D-192): the framed button is scrolled into view, the right stick
+## scrolls the scroll area of the dialog (the one around the frame, else the first that can scroll),
+## and in a dialog without buttons (the Tab overview) the D-pad / arrows scroll it step by step.
 ## Phones and touch screens (MobileUi, 17.10.2026): the panel sits on a stage that is drawn
 ## MobileUi.menu_zoom() times larger inside the safe area (layout stays in mockup pixels), lowered per
 ## dialog until its width fits (MobileUi.fit_zoom); what is still too tall scrolls (Scroll between
@@ -49,6 +52,10 @@ const CLOSE_SIZE := 18.0
 const CLOSE_OUTSIDE := 0.4
 ## Scroll bar of a dialog that is taller than a phone screen (mockup pixels).
 const SCROLL_BAR_WIDTH := 3.0
+## Gamepad scrolling (D-192, TESTWERT): right stick at full deflection in mockup pixels per second,
+## one D-pad / arrow step in a dialog without buttons in mockup pixels.
+const PAD_SCROLL_SPEED := 240.0
+const PAD_SCROLL_STEP := 24.0
 
 const DIM_COLOR := UiKit.COLOR_OVERLAY
 ## Gap between content rows in mockup pixels (ui_spec dialog.gap; R8 tighter, dialogs max 60 %).
@@ -102,6 +109,9 @@ var auto_finish_result: Variant = null
 var close_action: Callable = Callable()
 ## Zoom the panel is drawn with right now (MobileUi; 1 on the PC).
 var zoom := 1.0
+## Asks GameManager for pause_reason while open (false: e.g. the on-screen keyboard over a dialog
+## that already paused, or over the main menu).
+var pauses := true
 
 var _done := false
 var _dim: ColorRect = null
@@ -166,7 +176,8 @@ func show_on(parent: Node) -> void:
 		device.changed.connect(_on_device_changed)
 	if InputGlyphs.is_gamepad():
 		_focus_default.call_deferred()
-	GameManager.request_pause(pause_reason)
+	if pauses:
+		GameManager.request_pause(pause_reason)
 	Sfx.play_ui(self, &"ui_open")
 	_start_input_guard()
 	_animate_in()
@@ -190,7 +201,7 @@ func _start_input_guard() -> void:
 	add_child(_guard_blocker)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _guard_blocker != null and not is_input_guarded():
 		_guard_blocker.queue_free()
 		_guard_blocker = null
@@ -198,6 +209,9 @@ func _process(_delta: float) -> void:
 		# Held D-pad or stick: the next step as an arrow-key event (MenuInput).
 		if not is_input_guarded():
 			MenuInput.pump_repeat()
+			var stick := GamepadInput.read_aim_stick().y
+			if stick != 0.0:
+				scroll_by(stick * UiKit.px(PAD_SCROLL_SPEED) * delta)
 		if _pad_button != null:
 			_focus_ring.queue_redraw()
 		if _close_button != null:
@@ -225,11 +239,57 @@ func get_focused_button() -> Button:
 	return _pad_button if is_instance_valid(_pad_button) else null
 
 
-## Puts the gamepad focus frame on button (null clears it).
+## Puts the gamepad focus frame on button (null clears it) and scrolls it into view.
 func focus_button(button: Button) -> void:
 	_pad_button = button if is_instance_valid(button) else null
 	_focus_ring.visible = _pad_button != null
 	_focus_ring.queue_redraw()
+	var scroll := _scroll_around(_pad_button)
+	if scroll != null:
+		scroll.ensure_control_visible(_pad_button)
+
+
+# --- Gamepad scrolling (D-192) ---
+
+## The scroll area the gamepad moves: the one around the framed button, else the first visible one
+## in the dialog that has something to scroll (null if none).
+func scroll_target() -> ScrollContainer:
+	var around := _scroll_around(get_focused_button())
+	if around != null and _can_scroll(around):
+		return around
+	for node in find_children("*", "ScrollContainer", true, false):
+		var scroll := node as ScrollContainer
+		if scroll.is_visible_in_tree() and _can_scroll(scroll):
+			return scroll
+	return null
+
+
+## Scrolls the scroll area by amount screen pixels (down > 0); false when nothing can scroll.
+func scroll_by(amount: float) -> bool:
+	var scroll := scroll_target()
+	if scroll == null:
+		return false
+	var bar := scroll.get_v_scroll_bar()
+	bar.value = clampf(bar.value + amount, bar.min_value, maxf(bar.min_value, bar.max_value - bar.page))
+	return true
+
+
+static func _can_scroll(scroll: ScrollContainer) -> bool:
+	if scroll.vertical_scroll_mode == ScrollContainer.SCROLL_MODE_DISABLED:
+		return false
+	var bar := scroll.get_v_scroll_bar()
+	return bar.max_value - bar.page > bar.min_value + 0.5
+
+
+func _scroll_around(control: Control) -> ScrollContainer:
+	if control == null or not is_ancestor_of(control):
+		return null
+	var node := control.get_parent()
+	while node != null and node != self:
+		if node is ScrollContainer:
+			return node as ScrollContainer
+		node = node.get_parent()
+	return null
 
 
 ## Moves the focus to the nearest button in direction (D-pad / stick / arrows); without a focus it
@@ -356,7 +416,7 @@ func finish(result: Variant = null) -> void:
 		return
 	_done = true
 	_open_ids.erase(get_instance_id())
-	if _shown_ms >= 0:
+	if _shown_ms >= 0 and pauses:
 		GameManager.release_pause(pause_reason)
 	finished.emit(result)
 	queue_free()
@@ -656,6 +716,7 @@ func _set_scroll_limit(scroll: bool, max_frame_height: float) -> void:
 		_scroll = ScrollContainer.new()
 		_scroll.name = "Scroll"
 		_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+		_scroll.follow_focus = true
 		_scroll.mouse_filter = Control.MOUSE_FILTER_PASS
 		_scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
 		_style_scroll_bar(_scroll.get_v_scroll_bar())
@@ -782,6 +843,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if step != Vector2i.ZERO:
 		if move_focus(step):
 			get_viewport().set_input_as_handled()
+		elif step.y != 0 and scroll_by(step.y * UiKit.px(PAD_SCROLL_STEP)):
+			# No buttons (the Tab overview): the D-pad and the arrows scroll the list.
+			get_viewport().set_input_as_handled()
 		return
 	if MenuInput.is_pad_accept(event):
 		get_viewport().set_input_as_handled()
@@ -817,5 +881,5 @@ func _exit_tree() -> void:
 	_open_ids.erase(get_instance_id())
 	if not _done:
 		_done = true
-		if _shown_ms >= 0:
+		if _shown_ms >= 0 and pauses:
 			GameManager.release_pause(pause_reason)

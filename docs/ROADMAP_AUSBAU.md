@@ -97,3 +97,4 @@ Einzelheiten stehen in den D-Einträgen, im Code und in der Git-Historie.
 | M2 | Ein Tor pro Übergang, Tunnel | 15.10.2026 | D-143 |
 | M4 | Kamera 1,25× | 14.10.2026 | D-140 |
 | M5 (Teil) | Gang-Segmente in Seitenansicht: Segment, Physik, Kamera, Vorlagen, Runde 2 (Rest oben offen) | 15.10.2026 | D-144 |
+| PAD1 | Gamepad-Lücken: Bildschirmtastatur, Blättern mit Stick und Steuerkreuz, Xbox-Buchstaben, Pad-Texte (Nachweis GUT `test_gamepad_gaps`) | 18.10.2026 | D-192 |
