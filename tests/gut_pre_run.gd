@@ -14,6 +14,8 @@ const TEST_LANGUAGE: StringName = &"de"
 
 
 func run() -> void:
+	# Also for "auto": tests that reset the settings fall back to the system language otherwise.
+	Loc.system_language_override = String(TEST_LANGUAGE)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
 	SaveManager.settings_path = SETTINGS_PATH
 	SaveManager.load_settings()
