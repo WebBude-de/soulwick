@@ -418,7 +418,8 @@ func _walk_mask() -> int:
 	return mask if mask != 0 else PhysicsLayers.WORLD
 
 
-## Does a part of the tile navigation (a TileMapLayer: walls, pillars, inner walls, abysses) block
+## Does a part of the tile navigation (a TileMapLayer: walls, pillars, inner walls, abysses; a
+## HeightBody: cliffs, edges and ladders of a plateau, M3) block
 ## the way from -> goal, first touched at fraction? A body on tiles without navigation counts too:
 ## solid props take the navigation off their tiles (D-115, a decoration group, a crate), so the path
 ## knows the way around them. Doors, test walls and other bodies on navigable floor are not part of
@@ -440,7 +441,8 @@ func _is_navigation_obstacle(from: Vector2, goal: Vector2, fraction: float) -> b
 		var contact := space.get_rest_info(query)
 		if contact.is_empty():
 			return false
-		if instance_from_id(int(contact["collider_id"])) is TileMapLayer or _is_navigation_hole(contact):
+		var collider := instance_from_id(int(contact["collider_id"]))
+		if collider is TileMapLayer or collider is HeightBody or _is_navigation_hole(contact):
 			return true
 		passed.append(contact["rid"])
 		fraction = _walk_cast(from, goal, passed)

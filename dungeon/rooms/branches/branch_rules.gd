@@ -9,7 +9,9 @@ extends RefCounted
 ##   rooms on cycle places 1-3 that are no combat variant themselves (never two variants in a row).
 ## - Before place 4 (the special room): two special room types to choose from (weighted like the
 ##   special table, never the previous type, the two differ). Before a combat room: elite nest vs.
-##   the safe way, or an unknown combat variant vs. the safe way.
+##   the safe way, or an unknown combat variant vs. the safe way. In LADDER_SHARE of the combat
+##   branches the safe way is the ladder way instead (M5, D-144): a side segment with coins and the
+##   chest before the same plain fight - only where a segment may come (ladder_allowed).
 ## - Randomness: exactly DRAWS numbers of the dungeon RNG per normal combat room, none otherwise.
 
 const FROM_ROOM := 6
@@ -22,9 +24,14 @@ const ELITE_SHARE := 0.6  # TESTWERT
 const VOTE_TIMEOUT := 10.0
 ## Numbers drawn from the dungeon RNG per normal combat room.
 const DRAWS := 4
+## Combat branches whose safe way is the ladder way (M5). Taken from the door-order roll (no extra
+## draw, DRAWS stays): its two halves pick the order, the position inside the half the ladder.
+const LADDER_SHARE := 0.4  # TESTWERT
 
 ## Test aid (smoke test): >= 0 replaces CHANCE. Never set in the game.
 static var chance_override := -1.0
+## Test aid (smoke test): >= 0 replaces LADDER_SHARE. Never set in the game.
+static var ladder_override := -1.0
 
 
 ## The two ways of one branch room; empty options = no branch.
@@ -40,6 +47,16 @@ static func get_chance() -> float:
 	return chance_override if chance_override >= 0.0 else CHANCE
 
 
+static func get_ladder_share() -> float:
+	return ladder_override if ladder_override >= 0.0 else LADDER_SHARE
+
+
+## Does a combat branch show the ladder way instead of the safe way? order_roll: the door-order roll
+## in [0, 1); each half of it is stretched to [0, 1) again, so order and ladder stay independent.
+static func is_ladder_roll(order_roll: float) -> bool:
+	return fposmod(order_roll * 2.0, 1.0) < get_ladder_share()
+
+
 ## Cycle (five rooms) of a room number: 0 for rooms 1-5, 1 for 6-10, ...
 static func get_cycle(room_index: int) -> int:
 	return floori(float(room_index - 1) / RoomSequence.CYCLE_LENGTH)
@@ -53,9 +70,12 @@ static func is_eligible(room_index: int, room_type: int, has_variant: bool, bran
 
 
 ## The draw for one room. branch_cycle: cycle of the last branch (-1 = none yet), previous_special:
-## type of the last special room (-1 = none). Draws exactly DRAWS numbers for normal combat rooms.
+## type of the last special room (-1 = none). ladder_allowed: a side segment may lead out of this
+## room (SideRules.allows_ladder_way; false = never a ladder way). Draws exactly DRAWS numbers for
+## normal combat rooms.
 static func roll(room_index: int, room_type: int, next_slot_type: int, has_variant: bool, branch_cycle: int,
-		previous_special: int, special_table: SpecialTable, variant_table: VariantTable, rng: RandomNumberGenerator) -> Plan:
+		previous_special: int, special_table: SpecialTable, variant_table: VariantTable, rng: RandomNumberGenerator,
+		ladder_allowed := false) -> Plan:
 	var plan := Plan.new()
 	if rng == null or not RoomSequence.is_normal_combat(room_type as RoomSequence.RoomType):
 		return plan
@@ -78,6 +98,8 @@ static func roll(room_index: int, room_type: int, next_slot_type: int, has_varia
 		if hidden != VariantTable.NONE:
 			other = BranchOption.create(BranchOption.Kind.UNKNOWN, -1, hidden)
 	var safe := BranchOption.create(BranchOption.Kind.SAFE)
+	if ladder_allowed and is_ladder_roll(second_roll):
+		safe = BranchOption.create(BranchOption.Kind.LADDER)
 	# Which door shows which way.
 	plan.options.assign([other, safe] if second_roll < 0.5 else [safe, other])
 	return plan

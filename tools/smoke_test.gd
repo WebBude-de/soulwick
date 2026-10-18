@@ -23,9 +23,15 @@ extends SceneTree
 ## Room plans (R1, D-120): every room is checked against the plan rules on entry (RoomPlanChecks:
 ## every floor tile reachable with props and sources blocked, doors free, nothing in the only way,
 ## traps with a reason); combat rooms come from a plan of their biome and scatter nothing at random.
+## Side segments (M5): every way that runs through a segment (after the campfire, the ladder door of
+## a branch, now and then after a rest room) is walked into and played with the autopilot (SideBot):
+## its reason fits the room it leaves, never before the boss and never twice in a row, the layout is
+## of the next room's biome, the chest only on the ladder way (opened, upgrade chosen), the door is
+## reached in time, coins go to the run gold and the next room starts top-down again. The first
+## combat branch offers the ladder way for sure (BranchRules.ladder_override) and the test takes it.
 ## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms] [seed=<n>]
 ## seed: a fixed dungeon seed (DungeonManager.seed_value); two runs with the same seed print the same
-## "chain" lines (room, template, doors, mode), the check for a stable room stream (R5).
+## "chain" lines (room, template, doors, mode, side segments), the check for a stable room stream (R5).
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const SAVE_PATH := "user://smoke_test_save.cfg"
@@ -35,6 +41,12 @@ const MAX_LIVE_ROOMS_BRANCH := 4
 ## Test aid: more branches and secret niches than in the game, so a run of 20+ rooms sees them.
 const BRANCH_CHANCE := 0.7
 const SECRET_CHANCE := 0.45
+## Test aid (M5): every combat branch shows the ladder way until the test has taken one.
+const LADDER_SHARE_UNTIL_TAKEN := 1.0
+## Side segment reasons (SideRules.Reason) by name, for the output.
+const SIDE_REASONS := ["NONE", "BIOME_CHANGE", "LADDER_WAY", "AFTER_REST"]
+## Longest wait for one segment (fades, banner and the way itself), seconds.
+const SIDE_TIMEOUT := 75.0
 
 var _failures: Array[String] = []
 var _max_live_rooms := 0
@@ -69,6 +81,12 @@ var _gaps := {}
 var _gate_looks := {}
 ## Dungeon seed from the command line (0 = random, as in the game).
 var _seed := 0
+## M5: segments played ("room -> room: reason plan, time, coins"), ladder ways taken, the room the
+## last segment led into (it is entered by the transit, not by the test's teleport).
+var _segments_played: Array[String] = []
+var _side_reasons := {}
+var _ladder_ways := 0
+var _entered_by_segment := -1
 
 
 func _init() -> void:
@@ -99,6 +117,7 @@ func _run() -> void:
 	process_frame.connect(_watch)
 	load("res://dungeon/rooms/branches/branch_rules.gd").chance_override = BRANCH_CHANCE
 	load("res://dungeon/rooms/secrets/secret_rules.gd").chance_override = SECRET_CHANCE
+	load("res://dungeon/rooms/branches/branch_rules.gd").ladder_override = LADDER_SHARE_UNTIL_TAKEN
 
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
@@ -132,8 +151,10 @@ func _run() -> void:
 		_check(_entrance_sides.size() >= 2, "rooms entered through side walls too (%s)" % _entrance_sides)
 		_check(not _branches_taken.is_empty(), "at least one branch taken (%d)" % _branches_taken.size())
 		_check(not _secrets_opened.is_empty(), "at least one secret niche opened (%d)" % _secrets_opened.size())
+		_check(_ladder_ways >= 1, "at least one ladder way of a branch taken through a side segment (%d)" % _ladder_ways)
 	var bosses := floori(rooms_to_play / 15.0)
 	_check(_campfires_seen == bosses, "one campfire after each of the %d boss rooms (seen: %d)" % [bosses, _campfires_seen])
+	_check(_side_reasons.get("BIOME_CHANGE", 0) == bosses, "a side segment behind each of the %d campfires (%d)" % [bosses, _side_reasons.get("BIOME_CHANGE", 0)])
 	var gold_before: int = run_manager.get_run_gold()
 	var permanent_before: int = save_manager.get_permanent_gold()
 	print("run gold before death: ", gold_before)
@@ -175,7 +196,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	var type_name: String = ["COMBAT", "COMBAT_UPGRADE", "SPECIAL", "MINIBOSS", "BOSS", "CAMPFIRE"][room.room_type]
 	var expected_type := _expected_type(index)
 	_check(type_name == expected_type, "room %d type %s (expected %s)" % [index, type_name, expected_type])
-	if index > 1:
+	var by_segment := _entered_by_segment == index
+	if by_segment:
+		# The transit put the player just inside the entrance: the room is active already.
+		_check(_dungeon.get_active_room_index() == index, "room %d: entered from the side segment" % index)
+	elif index > 1:
 		# Room 1 is entered by spawning inside it.
 		_check(not room.is_encounter_started(), "room %d: preparing does not start the encounter" % index)
 
@@ -195,6 +220,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 	_check_no_overlap(index)
 	_check_plan_rules(index, room)
 	var is_branch: bool = room.is_branch_room()
+	if by_segment:
+		# Never two segments in a row (D-144): the way out stays a corridor, no ladder door either.
+		_check(room.get_node_or_null("SideGate") == null, "room %d: no second side segment right after one" % index)
+		for option: Object in room.branch_options:
+			_check(not option.is_ladder(), "room %d: no ladder door right after a side segment" % index)
 	if type_name == "BOSS":
 		# Behind a boss room comes the campfire, room index + 1 only behind it (D-103).
 		_check(_dungeon.get_campfire(index) != null, "campfire prepared when entering boss room %d" % index)
@@ -297,7 +327,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		_check(exit_door.view.get_cone_share() > 0.95, "room %d: the open gate shows the way in full light (%.2f)" % [index, exit_door.view.get_cone_share()])
 	if type_name == "BOSS" and exit_door.is_open:
 		return await _play_campfire(index, player, run_manager)
-	return exit_door.is_open
+	var opened: bool = exit_door.is_open
+	if opened:
+		# The gate shuts behind the player once the segment has led into the next room.
+		await _play_side_way(index, room, player)
+	return opened
 
 
 ## Live rooms never overlap (A10): neighbours share at most their corridor row or column, rooms two
@@ -417,6 +451,10 @@ func _take_branch(index: int, room: Node, player: Node) -> void:
 	for i in options.size():
 		if options[i].kind == 1:
 			pick = i
+	# M5: the first ladder door offered is taken (its way runs through a side segment).
+	for i in options.size():
+		if options[i].is_ladder() and _ladder_ways == 0:
+			pick = i
 	var exit: Vector2i = room.get_node("Tiles").get_exit_doors()[pick]
 	var tiles: Node = room.get_node("Tiles")
 	var inside: Vector2i = tiles.inside_tile_of(exit.x, exit.y, tiles.room_size)
@@ -444,6 +482,15 @@ func _take_branch(index: int, room: Node, player: Node) -> void:
 			_check(next.get_variant_id() == option.variant_id or next.get_variant_id() == &"", "room %d: the hidden variant %s" % [index + 1, option.variant_id])
 		3:
 			_check(next.special_type == option.special_type, "room %d: special type %d of the chosen way" % [index + 1, option.special_type])
+		4:
+			# Ladder way (M5): a plain fight behind a side segment with the chest.
+			_check(next.get_variant_id() == &"" and not next.has_wager_altar(), "room %d: the ladder way leads into a plain fight" % (index + 1))
+			var gate: Node = room.get_node_or_null("SideGate")
+			_check(gate != null and gate.next_room == next, "branch room %d: the ladder door leads into a side segment" % index)
+			if gate != null:
+				_check(SIDE_REASONS[gate.reason] == "LADDER_WAY" and gate.layout.chest_enabled, "branch room %d: the ladder way brings the chest (%s)" % [index, SIDE_REASONS[gate.reason]])
+			_ladder_ways += 1
+			load("res://dungeon/rooms/branches/branch_rules.gd").ladder_override = -1.0
 		_:
 			_check(next.get_variant_id() == &"" and not next.has_wager_altar(), "room %d: the safe way is a plain fight" % (index + 1))
 	# The player leaves the zone; the chosen door must be open for the walk on.
@@ -575,7 +622,86 @@ func _play_campfire(boss_index: int, player: Node, run_manager: Node) -> bool:
 	_check(_dungeon.get_rooms_until_heal() == heal_steps_before, "campfire %d leaves the heal countdown alone" % boss_index)
 	_check(_find_modal(root) == null, "campfire %d: no dialog left open" % boss_index)
 	print("campfire after room %d: portal=%s, next biome %s" % [boss_index, campfire.has_portal, campfire.get_next_biome().display_name])
+	# M5: the way down into the next biome runs through a side segment.
+	_check(campfire.get_node_or_null("SideGate") != null, "campfire %d: the way into the next biome is a side segment" % boss_index)
+	await _play_side_way(boss_index, campfire, player)
 	return true
+
+
+## M5: when the way out of room runs through a side segment, walk into its gate and let the autopilot
+## (SideBot) play it: the reason fits the room left, the layout is of the next room's biome, the chest
+## only on the ladder way (opened, the upgrade chosen), the door is reached within the time limit,
+## the coins go to the run gold, and the next room starts top-down with the player inside.
+func _play_side_way(index: int, room: Node, player: Node) -> void:
+	var gate: Node = room.get_node_or_null("SideGate")
+	if gate == null:
+		return
+	var next: Node = gate.next_room
+	var reason: String = SIDE_REASONS[gate.reason]
+	var label := "%s -> %s" % [room.name, next.name if next != null else "?"]
+	_check(next != null and next == _dungeon.get_room_at_slot(room.slot_index + 1), "%s: the side segment leads into the next room" % label)
+	if next == null:
+		return
+	_check(next.room_type != 4, "%s: never a side segment before the boss" % label)
+	var expected := "AFTER_REST"
+	if room.is_campfire():
+		expected = "BIOME_CHANGE"
+	elif room.get_chosen_option() != null and room.get_chosen_option().is_ladder():
+		expected = "LADDER_WAY"
+	_check(reason == expected, "%s: segment reason %s (expected %s)" % [label, reason, expected])
+	if expected == "AFTER_REST":
+		_check(room.room_type == 2 and room.special_type != load("res://dungeon/room_sequence.gd").SpecialType.TRIAL, "%s: a surprise segment only after a rest room" % label)
+	var layout: Object = gate.layout
+	var biome: StringName = load("res://dungeon/rooms/room_catalog.gd").biome_id_for_room(next.room_index)
+	_check(layout.biome_id == biome, "%s: segment of the next room's biome %s (%s)" % [label, biome, layout.biome_id])
+	_check(layout.chest_enabled == (reason == "LADDER_WAY"), "%s: chest only on the ladder way (%s)" % [label, layout.chest_enabled])
+	print("chain side %d: %s %s %s%s" % [index, label, reason, layout.plan_id, " mirrored" if layout.is_mirrored else ""])
+	var run_manager := root.get_node("RunManager")
+	var gold_before: int = run_manager.get_run_gold()
+	player.global_position = gate.global_position
+	var transit: Node = null
+	for step in 300:
+		await _frames(1)
+		transit = _dungeon.get_side_transit()
+		if transit != null and transit.segment != null:
+			break
+	_check(transit != null and transit.segment != null, "%s: walking into the gate starts the side segment" % label)
+	if transit == null or transit.segment == null:
+		return
+	var segment: Node = transit.segment
+	_check(player.is_side_view(), "%s: the player is in side view" % label)
+	if reason == "LADDER_WAY":
+		var chest: Node = segment.get_chest()
+		_check(chest != null, "%s: the chest waits in the ladder way" % label)
+		if chest != null:
+			chest.get_interactable().interact(player)
+			await _resolve_modals()
+			_check(chest.is_open, "%s: the chest of the ladder way opened" % label)
+	var bot: RefCounted = load("res://dungeon/side/side_bot.gd").drive(segment, player)
+	var frames := 0
+	var limit := int(SIDE_TIMEOUT * Engine.physics_ticks_per_second)
+	var falls := 0
+	var segment_frames := -1
+	while is_instance_valid(transit) and frames < limit:
+		await _frames(1)
+		frames += 1
+		if is_instance_valid(segment) and player.side_motion != null:
+			falls = player.side_motion.pit_falls
+			if segment.is_finished and segment_frames < 0:
+				segment_frames = frames
+	bot = null
+	var seconds := segment_frames / float(Engine.physics_ticks_per_second)
+	_check(segment_frames >= 0, "%s: the autopilot reached the door (%.1f s)" % [label, frames / float(Engine.physics_ticks_per_second)])
+	_check(segment_frames < 0 or seconds <= load("res://dungeon/side/side_rules.gd").MAX_SEGMENT_SECONDS, "%s: the segment takes at most %d s (%.1f s)" % [label, load("res://dungeon/side/side_rules.gd").MAX_SEGMENT_SECONDS, seconds])
+	_check(not is_instance_valid(transit), "%s: the transit ended" % label)
+	await _frames(10)
+	_check(not player.is_side_view(), "%s: top-down again after the segment" % label)
+	_check(_dungeon.get_active_room_index() == next.room_index and _dungeon.get_active_slot() == next.slot_index, "%s: the next room started after the segment (active %d)" % [label, _dungeon.get_active_room_index()])
+	_check(run_manager.get_run_gold() >= gold_before, "%s: coins went to the run gold (%d -> %d)" % [label, gold_before, run_manager.get_run_gold()])
+	_check(root.get_viewport().get_camera_2d() == player.get_node("Camera2D"), "%s: the room camera is current again" % label)
+	_side_reasons[reason] = _side_reasons.get(reason, 0) + 1
+	_segments_played.append("%s %s %s %.1f s, gold +%d, %d pit falls" % [label, reason, layout.plan_id, seconds, run_manager.get_run_gold() - gold_before, falls])
+	_entered_by_segment = next.room_index
 
 
 ## Room kind rules (D-100): rooms 1-5 normal, no chasm twice in a row, fallback to a normal room
@@ -641,6 +767,7 @@ func _print_kind_distribution() -> void:
 	print("door ways shown: %s" % _format_counts(_door_modes))
 	print("transitions: %d, corridor tiles behind the gate: %s, gates: %s" % [_transitions, _format_counts(_gaps), _format_counts(_gate_looks)])
 	print("secret niches opened: %s" % ", ".join(_secrets_opened))
+	print("side segments played (%s): %s" % [_format_counts(_side_reasons), "; ".join(_segments_played)])
 
 
 ## Rooms with pits (A4): exit and markers reachable on foot (enemies do not dash), no enemy spawned
@@ -686,6 +813,8 @@ func _check_plan_rules(index: int, room: Node) -> void:
 		return
 	_plan_rooms_checked += 1
 	var problems: Array = load("res://dungeon/rooms/room_plan_checks.gd").problems(room)
+	# M3: the live height of the room (field built, wall shapes, player and enemy masks).
+	problems.append_array(load("res://dungeon/rooms/height/height_checks.gd").problems(room))
 	_check(problems.is_empty(), "room %d (%s): plan rules %s" % [index, room.scene_file_path.get_file(), problems])
 
 

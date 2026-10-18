@@ -32,6 +32,10 @@ extends Node2D
 ## tests) gets it built at once (finish_preparing). First-time work (the plan catalog, the rock pieces
 ## of every biome tileset, the first biome's door pictures) is done while the dungeon loads
 ## (_warm_up), the later biomes' door pictures one style per idle frame (_idle).
+## Side segments (M5, D-144): some ways run through a jump'n'run in side view instead of a corridor
+## (SideWays: after the campfire, the ladder door of a branch (before room n+1), now and then after a
+## rest room; never before the boss, never twice in a row, not with "Seitenwege auslassen"). A gate in
+## the corridor starts SideTransit; the players come out just inside the next room.
 
 signal room_activated(room: RoomController)
 ## Completed rooms left until the next regular heal (HUD detail line).
@@ -126,6 +130,8 @@ var _rock_root: Node2D = null
 var _run_seed := 0
 ## M5: slot of the room the last side segment led into (never two segments in a row).
 var _last_side_slot := -1
+## M5: the transit through the segment being played (it frees itself at the end).
+var _side_transit: SideTransit = null
 ## Size and entrance place of special templates (branch fit check), by scene path.
 var _layout_cache: Dictionary[String, Vector3i] = {}
 ## Every player of this run in spawn order (MP1); context.player is the first local one.
@@ -589,7 +595,10 @@ func _plan_links(room: RoomController, previous: RoomController, previous_exit: 
 	var exits: Array[Vector2i] = [Vector2i(exit_side, _exit_place(tiles, exit_side))]
 	# Branch (D-105).
 	var options: Array[BranchOption] = []
-	var branch := BranchRules.roll(index, room.room_type, next_type, has_variant, _branch_cycle, _previous_special, _special_table, _variant_table, context.rng)
+	# M5: the safe way may be the ladder way, unless no segment may lead out of this room (no draw).
+	var ladder_allowed := SideRules.allows_ladder_way(next_type == RoomSequence.RoomType.BOSS,
+			_enters_through_side(previous, room), _side_ways_skipped())
+	var branch := BranchRules.roll(index, room.room_type, next_type, has_variant, _branch_cycle, _previous_special, _special_table, _variant_table, context.rng, ladder_allowed)
 	if branch.is_branch():
 		var pair := BranchRules.pick_exit_pair(tiles, branch.options, sides, estimates)
 		# Both ways are built before the choice (R5): only a branch whose two rooms fit is offered.
@@ -1090,6 +1099,7 @@ func _on_branch_chosen(room: RoomController, index: int) -> void:
 	finish_preparing()
 	if room != _branch_room or index >= _branch_ways.size():
 		_prepare_slot(room.slot_index + 1, room.branch_options[index])
+		_queue_ladder_way(room, index)
 		return
 	var chosen := _branch_ways[index]
 	_restore_chain(_way_states[index])
@@ -1100,6 +1110,23 @@ func _on_branch_chosen(room: RoomController, index: int) -> void:
 	_branch_ways.clear()
 	_way_states.clear()
 	_branch_room = null
+	_queue_ladder_way(room, index)
+
+
+## M5: the ladder door leads through a side segment (with the chest) into room n+1. Planned as the
+## next job, so in a group game the host's choice (branch_chosen_net, sent in the same signal) goes
+## out before the side way it brings (side_way_net); a network client plans it when the host
+## announces it (plan_side_way).
+func _queue_ladder_way(room: RoomController, index: int) -> void:
+	if _is_net_client() or index < 0 or index >= room.branch_options.size() or not room.branch_options[index].is_ladder():
+		return
+	_queue_job(_plan_ladder_way.bind(room))
+
+
+func _plan_ladder_way(room: RoomController) -> void:
+	if _run_ending or not is_instance_valid(room) or room.state == RoomController.State.UNLOADED:
+		return
+	_plan_side_way(room, _rooms.get(room.slot_index + 1), true)
 
 
 func _unload_slot(slot: int) -> void:
@@ -1228,7 +1255,8 @@ func _plan_side_way_of(room: RoomController) -> void:
 
 
 ## M5: the way from room to next may run through a side segment (SideRules: after the campfire,
-## the ladder way, 10 % after a rest room; never before the boss, never twice in a row).
+## the ladder way, now and then after a rest room; never before the boss, never twice in a row: the
+## way out of the room a segment led into stays a corridor, _last_side_slot).
 ## MP: the host plans with its own "skip" option and tells the clients (NetDungeon), a client plans
 ## only the ways the host announced (plan_side_way, same seed and slot = same segment).
 func _plan_side_way(room: RoomController, next: RoomController, ladder_way := false, forced := false) -> SideGate:
@@ -1242,11 +1270,40 @@ func _plan_side_way(room: RoomController, next: RoomController, ladder_way := fa
 
 
 ## Plans the side way from room to next from outside (MP: a client, after the host announced it).
+## The ladder way follows from the way the group took (the host's choice came before).
 func plan_side_way(room: RoomController, next: RoomController) -> SideGate:
 	if not is_instance_valid(room) or not is_instance_valid(next):
 		return null
 	var existing := room.get_node_or_null(^"SideGate") as SideGate
-	return existing if existing != null else _plan_side_way(room, next, false, true)
+	var option := room.get_chosen_option()
+	return existing if existing != null else _plan_side_way(room, next, option != null and option.is_ladder(), true)
+
+
+## Will the way from previous into room run through a side segment? Asked while room is prepared,
+## before the gate is there (no ladder door then, never two segments in a row); the same answer as
+## _plan_side_way later, no dungeon RNG.
+func _enters_through_side(previous: RoomController, room: RoomController) -> bool:
+	if previous == null:
+		return false
+	return SideWays.reason_for(previous, room, _run_seed, _last_side_slot == previous.slot_index, false,
+			_side_ways_skipped()) != SideRules.Reason.NONE
+
+
+## "Seitenwege auslassen" as it counts for the room chain (the ladder door): alone the own option. In
+## a group game every machine must roll the same branch: the host's option through the hook
+## net.side_ways_skipped() once there is one, until then "off" (a host who skips shows the ladder door,
+## its way stays a corridor on every machine).
+func _side_ways_skipped() -> bool:
+	if net == null:
+		return SideWays.is_skipped()
+	if net.has_method(&"side_ways_skipped"):
+		return bool(net.call(&"side_ways_skipped"))
+	return false
+
+
+## A network client takes the rooms and side ways from the host (MP3).
+func _is_net_client() -> bool:
+	return net != null and not bool(net.get(&"is_host"))
 
 
 func _on_side_gate_passed(gate: SideGate, _player: Player) -> void:
@@ -1264,7 +1321,13 @@ func start_side_transit(gate: SideGate) -> SideTransit:
 		return null
 	gate.is_used = true
 	_last_side_slot = gate.next_room.slot_index
-	return SideTransit.start(self, get_session_players(), gate.layout, gate.next_room.room_index, context, gate.rng_seed, gate.place_players)
+	_side_transit = SideTransit.start(self, get_session_players(), gate.layout, gate.next_room.room_index, context, gate.rng_seed, gate.place_players)
+	return _side_transit
+
+
+## The way through a side segment running right now (null otherwise; tools).
+func get_side_transit() -> SideTransit:
+	return _side_transit if is_instance_valid(_side_transit) else null
 
 
 ## Campfire entered: the boss music has faded, the next biome's ambient bed comes in (C3 hook);

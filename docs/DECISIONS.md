@@ -1003,11 +1003,12 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-144 – Gang-Segmente in Seitenansicht (M5)
 
 - **Status:** VERBINDLICH im Grundsatz (Projektmitglied 15.10.2026), Werte **TESTWERT** · **Datum:** 2026-10-14 / Claude nach Makeover 3 und Mockup 29
-- **Beschluss:** Zwischen manchen Räumen liegt ein kurzes Jump'n'Run-Segment in Seitenansicht: Tor → Schwarzblende 0,3 s → Banner „Abstieg“ (die ersten 3 Male mit Tastenhinweis) → Segment → Tür → Schwarzblende → nächster Raum. Immer nach dem Lagerfeuer, als Leiter-Weg einer Abzweigung (noch nicht angeschlossen), 10 % nach Ruhe-Räumen; nie vor dem Boss, nie zweimal hintereinander, abschaltbar. 4 Pläne je Biom, gespiegelt 8.
+- **Beschluss:** Zwischen manchen Räumen liegt ein kurzes Jump'n'Run-Segment in Seitenansicht: Tor → Schwarzblende 0,3 s → Banner „Abstieg“ (die ersten 3 Male mit Tastenhinweis) → Segment → Tür → Schwarzblende → nächster Raum. Immer nach dem Lagerfeuer, als Leiter-Weg einer Abzweigung, 10 % nach Ruhe-Räumen; nie vor dem Boss, nie zweimal hintereinander, abschaltbar. 4 Pläne je Biom, gespiegelt 8.
 - **Physik:** Schwerkraft 1800 px/s² (Fallen ×1,4), Sprung 2,5 Kacheln (759 px/s), Kojote 0,1 s, Puffer 0,12 s, variable Höhe, Laufen 1,3 × Bewegungstempo, Dash waagerecht. Zufall nur aus Run-Seed + Slot, Zustand je Spieler am Spieler.
 - **Runde 2 (Projektmitglied 15.10.2026: „soll ruhig Herzen kosten, ganz normal“, „Gameplay geiler, Double Jump“; Werte an Claude delegiert):** Grube = wie Abgrund im Raum (D-115, 1 Herz am Schild vorbei, kann töten), danach zurück auf die letzte Plattform. Doppelsprung (+2 Kacheln, Salto, Staubring), Wandrutschen und Wandsprung an Felswänden, Scheitel-Schweben, schnelleres Fallen, Squash/Stretch, Staub und Kamera-Stoß bei harter Landung, bröckelnde Vorsprünge (0,6 s, zurück nach 3 s). Je Plan genau eine Besonderheit: 8 Pläne verlangen den Doppelsprung, 8 haben einen bröckelnden Vorsprung; die goldene Münze braucht immer den Doppelsprung. Physik **TESTWERT** in `SideRules` (Schwerkraft 2400, Fallen ×1,6, Sprung 876, Doppelsprung 784, Kojote 0,1 s, Puffer 0,12 s).
 - **Belohnung (TESTWERT, Maßstab: ein Segment lohnt sich wie ein Kampfraum):** 6–7 Münzen je 1 Gold × Wellenzahl des Raums, goldene Münze = 2 Münzen, Goldgier gilt; kein Seelenkristall, Segment-Gegner ohne Gold; Truhe nur auf dem Leiter-Weg einer Abzweigung. Ersetzt Münzen ×1,5 und Kristall aus Runde 1.
-- **Offen:** ersetzt der Leiter-Weg den Raum n+1 oder liegt er davor (Leiter-Weg noch nicht angeschlossen); bewegte Plattformen als späteres Paket.
+- **Leiter-Weg (Projektmitglied 18.10.2026):** Das Segment liegt **vor** Raum n+1, Raumnummer und Slots bleiben; dahinter ein einfacher Kampf wie beim sicheren Weg, davor das Segment mit Münzen und Truhe (nur Pläne mit Truhen-Nische). Er darf klar besser sein als der sichere Weg. In 40 % der Kampf-Abzweigungen (TESTWERT `BranchRules.LADDER_SHARE`) steht er statt des sicheren Wegs gegen Elite-Nest oder Unbekannt; keine zusätzliche Zahl aus dem Dungeon-RNG (die Zahl der Türreihenfolge wird geteilt). Nie vor dem Boss, nie direkt nach einem Segment, nicht mit „Seitenwege auslassen“. Im Koop entscheidet der Host (Wahl über `branch_chosen_net`, danach der Weg über `side_way_net`), der Client übernimmt.
+- **Offen:** bewegte Plattformen als späteres Paket.
 - **Runde 3 (16.10.2026, Projektmitglied: „minimal öfter, schöner, Türme“):** nach Ruhe-Räumen 18 % statt 10 % (TESTWERT), 6 Pläne je Biom (12 mit Spiegelung), Türme in 50 % der Abschnitte (D-151), Becken (verlangsamt) und Stachel-Wellen, Parallax-Mittelebene, Deko und Licht je Biom; im Koop entscheidet der Host über Türme und Fallen.
 
 ### D-145 – Dev-Feedback mit F9 (lokal)
@@ -1540,6 +1541,19 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Idee #b2653f02 (Zuhause betreten und einrichten, Pets): Vorschlag in `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, Entscheidung beim Projektmitglied.
 - **Folgen:** `player/{player,weapon_controller}.gd`, `world/village/{village,village_decor,villager}.gd`, `world/village/{village.tscn,village_tileset.tres}` (erzeugt), `tools/{generate_village.py,build_tilesets.gd,generate_audio.py}`, `audio/sfx/villager_huh.wav`, `ui/menus/{village_ui,modal,mobile_ui}.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/options/options_view.gd`, `ui/hud/hud.gd`, `dungeon/environment/spawn/spawn_source.gd`, `components/audio/{music_channel,music_player}.gd`, `ui/dev/{dev_feedback,dev_feedback_store}.gd`, Tests `test_player_village.gd`, `test_music_web_loop.gd`, `test_dev_feedback_web.gd` (neu), `test_village_{affordable,layout,life}.gd`, `test_mobile_ui.gd`, `test_lobby_slots.gd`, `test_online_menu.gd`, `test_guild_rooms.gd`, `test_ux_options.gd`, `test_spawn_source.gd`, `test_hud_compact.gd`; `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/feedback/FEEDBACK_2026-10-17.md`.
 - **Ersetzt:** Schwert und 1,5 s Dash im Dorf; Kreis-Hitboxen von Kisten, Fässern und Marktstand; begehbare Beete; Raumcode in Gilden-Räumen (nur noch Rückfall); Zoom-Einrasten am PC.
+
+### D-186 – Höhe: Plateaus, Klippen, Treppen, Leitern (M3)
+
+- **Status:** VERBINDLICH (Makeover 3 §2.3/§8, Projektmitglied 18.10.2026 zu den offenen Fragen) · Werte **TESTWERT** · **Datum:** 2026-10-18 / Claude
+- **Beschluss:**
+  - Plan-Zellen `^` Plateau, `&` Treppe, `L` Leiter. Die unterste Plateau-Reihe mit Boden darunter ist die Klippe (Vorderseite, fest), der Rest begehbare Fläche eine Ebene höher. Treppe und Leiter sitzen in der Klippenreihe, Fuß frei. Eine zweite Rasterebene `--- height` erlaubt eine Truhe auf dem Plateau.
+  - Höchstens zwei Ebenen je Raum; je Höhlenraum höchstens 2 Plateaus auf 10–25 % der Fläche, mindestens 4 Flächenkacheln, nie über Abgrund oder Wasser, nie in einer Türgasse.
+  - Treppen für alle, Leitern nur für Spieler (Tempo ×0,55). Ein Plateau nur mit Leiter ist eine sichere Insel; Nahkämpfer warten darunter (entschieden 18.10.2026), Fernkämpfer schießen hinauf.
+  - Nahkampf trifft nur auf derselben Ebene; Schüsse und Explosionen treffen über Ebenen; Treppe und Leiter gehören zu beiden. Gegner springen, teleportieren und beschwören nie auf die andere Ebene.
+  - Die Ebene folgt aus der Position des Körpers und wird nirgends gespeichert (Koop: Host und Clients rechnen dasselbe). Physik-Ebenen `cliff` (128: Klippen und Kanten, Spieler und Gegner) und `ladder` (256: nur Gegner).
+- **Folgepaket M3b:** Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer; Höhe in Modus- und L-Plänen.
+- **Folgen:** `dungeon/rooms/height/*`, `RoomTiles`, `RoomPlanChecks`, `tools/generate_room_templates.py`, vier Höhlenpläne, `DamageProcessor`, `Projectile.create` (Tag `projectile`), Gegner-KI und -Navigation, `RoomVeil`, `smoke_test.gd`, `project.godot` (Ebenen-Namen), SPRITES_V9 §7.
+- **Ersetzt:** „Höhe vorbereitet und bis M3 Fels“ aus D-142.
 
 ### D-187 – Lokale Entwicklungs-Ports nach dem Port-Block-Schema (Block 1)
 

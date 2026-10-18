@@ -46,6 +46,9 @@ static func create(damage: DamageData, move_direction: Vector2, move_speed: floa
 	# load() instead of preload(): the scene references this script, preload would be cyclic.
 	var projectile := (load(SCENE_PATH) as PackedScene).instantiate() as Projectile
 	projectile._pending_damage = damage
+	# Shots fly over cliffs (M3, HeightRules); thrown knives were melee until now.
+	if not damage.tags.has(&"projectile"):
+		damage.tags.append(&"projectile")
 	projectile.direction = move_direction.normalized()
 	projectile.speed = move_speed
 	projectile.max_distance = distance

@@ -5,7 +5,9 @@ extends RefCounted
 ## 18 % after a rest room (SideRules.AFTER_REST_CHANCE); never before the boss, never twice in a row, never when switched off),
 ## draws the layout of the next room's biome with the segment's own RNG (derived from the run seed
 ## and the slot, the dungeon stream stays untouched) and puts a SideGate into the corridor.
-## DungeonManager hook: see the M5 report (_plan_side_way, _on_side_gate_passed).
+## DungeonManager: _plan_side_way (on entering a room, and for the chosen way of a branch with
+## ladder_way = true for the ladder door), _on_side_gate_passed starts SideTransit; reason_for tells
+## before a branch is rolled whether the way into it is a segment (no ladder door then).
 
 ## Test aid (net_run_smoke side=1): every way that may be a segment is one (same limits: never
 ## before the boss, never twice in a row). Set on every machine before the run. Never in the game.
@@ -20,17 +22,14 @@ static func plan(room: RoomController, next: RoomController, run_seed: int, prev
 	if room == null or next == null or not room.is_inside_tree():
 		return null
 	var rng := SideRules.make_rng(run_seed, next.slot_index)
-	var next_is_boss := next.room_type == RoomSequence.RoomType.BOSS
-	var reason := SideRules.roll_reason(room.is_campfire(), ladder_way, is_rest_room(room),
-			next_is_boss, previous_was_side, skip, rng)
-	if reason == SideRules.Reason.NONE and force_for_tests and SideRules.allows_ladder_way(next_is_boss, previous_was_side, skip):
-		reason = SideRules.Reason.AFTER_REST
+	var reason := _roll(room, next, previous_was_side, ladder_way, skip, rng)
 	if reason == SideRules.Reason.NONE:
 		return null
 	var biome_id := RoomCatalog.biome_id_for_room(next.room_index)
 	var gate := SideGate.new()
 	gate.name = "SideGate"
-	gate.layout = SidePlans.pick(biome_id, rng)
+	# The ladder way always brings its chest: only plans with a niche (the same draws).
+	gate.layout = SidePlans.pick(biome_id, rng, SideRules.has_chest(reason))
 	gate.layout.chest_enabled = SideRules.has_chest(reason)
 	gate.reason = reason
 	gate.from_room = room
@@ -40,6 +39,27 @@ static func plan(room: RoomController, next: RoomController, run_seed: int, prev
 	gate.cover(room.to_global(RoomTiles.tile_center(room.get_exit_tile())),
 			next.to_global(RoomTiles.tile_center(next.get_entrance_tile())))
 	return gate
+
+
+## Why the way from room to next runs through a segment (Reason.NONE: a plain corridor), the same
+## answer plan() gives later: the segment's RNG comes from the run seed and the slot, so it can be
+## asked before the rooms are in the tree (DungeonManager: may a branch behind next show a ladder
+## door; never two segments in a row).
+static func reason_for(room: RoomController, next: RoomController, run_seed: int, previous_was_side: bool,
+		ladder_way := false, skip := is_skipped()) -> SideRules.Reason:
+	if room == null or next == null:
+		return SideRules.Reason.NONE
+	return _roll(room, next, previous_was_side, ladder_way, skip, SideRules.make_rng(run_seed, next.slot_index))
+
+
+static func _roll(room: RoomController, next: RoomController, previous_was_side: bool, ladder_way: bool, skip: bool,
+		rng: RandomNumberGenerator) -> SideRules.Reason:
+	var next_is_boss := next.room_type == RoomSequence.RoomType.BOSS
+	var reason := SideRules.roll_reason(room.is_campfire(), ladder_way, is_rest_room(room),
+			next_is_boss, previous_was_side, skip, rng)
+	if reason == SideRules.Reason.NONE and force_for_tests and SideRules.allows_ladder_way(next_is_boss, previous_was_side, skip):
+		reason = SideRules.Reason.AFTER_REST
+	return reason
 
 
 ## Rest rooms (shop, weapons, fountain, upgrade altar); the trial is no rest.

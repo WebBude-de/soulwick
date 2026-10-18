@@ -68,3 +68,13 @@
 | `art/effects/side_wall_dust_3f.png` | 3 × 16×16, Pivot (8,8) | Zwei, drei Krümel fallen von der Wand nach unten. |
 
 Hinweis zu `side_props.json` der Lieferung: Die goldene Münze gibt **keinen** Seelenkristall, sondern Gold wie zwei Münzen (Balance, D-144).
+
+## 7. Höhe: Plateaus, Treppen, Leitern (M3, optional)
+
+Plateaus, Klippen, Treppen und Leitern laufen heute schon mit den gelieferten Teilen (`rock_blob_<biom>_soft` für Krone und Klippe, `stairs_cut.png`, `ladder.png`, `ladder_top.png`); die Plateau-Fläche ist der Plattenboden der Bodenzonen mit Felsrand, die Treppe wird per Palette auf das Biom umgefärbt (in der Glutkammer wirken die Stufenkanten dadurch orange). Eigene Dateien mit diesen Namen übernimmt der Code automatisch (`PlateauArt`).
+
+| Datei | Größe | Beschreibung |
+| --- | --- | --- |
+| `art/environment/deco/stairs_cut_<biom>_soft.png` | 32×32, 1 Frame, Pivot (0,0) | Treppe in die Klippe geschlagen wie `stairs_cut.png`, 4 Stufen von oben nach unten, in der weichen Felspalette des Bioms (Grotte, Schattenreich, Glutkammer; Krypta = `stairs_cut.png`). Seitenränder laufen in die Klippen-Vorderseite (`front_*`) daneben über. |
+| `art/environment/deco/plateau_floor_<biom>.png` | 32×32, nahtlos kachelbar | Begehbare Plateau-Fläche: Steinplatten etwas heller als der Boden darunter, sehr feine Fugen, ohne Rand (den Felsrand zeichnet der Code). |
+| `art/characters/player/player_climb_top_4f.png` und `player_tint_mask_climb_top_4f.png` *(später)* | 4 × 32×32, Pivot (16,30) | Klettern an einer Leiter in der Draufsicht (Rücken zur Kamera, Arme abwechselnd oben). Heute läuft die Figur langsam mit den Laufbildern über die Leiter; der Anschluss im Spieler fehlt noch. |

@@ -54,9 +54,16 @@ extends TileMapLayer
 ## (rock with floor north of it, RockTerrain.is_lip) collides only from RockTerrain.LIP_WALK down and
 ## is drawn a second time as a y-sorted sprite in the room ("RockLips"), sorted at the foot of its
 ## block: a character that walks a bit behind it is hidden by it, one in front of the block is not
-## (playtest 15.10.2026, note 17). plateau_tiles, ladder_tiles and stair_tiles only carry the plan's
-## height markers for M3; until then they are rock. Without the terrain art (editor, old tilesets)
-## the walls fall back to the WallAutotile pieces above.
+## (playtest 15.10.2026, note 17). Without the terrain art (editor, old tilesets) the walls fall back
+## to the WallAutotile pieces above.
+## Height (M3, HeightLayout): plateau_tiles ('^'), ladder_tiles ('L') and stair_tiles ('&') are part
+## of the wall mass for every floor rule (the floor mask, walkable and reachable tiles, the plan
+## checks: a plateau is rock for the ground level, nothing is placed on it by the room logic), and
+## they are drawn as rock (the crown is the plateau, the front its cliff). On this layer the surface
+## tiles and stairs are floor cells with navigation (cut off at the edges to the ground, so the
+## navigation of both levels only meets at stairs), cliffs and ladders have no cell; the walls of the
+## height, the switch areas and the pictures are a child HeightField. get_height_layout() and
+## get_height_reachable_tiles() answer for both levels.
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -310,6 +317,10 @@ var _not_lips: Dictionary[Vector2i, bool] = {}
 var _not_lip_walls: Dictionary[Vector2i, bool] = {}
 ## Door corridor cells (a lip's band runs on into them, no cap there).
 var _corridor_set: Dictionary[Vector2i, bool] = {}
+var _height_layout: HeightLayout = null
+var _height_field: HeightField = null
+## Surface tiles whose navigation polygon is inset at the edges to the ground (side bits N=1 E=2 S=4 W=8).
+var _nav_insets: Dictionary[Vector2i, int] = {}
 
 
 func _ready() -> void:
@@ -479,6 +490,11 @@ func get_wall_mass() -> Dictionary[Vector2i, bool]:
 		for tile: Vector2i in [pillar, pillar + Vector2i.DOWN]:
 			if floor_rect.has_point(tile):
 				mass[tile] = true
+	# Plateaus, ladders and stairs (M3) are rock for the ground level.
+	for tiles: Array[Vector2i] in [plateau_tiles, ladder_tiles, stair_tiles]:
+		for tile in tiles:
+			if floor_rect.has_point(tile):
+				mass[tile] = true
 	for tile in _opened_walls:
 		mass.erase(tile)
 	for y in range(niche_rect.position.y, niche_rect.end.y):
@@ -617,19 +633,117 @@ func is_navigation_blocked(tile: Vector2i) -> bool:
 
 
 func _use_tile_data_runtime_update(coords: Vector2i) -> bool:
-	return _navigation_blocked.has(coords)
+	return _navigation_blocked.has(coords) or _nav_insets.has(coords)
 
 
 func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
 	if tile_set == null or tile_set.get_navigation_layers_count() == 0:
 		return
 	var polygon: NavigationPolygon = null
-	if not _navigation_blocked[coords]:
+	if _nav_insets.has(coords) and not _navigation_blocked.get(coords, false):
+		polygon = inset_polygon(_nav_insets[coords], float(tile_set.tile_size.x), HeightRules.NAV_INSET)
+	elif not _navigation_blocked.get(coords, false):
 		var source := tile_set.get_source(get_cell_source_id(coords)) as TileSetAtlasSource
 		if source != null:
 			var original := source.get_tile_data(get_cell_atlas_coords(coords), get_cell_alternative_tile(coords))
 			polygon = original.get_navigation_polygon(0) if original != null else null
 	tile_data.set_navigation_polygon(0, polygon)
+
+
+## Square navigation polygon of a tile (centred, size unit) moved in by inset on every side of
+## sides (N=1 E=2 S=4 W=8): a surface tile at an edge to the ground (M3).
+static func inset_polygon(sides: int, unit: float, inset: float) -> NavigationPolygon:
+	var half := unit / 2.0
+	var top := -half + (inset if sides & 1 else 0.0)
+	var right := half - (inset if sides & 2 else 0.0)
+	var bottom := half - (inset if sides & 4 else 0.0)
+	var left := -half + (inset if sides & 8 else 0.0)
+	var polygon := NavigationPolygon.new()
+	polygon.vertices = PackedVector2Array([Vector2(left, top), Vector2(right, top), Vector2(right, bottom), Vector2(left, bottom)])
+	polygon.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	return polygon
+
+
+# --- Height (M3) ---
+
+## The two levels of the room (HeightLayout) from the height markers and the floor mask.
+func get_height_layout() -> HeightLayout:
+	if _height_layout == null:
+		_height_layout = HeightLayout.build(plateau_tiles, ladder_tiles, stair_tiles, get_floor_mask())
+	return _height_layout
+
+
+## What a player sees as the room (hook for RoomVeil, M3): the floor mask plus every height tile,
+## so a veil over a prepared room also darkens its plateaus.
+func get_room_shape_mask() -> Dictionary[Vector2i, bool]:
+	var mask := get_floor_mask()
+	if has_height():
+		for tile: Vector2i in get_height_layout().get_height_tiles():
+			mask[tile] = true
+	return mask
+
+
+func has_height() -> bool:
+	return not (plateau_tiles.is_empty() and ladder_tiles.is_empty() and stair_tiles.is_empty())
+
+
+## The HeightField of the painted room (null without height or outside the tree).
+func get_height_field() -> HeightField:
+	return _height_field
+
+
+## Tiles of both levels reachable from the entrance on foot: the walkable ground plus plateau
+## surfaces, over stairs (and ladders unless for_enemy), never across an edge or a cliff.
+func get_height_reachable_tiles(for_enemy := false) -> Dictionary[Vector2i, bool]:
+	var layout := get_height_layout()
+	var open := get_walkable_tiles()
+	for tile: Vector2i in layout.surface:
+		open[tile] = true
+	for tile: Vector2i in layout.stairs:
+		open[tile] = true
+	if not for_enemy:
+		for tile: Vector2i in layout.ladders:
+			open[tile] = true
+	return HeightLayout.reachable(layout, open, get_entrance_inside_tile(), for_enemy)
+
+
+## Cells of the height on this layer and the HeightField with walls, areas and pictures.
+func _paint_height() -> void:
+	_height_layout = null
+	_nav_insets.clear()
+	if not has_height():
+		if _height_field != null:
+			_height_field.queue_free()
+			_height_field = null
+		return
+	var layout := get_height_layout()
+	for tile: Vector2i in layout.edge_sides:
+		_nav_insets[tile] = layout.edge_sides[tile]
+	if not get_used_cells().is_empty():
+		notify_runtime_tile_data_update()
+	if Engine.is_editor_hint() or tile_set == null or not _terrain_active:
+		return
+	if _height_field == null:
+		_height_field = HeightField.new()
+		add_child(_height_field, false, Node.INTERNAL_MODE_BACK)
+	_height_field.build(self, layout, WallAutotile.biome_of(tile_set), _look)
+
+
+## Main-layer cell of a height tile with the terrain: surface and stairs are floor with navigation,
+## cliffs and ladders have none (their walls are bodies of the HeightField). False = no height tile.
+func _put_height_cell(tile: Vector2i) -> bool:
+	if not (plateau_tiles.has(tile) or ladder_tiles.has(tile) or stair_tiles.has(tile)):
+		return false
+	var layout := get_height_layout()
+	if layout.surface.has(tile) or layout.stairs.has(tile):
+		var source := get_floor_source()
+		if source == SOURCE_ID:
+			_put_tile(tile, FLOOR_TILES[0])
+		else:
+			set_cell(tile, source, RockTerrain.ground_coords(0))
+	else:
+		erase_cell(tile)
+	return true
 
 
 ## Abyss tiles: not walkable, crossable by a dash when at most MAX_DASH_GAP wide (D-086).
@@ -968,6 +1082,7 @@ func use_tileset(new_tileset: TileSet) -> void:
 		_paint_water()
 		_paint_lips()
 		_paint_puddles(_puddle_tiles.duplicate())
+		_paint_height()
 
 
 func get_backdrop() -> TileMapLayer:
@@ -1007,6 +1122,7 @@ func paint() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = floor_seed
 	_floor_cells.clear()
+	_height_layout = null
 	if _abyss_under != null:
 		_abyss_under.clear()
 	for layer in [_zone_layer, _overlay_layer, _rock_layer]:
@@ -1030,6 +1146,7 @@ func paint() -> void:
 	_paint_water()
 	_paint_lips()
 	_raise_blend_layers()
+	_paint_height()
 
 
 ## Floor of the room plus both door corridors, without walls and pillars. Abyss tiles (A4) stay in
@@ -1340,11 +1457,13 @@ func get_overlay_layer() -> TileMapLayer:
 ## Solid tile with the terrain: this layer gets the invisible solid tile (collision, no navigation),
 ## the rock layer the piece of the mass; enclosed rock is left to the backdrop.
 func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
-	# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
-	# characters walk a bit behind it.
-	var lip := RockTerrain.is_lip(tile, floor_mask, _not_lip_walls)
-	var caps := RockTerrain.lip_caps(tile, floor_mask, _corridor_set) if lip else 0
-	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip, caps))
+	# Height tiles (M3): surface and stairs are floor, cliffs and ladders have no cell.
+	if not _put_height_cell(tile):
+		# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
+		# characters walk a bit behind it.
+		var lip := RockTerrain.is_lip(tile, floor_mask, _not_lip_walls)
+		var caps := RockTerrain.lip_caps(tile, floor_mask, _corridor_set) if lip else 0
+		set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip, caps))
 	_ensure_cave_layers()
 	if RockTerrain.is_enclosed(tile, floor_mask):
 		_rock_layer.erase_cell(tile)
@@ -1431,7 +1550,8 @@ func _update_lip_blockers() -> void:
 
 ## Floor cells north of rock that is no lip: door corridors and every cell next to a door of this run
 ## (the door's art lies there; places the run does not use are plain wall), abysses (nobody stands
-## there). around_doors false: corridors and abysses only (the collision, _not_lip_walls).
+## there), the floor north of a plateau (M3). around_doors false: corridors, abysses and plateaus only
+## (the collision, _not_lip_walls).
 func _lip_blockers(around_doors := true) -> Dictionary[Vector2i, bool]:
 	var blockers: Dictionary[Vector2i, bool] = {}
 	for tile in get_door_corridor_tiles():
@@ -1447,6 +1567,10 @@ func _lip_blockers(around_doors := true) -> Dictionary[Vector2i, bool]:
 				blockers[door_tile + Vector2i(dx, dy)] = true
 	for tile in get_pit_tiles():
 		blockers[tile] = true
+	# A plateau (M3) is no lip: its surface is walked on, its edge is a wall of the HeightField.
+	for tiles: Array[Vector2i] in [plateau_tiles, ladder_tiles, stair_tiles]:
+		for tile in tiles:
+			blockers[tile + Vector2i.UP] = true
 	return blockers
 
 

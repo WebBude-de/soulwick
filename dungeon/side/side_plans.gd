@@ -357,6 +357,15 @@ static func ids_for(biome_id: StringName) -> Array[StringName]:
 	return ids
 
 
+## The plans of a biome with a chest niche ("C").
+static func chest_ids_for(biome_id: StringName) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for plan_id in ids_for(biome_id):
+		if "".join(get_rows(plan_id)).contains("C"):
+			ids.append(plan_id)
+	return ids
+
+
 static func get_rows(plan_id: StringName) -> PackedStringArray:
 	return PackedStringArray(PLANS.get(plan_id, []))
 
@@ -370,8 +379,12 @@ static func all_ids() -> Array[StringName]:
 
 ## One of the twelve layouts of the biome (six plans, each plain or mirrored): one draw; a second
 ## draw decides whether its turrets are set up (SideRules.TURRET_CHANCE).
-static func pick(biome_id: StringName, rng: RandomNumberGenerator) -> SideLayout:
-	var ids := ids_for(biome_id)
+## with_chest: only plans with a chest niche (the ladder way always brings its chest, M5); the same
+## two draws.
+static func pick(biome_id: StringName, rng: RandomNumberGenerator, with_chest := false) -> SideLayout:
+	var ids := chest_ids_for(biome_id) if with_chest else ids_for(biome_id)
+	if ids.is_empty():
+		ids = ids_for(biome_id)
 	var index := rng.randi_range(0, ids.size() * 2 - 1) if rng != null else 0
 	var layout := build(ids[index % ids.size()], index >= ids.size(), biome_id)
 	var roll := rng.randf() if rng != null else 1.0

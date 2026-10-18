@@ -32,11 +32,15 @@ Jeder Bericht beantwortet diese fünf Fragen mit „ja“:
 
 ### M3 – Höhe (nach M1)
 
-- [ ] Plateaus mit Klippe, Treppen (`stairs_cut`, Gegner nutzen sie) und Leitern (nur Spieler), zwei Boden-Ebenen mit Umschalt-Areas, Projektile über Ebenen, Z-Sortierung; 1–2 Plateaus je Höhlenraum. Pläne kennen die Zeichen `^ L &` schon (als Fels gebaut, Metadaten `plateau_tiles`/`ladder_tiles`/`stair_tiles`, D-142).
+- [x] Plateaus mit Klippe, Treppen (`stairs_cut`, Gegner nutzen sie) und Leitern (nur Spieler), zwei Boden-Ebenen mit Umschalt-Areas, Projektile über Ebenen, Z-Sortierung; 1–2 Plateaus je Höhlenraum (D-186). *(18.10.2026: `dungeon/rooms/height/`, Pläne Rundhöhle, Weiche Höhle (Leiter-Insel mit Truhe), Kreuzgang, Halbmond in allen Biomen; Generator ohne Abweichung; GUT 2003/2005 (2 ausstehend: API-Umgebung), neu `test_height_layout`, `test_height_room`, `test_height_templates`; smoke_test 47 mit Seeds 424242 und 33 PASS (Plateau-Räume gespielt, Höhe live geprüft), combat_sim und boss_sim PASS, validate 0 failed; Sichtprüfung alle Biome.)*
+
+### M3b – Höhe in Modus- und L-Plänen, Quellen auf Plateaus
+
+- [ ] Plateaus in Modus-Plänen (Flamme auf dem Plateau, Geleit-Pfad unter einem Plateau, Arena-Truhe oben) und in L-Plänen; Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer (Projektmitglied 18.10.2026, D-186).
 
 ### M5 – Gang-Segmente in Seitenansicht: Rest
 
-- [ ] **Anschluss fertigstellen:** Leiter-Weg einer Abzweigung (`BranchOption`, Symbol `ladder`; OFFEN aus D-144: ersetzt er Raum n+1 oder liegt er davor?) und `smoke_test.gd` fährt Segmente mit `SideBot`. Schon im Code, beim Abhaken mit Nachweis belegen: Segmente nach dem Lagerfeuer und nach Ruhe-Räumen (`DungeonManager._plan_side_way`, D-144 Runde 3, im Koop mit `net_run_smoke side=1` am 15.10.2026 geprüft), Eingabe `side_dash`, Option „Seitenwege auslassen“.
+- [x] **Anschluss fertigstellen:** Leiter-Weg einer Abzweigung (`BranchOption`, Symbol `ladder`; Entscheidung D-144: liegt vor Raum n+1) und `smoke_test.gd` fährt Segmente mit `SideBot`. Schon im Code, beim Abhaken mit Nachweis belegen: Segmente nach dem Lagerfeuer und nach Ruhe-Räumen (`DungeonManager._plan_side_way`, D-144 Runde 3, im Koop mit `net_run_smoke side=1` am 15.10.2026 geprüft), Eingabe `side_dash`, Option „Seitenwege auslassen“. *(18.10.2026: Leiter-Weg statt des sicheren Wegs in `BranchRules.LADDER_SHARE` = 40 % (TESTWERT) der Kampf-Abzweigungen, keine zusätzliche Dungeon-RNG-Zahl, nur Pläne mit Truhen-Nische; Koop: Host plant den Weg nach der Wahl (`branch_chosen_net` vor `side_way_net`), Client übernimmt über `plan_side_way`. Schalter im Tab Allgemein (Abschnitt „Spiel“). smoke_test 47 PASS mit Seed 424242 zweimal (42 gleiche chain-Zeilen), 33 und 77: je ein Leiter-Weg mit Truhe, drei Lagerfeuer-Segmente, bei 77 eines nach einem Ruhe-Raum, 0 Stürze; nie vor dem Boss, nie zweimal. GUT 1981/1983 (2 ausstehend: API-Umgebung), neu `test_side_ways`, `test_side_options`, `test_branch_rules` +4; side_check 48 Abläufe und Hakenpfad PASS; validate 0 failed.)*
 
 ### K1 – Kosmetik → Strang W in ROADMAP.md
 

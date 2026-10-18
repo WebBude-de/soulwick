@@ -104,6 +104,8 @@ var input: PlayerInput = TouchInput.adapt(LocalKeyboardMouseInput.new()):
 
 func _ready() -> void:
 	add_to_group(&"player")
+	# Plateaus (M3): cliffs and their edges stop the player (ladders do not, PhysicsLayers.LADDER).
+	collision_mask |= PhysicsLayers.CLIFF
 	_sprite.offset = SpriteStrip.pivot_offset(SPRITE_FRAME, SPRITE_ORIGIN)
 	_sprite.play(&"idle")
 	SpriteFx.apply(_sprite)

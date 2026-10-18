@@ -1,7 +1,8 @@
 class_name GameOptions
 extends RefCounted
 ## Player options that are not the Music/SFX volumes (UX1, UX3): language (D-111), master volume,
-## window mode, VSync, brightness (R8, R6 hook), light effects (L1), screen shake, hit stop, damage numbers, reduced flashes. Global like the
+## window mode, VSync, brightness (R8, R6 hook), light effects (L1), screen shake, hit stop, damage numbers, reduced flashes,
+## "Seitenwege auslassen" (M5, read by SideWays.is_skipped). Global like the
 ## volumes (settings.cfg [options] via SaveManager.get_option/set_option, not per save slot).
 ## Controls (P0-2): gamepad bindings and device watcher (apply_controls), gamepad aim assist.
 ## Touch controls (Projektmitglied 17.10.2026): swap sides, fixed or floating sticks, size,
@@ -43,6 +44,9 @@ const LIGHT_LEVELS: Array[StringName] = [LIGHT_LOW, LIGHT_HIGH]
 ## Light aim assist on the gamepad's right stick, ranged weapons only (P0-2, same rule as touch,
 ## D-155; TouchAimAssist). Read by GamepadInput every frame.
 const GAMEPAD_AIM_ASSIST: StringName = &"gamepad_aim_assist"
+## Side segments between rooms off (M5, D-144 "abschaltbar"): the key SideWays reads
+## (SideRules.OPTION_SKIP; written out, so this script loads nothing of the dungeon).
+const SKIP_SIDE_PATHS: StringName = &"skip_side_paths"
 ## Touch controls (TouchOverlay, TouchInput). Swap sides: move stick right, aim stick left.
 const TOUCH_SWAP_SIDES: StringName = &"touch_swap_sides"
 ## "fixed": the sticks stay at their place (default); "floating": they start under the thumb and
@@ -91,6 +95,7 @@ const DEFAULTS := {
 	TOUCH_SIZE: 1,
 	TOUCH_OPACITY: 1.0,
 	TOUCH_AIM_ASSIST: true,
+	SKIP_SIDE_PATHS: false,
 }
 
 
@@ -413,6 +418,18 @@ static func set_reduce_flashes(on: bool) -> void:
 ## the flash parameter), PostProcess.hit_pulse (strength) and LightSource.flash (intensity).
 static func get_flash_strength() -> float:
 	return REDUCED_FLASH_STRENGTH if is_reduce_flashes_enabled() else 1.0
+
+
+# --- Side segments (M5) ---
+
+## true: every way between two rooms is a plain corridor (no side segment, no ladder door). In a
+## group game the host's option decides.
+static func is_skip_side_paths_enabled() -> bool:
+	return bool(SaveManager.get_option(SKIP_SIDE_PATHS, false))
+
+
+static func set_skip_side_paths(on: bool) -> void:
+	SaveManager.set_option(SKIP_SIDE_PATHS, on)
 
 
 # --- Shortcuts ---

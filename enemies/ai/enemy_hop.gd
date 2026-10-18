@@ -65,6 +65,9 @@ static func clear_landing(body: CharacterBody2D, body_center: Vector2, offset: V
 ## point is free ground; otherwise back to the start (the slime just hops on the spot).
 static func safe_landing(body: CharacterBody2D, offset: Vector2, hop: EnemyHop, players: Array[Node2D], radius: float, mask: int) -> Vector2:
 	var point := hop.landing
+	# Never onto the other level of a plateau (M3): the edge is a wall for a hop too.
+	if not HeightRules.same_level_points(hop.start - offset, point - offset):
+		return hop.start
 	var moved := false
 	for player in players:
 		var pushed := EnemyTactics.keep_away(point, player.global_position, EnemyTactics.LAND_CLEARANCE, hop.start - player.global_position)
@@ -73,7 +76,7 @@ static func safe_landing(body: CharacterBody2D, offset: Vector2, hop: EnemyHop, 
 			moved = true
 	if not moved:
 		return point
-	if _is_free(body, point - offset, radius, mask):
+	if _is_free(body, point - offset, radius, mask) and HeightRules.same_level_points(hop.start - offset, point - offset):
 		for player in players:
 			if point.distance_to(player.global_position) < EnemyTactics.LAND_CLEARANCE - 0.5:
 				return hop.start
