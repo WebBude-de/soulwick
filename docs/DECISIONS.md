@@ -1555,6 +1555,16 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `dungeon/rooms/height/*`, `RoomTiles`, `RoomPlanChecks`, `tools/generate_room_templates.py`, vier Höhlenpläne, `DamageProcessor`, `Projectile.create` (Tag `projectile`), Gegner-KI und -Navigation, `RoomVeil`, `smoke_test.gd`, `project.godot` (Ebenen-Namen), SPRITES_V9 §7.
 - **Ersetzt:** „Höhe vorbereitet und bis M3 Fels“ aus D-142.
 
+### D-187 – Lokale Entwicklungs-Ports nach dem Port-Block-Schema (Block 1)
+
+- **Status:** VERBINDLICH (Projektmitglied 18.10.2026) · Umsetzung Claude
+- **Kontext:** Die lokalen Dienste nutzten verstreute Standard-Ports (API 8787, Relay 8790, Website 3000, Admin 3001, Postgres 5432, Browser-Version 18080) und kollidierten mit anderen Projekten auf demselben Rechner.
+- **Beschluss:** Soulwick nutzt lokal Block 1 des einheitlichen Port-Block-Schemas des Desktops: Website **3100**, API **3101** (`http://localhost:3101`), Admin **3102**, Relay **3103** (`ws://localhost:3103/v1`), lokale Browser-Version des Spiels **3110** (`docker run --rm -p 3110:80 …`), Postgres **5532**. Produktions- und Test-Server-Adressen sowie Container-Ports in Dokploy (z. B. `EXPOSE 80`, LAUNCH.md §4) bleiben unverändert. Das Plattform-Repo stellt parallel um (Standard-Ports, `.env.example`, CORS für `http://localhost:3110`).
+- **Gründe / verworfene Alternativen:** Feste Blöcke je Projekt vermeiden Kollisionen, wenn mehrere Projekte gleichzeitig laufen; einzelne Ports nach Bedarf zu verschieben wäre wieder uneinheitlich.
+- **Hinweis für Kollegen:** Eigene Einstellungen anpassen: `online.cfg` (`[settings] api_url`/`relay_url`, falls gesetzt), eigene `.env` der Plattform, `adb reverse` (`tcp:3101`, `tcp:3103`), Skripte und Lesezeichen mit den alten Ports.
+- **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP_CROSSPLAY,WEB_BUILD}.md`.
+- **Ersetzt:** die bisherigen lokalen Ports.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

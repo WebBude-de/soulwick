@@ -27,3 +27,15 @@ builds/
 
 # Android build template (installed fresh per export, D-156)
 /android/
+
+# Standard v2 (/project)
+secrets.json
+.env
+.env.*
+*.pem
+*.key
+.claude/settings.local.json
+CLAUDE.local.md
+!.env.example
+# Art for secret rooms, not a secret (standard v2 audit)
+!art/environment/rooms/secrets.json

@@ -3,14 +3,14 @@
 # an app (PWA). Build context: repository root. Dokploy app soulwick-game, see docs/WEB_BUILD.md.
 #   docker build -t soulwick-game .                                         # development (default)
 #   docker build --build-arg SOULWICK_ENV=production -t soulwick-game .
-#   docker run --rm -p 18080:80 soulwick-game                               # http://localhost:18080
+#   docker run --rm -p 3110:80 soulwick-game                                # http://localhost:3110
 # Layers: Godot and the web export template are cached (stage godot); a change of the game only
 # runs the export again (stage export); nginx (stage runtime) is cached as well.
 
 ARG GODOT_VERSION=4.7.2
 
 # ---------------------------------------------------------------------------------------------
-FROM debian:bookworm-slim AS godot
+FROM docker.io/library/debian:bookworm-slim AS godot
 ARG GODOT_VERSION
 # SHA-512 of Godot_v4.7.2-stable_linux.x86_64.zip from SHA512-SUMS.txt of the official release
 # (github.com/godotengine/godot-builds/releases/tag/4.7.2-stable).
@@ -42,7 +42,7 @@ RUN python3 /tmp/fetch_template.py "${RELEASE_URL}/Godot_v${GODOT_VERSION}-stabl
 FROM godot AS export
 # development or production: selects API and relay addresses (online/online_config.gd), written
 # into online/environment.cfg exactly like tools/export_build.sh does. local = the services of
-# `bun dev` in soulwick-platform (http://localhost:8787, ws://localhost:8790), for a container on
+# `bun dev` in soulwick-platform (http://localhost:3101, ws://localhost:3103), for a container on
 # this machine only.
 ARG SOULWICK_ENV=development
 WORKDIR /project
@@ -100,7 +100,7 @@ RUN set -eu; \
 	ls -la /out /out/fonts
 
 # ---------------------------------------------------------------------------------------------
-FROM alpine:3.22 AS runtime
+FROM docker.io/library/alpine:3.22 AS runtime
 RUN apk add --no-cache nginx nginx-mod-http-brotli
 COPY deploy/web/nginx.conf /etc/nginx/nginx.conf
 COPY --from=export /nginx/soulwick-env.conf /etc/nginx/soulwick-env.conf

@@ -230,5 +230,5 @@ curl -sI https://www.playsoulwick.com/ | head -3      # 301 → https://playsoul
 - `apps/web/content/legal/` enthält nur die README: ohne eRecht24-Schlüssel zeigt die Website den
   Platzhalter. Das reicht nicht für den Launch.
 - Produktions-Vorlagen der Variablen liegen nur lokal (`.env.prod`, gitignored); die Liste in
-  DOKPLOY.md §4 ist die Quelle. `apps/api/.env.example` enthält lokal schon `http://localhost:18080` in
+  DOKPLOY.md §4 ist die Quelle. `apps/api/.env.example` enthält lokal schon `http://localhost:3110` in
   `CORS_ORIGINS`.

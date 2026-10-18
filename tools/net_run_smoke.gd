@@ -25,7 +25,7 @@ extends SceneTree
 ## for three players (scaling, same seed, run number 2 everywhere), rooms 1-2, ends through the
 ## portal for everybody, end_run again; then the host closes the room.
 ## Usage (API and relay running, see docs/MULTIPLAYER.md §3c):
-##   godot --headless --path . -s tools/net_run_smoke.gd -- api=http://localhost:8787 relay=ws://localhost:8790/v1 dev_key=<DEV_AUTH_KEY>
+##   godot --headless --path . -s tools/net_run_smoke.gd -- api=http://localhost:3101 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
 ## Options: side=1 (see above), rooms=1..16 (default 5; 16 = first boss, campfire and the first room of the next biome), seed=<n> (default random), end=portal|host_leaves|client_leaves|two_runs,
 ## modes=all|flame,escort,... (room modes R4 from room mode_from, default 2, in every combat room the
 ## mode table allows; both machines), branch=1 (every eligible room branches, D-105/R5). With modes
@@ -56,8 +56,8 @@ extends SceneTree
 ## spawn_client=0. Real time.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
-const DEFAULT_API := "http://localhost:8787"
-const DEFAULT_RELAY := "ws://localhost:8790/v1"
+const DEFAULT_API := "http://localhost:3101"
+const DEFAULT_RELAY := "ws://localhost:3103/v1"
 const HOST_INSTANCE := 21
 const CLIENT_INSTANCE := 22
 const LATE_INSTANCE := 23

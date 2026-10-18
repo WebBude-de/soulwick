@@ -2,7 +2,7 @@ extends GutTest
 ## MP1b, optional: the real ApiClient (HTTPRequest) against a running soulwick-api (login, /me and
 ## since P-027 the relay JWT of GET /auth/token). Skipped (pending)
 ## unless the environment names one, e.g. in PowerShell:
-##   $env:SOULWICK_TEST_API="http://localhost:8797"; $env:SOULWICK_TEST_DEV_KEY="<DEV_AUTH_KEY>"
+##   $env:SOULWICK_TEST_API="http://localhost:3151"; $env:SOULWICK_TEST_DEV_KEY="<DEV_AUTH_KEY>"
 ## or when it does not answer. Uses its own online file, never the real one or a save slot.
 
 const TEST_PATH := "user://test_api_integration_online.cfg"

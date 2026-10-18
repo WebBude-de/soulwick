@@ -15,6 +15,7 @@
 | 5 | [ARCHITECTURE.md](ARCHITECTURE.md) | Landkarte: Szenen, Zuständigkeiten, Ordner, Datenfluss |
 | 6 | [TECHSTACK.md](TECHSTACK.md) | Godot-Version, Konventionen, Git-Workflow, Tests |
 | 7 | [DECISIONS.md](DECISIONS.md) | alle Entscheidungen (D-Nummern), bei Widerspruch maßgeblich |
+| 8 | [BACKLOG.md](BACKLOG.md) | Ideen für „nicht jetzt“, eine Zeile je Idee, keine Zusagen |
 
 ## Roadmaps
 

@@ -31,6 +31,20 @@ Inhaltsverzeichnis mit Lesereihenfolge: [docs/README.md](docs/README.md). Kurz:
 
 Jedes Roadmap-Paket ist für **einen Agenten** geschnitten und nennt seine Dateien.
 
+**Wohin mit was (Doku-Pflege, im selben Commit wie der Code):**
+
+| Auslöser | Doc |
+| --- | --- |
+| Punkt gebaut und geprüft | in der passenden `ROADMAP_*.md` abhaken mit Datum und Nachweis, das Paket in die Erledigt-Liste (eine Zeile) |
+| Neue Aufgabe beim Bauen | `- [ ]` in die passende `ROADMAP_*.md` (Reihenfolge = Vorrang) |
+| Idee „nicht jetzt“ | [docs/BACKLOG.md](docs/BACKLOG.md), eine Zeile, statt sie umzusetzen |
+| Neues Fachwort, UI-Wort, Code-Name | [docs/GLOSSAR.md](docs/GLOSSAR.md), vor dem Code |
+| Entscheidung, Testwert | `docs/DECISIONS.md` mit der nächsten freien D-Nummer (§6.3) |
+| Neue Abhängigkeit, Werkzeugwechsel | `docs/TECHSTACK.md` (warum) und DECISIONS, nur nach Rückfrage (§6.11) |
+| Ziel, Zielgruppe, Nicht-Ziel ändert sich | `docs/PRODUKT.md` bzw. `docs/PRD.md` und DECISIONS, nur nach Rückfrage |
+| Neuer Befehl, neues Werkzeug | §7 dieser Datei |
+| Fehler passiert zum zweiten Mal | §9 Stolperfallen |
+
 ## 4. Rollen
 
 | Rolle | Aufgabe |
@@ -62,6 +76,11 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 7. **Code Englisch, Doku Deutsch, Texte im Spiel über Übersetzungsschlüssel (en + de, D-111)**, `snake_case` für Dateien und Variablen, `PascalCase` für Klassen. Kommentare wie der umgebende Code.
 8. **Erledigt heißt geprüft:** Roadmap-Punkte nur mit Nachweis abhaken (Tests grün, Datum).
 9. **Prozesse nie per Namen beenden** (`taskkill /IM …`, `pkill`, `killall`, `Stop-Process -Name …`): Das trifft Godot-Fenster, Browser und Server anderer Sitzungen. Nur selbst gestartete Prozesse über ihre PID beenden.
+10. **Keine Geheimnisse ins Repo** (es ist öffentlich): Schlüssel nur in gitignorten Dateien (`.env*`, `secrets.json` im Root), Vorlage `secrets.example.json`. `art/environment/rooms/secrets.json` ist Grafik für Geheimräume, kein Secret.
+11. **Keine neue Abhängigkeit ohne Rückfrage** (Godot-Addon, Python- oder Bun-Paket, Docker-Image); Grund in TECHSTACK, Entscheidung in DECISIONS.
+12. **Größeres erst planen:** als Paket in die passende Roadmap schneiden (Dateien, Prüfung, Koop-Check), dann bauen.
+13. **Kein `sudo`** ohne Rückfrage.
+14. **Konventionen:** Commits als Conventional Commits auf Englisch (`feat|fix|refactor|docs|test|chore|perf|build|ci|balance|art(scope): was`, höchstens 72 Zeichen, Body = warum; Details [docs/TECHSTACK.md](docs/TECHSTACK.md) §3). `TODO:` nur mit Ziel (`TODO: → ROADMAP_AUSBAU M3`). Stil: kurze Funktionen, sprechende Namen, keine Vorab-Abstraktion; Fehlermeldungen sagen, was zu tun ist.
 
 ## 7. Prüfen
 
@@ -69,6 +88,8 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 
 | Was | Befehl |
 | --- | --- |
+| Alle Checks auf einmal | `scripts/check` (Import, alle Dateien laden, GUT; headless) · `scripts/check --quick` ohne GUT (läuft im pre-commit-Hook) |
+| Einmal nach dem Klonen | `git lfs install` und `git config core.hooksPath .githooks` (Hook: Secrets-Sperre und `scripts/check --quick`, enthält die Git-LFS-Hooks) |
 | Alle Dateien laden | `godot --headless --path . -s tools/validate_project.gd` |
 | Unit-Tests (GUT) | `godot --headless --path . -s addons/gut/gut_cmdln.gd` |
 | Durchlauf über N Räume | `godot --headless --fixed-fps 60 --path . -s tools/smoke_test.gd -- 47` |

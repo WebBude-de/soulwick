@@ -19,7 +19,7 @@ abgestuerzt (oder laufen noch) und zaehlen als "abgebrochen (Absturz?)".
 Meldungen aller Spieler vom Server (Admin-Login wie das Admin-Panel, nur ueber die API):
     set SOULWICK_ADMIN_EMAIL=...  /  set SOULWICK_ADMIN_PASSWORD=...
     python tools/collect_feedback.py --api https://api-dev.playsoulwick.com            # Status "new"
-    python tools/collect_feedback.py --api http://localhost:8787 --status all --limit 200
+    python tools/collect_feedback.py --api http://localhost:3101 --status all --limit 200
     python tools/collect_feedback.py --api ... --mark-seen   # danach auf "seen" setzen (PATCH)
 
 Quelle lokal: %APPDATA%/Godot/app_userdata/Soulwick/dev_feedback/ (Linux ~/.local/share/godot/...,
