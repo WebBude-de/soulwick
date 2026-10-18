@@ -1565,6 +1565,20 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP_CROSSPLAY,WEB_BUILD}.md`.
 - **Ersetzt:** die bisherigen lokalen Ports.
 
+### D-190 – Einladen per Link (MP2b)
+
+- **Status:** VERBINDLICH als Weg (D-176: Browser kostenlos, Einladen per Link) · Ausgestaltung **VORGESCHLAGEN** (Claude, 18.10.2026) · Zahlen **TESTWERT**
+- **Beschluss:**
+  - Link `https://game.playsoulwick.com/?room=ABC123` (Testumgebung `game-dev.playsoulwick.com`; lokal die eigene Seite im Browser bzw. `http://localhost:3110`). Er trägt nur den Raumcode, nichts Persönliches. Gültig sind nur echte Raumcodes (6 Zeichen, Alphabet ohne 0/O, 1/I/L, D-121/CP3); alles andere wird verworfen, nie gekürzt oder geraten.
+  - Die Browser-Startseite liest `?room=`, zeigt „Tippen zum Beitreten · Einladung in Raum ABC123“ und startet das Spiel mit `-- room=ABC123`. Das Hauptmenü wird übersprungen: ohne Profil eine Seite „Einladung · Wie heißt du?“ (Name und Figur, D-152), dann die Welt von „Weiterspielen“ bzw. eine neue „Welt 1“ (D-161) und sofort der Beitritt im Dorf; die Gast-Anmeldung läuft dabei im Hintergrund.
+  - Fehler als ein Satz mit Ausweg: Raum voll (Erneut versuchen), Einladung abgelaufen, andere Spielversion (im Browser „Neu laden“), Server nicht erreichbar (Erneut versuchen), vom Host entfernt, Gildenraum; immer „Selbst spielen“ (Einladung verwerfen, Dorf bleibt solo; Schließen des Dialogs wirkt genauso). Läuft im Raum gerade ein Run, wartet der Beitritt und versucht es alle **5 s** (TESTWERT) erneut, nur im Dorf und solange der Dialog offen ist: „Du kommst ins Dorf, sobald ihr Run endet“.
+  - Im Raum: „Link kopieren“ neben dem Raumcode (auf Handys im Browser „Teilen“ über die Web Share API), der Code bleibt sichtbar und kopierbar; der erste freie Platz heißt „Einladen“ und teilt den Link. Gildenräume ohne Code (Bericht b47bee4a) bekommen auch keinen Link.
+  - Native Builds kopieren den Link; einen angeklickten Link nehmen sie noch nicht an (`-- room=…` nur für Tests und Werkzeuge).
+- **OFFEN (Projektmitglied):** Android App Links, iOS Universal Links und Steam-Einladung (MP6); Website-Kurzlink mit Vorschau (`playsoulwick.com/play?room=…`, Plattform-Paket für `web-dev`, Vorschlag: Vorschau nur mit Spielerzahl); wohin ein Link nach dem Ende des Raums führt (heute: „abgelaufen“ und „Selbst spielen“); ob Räume für Einladungen länger als 10 Minuten ohne Start offen bleiben.
+- **Gründe:** Der Link ist der Einstieg in einer Minute (D-173): kein Download, kein Konto, kein Code-Tippen. Nur der Code im Link hält ihn kurz und frei von Daten. Warten statt Abweisen bei laufendem Run braucht keine Änderung am Relay.
+- **Folgen:** `online/invite_link.gd`, `online/lobby_client.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/main_menu/{main_menu,profile_panel}.gd`, `deploy/web/shell.html`, `localization/translations.csv` (`INVITE_*`), Tests `tests/unit/test_invite_*.gd`, `docs/MULTIPLAYER.md` §3h.
+- **Ersetzt:** keine.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
