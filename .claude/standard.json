@@ -1,0 +1,17 @@
+{
+  "version": 2,
+  "appliedAt": "2026-10-18",
+  "type": "spiel",
+  "profile": "org",
+  "stack": "godot",
+  "skipped": [
+    "claude-md-env",
+    "conventions",
+    "prd",
+    "claude-settings"
+  ],
+  "_hinweis": "Stand von Bastians Projekt-Standard (claude/skills/_standard im desktop-Repo). Aktualisieren mit /project (Standard angleichen); skipped = nie wieder fragen.",
+  "notSecrets": [
+    "art/environment/rooms/secrets.json"
+  ]
+}

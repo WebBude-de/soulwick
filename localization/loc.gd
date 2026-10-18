@@ -19,6 +19,9 @@ const CSV_PATH := "res://localization/translations.csv"
 const TRANSLATION_PATH := "res://localization/translations.%s.translation"
 
 static var _installed := false
+## Replaces OS.get_locale_language() for "auto" when set (tests/gut_pre_run.gd pins "de", so a test
+## that resets the settings to "auto" still gets German on an English system).
+static var system_language_override := ""
 
 
 ## Registers the translations once (idempotent). Called by apply() and t(), so it is safe to call early.
@@ -53,7 +56,9 @@ static func apply(language: StringName) -> void:
 static func resolve(language: StringName, system_language := "") -> StringName:
 	if LANGUAGES.has(language):
 		return language
-	var detected := system_language if not system_language.is_empty() else OS.get_locale_language()
+	var detected := system_language
+	if detected.is_empty():
+		detected = system_language_override if not system_language_override.is_empty() else OS.get_locale_language()
 	return &"de" if detected == "de" else DEFAULT_LANGUAGE
 
 

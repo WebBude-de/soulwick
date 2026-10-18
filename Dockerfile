@@ -10,7 +10,7 @@
 ARG GODOT_VERSION=4.7.2
 
 # ---------------------------------------------------------------------------------------------
-FROM debian:bookworm-slim AS godot
+FROM docker.io/library/debian:bookworm-slim AS godot
 ARG GODOT_VERSION
 # SHA-512 of Godot_v4.7.2-stable_linux.x86_64.zip from SHA512-SUMS.txt of the official release
 # (github.com/godotengine/godot-builds/releases/tag/4.7.2-stable).
@@ -100,7 +100,7 @@ RUN set -eu; \
 	ls -la /out /out/fonts
 
 # ---------------------------------------------------------------------------------------------
-FROM alpine:3.22 AS runtime
+FROM docker.io/library/alpine:3.22 AS runtime
 RUN apk add --no-cache nginx nginx-mod-http-brotli
 COPY deploy/web/nginx.conf /etc/nginx/nginx.conf
 COPY --from=export /nginx/soulwick-env.conf /etc/nginx/soulwick-env.conf

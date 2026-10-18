@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Checks (Godot 4): alle Dateien laden + GUT-Tests – headless, ohne Fenster.
+#   scripts/check          alles (vor dem Bericht/PR)
+#   scripts/check --quick  ohne GUT (für den pre-commit-Hook; GUT kann Minuten dauern)
+# Godot-Pfad: Umgebungsvariable GODOT, sonst godot / godot4 / Flatpak org.godotengine.Godot.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")/.."
+if [ -n "${GODOT:-}" ]; then godot=("$GODOT")
+elif command -v godot >/dev/null; then godot=(godot)
+elif command -v godot4 >/dev/null; then godot=(godot4)
+elif command -v flatpak >/dev/null && flatpak info org.godotengine.Godot >/dev/null 2>&1; then godot=(flatpak run org.godotengine.Godot)
+else echo "check: Godot nicht gefunden (GODOT=/pfad/zu/godot setzen) – übersprungen" >&2; exit 0; fi
+run() { "${godot[@]}" --headless --path . "$@"; }
+# Import-Cache (.godot/) auffrischen – neue Grafiken/Texte sonst „non-existent resource“; Fehler zeigt validate
+run --import >/dev/null 2>&1 || true
+# (ohne Prüfskript nur Import – `--quit` ohne Hauptszene öffnet sonst einen Fehlerdialog und hängt)
+if [ -f tools/validate_project.gd ]; then run -s tools/validate_project.gd
+else echo "check: tools/validate_project.gd fehlt – nur Import geprüft" >&2; fi
+if [ "${1:-}" != "--quick" ] && [ -f addons/gut/gut_cmdln.gd ]; then run -s addons/gut/gut_cmdln.gd -gexit; fi
+echo "check: ok"

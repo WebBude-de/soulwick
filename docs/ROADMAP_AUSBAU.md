@@ -1,5 +1,6 @@
 # ROADMAP Ausbau – Phase 1 und 2: spielbar machen, Räume
 
+> **Status:** Aktuell (Rest von Phase 2: M3, M5, L-Pläne, Fehlerliste 2b)
 > **Stand:** 17.10.2026 · Übersicht aller Phasen: [ROADMAP.md](ROADMAP.md) (D-179). Hier stehen die **offenen Pakete** der Phasen 2b und 2c vollständig und alles Erledigte als eine Zeile je Paket; was gebaut ist, steht im Code (D-178).
 > **Für Räume gilt** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md). **Abhaken** nur mit Nachweis (Tests grün, Datum), danach das Paket in die Erledigt-Liste schieben. Jedes Paket ist für **einen Agenten** geschnitten.
 
