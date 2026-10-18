@@ -1609,6 +1609,20 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `online/invite_link.gd`, `online/lobby_client.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/main_menu/{main_menu,profile_panel}.gd`, `deploy/web/shell.html`, `localization/translations.csv` (`INVITE_*`), Tests `tests/unit/test_invite_*.gd`, `docs/MULTIPLAYER.md` §3h.
 - **Ersetzt:** keine.
 
+### D-192 – Gamepad-Lücken: Bildschirmtastatur, Blättern, Xbox-Buchstaben
+
+- **Status:** VORGESCHLAGEN (Claude, Auftrag des Projektmitglieds 18.10.2026: „Gamepad-Lücken prüfen und schließen“) · Zahlen **TESTWERT** · **Datum:** 2026-10-18 · ergänzt D-163
+- **Kontext:** Bestandsaufnahme gegen D-163: Laufen, Zielen, alle Aktionen, Seitenansicht (Sprung, Doppelsprung, Wandsprung, Seiten-Dash, Leiter), Leitern und Treppen von oben, Benutzen, Reliquie tragen, Minispiele, Pause, Tab-Übersicht, Optionen, Karten, Händler, Lagerfeuer, Hauptmenü, Welten und Melde-Dialog gingen schon mit dem Pad. Es fehlten: Texteingabe (Spielername, Weltname, Umbenennen, Notiz im Melde-Dialog) nur mit Tastatur; lange Listen (Tab-Übersicht, Lagerfeuer-Upgrades, zu hohe Dialoge) nur mit dem Mausrad; Gesichtstasten nur als neutrale Rauten; auf der Tasten-Seite „1 – 3“ und „Waffe zeigt zur Maus“; Boss-Intro „E / Klick“.
+- **Beschluss:**
+  - **Bildschirmtastatur:** Y öffnet sie über einem Textfeld (Neue Welt, Umbenennen, Name im Profil aus jeder Zeile, Melde-Dialog: fokussiertes Feld, sonst die Notiz). Deutsch QWERTZ mit ä ö ü ß, sonst QWERTY. Steuerkreuz/Stick wählt, A tippt, X löscht, Y Leerzeichen, LB groß, Start oder B schließen; der Text bleibt (es wird direkt ins Feld getippt, dessen Längengrenze gilt). Erster Buchstabe und der nach einem Leerzeichen sind groß. Liegt über allem (Ebene 126), pausiert nichts; eine echte Taste schließt sie. Touch behält die Handy-Tastatur.
+  - **Blättern:** Der goldene Fokusrahmen zieht seine Liste mit; der rechte Stick blättert den Dialog (240 Mockup-px/s bei vollem Ausschlag); in Dialogen ohne Knöpfe (Tab-Übersicht) blättern Steuerkreuz und Pfeiltasten in Schritten von 24 Mockup-px.
+  - **Xbox-Buchstaben** (D-163 OFFEN): Pads mit Xbox, XInput, Microsoft oder Steam Deck im Namen zeigen A, B, X, Y in ihren Farben; alle anderen und unbekannte (auch Steams virtuelles Pad, das ein PlayStation-Pad sein kann) die neutralen Positionen. Wechselt das Pad, werden die Symbole neu gebaut.
+  - Tasten-Seite und erster Hinweis zeigen für „Auswahl“ Steuerkreuz und A, Zielen und Auswahl haben Pad-Notizen; das Boss-Intro zeigt X / A.
+  - Belegung und `project.godot` bleiben wie in D-163 (Bindung zur Laufzeit).
+- **OFFEN:** Steam-Texteingabe (`ShowGamepadTextInput`, mit MP6) zusätzlich; Markierungen im Melde-Dialog mit dem Pad zeichnen; Raumcode im Online-Menü (Haken `PadKeyboard.open_for`, Dateien von MP2b); Springen, Doppelsprung und Seiten-Dash fehlen auf der Tasten-Seite für alle Geräte; Grafiken `input_pad_a/b/x/y` (SPRITES_V10 §2, bis dahin Platzhalter).
+- **Folgen:** `ui/widgets/pad_keyboard.gd` (neu), `ui/menus/modal.gd`, `ui/icons/input_glyphs.gd`, `player/input/input_device.gd`, `ui/widgets/key_cap.gd`, `ui/options/controls_info.gd`, `ui/main_menu/{create_slot_panel,slot_panel}.gd`, `ui/menus/profile/profile_editor.gd`, `ui/dev/{dev_feedback_overlay,dev_feedback_texts}.gd`, `ui/boss_intro/boss_intro_view.gd`, `localization/translations.csv`, Test `test_gamepad_gaps.gd`.
+- **Ersetzt:** D-163 OFFEN „Xbox-Buchstaben statt neutraler Positions-Glyphen“ (als Vorschlag).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

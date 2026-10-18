@@ -48,6 +48,7 @@ signal launch_requested(launch: Dictionary)
 enum View { QUICK, GUILDS, CREATE, JOIN, DETAIL, CONFIRM, PROFILE }
 
 ## Default width in mockup pixels (the main menu panel area is 296 wide).
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 const DEFAULT_WIDTH := 262.0
 ## Scroll heights in mockup pixels: guild list and member list (R8: dialogs stay short).
 const LIST_HEIGHT := 66.0
@@ -354,6 +355,10 @@ func handle_input(event: InputEvent) -> bool:
 			focus_default()
 			return true
 		return false
+	# Gamepad Y on a text field (room code): the on-screen keyboard (PadKeyboard, D-192).
+	if focused is LineEdit and PadKeyboard.is_open_event(event):
+		PadKeyboard.open_for(focused)
+		return true
 	# W/A/S/D (the arrows move the focus in the GUI already).
 	if moves and not focused is LineEdit:
 		var next: Control = null

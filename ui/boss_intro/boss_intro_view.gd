@@ -24,6 +24,10 @@ const HOLD_BAR_HEIGHT := 1.5
 ## Translation keys (D-111): the hint label gets the key, Godot translates it.
 const SHORT_HINT: StringName = &"BOSS_INTRO_SKIP_HINT"
 const STORY_HINT: StringName = &"BOSS_INTRO_STORY_HINT"
+## The same hints with the gamepad's buttons while a gamepad is in use (D-192).
+const SHORT_HINT_PAD: StringName = &"BOSS_INTRO_SKIP_HINT_PAD"
+const STORY_HINT_PAD: StringName = &"BOSS_INTRO_STORY_HINT_PAD"
+const KeyLine := preload("res://ui/widgets/key_line.gd")
 const START_SHAKE := 3.0
 const ROAR_SHAKE := 9.0
 const PULSE_SCALE := 1.08
@@ -166,10 +170,16 @@ func _build_hint_row() -> Control:
 		_counter = UiKit.text_label(counter_text(1, _intro.lines.size()), UiKit.SIZE_EYEBROW, _data.intro_color.lerp(UiKit.COLOR_DISABLED, 0.5))
 		_counter.name = "Counter"
 		row.add_child(_counter)
-	var hint := UiKit.text_label(STORY_HINT if _intro.is_story else SHORT_HINT, UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
-	hint.name = "Hint"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Keyboard text as the Label "Hint", the gamepad's buttons while a gamepad is in use (KeyLine);
+	# touch keeps the keyboard text as before.
+	var hint := KeyLine.new()
+	hint.name = "HintLine"
 	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hint.setup(UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED, HORIZONTAL_ALIGNMENT_RIGHT)
+	hint.label.name = "Hint"
+	var text := STORY_HINT if _intro.is_story else SHORT_HINT
+	hint.set_texts(text, STORY_HINT_PAD if _intro.is_story else SHORT_HINT_PAD)
+	hint.set_touch_text(text)
 	row.add_child(hint)
 	return row
 

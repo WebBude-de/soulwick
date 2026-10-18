@@ -9,7 +9,8 @@ extends VBoxContainer
 ## buttons are tap targets; the name field opens the on-screen keyboard. Keys come through
 ## handle_input() from the dialog around it (MenuPanel, Modal.input_handler, OnlineMenu).
 ## Gamepad (P0-2 step 2): D-pad/stick like the arrows (also out of the name field), A like Enter
-## (in the name field too: on the first start an empty name becomes the default name), B like Esc.
+## (in the name field too: on the first start an empty name becomes the default name), B like Esc,
+## Y types the name on the on-screen keyboard (PadKeyboard, D-192).
 ## Saving (commit): the profile is written at once; with a live login the change goes to the server
 ## (OnlineSession.push_profile, PATCH /me). A refused name change ("Namen kannst du in 5 h wieder
 ## ändern") is shown here and the editor stays open; everything else emits saved.
@@ -22,6 +23,8 @@ signal cancelled
 signal look_changed(look: Dictionary)
 
 enum Row { NAME, FIGURE, HAIR, OUTFIT, SKIN, ACCENT, CONFIRM }
+
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 
 const ROW_SLOTS := {
 	Row.HAIR: PlayerLook.HAIR, Row.OUTFIT: PlayerLook.OUTFIT, Row.SKIN: PlayerLook.SKIN, Row.ACCENT: PlayerLook.ACCENT,
@@ -230,6 +233,9 @@ func handle_input(event: InputEvent) -> bool:
 	if MenuInput.is_back(event):
 		cancel()
 		return true
+	if PadKeyboard.is_open_event(event):
+		open_keyboard()
+		return true
 	if _name_edit.has_focus():
 		# Typing stays in the field; _input handles arrows, Enter and Esc there.
 		return false
@@ -272,6 +278,9 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_set_row(Row.CONFIRM if direction == Vector2i.UP else Row.FIGURE)
 		UiSound.hover(self)
+	elif PadKeyboard.is_open_event(event):
+		get_viewport().set_input_as_handled()
+		open_keyboard()
 	elif MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm()
@@ -281,6 +290,14 @@ func _input(event: InputEvent) -> void:
 			_set_row(Row.FIGURE)
 		else:
 			cancel()
+
+
+## The name row with the on-screen keyboard over it (gamepad Y, from any row).
+func open_keyboard() -> Modal:
+	if _busy or _name_edit == null:
+		return null
+	_set_row(Row.NAME)
+	return PadKeyboard.open_for(_name_edit)
 
 
 # --- Building ---
