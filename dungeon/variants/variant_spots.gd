@@ -28,7 +28,8 @@ static func free_tiles(room: RoomController) -> Dictionary[Vector2i, bool]:
 		free.erase(RoomTiles.local_to_tile(room.to_local(node.global_position) if node.is_inside_tree() else node.position))
 	for door in [tiles.get_entrance_inside_tile(), tiles.get_exit_inside_tile()]:
 		free.erase(door)
-	return free
+	# Nothing on the foot of a stair or ladder, or a chest could lock a player on a plateau (M3b, D-189).
+	return HeightRules.keep_feet_free(tiles, free)
 
 
 ## Props of the template and everything an ingredient scatter built (traps, cover, barrels).

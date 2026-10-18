@@ -66,6 +66,29 @@ func is_connector(tile: Vector2i) -> bool:
 	return ladders.has(tile) or stairs.has(tile)
 
 
+## Ground tiles right below stairs and ladders (sorted): the way up stays free there (M3b, D-189;
+## nothing a room mode places may stand on them, or a plateau is cut off).
+func get_connector_feet() -> Array[Vector2i]:
+	var feet: Array[Vector2i] = []
+	for tile: Vector2i in ladders.keys() + stairs.keys():
+		if ground.has(tile + Vector2i.DOWN):
+			feet.append(tile + Vector2i.DOWN)
+	feet.sort()
+	return feet
+
+
+## Is tile a surface tile that touches no ground among its eight neighbours? Things players take or
+## light stand there, out of reach from the ground beside the plateau (M3b, D-189).
+func is_inner_surface(tile: Vector2i) -> bool:
+	if not surface.has(tile):
+		return false
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			if ground.has(tile + Vector2i(dx, dy)):
+				return false
+	return true
+
+
 ## Every tile that belongs to the height of the room (plateau, ladders, stairs).
 func get_height_tiles() -> Dictionary[Vector2i, bool]:
 	var tiles: Dictionary[Vector2i, bool] = plateau.duplicate()

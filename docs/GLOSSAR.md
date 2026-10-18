@@ -117,8 +117,13 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 
 | Deutsch | English | Bedeutung | Quelle |
 | --- | --- | --- | --- |
-| Konto | account | Soulwick-Konto = Spieler auf dem Server, ohne E-Mail und Passwort, im Spiel löschbar; Geräte und Plattformen werden per Code verknüpft | D-108, D-121, D-122, PRODUKT §8 |
-| Identität | identity (`player_identities`) | ein Plattform-Login am Konto: `steam`, `device`, `google_play`, `game_center` | D-108, D-121 |
+| Konto | account | Soulwick-Konto = Spieler auf dem Server, im Spiel löschbar; startet still als Gast, Anmeldungen (Steam, Play Games, Game Center, Benutzername, Magic Link, Google, Apple, Discord) und Geräte hängen daran | D-108, D-121, D-122, D-188, PRODUKT §8 |
+| Identität | identity (`player_identities`) | eine Anmeldeart am Konto: `steam`, `device`, `google_play`, `game_center`, dazu nach D-188 Benutzername, Magic Link, Google, Apple, Discord | D-108, D-121, D-188 |
+| Anmeldung hinzufügen, Konto sichern | add a sign-in, secure your account (Vorschlag) | eine weitere Identität mit Nachweis ans eigene Konto hängen; „Konto sichern“ = Benutzername + Passwort für ein Gastkonto anlegen | D-188 |
+| Benutzername | username (Vorschlag) | Login-Name für Benutzername + Passwort, eindeutig und privat; nicht der Anzeigename | D-188 |
+| Magic Link | magic link (Vorschlag) | Anmelde-Link per E-Mail, einmal gültig | D-188 |
+| Konto-Level, XP | account level, XP (Vorschlag) | Level des Kontos über alle Welten, Solo und Koop; steigt mit XP aus Runs, Belohnungen nur Optik | D-188 |
+| Cloud-Welt | cloud world (Vorschlag) | Kopie einer Welt am Konto auf dem Server, für alle Geräte des Kontos | D-188, CP5 |
 | Gilde | guild (`guild`, `guilds`) | dauerhafte Gruppe, bis zu 5 je Spieler (D-147), höchstens 30 Mitglieder; hat Name und Kürzel (`GuildTag`, 2–5 Zeichen) | D-080, API `GuildName`, `GuildTag` |
 | Gründer, Offizier, Mitglied | founder, officer, member (`GuildRole`) | Rollen in einer Gilde | API `GuildRole`, `apps/admin/src/lib/format.ts` |
 | Einladungscode | invite code | Code für den Beitritt zu einer Gilde | D-080, API `InviteCode`, WEB `guildCardText` |

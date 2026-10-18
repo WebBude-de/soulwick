@@ -101,7 +101,7 @@ Zum Release ist Soulwick auf allen Versionen spielbar – Browser, Steam, Androi
 
 ## 8. Online (optional)
 
-Das Spiel bleibt ohne Server spielbar; jeder Aufruf darf scheitern (D-083, D-093). Online kommen dazu: Konto ohne E-Mail und Passwort (Plattform-Identitäten, D-121, D-122), Relay mit Raumcodes (D-119), Gilden (D-147), Run-Berichte und Ranglisten (D-082), Website und Admin-Panel. Gespeichert werden nur Plattform-IDs, Name, Gilde und Run-Berichte. Details: [`soulwick-platform/docs/PRD.md`](https://github.com/WebBude-de/soulwick-platform/blob/main/docs/PRD.md).
+Das Spiel bleibt ohne Server spielbar; jeder Aufruf darf scheitern (D-083, D-093). Online kommen dazu: ein Konto mit vielen Anmeldungen (still als Gast, dazu Steam, Play Games, Game Center, Benutzername, Magic Link, Google, Apple, Discord; D-121, D-122, D-188), Welten in der Cloud und ein Konto-Level (D-188), Relay mit Raumcodes (D-119), Gilden (D-147), Run-Berichte und Ranglisten (D-082), Website und Admin-Panel. Gespeichert werden Anmelde-IDs (E-Mail nur, wenn der Spieler sie für die Anmeldung nutzt), Name, Gilde, Run-Berichte, Cloud-Welten und XP. Details: [`soulwick-platform/docs/PRD.md`](https://github.com/WebBude-de/soulwick-platform/blob/main/docs/PRD.md).
 
 ## 9. Wo was steht
 

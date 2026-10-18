@@ -23,8 +23,13 @@ const TRIGGER_THRESHOLD := 0.3
 const MOUSE_MOTION_THRESHOLD := 3.0
 ## kind_of(): the event says nothing about the device.
 const NO_CHANGE := -1
+## Parts of a joypad name (lower case, Input.get_joy_name) of pads with the Xbox letters A, B, X, Y
+## on their face buttons (D-192). Steam's virtual pad is left out: it may stand for a PlayStation pad.
+const XBOX_NAME_PARTS: Array[String] = ["xbox", "x-box", "xinput", "microsoft", "steam deck"]
 
 static var _shared: InputDevice = null
+## Tests: 1 = the pad in use has Xbox letters, 0 = it has not, -1 = ask the connected pad.
+static var xbox_letters_override := -1
 
 var kind: Kind = Kind.KEYBOARD_MOUSE
 ## Last joypad that was used (-1 = none yet), e.g. for vibration later.
@@ -41,6 +46,26 @@ static func shared() -> InputDevice:
 ## The gamepad is the device in use on this machine.
 static func is_gamepad() -> bool:
 	return shared().kind == Kind.GAMEPAD
+
+
+## The pad in use (joypad) has Xbox letters on its face buttons; false while no pad is known
+## (the UI then shows the neutral positions, InputGlyphs).
+static func has_xbox_letters() -> bool:
+	if xbox_letters_override >= 0:
+		return xbox_letters_override == 1
+	var device := shared().joypad
+	if device < 0 or not Input.get_connected_joypads().has(device):
+		return false
+	return is_xbox_name(Input.get_joy_name(device))
+
+
+## "Xbox Series Controller", "XInput Gamepad", "Steam Deck" -> true; "PS5 Controller" -> false.
+static func is_xbox_name(joy_name: String) -> bool:
+	var lower := joy_name.to_lower()
+	for part in XBOX_NAME_PARTS:
+		if lower.contains(part):
+			return true
+	return false
 
 
 ## Device an event stands for, or NO_CHANGE (releases, tiny stick drift, mouse jitter, emulated
@@ -75,11 +100,17 @@ func note(event: InputEvent) -> bool:
 	if new_kind == NO_CHANGE:
 		return false
 	if new_kind == Kind.GAMEPAD:
+		var had_letters := has_xbox_letters()
 		joypad = event.device
 		# A gamepad on a touch device: back from the on-screen controls (TouchState, like a keyboard).
 		var touch := TouchState.shared()
 		if not touch.forced:
 			touch.touched = false
+		if kind == Kind.GAMEPAD and has_xbox_letters() != had_letters:
+			# Another pad with other face buttons (letters <-> positions, D-192): same kind, but the
+			# key symbols have to be rebuilt.
+			changed.emit(kind)
+			return false
 	return set_kind(new_kind as Kind)
 
 

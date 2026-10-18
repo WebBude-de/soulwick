@@ -23,6 +23,7 @@ const FOOTER_RENAME: StringName = &"SLOTS_FOOTER_RENAME"
 const FOOTER_NORMAL_PAD: StringName = &"SLOTS_FOOTER_PAD"
 const FOOTER_CONFIRM_PAD: StringName = &"SLOTS_FOOTER_CONFIRM_PAD"
 const FOOTER_RENAME_PAD: StringName = &"SLOTS_FOOTER_RENAME_PAD"
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 const PadNav := preload("res://ui/widgets/pad_nav.gd")
 ## Optional world icon (16×16, SPRITES_V10 §7); without it the card shows the slot number.
 const WORLD_ICON_PATH := "res://art/ui/icon_world.png"
@@ -98,6 +99,9 @@ func handle_input(event: InputEvent) -> bool:
 		# (gamepad, before the field appeared) B still cancels.
 		if MenuInput.is_back(event):
 			cancel_rename()
+			return true
+		if PadKeyboard.is_open_event(event):
+			open_keyboard()
 			return true
 		return MenuInput.is_up(event) or MenuInput.is_down(event)
 	if _confirm_delete:
@@ -175,12 +179,22 @@ func cancel_rename() -> void:
 func _input(event: InputEvent) -> void:
 	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit) or not _rename_edit.has_focus():
 		return
-	if MenuInput.is_confirm(event):
+	if PadKeyboard.is_open_event(event):
+		get_viewport().set_input_as_handled()
+		open_keyboard()
+	elif MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm_rename(_rename_edit.text)
 	elif MenuInput.is_back(event):
 		get_viewport().set_input_as_handled()
 		cancel_rename()
+
+
+## The on-screen keyboard for the new name (gamepad Y while renaming, D-192).
+func open_keyboard() -> Modal:
+	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit):
+		return null
+	return PadKeyboard.open_for(_rename_edit)
 
 
 func request_delete() -> void:
@@ -358,10 +372,16 @@ func _build_card(index: int) -> Button:
 		info.add_child(UiKit.text_label(&"SLOTS_BROKEN_NOTE", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 	else:
 		var record: int = summary.get("deepest_room", 0)
-		var line := "%s · %s" % [
-			(tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN"),
-			SaveSlots.format_play_time(summary.get("play_time", 0.0))]
-		info.add_child(UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+		var line := (tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN")
+		# Progress at a glance (D-188): forge levels of this world, once one is bought.
+		var forge: int = summary.get("forge_level", 0)
+		if forge > 0:
+			line += " · " + tr(&"SLOTS_FORGE_PROGRESS") % [forge, summary.get("forge_max", SaveSlots.forge_max_level())]
+		line += " · " + SaveSlots.format_play_time(summary.get("play_time", 0.0))
+		var line_label := UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		# Never wider than the card (phones): cut with an ellipsis instead.
+		line_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		info.add_child(line_label)
 		var bottom := UiKit.hbox(int(UiKit.px(6)))
 		bottom.add_child(UiKit.icon_value(UiKit.GOLD_ICON, str(summary.get("gold", 0)), UiKit.COLOR_GOLD, UiKit.SIZE_BODY, 8.0))
 		bottom.add_child(UiKit.icon_value(UiKit.CRYSTAL_ICON, str(summary.get("crystals", 0)), UiKit.COLOR_CRYSTAL, UiKit.SIZE_BODY, 8.0))

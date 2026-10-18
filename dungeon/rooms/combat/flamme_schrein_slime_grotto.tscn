@@ -13,13 +13,15 @@ room_size = Vector2i(19, 8)
 entrance_x = 9
 exit_x = 8
 floor_seed = 147
-wall_rects = Array[Rect2i]([Rect2i(0, 0, 4, 1), Rect2i(13, 0, 6, 1), Rect2i(2, 1, 2, 2), Rect2i(15, 1, 2, 2), Rect2i(5, 4, 2, 2), Rect2i(12, 4, 2, 2), Rect2i(0, 6, 2, 1), Rect2i(17, 6, 2, 1), Rect2i(0, 7, 3, 1), Rect2i(16, 7, 3, 1)])
+wall_rects = Array[Rect2i]([Rect2i(0, 0, 4, 1), Rect2i(13, 0, 6, 1), Rect2i(2, 1, 2, 2), Rect2i(15, 1, 2, 2), Rect2i(7, 2, 5, 3), Rect2i(0, 6, 2, 1), Rect2i(17, 6, 2, 1), Rect2i(0, 7, 3, 1), Rect2i(16, 7, 3, 1)])
 door_slots = Array[Vector2i]([Vector2i(2, 9), Vector2i(0, 8), Vector2i(3, 4), Vector2i(1, 4)])
 front_fixtures = Array[Vector2i]([Vector2i(4, -1), Vector2i(12, -1)])
 rock_style = 1
 cave_mouth = true
-zone_cells = Array[Vector3i]([Vector3i(5, 0, 0), Vector3i(5, 1, 0), Vector3i(5, 2, 0), Vector3i(6, 0, 0), Vector3i(6, 1, 0), Vector3i(6, 2, 0), Vector3i(7, 0, 0), Vector3i(7, 1, 0), Vector3i(7, 2, 0), Vector3i(7, 4, 3), Vector3i(8, 0, 0), Vector3i(8, 1, 0), Vector3i(8, 2, 0), Vector3i(9, 0, 0), Vector3i(9, 1, 0), Vector3i(9, 3, 0), Vector3i(9, 4, 1), Vector3i(10, 0, 0), Vector3i(10, 1, 0), Vector3i(10, 2, 0), Vector3i(11, 0, 0), Vector3i(11, 1, 0), Vector3i(11, 2, 0), Vector3i(11, 4, 3), Vector3i(12, 1, 0), Vector3i(12, 2, 0), Vector3i(13, 1, 0), Vector3i(13, 2, 0)])
-overlay_cells = Array[Vector3i]([Vector3i(0, 1, 9), Vector3i(2, 5, 0), Vector3i(3, 3, 5), Vector3i(4, 4, 13), Vector3i(4, 7, 13), Vector3i(5, 7, 9), Vector3i(6, 0, 1), Vector3i(6, 6, 1), Vector3i(7, 5, 10), Vector3i(7, 6, 9), Vector3i(11, 1, 10), Vector3i(12, 1, 2), Vector3i(12, 3, 8), Vector3i(14, 1, 13), Vector3i(14, 2, 2), Vector3i(15, 7, 9), Vector3i(16, 5, 13), Vector3i(18, 2, 12)])
+zone_cells = Array[Vector3i]([Vector3i(5, 0, 0), Vector3i(5, 1, 0), Vector3i(6, 0, 0), Vector3i(6, 1, 0), Vector3i(7, 0, 0), Vector3i(7, 1, 0), Vector3i(7, 5, 0), Vector3i(8, 0, 0), Vector3i(8, 1, 0), Vector3i(8, 5, 0), Vector3i(9, 0, 0), Vector3i(9, 1, 0), Vector3i(9, 5, 0), Vector3i(10, 0, 0), Vector3i(10, 1, 0), Vector3i(10, 5, 0), Vector3i(11, 0, 0), Vector3i(11, 1, 0), Vector3i(11, 5, 0), Vector3i(12, 1, 0), Vector3i(13, 1, 0)])
+overlay_cells = Array[Vector3i]([Vector3i(0, 1, 9), Vector3i(2, 5, 0), Vector3i(3, 3, 5), Vector3i(6, 1, 9), Vector3i(6, 2, 1), Vector3i(6, 7, 2), Vector3i(8, 5, 10), Vector3i(10, 0, 9), Vector3i(11, 1, 4), Vector3i(11, 7, 10), Vector3i(12, 1, 4), Vector3i(12, 5, 9), Vector3i(13, 1, 2), Vector3i(14, 2, 13), Vector3i(14, 3, 2), Vector3i(16, 3, 9), Vector3i(16, 6, 13)])
+plateau_tiles = Array[Vector2i]([Vector2i(7, 2), Vector2i(7, 3), Vector2i(7, 4), Vector2i(8, 2), Vector2i(8, 3), Vector2i(8, 4), Vector2i(9, 2), Vector2i(9, 3), Vector2i(10, 2), Vector2i(10, 3), Vector2i(10, 4), Vector2i(11, 2), Vector2i(11, 3), Vector2i(11, 4)])
+stair_tiles = Array[Vector2i]([Vector2i(9, 4)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(224, 416)
@@ -34,13 +36,13 @@ position = Vector2(672, 32)
 position = Vector2(288, 32)
 
 [node name="Spawn5" parent="SpawnPoints"]
-position = Vector2(480, 224)
-
-[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(928, 96)
 
+[node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(416, 224)
+
 [node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(736, 288)
+position = Vector2(800, 288)
 
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(96, 96)
@@ -110,17 +112,9 @@ blocked_tiles = Array[Vector2i]([Vector2i(17, 2)])
 position = Vector2(768, 56)
 script = ExtResource("2_deco")
 item = &"group_2"
+flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(11, 0), Vector2i(12, 0)])
 solid_span = Vector2(-42, 42)
-biome = &"slime_grotto"
-
-[node name="Group2" type="Node2D" parent="Props"]
-position = Vector2(800, 504)
-script = ExtResource("2_deco")
-item = &"group_large_2"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(11, 7), Vector2i(12, 7), Vector2i(13, 7)])
-solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Ingredients" type="Node2D" parent="."]

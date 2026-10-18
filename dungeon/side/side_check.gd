@@ -2,7 +2,9 @@ extends SceneTree
 ## Plays every side-segment layout (M5) with the autopilot (SideBot) and checks the rules at runtime:
 ## the plan rules (SideLayout.check), the door is reached by jumping and climbing within
 ## SideRules.MAX_SEGMENT_SECONDS, the golden coin is fetched with the double jump on the way, the
-## player never falls into a pit, enemies, spikes and crumbling ledges are only counted. The player is invulnerable for the check (it measures the way, not the fight).
+## player never falls into a pit, the autopilot walks up to every niche chest (it stands in the
+## chest's interaction range, D-144), enemies, spikes and crumbling ledges are only counted. The
+## player is invulnerable for the check (it measures the way, not the fight).
 ## Round 3: every turret mount is set up (the game sets them up in SideRules.TURRET_CHANCE of the
 ## segments) and its shots are counted, pools count the players they slowed. hits=1 lets the player
 ## take hits (health stays high): turret slows and spikes act on the run, and the bot must still
@@ -26,6 +28,7 @@ var _failures: Array[String] = []
 var _shots_dir := ""
 var _dungeon_mode := false
 var _take_hits := false
+var _chests_reached := 0
 
 
 func _init() -> void:
@@ -73,7 +76,7 @@ func _run() -> void:
 			var result: Dictionary = await _play(plan_id, mirrored)
 			total += 1
 			seconds_sum += float(result.get("seconds", 0.0))
-	print("side_check: %d layouts, mean %.1f s" % [total, seconds_sum / maxf(1.0, total)])
+	print("side_check: %d layouts, mean %.1f s, %d chests reached" % [total, seconds_sum / maxf(1.0, total), _chests_reached])
 	_finish()
 
 
@@ -109,12 +112,18 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	segment.add_player(player)
 	segment.make_camera_current()
 	var bot: Variant = (load("res://dungeon/side/side_bot.gd") as GDScript).drive(segment, player)
+	var chest: Node = segment.get_chest()
+	bot.fetch_chest = chest != null
+	var interaction_area: Area2D = player.get_node("InteractionArea")
+	var chest_reached := false
 	var max_frames := int(70.0 * Engine.physics_ticks_per_second)
 	var frames := 0
 	var slowed_frames := 0
 	while not segment.is_finished and frames < max_frames:
 		await physics_frame
 		frames += 1
+		if chest != null and not chest_reached:
+			chest_reached = interaction_area.get_overlapping_areas().has(chest.get_interactable())
 		for pool: Node in segment.get_pools():
 			if pool.is_slowing(player):
 				slowed_frames += 1
@@ -127,13 +136,16 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	var crumbled := 0
 	for crumble: Node in segment.get_crumbles():
 		crumbled += crumble.crumble_count
-	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze, %d Türme (%d Schüsse), %d Becken (%.1f s gebremst), %d Stacheln" % [
+	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Truhe %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze, %d Türme (%d Schüsse), %d Becken (%.1f s gebremst), %d Stacheln" % [
 		name, "Tür erreicht" if segment.is_finished else "Tür NICHT erreicht", seconds,
-		segment.coins_taken, segment.coins_total, "ja" if segment.golden_coin_taken else "nein", segment.gold_earned,
+		segment.coins_taken, segment.coins_total, "ja" if segment.golden_coin_taken else "nein",
+		"erreicht" if chest_reached else ("NICHT erreicht" if chest != null else "keine"), segment.gold_earned,
 		bot.jumps, player.side_motion.double_jumps, " (Pflicht)" if layout.way_needs_double_jump() else "",
 		player.side_motion.wall_jumps, crumbled, falls, segment.get_turrets().size(), turret_shots,
 		segment.get_pools().size(), slowed_frames / float(Engine.physics_ticks_per_second), segment.get_spikes().size()]
 	print(line)
+	if chest_reached:
+		_chests_reached += 1
 	if not segment.is_finished:
 		_failures.append("%s: door not reached (bot at %s)" % [name, segment.to_local(player.get_feet_position())])
 	elif seconds > 45.0:
@@ -144,6 +156,10 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 		_failures.append("%s: %d of %d turrets built" % [name, segment.get_turrets().size(), layout.turrets.size()])
 	if not segment.golden_coin_taken:
 		_failures.append("%s: golden coin not reached with the double jump" % name)
+	if layout.chest.x < 0:
+		_failures.append("%s: no chest niche" % name)
+	elif not chest_reached:
+		_failures.append("%s: chest at %s not reached (bot at %s)" % [name, layout.chest, segment.to_local(player.get_feet_position())])
 	segment.remove_players()
 	world.queue_free()
 	await process_frame

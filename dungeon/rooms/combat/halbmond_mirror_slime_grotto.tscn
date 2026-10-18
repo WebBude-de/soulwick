@@ -90,6 +90,13 @@ metadata/tile = Vector2i(15, 4)
 metadata/floor_tile = Vector2i(15, 4)
 metadata/wall_side = -1
 
+[node name="Source5" type="Marker2D" parent="Sources"]
+position = Vector2(480, 224)
+metadata/source_kind = &"puddle"
+metadata/tile = Vector2i(7, 3)
+metadata/floor_tile = Vector2i(7, 3)
+metadata/wall_side = -1
+
 [node name="Torch1" parent="Props" instance=ExtResource("2_torch")]
 position = Vector2(256, -64)
 

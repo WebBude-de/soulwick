@@ -111,6 +111,25 @@ static func keep_level(from: Vector2, destination: Vector2) -> Vector2:
 	return destination if melee_reaches(level_at(from), level_at(destination)) else from
 
 
+## Room modes (M3b, D-189): the free tiles of a room mode (VariantSpots.free_tiles, ground only) lose
+## the feet of the room's stairs and ladders, so no bonus chest, altar or relic ever closes the way up
+## (a chest at the foot of the only stairs would lock a player on the plateau). Returns free.
+static func keep_feet_free(tiles: RoomTiles, free: Dictionary[Vector2i, bool]) -> Dictionary[Vector2i, bool]:
+	if tiles == null or not tiles.has_height():
+		return free
+	for foot in tiles.get_height_layout().get_connector_feet():
+		free.erase(foot)
+	return free
+
+
+## Is tile a plateau surface players reach on foot from the entrance (souls, relics, torch stands on a
+## plateau, M3b)? False in rooms without height.
+static func is_reached_surface(tiles: RoomTiles, tile: Vector2i) -> bool:
+	if tiles == null or not tiles.has_height() or not tiles.get_height_layout().surface.has(tile):
+		return false
+	return tiles.get_height_reachable_tiles().has(tile)
+
+
 ## Is any room with a plateau alive? (Cheap early out for every rule above.)
 static func has_height() -> bool:
 	var tree := Engine.get_main_loop() as SceneTree
