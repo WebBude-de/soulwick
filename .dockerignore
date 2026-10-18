@@ -21,3 +21,12 @@ art/web
 **/__pycache__
 **/*.pyc
 *.md
+
+# Standard v2: Secrets nie ins Image
+**/.env
+**/.env.*
+!**/.env.example
+**/secrets.json
+**/*.pem
+**/*.key
+!art/environment/rooms/secrets.json
