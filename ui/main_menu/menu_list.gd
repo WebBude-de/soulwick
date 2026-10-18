@@ -10,9 +10,10 @@ extends VBoxContainer
 signal activated(id: StringName)
 signal selection_changed(id: StringName)
 
-## Entry height, gap and paddings in mockup pixels (menu.json: item_padding [1, 8], gap 2; D-152: 20 px
-## high so six entries fit above the currency panel).
-const ITEM_HEIGHT := 20.0
+## Entry height, gap and paddings in mockup pixels (menu.json: item_padding [1, 8], gap 2; KF1: 17 px
+## high so seven entries, with "Fortschritt", fit above the currency panel and, on phones, under the
+## logo at the full menu zoom).
+const ITEM_HEIGHT := 17.0
 const GAP := 2.0
 const PADDING_X := 8.0
 const CURSOR := ">"

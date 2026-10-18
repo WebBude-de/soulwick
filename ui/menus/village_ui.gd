@@ -10,6 +10,7 @@ extends CanvasLayer
 ## D-087: on the first visit a building explains itself (show_intro, "Verstanden"), its role
 ## sentence stays as dialog subtitle and the info button next to the title shows the explanation again.
 ## Locked forge upgrades (MetaUnlocks) are not shown; one line with a lock says when more open.
+## The chronicle shows "Dein Fortschritt" (ProgressView, D-188 KF1) next to its statistics.
 ## Short non-blocking notices (show_notice): "Neu freigeschaltet" and "Öffnet nach …" at locked doors.
 ## Texts come from localization/translations.csv (D-111) and are resolved when a dialog is built.
 ## P1-2 (first visit of a world, VillageGuide decides when): the opening words of a villager
@@ -36,6 +37,8 @@ const AffordableScript := preload("res://world/village/village_affordable.gd")
 const CARD_WIDTH := 240.0
 const INTRO_TEXT_WIDTH := 440.0
 const NPC_PORTRAIT_SCALE := 3.0
+## Width of "Dein Fortschritt" next to the chronicle's statistics (mockup px, D-188 KF1).
+const CHRONICLE_PROGRESS_WIDTH := 210.0
 ## Width of the profile editor in the village dialogs (mockup px).
 const PROFILE_EDITOR_WIDTH := 262.0
 const GOLD_ICON: Texture2D = preload("res://art/ui/gold_icon.png")
@@ -311,7 +314,13 @@ func _build_chronicle(body: VBoxContainer, _refresh: Callable) -> void:
 	grid.add_child(time)
 	var frame := UiKit.panel(&"dark")
 	frame.add_child(grid)
-	body.add_child(frame)
+	# D-188 (KF1): "Dein Fortschritt" of this world next to the statistics.
+	var columns := UiKit.hbox(16)
+	columns.name = "ChronicleColumns"
+	columns.add_child(ProgressView.for_loaded_save(CHRONICLE_PROGRESS_WIDTH, true))
+	frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	columns.add_child(frame)
+	body.add_child(columns)
 
 
 # --- Gilde ---
@@ -428,6 +437,8 @@ func open_mirror() -> void:
 func _profile_editor() -> ProfileEditor:
 	var profile := PlayerProfile.current()
 	var editor := ProfileEditor.create(profile.player_name, profile.look, false, PROFILE_EDITOR_WIDTH)
+	# D-188 (KF2): the account level at the mirror and in Zuhause.
+	editor.show_level = true
 	return editor
 
 

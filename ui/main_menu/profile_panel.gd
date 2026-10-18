@@ -48,6 +48,8 @@ func _ready() -> void:
 		intro.name = "Intro"
 		content.add_child(intro)
 	editor = ProfileEditor.create(start_name, start_look, first_start, WIDTH - MenuPanel.PADDING.y * 2.0)
+	# D-188 (KF2): the account level above the editor ("Figur", not the first start).
+	editor.show_level = true
 	editor.saved.connect(_on_saved)
 	editor.cancelled.connect(close)
 	editor.look_changed.connect(look_changed.emit)

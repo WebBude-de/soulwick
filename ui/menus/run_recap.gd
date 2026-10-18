@@ -5,6 +5,11 @@ extends Node
 ## signals and the local player's hurtbox; decides nothing. Lives under GameUI (game.tscn).
 ## RunManager.get_last_summary() keeps room, gold and crystals; get_stats() adds the rest.
 ##
+## Account level (D-188, KF2): at the run end the run is counted once for the account
+## (AccountProgress.record_run with this run's id, rooms, champions, bosses, record, portal, daily
+## bonus, +20 % with 2–4 players); create_xp_view() builds the "+XP" block of the run end dialog
+## (XpGainView). Each client counts only its own player, the host never counts for others.
+##
 ## Multiplayer later: one recap per local view; kills are counted for the whole group today.
 
 const UNKNOWN_CAUSE := ""
@@ -26,6 +31,14 @@ var play_time := 0.0
 var last_hit_by := UNKNOWN_CAUSE
 ## Deepest room of the save before this run (for "Neuer Rekord!").
 var record_before := 0
+## Bosses and champions (minibosses) defeated this run (account XP, KF2).
+var bosses := 0
+var champions := 0
+## Id of this run for the account XP (once per run and player), "" before the first run.
+var run_id := ""
+## Account record (deepest room over all worlds) before this run.
+var account_record_before := 0
+var _xp_result: Dictionary = {}
 
 var _running := false
 var _player: Player = null
@@ -63,6 +76,12 @@ func reset() -> void:
 	play_time = 0.0
 	last_hit_by = UNKNOWN_CAUSE
 	record_before = int(SaveManager.get_stat(StatsTracker.DEEPEST_ROOM))
+	bosses = 0
+	champions = 0
+	run_id = AccountProgress.new_run_id()
+	_xp_result = {}
+	# Loaded now, before the run changes any world: a first file takes the worlds' record.
+	account_record_before = AccountProgress.current().best_room
 	_running = true
 
 
@@ -70,9 +89,12 @@ func is_running() -> bool:
 	return _running
 
 
-## kills, rooms_cleared, upgrades, play_time (s), cause ("" = unknown), record_before.
+## kills, rooms_cleared, upgrades, play_time (s), cause ("" = unknown), record_before, bosses,
+## champions.
 func get_stats() -> Dictionary:
 	return {
+		"bosses": bosses,
+		"champions": champions,
 		"kills": kills,
 		"rooms_cleared": rooms_cleared,
 		"upgrades": upgrades,
@@ -80,6 +102,51 @@ func get_stats() -> Dictionary:
 		"cause": last_hit_by,
 		"record_before": record_before,
 	}
+
+
+## Counts this run for the account level once (AccountProgress.record_run, D-188 KF2) and returns
+## the result {"added", "xp", "parts", "xp_before", "xp_after", "level_before", "level_after"}, also on
+## later calls. {} while the run is still on or without a run (a run end shown by a test).
+func award_xp() -> Dictionary:
+	if not _xp_result.is_empty() or run_id.is_empty() or RunManager.is_run_active():
+		return _xp_result
+	var summary := RunManager.get_last_summary()
+	var run := {
+		"rooms_cleared": rooms_cleared,
+		"champions": champions,
+		"bosses": bosses,
+		"room": int(summary.get("room", 0)),
+		"record_before": account_record_before,
+		"exit": int(summary.get("reason", -1)) == RunManager.EndReason.EXIT,
+		"end_reason": xp_end_reason(int(summary.get("reason", -1))),
+		"players": GameMode.of(self).get_player_count(),
+		"duration": roundi(play_time),
+	}
+	_xp_result = AccountProgress.current().record_run(run_id, run)
+	return _xp_result
+
+
+## RunManager.EndReason -> the contract's end reason of an XP entry (portal, wiped, abandoned).
+static func xp_end_reason(reason: int) -> String:
+	match reason:
+		RunManager.EndReason.EXIT:
+			return AccountProgress.END_PORTAL
+		RunManager.EndReason.DEATH:
+			return AccountProgress.END_WIPED
+	return AccountProgress.END_ABANDONED
+
+
+func get_xp_result() -> Dictionary:
+	return _xp_result
+
+
+## The "+XP" block for the run end dialog (hook for GameUI.show_run_end): XpGainView of this run's
+## account XP, null when there is none (no run).
+func create_xp_view() -> XpGainView:
+	var result := award_xp()
+	if result.is_empty():
+		return null
+	return XpGainView.create(result)
 
 
 ## Name of what dealt damage: the enemy (with elite prefix) or the trap kind (current language).
@@ -146,6 +213,7 @@ func _on_run_started() -> void:
 
 func _on_run_ended(_reason: int, _remaining: int, _payout: int) -> void:
 	_running = false
+	award_xp()
 
 
 func _on_room_completed(_room_index: int) -> void:
@@ -153,9 +221,17 @@ func _on_room_completed(_room_index: int) -> void:
 		rooms_cleared += 1
 
 
-func _on_enemy_damaged(_enemy: Node2D, result: DamageResult, _damage: DamageData) -> void:
-	if _running and result != null and result.killed:
-		kills += 1
+func _on_enemy_damaged(enemy: Node2D, result: DamageResult, _damage: DamageData) -> void:
+	if not _running or result == null or not result.killed:
+		return
+	kills += 1
+	var foe := enemy as Enemy
+	if foe == null or foe.data == null:
+		return
+	if foe.data.is_boss:
+		bosses += 1
+	elif foe.is_miniboss:
+		champions += 1
 
 
 func _on_upgrade_acquired(_upgrade_id: StringName, _stacks: int) -> void:

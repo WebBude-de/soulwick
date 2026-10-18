@@ -201,6 +201,8 @@ func test_keyboard_skips_disabled_entries_and_wraps() -> void:
 	assert_true(_press(list, KEY_DOWN))
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_SLOTS)
 	_press(list, KEY_DOWN)
+	assert_eq(list.get_selected_id(), MainMenu.ENTRY_PROGRESS, "D-188 KF1: Fortschritt after the worlds")
+	_press(list, KEY_DOWN)
 	assert_eq(list.get_selected_id(), MainMenu.ENTRY_PROFILE)
 	assert_eq(list.get_entry_hint(MainMenu.ENTRY_PROFILE), "Kerze", "the player's name")
 	_press(list, KEY_DOWN)
