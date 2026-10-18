@@ -1,6 +1,6 @@
 # ROADMAP Crossplay – Steam, Google Play, App Store und Browser
 
-> **Stand:** 17.10.2026 · **Zielbild:** D-108 (zusammen spielen über alle Plattformen). **Entschieden:** Host-Modell plus eigener Relay, Publisher **WebBude** (D-119); **gemeinsamer Release auf allen Versionen** – Browser, Steam, Android, iOS (D-179, ersetzt die Reihenfolge Steam → Android → iOS aus D-119); Konto-Modell (D-121, D-122); Touch mit zwei Sticks (D-155); Geschäftsmodell als Arbeitsgrundlage (D-176); Zielgruppe und Altersfreigabe (D-173); Code offen, Inhalte geschützt (D-177). **OFFEN:** Ranglisten je Plattform, Sign in with Apple, Relay-Regionen, Preise.
+> **Stand:** 18.10.2026 · **Zielbild:** D-108 (zusammen spielen über alle Plattformen). **Entschieden:** Host-Modell plus eigener Relay, Publisher **WebBude** (D-119); **gemeinsamer Release auf allen Versionen** – Browser, Steam, Android, iOS (D-179, ersetzt die Reihenfolge Steam → Android → iOS aus D-119); Konto-Modell (D-121, D-122); Touch mit zwei Sticks (D-155); Geschäftsmodell als Arbeitsgrundlage (D-176); Zielgruppe und Altersfreigabe (D-173); Code offen, Inhalte geschützt (D-177). **OFFEN:** Ranglisten je Plattform, Sign in with Apple, Relay-Regionen, Preise.
 > **Einordnung:** keine eigene Phase. Konto und Relay gehören zu Phase 3 ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md)), Stores gehören ins Release-Tor (alle drei gemeinsam, D-179), Käufe kommen frühestens mit dem Release. Übersicht: [ROADMAP.md](ROADMAP.md). Schritt-für-Schritt für Konten, Secrets und Store-Formulare: [STORES.md](STORES.md); Browser in Produktion: [LAUNCH.md](LAUNCH.md).
 > **Plattform-Repo:** P11, P13–P22 in `soulwick-platform/docs/ROADMAP.md`, Konzept `soulwick-platform/docs/KONZEPT_ONLINE.md`. Technik im Spiel: [MULTIPLAYER.md](MULTIPLAYER.md). **Abhaken** nur mit Nachweis (Tests, Datum); jedes Paket ist für **einen** Agenten geschnitten, Spiel- und Plattform-Teile werden getrennt vergeben.
 
@@ -9,11 +9,11 @@
 | Paket | Ergebnis | Stand 17.10.2026 |
 | --- | --- | --- |
 | CP0 | Entscheidungen | 1–6 und 9 entschieden, 7, 8 und 10 OFFEN |
-| CP1 | Soulwick-Konto mit Identitäten, Verknüpfungscode, Konto löschen | Plattform gebaut (P14, P15); Konto-Panel im Spiel offen |
+| CP1 | Soulwick-Konto mit Identitäten, Verknüpfungscode, Konto löschen | Plattform gebaut (P14, P15); Konto-Panel im Spiel offen; erweitert durch D-188 (Pakete KF5–KF7) |
 | CP2 | Mobil und Touch | Prototyp gebaut (Android-APK, Zwei-Stick-Touch); Gerätetest und Leistung offen |
 | CP3 | Relay mit Raumcodes | gebaut (P13, `relay_peer.gd`), läuft in `development`; Abnahme Teil A/B und `production` offen |
 | CP4 | Stores (Steam, Google Play, App Store) | offen; alle drei zum Release (D-179); Schritte in STORES.md |
-| CP5 | Cross-Progression (Cloud-Save) | offen |
+| CP5 | Cross-Progression (Cloud-Save) | offen; ausgearbeitet in D-188 (Pakete KF8–KF10), Release-Tor als Vorschlag |
 | CP6 | Käufe und Werbung | Modell entschieden (D-176); Bau offen |
 | CP7 | Build-CI und Store-Uploads | Pipeline vorbereitet (D-156, D-157), nichts hochgeladen; noch kein Store-Konto, auch kein Apple-Konto |
 
@@ -24,13 +24,13 @@
 | # | Frage | Status |
 | --- | --- | --- |
 | 1 | **Geschäftsmodell** | **ENTSCHIEDEN als Arbeitsgrundlage (D-176, 17.10.2026):** Browser kostenlos ohne Konto; Handy kostenlos mit Werbung, „Werbefrei“ als Einmalkauf, Kosmetik; Steam mit kleinem Preis ohne Werbung, Start-Kosmetik inklusive. Nur Kosmetik und Werbefreiheit werden verkauft, keine Lootboxen. **OFFEN:** Preise, Zahlungsweg im Browser, Käufe über Plattformen hinweg (CP6). |
-| 2 | **Konto-Modell** | **ENTSCHIEDEN (D-121, D-122):** Soulwick-Konto ohne E-Mail und Passwort, Plattform-Identitäten verknüpft per 6-stelligem Code, Konto löschen in der App und per Web-Formular. |
+| 2 | **Konto-Modell** | **ENTSCHIEDEN (D-121, D-122):** Soulwick-Konto ohne E-Mail und Passwort, Plattform-Identitäten verknüpft per 6-stelligem Code, Konto löschen in der App und per Web-Formular. **Vorschlag D-188:** zusätzlich Benutzername + Passwort (ohne E-Mail) als Anmeldung, vor allem für den Browser; OFFEN als D-188 Frage 1. |
 | 3 | **Lobby/Relay** | **ENTSCHIEDEN (D-119):** Host-Modell + eigener Relay mit Raumcodes; WebRTC und dedizierter Server später. |
 | 4 | **Plattform-Reihenfolge** | **ENTSCHIEDEN (D-119), geändert durch D-179 (17.10.2026):** gemeinsamer Release auf allen Versionen (Browser, Steam, Android, iOS). Vorher Steam → Android → iOS (iOS später, kein Mac); signiert wird jetzt auf dem macOS-Läufer der CI. |
 | 5 | **Touch-Steuerung** | **ENTSCHIEDEN (D-155, D-168):** zwei Sticks (links laufen, rechts zielen und automatisch angreifen); Zielhilfe nur für Fernwaffen, solange der Ziel-Stick ausgelenkt ist, abschaltbar (Option „Zielhilfe (Touch)“). |
 | 6 | **Altersfreigabe** | **ENTSCHIEDEN (D-173, 17.10.2026):** Store-Zielgruppe **ab 13**; keine Anmeldung für Kinder-Bereiche (Google Play Familienprogramm, Apple Kids), keine Werbung an Kinder. Die Freigabe selbst ergibt sich aus dem IARC-Fragebogen bzw. dem Fragebogen der Stores, wir wählen sie nicht (erwartet niedrig: Pixel-Kampf ohne Blut). **OFFEN:** ob KI-Bosse, Käufe und Koop mit Fremden die Freigabe anheben; ob Google ein Spiel mit niedlichem Maskottchen als „spricht Kinder an“ einstuft. |
 | 7 | **Ranglisten** je Plattform oder gemeinsam (D-082) | **OFFEN.** Vorschlag: gemeinsam mit Plattform-Kennzeichen am Eintrag. |
-| 8 | **Sign in with Apple** | **OFFEN.** Vorschlag: nur Game Center und Play Games als Login, kein Social-Login → kein Sign in with Apple nötig (App-Store-Regel 4.8); mit dem Fragebogen in CP4 prüfen. |
+| 8 | **Sign in with Apple** | **OFFEN.** Vorschlag: nur Game Center und Play Games als Login, kein Social-Login → kein Sign in with Apple nötig (App-Store-Regel 4.8); mit dem Fragebogen in CP4 prüfen. Ein eigenes Konto mit Benutzername + Passwort (D-188) ändert daran nichts; Social-Logins sind D-188 Frage 2. |
 | 9 | **Publisher** | **ENTSCHIEDEN (D-119):** WebBude, Firmenkonten bei Steam, Google und Apple (Apple wegen D-179 schon vor dem Release). |
 | 10 | **Relay-Regionen** | **OFFEN.** Vorschlag: eine Instanz (EU) zuerst, je Region erst bei messbarer Latenz außerhalb Europas. |
 
@@ -47,6 +47,8 @@
 - [ ] Konto-Panel `ui/options/account_panel.gd`: verknüpfte Plattformen, Verknüpfungscode anzeigen und eingeben, „Konto löschen“ mit Bestätigung, „Löschcode für die Website“; Offline-Betrieb bleibt unverändert.
 - [ ] Hinweis „Konto verknüpfen“ für Gastkonten (sonst geht das Gastkonto mit der Installation verloren, P-028).
 - [ ] Echte Anmeldung: Steam mit eigener AppID (MP10), Google Play Games aus der Spur „Interner Test“ (CP7), Game Center mit iOS.
+
+**Ausgearbeitet (D-188, VORGESCHLAGEN):** [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md) §3. Neu sind „Anmeldung hinzufügen“ mit Nachweis (Steam, Play Games, Game Center, je nach Frage 1 Benutzername + Passwort im Browser), „Konto sichern“ für Gäste und eine erweiterte Regel „leeres Konto“. Pakete: KF5 (Plattform), KF6 (Konto-Panel, ersetzt die drei Punkte oben), KF7 (`PlatformServices`, stille Store-Anmeldung) in [ROADMAP.md](ROADMAP.md), Strang K.
 
 **Fertig, wenn:** sich eine Person auf dem PC (Steam) und einem Handy (Play Games) anmeldet, beide per Code verknüpft, auf beiden dieselbe Gilde und Kosmetik sieht und „Konto löschen“ im Spiel alles entfernt.
 
@@ -93,7 +95,7 @@
 
 **Ziel:** Der Einzelspieler-Spielstand (Welten, D-152) folgt dem Konto von PC zu Handy und zurück. Braucht CP1. Profil (Name, Aussehen) und Gilden liegen schon am Konto (P-034, D-081).
 
-**Plattform (`api-dev`):** Vertrag `GET`/`PUT /me/save`, Tabelle `player_saves` (Spieler, `version`, Daten ≤ 64 KB, Spielversion, Zeit, Gerät), Tests. **Spiel (`village-dev`):** `online/cloud_save.gd` (neu), Haken `SaveManager.export_blob()`/`import_blob()`, Dialog bei Konflikt.
+**Ausgearbeitet (D-188, VORGESCHLAGEN):** [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md) §4: je **Welt** eine Cloud-Welt mit fester Welt-ID (statt eines Blobs je Konto), Zusammenfassung für den Konfliktdialog, erster Abgleich auf neuen Geräten, Archiv 30 Tage, Einstellungen bleiben je Gerät; XP und Konto-Level reisen getrennt als Zuwächse (§5.6). Pakete: KF8 (Plattform: `GET /me/worlds`, `GET`/`PUT`/`DELETE /me/worlds/:worldId`), KF9 (Spiel: Spielstand v5, `online/cloud_save.gd`, Dialoge), KF10 (Abnahme) in [ROADMAP.md](ROADMAP.md), Strang K. Ob CP5 vor den Release rückt, ist KF0 Frage 3 (Vorschlag: ja).
 
 - [ ] Offline zuerst: der lokale Stand ist die Wahrheit, die Cloud ein Spiegel; Abgleich beim Betreten und Verlassen des Dorfs und nach jedem Run-Ende.
 - [ ] Konfliktregel: `PUT` schickt die gelesene `version`; passt sie nicht, antwortet die API `409` mit dem Server-Stand, und das Spiel fragt, welcher Stand bleibt. Nie still zusammenführen, nie Verlust ohne Rückfrage.

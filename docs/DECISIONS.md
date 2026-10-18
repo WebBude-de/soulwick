@@ -1565,6 +1565,29 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP_CROSSPLAY,WEB_BUILD}.md`.
 - **Ersetzt:** die bisherigen lokalen Ports.
 
+### D-188 – Ein Konto, viele Anmeldungen, Welten in der Cloud, Konto-Level
+
+- **Status:** VORGESCHLAGEN (Claude, 18.10.2026, auf Wunsch des Projektmitglieds) · Zahlen **TESTWERT** · **OFFEN:** Fragen 1–7 unten
+- **Kontext:** Wunsch des Projektmitglieds (18.10.2026): Der Spieler soll im Spiel sehen, wie weit er ist, ohne zu suchen, gern mit Leveln; nur ein Konto je Mensch; wer auf iOS anfängt und später im Browser oder auf Steam spielt, verknüpft die Plattformen, und die Spielstände sind synchron und auf dem Server. Heute: Konto mit Identitäten, Verknüpfungscode und Zusammenführen sind auf dem Server gebaut (D-121, D-122, P-014, P-021, P-026, P-028), im Spiel gibt es nur die stille Gast-Anmeldung und das Profil (D-152, P-034); Welten liegen nur lokal, Fortschritt gilt nur je Welt, Cloud-Save (CP5) war ein Vorschlag nach dem Release. Konzept: [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md).
+- **Vorschlag:**
+  - **Ein Konto, viele Identitäten:** wie D-121; neu „Anmeldung hinzufügen“ mit Nachweis der neuen Identität (Steam-Ticket, Play-Games-Code, Game-Center-Signatur, Passwort), nie mit einer nackten ID vom Client; Verknüpfungscode bleibt. Gehört die Identität einem anderen Konto, gilt D-122, ergänzt um: „leeres Konto“ = keine Gilde, keine Runs, 0 XP, keine Cloud-Welt über 5 Minuten Spielzeit (TESTWERT); XP werden addiert; Cloud-Welten des anderen Kontos in freie Plätze, Rest 30 Tage im Archiv (TESTWERT).
+  - **Browser-Anmeldung** (Frage 1, Vorschlag a): Benutzername + Passwort **ohne E-Mail**, immer an ein bestehendes Gastkonto angehängt („Konto sichern“), Wiederherstellungscode statt Rücksetz-Mail; Benutzername ist privat und nicht der Anzeigename. Auf Steam, Android und iOS bleibt die stille Store-Anmeldung der Normalfall.
+  - **Cloud-Save je Welt:** feste Welt-ID (Spielstand v5), offline zuerst, Server ist der gemeinsame Stand zwischen Geräten; `PUT` mit `baseVersion`, bei Konflikt `409` und Rückfrage mit beiden Ständen, nie still zusammenführen, der verworfene Stand bleibt 30 Tage als Sicherung. Synchron: Welten, XP; schon am Konto: Profil, Gilden; je Gerät: Einstellungen. Steam Cloud und Play-Games-Speicherstände bleiben aus.
+  - **Konto-Level:** XP aus Runs (Raum 5, Champion 10, Boss 50, neuer Konto-Rekord 5 je Raum, Portal 20, erster Run des Tages 25, Koop +20 %; TESTWERT), Level-Kurve 50·L·(L−1) (TESTWERT), XP als Zuwächse mit Run-ID (kein Konflikt zwischen Geräten), Deckel je Run und Tag am Server; Belohnungen nur Optik (Kosmetik aus WK2, Titel), nie Stärke (D-176), im Koop starten alle gleich (D-081). Sichtbar im Hauptmenü, am Run-Ende („+XP“), im Profil, in einer Fortschritt-Übersicht mit nächsten Zielen und in Lobby und Gilde.
+  - **Pflichten:** Konto löschen in der App (Apple 5.1.1(v)); ohne Social-Login kein Sign in with Apple nötig (Apple 4.8, CP0 Frage 8); Datenschutzerklärung und Google „Datensicherheit“ um Benutzername, Cloud-Welten und XP ergänzen.
+  - **Release-Tor (Vorschlag):** KF0, KF1, KF2, KF4–KF7 vor dem Release; KF8–KF10 (Cloud-Save) bei Frage 3 = a ebenfalls (sonst danach).
+- **OFFEN (Projektmitglied):**
+  1. Anmeldung im Browser: a) Benutzername + Passwort ohne E-Mail (Vorschlag) · b) E-Mail + Passwort · c) nur Social-Login · d) wie heute nur Gast + Code. a und b ergänzen D-121 („ohne E-Mail und Passwort“).
+  2. Social-Logins: a) vorerst keine (Vorschlag) · b) Discord im Browser (dann auf iOS auch Sign in with Apple) · c) Google und Apple überall.
+  3. Cloud-Save zum Release: a) ja (Vorschlag) · b) kurz danach · c) später.
+  4. Konto-Level: a) ja, je Konto, nur Optik (Vorschlag) · b) nur Fortschritt-Übersicht · c) Level je Welt.
+  5. Koop-Bonus auf XP: a) +20 % (Vorschlag) · b) keiner.
+  6. Level für andere sichtbar: a) in Lobby und Gilde (Vorschlag) · b) nur für einen selbst.
+  7. Konflikt zwischen Geräten: a) immer fragen, Stand mit mehr Spielzeit vorausgewählt (Vorschlag) · b) automatisch der zuletzt gespielte mit Sicherung.
+- **Gründe / verworfene Alternativen:** Benutzername statt E-Mail hält die Daten klein (Grund von D-121 bleibt gültig) und gibt dem Browser, dessen Speicher leicht verloren geht, trotzdem ein dauerhaftes Konto. Ein Cloud-Stand je Welt statt je Konto passt zu D-152 (Welten) und hält Konflikte klein. XP als Zuwächse statt Gesamtwert vermeiden Konflikte zwischen Geräten, die offline gespielt haben. Verworfen: Level aus der Summe der Welt-Statistiken (Level sänke beim Löschen einer Welt), Level mit Spielwirkung (Pay-to-win-Nähe, unfair im Koop), stilles Zusammenführen von Welten (Gold ist ausgebbar, Mischen verliert oder verdoppelt).
+- **Folgen:** Konzept `docs/KONZEPT_KONTO_FORTSCHRITT.md`; Pakete KF0–KF10 in `docs/ROADMAP.md` (Strang K, Release-Tor als Vorschlag); `docs/ROADMAP_CROSSPLAY.md` CP0 (Fragen 2 und 8), CP1, CP5; `docs/GLOSSAR.md`. Plattform nach Freigabe (Orchestrator): neue Pakete für XP/Level, Anmeldung hinzufügen samt Benutzername/Passwort, Cloud-Welten in `soulwick-platform/docs/ROADMAP.md`, P-Einträge für Better-Auth-`username` und die Erweiterung von D-122/P15 („leeres Konto“), Verträge zuerst. Vorab gebaut: „Schmiede x/20“ in der Weltenliste (`meta/save_slots.gd`, `ui/main_menu/slot_panel.gd`, `test_save_slots.gd`).
+- **Ersetzt:** nichts (Vorschlag). Würde bei Freigabe D-121 um eine Anmeldeart ergänzen und den CP5-Vorschlag (ein Blob je Konto) durch Cloud-Welten ersetzen.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
