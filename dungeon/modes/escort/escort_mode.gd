@@ -55,7 +55,8 @@ static func attach(target: RoomController, rng_seed: int) -> EscortMode:
 	mode.room = target
 	mode.context = target.context
 	mode._rng.seed = rng_seed
-	mode._free = VariantSpots.free_tiles(target)
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	mode._free = HeightRules.keep_feet_free(target.tiles, VariantSpots.free_tiles(target))
 	if not mode.can_host():
 		mode.free()
 		return null

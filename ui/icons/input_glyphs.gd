@@ -8,6 +8,9 @@ extends RefCounted
 ## input actions themselves are never changed here. While a gamepad is the device in use
 ## (InputDevice, P0-2) actions and key names show the gamepad's buttons instead (first_event,
 ## pad_id_for_name, glyph_for_action, aim_id); rebuild on InputDevice.shared().changed.
+## Face buttons (D-192): an Xbox-style pad (Xbox, XInput, Steam Deck; face_style) shows the
+## letters A, B, X, Y in their colours, every other or unknown pad the neutral positions (a diamond
+## with the meant dot in gold), which are right for PlayStation and Switch as well.
 ##
 ## Art: res://art/ui/input/input_<id>.png replaces the drawn placeholder of the same id
 ## (SPRITES_V10 §2a/§2b); input_key_cap.png is the 9-slice background of text caps (KeyCap).
@@ -135,6 +138,12 @@ const PAD_BUTTON_GLYPHS := {
 	JOY_BUTTON_DPAD_UP: PAD_DPAD, JOY_BUTTON_DPAD_DOWN: PAD_DPAD, JOY_BUTTON_DPAD_LEFT: PAD_DPAD,
 	JOY_BUTTON_DPAD_RIGHT: PAD_DPAD, JOY_BUTTON_START: PAD_START, JOY_BUTTON_BACK: PAD_SELECT,
 }
+## Face buttons of an Xbox-style pad (FaceStyle.XBOX): letters instead of positions (D-192).
+const PAD_LETTER_GLYPHS := {
+	JOY_BUTTON_A: PAD_A, JOY_BUTTON_B: PAD_B, JOY_BUTTON_X: PAD_X, JOY_BUTTON_Y: PAD_Y,
+}
+## How the face buttons are drawn: neutral positions (any pad) or Xbox letters.
+enum FaceStyle { POSITIONS, XBOX }
 const PAD_AXIS_GLYPHS := {
 	JOY_AXIS_LEFT_X: PAD_STICK_LEFT, JOY_AXIS_LEFT_Y: PAD_STICK_LEFT,
 	JOY_AXIS_RIGHT_X: PAD_STICK_RIGHT, JOY_AXIS_RIGHT_Y: PAD_STICK_RIGHT,
@@ -272,6 +281,8 @@ static func id_for_event(event: InputEvent) -> StringName:
 		return MOUSE_GLYPHS.get(mouse.button_index, &"")
 	var pad := event as InputEventJoypadButton
 	if pad != null:
+		if PAD_LETTER_GLYPHS.has(pad.button_index) and face_style() == FaceStyle.XBOX:
+			return PAD_LETTER_GLYPHS[pad.button_index]
 		return PAD_BUTTON_GLYPHS.get(pad.button_index, &"")
 	var axis := event as InputEventJoypadMotion
 	if axis != null:
@@ -280,6 +291,12 @@ static func id_for_event(event: InputEvent) -> StringName:
 	if key == null:
 		return &""
 	return KEY_GLYPHS.get(engine_key_name(key), &"")
+
+
+## Face style of the pad in use (InputDevice.has_xbox_letters): Xbox letters for an Xbox-style
+## pad, the neutral positions for every other one and while no pad is known.
+static func face_style() -> FaceStyle:
+	return FaceStyle.XBOX if InputDevice.has_xbox_letters() else FaceStyle.POSITIONS
 
 
 ## Glyph id of the first bound event of an action ("" = none or no picture).

@@ -32,6 +32,8 @@ func uses_own_first_wave() -> bool:
 
 
 func _on_attach() -> void:
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	HeightRules.keep_feet_free(room.tiles, _free)
 	var altar_tile := _altar_tile()
 	_free.erase(altar_tile)
 	altar = RelicAltar.new()

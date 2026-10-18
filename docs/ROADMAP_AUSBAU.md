@@ -36,11 +36,13 @@ Jeder Bericht beantwortet diese fünf Fragen mit „ja“:
 
 ### M3b – Höhe in Modus- und L-Plänen, Quellen auf Plateaus
 
-- [ ] Plateaus in Modus-Plänen (Flamme auf dem Plateau, Geleit-Pfad unter einem Plateau, Arena-Truhe oben) und in L-Plänen; Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer (Projektmitglied 18.10.2026, D-186).
+- [x] Plateaus in Modus-Plänen (Flamme auf dem Plateau, Geleit-Pfad unter einem Plateau, Arena-Truhe oben) und in L-Plänen; Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer (Projektmitglied 18.10.2026, D-186, D-189). *(18.10.2026: alle neun Modi mit Plateau-Plan (S/M: Flamme, Reliquie, Geleit, Seelen, Risse, Jagd, Lichtfeuer, Aschegrube; L: alle Modus-L-Pläne, Große Arena, Gewölbe – 10 von 13 L-Plänen), Gräber oben auch in Rundhöhle und Halbmond; Generator mit neuen Regeln (Dinge auf Plateaus, Quellen/Wachen/Flamme nur mit Treppe, Nehmbares nicht am Rand, Seitentür-Platz in jedem Kampfplan), `SpawnSourceRules.sort_by_height`, `EnemyPack.holds_high_ground`, Einsturz schont den Boden am Plateau, Modi halten Treppenfüße frei; GUT 2019/2021 (2 ausstehend: API-Umgebung), neu `test_height_modes`, `test_spawn_height`; smoke_test 47 mit Seeds 424242 und 33 PASS (Plateau-Modusräume gespielt), combat_sim und boss_sim PASS, validate 0 failed.)*
 
 ### M5 – Gang-Segmente in Seitenansicht: Rest
 
 - [x] **Anschluss fertigstellen:** Leiter-Weg einer Abzweigung (`BranchOption`, Symbol `ladder`; Entscheidung D-144: liegt vor Raum n+1) und `smoke_test.gd` fährt Segmente mit `SideBot`. Schon im Code, beim Abhaken mit Nachweis belegen: Segmente nach dem Lagerfeuer und nach Ruhe-Räumen (`DungeonManager._plan_side_way`, D-144 Runde 3, im Koop mit `net_run_smoke side=1` am 15.10.2026 geprüft), Eingabe `side_dash`, Option „Seitenwege auslassen“. *(18.10.2026: Leiter-Weg statt des sicheren Wegs in `BranchRules.LADDER_SHARE` = 40 % (TESTWERT) der Kampf-Abzweigungen, keine zusätzliche Dungeon-RNG-Zahl, nur Pläne mit Truhen-Nische; Koop: Host plant den Weg nach der Wahl (`branch_chosen_net` vor `side_way_net`), Client übernimmt über `plan_side_way`. Schalter im Tab Allgemein (Abschnitt „Spiel“). smoke_test 47 PASS mit Seed 424242 zweimal (42 gleiche chain-Zeilen), 33 und 77: je ein Leiter-Weg mit Truhe, drei Lagerfeuer-Segmente, bei 77 eines nach einem Ruhe-Raum, 0 Stürze; nie vor dem Boss, nie zweimal. GUT 1981/1983 (2 ausstehend: API-Umgebung), neu `test_side_ways`, `test_side_options`, `test_branch_rules` +4; side_check 48 Abläufe und Hakenpfad PASS; validate 0 failed.)*
+
+- [x] **Truhen-Nische in allen Plänen** (D-144, 18.10.2026): 24/24 Pläne statt 5; side_check 48 Abläufe PASS, 48 Truhen erreicht; smoke_test 47 Seed 424242 PASS.
 
 ### K1 – Kosmetik → Strang W in ROADMAP.md
 
@@ -97,3 +99,4 @@ Einzelheiten stehen in den D-Einträgen, im Code und in der Git-Historie.
 | M2 | Ein Tor pro Übergang, Tunnel | 15.10.2026 | D-143 |
 | M4 | Kamera 1,25× | 14.10.2026 | D-140 |
 | M5 (Teil) | Gang-Segmente in Seitenansicht: Segment, Physik, Kamera, Vorlagen, Runde 2 (Rest oben offen) | 15.10.2026 | D-144 |
+| PAD1 | Gamepad-Lücken: Bildschirmtastatur, Blättern mit Stick und Steuerkreuz, Xbox-Buchstaben, Pad-Texte (Nachweis GUT `test_gamepad_gaps`) | 18.10.2026 | D-192 |

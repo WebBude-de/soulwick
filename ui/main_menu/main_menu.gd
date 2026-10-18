@@ -24,6 +24,10 @@ extends Control
 ## Creating or joining a room from here loads the save like "Weiterspielen" (or creates the first
 ## world) and hands the wish to the village of the new game (LobbyClient.request_launch); the room
 ## starts there as before.
+## Invite by link (MP2b, D-190): a start with a room code (InviteLink.take_arrival, from ?room= of
+## the browser shell) skips the menu: without a profile the first start asks name and figure on one
+## page (ProfilePanel with the invite), then the world of "Weiterspielen" (or a fresh "Welt 1") is
+## loaded and the village joins the room at once; the guest login runs on the way (LobbyClient).
 ##
 ## Opening the menu copies the save of older builds into slot 1 once (SaveManager). When a slot is
 ## loaded or created, play_requested is emitted after a short fade; scenes/main.gd starts the game.
@@ -116,6 +120,9 @@ var _tagline: Label = null
 var _close_button: Button = null
 var _compact := false
 var _layout_queued := false
+var _fade_tween: Tween = null
+## Room code of an invite link this start came with, until the game starts ("" = none).
+var _invite_code := ""
 
 
 func _ready() -> void:
@@ -148,7 +155,11 @@ func _ready() -> void:
 	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_fade)
-	create_tween().tween_property(_fade, "color:a", 0.0, 0.6)
+	_invite_code = InviteLink.take_arrival()
+	# An invite skips the menu: the screen stays dark until the game starts (no flash of the menu).
+	if _invite_code.is_empty() or (ask_profile_on_start and PlayerProfile.current().needs_setup()):
+		_fade_tween = create_tween()
+		_fade_tween.tween_property(_fade, "color:a", 0.0, 0.6)
 	refresh()
 	get_viewport().size_changed.connect(_queue_layout)
 	resized.connect(_queue_layout)
@@ -157,6 +168,8 @@ func _ready() -> void:
 	_start_online_check()
 	if ask_profile_on_start and PlayerProfile.current().needs_setup():
 		open_profile(true)
+	elif not _invite_code.is_empty():
+		join_invite.call_deferred()
 
 
 ## Re-reads slots: entry texts, currencies, record and the figure in the scene.
@@ -221,6 +234,11 @@ func get_online_status() -> OnlineVersionCheck.Status:
 
 func get_online_label() -> Label:
 	return _online_label
+
+
+## Room code of the invite link this start came with ("" if none or already on its way).
+func get_invite_code() -> String:
+	return _invite_code
 
 
 func _notification(what: int) -> void:
@@ -311,7 +329,7 @@ static func progress_hint(slot: int) -> String:
 ## "Figur" / first start "Wie heißt du?" (D-152): name and look of the player; the scene figure
 ## follows the editor live.
 func open_profile(first_start := false) -> ProfilePanel:
-	var panel := ProfilePanel.create(first_start)
+	var panel := ProfilePanel.create(first_start, _invite_code if first_start else "")
 	panel.look_changed.connect(_background.set_look)
 	if first_start:
 		# Deferred like close_panel (queued first, so the game is already starting when it runs).
@@ -326,6 +344,9 @@ func open_profile(first_start := false) -> ProfilePanel:
 ## "Los geht's" of the first start (P1-1): without any world, Welt 1 is created and the game starts
 ## in the village; with a world (older builds) the menu stays open as before.
 func _on_first_profile_saved() -> void:
+	if not _invite_code.is_empty():
+		join_invite()
+		return
 	if _starting or SaveManager.get_continue_slot() > 0:
 		return
 	if create_default_world() <= 0:
@@ -343,6 +364,16 @@ func open_online() -> OnlinePanel:
 	return panel
 
 
+## Invite by link (MP2b): straight into the room of the link, in the world of "Weiterspielen" or a
+## fresh "Welt 1" (D-161); the village joins it (LobbyClient, via_link: failures with a way out).
+func join_invite() -> void:
+	if _starting or _invite_code.is_empty():
+		return
+	var code := _invite_code
+	_invite_code = ""
+	_on_online_launch({"action": LobbyClient.LAUNCH_JOIN, "code": code, "via_link": true})
+
+
 ## A room from the online menu: the world of "Weiterspielen" is loaded (without any world a fresh
 ## one is created first, online_world_slot) and the game starts; its village creates or joins the
 ## room (LobbyClient.take_launch in VillageUI).
@@ -357,13 +388,13 @@ func _on_online_launch(launch: Dictionary) -> void:
 			push_warning("MainMenu: could not create a world for the online game.")
 			return
 		created = true
+	var via_link := bool(launch.get("via_link", false))
 	LobbyClient.request_launch(str(launch.get("action", "")), str(launch.get("mode", LobbyClient.MODE_QUICK)),
 			str(launch.get("guild_id", "")), str(launch.get("guild_name", "")), str(launch.get("code", "")),
-			str(launch.get("guild_tag", "")))
-	if created:
-		_start()
-	else:
-		play_slot(slot)
+			str(launch.get("guild_tag", "")), via_link)
+	if not created:
+		SaveManager.load_slot(slot)
+	_start(via_link)
 
 
 ## A fresh world in the first free slot, like "Neue Welt" with an empty name ("Welt 1"): it explains
@@ -546,9 +577,15 @@ func _layout() -> void:
 		_place_panel(_panel)
 
 
-func _start() -> void:
+## quick: an invite link (the menu was never shown, or only its first start page): no fade, no sound.
+func _start(quick := false) -> void:
 	_starting = true
 	_list.active = false
+	if _fade_tween != null and _fade_tween.is_valid():
+		_fade_tween.kill()
+	if quick and _fade.color.a >= 1.0:
+		play_requested.emit.call_deferred()
+		return
 	Sfx.play_ui(self, &"ui_open")
 	var tween := create_tween()
 	tween.tween_property(_fade, "color:a", 1.0, FADE_TIME)

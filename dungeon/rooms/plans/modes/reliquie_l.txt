@@ -1,5 +1,7 @@
 # Reliquienhoehle (L): zwei Wege um einen Felskern zur Reliquie hinten rechts, der Altar neben dem
-# Eingang, Wachen an den Wegen.
+# Eingang, Wachen an den Wegen. M3b (Makeover 3 §4/§8): die Reliquie liegt auf einer hohen Empore mit
+# Leiter (Flaschenhals), der Rueckweg zum Altar fuehrt unten an einer zweiten Empore mit Treppe und
+# Grab vorbei - Druck von oben auf den Traeger.
 role: combat
 class: L
 biomes: all
@@ -9,16 +11,32 @@ size: 29x15
 ---
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-xxxxxxT###N###T####N###Txxxxx
-xxxxxx..................xxxxx
-xxxx............3......R.xxxx
-xx...G.....................xx
-xx.........#######.........xx
-xx.........#######......G..xx
-xxx........#######........xxx
-xxx.....G............3....xxx
+xxxxxxT###N###T####N####xxxxx
+xxxxxx...............^^^xxxxx
+xxxx............3....^R^^xxxx
+xx...................^^^^..xx
+xx..^^G^^..#######...^^L^..xx
+xx..^^^^^..#######.........xx
+xxx..^&^^..#######........xxx
+xxx.....G............3..G.xxx
 xxxx..........G..........xxxx
 xxxxx.A......@..........xxxxx
 xxxxxxx...............xxxxxxx
 xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+--- height
+.............................
+.............................
+.............................
+.............................
+......................^......
+.............................
+......^......................
+.............................
+.............................
+.............................
+.............................
+.............................
+.............................
+.............................
+.............................

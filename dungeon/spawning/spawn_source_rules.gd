@@ -217,6 +217,75 @@ static func pick(spots: Array[Vector2], groups: Array[int], count: int, players:
 	return slots
 
 
+## Height (M3b, D-189, Projektmitglied 18.10.2026): sources on a plateau with stairs serve ranged
+## enemies first ("Druck von oben"), close-combat enemies come out on the ground. slots: source index
+## per enemy (pick); ranged: per enemy; high: per source (on a plateau surface); open: sources a push
+## may add (usable: far enough from every player); max_sources: distinct sources a push may use at
+## most (max_active). Three steps, no randomness, the order of the enemies decides:
+##   1. a ranged enemy on the ground swaps with a close-combat enemy on a plateau;
+##   2. ranged enemies left on the ground move up to a plateau source with room (fewer than
+##      PER_SOURCE there), one already in use first, else an open one while the push stays within
+##      max_sources;
+##   3. close-combat enemies left on a plateau move down to a ground source of the push with room.
+## What finds no room stays (a plateau has stairs: its enemies walk down). Returns the new slots.
+static func sort_by_height(slots: Array[int], ranged: Array[bool], high: Array[bool], open: Array[int], max_sources: int) -> Array[int]:
+	var result: Array[int] = slots.duplicate()
+	if not high.has(true) or result.is_empty():
+		return result
+	# 1. Swaps keep every source's load.
+	for i in result.size():
+		if not _is_flag(ranged, i) or _is_flag(high, result[i]):
+			continue
+		for j in result.size():
+			if not _is_flag(ranged, j) and _is_flag(high, result[j]):
+				var swap := result[i]
+				result[i] = result[j]
+				result[j] = swap
+				break
+	# 2. Ranged enemies up.
+	for i in result.size():
+		if _is_flag(ranged, i) and not _is_flag(high, result[i]):
+			var target := _source_with_room(result, i, high, true, open, max_sources)
+			if target >= 0:
+				result[i] = target
+	# 3. Close-combat enemies down (only to ground sources the push already uses).
+	for i in result.size():
+		if not _is_flag(ranged, i) and _is_flag(high, result[i]):
+			var target := _source_with_room(result, i, high, false, [] as Array[int], 0)
+			if target >= 0:
+				result[i] = target
+	return result
+
+
+## A source of the wanted height for the enemy at index mover with fewer than PER_SOURCE other
+## enemies of slots: the least loaded one in use (lowest index on a tie), else the first of extra
+## while the others use fewer than max_sources distinct sources; -1 if none.
+static func _source_with_room(slots: Array[int], mover: int, high: Array[bool], want_high: bool, extra: Array[int], max_sources: int) -> int:
+	var counts: Dictionary[int, int] = {}
+	for i in slots.size():
+		if i != mover:
+			counts[slots[i]] = counts.get(slots[i], 0) + 1
+	var best := -1
+	var keys: Array[int] = []
+	keys.assign(counts.keys())
+	keys.sort()
+	for source in keys:
+		if _is_flag(high, source) != want_high or counts[source] >= PER_SOURCE:
+			continue
+		if best < 0 or counts[source] < counts[best]:
+			best = source
+	if best >= 0 or counts.size() >= max_sources:
+		return best
+	for source in extra:
+		if _is_flag(high, source) == want_high and not counts.has(source):
+			return source
+	return -1
+
+
+static func _is_flag(flags: Array[bool], index: int) -> bool:
+	return index >= 0 and index < flags.size() and flags[index]
+
+
 ## Index of the spot farthest from every player (the first one without players).
 static func farthest(spots: Array[Vector2], players: Array[Vector2]) -> int:
 	var best := 0

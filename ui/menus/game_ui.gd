@@ -271,6 +271,11 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 		line.add_child(forge)
 		line.add_child(village)
 		modal.content.add_child(line)
+	# D-188 (KF2): "+XP" of the account level with its bar and the level-up banner (RunRecap counts
+	# the run once for the account).
+	var xp_view := _recap.create_xp_view()
+	if xp_view != null:
+		modal.content.add_child(xp_view)
 	# Both buttons sit in the key bar (R8: no extra row; their key caps name the keys).
 	var buttons := UiKit.hbox(int(UiKit.px(6)))
 	buttons.name = "Buttons"

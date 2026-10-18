@@ -57,8 +57,10 @@ RoomTiles.room_size. Legend (02_grundrisse.md, plus a few cells of our own, mark
               stairs and ladders sit in the cliff row (floor below, surface above). Stairs are for
               everyone, ladders for players only.
   A plan may add a second grid after a line "--- height" (same size): there '^ L &' mark the height
-  and the main grid keeps what stands on it - '.', a zone, or a chest 'c' on a plateau surface
-  ("Truhen auf Plateaus", §8). Every other cell of the height grid is '.' or ' '.
+  and the main grid keeps what stands on it - '.', a zone, or one of PLATEAU_ITEMS on a plateau
+  surface (M3b, D-189, Makeover 3 §8): a chest 'c' ("Truhen auf Plateaus"), a floor source or a
+  guard ("Bogenschuetzen auf Plateaus"), the soul flame 'f', a relic 'R', a soul '*' or a light
+  ('C B t u'). Every other cell of the height grid is '.' or ' '.
   sources     G  grave    s  sarcophagus    p  puddle    i  floor rift    v  lava vent
               (floor sources follow the biome of the template: G in the crypt, p in the grotto,
               i in the shadow realm, v in the ember forge; s stays a sarcophagus in the crypt)
@@ -92,7 +94,8 @@ Rules checked for every template (the generator stops on the first broken plan):
   - entrance, exits and side doors: two tiles of floor straight in, no abyss in their lane, no
     prop, source or objective in their lane, no front fixture right beside a north door; template
     torches closer than DOOR_TORCH_CLEARANCE columns to the exit door are left out (the door brings
-    its own, D1);
+    its own, D1); every combat plan keeps a place for a west and an east door (ExitRules: a room may
+    be entered from the side), so no plateau or rock may fill a whole side wall;
   - every floor tile reachable on foot from the entrance with every solid prop and every source
     treated as blocked (sources never close a way), every door reachable;
   - no decoration on a tile that is the only way (articulation point of the floor);
@@ -116,8 +119,12 @@ Height (M3, HeightLayout in dungeon/rooms/height/; plateaus count as rock for ev
   - stairs and ladders in the cliff row: plain floor below them (kept free: no prop, no source),
     plateau surface above them; every cliff has surface above it (a plateau has two rows at least);
   - no plateau tile right above an abyss or water, none (and no foot of stairs) in a door lane;
-  - every plateau has stairs or a ladder and all of its surface is reached from them (chests on it
-    count as blocked), at least MIN_PLATEAU_SURFACE surface tiles;
+  - every plateau has stairs or a ladder and all of its surface is reached from them (chests,
+    sources and solid lights on it count as blocked), at least MIN_PLATEAU_SURFACE surface tiles;
+  - sources, guards and the soul flame on a plateau only where it has stairs (enemies come down and
+    go up to the flame; a ladder plateau stays a safe island, D-189); things players take or light
+    (chest, relic, soul, torch stand) off the edges (no ground among their eight neighbours), out of
+    reach from below;
   - cave combat plans with plateaus: at most MAX_PLATEAUS of them, covering PLATEAU_SHARE of the
     floor (the plateau tiles included), so a room reads at a glance (two levels at most).
 What the generator adds (fixed per template from its id, no dungeon RNG):
@@ -248,8 +255,14 @@ SOLID_DECO = set("crbaFoPDZ")
 ZONE_CELLS = {";": 0, ",": 1, ":": 2, "%": 3}
 ZONE_SLAB, ZONE_COBBLE, ZONE_DIRT, ZONE_RUBBLE = 0, 1, 2, 3
 HEIGHT_CELLS = {"^": "plateau", "L": "ladder", "&": "stairs"}
-# Things a plan may put on a plateau surface (height grid): only chests ("Umweg lohnt", §8).
-PLATEAU_ITEMS = {"c"}
+# Things a plan may put on a plateau surface (height grid, M3b, D-189, Makeover 3 §8): chests ("Umweg
+# lohnt"), floor sources and guards ("Druck von oben"), the soul flame, relics, souls and lights of the
+# modes. Sarcophagi, altars, fields and the escort stay on the ground (the escort way runs below).
+PLATEAU_ITEMS = {"c", "f", "R", "*", "C", "B", "t", "u"} | {c for c in FLOOR_SOURCES if c != "s"} | set(GUARDS)
+# On a plateau these need stairs: enemies come out there and walk down, or go up to the flame.
+PLATEAU_STAIRS_ITEMS = {"f"} | {c for c in FLOOR_SOURCES if c != "s"} | set(GUARDS)
+# Things players take or light stand off the edges of their plateau (nobody reaches them from below).
+PLATEAU_BACK_ITEMS = {"c", "R", "*", "t", "u"}
 # Height rules (M3, Makeover 3 §8; TESTWERTE): plateaus per cave combat room, their share of the
 # floor (plateau tiles included), smallest surface of one plateau.
 MAX_PLATEAUS = 2
@@ -410,7 +423,7 @@ def merge_height(plan):
                 if c in PLATEAU_ITEMS and h == "^":
                     items.append((gx, gy, c))
                 elif c != "." and c not in ZONE_CELLS and c != h:
-                    raise PlanError(f"{plan.path.name}: '{c}' at {(gx, gy)} under height '{h}' (only floor or a chest on a plateau)")
+                    raise PlanError(f"{plan.path.name}: '{c}' at {(gx, gy)} under height '{h}' (on a plateau only floor or one of {''.join(sorted(PLATEAU_ITEMS))})")
                 cells[gx] = h
             elif h not in ". ":
                 raise PlanError(f"{plan.path.name}: unknown cell '{h}' in the height grid at {(gx, gy)}")
@@ -809,8 +822,9 @@ class Room:
         if mirrored:
             grid = mirrored_grid(grid)
             height_items = [(len(grid[0]) - 1 - gx, gy, c) for gx, gy, c in height_items]
-        # Things on a plateau surface: (cell, room tile).
-        self.plateau_items = sorted((c, (gx - 2, gy - 3)) for gx, gy, c in height_items)
+        # Things on a plateau surface: (cell, room tile); floor sources follow the biome.
+        own = BIOME_STYLE[biome]["source"]
+        self.plateau_items = sorted((own if c in "Gpiv" else c, (gx - 2, gy - 3)) for gx, gy, c in height_items)
         self.grid = biome_grid(grid, biome)
         self.rng = random.Random(zlib.crc32(out_id.encode()))
         self.seed = zlib.crc32(out_id.encode()) % 997 + 1
@@ -841,7 +855,7 @@ class Room:
         self.notes = []
         # Floor in front of every cracked wall ('q'): where players stand to blow it open (kept free).
         self.secret_approaches = []
-        # Plateau tiles holding something solid (chests on the height grid, M3).
+        # Plateau tiles holding something solid (chests, sources, lights on the height grid, M3/M3b).
         self.plateau_blocked = set()
         self.cliffs, self.surface = set(), set()
         self.plateau_share = 0.0
@@ -1316,6 +1330,9 @@ class Room:
             rows = [y for y in range(h) if not self._door_ok(side, y)]
             if rows:
                 places.append(min(rows, key=lambda y: (abs(y - (h - 1) / 2), -y)))
+            else:
+                # Every combat room may be entered from the side (ExitRules, test_exit_rules).
+                self.fail(f"no place for a {'west' if side == WEST else 'east'} door (a plateau or rock in every lane)")
         options = [x for x in range(1, w - 1) if not self._door_ok(NORTH, x)
                    and all(abs(x - f[0]) > DOOR_FIXTURE_CLEARANCE for f in self.fixtures if f[1] == -1)
                    and all(abs(x - f[0]) >= SECRET_DOOR_DISTANCE for f, c in self.fixtures.items() if c == "q" and f[1] == -1)]
@@ -1589,7 +1606,7 @@ class Room:
         if normal_sources and len(normal_sources) < MIN_PLAN_SOURCES:
             self.fail(f"{len(normal_sources)} enemy sources, at least {MIN_PLAN_SOURCES} (sarcophagi not counted)")
         for o in self.objectives:
-            if o["tile"] not in walk:
+            if o["tile"] not in walk and o["tile"] not in self.surface:
                 self.fail(f"{o['kind']} at {o['tile']} not on floor")
         if self.player_start and self.player_start not in reached:
             self.fail(f"player start {self.player_start} not reachable")
@@ -1651,12 +1668,26 @@ class Room:
             self.soft.add(foot)
 
     def _place_plateau_items(self):
+        """Chests, sources, guards and mode objects on a plateau surface (M3/M3b, D-189)."""
+        style = BIOME_STYLE[self.biome]
+        ground = self.floor_tiles()
         for c, tile in self.plateau_items:
             if tile not in self.surface:
                 self.fail(f"'{c}' at {tile} on the height grid is not on a plateau surface")
-            self._occupy([tile], "chest on the plateau")
-            self.plateau_blocked.add(tile)
-            self._add_prop(dict(scene="chest", name="Chest", pos=base(tile), group=f"c{tile}", plateau=True))
+            if c in PLATEAU_BACK_ITEMS and any((tile[0] + dx, tile[1] + dy) in ground for dx in (-1, 0, 1) for dy in (-1, 0, 1)):
+                self.fail(f"'{c}' at {tile} at the edge of its plateau: players on the ground beside it would reach it")
+            if c == "c":
+                self._occupy([tile], "chest on the plateau")
+                self.plateau_blocked.add(tile)
+                self._add_prop(dict(scene="chest", name="Chest", pos=base(tile), group=f"c{tile}", plateau=True))
+            elif c in FLOOR_SOURCES:
+                self.sources.append(dict(kind=FLOOR_SOURCES[c], tile=tile, floor_tile=tile, wall_side=-1, plateau=True))
+                self._occupy([tile], "source on the plateau")
+                self.plateau_blocked.add(tile)
+            else:
+                self._place_objective(c, tile, [tile], style)
+                if c in SOLID_OBJECTIVES:
+                    self.plateau_blocked.add(tile)
 
     def height_components(self):
         left = set(self.height_tiles())
@@ -1717,6 +1748,11 @@ class Room:
             missing = sorted(surface - reached - self.plateau_blocked)
             if missing:
                 self.fail(f"plateau surface {missing[:4]} not reached from its stairs or ladder")
+            # Enemies come out on it or go up to it: only over stairs (D-189).
+            if not group & self.height["stairs"]:
+                for c, tile in self.plateau_items:
+                    if c in PLATEAU_STAIRS_ITEMS and tile in group:
+                        self.fail(f"'{c}' at {tile} on a plateau without stairs (enemies use stairs only)")
         if self.cave and self.plan.role == "combat":
             if len(groups) > MAX_PLATEAUS:
                 self.fail(f"{len(groups)} plateaus (at most {MAX_PLATEAUS})")
@@ -2013,9 +2049,12 @@ class Room:
                     self.fail(f"{item} at {prop_tile(prop)} does not hang fully on a wall front (it would reach into the floor)")
                 else:
                     self.fail(f"{item} at {prop_tile(prop)} reaches off the floor (abyss, rock or bridge)")
-        for marker in [s["floor_tile"] for s in self.sources] + [o["tile"] for o in self.objectives] + list(self.spawns):
-            if marker not in ground:
+        for marker in [s["floor_tile"] for s in self.sources] + [o["tile"] for o in self.objectives]:
+            if marker not in ground and marker not in self.surface:
                 self.fail(f"marker at {marker} not on walkable floor")
+        for marker in self.spawns:
+            if marker not in ground:
+                self.fail(f"spawn marker at {marker} not on walkable ground")
 
     def _check_gaps(self):
         """Between two solid or unwalkable things (rock, wall, abyss, the room's edge) lies either

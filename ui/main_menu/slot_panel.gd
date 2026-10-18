@@ -23,6 +23,7 @@ const FOOTER_RENAME: StringName = &"SLOTS_FOOTER_RENAME"
 const FOOTER_NORMAL_PAD: StringName = &"SLOTS_FOOTER_PAD"
 const FOOTER_CONFIRM_PAD: StringName = &"SLOTS_FOOTER_CONFIRM_PAD"
 const FOOTER_RENAME_PAD: StringName = &"SLOTS_FOOTER_RENAME_PAD"
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 const PadNav := preload("res://ui/widgets/pad_nav.gd")
 ## Optional world icon (16×16, SPRITES_V10 §7); without it the card shows the slot number.
 const WORLD_ICON_PATH := "res://art/ui/icon_world.png"
@@ -98,6 +99,9 @@ func handle_input(event: InputEvent) -> bool:
 		# (gamepad, before the field appeared) B still cancels.
 		if MenuInput.is_back(event):
 			cancel_rename()
+			return true
+		if PadKeyboard.is_open_event(event):
+			open_keyboard()
 			return true
 		return MenuInput.is_up(event) or MenuInput.is_down(event)
 	if _confirm_delete:
@@ -175,12 +179,22 @@ func cancel_rename() -> void:
 func _input(event: InputEvent) -> void:
 	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit) or not _rename_edit.has_focus():
 		return
-	if MenuInput.is_confirm(event):
+	if PadKeyboard.is_open_event(event):
+		get_viewport().set_input_as_handled()
+		open_keyboard()
+	elif MenuInput.is_confirm(event):
 		get_viewport().set_input_as_handled()
 		confirm_rename(_rename_edit.text)
 	elif MenuInput.is_back(event):
 		get_viewport().set_input_as_handled()
 		cancel_rename()
+
+
+## The on-screen keyboard for the new name (gamepad Y while renaming, D-192).
+func open_keyboard() -> Modal:
+	if not _renaming or _rename_edit == null or not is_instance_valid(_rename_edit):
+		return null
+	return PadKeyboard.open_for(_rename_edit)
 
 
 func request_delete() -> void:
