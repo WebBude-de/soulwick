@@ -33,6 +33,8 @@ const ENTRIES: Array[Array] = [
 ]
 ## Key texts for entries without an action (translation key or plain text).
 const FIXED_KEYS := {AIM: &"KEY_MOUSE", CHOICE: "1 – 3"}
+## Notes that name a key or the mouse: their gamepad wording while a gamepad is in use (D-192).
+const PAD_NOTES := {AIM: &"CONTROLS_AIM_NOTE_PAD", CHOICE: &"CONTROLS_CHOICE_NOTE_PAD"}
 ## Engine key names -> translation key or plain text (arrows and Esc/Enter read the same everywhere).
 const KEY_NAMES := {
 	"Space": &"KEY_SPACE", "Escape": "Esc", "Shift": &"KEY_SHIFT", "Ctrl": &"KEY_CTRL", "Enter": "Enter",
@@ -64,11 +66,14 @@ static func caption_key(id: StringName) -> StringName:
 	return entry[1] if not entry.is_empty() else &""
 
 
-## Short note in the current language ("" when the entry has none).
+## Short note in the current language ("" when the entry has none); the gamepad wording while a
+## gamepad is in use (PAD_NOTES).
 static func note(id: StringName) -> String:
 	var entry := _entry(id)
 	if entry.is_empty() or String(entry[2]).is_empty():
 		return ""
+	if PAD_NOTES.has(id) and InputGlyphs.is_gamepad():
+		return Loc.t(PAD_NOTES[id])
 	return Loc.t(entry[2])
 
 

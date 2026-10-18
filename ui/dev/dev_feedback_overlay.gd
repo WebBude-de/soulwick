@@ -10,7 +10,8 @@ extends CanvasLayer
 ## mark under the cursor. Touch (touch_mode, phones): a finger drags a rectangle, a long press on a
 ## mark removes it, the text fields open the on-screen keyboard (the panel moves above it) and the
 ## buttons replace the shortcuts. Ctrl+Tab switches the tab. Gamepad: LB/RB switch the tab, Start
-## sends, B cancels (twice when something is written, like Esc).
+## sends, B cancels (twice when something is written, like Esc), Y types into the focused text field
+## (else the note) on the on-screen keyboard (PadKeyboard, D-192).
 ## Every text is a translation key with fallback (DevFeedbackTexts, D-111); auto_translate is off so
 ## no other text is ever looked up as a key. One line tells the player what is sent to the developer team;
 ## before the very first send (needs_consent) a short notice has to be confirmed once.
@@ -23,6 +24,7 @@ signal cancelled
 signal consent_given
 
 const LAYER := 120
+const PadKeyboard := preload("res://ui/widgets/pad_keyboard.gd")
 ## Report kinds (contract field `kind`), in the order of the tabs; the first is the default.
 const KINDS: Array[String] = ["bug", "idea"]
 ## Minimum height of a tab on phones (view pixels), large enough for a thumb.
@@ -369,9 +371,19 @@ func handle_pad_button(event: InputEventJoypadButton) -> bool:
 				submit()
 		JOY_BUTTON_B:
 			_on_escape()
+		JOY_BUTTON_Y:
+			if not is_consent_open():
+				open_keyboard()
 		_:
 			return false
 	return true
+
+
+## The on-screen keyboard for the focused text field of the overlay, else for the note.
+func open_keyboard() -> Modal:
+	var focus := _root.get_viewport().gui_get_focus_owner() if _root != null and _root.is_inside_tree() else null
+	var target: Control = focus if (focus is LineEdit or focus is TextEdit) and _root.is_ancestor_of(focus) else _text
+	return PadKeyboard.open_for(target)
 
 
 ## Whatever the GUI did not take (keys a text field ignores, wheel, ...) stops here.
