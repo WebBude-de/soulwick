@@ -665,6 +665,9 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 			start: 'Klicken zum Starten',
 			startTouch: 'Tippen zum Starten',
 			startSub: 'Ton an für die volle Stimmung',
+			startInvite: 'Klicken zum Beitreten',
+			startInviteTouch: 'Tippen zum Beitreten',
+			inviteSub: 'Einladung in Raum %s',
 			starting: 'Die Kerze wird entzündet …',
 			updating: 'Neue Version gefunden, einen Moment …',
 			failTitle: 'Das Spiel konnte nicht starten',
@@ -691,6 +694,9 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 			start: 'Click to start',
 			startTouch: 'Tap to start',
 			startSub: 'Sound on for the full atmosphere',
+			startInvite: 'Click to join',
+			startInviteTouch: 'Tap to join',
+			inviteSub: 'Invitation to room %s',
 			starting: 'Lighting the candle …',
 			updating: 'New version found, one moment …',
 			failTitle: 'The game could not start',
@@ -727,6 +733,36 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 	const bar = $('bar');
 	const barFill = $('bar-fill');
 	$('start').textContent = isTouch ? T.startTouch : T.start;
+
+	// ------------------------------------------------------------ invite link (MP2b, D-190)
+	// ?room=ABC123 goes to the game as "-- room=ABC123" (InviteLink in online/invite_link.gd). Only
+	// a real room code passes (6 characters of the relay's alphabet, no 0/O, 1/I/L; lower case is
+	// fine), anything else is dropped. The link carries nothing but the code.
+	const ROOM_CODE = /^[ABCDEFGHJKMNPQRSTUVWXYZ2-9]{6}$/;
+	function readInviteRoom() {
+		try {
+			const raw = new URLSearchParams(window.location.search).get('room');
+			const code = String(raw || '').trim().toUpperCase();
+			return ROOM_CODE.test(code) ? code : '';
+		} catch (err) {
+			return '';
+		}
+	}
+	const inviteRoom = readInviteRoom();
+	if (inviteRoom) {
+		$('start').textContent = isTouch ? T.startInviteTouch : T.startInvite;
+		$('start-sub').textContent = T.inviteSub.replace('%s', inviteRoom);
+	}
+	function gameArgs() {
+		const args = ['--main-pack', mainPack].concat(GODOT_CONFIG.args || []);
+		if (inviteRoom) {
+			if (args.indexOf('--') < 0) {
+				args.push('--');
+			}
+			args.push(`room=${inviteRoom}`);
+		}
+		return args;
+	}
 
 	// Legal pages live on the website of the same environment: game-dev.* → dev.*, game.* → the
 	// main domain (also for any other host, e.g. localhost). A click must not start the game.
@@ -940,7 +976,7 @@ const GODOT_THREADS_ENABLED = $GODOT_THREADS_ENABLED;
 		statusText.textContent = T.starting;
 		shell.querySelector('.loader').style.display = 'flex';
 		bar.style.display = 'none';
-		engine.start({ args: ['--main-pack', mainPack].concat(GODOT_CONFIG.args || []) }).then(() => {
+		engine.start({ args: gameArgs() }).then(() => {
 			state = 'running';
 			document.body.classList.add('running');
 			shell.classList.add('leaving');

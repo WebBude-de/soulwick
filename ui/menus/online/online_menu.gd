@@ -24,6 +24,12 @@ extends VBoxContainer
 ## The village dialog and the main menu panel give the content one fixed height (report 60711d3b:
 ## switching tabs never resizes the dialog); it scrolls with a pixel scroll bar, an even wheel step
 ## (report e0ca0a4f) and keeps its place when the page is rebuilt (report b5657bff).
+## Invite by link (MP2b, D-190): the code row has "Link kopieren" (on phones in the browser "Teilen",
+## the share sheet of the Web Share API), the code stays readable next to it; the first free place
+## shares the link too. A player who arrived by a link sees the invite on the quick tab instead of
+## create/join: which room, and if the join failed one sentence with a way out ("Erneut versuchen"
+## where another try can help, "Neu laden" for another version in the browser, always "Selbst
+## spielen", which drops the invite and closes the dialog).
 ## Without a lobby (main menu) the room buttons emit launch_requested; the main menu loads the world
 ## (or creates the first one) and the village runs the wish (LobbyClient.request_launch). The menu
 ## never pauses anything itself;
@@ -207,6 +213,15 @@ func _ready() -> void:
 static func wants_login_on_open() -> bool:
 	var args := OS.get_cmdline_user_args()
 	return login_on_open and MainMenu.online_check and not args.has("offline") and not args.has("--offline")
+
+
+## A failed or waiting invite ends with the dialog (like "Selbst spielen"): no join behind the
+## player's back, no old invite on the next visit. A first join on its way goes on (as with a typed
+## code); a retry while waiting for a run is cancelled.
+func _exit_tree() -> void:
+	if lobby != null and is_instance_valid(lobby) and lobby.has_invite() \
+			and (lobby.state == LobbyClient.State.IDLE or lobby.invite_waiting):
+		lobby.give_up_invite()
 
 
 func _process(delta: float) -> void:
@@ -471,6 +486,9 @@ func _build_tabs() -> void:
 ## Quick game outside a room: create a room, or type a code (6 characters, only the unambiguous
 ## alphabet, upper case) and join.
 func _build_quick() -> void:
+	if lobby != null and lobby.has_invite():
+		_build_invite()
+		return
 	var hint := tr(&"LOBBY_QUICK_HINT")
 	if lobby == null:
 		hint += " " + tr(&"ONLINE_MENU_VILLAGE_HINT")
@@ -504,6 +522,65 @@ func _build_quick() -> void:
 		if not join.disabled:
 			_join_room())
 	_content.add_child(row)
+
+
+## Arrival by an invite link (MP2b, D-190): the room of the link; while it connects the status line
+## says so; a failure is one sentence with a way out; a run in progress is waited for.
+func _build_invite() -> void:
+	var title := UiKit.text_label(_format(&"INVITE_TITLE", [lobby.invite_code]), UiKit.SIZE_KEY_HINT, UiKit.COLOR_GOLD, true)
+	title.name = "InviteTitle"
+	_content.add_child(_centered(title))
+	var code := lobby.last_error if lobby.state == LobbyClient.State.IDLE else ""
+	var text := ""
+	if lobby.invite_waiting:
+		text = tr(&"INVITE_WAIT_RUN")
+	elif not code.is_empty():
+		text = InviteLink.error_text(code)
+	if not text.is_empty():
+		var line := UiKit.wrapped_text(text, _content_width(), UiKit.SIZE_BODY,
+				UiKit.COLOR_TEXT_SOFT if lobby.invite_waiting else UiKit.COLOR_DANGER_SOFT)
+		line.name = "InviteText"
+		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_content.add_child(line)
+	var actions := UiKit.hbox(int(UiKit.px(4)))
+	actions.name = "InviteActions"
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	if not code.is_empty() and not lobby.invite_waiting:
+		if InviteLink.can_retry(code):
+			var retry := _button(&"GUILD_RETRY", lobby.retry_invite, true, BUTTON_WIDTH + 10.0)
+			retry.name = "InviteRetry"
+			actions.add_child(retry)
+			_focus_target = retry
+		elif code in ["version_mismatch", LobbyClient.ERROR_UPDATE_REQUIRED] and OS.has_feature("web"):
+			var reload := _button(&"INVITE_RELOAD", _reload_page, true, BUTTON_WIDTH + 10.0)
+			reload.name = "InviteReload"
+			actions.add_child(reload)
+			_focus_target = reload
+	var solo := _button(&"INVITE_PLAY_SOLO", play_solo, _focus_target == null, BUTTON_WIDTH + 10.0)
+	solo.name = "InviteSolo"
+	actions.add_child(solo)
+	if _focus_target == null:
+		_focus_target = solo
+	_content.add_child(actions)
+
+
+## "Selbst spielen" of an invite: the invite is dropped, the dialog closes (the village is solo).
+func play_solo() -> void:
+	if lobby != null:
+		lobby.give_up_invite()
+	var node := get_parent()
+	while node != null and not node is Modal:
+		node = node.get_parent()
+	if node is Modal:
+		(node as Modal).finish()
+	else:
+		_queue_rebuild()
+
+
+## Browser: a new version is fetched by reloading the page (the shell installs it on its start screen).
+func _reload_page() -> void:
+	if OS.has_feature("web") and Engine.has_singleton(&"JavaScriptBridge"):
+		JavaScriptBridge.eval("window.location.reload()", true)
 
 
 ## Main menu without any world: starting a room creates one ("Welt 1"), said once so it is no
@@ -626,7 +703,8 @@ func _build_room(parent: Container, on_guild_page := false) -> void:
 	parent.add_child(actions)
 
 
-## "RAUMCODE ABCD23 [Kopieren]" of a room.
+## "RAUMCODE ABCD23 [Kopieren] [Link kopieren]" of a room; on phones in the browser "Teilen" instead
+## of "Link kopieren" (MP2b).
 func _room_code_row() -> HBoxContainer:
 	var code_row := UiKit.hbox(int(UiKit.px(6)))
 	code_row.name = "RoomCodeRow"
@@ -645,6 +723,14 @@ func _room_code_row() -> HBoxContainer:
 		_copy_room_code()
 		copy.text = tr(&"LOBBY_CODE_COPIED"))
 	code_row.add_child(copy)
+	var sharing := InviteLink.can_share()
+	var link := _button(&"INVITE_SHARE" if sharing else &"INVITE_COPY_LINK", func() -> void: pass, false, 0.0)
+	link.name = "ShareLink" if sharing else "CopyLink"
+	link.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	link.pressed.connect(func() -> void:
+		if share_link() and not sharing:
+			link.text = tr(&"LOBBY_CODE_COPIED"))
+	code_row.add_child(link)
 	return code_row
 
 
@@ -682,7 +768,7 @@ func _build_slots(peers: Array, max_players: int, net: NetPlayers, offer_code :=
 		else:
 			var share := Callable()
 			if offer_code and not share_offered:
-				share = _copy_room_code
+				share = share_link
 				share_offered = true
 			slot = LobbySlot.create_empty(i, slot_width, share)
 		row.add_child(slot)
@@ -696,6 +782,27 @@ func _copy_room_code() -> void:
 	DisplayServer.clipboard_set(lobby.get_room_code())
 	UiSound.click(self)
 	_set_notice(tr(&"LOBBY_CODE_COPIED"))
+
+
+## The invite link of the room (MP2b): the share sheet on phones in the browser, else the clipboard
+## with a notice. false without a room.
+func share_link() -> bool:
+	var url := get_invite_url()
+	if url.is_empty():
+		return false
+	UiSound.click(self)
+	if InviteLink.share(url, _format(&"INVITE_SHARE_TEXT", [lobby.get_room_code()])):
+		return true
+	_set_notice(tr(&"INVITE_LINK_COPIED"))
+	_update_status()
+	return true
+
+
+## Link to the room of this machine ("" outside a room).
+func get_invite_url() -> String:
+	if lobby == null or lobby.get_room_code().is_empty():
+		return ""
+	return InviteLink.for_room(lobby.get_room_code())
 
 
 ## Rebuilds the room when players appear or change their look (not for the pings: those update in
@@ -1276,8 +1383,13 @@ func _update_status() -> void:
 	if not text.is_empty():
 		pass
 	elif view == View.QUICK:
-		text = room_error
+		# An invite shows its failure in its own card (_build_invite); a copied link is a notice.
+		var invite_card := lobby != null and lobby.has_invite() and not is_in_room()
+		text = "" if invite_card else room_error
 		color = UiKit.COLOR_DANGER_SOFT
+		if text.is_empty() and not notice.is_empty() and not notice_is_error:
+			text = notice
+			color = UiKit.COLOR_SUCCESS
 	else:
 		if (view == View.CREATE or view == View.JOIN) and notice_is_error:
 			# Shown at the field (_add_field_error, _add_form_error).
@@ -1491,6 +1603,8 @@ static func form_field_for(code: String) -> String:
 
 
 func _on_lobby_changed(_value: Variant = null) -> void:
+	if not is_inside_tree():
+		return
 	if lobby != null and (lobby.is_in_room() or lobby.is_busy()):
 		var room_guild := get_room_guild()
 		if not room_guild.is_empty():

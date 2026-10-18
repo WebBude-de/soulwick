@@ -42,7 +42,7 @@ Die Werte stehen im Preset „Web“ in `export_presets.cfg` (damit auch `tools/
 ## 4. Startseite (Shell)
 
 - Lädt Engine und Spieldaten sofort mit Fortschritt, startet aber erst nach Klick, Tipp oder Enter: Erst dann erlaubt der Browser Ton.
-- **„Als App installieren“** erscheint nur, wenn der Browser es anbietet, oder auf iOS-Safari (dort mit Anleitung „Teilen → Zum Home-Bildschirm“). `?install` in der URL öffnet den Hinweis sofort (Link der Website).
+- **„Als App installieren“** erscheint nur, wenn der Browser es anbietet, oder auf iOS-Safari (dort mit Anleitung „Teilen → Zum Home-Bildschirm“). `?install` in der URL öffnet den Hinweis sofort (Link der Website). `?room=ABC123` ist ein Einladungslink (D-190): Die Startseite prüft den Raumcode, zeigt „Tippen zum Beitreten“ und startet das Spiel mit `-- room=ABC123`; ungültige Codes werden verworfen.
 - **Neue Version** lädt nur, solange der Startbildschirm offen ist; im laufenden Spiel wird nie neu geladen.
 - Spielstände liegen im Browser (IndexedDB je Domain); `game-dev` und `game` haben getrennte Stände.
 - Impressum und Datenschutz unten links, auf schmalen Bildschirmen mittig (Website derselben Umgebung, neuer Tab).
@@ -102,7 +102,7 @@ docker run --rm -p 3110:80 soulwick-game                                 # http:
 curl -sI http://localhost:3110/index.wasm -H "Accept-Encoding: br"       # Header prüfen
 ```
 
-Gegen die lokale Plattform (`bun dev` in `soulwick-platform`; die lokale API erlaubt CORS von `http://localhost:3110`): `docker build --build-arg SOULWICK_ENV=local -t soulwick-game:local .`, dann wie oben starten. Ein `development`-Container auf `localhost` spricht mit `api-dev`, die ihn per CORS ablehnt (erwartet, das Spiel läuft dann offline).
+Gegen die lokale Plattform (`bun dev` in `soulwick-platform`; die lokale API erlaubt CORS von `http://localhost:3110`): `docker build --build-arg SOULWICK_ENV=local -t soulwick-game:local .`, dann wie oben starten. Kürzer: `tools/web_local.sh` baut das Image nur neu, wenn sich der Code seit dem letzten Bau geändert hat (Git-Revision als Image-Label), und startet es als Container `soulwick-game-local` auf 3110 (`--build` erzwingt den Bau, `--stop` beendet ihn); so startet es auch der Projekt-Desktop. Ein `development`-Container auf `localhost` spricht mit `api-dev`, die ihn per CORS ablehnt (erwartet, das Spiel läuft dann offline).
 
 `localhost` gilt als sichere Umgebung: Service Worker und Install-Knopf gehen dort ohne HTTPS; ein anderer Rechner im Netz braucht HTTPS. Browser-Tests (Playwright/Chromium) immer stumm mit `--mute-audio` (AGENTS.md §7).
 

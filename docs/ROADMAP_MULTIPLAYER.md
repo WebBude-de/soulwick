@@ -1,7 +1,7 @@
 # ROADMAP Multiplayer – Koop, Einladen per Link, Gilden, Ranglisten und Steam
 
 > **Stand:** 17.10.2026 · **Phase 3** (D-179): Koop ist der Kern (D-173), danach kommen die KI-Bosse; beides ist beim Release im Spiel (Release-Tor in [ROADMAP.md](ROADMAP.md)). Übersicht aller Phasen: [ROADMAP.md](ROADMAP.md).
-> **Status:** Aktuell (Phase 3) · MP1, MP1b, MP2 und MP3 gebaut (14.10.2026), Gilden zum großen Teil (MP8, 16.10.2026); die Testversion läuft gegen die Test-Server (MP4). Offen sind vor allem **Einladen per Link aus dem Browser (MP2b)**, Koop-Gefühl (MP5), Steam (MP6, MP10), Gilden-Schmiede und Ranglisten.
+> **Status:** Aktuell (Phase 3) · MP1, MP1b, MP2 und MP3 gebaut (14.10.2026), Gilden zum großen Teil (MP8, 16.10.2026); die Testversion läuft gegen die Test-Server (MP4). Einladen per Link (MP2b) gebaut (18.10.2026, Handtest offen). Offen sind vor allem Koop-Gefühl (MP5), Steam (MP6, MP10), Gilden-Schmiede und Ranglisten.
 > **Entscheidungen:** D-080 (Schnelles Spiel + Gilde), D-081 (getrennter Fortschritt, gemeinsame Kasse), D-082 (Ranglisten), D-083 (Server), D-084 (Skalierung, Wiederbeleben), D-085/D-123 (Menüs, Abbruch), D-119 (Host + eigener Relay), D-121/D-122 (Konten), D-124 (Netzwerk-Reihenfolge), D-126 (gemeinsamer Run), D-147 (Online-Menü, mehrere Gilden), D-158 (Countdown beim Raumwechsel), D-161 (Einstieg), D-176 (Browser kostenlos, Einladen per Link) in [DECISIONS.md](DECISIONS.md).
 > **Technik und Testanleitungen:** [MULTIPLAYER.md](MULTIPLAYER.md) · **Plattform:** `soulwick-platform/docs/ROADMAP.md` (P13–P22) · **Abhaken** nur mit Nachweis (Tests, Datum).
 
@@ -13,7 +13,7 @@
 | MP1 | Code verträgt mehrere Spieler (ohne Netzwerk) | gebaut |
 | MP1b | API-Client im Spiel, Anmeldung, offline-sicher | gebaut |
 | MP2 | Schnelles Spiel: Raum mit Raumcode, zusammen im Dorf (Relay) | gebaut, Handtest offen |
-| **MP2b** | **Einladen per Link: Link antippen → im Browser direkt in der Lobby** | **neu, offen** |
+| **MP2b** | **Einladen per Link: Link antippen → im Browser direkt in der Lobby** | **gebaut (18.10.2026), Handtest und Browser-Test offen** |
 | MP3 | Gemeinsamer Dungeon-Run, gemeinsame Kasse | gebaut, Handtest offen |
 | MP4 | Testversion für Freunde (Builds gegen die Test-Server) | teilweise |
 | MP5 | Koop-Gefühl: Feinschliff, L-Räume, Räume nur im Koop | offen |
@@ -55,12 +55,14 @@
 
 **Spiel (Fach-Agent `player-dev` mit Freigabe `online/**`, `ui/menus/online/**`, `ui/main_menu/**`; Shell als Integrator):**
 
-- [ ] Shell der Browser-Version (`deploy/web/shell.html`) liest `?room=` und gibt den Code ans Spiel weiter (wie heute `?install`, [WEB_BUILD.md](WEB_BUILD.md) §4); ungültige Codes werden verworfen.
-- [ ] Neu `online/invite_link.gd`: Link bauen und lesen (Alphabet und Länge wie die Raumcodes, D-121/CP3), Umgebung aus `OnlineConfig`.
-- [ ] Online-Menü und Lobby: Knopf „Link kopieren“, auf Handys „Teilen“ (Teilen-Menü des Browsers bzw. des Systems); Raumcode bleibt daneben sichtbar.
-- [ ] Ankunft über einen Link: kurzer Erststart (Name und Figur auf einer Seite, D-152), Gast-Anmeldung im Hintergrund (P-028), Welt automatisch (D-161), dann sofort Beitritt; das Hauptmenü wird übersprungen.
-- [ ] Fehlerfälle als ein Satz mit Ausweg: Raum voll, Run läuft schon („Du kommst ins Dorf, sobald der Run endet“, wenn der Relay das zulässt), Raum abgelaufen, andere Spielversion, Server nicht erreichbar → Knopf „Selbst spielen“.
-- [ ] Native Builds (Windows, Linux, macOS, Android-APK): „Link kopieren“ funktioniert auch dort; einen geöffneten Link nehmen sie erst später an (OFFEN: Android App Links, iOS Universal Links, Steam-Einladung bleibt MP6).
+- [x] Shell der Browser-Version (`deploy/web/shell.html`) liest `?room=` und gibt den Code ans Spiel weiter (`-- room=ABC123`, D-190); ungültige Codes werden verworfen. Nachweis `test_invite_link.gd`, 18.10.2026.
+- [x] Neu `online/invite_link.gd`: Link bauen und lesen (Alphabet und Länge wie die Raumcodes, D-121/CP3), Umgebung aus `OnlineConfig`. Nachweis `test_invite_link.gd`, 18.10.2026.
+- [x] Online-Menü und Lobby: Knopf „Link kopieren“, auf Handys im Browser „Teilen“ (Web Share API), erster freier Platz „Einladen“; Raumcode bleibt daneben sichtbar. Nachweis `test_invite_lobby.gd`, 18.10.2026.
+- [x] Ankunft über einen Link: kurzer Erststart (Name und Figur auf einer Seite, D-152), Gast-Anmeldung im Hintergrund (P-028), Welt automatisch (D-161), dann sofort Beitritt; das Hauptmenü wird übersprungen. Nachweis `test_invite_arrival.gd`, `test_invite_e2e.gd` gegen die lokale Plattform, 18.10.2026.
+- [x] Fehlerfälle als ein Satz mit Ausweg: Raum voll, Run läuft schon (der Beitritt wartet und versucht es alle 5 s, TESTWERT, ohne Änderung am Relay), Raum abgelaufen, andere Spielversion, Server nicht erreichbar → Knopf „Selbst spielen“, wo es hilft „Erneut versuchen“. Nachweis `test_invite_lobby.gd`, `test_invite_e2e.gd`, 18.10.2026.
+- [x] Native Builds (Windows, Linux, macOS, Android-APK): „Link kopieren“ funktioniert auch dort; einen geöffneten Link nehmen sie erst später an (OFFEN: Android App Links, iOS Universal Links, Steam-Einladung bleibt MP6). 18.10.2026.
+- [ ] Abnahme: Link aus der Testversion an einen Kollegen, Android-Handy und PC im Browser in unter einer Minute in der Lobby (Handtest Projektmitglied).
+- [ ] Stummer, kopfloser Browser-Test (Playwright, `--mute-audio`) öffnet den Link gegen die Test-Server.
 
 **Fertig, wenn:** das Projektmitglied einen Link aus der Testversion an einen Kollegen schickt und dieser auf einem Android-Handy und am PC im Browser in **unter einer Minute** (TESTWERT, mit Ladezeit) in der Lobby steht, ohne den Code einzutippen; GUT für Link bauen/lesen und alle Fehlerfälle grün; ein stummer, kopfloser Browser-Test (Playwright, `--mute-audio`) öffnet den Link gegen die Test-Server.
 

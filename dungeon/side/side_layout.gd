@@ -526,7 +526,51 @@ func check() -> PackedStringArray:
 			var above := char_at(Vector2i(column, run.z - 1))
 			if above in [SLIME, SKELETON, SPIKES, CHEST, DOOR, START, TURRET]:
 				errors.append("%s: something stands on the crumbling ledge at %d" % [plan_id, column])
+	errors.append_array(_check_chest())
 	return errors
+
+
+## The chest niche (D-144): every plan has one, on firm ground (never over a pit) with an open stand
+## cell beside it, a detour without the double jump from a spot on the way, and off the way itself
+## (no cell of the shortest way from the start to the door, nor one walked over between two of
+## them), so it never blocks the way.
+func _check_chest() -> PackedStringArray:
+	var errors := PackedStringArray()
+	if chest.x < 0:
+		errors.append("%s: no chest niche" % plan_id)
+		return errors
+	if not is_standable(chest):
+		errors.append("%s: chest at %s floats" % [plan_id, chest])
+	if not is_standable(chest + Vector2i.LEFT) and not is_standable(chest + Vector2i.RIGHT):
+		errors.append("%s: chest at %s has no open side" % [plan_id, chest])
+	if pit_columns().has(chest.x):
+		errors.append("%s: chest at %s over a pit" % [plan_id, chest])
+	var way := way_cells()
+	if chest in way:
+		errors.append("%s: chest at %s stands on the way" % [plan_id, chest])
+	var plain_detour := false
+	for cell in way:
+		if is_standable(cell) and reachable_from(cell, false).has(chest):
+			plain_detour = true
+			break
+	if not plain_detour:
+		errors.append("%s: the way to the chest at %s needs the double jump" % [plan_id, chest])
+	return errors
+
+
+## The cells of the shortest way from the start to the door, with the cells walked over between two
+## of them on the same row.
+func way_cells() -> Array[Vector2i]:
+	var cells: Array[Vector2i] = []
+	var path := find_path(start, door)
+	for i in path.size():
+		cells.append(path[i])
+		if i == 0 or path[i].y != path[i - 1].y:
+			continue
+		var step := signi(path[i].x - path[i - 1].x)
+		for column in range(path[i - 1].x + step, path[i].x, step):
+			cells.append(Vector2i(column, path[i].y))
+	return cells
 
 
 ## true if the door can only be reached with the double jump (the plan asks for it on the way).

@@ -22,6 +22,10 @@ extends Node
 ## Host stall (D-183): in a room the browser build keeps running in a hidden tab (WebKeepAlive, on
 ## from IN_ROOM to IDLE); the child HostStallNotice shows "Warte auf den Host …" on a client whose
 ## host stands still and tells a host afterwards that the others waited (RelayPeer.host_hitched).
+## Invite by link (MP2b, D-190): a launch wish with via_link remembers the room as invite_code until
+## the room is entered or the player gives up (give_up_invite, "Selbst spielen"). While that room's
+## run is in progress (room_started) the client waits (invite_waiting) and tries again every
+## INVITE_RETRY_SECONDS, only while the village is loaded: the player arrives once the run ends.
 
 signal state_changed(state: State)
 ## The room snapshot changed (RoomInfo of the contract; {} when not in a room).
@@ -61,6 +65,8 @@ const ERROR_NO_GUILD := "no_guild"
 ## Launch wishes of the main menu (request_launch): create a room, join one by code.
 const LAUNCH_CREATE := "create"
 const LAUNCH_JOIN := "join"
+## TESTWERT (D-190): seconds between two join tries of an invite whose room is in a run.
+const INVITE_RETRY_SECONDS := 5.0
 ## TESTWERT: seconds from connecting until the room must be entered.
 const CONNECT_TIMEOUT := 10.0
 ## TESTWERT: seconds to wait for the relay's confirmation of a leave.
@@ -91,9 +97,14 @@ var target_guild_id := ""
 ## Name and tag of target_guild_id while joining from its page (room_guild_name/_tag once inside).
 var _target_guild_name := ""
 var _target_guild_tag := ""
+## Room of an invite link this machine is on its way to ("" if none or once inside, MP2b).
+var invite_code := ""
+## The invite's room is in a run (room_started): join_room is tried again every INVITE_RETRY_SECONDS.
+var invite_waiting := false
+var _invite_retry_left := 0.0
 
 ## The main menu's wish for the next game scene ({} if none): {action, mode, guild_id, guild_name,
-## guild_tag, code}. Static: it has to survive the scene change (no autoload, D-044).
+## guild_tag, code, via_link}. Static: it has to survive the scene change (no autoload, D-044).
 static var _pending_launch: Dictionary = {}
 
 var _session: OnlineSession = null
@@ -160,8 +171,9 @@ static func error_text(code: String) -> String:
 
 ## Main menu: remember to create a room (mode quick or guild with its id) or to join one by code
 ## once the game's village is loaded (VillageUI runs it, run_launch()).
-static func request_launch(action: String, mode := MODE_QUICK, guild_id := "", guild_name := "", code := "", guild_tag := "") -> void:
-	_pending_launch = {"action": action, "mode": mode, "guild_id": guild_id, "guild_name": guild_name, "guild_tag": guild_tag, "code": code}
+## via_link: the code came from an invite link (MP2b): failures are explained with a way out.
+static func request_launch(action: String, mode := MODE_QUICK, guild_id := "", guild_name := "", code := "", guild_tag := "", via_link := false) -> void:
+	_pending_launch = {"action": action, "mode": mode, "guild_id": guild_id, "guild_name": guild_name, "guild_tag": guild_tag, "code": code, "via_link": via_link}
 
 
 static func has_pending_launch() -> bool:
@@ -185,6 +197,9 @@ func run_launch(launch: Dictionary) -> void:
 			room_guild_tag = str(launch.get("guild_tag", ""))
 			await create_room(str(launch.get("mode", MODE_QUICK)), str(launch.get("guild_id", "")))
 		LAUNCH_JOIN:
+			if bool(launch.get("via_link", false)):
+				invite_code = RelayProtocol.normalize_code(str(launch.get("code", "")))
+				invite_waiting = false
 			# Joined from a guild's page: its name and tag are known (used only if it is that guild's
 			# room, see _on_room_entered).
 			await join_room(str(launch.get("code", "")), str(launch.get("guild_id", "")),
@@ -323,6 +338,30 @@ func leave() -> void:
 		_set_state(State.IDLE)
 
 
+## Invite by link (MP2b): on the way to invite_code (also while it failed or waits for a run).
+func has_invite() -> bool:
+	return not invite_code.is_empty()
+
+
+## The invite's join once more (after a failure, "Erneut versuchen").
+func retry_invite() -> void:
+	if invite_code.is_empty() or state != State.IDLE:
+		return
+	invite_waiting = false
+	await join_room(invite_code)
+
+
+## "Selbst spielen": the invite is dropped; a join on its way is cancelled, the village stays solo.
+func give_up_invite() -> void:
+	var was_invite := has_invite()
+	invite_code = ""
+	invite_waiting = false
+	if was_invite and (state == State.LOGGING_IN or state == State.CONNECTING):
+		leave()
+	last_error = ""
+	state_changed.emit(state)
+
+
 ## Host only: removes a player from the room.
 func kick(peer_id: int) -> void:
 	if is_host():
@@ -390,6 +429,7 @@ func on_dungeon_requested() -> void:
 
 func _process(delta: float) -> void:
 	WebKeepAliveScript.update(delta)
+	_wait_for_invite(delta)
 	if peer == null:
 		return
 	# Until SceneMultiplayer owns the peer it is polled here.
@@ -405,6 +445,21 @@ func _process(delta: float) -> void:
 		_leave_left -= delta
 		if _leave_left <= 0.0:
 			_end_session(RelayProtocol.CLOSED_LEFT)
+
+
+## An invite whose room is in a run: try again every INVITE_RETRY_SECONDS while idle in the village
+## (never in the dungeon of a solo run: entering the room reloads the village).
+func _wait_for_invite(delta: float) -> void:
+	if not invite_waiting or invite_code.is_empty() or state != State.IDLE:
+		return
+	_invite_retry_left -= delta
+	if _invite_retry_left > 0.0:
+		return
+	_invite_retry_left = INVITE_RETRY_SECONDS
+	var controller := _controller()
+	if reload_world and (controller == null or not controller.get_world() is Village):
+		return
+	join_room(invite_code)
 
 
 ## "0.9.0" older than "1.0.0"? Numeric parts, pre-release suffixes ignored (OnlineConfig).
@@ -473,6 +528,8 @@ func _on_room_entered(new_room: Dictionary, entered_peer_id: int) -> void:
 		room_guild_tag = _target_guild_tag
 	last_run_end_reason = ""
 	runs_ended = 0
+	invite_code = ""
+	invite_waiting = false
 	var tree := get_tree()
 	var api := tree.get_multiplayer() as SceneMultiplayer
 	if api != null:
@@ -623,6 +680,11 @@ func _close_peer() -> void:
 
 func _fail(code: String) -> void:
 	last_error = code
+	if has_invite():
+		# The run of the invite's room is in progress: wait for its end and try again (D-190).
+		invite_waiting = code == "room_started"
+		if invite_waiting and _invite_retry_left <= 0.0:
+			_invite_retry_left = INVITE_RETRY_SECONDS
 	error.emit(code)
 
 

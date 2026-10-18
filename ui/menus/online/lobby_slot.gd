@@ -3,7 +3,7 @@ extends PanelContainer
 ## One player place in the room dialog (D-152, OnlineMenu): frame, the player's figure standing idle
 ## in its look, name, host crown, status (ready / connecting / in the run) and ping bars; the own
 ## place has "Aussehen ändern", an empty one says "Wartet auf Spieler …" (the host's first empty
-## place offers "Code teilen"). Frames: art/ui/lobby/slot_<kind>.png (9-slice, 6 px border,
+## place offers "Einladen": the invite link, MP2b). Frames: art/ui/lobby/slot_<kind>.png (9-slice, 6 px border,
 ## SPRITES_V10 §7) once they exist, else the panels of the theme (own = gold, empty = dark and
 ## faded). Crown and ping bars use art/ui/icon_host.png and icon_ping_*.png; the ready tick
 ## art/ui/lobby/ready.png, else a drawn one. Sizes in mockup pixels (UiKit.px).
@@ -91,7 +91,8 @@ static func create_player(index: int, player_name: String, look: Dictionary, hos
 	return slot
 
 
-## A free place: "Wartet auf Spieler …"; on_share (host's first free place) copies the room code.
+## A free place: "Wartet auf Spieler …"; on_share (host's first free place, "Einladen") shares the
+## invite link (MP2b: share sheet on phones in the browser, else the clipboard).
 static func create_empty(index: int, width: float, on_share: Callable = Callable()) -> LobbySlot:
 	var slot := LobbySlot.new()
 	slot.name = "Slot%d" % (index + 1)
@@ -110,7 +111,7 @@ static func create_empty(index: int, width: float, on_share: Callable = Callable
 	waiting.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(waiting)
 	if on_share.is_valid():
-		box.add_child(small_button("ShareCode", &"LOBBY_SHARE_CODE", on_share, width))
+		box.add_child(small_button("ShareCode", &"INVITE_SHARE_SLOT", on_share, width))
 	return slot
 
 
