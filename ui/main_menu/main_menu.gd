@@ -3,7 +3,9 @@ extends Control
 ## Main menu (MM1, docs/design screen 13, art/ui/menu/menu.json): night scene with the player's
 ## figure, logo and tagline, menu list on a darkened left edge, gold/crystals of the world
 ## "Weiterspielen" bottom left, record and version bottom right. Sub panels on the right: Welten
-## (save slots, D-152: a slot is a world), Neue Welt (only its name), Figur (ProfilePanel: name and
+## (save slots, D-152: a slot is a world), Fortschritt (ProgressPanel, D-188 KF1: forge levels, bosses
+## per biome, unlocks and the next goals of that world; its hint says "Schmiede x/20"), Neue Welt
+## (only its name), Figur (ProfilePanel: name and
 ## look of the player, the same in every world and online), Optionen (OptionsView: sound, display,
 ## keys) and "Online spielen" (OnlinePanel, D-147: quick game and guilds, the same menu as the
 ## village's guild building). "Online spielen" is always open (playtest 16.10.2026: needing a world
@@ -57,7 +59,8 @@ const FALLBACK_VERSION := "dev"
 
 ## Layout in mockup pixels (menu.json "ui").
 const LOGO_POSITION := Vector2(24, 16)
-## D-152: six entries (Figur) must end above the bottom-left currency panel: list from y 88.
+## D-152, KF1: seven entries (Figur, Fortschritt) must end above the bottom-left currency panel: list
+## from y 88 (MenuList.ITEM_HEIGHT).
 const MENU_POSITION := Vector2(24, 88)
 const MENU_WIDTH := 140.0
 ## Darkened left edge: rgba(21,19,31, 0.88 -> 0.6 -> 0) over x 0..250.
@@ -72,6 +75,7 @@ const FADE_TIME := 0.35
 
 const ENTRY_CONTINUE := &"continue"
 const ENTRY_SLOTS := &"slots"
+const ENTRY_PROGRESS := &"progress"
 const ENTRY_PROFILE := &"profile"
 const ENTRY_ONLINE := &"online"
 const ENTRY_OPTIONS := &"options"
@@ -166,6 +170,7 @@ func refresh() -> void:
 		_list.set_entry(ENTRY_CONTINUE, &"MENU_NEW_GAME", &"MENU_NEW_GAME_HINT")
 		_show_slot_info({})
 	_list.set_entry(ENTRY_SLOTS, &"MENU_SLOTS", tr(&"MENU_SLOTS_HINT") % [used, SaveSlots.SLOT_COUNT])
+	_list.set_entry(ENTRY_PROGRESS, &"MENU_PROGRESS", progress_hint(slot))
 	_list.set_entry(ENTRY_PROFILE, &"MENU_PROFILE", PlayerProfile.current().get_display_name())
 	_refresh_online_entry()
 	if _keys_line != null:
@@ -247,6 +252,8 @@ func activate(id: StringName) -> void:
 				open_create(free if free > 0 else 1)
 		ENTRY_SLOTS:
 			open_slots()
+		ENTRY_PROGRESS:
+			open_progress()
 		ENTRY_PROFILE:
 			open_profile(false)
 		ENTRY_ONLINE:
@@ -275,6 +282,20 @@ func open_create(slot: int) -> CreateSlotPanel:
 	panel.closed.disconnect(close_panel)
 	panel.closed.connect(func() -> void: open_slots().select_slot(slot), CONNECT_DEFERRED)
 	return panel
+
+
+## "Fortschritt" (D-188, KF1): the progress of the world "Weiterspielen" continues and its next goals.
+func open_progress() -> ProgressPanel:
+	var panel := ProgressPanel.new()
+	_open_panel(panel)
+	_list.select_id(ENTRY_PROGRESS)
+	return panel
+
+
+## Hint of "Fortschritt": "Schmiede 7/20" of the world in slot (0 = none yet: "Schmiede 0/20").
+static func progress_hint(slot: int) -> String:
+	var forge: int = int(SaveManager.get_slot_summary(slot).get("forge_level", 0)) if slot > 0 else 0
+	return Loc.t(&"PROGRESS_FORGE_SHORT", [forge, SaveSlots.forge_max_level()])
 
 
 ## "Figur" / first start "Wie heißt du?" (D-152): name and look of the player; the scene figure
@@ -578,6 +599,7 @@ func _build_list() -> void:
 	_stage.add_child(_list)
 	_list.add_entry(ENTRY_CONTINUE, &"MENU_CONTINUE")
 	_list.add_entry(ENTRY_SLOTS, &"MENU_SLOTS")
+	_list.add_entry(ENTRY_PROGRESS, &"MENU_PROGRESS")
 	_list.add_entry(ENTRY_PROFILE, &"MENU_PROFILE")
 	_list.add_entry(ENTRY_ONLINE, &"MENU_ONLINE", &"MENU_ONLINE_HINT")
 	_list.add_entry(ENTRY_OPTIONS, &"MENU_OPTIONS", &"MENU_OPTIONS_HINT")
