@@ -1,7 +1,7 @@
 # Multiplayer – Host-Modell und Regeln
 
-> **Stand:** 17.10.2026 · **Gebaut:** MP1 bis MP4 (lokale Basis, Anmeldung, Raum mit Raumcode, gemeinsamer Run, Testversion), Online-Menü mit Gilden und Profil; Plan und Abnahme in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md). Hier stehen **Absicht und Regeln**: wer was rechnet, was gespiegelt wird, was für neuen Code gilt und wie man testet. Wie es gebaut ist, steht im Code unter `online/` (D-178).
-> **Entscheidungen:** D-080 bis D-085 (Umfang), D-119 und D-121 bis D-128 (Netz, Konto, Lobby, Run, Tore), D-147 (Online-Menü), D-152 (Profil), D-158, D-159 (Raumwechsel, Synchronisierung), D-190 (Einladen per Link). Im Koop bringt niemand seine Dorf-Boni mit, und Run-Gold ist eine gemeinsame Kasse (D-081).
+> **Stand:** 18.10.2026 · **Gebaut:** MP1 bis MP4 (lokale Basis, Anmeldung, Raum mit Raumcode, gemeinsamer Run, Testversion), Online-Menü mit Gilden und Profil, Koop-Gefühl zum Teil (MP5, D-191); Plan und Abnahme in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md). Hier stehen **Absicht und Regeln**: wer was rechnet, was gespiegelt wird, was für neuen Code gilt und wie man testet. Wie es gebaut ist, steht im Code unter `online/` (D-178).
+> **Entscheidungen:** D-080 bis D-085 (Umfang), D-119 und D-121 bis D-128 (Netz, Konto, Lobby, Run, Tore), D-147 (Online-Menü), D-152 (Profil), D-158, D-159 (Raumwechsel, Synchronisierung), D-190 (Einladen per Link), D-191 (Koop-Gefühl). Im Koop bringt niemand seine Dorf-Boni mit, und Run-Gold ist eine gemeinsame Kasse (D-081).
 
 ## 1. Ziel
 
@@ -34,6 +34,7 @@ Ablauf: Host erstellt einen Raum und bekommt einen Raumcode → Clients treten m
 | Pause, HitStop | keine globale Pause, wer ein Menü offen hat, ist geschützt; HitStop nur im Solo (D-123) | gleich |
 | Auszahlung, Spielstand | Run-Ende an alle | jeder bucht seine Auszahlung im eigenen Spielstand |
 | Licht, Fels, Deko, Kamera | jeder Rechner selbst aus denselben Plänen | gleich |
+| Fallen-Takt, Pakt-Flüche | Phasen der Fallen und jeder Fluch gehen an alle (D-191) | folgt; meldet den eigenen Fluch an den Host |
 
 ### 3a. Lokale Basis (MP1)
 
@@ -50,9 +51,10 @@ Ablauf: Host erstellt einen Raum und bekommt einen Raumcode → Clients treten m
 
 Der Host startet im Gildengebäude oder am Dungeon-Eingang; Upgrade-Wahl je Spieler (höchstens 30 s), Wiederbeleben durch Danebenstehen, Ende per Portal (100 %), wenn alle am Boden sind (50 %) oder wenn der Host geht (50 % mit Hinweis). Der Host meldet den Run an die API (`POST /runs`). Zahlen: `online/coop_rules.gd` (TESTWERT).
 
-**Noch nicht repliziert / bekannte Lücken** (im Code unter `online/` und `dungeon/modes/` geprüft, 17.10.2026):
+**Noch nicht repliziert / bekannte Lücken** (im Code unter `online/` und `dungeon/modes/` geprüft, 18.10.2026):
 
-- Fallen-Takt und Abgrund-Stürze rechnet nur der Host; Flüche des Pakt-Altars und der Händler der Geheimnische bleiben beim jeweiligen Rechner (die Geheimnische selbst bricht bei allen auf); Prüfungsräume sind im gemeinsamen Run aus; kein Beitreten mitten im Run (nur zwischen zwei Runs im Dorf).
+- Abgrund-Stürze rechnet nur der Host; Prüfungsräume sind im gemeinsamen Run aus; kein Beitreten mitten im Run (nur zwischen zwei Runs im Dorf). Eine Giftpfütze verlangsamt und vergiftet nur einen Spieler zugleich (`ToxicPuddle`, auch lokal mit mehreren Spielern).
+- Fallen-Takt, Pakt-Flüche und der Händler der Geheimnische sind seit MP5 gespiegelt (D-191, `NetDetails`, `NetDungeon._share_merchant`). Der Lichtkreis eines Mitspielers ist Optik (`MateLight`) und so groß wie der Kreis, in dem `DarknessVisibility` Gegner zeigt; Biom-Faktor und Fluch „Düsternis“ des Mitspielers fehlen darin.
 - Gegner-Quellen: Mehrere Gegner aus derselben Quelle zeigen beim Client nur ein Öffnen; lädt bei zwei oder mehr Clients einer mitten im Raum fertig, bekommt er die Quellen-Phasen davor nicht nach (die Gegner schon).
 - Slimes: Sprung- und Landetöne und `ability_used` fehlen beim Client.
 - Intro: Überspringen mit E gilt nur am eigenen Rechner (überspringt der Host, beginnt der Kampf für alle).
@@ -71,7 +73,8 @@ Builds gibt es je Server-Umgebung (`development` gegen `api-dev`/`play-dev`, `pr
 - Der Host hält den RNG-Zustand vor jedem Slot und jedem Abzweigungsweg fest und schickt ihn; der Client baut damit dieselben Räume, Modi und Seitenwege und vergleicht Signaturen (0 Abweichungen ist Pflicht).
 - Minispiele laufen nur beim Host; Banner, Bonus, Truhen-Stellen und der Zustand (`RoomObjective`) kommen beim Client an. Das Intro läuft auf jedem Rechner selbst.
 - Tore schließt nur der Host; wer hinter einem geschlossenen Tor aufsteht, erscheint beim nächsten stehenden Mitspieler (D-128).
-- Seitenwege geht die Gruppe gemeinsam; ob sie ausgelassen werden, entscheidet die Option des Hosts. Die Kamera zeigt im Koop die Mitte aus lokalem Spieler und nahen Mitspielern, der lokale bleibt immer im Bild.
+- Seitenwege geht die Gruppe gemeinsam; ob sie ausgelassen werden, entscheidet die Option des Hosts beim Run-Start (`NetRun.side_ways_skipped`, mit `begin_run`; gilt für Leiter-Türen und Segmente, eine Änderung mitten im Run erst ab dem nächsten Run, D-191). Die Raumkamera folgt nur dem eigenen Spieler (D-184); jeder Mitspieler trägt seinen Lichtkreis auf jedem Bildschirm, ein stehender Mitspieler außerhalb des Bildes bekommt einen Pfeil in seiner Farbe mit Kurznamen am Rand (`MatePointers`; Gefallene haben ihre eigenen Marker).
+- Wer gefallen ist und beim Raumstart hereingeholt wird, darf auch auf einer zu Fuß erreichbaren Plateau-Fläche landen, nie auf Klippe, Treppe oder Leiter (`NetDungeon.gather_point`, D-186).
 - OFFEN: Eine Rettung im Geleit landet nur im Spielstand des Hosts.
 
 ### 3f. Online-Menü und Gilden (D-147)
@@ -127,6 +130,7 @@ Gilden, Ranglisten und Run-Berichte laufen getrennt davon über die HTTPS-API (`
   - `Enemy.emerge_started` kommt am Ende von `begin_emerge`; der Host verbindet sich schon beim Einhängen des Gegners (`node_added`).
   - Kennungen über Namen und Bau-Reihenfolge: `SpawnSource` heißt nach Art und Kachel bzw. Lage, Bonus-Truhen sind direkte Kinder der Variante mit dem Namen `BonusChest%d` und ihrer Lage vor `add_child`; im Segment zählen Gegner, Bröckelkanten, Geschütze und Stachelfallen nach Bau-Reihenfolge, Münzen nach ihrer Lage. Wer Namen oder Aufbau-Reihenfolge ändert, ändert die Kennungen auf allen Rechnern.
   - Vor `_ready` gesetzt: `SummoningRift.rift_color` und `in_wall` (der Client setzt sie in `node_added`).
+  - Fallen mit Takt (`SpikeTrap`, `LavaCrack`): Kennung = Reihenfolge im Raum (`find_children`), Zustand in `_phase` und `_time_left` mit `enum Phase { IDLE, WARN, ACTIVE }` und den Konstanten `IDLE_TIME`, `WARN_TIME`, `ACTIVE_TIME`; der Client setzt sie von außen (`NetDetails.apply_phase`). Eine neue Falle mit Takt kommt in `NetDetails.is_trap` und hält dieselben Namen.
   - Der Client schaltet Logik zur Laufzeit ab, deshalb gehört sie an diese Stellen: Logik von Segment und Segment-Gegnern nur in `_physics_process`, die der Reliquie in `Relic._physics_process`; der Totengräber hängt an `room.enemy_container.child_entered_tree` (der Client trennt genau diese Verbindung).
   - Bei `net != null` ruft `enter_room` `net.close_gate_behind(previous, room)` statt `GateCloser.close_behind`, `_plan_side_way` danach `net.after_plan_side_way`, und `_on_side_gate_passed` fragt vorher `net.allow_side_transit(gate)`.
   - Zeichenreihenfolge: `DoorView.LINTEL_Z` liegt über dem `z_index` jedes `Player` (Spieler im Gang verdeckt, Namensschild aus).

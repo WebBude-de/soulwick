@@ -1609,6 +1609,23 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `online/invite_link.gd`, `online/lobby_client.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/main_menu/{main_menu,profile_panel}.gd`, `deploy/web/shell.html`, `localization/translations.csv` (`INVITE_*`), Tests `tests/unit/test_invite_*.gd`, `docs/MULTIPLAYER.md` §3h.
 - **Ersetzt:** keine.
 
+### D-191 – Koop-Gefühl (MP5): Licht der Mitspieler, Pfeil am Rand, Fallen, Flüche, Händler, Seitenwege des Hosts
+
+- **Status:** Umsetzung **VORGESCHLAGEN** (Claude, Paket MP5) · Zahlen **TESTWERT** · **Datum:** 2026-10-18 · ergänzt D-084, D-112, D-144, D-184, D-186
+- **Kontext:** Im gemeinsamen Run sah jeder nur den eigenen Lichtkreis; Mitspieler gingen im großen Raum verloren, seit die Kamera nur dem eigenen Spieler folgt (D-184, OFFEN „Pfeil am Rand“). Fallen tickten auf jedem Rechner mit eigenem Zufallstakt (nur der des Hosts trifft), ein Pakt-Fluch lag nur auf dem Rechner, der ihn schloss (der Host kannte „Hast“ und „Zerbrechlichkeit“ des Clients nicht und überschrieb dessen Maximal-HP), der Händler der Geheimnische würfelte je Rechner eigene Waren und verkaufte beim Client gar nicht oder an der Kasse vorbei. Die Option „Seitenwege auslassen“ galt im Koop immer als „aus“.
+- **Beschluss:**
+  - **Lichtkreis der Mitspieler:** Jeder fremde Spieler trägt auf jedem Rechner ein `MateLight` (nur Optik, zählt nicht für `LightQuery`), so groß wie der Kreis, in dem `DarknessVisibility` Gegner zeigt, Helligkeit 0,85, am Boden 40 % Größe, im Tunnel unter dem Fels aus.
+  - **Pfeil am Rand:** Ein stehender Mitspieler außerhalb des Bildes bekommt am Bildrand einen Pfeil in seiner Koop-Farbe mit Namen (höchstens 8 Zeichen); Gefallene behalten ihre roten Marker.
+  - **Fallen-Takt:** Der Host sendet jeden Phasenwechsel von Stachelfallen und Lavarissen der Räume, in denen die Gruppe steht; der Client folgt (Ton und Funken spielen dann bei ihm) und lässt seine eigene Uhr 0,5 s länger laufen, damit der Schritt des Hosts zuerst kommt.
+  - **Pakt-Flüche:** liegen auf jedem Rechner auf dem Spieler, der den Pakt schloss; der Client meldet seinen Fluch, der Host legt ihn auf seine Kopie (dort wirken „Hast“ und „Zerbrechlichkeit“) und schickt jeden Fluch an alle.
+  - **Händler der Geheimnische:** verkauft die Waren des Hosts; Käufe laufen wie im Shop über den Host. Auch Käufe des Hosts (Shop und Händler) melden „verkauft“ an alle.
+  - **Seitenwege auslassen:** Es zählt die Option des Hosts beim Run-Start, für Leiter-Türen und Segmente auf allen Rechnern; eine Änderung mitten im Run gilt ab dem nächsten Run.
+  - **Hereinholen auf Plateaus:** Ein beim Raumstart hereingeholter Spieler darf auf einer zu Fuß erreichbaren Plateau-Fläche landen, nie auf Klippe, Treppe oder Leiter.
+- **Messung Skalierung (Vorschlag an den Agenten `balance`, Zahlen unverändert):** Bots mit Schwert, 3 Seeds, Räume 1–14 (11 Kampfräume), Skalierung wie beim Host. Ohne die zwei Läufe, in denen ein Bot festhing: Räumzeit 11 Räume 1 Spieler 69 s, 2 Spieler 76 s, 3 Spieler 82 s, 4 Spieler 95 s; Gegner-HP je Spieler 852 / 770 / 706 / 754; Schaden je Spieler 26 / 21 / 5 / 9. Gruppen räumen also etwas langsamer, nehmen aber je Kopf deutlich weniger Schaden (Gegner teilen sich auf). Vorschlag: Gegnerzahl bei 4 Spielern prüfen (×2,8 → ×2,5), HP-Faktoren lassen; vor einer Änderung mit echten Spielern gegenprüfen (die Bots weichen nicht aus und kämpfen nur im Nahkampf).
+- **OFFEN:** Größe des Mitspieler-Lichts ohne Biom-Faktor und ohne „Düsternis“ des Mitspielers (folgt `DarknessVisibility`); eine Giftpfütze trifft nur einen Spieler zugleich; im lokalen Mehrspieler ohne Netz (`mp_local_sim`) gilt die Skalierung D-084 nicht.
+- **Folgen:** `online/{net_details,net_dungeon,net_run}.gd`, `components/visual/mate_light.gd`, `ui/hud/mate_pointers.gd`, `dungeon/dungeon_manager.gd` (Host plant Seitenwege mit dem Gruppenwert), Test `tests/unit/test_net_coop_feel.gd`, `docs/MULTIPLAYER.md`, `docs/ROADMAP_MULTIPLAYER.md`.
+- **Ersetzt:** in D-184 den offenen Punkt „Pfeil am Rand“.
+
 ### D-192 – Gamepad-Lücken: Bildschirmtastatur, Blättern, Xbox-Buchstaben
 
 - **Status:** VORGESCHLAGEN (Claude, Auftrag des Projektmitglieds 18.10.2026: „Gamepad-Lücken prüfen und schließen“) · Zahlen **TESTWERT** · **Datum:** 2026-10-18 · ergänzt D-163

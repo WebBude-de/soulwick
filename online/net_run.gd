@@ -37,6 +37,9 @@ var lobby: LobbyClient = null
 ## Seed and player count of the running (or last) run.
 var seed_value := 0
 var player_count := 1
+## "Seitenwege auslassen" of the host for this run (M5, D-144/D-191): the host's option at the
+## start, sent with begin_run; every machine rolls its room chain (ladder door) with it.
+var side_ways_skipped := false
 ## Account ids (API player ids) of the room at the start: the participants of the run report.
 var participants: Array[String] = []
 ## A run of this room is running (set at begin, cleared at the run end or session end).
@@ -173,17 +176,19 @@ func start(forced_seed := 0) -> void:
 	var net_players := lobby.get_net_players()
 	if net_players != null:
 		net_players.hide_from_peers()
+	side_ways_skipped = SideWays.is_skipped()
 	for peer_id in multiplayer.get_peers():
-		begin_run.rpc_id(peer_id, new_seed, count, runs_begun + 1)
+		begin_run.rpc_id(peer_id, new_seed, count, runs_begun + 1, side_ways_skipped)
 	_begin.call_deferred(new_seed, count)
 
 
 ## Host -> clients: the run (number run_number of this room) starts with this seed for this many
-## players.
+## players and the host's "Seitenwege auslassen" (skip_side; older hosts send none = off).
 @rpc("authority", "call_remote", "reliable")
-func begin_run(new_seed: int, count: int, run_number: int) -> void:
+func begin_run(new_seed: int, count: int, run_number: int, skip_side := false) -> void:
 	if multiplayer.get_remote_sender_id() != RelayProtocol.HOST_PEER_ID or in_run:
 		return
+	side_ways_skipped = skip_side
 	# _begin counts this run: afterwards runs_begun is the host's run number (late joiners too).
 	runs_begun = maxi(0, run_number - 1)
 	# Packets behind this one belong to the dungeon: held back until it is loaded (_begin).

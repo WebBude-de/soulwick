@@ -42,7 +42,7 @@ extends SceneTree
 ## segment gets its turret mounts (SidePlans.force_turrets_for_tests); the host's turret shots and
 ## spike phases play on the client (counters of NetSide compared). In every
 ## scenario: the gate behind a started room shuts only once both are inside (host), the client
-## mirrors it, and the group camera holds both players.
+## mirrors it, and each camera follows its own player (D-184).
 ## weapons=<host>,<client> (e.g. sword,bow or staff,bow; online test 15.10.2026): weapons per player.
 ## Each machine gives its own player its weapon (second slot, like a weapon pedestal) and switches to
 ## it with the switch button; the host's player attacks with it, the client's bot fights with it.
@@ -376,7 +376,7 @@ func _host() -> void:
 			_check_weapon_logs(client_stats)
 		_check(client_stats.get("mode_hash", -2) == _stats.get("mode_hash", -1), "same room modes in the same rooms on both machines (%s modes)" % _stats.get("mode_count"))
 		_check(int(client_stats.get("gates", 0)) >= 1 and int(client_stats.get("gates", 0)) <= int(_stats.get("host_gates", 0)), "the client shut the gates the host shut (%s / %s)" % [client_stats.get("gates"), _stats.get("host_gates")])
-		_check(int(client_stats.get("camera", 0)) >= 2, "client: the group camera held both players (%s)" % client_stats.get("camera"))
+		_check(int(client_stats.get("camera", 0)) >= 1, "client: the own camera followed the own player, D-184 (%s)" % client_stats.get("camera"))
 		if _rooms >= 3 and _stats.get("straggler_room", false):
 			_check(int(client_stats.get("wait_hints", 0)) >= 1 and int(client_stats.get("wait_arrow", 0)) >= 1,
 					"client: \"... wartet im naechsten Raum\" with the arrow while the host waited (%s hints, %s arrow frames)" % [client_stats.get("wait_hints"), client_stats.get("wait_arrow")])
@@ -665,7 +665,7 @@ func _host_side(gate: Node, next: Node) -> bool:
 	return true
 
 
-## Makeover checks of the host (every scenario): gate, group camera, side ways.
+## Makeover checks of the host (every scenario): gate, own camera (D-184), side ways.
 func _host_makeover_checks(net: Node) -> void:
 	_stats["host_gates"] = net.gates_closed
 	_stats["host_camera"] = net.max_camera_targets
@@ -683,7 +683,7 @@ func _host_makeover_checks(net: Node) -> void:
 	_check(net.gates_closed_early == 0, "host: no gate shut while a living player was outside the new room (%d gates)" % net.gates_closed)
 	if _rooms >= 2 and _is_portal():
 		_check(net.gates_closed >= 1, "host: gates shut behind the group (%d)" % net.gates_closed)
-	_check(net.max_camera_targets >= 2, "host: the group camera held both players (%d)" % net.max_camera_targets)
+	_check(net.max_camera_targets >= 1, "host: the own camera followed the own player, D-184 (%d)" % net.max_camera_targets)
 	if str(_args.get("side", "0")) == "1":
 		_check(int(_stats.get("side_segments", 0)) >= 1 and net.side.transits == int(_stats.get("side_segments", 0)), "host: side segments played (%d)" % net.side.transits)
 		_check(net.side.max_players_in_segment == 2 and net.side.max_camera_targets == 2, "host: both players in the segment and its camera (%d / %d)" % [net.side.max_players_in_segment, net.side.max_camera_targets])

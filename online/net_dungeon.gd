@@ -37,6 +37,10 @@ extends Node
 ## cleared room gets everyone up, everyone down ends the run. Upgrade choice: every player picks
 ## their own (30 s, then the first card); the exit opens when all living players have picked.
 ## Run end: the host's end_run goes to everybody (run_over), every machine books its own payout.
+## Co-op feel (MP5, D-191): every mate carries a MateLight (his light circle on this screen), standing
+## mates off screen get an arrow at the edge (MatePointers); trap clock and pact curses: NetDetails;
+## the wandering merchant of a secret niche sells the host's offers (_share_merchant, shop messages
+## under merchant_key), and the host's own purchases mark the offer sold everywhere (_host_purchase).
 ## Messages are reliable RPCs on channel 0, snapshots unreliable_ordered on channel 2.
 
 const NODE_NAME := &"NetDungeon"
@@ -53,6 +57,9 @@ const WaitLine := preload("res://online/coop_wait_line.gd")
 const WAIT_TEXT_KEYS: Array[StringName] = [&"NET_WAIT_FOR_MATES", &"NET_MATES_WAIT_FOR_YOU", &"NET_MATES_WAIT_FOR_YOU_MANY"]
 const DOWNED_COLOR := Color(1.0, 0.45, 0.4)
 const SHOP_SCRIPT_SUFFIX := "shop_content.gd"
+## Shop messages of the wandering merchant of a secret niche use this key plus the room's slot
+## (shop_offers, request_purchase, offer_sold), apart from the shop room's slot.
+const MERCHANT_KEY := 1_000_000
 ## Slots the DungeonManager prepares in its _ready (from the seed alone, before any message).
 const INITIAL_SLOTS := 2
 ## Upgrade round (host): extra seconds for a client's pick to arrive after its time limit, and the
@@ -82,6 +89,12 @@ var branch_choices := 0
 var rng_mismatches := 0
 var modes: NetModes = null
 var side: NetSide = null
+## MP5 (D-191): trap clock and pact curses; arrows to mates off screen (child of DungeonUI).
+var details: NetDetails = null
+var mate_pointers: MatePointers = null
+## Tools and tests: frames with at least one arrow to a mate off screen, merchant offers shared.
+var mate_arrow_frames := 0
+var merchants_shared := 0
 ## Gates shut behind a started room (host: shut, client: mirrored), host: shut while a living player
 ## was still outside the new room (must stay 0), players brought to the team after getting up behind a
 ## shut gate, most targets the local group camera had at once.
@@ -222,6 +235,8 @@ func _ready() -> void:
 	add_child(modes)
 	side = NetSide.create(self, dm)
 	add_child(side)
+	details = NetDetails.create(self, dm)
+	add_child(details)
 	wait_line = WaitLine.new()
 	add_child(wait_line)
 	# DungeonUI exists only once the dungeon itself is ready (this node is its child).
@@ -239,10 +254,17 @@ func _ready() -> void:
 		GameManager.pause_changed.connect(_on_pause_changed)
 
 
-## Downed panel and markers of DungeonUI show how far a revive is (0..1).
+## Downed panel and markers of DungeonUI show how far a revive is (0..1); the arrows to mates off
+## screen live there too. Host: its own purchases go through _host_purchase (the economy is ready now).
 func _hook_ui() -> void:
+	if _detached:
+		return
 	if dm.ui != null:
 		dm.ui.revive_share_provider = func(p: Player) -> float: return get_revive_progress(p) / CoopRules.REVIVE_TIME
+		mate_pointers = MatePointers.new()
+		dm.ui.add_child(mate_pointers)
+	if is_host and dm.economy != null:
+		dm.economy.purchase_hook = _host_purchase
 
 
 func _exit_tree() -> void:
@@ -264,6 +286,10 @@ func detach() -> void:
 		modes.detach()
 	if side != null:
 		side.detach()
+	if details != null:
+		details.detach()
+	if mate_pointers != null and is_instance_valid(mate_pointers):
+		mate_pointers.set_targets([] as Array[Dictionary])
 	_apply_wait(-1, [], [])
 	set_physics_process(false)
 	if wait_line != null:
@@ -283,6 +309,16 @@ func get_ready_peers() -> Array[int]:
 
 func get_revive_progress(player: Player) -> float:
 	return _revive.get(peer_of(player), 0.0)
+
+
+## Hook of the DungeonManager (_side_ways_skipped, M5): "Seitenwege auslassen" as it counts for the
+## whole group - the host's option at the run start (NetRun.side_ways_skipped, sent with begin_run),
+## the same on every machine for the whole run, so every machine rolls the same ladder doors. A
+## change of the option during the run counts from the next run on (D-191).
+func side_ways_skipped() -> bool:
+	if run != null:
+		return run.side_ways_skipped
+	return is_host and SideWays.is_skipped()
 
 
 # --- Hooks of the DungeonManager ---
@@ -330,7 +366,9 @@ func after_prepare_slot(room: RoomController, way := -1) -> void:
 			room.branch_chosen.connect(_on_branch_chosen_host)
 		var niche := SecretNiche.of(room)
 		if niche != null:
-			niche.opened.connect(func(_niche: SecretNiche) -> void: _send(&"secret_opened", [slot]))
+			niche.opened.connect(func(opened: SecretNiche) -> void:
+				_send(&"secret_opened", [slot])
+				_share_merchant(slot, opened))
 		_signatures[key] = signature_of(room)
 		_send(&"room_signature", [slot, way, _signatures[key]])
 		return
@@ -447,6 +485,9 @@ func on_player_spawned(player: Player) -> void:
 		var rig := player.get_node_or_null(^"Camera2D") as CameraRig
 		if rig != null:
 			rig.set_targets_provider(camera_targets_of.bind(player))
+	else:
+		# MP5: a mate's light circle on this screen (optics only).
+		MateLight.attach(player)
 	if is_host:
 		player.hurtbox.hit_received.connect(_on_player_hit_host.bind(player))
 		player.weapon_controller.weapon_changed.connect(_on_weapons_changed_host.bind(player).unbind(2))
@@ -537,6 +578,26 @@ func _physics_process(delta: float) -> void:
 	_update_revive_labels()
 	_update_tunnel_tags()
 	_update_wait_view(delta)
+
+
+func _process(_delta: float) -> void:
+	if not _detached:
+		_update_mate_pointers()
+
+
+## MP5: arrows at the screen edge to the standing mates off screen (downed ones have their markers).
+func _update_mate_pointers() -> void:
+	if mate_pointers == null or not is_instance_valid(mate_pointers):
+		return
+	var targets: Array[Dictionary] = []
+	for player in _all_players():
+		if player.is_local or not player.is_alive():
+			continue
+		targets.append({"point": player.get_global_transform_with_canvas().origin,
+				"color": NetPlayers.color_for(player.player_id), "name": NetPlayers.display_name_of(player)})
+	mate_pointers.set_targets(targets)
+	if mate_pointers.get_arrow_count() > 0:
+		mate_arrow_frames += 1
 
 
 func _tick_gate(delta: float) -> void:
@@ -757,6 +818,8 @@ static func _set_player_position(player: Player, point: Vector2) -> void:
 
 
 ## Where a downed player lands: point if it is walkable floor well inside the room, else the room's start.
+## With height (M3, D-186) a plateau surface reachable on foot counts as floor too (the plateau is
+## rock for the ground level); never a cliff, a stair or a ladder cell.
 static func gather_point(room: RoomController, point: Vector2, start: Vector2) -> Vector2:
 	var inside := room.get_arena().grow(-GateCloser.INSIDE_MARGIN)
 	if not inside.has_point(point):
@@ -766,7 +829,14 @@ static func gather_point(room: RoomController, point: Vector2, start: Vector2) -
 		return point
 	# Tile coordinates are room coordinates (RoomController.get_player_start, get_arena).
 	var tile := RoomTiles.local_to_tile(room.to_local(point))
-	return point if tiles.is_walkable(tile) and not tiles.is_pit(tile) else start
+	if tiles.is_pit(tile):
+		return start
+	if not tiles.has_height():
+		return point if tiles.is_walkable(tile) else start
+	var layout := tiles.get_height_layout()
+	if layout.is_connector(tile) or layout.cliffs.has(tile):
+		return start
+	return point if tiles.get_height_reachable_tiles().has(tile) else start
 
 
 func _on_room_completed_host(room: RoomController) -> void:
@@ -788,6 +858,31 @@ func _share_shop(room: RoomController) -> void:
 	for offer: ShopOffer in offers:
 		data.append(serialize_offer(offer))
 	_send(&"shop_offers", [room.slot_index, data])
+
+
+## Host: the wandering merchant behind a niche that just broke sells its offers to everybody (MP5): the
+## clients get them under merchant_key(slot) and buy through the host like in the shop.
+func _share_merchant(slot: int, niche: SecretNiche) -> void:
+	var merchant := niche.content as WanderingMerchant if niche != null else null
+	if merchant == null:
+		return
+	var key := merchant_key(slot)
+	_shop_offers[key] = merchant.offers
+	var data: Array = []
+	for offer: ShopOffer in merchant.offers:
+		data.append(serialize_offer(offer))
+	merchants_shared += 1
+	_send(&"shop_offers", [key, data])
+
+
+static func merchant_key(slot: int) -> int:
+	return MERCHANT_KEY + slot
+
+
+## The wandering merchant of the secret niche of the room at slot (null if the niche is closed).
+func _merchant_at(slot: int) -> WanderingMerchant:
+	var niche := SecretNiche.of(dm.get_room_at_slot(slot))
+	return niche.content as WanderingMerchant if niche != null else null
 
 
 func _find_shop_offers(room: RoomController) -> Array:
@@ -1292,10 +1387,16 @@ func shop_offers(slot: int, data: Array) -> void:
 		offer.sold = bool(entry[5])
 		offers.append(offer)
 	_shop_offers[slot] = offers
-	var room := dm.get_room_at_slot(slot)
-	var content := _find_shop_content(room) if room != null else null
-	if content != null:
-		content.set(&"_offers", offers)
+	if slot >= MERCHANT_KEY:
+		# The merchant of a secret niche (MP5): the host's goods instead of the own roll.
+		var merchant := _merchant_at(slot - MERCHANT_KEY)
+		if merchant != null:
+			merchant.offers = offers
+	else:
+		var room := dm.get_room_at_slot(slot)
+		var content := _find_shop_content(room) if room != null else null
+		if content != null:
+			content.set(&"_offers", offers)
 	dm.economy.purchase_hook = _client_purchase
 
 
@@ -1325,6 +1426,21 @@ func run_over(reason: int, gold: int, earned: int, crystals: int, room_number: i
 	_host_end = true
 	_apply_wait(-1, [], [])
 	dm.end_run(reason as RunManager.EndReason)
+
+
+# --- Host: own purchases ---
+
+## Host: its own purchase in the shop or at the merchant; a sold offer is sold for everybody (MP5:
+## before, only the clients' purchases reached the others).
+func _host_purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, weapon_slot: int) -> bool:
+	if not dm.economy.purchase(offer, player, upgrades, weapon_slot):
+		return false
+	for key in _shop_offers:
+		var index: int = (_shop_offers[key] as Array).find(offer)
+		if index >= 0:
+			_send(&"offer_sold", [key, index])
+			break
+	return true
 
 
 # --- Client: local reports ---
@@ -1470,7 +1586,11 @@ func _on_primary_upgrade(upgrade: UpgradeData, stacks: int) -> void:
 func _update_tunnel_tags() -> void:
 	var views := _passage_views()
 	for player in _all_players():
-		NetPlayers.set_tag_hidden(player, CoopRules.in_passage(player.global_position, views))
+		var hidden := CoopRules.in_passage(player.global_position, views)
+		NetPlayers.set_tag_hidden(player, hidden)
+		var light := MateLight.of(player)
+		if light != null:
+			light.set_hidden(hidden)
 
 
 ## Is node (a player) in a passage under the rock right now? Tools and tests.
