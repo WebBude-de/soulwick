@@ -1,7 +1,7 @@
 # ROADMAP Multiplayer – Koop, Einladen per Link, Gilden, Ranglisten und Steam
 
 > **Stand:** 17.10.2026 · **Phase 3** (D-179): Koop ist der Kern (D-173), danach kommen die KI-Bosse; beides ist beim Release im Spiel (Release-Tor in [ROADMAP.md](ROADMAP.md)). Übersicht aller Phasen: [ROADMAP.md](ROADMAP.md).
-> **Status:** MP1, MP1b, MP2 und MP3 gebaut (14.10.2026), Gilden zum großen Teil (MP8, 16.10.2026); die Testversion läuft gegen die Test-Server (MP4). Offen sind vor allem **Einladen per Link aus dem Browser (MP2b)**, Koop-Gefühl (MP5), Steam (MP6, MP10), Gilden-Schmiede und Ranglisten.
+> **Status:** Aktuell (Phase 3) · MP1, MP1b, MP2 und MP3 gebaut (14.10.2026), Gilden zum großen Teil (MP8, 16.10.2026); die Testversion läuft gegen die Test-Server (MP4). Offen sind vor allem **Einladen per Link aus dem Browser (MP2b)**, Koop-Gefühl (MP5), Steam (MP6, MP10), Gilden-Schmiede und Ranglisten.
 > **Entscheidungen:** D-080 (Schnelles Spiel + Gilde), D-081 (getrennter Fortschritt, gemeinsame Kasse), D-082 (Ranglisten), D-083 (Server), D-084 (Skalierung, Wiederbeleben), D-085/D-123 (Menüs, Abbruch), D-119 (Host + eigener Relay), D-121/D-122 (Konten), D-124 (Netzwerk-Reihenfolge), D-126 (gemeinsamer Run), D-147 (Online-Menü, mehrere Gilden), D-158 (Countdown beim Raumwechsel), D-161 (Einstieg), D-176 (Browser kostenlos, Einladen per Link) in [DECISIONS.md](DECISIONS.md).
 > **Technik und Testanleitungen:** [MULTIPLAYER.md](MULTIPLAYER.md) · **Plattform:** `soulwick-platform/docs/ROADMAP.md` (P13–P22) · **Abhaken** nur mit Nachweis (Tests, Datum).
 
