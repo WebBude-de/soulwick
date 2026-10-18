@@ -42,7 +42,7 @@ Die Werte stehen im Preset „Web“ in `export_presets.cfg` (damit auch `tools/
 ## 4. Startseite (Shell)
 
 - Lädt Engine und Spieldaten sofort mit Fortschritt, startet aber erst nach Klick, Tipp oder Enter: Erst dann erlaubt der Browser Ton.
-- **„Als App installieren“** erscheint nur, wenn der Browser es anbietet, oder auf iOS-Safari (dort mit Anleitung „Teilen → Zum Home-Bildschirm“). `?install` in der URL öffnet den Hinweis sofort (Link der Website).
+- **„Als App installieren“** erscheint nur, wenn der Browser es anbietet, oder auf iOS-Safari (dort mit Anleitung „Teilen → Zum Home-Bildschirm“). `?install` in der URL öffnet den Hinweis sofort (Link der Website). `?room=ABC123` ist ein Einladungslink (D-190): Die Startseite prüft den Raumcode, zeigt „Tippen zum Beitreten“ und startet das Spiel mit `-- room=ABC123`; ungültige Codes werden verworfen.
 - **Neue Version** lädt nur, solange der Startbildschirm offen ist; im laufenden Spiel wird nie neu geladen.
 - Spielstände liegen im Browser (IndexedDB je Domain); `game-dev` und `game` haben getrennte Stände.
 - Impressum und Datenschutz unten links, auf schmalen Bildschirmen mittig (Website derselben Umgebung, neuer Tab).
