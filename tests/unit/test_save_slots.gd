@@ -334,6 +334,9 @@ func test_summary_of_old_and_broken_slots() -> void:
 	assert_almost_eq(float(summary["play_time"]), 4133.24, 0.01)
 	assert_gt(int(summary["last_played"]), 0, "file time for saves without timestamp")
 	assert_true(summary["all_seen"])
+	# Forge levels as migrated to v3 (D-087): 3 + 2 + 1 + 1 + 2 + 1 of 20 (D-188 world card).
+	assert_eq(summary["forge_level"], 10)
+	assert_eq(summary["forge_max"], 20)
 	_write(SaveManager.slot_path(2), "this is [not a config")
 	assert_true(SaveManager.get_slot_summary(2)["broken"])
 	assert_false(SaveManager.get_slot_summary(3)["exists"])
@@ -463,3 +466,12 @@ func test_new_slot_is_current_and_starts_locked() -> void:
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.TRADER))
 	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL))
 	assert_false(FileAccess.file_exists(SaveManager.slot_path(1) + ".v2.bak"), "nothing to migrate")
+
+
+func test_summary_counts_forge_levels_capped_and_known_only() -> void:
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SaveManager.saves_dir))
+	_write(SaveManager.slot_path(2), "[meta]\nversion=4\n[meta_upgrades]\nvitality=9\nsharpness=2\nunknown_upgrade=4\n")
+	var summary := SaveManager.get_slot_summary(2)
+	assert_eq(summary["forge_level"], 7, "vitality capped at 5, unknown upgrades ignored")
+	assert_eq(summary["forge_max"], SaveSlots.forge_max_level())
+	assert_eq(SaveManager.get_slot_summary(3)["forge_level"], 0, "no file, no forge levels")

@@ -372,10 +372,16 @@ func _build_card(index: int) -> Button:
 		info.add_child(UiKit.text_label(&"SLOTS_BROKEN_NOTE", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED))
 	else:
 		var record: int = summary.get("deepest_room", 0)
-		var line := "%s · %s" % [
-			(tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN"),
-			SaveSlots.format_play_time(summary.get("play_time", 0.0))]
-		info.add_child(UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT))
+		var line := (tr(&"MENU_RECORD") % record) if record > 0 else tr(&"SLOTS_NO_RUN")
+		# Progress at a glance (D-188): forge levels of this world, once one is bought.
+		var forge: int = summary.get("forge_level", 0)
+		if forge > 0:
+			line += " · " + tr(&"SLOTS_FORGE_PROGRESS") % [forge, summary.get("forge_max", SaveSlots.forge_max_level())]
+		line += " · " + SaveSlots.format_play_time(summary.get("play_time", 0.0))
+		var line_label := UiKit.text_label(line, UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+		# Never wider than the card (phones): cut with an ellipsis instead.
+		line_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		info.add_child(line_label)
 		var bottom := UiKit.hbox(int(UiKit.px(6)))
 		bottom.add_child(UiKit.icon_value(UiKit.GOLD_ICON, str(summary.get("gold", 0)), UiKit.COLOR_GOLD, UiKit.SIZE_BODY, 8.0))
 		bottom.add_child(UiKit.icon_value(UiKit.CRYSTAL_ICON, str(summary.get("crystals", 0)), UiKit.COLOR_CRYSTAL, UiKit.SIZE_BODY, 8.0))

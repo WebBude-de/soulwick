@@ -93,6 +93,7 @@ SLOTS_NEW_LINE2,"fresh start with all explanations","frischer Start mit allen Er
 SLOTS_BROKEN,"File damaged","Datei beschädigt"
 SLOTS_BROKEN_NOTE,"loading starts fresh, backup as .bak","Laden startet neu, Sicherung als .bak"
 SLOTS_NO_RUN,"no run yet","noch kein Run"
+SLOTS_FORGE_PROGRESS,"Forge %d/%d","Schmiede %d/%d"
 SLOTS_DELETE_WARNING,"Really delete “%s”?\nAll progress will be lost.","„%s“ wirklich löschen?\nDer Fortschritt geht verloren."
 CREATE_TITLE,"New world","Neue Welt"
 CREATE_NAME,"Name of the world","Name der Welt"
