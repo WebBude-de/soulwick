@@ -134,7 +134,9 @@ func test_marker_contract() -> void:
 			var floor_tile: Vector2i = marker.get_meta(&"floor_tile")
 			var wall_side: int = marker.get_meta(&"wall_side")
 			assert_eq(RoomTiles.local_to_tile(marker.position), tile, "%s: %s sits on its tile" % [entry.id, marker.name])
-			assert_true(walkable.has(floor_tile), "%s: %s has floor to step out on" % [entry.id, marker.name])
+			# A floor source may also lie on a plateau surface (M3b, D-189).
+			var on_plateau := tiles.has_height() and tiles.get_height_layout().surface.has(floor_tile)
+			assert_true(walkable.has(floor_tile) or on_plateau, "%s: %s has floor to step out on" % [entry.id, marker.name])
 			if kind == &"gate" or kind == &"rift_wall":
 				assert_eq(wall_side, RoomTiles.DoorSide.NORTH, "%s: gates sit in a front facing south" % entry.id)
 				assert_eq(floor_tile, tile + Vector2i.DOWN)

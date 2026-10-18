@@ -36,6 +36,8 @@ func can_host() -> bool:
 
 
 func _on_attach() -> void:
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	HeightRules.keep_feet_free(room.tiles, _free)
 	var unlit := get_marker_tiles(&"torch_stand_unlit")
 	_prelit = get_marker_tiles(&"torch_stand").size()
 	if unlit.is_empty():

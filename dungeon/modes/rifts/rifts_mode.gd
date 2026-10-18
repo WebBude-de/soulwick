@@ -47,6 +47,8 @@ func can_host() -> bool:
 
 
 func _on_attach() -> void:
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	HeightRules.keep_feet_free(room.tiles, _free)
 	_wall_tiles = _plan_rift_tiles()
 	if not _wall_tiles.is_empty():
 		return

@@ -273,9 +273,14 @@ func test_everything_is_reachable_from_every_entrance() -> void:
 			if Rect2i(Vector2i.ZERO, tiles.room_size).has_point(tile):
 				targets.append(tile)
 		var none: Dictionary[Vector2i, bool] = {}
+		# Sources and mode objects on a plateau surface (M3b, D-189) lie on the upper level:
+		# RoomPlanChecks.height_problems / height_enemy_problems check that level.
+		var surface: Dictionary[Vector2i, bool] = tiles.get_height_layout().surface if tiles.has_height() else ({} as Dictionary[Vector2i, bool])
 		for start in starts:
 			var reached := RoomTiles.flood_fill(open, none, start, 0)
 			for target in targets:
+				if surface.has(target):
+					continue
 				# Sources and solid things count as blocked: one of their sides must be reachable.
 				var near := reached.has(target)
 				for direction in DIRECTIONS:
@@ -417,13 +422,17 @@ func test_props_never_overlap_and_lie_on_floor() -> void:
 		for cell in tiles.zone_cells:
 			if not floor_mask.has(Vector2i(cell.x, cell.y)):
 				problems.append("%s: zone off the floor at %s" % [entry.id, Vector2i(cell.x, cell.y)])
-		# Sources, objectives and spawn markers on walkable floor.
+		# Sources, objectives and spawn markers on walkable floor; sources and objectives may also stand
+		# on a plateau surface (M3b, D-189), spawn markers never.
 		var walkable := tiles.get_walkable_tiles()
+		var plateau: Dictionary[Vector2i, bool] = tiles.get_height_layout().surface if tiles.has_height() else ({} as Dictionary[Vector2i, bool])
 		for marker in room.get_sources():
-			if not walkable.has(marker.get_meta(&"floor_tile")):
+			var source_tile: Vector2i = marker.get_meta(&"floor_tile")
+			if not walkable.has(source_tile) and not plateau.has(source_tile):
 				problems.append("%s: %s off the floor" % [entry.id, marker.name])
 		for marker in room.get_objectives():
-			if not walkable.has(marker.get_meta(&"tile")):
+			var objective_tile: Vector2i = marker.get_meta(&"tile")
+			if not walkable.has(objective_tile) and not plateau.has(objective_tile):
 				problems.append("%s: %s off the floor" % [entry.id, marker.name])
 		for marker in room.get_node("SpawnPoints").get_children():
 			if not walkable.has(RoomTiles.local_to_tile((marker as Node2D).position)):

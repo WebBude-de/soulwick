@@ -1,6 +1,7 @@
 # Makeover 2, Plan 22 (Sumpfgrotte, Geleit), auf 23x13 verdichtet: Wasserbecken links und rechts,
 # Kopfstein-Trittpfad als Geleitweg in einer S-Kurve, Pfuetzen als Quellen am Weg, Eingang unten
-# links, Ausgang oben rechts, Felsblock am Weg.
+# links, Ausgang oben rechts. M3b (Makeover 3 §4/§8): der Weg laeuft unter einer Empore an der
+# Nordwand hindurch (Treppe), oben eine Quelle - Bogenschuetzen schiessen von oben auf den Geleiteten.
 role: combat
 mode: escort
 biomes: all
@@ -9,14 +10,28 @@ size: 23x13
 ---
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
-xxxxxxT#####T###N##xxxx
-xxxxxx.......,,..:.xxxx
-xxx.ww....wwww...,,.xxx
-xx..www..p.www##.p...xx
-xx....,,,,....##,,...xx
-xx.ww...,,,,,,,,,.ww.xx
-xxx.ww.p...,,,..www.xxx
+xxxxxx######T###N##xxxx
+xxxxxx^^^p^..,,..:.xxxx
+xxx.w.^^^^^..wwww..,xxx
+xx..w.^^&^^.,..ww.p..xx
+xx....,,,,,,,,.......xx
+xx.ww..p...,,,...ww..xx
+xxx.ww.....,,,..www.xxx
 xxxx1.....,,..p..w.xxxx
 xxxxx.@...,,..#..xxxxxx
 xxxxxxxSxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
+--- height
+.......................
+.......................
+.......................
+.........^.............
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................

@@ -1565,6 +1565,18 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP_CROSSPLAY,WEB_BUILD}.md`.
 - **Ersetzt:** die bisherigen lokalen Ports.
 
+### D-189 – Höhe in Modus- und L-Plänen, Gegnerquellen auf Plateaus (M3b)
+
+- **Status:** VERBINDLICH (Projektmitglied 18.10.2026: Quellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer; Höhe in die Modus- und L-Pläne) · Werte **TESTWERT** · **Datum:** 2026-10-18 / Claude
+- **Beschluss:**
+  - Auf einer Plateau-Fläche dürfen stehen (zweite Rasterebene `--- height`): Truhe, Bodenquelle, Wache, Seelenflamme, Reliquie, Seele, Lichter (Kristall, Feuerschale, Fackelständer). Sarkophage, Altäre, Einsturzfelder, Fluchtloch und der Start des Geleiteten bleiben unten; Spawnpunkte (D-086) liegen immer auf dem Boden.
+  - Quellen, Wachen und die Seelenflamme nur auf Plateaus **mit Treppe** (Gegner kommen herunter bzw. hinauf); ein Plateau nur mit Leiter bleibt die sichere Insel aus D-186. Was Spieler nehmen oder anzünden (Truhe, Reliquie, Seele, Fackelständer), steht nicht am Rand: keine Bodenkachel unter den acht Nachbarn, damit niemand es von unten erreicht.
+  - **Fernkämpfer bevorzugt oben:** Fernkämpfer eines Schubs tauschen mit Nahkämpfern auf Plateau-Quellen, rücken sonst auf eine Plateau-Quelle mit Platz (höchstens 2 je Quelle, nie mehr Quellen als `max_active`, nie näher als 160 px an einem Spieler); Nahkämpfer auf einer Plateau-Quelle wechseln auf eine Bodenquelle des Schubs mit Platz. Kein Zufall, die Reihenfolge der Gegner entscheidet. Ein Fernkämpfer oben hält seinen Platz, solange sein Ziel unten steht (kein Seitenwechsel die Treppe hinab).
+  - **Modi:** Flamme auf einer Empore mit Treppe (oben Übersicht, unten Reichweite); Reliquie auf einer Leiter-Insel (Flaschenhals, Nahkämpfer warten unten), im L-Plan dazu eine Empore mit Grab am Rückweg; Geleit-Pfad unten an der Klippe einer Empore mit Quelle; Seelen teils oben; Risse und Einsturz mit einer Quelle oben; Jagd mit einer Bogen-Wache oben; Lichtfeuer mit einem kalten Fackelständer oben; Arena-Truhe oben. Der Boden im Umkreis einer Kachel um Plateau, Treppe und Leiter bricht beim Einsturz nie ein und bleibt mit dem Restweg verbunden. Nichts eines Modus (Bonus-Truhe, Altar, Reliquie, Wachen) steht auf dem Fuß einer Treppe oder Leiter.
+  - L-Pläne: Höhe in 10 von 13 (alle Modus-L-Pläne, Große Arena, Gewölbe); Säulenwald, Drei Kammern und Brückenarena bleiben ohne Plateau (Pfeiler, Kammern bzw. Kluft sind dort das Thema).
+- **Folgen:** `tools/generate_room_templates.py` (PLATEAU_ITEMS, Regeln), Pläne in `dungeon/rooms/plans/{modes,arena,clear}`, `HeightLayout.get_connector_feet`/`is_inner_surface`, `HeightRules.keep_feet_free`/`is_reached_surface`, `SpawnSourceRules.sort_by_height`, `SpawnSources.sort_by_height`/`is_high`, `EnemyPack.holds_high_ground`, `CollapseRules.height_guard`/`join_kept`, die Modi (Füße frei, Seelen oben), `RoomPlanChecks.height_enemy_problems`, Tests `test_height_modes`, `test_spawn_height`.
+- **Ersetzt:** keine (ergänzt D-186).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

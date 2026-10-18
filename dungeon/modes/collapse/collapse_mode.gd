@@ -52,7 +52,8 @@ static func attach(target: RoomController, rng_seed: int) -> CollapseMode:
 	mode.room = target
 	mode.context = target.context
 	mode._rng.seed = rng_seed
-	mode._free = VariantSpots.free_tiles(target)
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	mode._free = HeightRules.keep_feet_free(target.tiles, VariantSpots.free_tiles(target))
 	if not mode.can_host():
 		mode.free()
 		return null
@@ -439,6 +440,10 @@ func _plan_way() -> void:
 		for tile in RoomTiles.door_lane_of(door.x, door.y, room.tiles.room_size, CollapseRules.DOOR_DEPTH):
 			if floor_tiles.has(tile):
 				kept[tile] = true
+	# Height (M3b): the floor around a plateau never breaks and stays joined to the way.
+	if room.tiles.has_height():
+		kept.merge(CollapseRules.height_guard(room.tiles.get_height_layout().get_height_tiles(), floor_tiles))
+		CollapseRules.join_kept(kept, walkable, start)
 	# Chests of the plan stay reachable.
 	var props := room.get_node_or_null("Props")
 	if props != null:
@@ -471,8 +476,10 @@ func _chest_tile() -> Vector2i:
 	var wanted := exit_inside + inward * 2
 	var best := exit_inside
 	var best_distance := INF
+	# Never at the foot of stairs or a ladder (M3b).
+	var feet: Array[Vector2i] = room.tiles.get_height_layout().get_connector_feet() if room.tiles.has_height() else ([] as Array[Vector2i])
 	for tile: Vector2i in kept:
-		if room.tiles.is_pit(tile) or room.tiles.is_navigation_blocked(tile) or way.has(tile):
+		if room.tiles.is_pit(tile) or room.tiles.is_navigation_blocked(tile) or way.has(tile) or feet.has(tile):
 			continue
 		var distance := Vector2(tile - wanted).length()
 		if distance < best_distance - 0.001 or (absf(distance - best_distance) <= 0.001 and CollapseRules._tile_before(tile, best)):

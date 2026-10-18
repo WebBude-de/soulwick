@@ -34,6 +34,8 @@ func uses_own_first_wave() -> bool:
 
 
 func _on_attach() -> void:
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	HeightRules.keep_feet_free(room.tiles, _free)
 	var tile := _crowned_tile()
 	_free.erase(tile)
 	var data := _crowned_data()
