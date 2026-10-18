@@ -97,6 +97,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 | Bosse, Gegner, Elites | `godot --headless --fixed-fps 60 --path . -s tools/boss_sim.gd` |
 | Balance-Bot | `godot --headless --fixed-fps 60 --path . -s tools/balance_sim.gd -- runs=3 policy=sword quiet=1` |
 | Screenshots (Fenster) | `godot --path . -s tools/screenshots.gd -- <ordner>`; unter Linux nur `tools/godot_offscreen.sh --path . -s tools/screenshots.gd -- <ordner>` (unsichtbarer Bildschirm über `cage` oder `weston`, stumm; nie `kwin_wayland --virtual`, das legt die KWin-Kürzel der Sitzung lahm) |
+| Browser-Version lokal (Port 3110, gegen die lokale Plattform) | `tools/web_local.sh` (baut nur bei geändertem Code neu; `--stop` beendet) |
 | Texte (fehlende Übersetzungen) | `python tools/i18n_check.py <ordner>` |
 | Nach neuen Dateien/Grafiken/Texten | `godot --headless --path . --import` |
 | Builds (Windows, Linux, macOS, Android) | `tools/export_build.sh development "" "windows linux macos"`; Releases per Tag `v*` über GitHub Actions ([docs/RELEASE.md](docs/RELEASE.md)); Browser-Version per `Dockerfile` auf Dokploy ([docs/WEB_BUILD.md](docs/WEB_BUILD.md)) |
