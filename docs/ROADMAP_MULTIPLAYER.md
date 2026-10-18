@@ -16,7 +16,7 @@
 | **MP2b** | **Einladen per Link: Link antippen → im Browser direkt in der Lobby** | **neu, offen** |
 | MP3 | Gemeinsamer Dungeon-Run, gemeinsame Kasse | gebaut, Handtest offen |
 | MP4 | Testversion für Freunde (Builds gegen die Test-Server) | teilweise |
-| MP5 | Koop-Gefühl: Feinschliff, L-Räume, Räume nur im Koop | offen |
+| MP5 | Koop-Gefühl: Feinschliff, L-Räume, Räume nur im Koop | zum Teil (D-191) |
 | MP6 | Steam als Zusatz: Anmeldung, Einladung mit Raumcode | offen |
 | MP7 | Server-Grundlage auf Dokploy | development läuft, production offen |
 | MP7b | Website und Admin-Panel | Grundgerüst gebaut, Rest im Plattform-Repo |
@@ -79,11 +79,11 @@
 
 **Schon mit MP3 gebaut:** Skalierung nach Spielerzahl (`online/coop_rules.gd`), Am-Boden und Wiederbeleben, Namensschilder, Marker für Gefallene.
 
-- [ ] Skalierung mit `balance_sim.gd` für 1–4 Bots messen und als TESTWERT nachstellen (Agent `balance`).
+- [ ] Skalierung mit `balance_sim.gd` für 1–4 Bots messen und als TESTWERT nachstellen (Agent `balance`). Erste Messung mit Bots und Vorschlag in D-191 (18.10.2026); `balance_sim.gd` hat noch keinen Koop-Modus.
 - [ ] Raumgröße L für 3–4 Spieler im Koop nutzen: die L-Pläne baut Phase 2 (ROADMAP_AUSBAU „Phase 2b – Rest“), hier der Anschluss über `DungeonManager.get_room_sizes()` und ein Lauf mit 3–4 Spielern.
-- [ ] Eigener Lichtkreis je Spieler auch für Mitspieler sichtbar, Pfeil zu Mitspielern außerhalb des Bildes.
+- [x] Eigener Lichtkreis je Spieler auch für Mitspieler sichtbar, Pfeil zu Mitspielern außerhalb des Bildes (18.10.2026, D-191; `tests/unit/test_net_coop_feel.gd`).
 - [ ] Räume nur im Koop ([KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) §3.11: Doppelgänger, Staffel, Geteiltes Licht, Zwei Schalter, Wettstreit, Rettung) – Kandidaten auch für den Party-Modus ([KONZEPT_PARTY_MODUS.md](KONZEPT_PARTY_MODUS.md)).
-- [ ] Rest aus MULTIPLAYER.md §3c „Noch nicht repliziert“ (Fallen-Takt, Flüche des Pakt-Altars, Händler in der Geheimnische).
+- [x] Rest aus MULTIPLAYER.md §3c „Noch nicht repliziert“ (Fallen-Takt, Flüche des Pakt-Altars, Händler in der Geheimnische), dazu „Seitenwege auslassen“ des Hosts für alle (18.10.2026, D-191; Unit-Tests, `net_run_smoke`).
 
 ## MP6 – Steam als Zusatz (Test-AppID 480)
 

@@ -1260,7 +1260,8 @@ func _plan_side_way_of(room: RoomController) -> void:
 ## MP: the host plans with its own "skip" option and tells the clients (NetDungeon), a client plans
 ## only the ways the host announced (plan_side_way, same seed and slot = same segment).
 func _plan_side_way(room: RoomController, next: RoomController, ladder_way := false, forced := false) -> SideGate:
-	var skip := false if forced else SideWays.is_skipped()
+	# Alone the own option; the host plans with the group's value (the one its ladder doors used).
+	var skip := false if forced else _side_ways_skipped()
 	var gate := SideWays.plan(room, next, _run_seed, _last_side_slot == room.slot_index, ladder_way, skip)
 	if gate != null:
 		gate.passed.connect(_on_side_gate_passed)
@@ -1289,10 +1290,10 @@ func _enters_through_side(previous: RoomController, room: RoomController) -> boo
 			_side_ways_skipped()) != SideRules.Reason.NONE
 
 
-## "Seitenwege auslassen" as it counts for the room chain (the ladder door): alone the own option. In
-## a group game every machine must roll the same branch: the host's option through the hook
-## net.side_ways_skipped() once there is one, until then "off" (a host who skips shows the ladder door,
-## its way stays a corridor on every machine).
+## "Seitenwege auslassen" as it counts for the room chain (the ladder door) and the side ways: alone
+## the own option. In a group game every machine must roll the same branch: the host's option at the
+## run start through the hook net.side_ways_skipped() (NetDungeon, D-191); a net without the hook
+## counts as "off".
 func _side_ways_skipped() -> bool:
 	if net == null:
 		return SideWays.is_skipped()
