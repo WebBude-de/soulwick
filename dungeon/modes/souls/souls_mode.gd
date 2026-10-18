@@ -45,7 +45,8 @@ static func attach(target: RoomController, rng_seed: int) -> SoulsMode:
 	mode.room = target
 	mode.context = target.context
 	mode._rng.seed = rng_seed
-	mode._free = VariantSpots.free_tiles(target)
+	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
+	mode._free = HeightRules.keep_feet_free(target.tiles, VariantSpots.free_tiles(target))
 	if not mode.can_host():
 		mode.free()
 		return null
@@ -295,12 +296,13 @@ func _player_at(wisp: SoulWisp) -> Player:
 # --- Places ---
 
 ## The plan's soul places first, filled up to SOUL_COUNT from free floor away from the doors and the
-## sources (every place is reachable on foot: VariantSpots.free_tiles).
+## sources (every place is reachable on foot: VariantSpots.free_tiles; a plan place may also lie on a
+## plateau players reach over its stairs or ladder, M3b).
 func _plan_spots() -> void:
 	var plan_spots: Array[Vector2i] = []
 	for marker in room.get_objectives_of(SoulsRules.SPOT_MARKER):
 		var tile: Vector2i = marker.get_meta(&"tile", RoomTiles.local_to_tile(marker.position))
-		if _free.has(tile):
+		if _free.has(tile) or HeightRules.is_reached_surface(room.tiles, tile):
 			plan_spots.append(tile)
 	var blocked: Dictionary[Vector2i, bool] = {}
 	for marker in room.get_sources():

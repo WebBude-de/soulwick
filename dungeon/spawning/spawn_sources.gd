@@ -12,6 +12,8 @@ extends Node2D
 ## (crypt graves, grotto puddles, shadow rifts, ember vents); an arena gets ARENA_GATE_COUNT gates in
 ## its outer walls (WallGates). Arenas use gates only, every wave other gates; no ambush (D-120).
 ## Sarcophagi bring elites and champions; bosses keep their own intro.
+## Height (M3b, D-189): a floor source may lie on a plateau with stairs; ranged enemies of a push take
+## those first, close-combat enemies the ones on the ground (SpawnSourceRules.sort_by_height).
 ##
 ## Entry point for the RoomController (integrator): SpawnSources.setup(room) in _ready, then
 ## spawn_wave() per wave and release_encounter() for the champion room. Child of the room at its
@@ -44,6 +46,8 @@ var _sources: Array[SpawnSource] = []
 ## Sources made for one champion (its spot in the middle of the room): never used for pushes.
 var _champion_sources: Array[SpawnSource] = []
 var _last: Array[SpawnSource] = []
+## Floor sources on a plateau surface (M3b).
+var _high: Dictionary[SpawnSource, bool] = {}
 var _rng := RandomNumberGenerator.new()
 var _built := false
 
@@ -109,6 +113,7 @@ func build() -> void:
 	for source in _sources:
 		source.queue_free()
 	_sources.clear()
+	_high.clear()
 	if arena_only:
 		_build_fallback_gates()
 	else:
@@ -155,6 +160,11 @@ func get_capacity() -> int:
 	return maxi(SpawnSourceRules.capacity(pool.size()), spawn_points)
 
 
+## Is the source on a plateau surface (M3b)?
+func is_high(source: SpawnSource) -> bool:
+	return _high.has(source)
+
+
 ## Sources the latest push used (tests, tools).
 func get_last_sources() -> Array[SpawnSource]:
 	return _last.duplicate()
@@ -172,6 +182,7 @@ func spawn_wave(spawner: EnemySpawner, count: int, container: Node2D, context: D
 	for source in chosen:
 		positions.append(source.spot)
 	enemies = spawner.spawn_enemies(room_index, positions, container, context, arena)
+	sort_by_height(enemies, chosen)
 	_give_sarcophagi_to_elites(enemies, chosen)
 	release(enemies, chosen)
 	return enemies
@@ -250,6 +261,7 @@ func release_encounter(enemies: Array[Enemy]) -> void:
 		return
 	var chosen := choose(escort.size())
 	if not chosen.is_empty():
+		sort_by_height(escort, chosen)
 		release(escort, chosen, lead_delay)
 
 
@@ -303,7 +315,10 @@ func _add_from_marker(marker: Marker2D) -> void:
 		push_warning("Room %d: spawn source marker %s has no valid source_kind." % [room_index, marker.name])
 		return
 	if not SpawnSourceRules.is_wall_kind(kind):
-		_add(SpawnSource.create_floor(kind, marker.position))
+		var source := _add(SpawnSource.create_floor(kind, marker.position))
+		var tile: Vector2i = marker.get_meta(META_TILE, RoomTiles.local_to_tile(marker.position))
+		if _room.tiles != null and _room.tiles.has_height() and _room.tiles.get_height_layout().surface.has(tile):
+			_high[source] = true
 		return
 	var side := SpawnSourceRules.side_from_meta(marker.get_meta(META_SIDE, null))
 	if side < 0:
@@ -340,6 +355,39 @@ func _build_fallback_gates() -> void:
 	var gates := WallGates.find_gates(tiles.get_reachable_tiles(), tiles.room_size, doors, props)
 	for gate in WallGates.place(gates, SpawnSourceRules.ARENA_GATE_COUNT, WaveRules.MIN_SIDES, _rng):
 		_add(SpawnSource.create_wall(SpawnSourceRules.Kind.GATE, gate.side, gate.wall_tile, gate.floor_tile))
+
+
+## Height (M3b, D-189): ranged enemies of a push go to sources on a plateau, close-combat enemies to
+## the ground (decision SpawnSourceRules.sort_by_height; chosen[i] is the source of enemies[i]). A
+## plateau source outside the push may serve when it is far enough from every player.
+func sort_by_height(enemies: Array[Enemy], chosen: Array[SpawnSource]) -> void:
+	if _high.is_empty() or chosen.is_empty():
+		return
+	var pool := _pool()
+	var count := mini(enemies.size(), chosen.size())
+	var slots: Array[int] = []
+	var ranged: Array[bool] = []
+	for i in count:
+		slots.append(pool.find(chosen[i]))
+		var enemy := enemies[i]
+		ranged.append(is_instance_valid(enemy) and enemy.data != null and enemy.data.attack_kind == EnemyData.AttackKind.RANGED)
+	if slots.has(-1):
+		return
+	var high: Array[bool] = []
+	var open: Array[int] = []
+	var players: Array[Vector2] = get_player_states()[0]
+	var min_distance := SpawnSourceRules.GATE_MIN_PLAYER_DISTANCE if arena_only else SpawnSourceRules.MIN_PLAYER_DISTANCE
+	for i in pool.size():
+		high.append(_high.has(pool[i]))
+		if WaveRules.distance_to_nearest(pool[i].spot, players) >= min_distance:
+			open.append(i)
+	var sorted := SpawnSourceRules.sort_by_height(slots, ranged, high, open, SpawnSourceRules.max_active(pool.size()))
+	for i in count:
+		chosen[i] = pool[sorted[i]]
+	_last.clear()
+	for source in chosen:
+		if not _last.has(source):
+			_last.append(source)
 
 
 ## Elites of a push swap into free sarcophagi of the room (farthest from the players first).

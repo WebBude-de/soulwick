@@ -1,5 +1,7 @@
 # Claude Design 05 (Reliquie holen) als Hoehle: zwei Wege um einen Felskern fuehren zur Reliquie
-# hinten rechts, der leere Altar steht neben dem Eingang.
+# hinten, der leere Altar steht neben dem Eingang. M3b (Makeover 3 §4/§8): die Reliquie liegt auf
+# einer hohen Empore an der Nordwand, die nur eine Leiter erreicht - der Flaschenhals; der Rueckweg
+# laeuft unten, die Nahkaempfer warten unter der Leiter.
 role: combat
 mode: relic
 biomes: all
@@ -8,14 +10,28 @@ size: 23x13
 ---
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
-xxxxT####N#####T####xxx
-xxxx.G...........R.xxxx
-xx...........3.......xx
-xx...3...######......xx
-xx.......######......xx
-xxx..G...######.....xxx
+xxxxT####N##########xxx
+xxxx.G.......^^R^^xxxxx
+xx.........3.^^^^^...xx
+xx...3.......^^L^^...xx
+xx......####.........xx
+xxx..G..####........xxx
 xxx.................xxx
 xxxx.A......@....G.xxxx
 xxxxx.............xxxxx
 xxxxxxxxxxxSxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
+--- height
+.......................
+.......................
+.......................
+...............^.......
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................
+.......................

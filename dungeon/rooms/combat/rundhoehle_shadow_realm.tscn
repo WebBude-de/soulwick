@@ -92,6 +92,13 @@ metadata/tile = Vector2i(13, 6)
 metadata/floor_tile = Vector2i(13, 6)
 metadata/wall_side = -1
 
+[node name="Source5" type="Marker2D" parent="Sources"]
+position = Vector2(992, 96)
+metadata/source_kind = &"rift"
+metadata/tile = Vector2i(15, 1)
+metadata/floor_tile = Vector2i(15, 1)
+metadata/wall_side = -1
+
 [node name="LightCrystal1" type="Marker2D" parent="Objectives"]
 position = Vector2(288, 352)
 metadata/objective_kind = &"light_crystal"

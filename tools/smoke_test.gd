@@ -931,7 +931,9 @@ func _kill(enemy: Node, player: Node) -> void:
 	damage.amount = 9999.0
 	damage.source = player
 	damage.hit_id = load("res://components/combat/damage_data.gd").next_hit_id()
-	damage.tags.assign([&"melee"])
+	# Tagged as a shot too: enemies may come out on a plateau (M3b, D-189), a melee hit from the
+	# ground would not reach them (HeightRules.blocks_hit).
+	damage.tags.assign([&"melee", &"projectile"])
 	enemy.hurtbox.receive_hit(damage)
 
 

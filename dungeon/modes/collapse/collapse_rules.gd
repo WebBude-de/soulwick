@@ -129,6 +129,38 @@ static func widen(way: Array[Vector2i], floor_tiles: Dictionary[Vector2i, bool],
 	return kept
 
 
+## Height (M3b, D-186/D-189): floor within one tile (eight neighbours) of a plateau, its stairs or
+## its ladder - it never breaks, so no abyss opens under or beside a cliff and the way up stays.
+static func height_guard(height_tiles: Dictionary[Vector2i, bool], floor_tiles: Dictionary[Vector2i, bool]) -> Dictionary[Vector2i, bool]:
+	var guard: Dictionary[Vector2i, bool] = {}
+	for tile: Vector2i in height_tiles:
+		for dy in range(-1, 2):
+			for dx in range(-1, 2):
+				var next := tile + Vector2i(dx, dy)
+				if floor_tiles.has(next) and not height_tiles.has(next):
+					guard[next] = true
+	return guard
+
+
+## Joins every kept tile to start: a kept tile not reached from start over kept tiles gets the
+## shortest way over walkable (itself counted as walkable) to the first reached kept tile, so the
+## kept floor never holds an island. Changes kept.
+static func join_kept(kept: Dictionary[Vector2i, bool], walkable: Dictionary[Vector2i, bool], start: Vector2i) -> void:
+	var keys: Array[Vector2i] = []
+	keys.assign(kept.keys())
+	keys.sort_custom(_tile_before)
+	for tile in keys:
+		var reached := _reach_from(kept, start)
+		if reached.has(tile):
+			continue
+		var open := walkable.duplicate()
+		open[tile] = true
+		for step in shortest_way(open, tile, start):
+			if reached.has(step):
+				break
+			kept[step] = true
+
+
 ## The fields in the order they break. floor_tiles: every floor tile that may break or stays
 ## (no walls, no abyss); kept: the way that stays (never breaks); marked: plan tiles with cracks.
 ## rng: one draw per field (order among fields equally far out), the mode's RNG.
@@ -247,6 +279,22 @@ static func _reach(standing: Dictionary[Vector2i, bool], kept: Dictionary[Vector
 		for direction in DIRECTIONS_4:
 			var next := tile + direction
 			if standing.has(next) and not reached.has(next):
+				reached[next] = true
+				queue.append(next)
+	return reached
+
+
+## Kept tiles reachable from start over kept tiles (start itself always).
+static func _reach_from(kept: Dictionary[Vector2i, bool], start: Vector2i) -> Dictionary[Vector2i, bool]:
+	var reached: Dictionary[Vector2i, bool] = {start: true}
+	var queue: Array[Vector2i] = [start]
+	var head := 0
+	while head < queue.size():
+		var tile := queue[head]
+		head += 1
+		for direction in DIRECTIONS_4:
+			var next := tile + direction
+			if kept.has(next) and not reached.has(next):
 				reached[next] = true
 				queue.append(next)
 	return reached

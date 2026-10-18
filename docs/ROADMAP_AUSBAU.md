@@ -36,7 +36,7 @@ Jeder Bericht beantwortet diese fünf Fragen mit „ja“:
 
 ### M3b – Höhe in Modus- und L-Plänen, Quellen auf Plateaus
 
-- [ ] Plateaus in Modus-Plänen (Flamme auf dem Plateau, Geleit-Pfad unter einem Plateau, Arena-Truhe oben) und in L-Plänen; Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer (Projektmitglied 18.10.2026, D-186).
+- [x] Plateaus in Modus-Plänen (Flamme auf dem Plateau, Geleit-Pfad unter einem Plateau, Arena-Truhe oben) und in L-Plänen; Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer (Projektmitglied 18.10.2026, D-186, D-189). *(18.10.2026: alle neun Modi mit Plateau-Plan (S/M: Flamme, Reliquie, Geleit, Seelen, Risse, Jagd, Lichtfeuer, Aschegrube; L: alle Modus-L-Pläne, Große Arena, Gewölbe – 10 von 13 L-Plänen), Gräber oben auch in Rundhöhle und Halbmond; Generator mit neuen Regeln (Dinge auf Plateaus, Quellen/Wachen/Flamme nur mit Treppe, Nehmbares nicht am Rand, Seitentür-Platz in jedem Kampfplan), `SpawnSourceRules.sort_by_height`, `EnemyPack.holds_high_ground`, Einsturz schont den Boden am Plateau, Modi halten Treppenfüße frei; GUT 2019/2021 (2 ausstehend: API-Umgebung), neu `test_height_modes`, `test_spawn_height`; smoke_test 47 mit Seeds 424242 und 33 PASS (Plateau-Modusräume gespielt), combat_sim und boss_sim PASS, validate 0 failed.)*
 
 ### M5 – Gang-Segmente in Seitenansicht: Rest
 

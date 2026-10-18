@@ -399,7 +399,7 @@ func _update_patience(order: Order, member: Enemy, center: Vector2, elapsed: flo
 
 func _plan_ranged(member: Enemy, ranged: Array[Enemy], center: Vector2, strength: float, elapsed: float) -> void:
 	var order := get_order(member)
-	if strength < EnemyTactics.RANGED_SWITCH_FROM:
+	if strength < EnemyTactics.RANGED_SWITCH_FROM or holds_high_ground(member):
 		order.role = Role.RANGED
 		return
 	var current := (member.global_position - center).angle()
@@ -432,6 +432,18 @@ func _plan_ranged(member: Enemy, ranged: Array[Enemy], center: Vector2, strength
 	order.angle = current + side * _rng.randf_range(EnemyTactics.SIDE_SWITCH_ANGLE.x, EnemyTactics.SIDE_SWITCH_ANGLE.y)
 	order.radius = EnemyTactics.ranged_radius(member.data)
 	order.relocate_left = EnemyTactics.RELOCATE_TIME
+
+
+## Height (M3b, D-189, "Druck von oben"): a ranged enemy on a plateau whose target stands below
+## keeps its place up there - no side change that would walk it down the stairs. It still chases a
+## target out of range like every ranged enemy.
+static func holds_high_ground(member: Enemy) -> bool:
+	if member == null or not HeightRules.has_height():
+		return false
+	var target := member.get_target_node()
+	if target == null or not is_instance_valid(target):
+		return false
+	return HeightRules.level_of(member) == HeightRules.PLATEAU and HeightRules.level_of(target) == HeightRules.GROUND
 
 
 func _switch_interval(strength: float) -> float:

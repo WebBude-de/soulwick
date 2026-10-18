@@ -18,7 +18,8 @@ extends RefCounted
 ##     below the front in the floor (M1, playtest 15.10.2026).
 ##   - height (M3, HeightLayout): stairs and ladders in the cliff row, plateaus of two rows at least,
 ##     none over an abyss or water, every plateau surface reached from the entrance over its stairs or
-##     ladder (players), never across an edge.
+##     ladder (players), never across an edge; floor sources and guards on a plateau only where
+##     enemies get up and down (stairs, M3b, D-189).
 ## problems() returns readable lines, empty = fine.
 
 ## Rows of a door lane that stay free (generator DOOR_LANE_ROWS).
@@ -99,6 +100,7 @@ static func problems(room: Node) -> Array[String]:
 	result.append_array(slot_problems(tiles))
 	result.append_array(torch_problems(room))
 	result.append_array(height_problems(tiles))
+	result.append_array(height_enemy_problems(room, tiles))
 	return result
 
 
@@ -123,6 +125,28 @@ static func height_problems(tiles: RoomTiles) -> Array[String]:
 		if not reached.has(tile):
 			result.append("plateau surface %s not reached from the entrance" % tile)
 			break
+	return result
+
+
+## Floor sources and guard markers on a plateau surface (M3b, D-189): enemies come out there, so the
+## surface must be reached over stairs (a ladder island stays a safe island for players).
+static func height_enemy_problems(room: Node, tiles: RoomTiles) -> Array[String]:
+	var result: Array[String] = []
+	if not tiles.has_height():
+		return result
+	var layout := tiles.get_height_layout()
+	var spots: Array[Vector2i] = []
+	spots.assign(floor_source_tiles(room).keys())
+	var objectives := room.get_node_or_null(^"Objectives")
+	if objectives != null:
+		for marker in objectives.get_children():
+			if marker is Marker2D and StringName(marker.get_meta(&"objective_kind", &"")) == &"guard":
+				spots.append(marker.get_meta(&"tile", RoomTiles.local_to_tile(marker.position)))
+	spots.sort()
+	var reached := tiles.get_height_reachable_tiles(true)
+	for tile in spots:
+		if layout.surface.has(tile) and not reached.has(tile):
+			result.append("enemy source or guard %s on a plateau without stairs" % tile)
 	return result
 
 
