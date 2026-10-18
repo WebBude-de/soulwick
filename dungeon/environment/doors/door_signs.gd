@@ -81,9 +81,10 @@ static func way_color(style: DoorStyle, mode: StringName) -> Color:
 
 
 ## Mode shown over a door: the room's mode; the safe way of a branch stays a plain fight (heart
-## sign), a hidden variant keeps its question mark when it has no v2 mode.
+## sign), so does the ladder way (ladder sign, M5); a hidden variant keeps its question mark when it
+## has no v2 mode.
 static func mode_for_way(room: Node, option: BranchOption = null) -> StringName:
-	if option != null and option.kind == BranchOption.Kind.SAFE:
+	if option != null and (option.kind == BranchOption.Kind.SAFE or option.kind == BranchOption.Kind.LADDER):
 		return &""
 	return mode_of(room)
 

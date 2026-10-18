@@ -12,6 +12,9 @@ enum Kind {
 	UNKNOWN,
 	## A special room of a given type (before place 4 of the cycle); its own sign (shop, trial, ...).
 	SPECIAL,
+	## Ladder way (M5, D-144): the way runs through a side segment with coins and the chest, room
+	## n+1 behind it is a plain fight like the safe way (ladder sign). Stands in for the safe way.
+	LADDER,
 }
 
 ## Variant id of the elite nest (EliteNestVariant.ID). Kept here, so the branch rules need not load
@@ -43,6 +46,8 @@ func get_symbol() -> StringName:
 			return &"unknown"
 		Kind.SAFE:
 			return &"safe"
+		Kind.LADDER:
+			return &"ladder"
 	return &""
 
 
@@ -51,11 +56,16 @@ func get_room_type(slot_type: int) -> int:
 	return RoomSequence.RoomType.SPECIAL if kind == Kind.SPECIAL else slot_type
 
 
+## The way runs through a side segment (M5): DungeonManager plans it as the ladder way.
+func is_ladder() -> bool:
+	return kind == Kind.LADDER
+
+
 func is_combat() -> bool:
 	return kind != Kind.SPECIAL
 
 
-## Combat ways force the variant of the next room: none (safe), elite nest or the hidden variant.
+## Combat ways force the variant of the next room: none (safe, ladder), elite nest or the hidden variant.
 func forces_variant() -> bool:
 	return kind != Kind.SPECIAL
 
@@ -69,4 +79,6 @@ func describe() -> String:
 			return "Unbekannt (%s)" % variant_id
 		Kind.SPECIAL:
 			return SpecialTable.get_type_name(special_type)
+		Kind.LADDER:
+			return "Leiter-Weg"
 	return "Sicherer Weg"

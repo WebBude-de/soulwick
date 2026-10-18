@@ -3,7 +3,8 @@ extends GutTest
 ## variant room, fixed number of RNG draws), the two ways (special pair, elite nest or unknown vs.
 ## safe), the two doors (west/east fork, north + side, two north doors for special rooms), the group
 ## vote and a branch room in the tree (doors wait after the fight, the chosen one opens, the other
-## is sealed, signals for the manager).
+## is sealed, signals for the manager). M5: the ladder way stands in for the safe way in a share of
+## the combat branches where a side segment may come (same draws, ladder sign, plain fight behind).
 
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
 
@@ -19,11 +20,13 @@ func before_all() -> void:
 
 func after_all() -> void:
 	BranchRules.chance_override = -1.0
+	BranchRules.ladder_override = -1.0
 	SaveManager.save_path = _old_save_path
 
 
 func after_each() -> void:
 	BranchRules.chance_override = -1.0
+	BranchRules.ladder_override = -1.0
 
 
 func _rng(seed_value: int) -> RandomNumberGenerator:
@@ -32,8 +35,8 @@ func _rng(seed_value: int) -> RandomNumberGenerator:
 	return rng
 
 
-func _roll(room_index: int, room_type: int, next_type: int, seed_value: int, branch_cycle := -1, has_variant := false) -> BranchRules.Plan:
-	return BranchRules.roll(room_index, room_type, next_type, has_variant, branch_cycle, -1, _special_table, _variant_table, _rng(seed_value))
+func _roll(room_index: int, room_type: int, next_type: int, seed_value: int, branch_cycle := -1, has_variant := false, ladder_allowed := false) -> BranchRules.Plan:
+	return BranchRules.roll(room_index, room_type, next_type, has_variant, branch_cycle, -1, _special_table, _variant_table, _rng(seed_value), ladder_allowed)
 
 
 # --- Draw ---
@@ -92,6 +95,75 @@ func test_combat_ways_are_safe_against_elite_nest_or_unknown() -> void:
 		assert_eq(safe, 1, "exactly one safe way")
 	assert_almost_eq(kinds.get(BranchOption.Kind.ELITE_NEST, 0) / 300.0, BranchRules.ELITE_SHARE, 0.08)
 	assert_gt(kinds.get(BranchOption.Kind.UNKNOWN, 0), 0)
+
+
+# --- Ladder way (M5) ---
+
+func test_ladder_way_stands_in_for_the_safe_way_in_its_share() -> void:
+	BranchRules.chance_override = 1.0
+	var ladders := 0
+	var ladder_first := 0
+	for seed_value in 1000:
+		var plan := _roll(7, RoomSequence.RoomType.COMBAT, RoomSequence.RoomType.COMBAT_UPGRADE, seed_value, -1, false, true)
+		var plain := _roll(7, RoomSequence.RoomType.COMBAT, RoomSequence.RoomType.COMBAT_UPGRADE, seed_value)
+		assert_true(plan.is_branch())
+		var calm := 0
+		for i in plan.options.size():
+			var option := plan.options[i]
+			if option.kind == BranchOption.Kind.SAFE or option.kind == BranchOption.Kind.LADDER:
+				calm += 1
+				assert_eq(plain.options[i].kind, BranchOption.Kind.SAFE, "the ladder takes the place of the safe way, same door")
+			else:
+				assert_eq(option.kind, plain.options[i].kind, "the other way stays what it was")
+			if option.is_ladder():
+				ladders += 1
+				ladder_first += 1 if i == 0 else 0
+				assert_eq(option.get_symbol(), &"ladder")
+				assert_true(option.is_combat() and option.forces_variant(), "a plain fight behind it")
+				assert_eq(option.get_room_type(RoomSequence.RoomType.COMBAT), RoomSequence.RoomType.COMBAT)
+				assert_eq(option.variant_id, &"")
+		assert_eq(calm, 1, "exactly one safe or ladder way")
+	assert_almost_eq(ladders / 1000.0, BranchRules.LADDER_SHARE, 0.05)
+	assert_almost_eq(ladder_first / float(maxi(ladders, 1)), 0.5, 0.08, "the ladder door is left or right alike")
+
+
+func test_no_ladder_way_where_no_segment_may_come_or_before_special_rooms() -> void:
+	BranchRules.chance_override = 1.0
+	BranchRules.ladder_override = 1.0
+	for seed_value in 200:
+		for option in _roll(7, RoomSequence.RoomType.COMBAT, RoomSequence.RoomType.COMBAT_UPGRADE, seed_value).options:
+			assert_false(option.is_ladder(), "ladder_allowed false: never")
+		var special := BranchRules.roll(8, RoomSequence.RoomType.COMBAT_UPGRADE, RoomSequence.RoomType.SPECIAL, false, -1,
+				-1, _special_table, _variant_table, _rng(seed_value), true)
+		for option in special.options:
+			assert_eq(option.kind, BranchOption.Kind.SPECIAL, "special ways stay special rooms")
+	var forced := _roll(7, RoomSequence.RoomType.COMBAT, RoomSequence.RoomType.COMBAT_UPGRADE, 3, -1, false, true)
+	assert_eq(forced.options.filter(func(option: BranchOption) -> bool: return option.is_ladder()).size(), 1, "test aid: always the ladder")
+
+
+func test_ladder_way_draws_nothing_extra() -> void:
+	BranchRules.chance_override = 1.0
+	var rng := _rng(9)
+	BranchRules.roll(7, RoomSequence.RoomType.COMBAT, RoomSequence.RoomType.COMBAT, false, -1, -1, _special_table, _variant_table, rng, true)
+	var reference := _rng(9)
+	for i in BranchRules.DRAWS:
+		reference.randf()
+	assert_eq(rng.state, reference.state, "still %d draws" % BranchRules.DRAWS)
+	assert_true(BranchRules.is_ladder_roll(0.0))
+	assert_true(BranchRules.is_ladder_roll(0.5), "the second half starts again")
+	assert_false(BranchRules.is_ladder_roll(0.49))
+	assert_false(BranchRules.is_ladder_roll(0.99))
+
+
+func test_ladder_door_shows_the_ladder_sign_and_a_plain_way() -> void:
+	var options: Array[BranchOption] = [BranchOption.create(BranchOption.Kind.ELITE_NEST, -1, BranchOption.ELITE_NEST_ID), BranchOption.create(BranchOption.Kind.LADDER)]
+	var room := _branch_room(options)
+	var doors := room.get_exit_doors()
+	assert_eq(doors[1].get_style().symbol, &"ladder")
+	assert_eq(DoorStyle.branch_symbol_index(&"ladder"), 3, "fourth column of door_branch_symbols_4.png")
+	assert_true(DoorArt.has_symbol_file(&"ladder"), "the V9 sheet with the ladder is there")
+	assert_eq(DoorSigns.mode_for_way(room, options[1]), &"", "the ladder way shows no mode over the door")
+	assert_eq(options[1].describe(), "Leiter-Weg")
 
 
 func test_special_ways_are_two_different_types_never_the_previous() -> void:
@@ -162,7 +234,9 @@ func test_vote_of_a_split_group_waits_then_majority_then_draw() -> void:
 
 # --- Branch room in the tree ---
 
-func _branch_room() -> RoomController:
+func _branch_room(options: Array[BranchOption] = []) -> RoomController:
+	if options.is_empty():
+		options = _combat_options()
 	var room := HALL.instantiate() as RoomController
 	var context := DungeonContext.new()
 	context.rng = _rng(5)
@@ -171,7 +245,7 @@ func _branch_room() -> RoomController:
 	var west := tiles.get_door_slots(RoomTiles.DoorSide.WEST)[0]
 	var east := tiles.get_door_slots(RoomTiles.DoorSide.EAST)[0]
 	var exits: Array[Vector2i] = [Vector2i(RoomTiles.DoorSide.WEST, west), Vector2i(RoomTiles.DoorSide.EAST, east)]
-	room.apply_door_plan(Vector2i(RoomTiles.DoorSide.SOUTH, tiles.entrance_x), exits, 0, _combat_options())
+	room.apply_door_plan(Vector2i(RoomTiles.DoorSide.SOUTH, tiles.entrance_x), exits, 0, options)
 	add_child_autofree(room)
 	return room
 

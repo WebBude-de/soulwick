@@ -2,7 +2,7 @@ class_name OptionsView
 extends VBoxContainer
 ## The options content shared by the main menu ("Optionen" panel) and the pause menu, so both look
 ## and behave the same (UX1, UX3). Three tabs under the eyebrow: "Allgemein" (Ton: Musik, Effekte,
-## Gesamt · Sprache · Steuerung: Zielhilfe (Pad), P0-2), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
+## Gesamt · Sprache · Steuerung: Zielhilfe (Pad), P0-2 · Spiel: Seitenwege auslassen, M5), "Bild" (Anzeige: Fenstermodus, VSync, Helligkeit (R8), Lichteffekte (L1) · Spielgefühl: Bildschirmwackeln,
 ## Trefferstopp, Schadenszahlen, Blitze reduzieren), "Tasten" (key overview from ControlsInfo; it
 ## shows the gamepad's buttons while a gamepad is in use) and, only on a device with a touch screen
 ## (TouchState.is_touch_possible), "Touch" (Touch-Steuerung: Seiten tauschen, Joysticks fest/
@@ -34,7 +34,7 @@ enum Tab { GENERAL, DISPLAY, CONTROLS, TOUCH }
 enum Row {
 	TABS, MUSIC, SFX, MASTER, LANGUAGE, WINDOW, VSYNC, SHAKE, HIT_STOP, DAMAGE_NUMBERS, REDUCE_FLASHES,
 	BRIGHTNESS, LIGHT_EFFECTS, RESET, AIM_ASSIST,
-	TOUCH_SWAP, TOUCH_STICKS, TOUCH_SIZE, TOUCH_OPACITY, TOUCH_AIM_ASSIST,
+	TOUCH_SWAP, TOUCH_STICKS, TOUCH_SIZE, TOUCH_OPACITY, TOUCH_AIM_ASSIST, SKIP_SIDE_PATHS,
 }
 
 const STEP := 0.05
@@ -56,7 +56,7 @@ const TAB_GAP := 6.0
 const TAB_KEYS: Array[StringName] = [&"OPTIONS_TAB_GENERAL", &"OPTIONS_TAB_DISPLAY", &"OPTIONS_TAB_CONTROLS", &"OPTIONS_TAB_TOUCH"]
 ## Rows per tab, in keyboard order.
 const TAB_ROWS := {
-	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.AIM_ASSIST, Row.RESET],
+	Tab.GENERAL: [Row.TABS, Row.MUSIC, Row.SFX, Row.MASTER, Row.LANGUAGE, Row.AIM_ASSIST, Row.SKIP_SIDE_PATHS, Row.RESET],
 	Tab.DISPLAY: [Row.TABS, Row.WINDOW, Row.VSYNC, Row.BRIGHTNESS, Row.LIGHT_EFFECTS, Row.SHAKE, Row.HIT_STOP, Row.DAMAGE_NUMBERS, Row.REDUCE_FLASHES, Row.RESET],
 	Tab.CONTROLS: [Row.TABS, Row.RESET],
 	Tab.TOUCH: [Row.TABS, Row.TOUCH_SWAP, Row.TOUCH_STICKS, Row.TOUCH_SIZE, Row.TOUCH_OPACITY, Row.TOUCH_AIM_ASSIST, Row.RESET],
@@ -74,6 +74,7 @@ const CHOICE_VALUES := {
 	Row.REDUCE_FLASHES: [false, true],
 	Row.LIGHT_EFFECTS: [&"low", &"high"],
 	Row.AIM_ASSIST: [false, true],
+	Row.SKIP_SIDE_PATHS: [false, true],
 	Row.TOUCH_SWAP: [false, true],
 	Row.TOUCH_STICKS: [&"fixed", &"floating"],
 	Row.TOUCH_SIZE: [0, 1, 2],
@@ -461,6 +462,8 @@ func _choice_index(row: Row) -> int:
 			current = GameOptions.get_light_effects()
 		Row.AIM_ASSIST:
 			current = GameOptions.is_gamepad_aim_assist_enabled()
+		Row.SKIP_SIDE_PATHS:
+			current = GameOptions.is_skip_side_paths_enabled()
 		Row.TOUCH_SWAP:
 			current = GameOptions.is_touch_swap_sides()
 		Row.TOUCH_STICKS:
@@ -508,6 +511,8 @@ func _pick(row: Row, index: int) -> void:
 			GameOptions.set_light_effects(value)
 		Row.AIM_ASSIST:
 			GameOptions.set_gamepad_aim_assist(value)
+		Row.SKIP_SIDE_PATHS:
+			GameOptions.set_skip_side_paths(value)
 		Row.TOUCH_SWAP:
 			GameOptions.set_touch_swap_sides(value)
 		Row.TOUCH_STICKS:
@@ -612,6 +617,13 @@ func _build_general() -> VBoxContainer:
 	# Here and not on the full "Tasten" page, so the view keeps its size (P0-2).
 	box.add_child(_section(&"OPTIONS_SECTION_CONTROLS"))
 	box.add_child(_choice_row(Row.AIM_ASSIST, &"OPTIONS_AIM_ASSIST_PAD", [&"COMMON_OFF", &"COMMON_ON"]))
+	# M5: side segments between rooms can be switched off; the muted line says what it does.
+	box.add_child(_section(&"OPTIONS_SECTION_GAME"))
+	box.add_child(_choice_row(Row.SKIP_SIDE_PATHS, &"SIDE_OPTION_SKIP", [&"COMMON_OFF", &"COMMON_ON"]))
+	var note := UiKit.text_label(&"SIDE_OPTION_SKIP_NOTE", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(note)
 	return box
 
 
