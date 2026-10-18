@@ -51,8 +51,14 @@ RoomTiles.room_size. Legend (02_grundrisse.md, plus a few cells of our own, mark
               m* moss (floor)
   zones       ;  slab (way, middle)   ,  cobble (old paths)   :  dirt (edges, bays)
               %  rubble (under collapses)   - floor with a zone look (Makeover 2, M1)
-  height      ^  plateau   L  ladder   &  stairs cut into a cliff - prepared for M3: built as rock
-              until then, the tiles are kept as metadata (plateau_tiles, ladder_tiles, stair_tiles)
+  height      ^  plateau   L  ladder   &  stairs cut into a cliff (M3, Makeover 3 §8): RoomTiles
+              plateau_tiles, ladder_tiles, stair_tiles (HeightLayout). A plateau tile with floor right
+              below it is the cliff (its front), every other one walkable surface one level up;
+              stairs and ladders sit in the cliff row (floor below, surface above). Stairs are for
+              everyone, ladders for players only.
+  A plan may add a second grid after a line "--- height" (same size): there '^ L &' mark the height
+  and the main grid keeps what stands on it - '.', a zone, or a chest 'c' on a plateau surface
+  ("Truhen auf Plateaus", §8). Every other cell of the height grid is '.' or ' '.
   sources     G  grave    s  sarcophagus    p  puddle    i  floor rift    v  lava vent
               (floor sources follow the biome of the template: G in the crypt, p in the grotto,
               i in the shadow realm, v in the ember forge; s stays a sarcophagus in the crypt)
@@ -106,6 +112,14 @@ Cave plans (rock: blob, M1, Makeover 2/3) besides:
   - no straight outline edge longer than CAVE_MAX_EDGE tiles (doors break an edge);
   - floor (without water and abyss) at most CAVE_FLOOR_SHARE of the plan grid;
   - single-player cave plans between 17x11 and 23x13 cells (L plans for groups are larger).
+Height (M3, HeightLayout in dungeon/rooms/height/; plateaus count as rock for every rule above):
+  - stairs and ladders in the cliff row: plain floor below them (kept free: no prop, no source),
+    plateau surface above them; every cliff has surface above it (a plateau has two rows at least);
+  - no plateau tile right above an abyss or water, none (and no foot of stairs) in a door lane;
+  - every plateau has stairs or a ladder and all of its surface is reached from them (chests on it
+    count as blocked), at least MIN_PLATEAU_SURFACE surface tiles;
+  - cave combat plans with plateaus: at most MAX_PLATEAUS of them, covering PLATEAU_SHARE of the
+    floor (the plateau tiles included), so a room reads at a glance (two levels at most).
 What the generator adds (fixed per template from its id, no dungeon RNG):
   - floor zones as frayed patches of 4-12 tiles (dirt in bays, slab on the way, cobble on an old
     path, rubble under fallen things) where the plan draws few itself (cave plans);
@@ -234,6 +248,13 @@ SOLID_DECO = set("crbaFoPDZ")
 ZONE_CELLS = {";": 0, ",": 1, ":": 2, "%": 3}
 ZONE_SLAB, ZONE_COBBLE, ZONE_DIRT, ZONE_RUBBLE = 0, 1, 2, 3
 HEIGHT_CELLS = {"^": "plateau", "L": "ladder", "&": "stairs"}
+# Things a plan may put on a plateau surface (height grid): only chests ("Umweg lohnt", §8).
+PLATEAU_ITEMS = {"c"}
+# Height rules (M3, Makeover 3 §8; TESTWERTE): plateaus per cave combat room, their share of the
+# floor (plateau tiles included), smallest surface of one plateau.
+MAX_PLATEAUS = 2
+PLATEAU_SHARE = (0.10, 0.25)
+MIN_PLATEAU_SURFACE = 4
 # RoomTiles.RockStyle.
 ROCK_STYLES = {"wall": 0, "blob": 1}
 
@@ -290,6 +311,8 @@ class Plan:
         self.group = path.parent.name
         self.header = {}
         self.grid = []
+        # Optional second grid after "--- height" (M3): the height under the main grid.
+        self.height_grid = []
         text = path.read_text(encoding="utf-8")
         lines = text.splitlines()
         if "---" not in [line.strip() for line in lines]:
@@ -307,10 +330,12 @@ class Plan:
                     raise PlanError(f"{path.name}: header line without ':' ({stripped})")
                 key, value = stripped.split(":", 1)
                 self.header[key.strip().lower()] = value.strip()
+            elif line.strip() == "--- height":
+                in_grid = "height"
             else:
                 row = line.rstrip()
                 if row:
-                    self.grid.append(row)
+                    (self.height_grid if in_grid == "height" else self.grid).append(row)
         h = self.header
         self.id = h.get("id", self.id)
         self.name = h.get("name", self.id)
@@ -354,6 +379,8 @@ class Plan:
                 raise PlanError(f"{name}: header size {expected}, grid is {actual}")
         if self.size_class and self.size_class not in SIZES:
             raise PlanError(f"{name}: class must be S, M or L")
+        if self.height_grid and (len(self.height_grid) != len(self.grid) or any(len(row) > len(self.grid[0]) for row in self.height_grid)):
+            raise PlanError(f"{name}: the height grid must have the size of the grid")
         if self.rock not in ROCK_STYLES:
             raise PlanError(f"{name}: rock must be blob or wall")
 
@@ -367,6 +394,28 @@ class Plan:
                     out_id += "_" + biome
                 result.append((out_id, biome, mirrored))
         return result
+
+
+def merge_height(plan):
+    """The main grid with the height grid laid in ('^ L &' replace the cells under them) and the
+    things standing on a plateau as (grid x, grid y, cell)."""
+    if not plan.height_grid:
+        return list(plan.grid), []
+    rows, items = [], []
+    for gy, row in enumerate(plan.grid):
+        cells = list(row)
+        for gx, h in enumerate(plan.height_grid[gy]):
+            if h in HEIGHT_CELLS:
+                c = cells[gx]
+                if c in PLATEAU_ITEMS and h == "^":
+                    items.append((gx, gy, c))
+                elif c != "." and c not in ZONE_CELLS and c != h:
+                    raise PlanError(f"{plan.path.name}: '{c}' at {(gx, gy)} under height '{h}' (only floor or a chest on a plateau)")
+                cells[gx] = h
+            elif h not in ". ":
+                raise PlanError(f"{plan.path.name}: unknown cell '{h}' in the height grid at {(gx, gy)}")
+        rows.append("".join(cells))
+    return rows, items
 
 
 def mirrored_grid(grid):
@@ -756,7 +805,12 @@ class Room:
         self.biome = biome
         self.mirrored = mirrored
         self.name = f"{plan.path.relative_to(PLANS).as_posix()} -> {out_id}"
-        grid = mirrored_grid(plan.grid) if mirrored else list(plan.grid)
+        grid, height_items = merge_height(plan)
+        if mirrored:
+            grid = mirrored_grid(grid)
+            height_items = [(len(grid[0]) - 1 - gx, gy, c) for gx, gy, c in height_items]
+        # Things on a plateau surface: (cell, room tile).
+        self.plateau_items = sorted((c, (gx - 2, gy - 3)) for gx, gy, c in height_items)
         self.grid = biome_grid(grid, biome)
         self.rng = random.Random(zlib.crc32(out_id.encode()))
         self.seed = zlib.crc32(out_id.encode()) % 997 + 1
@@ -787,7 +841,12 @@ class Room:
         self.notes = []
         # Floor in front of every cracked wall ('q'): where players stand to blow it open (kept free).
         self.secret_approaches = []
+        # Plateau tiles holding something solid (chests on the height grid, M3).
+        self.plateau_blocked = set()
+        self.cliffs, self.surface = set(), set()
+        self.plateau_share = 0.0
         self._read_grid()
+        self._derive_height()
 
     def fail(self, message):
         raise PlanError(f"{self.name}: {message}")
@@ -873,7 +932,7 @@ class Room:
         elif c in ZONE_CELLS:
             self.zones[tile] = ZONE_CELLS[c]
         elif c in HEIGHT_CELLS:
-            # Prepared for M3: rock until plateaus, ladders and stairs are walkable.
+            # Height (M3): rock for every floor rule of the ground level (RoomTiles wall mass).
             self.walls.add(tile)
             self.height[HEIGHT_CELLS[c]].add(tile)
         elif c == ".":
@@ -931,9 +990,12 @@ class Room:
     def build(self):
         self._check_walls()
         self._check_fixtures()
+        self._reserve_height_feet()
         self._place_items()
+        self._place_plateau_items()
         self._check_doors()
         self._add_auto_doors()
+        self._check_height()
         if self.plan.auto_deco:
             self._add_auto_groups()
         self._check_layout()
@@ -1139,7 +1201,8 @@ class Room:
 
     def _rect_on_ground(self, item, rect):
         """Floor decals lie fully on plain floor; standing things stand with their foot on it."""
-        ground = self.walk_floor() - self.pits - self.bridges
+        # Things on a plateau stand on its surface (M3).
+        ground = (self.walk_floor() - self.pits - self.bridges) | self.surface
         layer = ITEM_LAYER.get(item, "standing")
         if layer == "wall":
             return self._rect_on_front(rect)
@@ -1225,7 +1288,10 @@ class Room:
             beside = (x0 + abs(iy) * a, y0 + abs(ix) * a)
             if beside not in walk:
                 return f"rock at {beside} right beside the door"
+        height = self.height_tiles()
         for tile in self.lane(side, place, DOOR_LANE_ROWS):
+            if tile in height or (tile[0], tile[1] - 1) in self.height["ladder"] | self.height["stairs"]:
+                return f"plateau or the foot of its stairs at {tile} in the door lane"
             if tile in self.pits:
                 return f"abyss at {tile} in the door lane"
             if strict and tile in self.occupied and tile not in self.soft:
@@ -1563,6 +1629,102 @@ class Room:
         for side, place in self.door_slots():
             tiles += self.corridor(side, place)
         return tiles
+
+    # --- height (M3) ---
+
+    def height_tiles(self):
+        return self.height["plateau"] | self.height["ladder"] | self.height["stairs"]
+
+    def _derive_height(self):
+        """Cliffs (plateau tiles with floor right below), surface (the rest), edges (HeightLayout)."""
+        ground = self.floor_tiles()
+        self.cliffs = {t for t in self.height["plateau"] if (t[0], t[1] + 1) in ground}
+        self.surface = self.height["plateau"] - self.cliffs
+
+    def _reserve_height_feet(self):
+        """The floor right below stairs and ladders stays free (the way up)."""
+        for x, y in sorted(self.height["ladder"] | self.height["stairs"]):
+            foot = (x, y + 1)
+            if foot in self.occupied:
+                continue
+            self.occupied[foot] = "foot of the stairs" if (x, y) in self.height["stairs"] else "foot of the ladder"
+            self.soft.add(foot)
+
+    def _place_plateau_items(self):
+        for c, tile in self.plateau_items:
+            if tile not in self.surface:
+                self.fail(f"'{c}' at {tile} on the height grid is not on a plateau surface")
+            self._occupy([tile], "chest on the plateau")
+            self.plateau_blocked.add(tile)
+            self._add_prop(dict(scene="chest", name="Chest", pos=base(tile), group=f"c{tile}", plateau=True))
+
+    def height_components(self):
+        left = set(self.height_tiles())
+        groups = []
+        for start in sorted(left):
+            if start not in left:
+                continue
+            group, queue = set(), [start]
+            left.discard(start)
+            while queue:
+                tile = queue.pop()
+                group.add(tile)
+                for n in neighbours4(tile):
+                    if n in left:
+                        left.discard(n)
+                        queue.append(n)
+            groups.append(group)
+        return groups
+
+    def _check_height(self):
+        height = self.height_tiles()
+        if not height:
+            return
+        ground = self.floor_tiles()
+        connectors = self.height["ladder"] | self.height["stairs"]
+        for x, y in sorted(height):
+            below = (x, y + 1)
+            if below in ground and (below in self.pits or below in self.water):
+                self.fail(f"height tile {(x, y)} right above an abyss or water")
+        for x, y in sorted(connectors):
+            what = "ladder" if (x, y) in self.height["ladder"] else "stairs"
+            below = (x, y + 1)
+            if below not in ground or below in self.pits or below in self.water:
+                self.fail(f"{what} at {(x, y)} has no plain floor below it")
+            if (x, y - 1) not in self.surface:
+                self.fail(f"{what} at {(x, y)} has no plateau surface above it")
+            if below in self.blocked or (below in self.occupied and below not in self.soft):
+                self.fail(f"{what} at {(x, y)}: {self.occupied.get(below, 'something solid')} on its foot")
+        for x, y in sorted(self.cliffs):
+            if (x, y - 1) not in self.surface and (x, y - 1) not in self.cliffs:
+                self.fail(f"cliff at {(x, y)} without a plateau surface above it (a plateau needs two rows)")
+        for side, place in self.door_slots():
+            for tile in self.corridor(side, place) + self.lane(side, place, DOOR_LANE_ROWS):
+                if tile in height or (tile[0], tile[1] - 1) in connectors:
+                    self.fail(f"plateau or the foot of its stairs in the lane of door {('N', 'E', 'S', 'W')[side]}{place}")
+        groups = self.height_components()
+        for group in groups:
+            starts = sorted(group & connectors)
+            surface = group & self.surface
+            if len(surface) < MIN_PLATEAU_SURFACE:
+                self.fail(f"plateau at {min(group)} with {len(surface)} surface tiles (at least {MIN_PLATEAU_SURFACE})")
+            if not starts:
+                self.fail(f"plateau at {min(group)} has neither stairs nor a ladder")
+            open_tiles = (surface | (group & connectors)) - self.plateau_blocked
+            reached = set()
+            for start in starts:
+                reached |= flood(open_tiles, start)
+            missing = sorted(surface - reached - self.plateau_blocked)
+            if missing:
+                self.fail(f"plateau surface {missing[:4]} not reached from its stairs or ladder")
+        if self.cave and self.plan.role == "combat":
+            if len(groups) > MAX_PLATEAUS:
+                self.fail(f"{len(groups)} plateaus (at most {MAX_PLATEAUS})")
+            floor = len(self.walk_floor() - self.water) + len(height)
+            share = len(height) / floor
+            if not PLATEAU_SHARE[0] <= share <= PLATEAU_SHARE[1]:
+                self.fail(f"plateaus cover {share:.0%} of the floor ({int(PLATEAU_SHARE[0] * 100)}-{int(PLATEAU_SHARE[1] * 100)} %)")
+        self.plateau_share = len(height) / (len(self.walk_floor() - self.water) + len(height))
 
     # --- caves (M1) ---
 

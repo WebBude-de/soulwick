@@ -1,5 +1,5 @@
-# Makeover 3, Mockup 26 (Rundhoehle): runder Umriss, Felsblock links, Empore rechts (bis M3 als Fels,
-# Plan-Marker ^), Tropfstelle, Kristall; Nordplatz links fuer eine Abzweigung.
+# Makeover 3, Mockup 26 (Rundhoehle): runder Umriss, Felsblock links, Empore rechts oben (M3:
+# Plateau mit Treppe in der Klippe), Kristall; Nordplatz links fuer eine Abzweigung.
 role: combat
 mode: clear
 mirror: yes
@@ -10,13 +10,13 @@ size: 23x13
 ---
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
-xxxxN#T#####N####T#xxxx
-xxx...:......,,....xxxx
-xx....::.G.......k..xxx
-xx...G........^^^^...xx
-xx............^^^^d..xx
+xxxxN#T#####N######xxxx
+xxx...:......,,^^^^xxxx
+xx....::.G.....^^^^..xx
+xx...G.........^^^^..xx
+xx.............^&^^..xx
 xxx....###...........xx
-xxxx..C###....,,..G.xxx
+xxxx..C###.k..,,..G.xxx
 xxxxx......@,,.G...xxxx
 xxxxxxx..........xxxxxx
 xxxxxxxxxxxSxxxxxxxxxxx

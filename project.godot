@@ -113,6 +113,8 @@ pause_menu={
 2d_physics/layer_5="enemy_hurtbox"
 2d_physics/layer_6="interaction"
 2d_physics/layer_7="pit"
+2d_physics/layer_8="cliff"
+2d_physics/layer_9="ladder"
 
 [rendering]
 

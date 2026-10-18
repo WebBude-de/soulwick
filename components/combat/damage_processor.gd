@@ -2,6 +2,8 @@ class_name DamageProcessor
 extends RefCounted
 ## Single authority that turns a raw hit into shield and HP loss for players and enemies alike (D-018).
 ## Order: blocked check -> round once to 0.5 -> shield first -> HP.
+## Height (M3): a melee hit between two levels (plateau and ground) is blocked like an
+## invulnerable target (HeightRules.blocks_hit); shots and explosions cross levels.
 
 const DAMAGE_STEP := 0.5
 const MIN_DAMAGE := 0.5
@@ -25,7 +27,7 @@ static func shield_portion(amount: float, shield_value: float) -> float:
 
 static func process_hit(damage: DamageData, health: HealthComponent, shield: ShieldComponent, is_blocked: bool) -> DamageResult:
 	var result := DamageResult.new()
-	if is_blocked or health == null or health.is_dead():
+	if is_blocked or health == null or health.is_dead() or HeightRules.blocks_hit(damage, health.get_parent()):
 		result.blocked = true
 		return result
 

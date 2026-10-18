@@ -16,6 +16,9 @@ extends RefCounted
 ##     (playtest 15.10.2026);
 ##   - every wall torch (plan torches and door torches) hangs fully on one wall front, nothing of it
 ##     below the front in the floor (M1, playtest 15.10.2026).
+##   - height (M3, HeightLayout): stairs and ladders in the cliff row, plateaus of two rows at least,
+##     none over an abyss or water, every plateau surface reached from the entrance over its stairs or
+##     ladder (players), never across an edge.
 ## problems() returns readable lines, empty = fine.
 
 ## Rows of a door lane that stay free (generator DOOR_LANE_ROWS).
@@ -95,6 +98,31 @@ static func problems(room: Node) -> Array[String]:
 			result.append("trap at %s without a reason" % tile)
 	result.append_array(slot_problems(tiles))
 	result.append_array(torch_problems(room))
+	result.append_array(height_problems(tiles))
+	return result
+
+
+## Rules of the two levels (M3): the layout itself and every surface tile reached on foot.
+static func height_problems(tiles: RoomTiles) -> Array[String]:
+	var result: Array[String] = []
+	if not tiles.has_height():
+		return result
+	var layout := tiles.get_height_layout()
+	var pits: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_pit_tiles():
+		pits[tile] = true
+	var water: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_water_tiles():
+		water[tile] = true
+	result.append_array(layout.problems(pits, water))
+	var reached := tiles.get_height_reachable_tiles()
+	var surface: Array[Vector2i] = []
+	surface.assign(layout.surface.keys())
+	surface.sort()
+	for tile in surface:
+		if not reached.has(tile):
+			result.append("plateau surface %s not reached from the entrance" % tile)
+			break
 	return result
 
 

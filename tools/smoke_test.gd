@@ -813,6 +813,8 @@ func _check_plan_rules(index: int, room: Node) -> void:
 		return
 	_plan_rooms_checked += 1
 	var problems: Array = load("res://dungeon/rooms/room_plan_checks.gd").problems(room)
+	# M3: the live height of the room (field built, wall shapes, player and enemy masks).
+	problems.append_array(load("res://dungeon/rooms/height/height_checks.gd").problems(room))
 	_check(problems.is_empty(), "room %d (%s): plan rules %s" % [index, room.scene_file_path.get_file(), problems])
 
 

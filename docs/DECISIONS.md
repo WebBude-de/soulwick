@@ -1542,6 +1542,19 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `player/{player,weapon_controller}.gd`, `world/village/{village,village_decor,villager}.gd`, `world/village/{village.tscn,village_tileset.tres}` (erzeugt), `tools/{generate_village.py,build_tilesets.gd,generate_audio.py}`, `audio/sfx/villager_huh.wav`, `ui/menus/{village_ui,modal,mobile_ui}.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/options/options_view.gd`, `ui/hud/hud.gd`, `dungeon/environment/spawn/spawn_source.gd`, `components/audio/{music_channel,music_player}.gd`, `ui/dev/{dev_feedback,dev_feedback_store}.gd`, Tests `test_player_village.gd`, `test_music_web_loop.gd`, `test_dev_feedback_web.gd` (neu), `test_village_{affordable,layout,life}.gd`, `test_mobile_ui.gd`, `test_lobby_slots.gd`, `test_online_menu.gd`, `test_guild_rooms.gd`, `test_ux_options.gd`, `test_spawn_source.gd`, `test_hud_compact.gd`; `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/feedback/FEEDBACK_2026-10-17.md`.
 - **Ersetzt:** Schwert und 1,5 s Dash im Dorf; Kreis-Hitboxen von Kisten, Fässern und Marktstand; begehbare Beete; Raumcode in Gilden-Räumen (nur noch Rückfall); Zoom-Einrasten am PC.
 
+### D-186 – Höhe: Plateaus, Klippen, Treppen, Leitern (M3)
+
+- **Status:** VERBINDLICH (Makeover 3 §2.3/§8, Projektmitglied 18.10.2026 zu den offenen Fragen) · Werte **TESTWERT** · **Datum:** 2026-10-18 / Claude
+- **Beschluss:**
+  - Plan-Zellen `^` Plateau, `&` Treppe, `L` Leiter. Die unterste Plateau-Reihe mit Boden darunter ist die Klippe (Vorderseite, fest), der Rest begehbare Fläche eine Ebene höher. Treppe und Leiter sitzen in der Klippenreihe, Fuß frei. Eine zweite Rasterebene `--- height` erlaubt eine Truhe auf dem Plateau.
+  - Höchstens zwei Ebenen je Raum; je Höhlenraum höchstens 2 Plateaus auf 10–25 % der Fläche, mindestens 4 Flächenkacheln, nie über Abgrund oder Wasser, nie in einer Türgasse.
+  - Treppen für alle, Leitern nur für Spieler (Tempo ×0,55). Ein Plateau nur mit Leiter ist eine sichere Insel; Nahkämpfer warten darunter (entschieden 18.10.2026), Fernkämpfer schießen hinauf.
+  - Nahkampf trifft nur auf derselben Ebene; Schüsse und Explosionen treffen über Ebenen; Treppe und Leiter gehören zu beiden. Gegner springen, teleportieren und beschwören nie auf die andere Ebene.
+  - Die Ebene folgt aus der Position des Körpers und wird nirgends gespeichert (Koop: Host und Clients rechnen dasselbe). Physik-Ebenen `cliff` (128: Klippen und Kanten, Spieler und Gegner) und `ladder` (256: nur Gegner).
+- **Folgepaket M3b:** Gegnerquellen auf Plateaus mit Treppe, bevorzugt Fernkämpfer; Höhe in Modus- und L-Plänen.
+- **Folgen:** `dungeon/rooms/height/*`, `RoomTiles`, `RoomPlanChecks`, `tools/generate_room_templates.py`, vier Höhlenpläne, `DamageProcessor`, `Projectile.create` (Tag `projectile`), Gegner-KI und -Navigation, `RoomVeil`, `smoke_test.gd`, `project.godot` (Ebenen-Namen), SPRITES_V9 §7.
+- **Ersetzt:** „Höhe vorbereitet und bis M3 Fels“ aus D-142.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

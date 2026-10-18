@@ -120,7 +120,10 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 				if not WallAutotile.is_front(tile, floor_mask) and RockTerrain.mask_for(tile, floor_mask) == RockTerrain.FULL:
 					problems.append("%s: border %s without an edge" % [entry.id, tile])
 				# Collision stays with the room layer: an invisible solid tile on every solid cell, its
-				# outer corners rounded like the art.
+				# outer corners rounded like the art; the height of a plateau has its walls on the
+				# HeightField instead (M3, test_height_room).
+				if tiles.get_height_layout().get_height_tiles().has(tile):
+					continue
 				if not RockTerrain.is_solid_cell(tiles.get_cell_source_id(tile), tiles.get_cell_atlas_coords(tile)):
 					if tiles.get_floor_rect().has_point(RoomTiles.tile_to_local(tile)):
 						problems.append("%s: no solid cell under the rock at %s" % [entry.id, tile])
@@ -380,7 +383,8 @@ func test_props_never_overlap_and_lie_on_floor() -> void:
 						break
 				continue
 			var origin := RoomTiles.local_to_tile(node.position - Vector2(0, 1))
-			if not floor_mask.has(origin) or tiles.is_pit(origin):
+			# A chest may stand on a plateau surface (M3).
+			if (not floor_mask.has(origin) and not tiles.get_height_layout().surface.has(origin)) or tiles.is_pit(origin):
 				problems.append("%s: %s stands off the floor at %s" % [entry.id, node.name, origin])
 			if layer == DecoProp.Layer.FLOOR:
 				for tile in _tiles_under(rect.grow(-2.0)):

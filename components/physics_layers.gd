@@ -11,3 +11,9 @@ const ENEMY_HURTBOX := 16
 const INTERACTION := 32
 ## Abyss tiles (A4, D-086): enemies collide with it like with a wall, players and projectiles not.
 const PIT := 64
+## Height (M3): cliffs of plateaus and the edges between a plateau and the ground below it. Players
+## and enemies collide with it like with a wall; projectiles, hit areas and sight rays do not (they
+## fly over the cliff, a shot from above hits below).
+const CLIFF := 128
+## Ladders (M3): only enemies collide with it (they never climb), players walk through.
+const LADDER := 256

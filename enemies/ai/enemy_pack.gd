@@ -170,6 +170,10 @@ func walk_goal(enemy: Enemy) -> Vector2:
 	var order := get_order(enemy)
 	if order == null:
 		return center
+	# Target on the other level of a plateau (M3): straight for it, the navigation finds the stairs
+	# (a ring place below the cliff would only end in front of the rock).
+	if not HeightRules.same_level(enemy, target):
+		return center
 	var goal := center
 	match order.role:
 		Role.RING:

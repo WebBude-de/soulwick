@@ -87,7 +87,7 @@ func _ready() -> void:
 	_sheet = Sprite2D.new()
 	_sheet.name = "Sheet"
 	_sheet.centered = false
-	_sheet.texture = make_shape_texture(rect, tiles.get_floor_mask(), tiles.room_size)
+	_sheet.texture = make_shape_texture(rect, tiles.get_room_shape_mask(), tiles.room_size)
 	_sheet.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	_sheet.scale = Vector2.ONE * RoomTiles.TILE_WORLD / PIXELS_PER_TILE
 	_sheet.position = RoomTiles.tile_to_local(rect.position)

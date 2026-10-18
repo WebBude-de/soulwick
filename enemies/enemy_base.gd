@@ -198,6 +198,8 @@ func _ready() -> void:
 		set_physics_process(false)
 		return
 	add_to_group(&"enemies")
+	# Plateaus (M3): cliffs and edges stop enemies like walls, ladders too (enemies never climb).
+	collision_mask |= PhysicsLayers.CLIFF | PhysicsLayers.LADDER
 	_base_mask = collision_mask
 	_base_layer = collision_layer
 	_navigation = EnemyNavigation.new(self, _navigation_agent)
@@ -656,7 +658,8 @@ func _process_chase() -> void:
 
 	match data.attack_kind:
 		EnemyData.AttackKind.MELEE:
-			if distance <= data.attack_range:
+			# No swing up or down a cliff (M3): on another level it walks on (over the stairs).
+			if distance <= data.attack_range and HeightRules.same_level(self, _target):
 				_start_telegraph(direction, next if next == Action.SPECIAL else Action.NORMAL)
 			elif not _try_hop():
 				# Ring place, cut-off point or the target itself (EnemyPack); pack slimes creep
@@ -997,7 +1000,8 @@ func _leap() -> void:
 	Sfx.play_at(self, &"charge", global_position)
 	ability_used.emit(self, &"leap")
 	var start := global_position
-	var target := _leap_target
+	# Never onto the other level of a plateau or onto its cliff (M3): leaps in place instead.
+	var target := HeightRules.keep_level(start, _leap_target)
 	var tween := create_tween()
 	tween.tween_method(func(t: float) -> void:
 		global_position = start.lerp(target, t)
@@ -1030,6 +1034,8 @@ func _teleport() -> void:
 	var destination := global_position
 	if _target != null:
 		destination = _teleport_destination()
+		# Never up or down a plateau (M3): a ladder plateau stays a safe island.
+		destination = HeightRules.keep_level(global_position, destination)
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
 	global_position = destination
 	Burst.spawn(get_parent(), global_position, data.placeholder_color, 16, 140.0)
@@ -1052,6 +1058,9 @@ func _teleport_destination() -> Vector2:
 		if arena.size != Vector2.ZERO and not arena.grow(-48.0).has_point(candidate):
 			continue
 		candidate = _navigation.snap_to_navigation(candidate)
+		# Never up or down a plateau (M3).
+		if HeightRules.keep_level(global_position, candidate) != candidate:
+			continue
 		if first == Vector2.INF:
 			first = candidate
 		if not _navigation.fits_at(candidate + body_offset):
@@ -1104,6 +1113,7 @@ func _summon() -> void:
 		# Never inside a wall or pillar (A2 navigation; A3 inner walls).
 		if _navigation != null:
 			spot = _navigation.snap_to_navigation(spot)
+		spot = HeightRules.keep_level(global_position, spot)
 		var parent := get_parent() as Node2D
 		minion.position = parent.to_local(spot) if parent != null else spot
 		minion.apply_scaling(_room_index, false)
@@ -1324,6 +1334,9 @@ func _fire_spread(direction: Vector2, count: int) -> void:
 func _fire_projectile(damage: DamageData, direction: Vector2, speed_factor := 1.0) -> void:
 	var speed := (data.projectile_speed if data.projectile_speed > 0.0 else 240.0) * speed_factor
 	var distance := maxf(data.attack_range, data.volley_range) * 1.5
+	# Shots cross levels (M3), also those of melee bosses and champions (HeightRules.blocks_hit).
+	if not damage.tags.has(&"projectile"):
+		damage.tags.append(&"projectile")
 	var projectile := Projectile.create(damage, direction, speed, distance, PhysicsLayers.PLAYER_HURTBOX)
 	projectile.collision_radius = data.projectile_radius
 	if data.projectile_texture != null:
