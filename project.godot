@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="Soulwick"
-config/version="0.9.1"
 config/description="Soulwick - 2D top-down dungeon roguelite (team project, see docs/PRD.md)."
+config/version="0.9.1"
 run/main_scene="res://scenes/main.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 boot_splash/bg_color=Color(0.08235294, 0.07450981, 0.12156863, 1)
@@ -118,7 +118,7 @@ pause_menu={
 
 [rendering]
 
-renderer/rendering_method.mobile="gl_compatibility"
 textures/canvas_textures/default_texture_filter=0
+renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
 environment/defaults/default_clear_color=Color(0.07, 0.06, 0.09, 1)
