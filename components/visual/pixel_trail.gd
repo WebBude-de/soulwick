@@ -65,17 +65,32 @@ func paint(item: Object) -> void:
 	if count < 2 or shown <= 0.0:
 		return
 	var full := PixelLine.pixels_for_width(width)
+	# Runs of segments with the same alpha step and width, newest first: a cell two runs share (their
+	# joint) is drawn once, by the brighter newer run, so see-through colours never stack.
+	var runs: Array[Array] = []
 	var start := 0
 	var style := _style(1, count, full)
 	for i in range(2, count + 1):
 		var next := _style(i, count, full) if i < count else Vector2i(-1, -1)
 		if next == style:
 			continue
-		# One polyline per run of segments with the same alpha step and width: pixels drawn once.
-		var alpha := float(style.x) / FADE_STEPS * MAX_ALPHA * shown
-		PixelDraw.polyline(item, _points.slice(start, i), Color(color, color.a * alpha), style.y)
+		runs.push_front([start, i, style])
 		start = i - 1
 		style = next
+	var taken := {}
+	for run: Array in runs:
+		var run_style: Vector2i = run[2]
+		var cells := {}
+		var points := _points.slice(run[0], run[1])
+		for k in range(1, points.size()):
+			PixelDraw._line_cells(cells, points[k - 1] / PixelDraw.WORLD_PIXEL, points[k] / PixelDraw.WORLD_PIXEL, 1, 0, run_style.y, 0)
+		for cell: Vector2i in cells.keys():
+			if taken.has(cell):
+				cells.erase(cell)
+			else:
+				taken[cell] = true
+		var alpha := float(run_style.x) / FADE_STEPS * MAX_ALPHA * shown
+		PixelDraw._draw_cells(item, cells, Color(color, color.a * alpha), PixelDraw.WORLD_PIXEL)
 
 
 ## Alpha step (1..FADE_STEPS) and width (art pixels) of the segment that ends at point index of count.
