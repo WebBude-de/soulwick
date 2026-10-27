@@ -1,7 +1,8 @@
 extends GutTest
 ## Bug reports 17.10.2026 (web build dev.7, rooms 7-30):
-##   - #b16194d4 "da bin ich transparent": the walkable band at the top of a lip is closed at the ends
-##     of a block, nobody walks into the rock's top from the side (RockTerrain lip caps);
+##   - #b16194d4 "da bin ich transparent": the walkable band at the top of a lip was closed at the
+##     ends of a block; since 22.10.2026 (#db6117ad, "unsichtbare Wand") it is open there again, one
+##     rule for every raised mass (RockTerrain.LIP_CAPS);
 ##   - #5d991188 "unsichtbare Hitbox": the wall beside an entrance gap is a lip like the rest of the
 ##     wall, a blocked south entrance blocks from the band down, and rock both joined rooms keep takes
 ##     the lip's collision (PassageSeam);
@@ -37,8 +38,9 @@ func _context() -> DungeonContext:
 	return context
 
 
-func test_lip_band_is_closed_at_the_ends_of_a_block() -> void:
-	# A block of three tiles in open floor: its crown row is a lip, open at both ends.
+func test_lip_band_is_open_at_the_ends_of_a_block() -> void:
+	# Bug report 22.10.2026 (#db6117ad, "warum ist hier eine unsichtbare Wand"): one rule for every
+	# raised mass, the band behind a block is open from the north and from the sides (no caps).
 	var floor_mask: Dictionary[Vector2i, bool] = {}
 	for y in range(-2, 4):
 		for x in range(-3, 4):
@@ -46,12 +48,10 @@ func test_lip_band_is_closed_at_the_ends_of_a_block() -> void:
 	for x in range(-1, 2):
 		floor_mask.erase(Vector2i(x, 0))
 		floor_mask.erase(Vector2i(x, 1))
-	assert_eq(RockTerrain.lip_caps(Vector2i(-1, 0), floor_mask), RockTerrain.CAP_LEFT, "west end")
-	assert_eq(RockTerrain.lip_caps(Vector2i(1, 0), floor_mask), RockTerrain.CAP_RIGHT, "east end")
-	assert_eq(RockTerrain.lip_caps(Vector2i(0, 0), floor_mask), 0, "the middle stays open from the north")
-	var corridor: Dictionary[Vector2i, bool] = {Vector2i(-2, 0): true}
-	assert_eq(RockTerrain.lip_caps(Vector2i(-1, 0), floor_mask, corridor), 0, "no cap towards a door corridor")
-	# The cap stays inside the band and the tile.
+	assert_false(RockTerrain.LIP_CAPS, "caps are off")
+	for x in range(-1, 2):
+		assert_eq(RockTerrain.lip_caps(Vector2i(x, 0), floor_mask), 0, "no cap at %d" % x)
+	# The caps stay buildable (LIP_CAPS on): inside the band and the tile.
 	var half := RockTerrain.TILE / 2.0
 	for cap in [RockTerrain.CAP_LEFT, RockTerrain.CAP_RIGHT]:
 		for bits in [0, RockTerrain.CORNER_TL | RockTerrain.CORNER_TR]:
@@ -59,12 +59,7 @@ func test_lip_band_is_closed_at_the_ends_of_a_block() -> void:
 			assert_gt(polygon.size(), 3)
 			for point in polygon:
 				assert_between(point.y, -half - 0.01, -half + RockTerrain.LIP_WALK + 0.01)
-				if cap == RockTerrain.CAP_LEFT:
-					assert_lte(point.x, -half + RockTerrain.LIP_CAP_WIDTH + 0.01)
-				else:
-					assert_gte(point.x, half - RockTerrain.LIP_CAP_WIDTH - 0.01)
 			assert_true(Geometry2D.decompose_polygon_in_convex(polygon).size() == 1, "convex")
-	# Every capped variant is a solid lip cell.
 	for caps in 4:
 		var coords := RockTerrain.solid_coords(5, true, caps)
 		assert_true(RockTerrain.is_solid_cell(RockTerrain.SOURCE_GROUND, coords))
@@ -72,7 +67,7 @@ func test_lip_band_is_closed_at_the_ends_of_a_block() -> void:
 	assert_false(RockTerrain.is_lip_coords(RockTerrain.solid_coords(5)))
 
 
-func test_a_player_cannot_walk_into_a_block_top_from_the_side() -> void:
+func test_a_player_walks_into_a_block_top_from_the_side() -> void:
 	var room := HALL.instantiate() as RoomController
 	room.setup(3, RoomSequence.RoomType.COMBAT, -1, false, _context())
 	add_child_autofree(room)
@@ -82,39 +77,38 @@ func test_a_player_cannot_walk_into_a_block_top_from_the_side() -> void:
 		pending("no terrain art")
 		return
 	var floor_mask := tiles.get_floor_mask()
+	var corridors := tiles.get_door_corridor_tiles()
 	var checked := 0
 	for cell in tiles.get_used_cells():
 		var coords := tiles.get_cell_atlas_coords(cell)
 		if not RockTerrain.is_solid_cell(tiles.get_cell_source_id(cell), coords) or not RockTerrain.is_lip_coords(coords):
 			continue
-		var caps := coords.y - RockTerrain.SOLID_LIP_ROW
-		var corridors := tiles.get_door_corridor_tiles()
+		assert_eq(coords.y, RockTerrain.SOLID_LIP_ROW, "%s: no cap" % cell)
 		var west_open := floor_mask.has(cell + Vector2i.LEFT) and not corridors.has(cell + Vector2i.LEFT)
 		var east_open := floor_mask.has(cell + Vector2i.RIGHT) and not corridors.has(cell + Vector2i.RIGHT)
-		assert_eq(bool(caps & RockTerrain.CAP_LEFT), west_open, "%s: cap on the west end" % cell)
-		assert_eq(bool(caps & RockTerrain.CAP_RIGHT), east_open, "%s: cap on the east end" % cell)
-		if west_open or east_open:
-			checked += 1
-			# The band is closed: a body moving in from the side at band height stops before the rock.
-			var side := -1 if west_open else 1
-			var body := CharacterBody2D.new()
-			var shape := CollisionShape2D.new()
-			var circle := CircleShape2D.new()
-			circle.radius = 9.0
-			shape.shape = circle
-			body.add_child(shape)
-			body.collision_mask = tiles.tile_set.get_physics_layer_collision_layer(0)
-			var center := tiles.to_global(tiles.map_to_local(cell))
-			var band_y := center.y - RoomTiles.TILE_WORLD * 0.5 + RockTerrain.LIP_WALK
-			body.global_position = Vector2(center.x + side * RoomTiles.TILE_WORLD, band_y)
-			room.add_child(body)
-			await wait_physics_frames(1)
-			body.move_and_collide(Vector2(-side * RoomTiles.TILE_WORLD, 0.0))
-			var edge := center.x + side * RoomTiles.TILE_WORLD * 0.5
-			assert_gt((body.global_position.x - edge) * side, 4.0, "%s: stopped at the end of the block" % cell)
-			body.free()
-			if checked >= 3:
-				break
+		if not west_open and not east_open:
+			continue
+		checked += 1
+		# A body moving in from the side in the band gets over the end of the block.
+		var side := -1 if west_open else 1
+		var body := CharacterBody2D.new()
+		var shape := CollisionShape2D.new()
+		var circle := CircleShape2D.new()
+		circle.radius = 6.0
+		shape.shape = circle
+		body.add_child(shape)
+		body.collision_mask = tiles.tile_set.get_physics_layer_collision_layer(0)
+		var center := tiles.to_global(tiles.map_to_local(cell))
+		var band_y := center.y - RoomTiles.TILE_WORLD * 0.5 + RockTerrain.LIP_WALK
+		body.global_position = Vector2(center.x + side * RoomTiles.TILE_WORLD, band_y)
+		room.add_child(body)
+		await wait_physics_frames(1)
+		body.move_and_collide(Vector2(-side * RoomTiles.TILE_WORLD * 0.75, 0.0))
+		var edge := center.x + side * RoomTiles.TILE_WORLD * 0.5
+		assert_lt((body.global_position.x - edge) * side, 0.0, "%s: walked into the band behind the block" % cell)
+		body.free()
+		if checked >= 3:
+			break
 	if checked == 0:
 		pass_test("no free-standing block in this hall")
 

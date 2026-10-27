@@ -1,5 +1,5 @@
 extends GutTest
-## Pure rules of the room modes (KONZEPT_RAEUME_V2 §2, §4, D-120, R4b): the mode table (35 % of the
+## Pure rules of the room modes (RAEUME §2, §4, D-120, R4b): the mode table (35 % of the
 ## combat rooms from room 6, at most two per cycle, never the same mode twice in a row, no mode twice
 ## in a cycle, new modes one by one, first rooms per mode, plan modes, wager altar on 12 % of the
 ## others, fixed RNG use), the numbers of the five minigames and the crypt trait, the placement
@@ -216,12 +216,12 @@ func test_choose_variant_follows_the_weights() -> void:
 # --- Mode numbers ---
 
 func test_flame_numbers() -> void:
-	assert_eq(FlameRules.DURATION, 40.0, "Halte die Flamme 40 s (KONZEPT_RAEUME_V2 §3.4)")
-	assert_true(FlameRules.is_raider(0.69))
-	assert_false(FlameRules.is_raider(0.7))
+	assert_eq(FlameRules.DURATION, 40.0, "Halte die Flamme 40 s (RAEUME §3.4)")
+	assert_true(FlameRules.is_raider(FlameRules.RAID_SHARE - 0.01))
+	assert_false(FlameRules.is_raider(FlameRules.RAID_SHARE))
 	var solo := FlameRules.flame_health(6, 1)
 	assert_gt(FlameRules.flame_health(30, 1), solo, "scales with the enemy damage of the room")
-	assert_almost_eq(FlameRules.flame_health(6, 2), solo * 1.5, 0.5, "co-op parameter (D-109)")
+	assert_almost_eq(FlameRules.flame_health(6, 2), solo * (1.0 + FlameRules.HEALTH_PER_EXTRA_PLAYER), 0.5, "co-op parameter (D-109)")
 	assert_eq(fmod(solo, 0.5), 0.0, "0.5 steps")
 	assert_true(FlameRules.should_push(12.0, FlameRules.PUSH_INTERVAL, 5, true), "every 8 s")
 	assert_false(FlameRules.should_push(12.0, 4.0, 5, true))
@@ -229,7 +229,7 @@ func test_flame_numbers() -> void:
 	assert_false(FlameRules.should_push(12.0, FlameRules.PUSH_MIN_GAP - 0.5, 0, true))
 	assert_false(FlameRules.should_push(FlameRules.DURATION, 20.0, 0, true), "the sources go dark after 40 s")
 	assert_false(FlameRules.should_push(12.0, 20.0, 0, false), "no pushes once the flame is out")
-	assert_eq(FlameRules.push_size(10), 4)
+	assert_eq(FlameRules.push_size(10), roundi(10 * FlameRules.PUSH_FACTOR))
 	assert_eq(FlameRules.push_size(1), FlameRules.PUSH_MIN)
 	assert_true(FlameRules.holds_room(39.0, true))
 	assert_false(FlameRules.holds_room(40.0, true))

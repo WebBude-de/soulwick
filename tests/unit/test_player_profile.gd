@@ -131,7 +131,7 @@ func test_v3_slot_becomes_a_world_without_losing_progress() -> void:
 	assert_eq(SaveManager.save_game(), OK)
 	var config := ConfigFile.new()
 	assert_eq(config.load(SaveManager.slot_path(1)), OK)
-	assert_eq(config.get_value("meta", "version"), 4)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_eq(config.get_value("legacy_profile", "name"), "Lumen")
 	assert_eq(config.get_value("legacy_profile", "color"), "a66ef0")
 	assert_false(config.has_section_key("profile", "name"))
@@ -142,11 +142,10 @@ func test_v3_slot_becomes_a_world_without_losing_progress() -> void:
 
 
 func _assert_lumen_progress(when: String) -> void:
-	assert_eq(SaveManager.get_permanent_gold(), 43, when)
+	# v5 (KE4): Vitalität 2 and Schärfe 1 of the v3 file are refunded (20 + 80, 70 Gold).
+	assert_eq(SaveManager.get_permanent_gold(), 43 + 170, "%s: v3 levels refunded once" % when)
 	assert_eq(SaveManager.get_permanent_crystals(), 11, when)
-	assert_eq(SaveManager.get_meta_level(MetaProgression.VITALITY), 2, "%s: v3 levels unchanged" % when)
-	assert_eq(SaveManager.get_meta_level(MetaProgression.SHARPNESS), 1, when)
-	assert_true(SaveManager.has_pending_boost(MetaProgression.BOOST_POTION), when)
+	assert_true(SaveManager.has_pending_boost(MetaProgression.BOOST_HEALING_POTION), when)
 	assert_eq(SaveManager.get_stat(StatsTracker.KILLS), 316, when)
 	assert_true(SaveManager.has_seen(&"intro_forge"), when)
 	assert_false(SaveManager.has_seen(&"boss_intro_ember_golem"), when)

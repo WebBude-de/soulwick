@@ -11,7 +11,7 @@ extends RefCounted
 ## the setters, which store and apply at once. F11 toggles the window mode everywhere.
 ##
 ## Game-feel switches are read where the effect happens (one line each, see
-## docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md "Haken"): CameraShake (enabled is set here already,
+## docs/SPRACHEN.md "Haken"): CameraShake (enabled is set here already,
 ## strength via get_screen_shake_strength()), HitStop.trigger (is_hit_stop_enabled()),
 ## DamageNumber (are_damage_numbers_enabled()), SpriteFx.flash / PostProcess.hit_pulse
 ## (get_flash_strength()).
@@ -55,9 +55,11 @@ const TOUCH_STICKS: StringName = &"touch_sticks"
 const TOUCH_FIXED: StringName = &"fixed"
 const TOUCH_FLOATING: StringName = &"floating"
 const TOUCH_STICK_MODES: Array[StringName] = [TOUCH_FIXED, TOUCH_FLOATING]
-## Size step 0 (small), 1 (medium), 2 (large): 2, 3 or 4 screen pixels per art pixel.
+## Size step 0 (small), 1 (medium), 2 (large, default since D-219): the TouchOverlay turns it into
+## millimetres on the real screen (TouchMetrics), the PortraitPad likewise.
 const TOUCH_SIZE: StringName = &"touch_size"
 const TOUCH_SIZE_STEPS := 3
+const TOUCH_SIZE_DEFAULT := 2
 ## Opacity of the whole overlay (TESTWERT steps).
 const TOUCH_OPACITY: StringName = &"touch_opacity"
 const TOUCH_OPACITIES: Array[float] = [0.5, 0.75, 1.0]
@@ -92,7 +94,7 @@ const DEFAULTS := {
 	GAMEPAD_AIM_ASSIST: true,
 	TOUCH_SWAP_SIDES: false,
 	TOUCH_STICKS: "fixed",
-	TOUCH_SIZE: 1,
+	TOUCH_SIZE: TOUCH_SIZE_DEFAULT,
 	TOUCH_OPACITY: 1.0,
 	TOUCH_AIM_ASSIST: true,
 	SKIP_SIDE_PATHS: false,
@@ -329,9 +331,9 @@ static func are_touch_sticks_floating() -> bool:
 	return get_touch_stick_mode() == TOUCH_FLOATING
 
 
-## 0 (small), 1 (medium, default), 2 (large).
+## 0 (small), 1 (medium), 2 (large, default; D-219).
 static func get_touch_size() -> int:
-	var value: Variant = SaveManager.get_option(TOUCH_SIZE, 1)
+	var value: Variant = SaveManager.get_option(TOUCH_SIZE, TOUCH_SIZE_DEFAULT)
 	return clampi(int(value), 0, TOUCH_SIZE_STEPS - 1)
 
 

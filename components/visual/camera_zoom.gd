@@ -5,8 +5,8 @@ extends RefCounted
 ## (overview: where does it go?), 1.0× in boss rooms. Pure state: CameraRig asks for the value every
 ## frame and applies it. Zoom 1.0 = the old view (1280×720 world px); the HUD never scales with it.
 
-## Exploring the dungeon. TESTWERT.
-const DUNGEON := 1.25
+## Exploring the dungeon. TESTWERT (D-205: "gerne näher ran", 1.25 × 3.5/3.0).
+const DUNGEON := 1.45
 ## The short overview when a room is entered.
 const OVERVIEW := 1.0
 ## Boss rooms: the whole fight in view. TESTWERT.
@@ -14,8 +14,8 @@ const BOSS := 1.0
 ## Campfire: the whole rest place in view (fire, portal, way on), like the boss room before it.
 ## TESTWERT (screenshot check M4: at 1.25 the way on is cut off).
 const CAMPFIRE := 1.0
-## Village: built for the 1280×720 view (several buildings per view). TESTWERT.
-const VILLAGE := 1.0
+## Village: built for the 1280×720 view (several buildings per view). TESTWERT (D-205: closer, 1.0 × 3.5/3.0).
+const VILLAGE := 1.15
 ## Pull-out timeline (s): out, overview held, back in. Sine in-out, never a jump. TESTWERTE.
 const PULL_OUT_TIME := 0.35
 const PULL_OUT_HOLD := 1.0

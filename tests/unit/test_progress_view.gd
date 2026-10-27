@@ -66,8 +66,8 @@ func _wipe() -> void:
 
 func _world_with_progress() -> void:
 	SaveManager.create_slot(1, "Nebeltal")
-	SaveManager.set_meta_level(MetaProgression.VITALITY, 3)
-	SaveManager.set_meta_level(MetaProgression.START_SHIELD, 1)
+	SaveManager.set_meta_level(MetaProgression.SMITH_SWORD, 3)
+	SaveManager.set_meta_level(MetaProgression.SHIELD_PLATE, 1)
 	SaveManager.record_stat_max(StatsTracker.DEEPEST_ROOM, 16)
 	SaveManager.add_stat(StatsTracker.BOSSES, 1)
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
@@ -85,14 +85,14 @@ func test_menu_entry_shows_the_forge_and_opens_the_overview() -> void:
 	await wait_process_frames(2)
 	var list := menu.get_list()
 	assert_eq(list.get_entry_text(MainMenu.ENTRY_PROGRESS), "Fortschritt")
-	assert_eq(list.get_entry_hint(MainMenu.ENTRY_PROGRESS), "Schmiede 4/20", "progress at a glance in the list")
+	assert_eq(list.get_entry_hint(MainMenu.ENTRY_PROGRESS), "Schmiede 4/36", "progress at a glance in the list")
 	menu.activate(MainMenu.ENTRY_PROGRESS)
 	var panel := menu.get_open_panel() as ProgressPanel
 	assert_not_null(panel, "Fortschritt opens the overview")
 	await wait_process_frames(2)
 	var view := panel.view
 	assert_eq(view.world["name"], "Nebeltal")
-	assert_eq((view.find_child("ForgeValue", true, false) as Label).text, "4 / 20")
+	assert_eq((view.find_child("ForgeValue", true, false) as Label).text, "4 / 36")
 	var crypt := view.find_child("Biome0", true, false) as Control
 	assert_eq((crypt.find_child("State", true, false) as Label).text, "Boss besiegt")
 	var grotto := view.find_child("Biome1", true, false) as Control
@@ -109,7 +109,7 @@ func test_overview_without_a_world() -> void:
 	var menu := MainMenu.new()
 	add_child_autofree(menu)
 	await wait_process_frames(2)
-	assert_eq(menu.get_list().get_entry_hint(MainMenu.ENTRY_PROGRESS), "Schmiede 0/20")
+	assert_eq(menu.get_list().get_entry_hint(MainMenu.ENTRY_PROGRESS), "Schmiede 0/36")
 	var panel := menu.open_progress()
 	await wait_process_frames(2)
 	assert_false(panel.view.world["exists"])
@@ -147,6 +147,6 @@ func test_chronicle_shows_the_overview_next_to_the_statistics() -> void:
 	assert_true(view.compact)
 	assert_eq(view.world["name"], "Nebeltal", "the loaded world")
 	assert_null(view.find_child("Unlocks", true, false), "compact: the statistics stand next to it")
-	assert_eq((view.find_child("ForgeValue", true, false) as Label).text, "4 / 20")
+	assert_eq((view.find_child("ForgeValue", true, false) as Label).text, "4 / 36")
 	assert_true(get_viewport().get_visible_rect().encloses(modal.frame.get_global_rect()), "fits the screen")
 	modal.finish()

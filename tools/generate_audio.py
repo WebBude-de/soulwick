@@ -266,7 +266,7 @@ def build_ui():
     return len(ui)
 
 
-# ---------------------------------------------------------------- doors (ROADMAP_AUSBAU D1)
+# ---------------------------------------------------------------- doors (ROADMAP D1)
 # One opening sound per biome door plus the boss gate (unlock and slam shut). Names come from
 # DoorStyle.open_sound / close_sound. "door_open" above stays the generic fallback.
 # All pitches and lengths are TESTWERTE.
@@ -332,7 +332,7 @@ def build_doors():
     return len(doors)
 
 
-# ---------------------------------------------------------------- room content (ROADMAP_AUSBAU phase 2)
+# ---------------------------------------------------------------- room content (ROADMAP phase 2)
 # Abyss fall (A4), combat variants (soul flame, rifts, gravedigger, bounty), wager altar and the
 # crumbling floor trial. Until the code switches to these names, the rooms play stand-in sounds
 # (dash, hit_enemy, blind, portal, teleport, slam, trap, upgrade). All pitches and lengths are TESTWERTE.
@@ -448,7 +448,7 @@ def build_rooms():
     return len(rooms)
 
 
-# ---------------------------------------------------------------- room kinds v2 (ROADMAP_AUSBAU R9)
+# ---------------------------------------------------------------- room kinds v2 (ROADMAP R9)
 # Sounds from docs/design/responses/09_audio.md: enemy sources (warning while the source
 # glows ~1 s), the intro pattern (door, banner, countdown), wave gong, souls, collapse, escort,
 # relic, braziers, slime hops, stone guardians, lantern and torch. Only new names: every file above
@@ -661,8 +661,16 @@ def build_side():
                            tone(55.8, 1.6, "sine", 0.45, attack=0.25, release=0.6),
                            tone(82.5, 1.6, "saw", 0.08, attack=0.4, release=0.6),
                            tremolo(band_noise(1.6, 80, 400, 0.25, attack=0.4, release=0.6), 0.7, 0.5))
+    # Boost field of the rush (RushBoost.SOUND): a fast rising whoosh, the noise opening from dark
+    # to hiss while a saw sweeps 180 -> 900 Hz, a bright little ping at the top; about 0.35 s.
+    # Appended last, so every side sound above stays byte-identical.
+    fx["side_boost"] = mix(noise(0.34, 0.55, lp_coef(350), attack=0.12, release=0.12, cutoff_to=lp_coef(6000)),
+                           tone(180, 0.3, "saw", 0.22, slide_to=900, attack=0.05, release=0.1),
+                           tone(360, 0.3, "triangle", 0.25, slide_to=1800, attack=0.08, release=0.1),
+                           bell(midi(91), 0.16, 0.14),
+                           offsets=[0.0, 0.0, 0.0, 0.22])
     peaks = {"side_jump": 0.5, "side_double_jump": 0.55, "side_land": 0.5, "side_land_hard": 0.75,
-             "side_wall_slide": 0.35, "side_crumble": 0.75, "side_drone": 0.7}
+             "side_wall_slide": 0.35, "side_crumble": 0.75, "side_drone": 0.7, "side_boost": 0.6}
     for name, samples in fx.items():
         write_wav(SFX_DIR / f"{name}.wav", samples, peak=peaks.get(name, 0.7))
     return len(fx)
@@ -670,8 +678,45 @@ def build_side():
 
 # ---------------------------------------------------------------- village (report #ec4f0b9f)
 # A villager the player runs into hops aside with a small confused "hm?" (Villager.dodge_sound).
+# The village animals (VillageAnimal): chicken fed, cat petted, dog greeted; small and cute.
 # Own seed: every sound above stays byte-identical.
 # Only this block: python tools/generate_audio.py village   (TESTWERTE: pitches and lengths)
+
+def glide(points, dur, kind="square", vol=0.5, duty=0.5, attack=0.004, release=0.04):
+    """A tone along a piecewise-linear pitch contour; points = ((t 0..1, Hz), ...), phase stays continuous."""
+    n = max(1, int(dur * SR))
+    out = [0.0] * n
+    phase = 0.0
+    k = 0
+    for i in range(n):
+        t = i / n
+        while k < len(points) - 2 and t > points[k + 1][0]:
+            k += 1
+        (t0, f0), (t1, f1) = points[k], points[k + 1]
+        f = f0 + (f1 - f0) * min(1.0, max(0.0, (t - t0) / max(1e-9, t1 - t0)))
+        phase = (phase + f / SR) % 1.0
+        out[i] = wave_value(kind, phase, duty) * vol * envelope(i, n, attack, release)
+    return out
+
+
+def lowpass(samples, hz):
+    """One-pole low-pass: takes the buzz off square and saw voices."""
+    a = lp_coef(hz)
+    out = [0.0] * len(samples)
+    last = 0.0
+    for i, v in enumerate(samples):
+        last += a * (v - last)
+        out[i] = last
+    return out
+
+
+def cluck(points, dur, vol=0.5):
+    """One chicken syllable: a nasal narrow square with an octave on top and a breath of beak noise."""
+    body = lowpass(mix(glide(points, dur, "square", vol, duty=0.2, attack=0.003, release=dur * 0.5),
+                       glide([(t, f * 2.0) for t, f in points], dur, "triangle", vol * 0.35, attack=0.003, release=dur * 0.5)),
+                   3200)
+    return mix(body, band_noise(0.025, 1800, 4200, vol * 0.25, attack=0.001, release=0.015))
+
 
 def build_village():
     random.seed(31)
@@ -685,7 +730,24 @@ def build_village():
                tone(600, 0.16, "sine", 0.14, slide_to=940, attack=0.015, release=0.07),
                band_noise(0.12, 900, 2600, 0.06, attack=0.02, release=0.08))
     fx["villager_huh"] = seq(hum, rise, gap=0.025)
-    peaks = {"villager_huh": 0.5}
+    # Chicken fed: "bok, bok, ba-gaak!" - two short falling clucks and a rising last one; ~0.45 s.
+    fx["chicken_cluck"] = seq(cluck(((0.0, 640), (1.0, 500)), 0.055, 0.5),
+                              cluck(((0.0, 600), (1.0, 470)), 0.055, 0.45),
+                              cluck(((0.0, 560), (0.3, 520), (0.55, 760), (1.0, 900)), 0.15, 0.55),
+                              gap=0.045)
+    # Cat petted: a soft purr ~0.8 s, two breaths (out, in) of air pulsed at ~24 Hz over a low hum.
+    purr_out = mix(tremolo(band_noise(0.42, 70, 700, 0.6, attack=0.08, release=0.12), 24.0, 0.85),
+                   tremolo(tone(50, 0.42, "triangle", 0.35, attack=0.08, release=0.12), 24.0, 0.85))
+    purr_in = mix(tremolo(band_noise(0.34, 60, 520, 0.45, attack=0.06, release=0.12), 21.0, 0.85),
+                  tremolo(tone(44, 0.34, "triangle", 0.3, attack=0.06, release=0.12), 21.0, 0.85))
+    fx["cat_purr"] = seq(purr_out, purr_in, gap=0.04)
+    # Village dog: one small, bright "wuff" - a quick rise and a softer fall (filtered square plus
+    # a breathy "w"), ~0.2 s; a happy small dog, nothing threatening.
+    woof = lowpass(mix(glide(((0.0, 330), (0.18, 560), (1.0, 300)), 0.2, "square", 0.5, duty=0.35, attack=0.006, release=0.09),
+                       glide(((0.0, 660), (0.18, 1120), (1.0, 600)), 0.2, "triangle", 0.2, attack=0.006, release=0.08)),
+                   2400)
+    fx["dog_woof"] = mix(woof, band_noise(0.06, 500, 2200, 0.3, attack=0.004, release=0.04))
+    peaks = {"villager_huh": 0.5, "chicken_cluck": 0.55, "cat_purr": 0.6, "dog_woof": 0.55}
     for name, samples in fx.items():
         write_wav(SFX_DIR / f"{name}.wav", samples, peak=peaks.get(name, 0.6))
     return len(fx)

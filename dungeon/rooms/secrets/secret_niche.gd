@@ -36,6 +36,10 @@ const BIOME_TINTS := {
 const DUST_COLOR := Color(0.74, 0.7, 0.62, 0.55)
 ## Over the room's tiles (z -10), under props and characters.
 const WALL_Z := -9
+## Spürnase (KE5): the cracked wall shimmers for a local player with the Proviant (optics at this
+## machine only, nothing is sent). Brightest tint and one pulse in seconds. TESTWERTE
+const NOSE_SHIMMER := Color(1.7, 1.45, 0.9)
+const NOSE_PULSE := 0.9
 
 var site: SecretRules.Site = null
 var content_kind := SecretRules.Content.CHEST
@@ -47,6 +51,9 @@ var content: Node2D = null
 var _crack: Sprite2D = null
 var _hurtbox: SecretWallHurtbox = null
 var _dust: CPUParticles2D = null
+## Spürnase was checked (the local player and its Proviant may come after the room is built).
+var _nose_checked := false
+var _shimmer: Tween = null
 
 
 ## Before the room enters the tree: the niche goes into the rock ring behind the north wall, and the
@@ -105,6 +112,8 @@ func _ready() -> void:
 			_crack.position.y -= float(cave.get_height() - RoomTiles.TILE_WORLD / SpriteStrip.PIXEL_SCALE) * SpriteStrip.PIXEL_SCALE
 	_crack.z_index = WALL_Z
 	add_child(_crack)
+	if tiles != null:
+		tiles.keep_front_plain(site.crack)
 	_build_dust()
 	_hurtbox = SecretWallHurtbox.new()
 	_hurtbox.name = "Hurtbox"
@@ -117,6 +126,34 @@ func _ready() -> void:
 	add_child(_hurtbox)
 	_hurtbox.struck.connect(_on_struck)
 	_hurtbox.tapped.connect(_on_tapped)
+
+
+## Spürnase: waits for the local player (rooms are built before the players spawn), then shimmers
+## once it has the Proviant; checked once.
+func _process(_delta: float) -> void:
+	if _nose_checked or is_open:
+		set_process(false)
+		return
+	var player := Hud.local_player(get_tree())
+	if player == null:
+		return
+	_nose_checked = true
+	set_process(false)
+	if MetaProgression.player_has_keen_nose(player):
+		start_shimmer()
+
+
+## The cracked wall pulses warm (Spürnase); stops when the wall breaks.
+func start_shimmer() -> void:
+	if _crack == null or is_open or _shimmer != null:
+		return
+	_shimmer = create_tween().set_loops()
+	_shimmer.tween_property(_crack, ^"modulate", NOSE_SHIMMER, NOSE_PULSE).set_trans(Tween.TRANS_SINE)
+	_shimmer.tween_property(_crack, ^"modulate", Color.WHITE, NOSE_PULSE).set_trans(Tween.TRANS_SINE)
+
+
+func is_shimmering() -> bool:
+	return _shimmer != null
 
 
 func get_crack_position() -> Vector2:
@@ -132,6 +169,10 @@ func break_open() -> bool:
 	if is_open:
 		return false
 	is_open = true
+	if _shimmer != null:
+		_shimmer.kill()
+		_shimmer = null
+		_crack.modulate = Color.WHITE
 	if room != null and is_instance_valid(room) and room.tiles != null:
 		room.tiles.open_wall_tiles(site.opening)
 	_hurtbox.set_deferred("monitorable", false)

@@ -3,8 +3,10 @@ extends Node2D
 ## The door at the end of a side segment (M5): frame and leaf of the biome's door, a warm light, the
 ## leaf swings open when a player comes close. The origin is the floor line under the door.
 ## SideSegment decides when a player walks in (is_entered_by).
-## Round 3 ("Ausgang klar erkennbar"): a soft beam of light over the doorway, golden motes rising in
-## it and a slow pulse of the door light, so the way out reads from afar; it brightens once open.
+## Round 3 ("Ausgang klar erkennbar"): a beam of light over the doorway, golden motes rising in it
+## and a slow pulse of the door light, so the way out reads from afar; it brightens once open. Beam
+## and motes are pixel art (D-218): the beam fades upwards in hard bands, the motes are squares of
+## one art pixel fading in steps; the door light itself is the light system's (soft).
 
 const DOORS_DIR := "res://art/environment/doors/"
 const FALLBACK_BIOME := &"crypt"
@@ -20,6 +22,8 @@ const BEAM_COLOR := Color(1.0, 0.85, 0.5)
 const BEAM_ALPHA := 0.16
 const PULSE_SPEED := 2.2
 const PULSE_DEPTH := 0.2
+## Hard bands of the beam from the floor upwards (TESTWERT).
+const BEAM_BANDS := 5
 
 var biome_id: StringName = FALLBACK_BIOME
 var is_open := false
@@ -31,23 +35,7 @@ var _time := 0.0
 
 func _ready() -> void:
 	z_index = -2
-	var frame_texture := _texture("door_frame_%s.png")
-	if frame_texture != null:
-		var frame := Sprite2D.new()
-		frame.name = "Frame"
-		frame.texture = frame_texture
-		frame.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
-		frame.offset = SpriteStrip.pivot_offset(Vector2i(frame_texture.get_size()), FRAME_PIVOT)
-		add_child(frame)
-	var leaf_texture := _texture("door_%s_open_4f.png")
-	if leaf_texture != null:
-		_leaf = AnimatedSprite2D.new()
-		_leaf.name = "Leaf"
-		_leaf.sprite_frames = SpriteStrip.make_frames(leaf_texture, LEAF_FRAME, 8.0, false)
-		_leaf.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
-		_leaf.offset = SpriteStrip.pivot_offset(LEAF_FRAME, LEAF_PIVOT)
-		_leaf.frame = 0
-		add_child(_leaf)
+	_build_door()
 	_glow = LightSource.new()
 	_glow.name = "Glow"
 	_glow.radius = 170.0
@@ -68,17 +56,39 @@ func _ready() -> void:
 	motes.gravity = Vector2.ZERO
 	motes.initial_velocity_min = 30.0
 	motes.initial_velocity_max = 60.0
-	motes.scale_amount_min = 2.0
-	motes.scale_amount_max = 3.0
+	motes.scale_amount_min = SidePixels.PIXEL
+	motes.scale_amount_max = SidePixels.PIXEL
 	var ramp := Gradient.new()
 	ramp.set_color(0, Color(BEAM_COLOR, 0.0))
 	ramp.set_color(1, Color(BEAM_COLOR, 0.0))
 	ramp.add_point(0.25, Color(BEAM_COLOR, 0.9))
+	ramp.add_point(0.7, Color(BEAM_COLOR, 0.45))
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	motes.color_ramp = ramp
 	var additive := CanvasItemMaterial.new()
 	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	motes.material = additive
 	add_child(motes)
+
+
+func _build_door() -> void:
+	var frame_texture := _texture("door_frame_%s.png")
+	if frame_texture != null:
+		var frame := Sprite2D.new()
+		frame.name = "Frame"
+		frame.texture = frame_texture
+		frame.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
+		frame.offset = SpriteStrip.pivot_offset(Vector2i(frame_texture.get_size()), FRAME_PIVOT)
+		add_child(frame)
+	var leaf_texture := _texture("door_%s_open_4f.png")
+	if leaf_texture != null:
+		_leaf = AnimatedSprite2D.new()
+		_leaf.name = "Leaf"
+		_leaf.sprite_frames = SpriteStrip.make_frames(leaf_texture, LEAF_FRAME, 8.0, false)
+		_leaf.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
+		_leaf.offset = SpriteStrip.pivot_offset(LEAF_FRAME, LEAF_PIVOT)
+		_leaf.frame = 0
+		add_child(_leaf)
 
 
 func _process(delta: float) -> void:
@@ -88,14 +98,20 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## The beam: brightest at the floor, fading upwards, a little stronger once open.
+## The beam: brightest at the floor, fading upwards in hard bands, a little stronger once open (the
+## pulse moves in steps too).
 func _draw() -> void:
 	var half := BEAM_SIZE.x * 0.5
-	var alpha := BEAM_ALPHA * (1.6 if is_open else 1.0) * (1.0 + 0.25 * sin(_time * PULSE_SPEED))
-	var low := Color(BEAM_COLOR, alpha)
-	var high := Color(BEAM_COLOR, 0.0)
-	draw_polygon(PackedVector2Array([Vector2(-half, 0), Vector2(half, 0), Vector2(half * 0.6, -BEAM_SIZE.y), Vector2(-half * 0.6, -BEAM_SIZE.y)]),
-			PackedColorArray([low, low, high, high]))
+	var pulse := roundf(sin(_time * PULSE_SPEED) * 2.0) * 0.5
+	var alpha := BEAM_ALPHA * (1.6 if is_open else 1.0) * (1.0 + 0.25 * pulse)
+	var band_height := BEAM_SIZE.y / BEAM_BANDS
+	for band in BEAM_BANDS:
+		var bottom := -band * band_height
+		var top := bottom - band_height
+		var wide := lerpf(half, half * 0.6, float(band) / BEAM_BANDS)
+		var narrow := lerpf(half, half * 0.6, float(band + 1) / BEAM_BANDS)
+		var color := Color(BEAM_COLOR, alpha * (1.0 - float(band) / BEAM_BANDS))
+		SidePixels.polygon(self, PackedVector2Array([Vector2(-wide, bottom), Vector2(wide, bottom), Vector2(narrow, top), Vector2(-narrow, top)]), color)
 
 
 ## Opens once (look and sound).

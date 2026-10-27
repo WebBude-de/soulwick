@@ -123,20 +123,7 @@ static func plan(rooms: Array, door_cell: Vector2i, outward: Vector2i, keep_door
 	var closed := closed_floor(rooms, passage)
 	if open_door:
 		closed[door_cell] = true
-	# The look of a cover tile follows the room whose own floor is nearest - its door corridors do not
-	# count (a corridor reaching into the other room must not pull that room's wall into its look,
-	# G2 note 27: a campfire's exit under the next biome's rock).
-	var floors: Array = []
-	for room: Node2D in rooms:
-		var own: Dictionary[Vector2i, bool] = {}
-		var tiles := _tiles_of(room)
-		if tiles != null:
-			var origin := PassageSeam.origin_of(room)
-			var corridors := tiles.get_door_corridor_tiles()
-			for tile in tiles.get_floor_mask():
-				if closed.has(tile + origin) and not corridors.has(tile):
-					own[tile + origin] = true
-		floors.append(own)
+	var floors := _own_floors(rooms, closed)
 	for cell in cover_cells(passage, outward, keep_door, closed):
 		var owner := owner_of(cell, rooms, floors)
 		var atlas := piece_of(cell, _tiles_of(owner), closed)
@@ -216,6 +203,25 @@ static func sealed_plan(room: Node2D, door_tile: Vector2i, outward: Vector2i) ->
 		if atlas.z >= 0:
 			pieces.append({"cell": cell, "room": room, "atlas": atlas})
 	return pieces
+
+
+## The floors of the rooms in world tiles inside floor_mask, without their door corridors: the look of
+## a cover tile follows the room whose own floor is nearest (a corridor reaching into the other room
+## must not pull that room's wall into its look, G2 note 27: a campfire's exit under the next biome's
+## rock). One dictionary per room, in the order of rooms.
+static func _own_floors(rooms: Array, floor_mask: Dictionary[Vector2i, bool]) -> Array:
+	var floors: Array = []
+	for room: Node2D in rooms:
+		var own: Dictionary[Vector2i, bool] = {}
+		var tiles := _tiles_of(room)
+		if tiles != null:
+			var origin := PassageSeam.origin_of(room)
+			var corridors := tiles.get_door_corridor_tiles()
+			for tile in tiles.get_floor_mask():
+				if floor_mask.has(tile + origin) and not corridors.has(tile):
+					own[tile + origin] = true
+		floors.append(own)
+	return floors
 
 
 static func _tiles_of(room: Node) -> RoomTiles:

@@ -13,6 +13,9 @@ extends Node2D
 ## of the world counts (group &"player": local and remote players, Koop); each client moves its own
 ## villagers, nothing is shared or saved and no dungeon RNG is used (optics, D-088). A spot inside
 ## something solid (house, fence, prop, bush) is never taken.
+## WK12 (D-196): an animal (animal = &"chicken", &"cat", …) gets a VillageAnimal: spoken to, it
+## stands and looks at the player (hold), hops in place (hop_in_place) and plays its "react" strip
+## while one is delivered (VillageArt.get_character_frames).
 
 ## Route points (feet, village coordinates). Two or more points.
 @export var route := PackedVector2Array()
@@ -32,6 +35,8 @@ extends Node2D
 ## Sound when a player runs into it (audio/sfx/<name>.wav, silent while the file is missing); empty
 ## for animals until they have their own.
 @export var dodge_sound: StringName = &"villager_huh"
+## WK12: animal kind for VillageAnimal (VillageAnimal.KINDS); empty for villagers.
+@export var animal: StringName = &""
 
 const FEET_OFFSET := Player.FEET_OFFSET
 ## Walk bob (world px) while there is no walk animation.
@@ -64,6 +69,8 @@ const SOUND_VOLUME_DB := -8.0
 const SPOT_RADIUS := 7.0
 const HUH_COLOR := Color(1.0, 0.94, 0.7)
 const HUH_OUTLINE := Color(0.1, 0.08, 0.15)
+## WK12 (preloaded: works before the class cache knows it).
+const AnimalScript := preload("res://world/village/village_animal.gd")
 
 var _sprite: AnimatedSprite2D = null
 var _target := 0
@@ -89,6 +96,12 @@ var _huh: Label = null
 var _huh_left := 0.0
 ## Players seen last frame: instance id -> feet (global), for their speed (remote players too).
 var _seen: Dictionary = {}
+## WK12: hop height of the current hop (DODGE_HOP for a dodge), standing time after it, time left
+## of a reaction (the "react" strip plays) and the animal's reaction node.
+var _hop_height := DODGE_HOP
+var _stand_after_hop := DODGE_PAUSE
+var _reaction_left := 0.0
+var _animal: AnimalScript = null
 
 
 ## Next route index after index (count points): loop or back and forth. Returns [index, forward].
@@ -134,6 +147,8 @@ func _ready() -> void:
 	_route_position = position
 	_target = 1 if route.size() > 1 else 0
 	_wait = randf_range(0.0, pause_max)
+	if animal != &"":
+		_animal = AnimalScript.attach(self, animal)
 
 
 ## Cloak colour of a rescued villager (R7: LostVillager.CLOAK_TINTS, like in the escort room).
@@ -157,6 +172,55 @@ func is_dodging() -> bool:
 	return _dodge_left > 0.0 or _stand_left > 0.0
 
 
+## WK12: the reaction of an animal (null for villagers and animals without a kind).
+func get_animal() -> AnimalScript:
+	return _animal
+
+
+## Feet position in world coordinates.
+func get_feet_global() -> Vector2:
+	return _global_feet(_route_position + _side)
+
+
+## Top of the visible art (local px), for things shown above the head.
+func get_head_y() -> float:
+	return _head_y
+
+
+func get_sprite() -> AnimatedSprite2D:
+	return _sprite
+
+
+## WK12: stands for seconds and looks towards face (global point); its "react" strip plays meanwhile.
+## A player running into it still makes it hop aside.
+func hold(face: Vector2, seconds: float) -> void:
+	if _sprite == null:
+		return
+	_stand_left = maxf(_stand_left, seconds)
+	_stand_after_hop = maxf(DODGE_PAUSE, seconds)
+	_reaction_left = seconds
+	_avoid_sign = 0
+	var feet := get_feet_global()
+	if absf(face.x - feet.x) > 0.5:
+		_sprite.flip_h = face.x < feet.x
+	_set_walking(false)
+
+
+## True while it stands for a reaction (hold).
+func is_holding() -> bool:
+	return _reaction_left > 0.0
+
+
+## WK12: a hop on the spot (height world px), then it stands like after a dodge (or as long as hold).
+func hop_in_place(height: float) -> void:
+	if _sprite == null:
+		return
+	_dodge_from = _side
+	_dodge_to = _side
+	_dodge_left = DODGE_TIME
+	_hop_height = height
+
+
 ## How far it stands beside its route right now (world px).
 func get_side_offset() -> Vector2:
 	return _side
@@ -171,6 +235,7 @@ func _process(delta: float) -> void:
 	if _sprite == null:
 		return
 	_sound_cooldown = maxf(0.0, _sound_cooldown - delta)
+	_reaction_left = maxf(0.0, _reaction_left - delta)
 	_update_huh(delta)
 	# Every frame, so the players' speeds stay true through a hop.
 	var players := _players(delta)
@@ -287,6 +352,9 @@ func _start_dodge(player: Dictionary, feet: Vector2) -> void:
 	_dodge_from = _side
 	_dodge_to = _side + hop
 	_dodge_left = DODGE_TIME
+	_hop_height = DODGE_HOP
+	_stand_after_hop = DODGE_PAUSE
+	_reaction_left = 0.0
 	_avoid_sign = 0
 	_side_target = _dodge_to
 	_sprite.flip_h = player_feet.x < feet.x
@@ -302,10 +370,10 @@ func _hop(delta: float) -> void:
 	_dodge_left = maxf(0.0, _dodge_left - delta)
 	var t := 1.0 - _dodge_left / DODGE_TIME
 	_side = _dodge_from.lerp(_dodge_to, 1.0 - (1.0 - t) * (1.0 - t))
-	_sprite.position.y = FEET_OFFSET.y - sin(t * PI) * DODGE_HOP
+	_sprite.position.y = FEET_OFFSET.y - sin(t * PI) * _hop_height
 	if _dodge_left <= 0.0:
 		_sprite.position.y = FEET_OFFSET.y
-		_stand_left = DODGE_PAUSE
+		_stand_left = maxf(_stand_left, _stand_after_hop)
 
 
 ## Offset from the route that passes the nearest player in the way AVOID_SIDE px beside it (zero if
@@ -414,6 +482,8 @@ func _place_huh() -> void:
 
 func _set_walking(walking: bool) -> void:
 	var animation := &"walk" if walking and _has_walk else &"idle"
+	if not walking and _reaction_left > 0.0 and _sprite.sprite_frames.has_animation(&"react"):
+		animation = &"react"
 	if _sprite.animation != animation:
 		_sprite.play(animation)
 	if not walking:

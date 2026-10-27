@@ -31,7 +31,7 @@ const MobileUiScript := preload("res://ui/menus/mobile_ui.gd")
 const DIALOG_NAMES := {
 	"pause_menu": "Pausemenü", "upgrade_choice": "Upgrade-Wahl", "shop": "Shop", "weapon_choice": "Waffenwahl",
 	"upgrade_overview": "Upgrade-Übersicht", "confirm": "Abfrage", "run_end": "Run-Ende", "options": "Optionen",
-	"village_dialog": "Gebäude", "village_intro": "Dorf-Einführung", "dialog_queue": "Dialog",
+	"village_dialog": "Gebäude", "dialog_queue": "Dialog",
 }
 ## Main menu panels (MenuPanel subclasses) -> readable name.
 const MENU_PANELS := {

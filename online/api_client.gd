@@ -18,7 +18,7 @@ signal unauthorized(path: String)
 const TIMEOUT_SECONDS := 5.0
 const DEV_KEY_HEADER := "x-dev-auth-key"
 
-## Base URL without a trailing slash, e.g. http://localhost:3101.
+## Base URL without a trailing slash, e.g. http://localhost:3102.
 var base_url := OnlineConfig.DEFAULT_API_URL
 ## Player token for authenticated routes ("" = none).
 var token := ""

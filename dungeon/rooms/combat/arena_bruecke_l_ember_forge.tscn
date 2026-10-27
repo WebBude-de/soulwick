@@ -177,6 +177,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(14, 9), Vector2i(15, 9), Vector2i(16, 9)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(18, 60)
 biome = &"ember_forge"
 
 [node name="Ingredients" type="Node2D" parent="."]

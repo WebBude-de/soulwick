@@ -132,24 +132,19 @@ func _draw() -> void:
 	if _art != null:
 		_art.modulate.a = alpha
 		return
-	var pulse := 0.75 + 0.25 * sin(_time * 9.0)
+	# Pixel art (D-218): pulses and the fade-out go in hard steps.
+	alpha = PixelDraw.stepped(alpha, 3)
+	var pulse := PixelDraw.stepped(0.75 + 0.25 * sin(_time * 9.0), 4)
 	# Bluish shimmer over the body.
-	var aura := PackedVector2Array()
-	for i in 16:
-		var angle := TAU * float(i) / 16.0
-		aura.append(Vector2(cos(angle) * AURA_RADIUS.x, AURA_Y + sin(angle) * AURA_RADIUS.y))
-	draw_colored_polygon(aura, Color(COLOR, (0.1 + 0.06 * pulse) * alpha))
+	PixelDraw.ellipse(self, Vector2(0.0, AURA_Y), AURA_RADIUS, Color(COLOR, (0.1 + 0.06 * pulse) * alpha))
 	# Pale ring at the feet: "stuck in frost".
-	var ring := PackedVector2Array()
-	for i in 17:
-		var angle := TAU * float(i) / 16.0
-		ring.append(Vector2(cos(angle) * RING_RADIUS.x, FEET_Y + sin(angle) * RING_RADIUS.y))
-	draw_colored_polygon(ring.slice(0, 16), Color(COLOR, 0.18 * alpha))
-	draw_polyline(ring, Color(COLOR, 0.7 * alpha * pulse), 1.5)
+	PixelDraw.ellipse(self, Vector2(0.0, FEET_Y), RING_RADIUS, Color(COLOR, 0.18 * alpha))
+	PixelDraw.ellipse_ring(self, Vector2(0.0, FEET_Y), RING_RADIUS, Color(COLOR, 0.7 * alpha * pulse))
 	# Frost motes rising around the body, each on its own lane and phase.
 	for i in MOTE_COUNT:
 		var phase := fmod(_time * 0.9 + float(i) / MOTE_COUNT, 1.0)
 		var lane := (float(i) - (MOTE_COUNT - 1) * 0.5) * 5.0
 		var spot := Vector2(lane + sin(_time * 3.0 + i) * 2.0, FEET_Y - phase * MOTE_HEIGHT)
-		var size := 3.0 if i % 2 == 0 else 2.0
-		draw_rect(Rect2(spot - Vector2.ONE * size * 0.5, Vector2.ONE * size), Color(COLOR.lightened(0.4), (1.0 - phase * 0.7) * alpha))
+		var size := 2 if i % 2 == 0 else 1
+		var mote := Color(COLOR.lightened(0.4), PixelDraw.stepped(1.0 - phase * 0.7, 3) * alpha)
+		PixelDraw.rect(self, Rect2(spot - Vector2.ONE * size, Vector2.ONE * size * PixelDraw.WORLD_PIXEL), mote)

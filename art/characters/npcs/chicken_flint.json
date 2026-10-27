@@ -1,0 +1,40 @@
+{
+  "name": "chicken_flint",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "ride: Flint sitzt auf dem Huhn; peck: steht daneben; nap: schläft auf dem Rücken."
+  ],
+  "animations": [
+    {
+      "name": "ride",
+      "file": "chicken_flint_ride_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "peck",
+      "file": "chicken_flint_peck_10f.png",
+      "frames": 10,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "nap",
+      "file": "chicken_flint_nap_4f.png",
+      "frames": 4,
+      "fps": 2,
+      "loop": true
+    }
+  ]
+}

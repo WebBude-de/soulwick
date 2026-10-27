@@ -1,0 +1,87 @@
+{
+  "notes": [
+    "Aus derselben Form, ganzzahlig skaliert (×6 = 96, ×8 = 128, ×2 = 32)."
+  ],
+  "items": [
+    {
+      "name": "flint_menu_idle",
+      "file": "flint_menu_idle_8f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        48,
+        90
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_wave",
+      "file": "flint_wave_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        48,
+        90
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_hero",
+      "file": "flint_hero.png",
+      "frame_size": [
+        128,
+        128
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        64,
+        120
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_hero_512",
+      "file": "flint_hero_512.png",
+      "frame_size": [
+        512,
+        512
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        256,
+        480
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_icon_32",
+      "file": "flint_icon_32.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    }
+  ]
+}

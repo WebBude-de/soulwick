@@ -1,0 +1,72 @@
+{
+  "notes": [
+    "guide_frame 56×56: runder Ring (Gold, Kontur innen/außen), Mitte 48×48 durchsichtig.",
+    "speech_bubble 24×24 9-Slice Rand 8 px; speech_bubble_tail 8×8 unten links an die Blase, zeigt zu Flint; guide_next_4f 8×8 Weiter-Pfeil, 4 fps."
+  ],
+  "items": [
+    {
+      "name": "guide_frame",
+      "file": "guide_frame.png",
+      "frame_size": [
+        56,
+        56
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "speech_bubble",
+      "file": "speech_bubble.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "speech_bubble_tail",
+      "file": "speech_bubble_tail.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "guide_next",
+      "file": "guide_next_4f.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "pivot": [
+        4,
+        4
+      ],
+      "note": ""
+    }
+  ]
+}

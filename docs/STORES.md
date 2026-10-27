@@ -1,6 +1,6 @@
 # Stores und Signaturen: Checkliste je Plattform
 
-> **Stand:** 17.10.2026 · Pipeline: [RELEASE.md](RELEASE.md), [`.github/workflows/release.yml`](../.github/workflows/release.yml) · Roadmap: [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP6/CP7, [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP10 · Entscheidungen: D-119 (Publisher WebBude), **D-179** (gemeinsamer Release auf allen Stores, Store-Knöpfe der Website), D-148 (Releases), **D-173** (Zielgruppe ab 13, keine Kinder-Bereiche), **D-176** (Preise und Modell), **D-177** (Code offen, Inhalte geschützt)
+> **Stand:** 17.10.2026 · Pipeline: [RELEASE.md](RELEASE.md), [`.github/workflows/release.yml`](../.github/workflows/release.yml) · Roadmap: [ROADMAP.md](ROADMAP.md) CP4, CP6, CP7, MP10 · Entscheidungen: D-119 (Publisher WebBude), **D-179** (gemeinsamer Release auf allen Stores, Store-Knöpfe der Website), D-148 (Releases), **D-173** (Zielgruppe ab 13, keine Kinder-Bereiche), **D-176** (Preise und Modell), **D-177** (Code offen, Inhalte geschützt)
 >
 > Preise, Fristen und Store-Vorgaben ändern sich. Sie sind hier nach bestem Wissen (Oktober 2026) eingetragen und **vor jeder Zahlung bzw. Einreichung auf der Seite des Stores zu prüfen**. Alles mit Geld, Konten und Verträgen entscheidet das Projektmitglied für WebBude.
 
@@ -22,10 +22,10 @@ Die Pipeline ist für alle Stores **vorbereitet**: Ohne Secrets läuft sie wie b
 
 **Was in jeden Store-Eintrag gehört:**
 
-- **Preis und Modell (D-176, Arbeitsentscheidung):** Steam mit kleinem Preis (Größenordnung 3–5 €, genauer Preis OFFEN), ohne Werbung, Start-Kosmetik inklusive; Google Play und App Store **kostenlos**, später Werbung (nur Handy, nur zwischen Runs), „Werbefrei“ als Einmalkauf und Kosmetik (ROADMAP_CROSSPLAY CP6); Browser kostenlos. Verkauft werden nur Kosmetik und Werbefreiheit, **keine Lootboxen**.
-- **Umfang (D-179):** Store-Seiten beschreiben den Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Wick als Begleiter, Dorf ausbauen und Freunde ins Dorf einladen. Der Party-Modus kommt nach dem Release. Released wird erst nach dem Release-Tor in [ROADMAP.md](ROADMAP.md), auf allen Stores gemeinsam.
+- **Preis und Modell (D-176, Arbeitsentscheidung):** Steam mit kleinem Preis (Größenordnung 3–5 €, genauer Preis OFFEN), ohne Werbung, Start-Kosmetik inklusive; Google Play und App Store **kostenlos**, später Werbung (nur Handy, nur zwischen Runs), „Werbefrei“ als Einmalkauf und Kosmetik (ROADMAP CP6); Browser kostenlos. Verkauft werden nur Kosmetik und Werbefreiheit, **keine Lootboxen**.
+- **Umfang (D-179):** Store-Seiten beschreiben den Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Flint als Begleiter, Dorf ausbauen und Freunde ins Dorf einladen. Der Party-Modus kommt nach dem Release. Released wird erst nach dem Release-Tor in [ROADMAP.md](ROADMAP.md), auf allen Stores gemeinsam.
 - **Zielgruppe (D-173):** ab 13; nie für Kinder-Bereiche anmelden (Google Play Familienprogramm, Apple Kids), keine Werbung an Kinder. Die Altersfreigabe ergibt sich aus den Fragebögen (§7), nicht aus unserer Wahl.
-- **Lizenz (D-177):** Code GPL-3.0; Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Wick, Huhn) alle Rechte vorbehalten (`LICENSE-ASSETS.md` in beiden Repos). GPL mit App-Store- und Steamworks-Bedingungen vor dem ersten Store-Release mit Fachanwalt klären (D-177 OFFEN).
+- **Lizenz (D-177):** Code GPL-3.0; Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Flint, Huhn) alle Rechte vorbehalten (`LICENSE-ASSETS.md` in beiden Repos). GPL mit App-Store- und Steamworks-Bedingungen vor dem ersten Store-Release mit Fachanwalt klären (D-177 OFFEN).
 
 **Wo die Secrets hinkommen:** GitHub → Repository `WebBude-de/soulwick` → *Settings → Secrets and variables → Actions*. **Secrets** sind geheim (Schlüssel, Passwörter, Zertifikate; GitHub maskiert sie im Log). **Variables** sind nicht geheim (App-ID, Branch-Namen). Das Repo ist öffentlich: Schlüsseldateien, Passwörter, Zertifikate und Profile **nie** ins Repo, nie in Issues, Chats oder Mails. Dateien als Base64 hinterlegen:
 
@@ -112,7 +112,7 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 **Bis zur Veröffentlichung:**
 
-1. **Konto:** Google Play Console als **Organisation** WebBude (25 USD einmalig, D-U-N-S-Nummer, Identitätsprüfung). Persönliche Konten, die nach November 2023 angelegt wurden, müssen vor der Produktion 14 Tage lang mit mindestens 12 Testern geschlossen testen; Organisationskonten nicht (ROADMAP_CROSSPLAY CP7).
+1. **Konto:** Google Play Console als **Organisation** WebBude (25 USD einmalig, D-U-N-S-Nummer, Identitätsprüfung). Persönliche Konten, die nach November 2023 angelegt wurden, müssen vor der Produktion 14 Tage lang mit mindestens 12 Testern geschlossen testen; Organisationskonten nicht (ROADMAP CP7).
 2. **Release-Schlüssel** erzeugen und hinterlegen: [RELEASE.md](RELEASE.md) §4 („Release-Keystore erzeugen“); Secrets `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`. Dieser Schlüssel ist für Play der **Upload-Schlüssel**.
 3. App in der Play Console anlegen (Name „Soulwick“, Spiel, **kostenlos**, D-176). Eine kostenlose App lässt sich bei Google später nicht mehr kostenpflichtig machen; Geld kommt über In-App-Käufe (CP6).
 4. Tag `v<version>-beta.1` pushen → Artefakt `store-android-aab` aus dem Lauf herunterladen → **das erste AAB von Hand** hochladen: *Testen → Interner Test → Neuer Release*. Dabei **Play App Signing** aktivieren (Google verwaltet den App-Signaturschlüssel, unser Schlüssel bleibt Upload-Schlüssel und ist bei Verlust über den Support ersetzbar).
@@ -151,7 +151,7 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 **Stand:** Job `steam` lädt Windows, Linux und macOS (notarisiert, falls §2 eingerichtet) per **steamcmd/SteamPipe** hoch und setzt den Build auf einen **Beta-Branch** live. Vorlagen: [`tools/steam/app_build.vdf`](../tools/steam/app_build.vdf), [`tools/steam/depot_build.vdf`](../tools/steam/depot_build.vdf), Skript [`tools/steam/steam_upload.sh`](../tools/steam/steam_upload.sh). Den Standard-Branch (`default`) schaltet immer ein Mensch in Steamworks frei; das Skript verweigert ihn.
 
-**Nicht hier:** Steamworks im Spiel (GodotSteam, Anmeldung, Freunde einladen, Rich Presence, Erfolge, Steam Cloud) gehört zur Multiplayer-Roadmap ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP6 und MP10). Der Upload funktioniert auch ohne: Steam startet die EXE einfach.
+**Nicht hier:** Steamworks im Spiel (GodotSteam, Anmeldung, Freunde einladen, Rich Presence, Erfolge, Steam Cloud) gehört zur Multiplayer-Roadmap ([ROADMAP.md](ROADMAP.md) MP6 und MP10). Der Upload funktioniert auch ohne: Steam startet die EXE einfach.
 
 **Bis zur Veröffentlichung:**
 
@@ -171,7 +171,7 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 ## 6. Store-Texte, Grafiken und Screenshots
 
-**Grafiken geliefert** (17.10.2026, Maße und Dateinamen in [SPRITES_V11.md](design/sprites/SPRITES_V11.md), Ablage `art/store/`). Neue Motive mit dem Maskottchen Wick folgen mit [SPRITES_V12.md](design/sprites/SPRITES_V12.md). **Es fehlen noch Texte und Screenshots.**
+**Grafiken geliefert** (17.10.2026, Maße und Dateinamen in [SPRITES_V11.md](design/sprites/delivered/SPRITES_V11.md), Ablage `art/store/`). Neue Motive mit dem Maskottchen Flint folgen mit [SPRITES_V13.md](design/sprites/SPRITES_V13.md). **Es fehlen noch Texte und Screenshots.**
 
 **Store-Knöpfe auf der Website (D-179):**
 
@@ -198,7 +198,7 @@ Darum Testbuilds für die Stores als `v<version>-beta.<n>` taggen. Manuelle Läu
 
 | Datei (Vorschlag) | Maße | Store | Inhalt |
 | --- | --- | --- | --- |
-| `art/store/screenshots/desktop_*.png` | 1920×1080 | Steam (≥ 5), Play (Tablet/Chromebook) | Koop mit Freunden zuerst (D-173), Wunschboss mit Banner, Boss, Minispiel-Raum, Dorf mit Wick und Besuch, Upgrade-Auswahl |
+| `art/store/screenshots/desktop_*.png` | 1920×1080 | Steam (≥ 5), Play (Tablet/Chromebook) | Koop mit Freunden zuerst (D-173), Wunschboss mit Banner, Boss, Minispiel-Raum, Dorf mit Flint und Besuch, Upgrade-Auswahl |
 | `art/store/screenshots/play_phone_*.png` | 1920×1080 quer | Google Play (2–8, für Empfehlungen ≥ 4 quer) | wie oben, mit Touch-Knöpfen |
 | `art/store/screenshots/iphone69_*.png` | 2868×1320 quer (iPhone 6,9″) | Apple (1–10) | wie oben, mit Touch-Knöpfen |
 | `art/store/screenshots/ipad13_*.png` | 2752×2064 quer (iPad 13″) | Apple (1–10, Pflicht, weil iPad unterstützt) | wie oben |

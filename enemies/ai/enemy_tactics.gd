@@ -1,6 +1,6 @@
 class_name EnemyTactics
 extends RefCounted
-## Rules and geometry of the group tactics (KONZEPT_RAEUME_V2 §6, playtest 14.10.2026): slime
+## Rules and geometry of the group tactics (RAEUME §6, playtest 14.10.2026): slime
 ## packs that hop in turn and land beside and behind the player, melee enemies that spread over
 ## ring places around their target instead of queueing behind each other, some of them cutting off
 ## a fleeing target, and ranged enemies that now and then change sides.

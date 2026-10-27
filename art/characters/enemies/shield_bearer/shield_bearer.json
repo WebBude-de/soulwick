@@ -1,0 +1,41 @@
+{
+  "name": "shield_bearer",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Schildträger, Schild vorn",
+    "Seitenansicht-Gegner (SV4); idle = walk."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "shield_bearer_idle_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "shield_bearer_walk_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "death",
+      "file": "shield_bearer_death_5f.png",
+      "frames": 5,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

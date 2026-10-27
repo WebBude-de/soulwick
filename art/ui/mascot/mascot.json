@@ -1,0 +1,88 @@
+{
+  "notes": [
+    "flint_menu_idle_8f und flint_wave_6f 96×96 nativ gezeichnet (6 px je Einheit, Details auf Pixelebene), Pivot unten Mitte; flint_hero 128×128; flint_chicken_group 160×96 mit Huhn; flint_icon_32.",
+    "Keine wick_*-Dateien mehr."
+  ],
+  "items": [
+    {
+      "name": "flint_menu_idle",
+      "file": "flint_menu_idle_8f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        48,
+        95
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_wave",
+      "file": "flint_wave_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        48,
+        95
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_hero",
+      "file": "flint_hero.png",
+      "frame_size": [
+        128,
+        128
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        64,
+        126
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_chicken_group",
+      "file": "flint_chicken_group.png",
+      "frame_size": [
+        160,
+        96
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        80,
+        95
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_icon_32",
+      "file": "flint_icon_32.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    }
+  ]
+}

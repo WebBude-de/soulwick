@@ -265,9 +265,12 @@ func _on_run_finished(player: Player, flawless: bool) -> void:
 func _on_chest_opened(player: Player) -> void:
 	if chest != null:
 		chest.open()
-	# The way back: the gate between the chest and the safe column opens.
+	# The way back: the gate between the chest and the safe column opens. Only its tiles are painted
+	# again (bug report 23.10.2026 #a831f005, "Die beiden rechts/links sehen hässlich aus"): setting
+	# wall_rects repainted the whole room and undid PassageSeam.join, so the room's rock ring came back
+	# on the next room's floor beside the passage (two flat rock squares, solid as well).
 	if room != null:
-		room.tiles.wall_rects = TrialLayout.get_wall_rects(true)
+		room.tiles.open_wall_tiles(TrialLayout.get_gate_tiles())
 	_offer_chest_upgrade(player)
 
 

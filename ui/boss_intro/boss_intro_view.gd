@@ -32,12 +32,15 @@ const START_SHAKE := 3.0
 const ROAR_SHAKE := 9.0
 const PULSE_SCALE := 1.08
 const BREATHE_SPEED := 2.6
+const BREATHE_STEPS := 3
+## Bands of the pixel vignette (D-218: hard steps instead of a smooth gradient).
+const VIGNETTE_STEPS := 6
 
 var _intro: BossIntro = null
 var _data: EnemyData = null
 var _root: Control = null
 var _dim: ColorRect = null
-var _vignette: TextureRect = null
+var _vignette: PixelVignette = null
 var _flash: ColorRect = null
 var _top_bar: ColorRect = null
 var _bottom_bar: ColorRect = null
@@ -68,8 +71,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	if _vignette != null:
-		# Slow breathing of the darkness.
-		_vignette.modulate.a = VIGNETTE_ALPHA * (0.85 + 0.15 * sin(_time * BREATHE_SPEED))
+		# Slow breathing of the darkness, in hard steps (D-218).
+		var breath := PixelDraw.stepped(sin(_time * BREATHE_SPEED) * 0.5 + 0.5, BREATHE_STEPS)
+		_vignette.modulate.a = VIGNETTE_ALPHA * (0.85 + 0.15 * breath)
 
 
 # --- Building ---
@@ -86,10 +90,9 @@ func _build() -> void:
 	_dim.color = Color(UiKit.COLOR_BG, DIM_ALPHA)
 	_fill(_dim)
 
-	_vignette = TextureRect.new()
-	_vignette.texture = _vignette_texture(_data.intro_color)
-	_vignette.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	_vignette.stretch_mode = TextureRect.STRETCH_SCALE
+	_vignette = PixelVignette.new()
+	_vignette.steps = VIGNETTE_STEPS
+	_vignette.ramp = vignette_ramp(_data.intro_color)
 	_fill(_vignette)
 
 	_flash = ColorRect.new()
@@ -247,8 +250,9 @@ func _build_speech() -> RichTextLabel:
 	return speech
 
 
-## Radial darkness towards the edges, tinted a little with the boss colour.
-static func _vignette_texture(color: Color) -> GradientTexture2D:
+## Radial darkness towards the edges, tinted a little with the boss colour: colour from the centre
+## (0) to the corners (1), drawn in hard pixel bands by PixelVignette.
+static func vignette_ramp(color: Color) -> Gradient:
 	var gradient := Gradient.new()
 	var edge := UiKit.COLOR_BG.lerp(color, 0.12)
 	gradient.set_offset(0, 0.0)
@@ -257,14 +261,7 @@ static func _vignette_texture(color: Color) -> GradientTexture2D:
 	gradient.set_color(1, Color(UiKit.COLOR_BG, 0.95))
 	gradient.add_point(0.45, Color(edge, 0.0))
 	gradient.add_point(0.8, Color(edge, 0.6))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.5)
-	texture.fill_to = Vector2(1.0, 1.0)
-	texture.width = 128
-	texture.height = 72
-	return texture
+	return gradient
 
 
 ## Spoken line with the boss's trembling / wavering (BBCode effects of RichTextLabel).

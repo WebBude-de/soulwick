@@ -42,7 +42,7 @@ RUN python3 /tmp/fetch_template.py "${RELEASE_URL}/Godot_v${GODOT_VERSION}-stabl
 FROM godot AS export
 # development or production: selects API and relay addresses (online/online_config.gd), written
 # into online/environment.cfg exactly like tools/export_build.sh does. local = the services of
-# `bun dev` in soulwick-platform (http://localhost:3101, ws://localhost:3103), for a container on
+# `bun dev` in soulwick-platform (http://localhost:3102, ws://localhost:3103), for a container on
 # this machine only.
 ARG SOULWICK_ENV=development
 WORKDIR /project

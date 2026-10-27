@@ -5,15 +5,14 @@ extends Node
 ##   the camera above the darkness (VisionOverlay, layer 2), so the way is visible at night too.
 ## - An arrow (art/ui/teammate_arrow.png, tinted gold) at the screen edge points to the entrance
 ##   while it is off screen and bobs above the ruin once it is in view.
-## The goal line ("Steig in den Dungeon hinab") and the opening words of a villager are VillageUI's
-## (show_goal, show_opening); this class decides when they are due (is_active, needs_opening).
+## The goal line ("Steig in den Dungeon hinab") is VillageUI's (show_goal); this class decides when
+## it is due (is_active). The chronicler's opening words are gone: Flint's village tour greets now
+## (WK9, VillageTour).
 ## Koop: pure optics at this machine. The state is this player's world (runs, seen flag), the arrow
 ## follows this machine's camera (get_viewport), no player lookup; nothing is sent.
 ## No class_name: used through preload (Village.GuideScript), so it works before the class cache
 ## knows it.
 
-## [seen] id of the opening words (D-087 style: old saves count as seen).
-const OPENING_SEEN_ID: StringName = &"village_opening"
 const ARROW_TEXTURE: Texture2D = preload("res://art/ui/teammate_arrow.png")
 ## Above the darkness (VisionOverlay 2), below the HUD (5) and the village dialogs (20).
 const TRAIL_LAYER := 3
@@ -29,8 +28,10 @@ const TRAIL_END_OFFSET := Vector2(0, 30)
 ## TESTWERT: trail of soul lights (world px, px/s, seconds).
 const MOTE_SPACING := 64.0
 const MOTE_SPEED := 72.0
-const MOTE_RADIUS := 3.5
-const MOTE_GLOW := 14.0
+## Village art pixel in world px (32 px tiles drawn on 64 px) and the mote's rings from the outside
+## in: [radius in art pixels, alpha, core colour]; drawn over each other, so the glow steps.
+const MOTE_PIXEL := 2.0
+const MOTE_RINGS: Array = [[5, 0.12, false], [3, 0.3, false], [2, 0.6, false], [1, 0.95, true]]
 const MOTE_FLOAT := 3.0
 const MOTE_EDGE_FADE := 90.0
 const SOUL_COLOR := Color(0.72, 0.45, 1.0)
@@ -66,19 +67,6 @@ var _pointer_on_screen := false
 ## Until the first run of the world (the stat counts started runs).
 static func is_active() -> bool:
 	return int(SaveManager.get_stat(StatsTracker.RUNS)) <= 0
-
-
-## The opening words: once per world, before its first run (old saves have seen everything, D-087).
-static func needs_opening() -> bool:
-	return is_active() and not SaveManager.has_seen(OPENING_SEEN_ID)
-
-
-## Stores that the opening was shown (and saves). False if it was seen before.
-static func mark_opening_seen() -> bool:
-	if not SaveManager.mark_seen(OPENING_SEEN_ID):
-		return false
-	SaveManager.save_game()
-	return true
 
 
 ## start: the player spawn, entrance: the ruin's pivot (world px). Call before adding it.
@@ -223,9 +211,25 @@ func _draw_trail() -> void:
 		var twinkle := 0.75 + 0.25 * sin(_time * 3.0 + i * 1.7)
 		var alpha := fade * twinkle
 		var spot := point_at(_points, distance) + Vector2(0, sin(_time * 2.0 + i) * MOTE_FLOAT)
-		_trail.draw_circle(spot, MOTE_GLOW, Color(SOUL_COLOR, 0.16 * alpha))
-		_trail.draw_circle(spot, MOTE_GLOW * 0.55, Color(SOUL_COLOR, 0.38 * alpha))
-		_trail.draw_circle(spot, MOTE_RADIUS, Color(SOUL_CORE, 0.95 * alpha))
+		_draw_mote(spot.snapped(Vector2.ONE * MOTE_PIXEL), alpha)
+
+
+## One soul light in pixel art (feedback #e5d0f6c6, #6ce10692 "Mach Pixel Grafik"): stepped
+## squares on the village's art pixel grid instead of soft circles, glow from the rings.
+func _draw_mote(center: Vector2, alpha: float) -> void:
+	for ring: Array in MOTE_RINGS:
+		var color := Color(SOUL_CORE if ring[2] else SOUL_COLOR, float(ring[1]) * alpha)
+		for rect: Rect2 in _mote_rects(int(ring[0])):
+			_trail.draw_rect(Rect2(center + rect.position * MOTE_PIXEL, rect.size * MOTE_PIXEL), color)
+
+
+## A pixel diamond of radius art pixels around the centre (radius 1 = the 2x2 core).
+static func _mote_rects(radius: int) -> Array[Rect2]:
+	var rects: Array[Rect2] = []
+	for row in range(-radius, radius):
+		var half := radius - (-row - 1 if row < 0 else row)
+		rects.append(Rect2(-half, row, half * 2, 1))
+	return rects
 
 
 func _draw_pointer() -> void:

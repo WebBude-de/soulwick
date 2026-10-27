@@ -37,16 +37,18 @@ static func sanitize_name(text: String, slot: int) -> String:
 	return cleaned if not cleaned.is_empty() else default_name(slot)
 
 
-## What the slot list shows. Never changes the file. Keys: exists, broken, name (the world's name or
+## What the slot list shows: the values loading would give (older files are migrated in a copy, so
+## the gold includes a v5 refund). Never changes the file. Keys: exists, broken, name (the world's name or
 ## "Welt <n>"), world_name (stored name, "" = default), version, gold, crystals, deepest_room,
 ## play_time (s), last_played (unix s, 0 = unknown), all_seen, from_backup (the file is broken, the
 ## values come from its last good copy, which loading will use too; P1-8), forge_level and
-## forge_max (forge levels bought / all levels, see forge_progress; D-188 progress at a glance).
+## forge_max (forge levels bought / all levels, see forge_progress; D-188 progress at a glance),
+## world_id ([world] id of v5 files, "" before; a file of an older version gets one when it is loaded).
 static func read_summary(path: String, slot: int) -> Dictionary:
 	var summary := {
 		"exists": false, "broken": false, "name": default_name(slot), "world_name": "", "version": 0,
 		"gold": 0, "crystals": 0, "deepest_room": 0, "play_time": 0.0, "last_played": 0, "all_seen": false,
-		"from_backup": false, "forge_level": 0, "forge_max": forge_max_level(),
+		"from_backup": false, "forge_level": 0, "forge_max": forge_max_level(), "world_id": "",
 	}
 	if not FileAccess.file_exists(path):
 		return summary
@@ -61,6 +63,8 @@ static func read_summary(path: String, slot: int) -> Dictionary:
 			return summary
 		summary["from_backup"] = true
 	summary["version"] = config.get_value("meta", "version")
+	var stored := config
+	config = migrated_copy(config)
 	# Before D-152 (v4) [profile] name was the player's name, not the world's: such a world has none.
 	var stored_name: Variant = config.get_value("world", "name", "")
 	if typeof(stored_name) == TYPE_STRING and not String(stored_name).strip_edges().is_empty():
@@ -77,25 +81,39 @@ static func read_summary(path: String, slot: int) -> Dictionary:
 		# Old saves have no timestamp: the file time is the best guess.
 		last_played = FileAccess.get_modified_time(path)
 	summary["last_played"] = last_played
-	summary["all_seen"] = not config.has_section("seen") or config.get_value("seen", "all", false) == true
+	summary["all_seen"] = not stored.has_section("seen") or stored.get_value("seen", "all", false) == true
 	summary["forge_level"] = forge_progress(config)
+	var world_id: Variant = stored.get_value("world", "id", "")
+	summary["world_id"] = String(world_id) if SaveManager.is_valid_world_id(world_id) else ""
 	return summary
 
 
-## Forge levels bought in a slot file: the sum over MetaProgression.UPGRADES, each at most its
-## maximum; levels of saves before v3 count as migrated (D-087). Unknown keys do not count.
+## Forge levels bought in a slot file ("Schmiede x/36"): the sum over MetaProgression.UPGRADES, each
+## at most its maximum; files of older versions count as migrated (a copy is migrated, the config
+## itself is not changed; KE4: the old Vitalität, Schärfe, Goldgier and Dash-Training are refunded
+## and count no more). Unknown keys do not count.
 static func forge_progress(config: ConfigFile) -> int:
-	var version: Variant = config.get_value("meta", "version", 0)
+	var source := migrated_copy(config)
 	var total := 0
 	for id: StringName in MetaProgression.UPGRADE_ORDER:
-		var level := _non_negative_int(config.get_value("meta_upgrades", String(id), 0))
-		if typeof(version) == TYPE_INT and version < 3:
-			level = SaveManager.migrate_level_to_v3(String(id), level)
+		var level := _non_negative_int(source.get_value("meta_upgrades", String(id), 0))
 		total += mini(level, MetaProgression.get_max_level(id))
 	return total
 
 
-## All forge levels together (D-087: 20).
+## config itself when it has the current version, else a copy migrated to it (the values loading would
+## give, e.g. the v5 refund in the gold; the config is never changed).
+static func migrated_copy(config: ConfigFile) -> ConfigFile:
+	var version: Variant = config.get_value("meta", "version", 0)
+	if typeof(version) != TYPE_INT or version >= SaveManager.SAVE_VERSION:
+		return config
+	var copy := ConfigFile.new()
+	copy.parse(config.encode_to_text())
+	SaveManager.migrate(copy)
+	return copy
+
+
+## All forge levels together (KONZEPT §5.1: 5 × 5 weapon levels, 4 Arsenal, second slot, 3 + 3 = 36).
 static func forge_max_level() -> int:
 	var total := 0
 	for id: StringName in MetaProgression.UPGRADE_ORDER:

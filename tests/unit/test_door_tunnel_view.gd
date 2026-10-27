@@ -2,9 +2,10 @@ extends GutTest
 ## G2 (playtest 15.10.2026): the arch of a north gate keeps its look while a player walks through, the
 ## player darkens with the depth and is seen only through the opening (the rock over the arch is cut
 ## to it, the wall and the frame lie over him) until he hides under the closed crown; a side gate is a
-## notch drawn by the terrain running into the dark, its rock lies over the players only while one is
-## in the passage; a blocked entrance is closed by the room's own wall (no cut-off corridor) with
-## rubble at its foot; in a room between two biomes the rock over a passage takes the blend.
+## notch drawn by the terrain running into the dark, its rock lies over the players (since bug report
+## 23.10.2026 #0bfc40e0 always, not only while one is in the passage); a blocked entrance is closed by
+## the room's own wall (no cut-off corridor) with rubble at its foot; in a room between two biomes the
+## rock over a passage takes the blend.
 
 const DOOR_SCENE: PackedScene = preload("res://dungeon/environment/doors/door.tscn")
 const HALL: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
@@ -294,11 +295,12 @@ func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 	var notch := DoorArt.side_notch_image()
 	var middle := DoorArt.NOTCH_RISE + 16
 	assert_almost_eq(notch.get_pixel(0, middle).a, 0.0, 0.01, "clear at the mouth")
-	assert_gt(notch.get_pixel(31, middle).a, 0.9, "dark at the back")
+	assert_almost_eq(notch.get_pixel(31, middle).a, DoorArt.NOTCH_ALPHA_DEEP, 0.02, "dark at the back")
 	assert_lt(notch.get_pixel(12, middle).a, notch.get_pixel(20, middle).a, "darker further in")
-	# Bug report 17.10.2026 (#e1279990, "Schatten cutted"): no hard line where the notch's front ends.
-	assert_almost_eq(notch.get_pixel(31, 0).a, 0.0, 0.01, "fades in over the front")
-	assert_lt(notch.get_pixel(31, DoorArt.NOTCH_RISE).a, notch.get_pixel(31, middle).a, "still fading at the foot of the front")
+	# Bug report 17.10.2026 (#e1279990, "Schatten cutted"): no hard line where the picture ends; since
+	# #c17c0ed8 the same strength along the whole edge between (test_room_feedback_1023).
+	assert_lt(notch.get_pixel(31, 0).a, notch.get_pixel(31, middle).a * 0.5, "fades in at its top")
+	assert_almost_eq(notch.get_pixel(31, DoorArt.NOTCH_RISE).a, notch.get_pixel(31, middle).a, 0.01, "no fading at the foot of the front")
 	var gate := _side_passage()
 	if gate == null:
 		pass_test("the hall has no side doors")
@@ -312,7 +314,10 @@ func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 		if piece.position == Vector2.ZERO:
 			# The door tile: rock on its outer side, open on the room side (#e1279990, #b153783c).
 			_assert_shallow_notch(view, piece)
-		assert_eq(piece.z_index, DoorView.SIDE_COVER_LOW_Z, "%s under a player beside the wall" % piece.name)
+		# Bug report 23.10.2026 #0bfc40e0: the tunnel's rock lies over every figure all the time, only
+		# the notch's front and crown stay behind them.
+		var expected := DoorView.LINTEL_Z if bool(piece.get_meta(&"over_player", false)) else DoorView.SIDE_COVER_LOW_Z
+		assert_eq(piece.z_index, expected, "%s with nobody in the passage" % piece.name)
 	# A player walks in: the rock lies over him.
 	var player := PLAYER_SCENE.instantiate() as Player
 	add_child_autofree(player)
@@ -329,7 +334,8 @@ func test_side_gate_is_a_notch_running_into_the_dark() -> void:
 	player.global_position = gate.to_global(Vector2(-96, 32)) - Player.FEET_OFFSET
 	await wait_process_frames(10)
 	for piece in view.get_lintel():
-		assert_eq(piece.z_index, DoorView.SIDE_COVER_LOW_Z)
+		var expected := DoorView.LINTEL_Z if bool(piece.get_meta(&"over_player", false)) else DoorView.SIDE_COVER_LOW_Z
+		assert_eq(piece.z_index, expected, "%s after he left" % piece.name)
 
 
 ## The door tile's row of a shallower notch: opaque rock on the outer share; the dark of the notch

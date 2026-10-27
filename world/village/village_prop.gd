@@ -1,6 +1,6 @@
 class_name VillageProp
 extends StaticBody2D
-## Placed village decoration whose art may still be missing (B3, docs/design/sprites/SPRITES_V4.md): garden fence,
+## Placed village decoration whose art may still be missing (B3, docs/design/sprites/delivered/SPRITES_V4.md): garden fence,
 ## bench, cart, hay bale, signpost, pond. Takes art/environment/village/<art_name>.png (or the
 ## VillageArt placeholder) with its pivot at the bottom centre on the node origin. Without art and
 ## without placeholder the prop removes itself, collision included, so nothing invisible blocks.

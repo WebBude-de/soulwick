@@ -15,8 +15,15 @@ const SWITCH_WEAPON: StringName = &"switch_weapon"
 const INTERACT: StringName = &"interact"
 ## Horizontal dash of the side-view segments (M5; there DASH is the jump).
 const SIDE_DASH: StringName = &"side_dash"
-## Order = bit order of the network state (NetPlayerState.bits_of): append only.
-const ACTIONS: Array[StringName] = [ATTACK, SPECIAL, DASH, SWITCH_WEAPON, INTERACT, SIDE_DASH]
+## Spells of slot 1 and 2 (KE7, PlayerSpells.ACTION / ACTION_2): F and R, RB and LB.
+const CAST_SPELL: StringName = &"cast_spell"
+const CAST_SPELL_2: StringName = &"cast_spell_2"
+## Rückkehrstein (KE5 Proviant): G; on the gamepad Select held (GameUI), on touch its own button
+## while the stone is ready. The machine of the player asks DungeonManager.request_return_stone.
+const USE_RETURN_STONE: StringName = &"use_return_stone"
+## Order = bit order of the network state (NetPlayerState.bits_of): append only (bits 0-8; the
+## active weapon slot starts at NetPlayerState.ACTIVE_SLOT_SHIFT 9).
+const ACTIONS: Array[StringName] = [ATTACK, SPECIAL, DASH, SWITCH_WEAPON, INTERACT, SIDE_DASH, CAST_SPELL, CAST_SPELL_2, USE_RETURN_STONE]
 ## Aim points closer than this to the hand (squared px) keep the previous direction.
 const MIN_AIM_DISTANCE_SQUARED := 4.0
 

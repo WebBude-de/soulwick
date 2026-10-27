@@ -117,15 +117,16 @@ func _draw() -> void:
 		_sprite.frame = phase
 		return
 	var half := WIDTH * 0.5
-	draw_rect(Rect2(-half, -5.0, WIDTH, 5.0), BASE_COLOR)
-	var height := 5.0
+	# Placeholder in pixels (D-218): a base strip and stepped pixel spikes.
+	SidePixels.rect(self, Rect2(-half, -6.0, WIDTH, 6.0), BASE_COLOR)
+	var height := 6.0
 	var color := SPIKE_COLOR
 	if phase == Phase.WARN:
-		height = 9.0
+		height = 10.0
 		color = WARN_COLOR
 	elif phase == Phase.ACTIVE:
 		height = HEIGHT
 	var step := WIDTH / SPIKES
 	for i in SPIKES:
 		var x := -half + step * (i + 0.5)
-		draw_colored_polygon(PackedVector2Array([Vector2(x - step * 0.4, -4.0), Vector2(x + step * 0.4, -4.0), Vector2(x, -4.0 - height)]), color)
+		SidePixels.polygon(self, PackedVector2Array([Vector2(x - step * 0.4, -4.0), Vector2(x + step * 0.4, -4.0), Vector2(x, -4.0 - height)]), color)

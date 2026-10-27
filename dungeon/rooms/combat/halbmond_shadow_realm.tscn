@@ -91,7 +91,7 @@ metadata/floor_tile = Vector2i(16, 4)
 metadata/wall_side = -1
 
 [node name="Source5" type="Marker2D" parent="Sources"]
-position = Vector2(736, 224)
+position = Vector2(736, 232)
 metadata/source_kind = &"rift"
 metadata/tile = Vector2i(11, 3)
 metadata/floor_tile = Vector2i(11, 3)
@@ -144,6 +144,7 @@ item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(12, 0), Vector2i(13, 0)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]

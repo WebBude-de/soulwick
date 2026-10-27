@@ -313,7 +313,8 @@ func test_upgrade_choice_with_dpad_and_a() -> void:
 		glyphs.append((chip as UiChip).get_pad_glyph())
 	assert_has(glyphs, InputGlyphs.PAD_DPAD, "key bar: D-pad")
 	assert_has(glyphs, InputGlyphs.pad_id_for_action(&"ui_accept"), "key bar: A")
-	assert_has(glyphs, InputGlyphs.pad_id_for_action(&"upgrade_overview"), "first upgrade choice: the overview key (Tab) is Back")
+	# The overview key (Back) is no tip in the dialog any more: Flint names it (FlintControls.OVERVIEW).
+	assert_does_not_have(glyphs, InputGlyphs.pad_id_for_action(&"upgrade_overview"), "no overview tip in the key bar")
 	assert_ne(InputGlyphs.pad_id_for_action(&"upgrade_overview"), &"")
 	_button(JOY_BUTTON_A)
 	await wait_physics_frames(2)
@@ -468,8 +469,8 @@ func test_first_run_is_a_record_and_the_forge_line_shows() -> void:
 	assert_not_null(modal.find_child("Record", true, false), "the first run is a record")
 	var forge := modal.find_child("ForgeHint", true, false) as Label
 	assert_not_null(forge, "the run end names what the village gold buys")
-	assert_string_contains(forge.text, MetaProgression.get_upgrade_name(MetaProgression.VITALITY))
-	assert_string_contains(forge.text, str(MetaProgression.get_next_cost(MetaProgression.VITALITY)))
+	assert_string_contains(forge.text, MetaProgression.get_upgrade_name(MetaProgression.SHIELD_PLATE))
+	assert_string_contains(forge.text, str(MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE)))
 	assert_true(modal.fits_screen(), "still under 60 % of the screen")
 	assert_lte(modal.frame.get_combined_minimum_size().x, UiKit.px(GameUI.RUN_END_WIDTH) + 1.0, "no wider than the dialog")
 	# The longer English line (after the translation import) still fits next to the village gold.
@@ -484,12 +485,12 @@ func test_first_run_is_a_record_and_the_forge_line_shows() -> void:
 
 func test_next_forge_step_is_the_cheapest_open_upgrade() -> void:
 	# Costs are TESTWERTE (D-167): read them, do not repeat them.
-	var cost := MetaProgression.get_next_cost(MetaProgression.VITALITY)
+	var cost := MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE)
 	var step := RunRecap.next_forge_step(cost - 4)
-	assert_eq(step["id"], MetaProgression.VITALITY, "cheapest, first in forge order")
+	assert_eq(step["id"], MetaProgression.SHIELD_PLATE, "cheapest open upgrade (KE4: Schildplatte I)")
 	assert_eq(int(step["level"]), 1)
 	assert_eq(int(step["cost"]), cost)
-	assert_eq(int(step["missing"]), 4, "Noch 4 Gold bis Vitalität I")
+	assert_eq(int(step["missing"]), 4, "Noch 4 Gold bis Schildplatte I")
 	assert_eq(int(RunRecap.next_forge_step(cost)["missing"]), 0, "affordable")
 	assert_eq(RunRecap.roman(1), "I")
 	assert_eq(RunRecap.roman(4), "IV")

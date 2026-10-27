@@ -4,11 +4,14 @@ extends RefCounted
 ## tested in tests/unit/test_coop_rules.gd. n = players of the session (GameMode.get_player_count,
 ## downed players included); n = 1 changes nothing.
 
-## D-084 TESTWERTE: enemy count per wave x (1 + 0.6 (n - 1)), HP of normal enemies
-## x (1 + 0.2 (n - 1)), HP of champions, minibosses and bosses x (1 + 0.7 (n - 1)).
-const COUNT_PER_PLAYER := 0.6
-const HEALTH_PER_PLAYER := 0.2
-const BOSS_HEALTH_PER_PLAYER := 0.7
+## D-084 TESTWERTE: enemy count per wave x (1 + 0.7 (n - 1)), HP of normal enemies
+## x (1 + 0.3 (n - 1)), HP of champions, minibosses and bosses x (1 + 0.85 (n - 1)).
+## D-213: 0.6 / 0.2 / 0.7 -> 0.7 / 0.3 / 0.85 (playtest in co-op for two "far too easy, the flame
+## basically never takes damage"): two players have twice the damage and split the enemies' attention,
+## so a room now holds about 2.2x the enemy HP (was 1.9x) and a boss 1.85x (was 1.7x).
+const COUNT_PER_PLAYER := 0.7
+const HEALTH_PER_PLAYER := 0.3
+const BOSS_HEALTH_PER_PLAYER := 0.85
 ## D-084 TESTWERTE: stand this long next to a downed player to revive them; they get up with
 ## this much HP. REVIVE_RADIUS (px, D-126 TESTWERT): "next to".
 const REVIVE_TIME := 2.0
@@ -59,6 +62,22 @@ static func scale_group(group: EncounterGroup, players: int) -> EncounterGroup:
 	return scaled
 
 
+## Group danger level (KE2, D-196, KONZEPT §3.2, TESTWERT): the rounded mean of the danger levels
+## of every player in the room (x.5 rounds up, levels below 0 count as 0, 0 for nobody). Nobody
+## lowers it by hand. Only the host computes it and sends it along with the run start; the player
+## count scaling (D-084) comes on top.
+static func group_danger(levels: Array) -> int:
+	var total := 0
+	var count := 0
+	for level: Variant in levels:
+		if level is int or level is float:
+			total += maxi(0, int(level))
+			count += 1
+	if count == 0:
+		return 0
+	return floori(float(total) / float(count) + 0.5)
+
+
 ## The room may start: every living player stands in it (present = living players inside its floor)
 ## or the countdown is over (time_left <= 0; the stragglers are brought in).
 static func should_start_room(living: int, present: int, time_left := INF) -> bool:
@@ -107,7 +126,7 @@ static func revive_progress(progress: float, helper_near: bool, delta: float) ->
 
 
 ## Gold and crystal payout of every player at the run end (D-081/D-123/D-126): the portal pays
-## 100 %, death, abort and a lost host 50 % (RunManager rounding).
+## 100 %, death, abort and a lost host RunManager.LOSS_PAYOUT_RATIO (25 %, KE3; RunManager rounding).
 static func payout_ratio(reason: int) -> float:
 	return RunManager.EXIT_PAYOUT_RATIO if reason == RunManager.EndReason.EXIT else RunManager.LOSS_PAYOUT_RATIO
 

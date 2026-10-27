@@ -2,7 +2,7 @@ class_name EnemyBadges
 extends Node2D
 ## Small 12×12 symbols above special enemies (next to the health bar) so the player sees at a
 ## glance what an enemy can do: elite kind, champion crown and abilities (stun, blind, summons,
-## explodes, splits). Uses art/ui/badge_<name>.png when present (docs/design/sprites/SPRITES_V2.md §5),
+## explodes, splits). Uses art/ui/badge_<name>.png when present (docs/design/sprites/delivered/SPRITES_V2.md §5),
 ## otherwise procedurally drawn pixel icons.
 
 const ICON_SIZE := 12

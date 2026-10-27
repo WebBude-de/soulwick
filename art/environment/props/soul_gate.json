@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "48×64, Pivot (24,58) auf dem Sockel; Ring als Ellipse, Säulen vorn, Schatten auf dem Boden (Dither).",
+    "soul_gate_open_6f: Inneres hellt sich auf, Frame 6 = offen; danach soul_gate_enter_8f wie bisher."
+  ],
+  "items": [
+    {
+      "name": "soul_gate_idle",
+      "file": "soul_gate_idle_8f.png",
+      "frame_size": [
+        48,
+        64
+      ],
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        24,
+        58
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_gate_open",
+      "file": "soul_gate_open_6f.png",
+      "frame_size": [
+        48,
+        64
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        24,
+        58
+      ],
+      "note": ""
+    }
+  ]
+}

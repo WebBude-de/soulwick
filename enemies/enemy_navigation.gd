@@ -265,6 +265,9 @@ static func clear_corners(raw_path: PackedVector2Array, clearance: float) -> Pac
 
 func _request_path(from: Vector2, goal: Vector2) -> void:
 	var map := _get_map()
+	# A goal at the edge of a plateau lies over the strip without navigation; the nearest navigation
+	# there can be the ground beside it, and the path would go round (M3, HeightRules).
+	goal = HeightRules.navigation_goal(goal)
 	if _agent.get_navigation_map() != map:
 		_agent.set_navigation_map(map)
 	_agent.target_position = goal

@@ -1,6 +1,6 @@
 class_name TrialArt
 extends RefCounted
-## Art of the trial rooms and the pact altar (docs/design/sprites/SPRITES_V5.md §1, §3, §4). Loads the delivered
+## Art of the trial rooms and the pact altar (docs/design/sprites/delivered/SPRITES_V5.md §1, §3, §4). Loads the delivered
 ## file by name and draws a pixel placeholder with the same size and frame layout until then.
 ## Placeholders are drawn once per name with fixed shapes (pure optics, no dungeon RNG).
 
@@ -29,7 +29,7 @@ const PATHS := {
 }
 ## Frame size and count per name (art pixels).
 const FRAME_SIZES := {
-	PENDULUM: Vector2i(32, 64),
+	PENDULUM: Vector2i(64, 64),
 	FLAME_JET: Vector2i(32, 48),
 	PLATE: Vector2i(32, 32),
 	PACT_ALTAR: Vector2i(32, 48),
@@ -40,7 +40,7 @@ const FRAME_SIZES := {
 	SPIKES: Vector2i(32, 32),
 }
 ## Pivots of the delivered art (trials.json, rooms.json, variants.json); others: bottom centre.
-## The pendulum hangs from (16, 2); the code places it by its bottom on the lane's south edge, so
+## The pendulum hangs from (32, 2) (pendulum64.json, V13b); the code places it by its bottom on the lane's south edge, so
 ## the chain reaches the lane's north edge.
 const PIVOTS := {
 	FLAME_JET: Vector2(16, 46),
@@ -153,7 +153,8 @@ static func _placeholder(art_name: String) -> Image:
 static func _draw_pendulum() -> Image:
 	var image := _strip(PENDULUM)
 	for frame in 8:
-		var ox := frame * 32
+		# Drawn 32 px wide in the middle of a wider frame (the delivered strip is 64 px, V13b).
+		var ox := frame * get_frame_size(PENDULUM).x + (get_frame_size(PENDULUM).x - 32) / 2
 		var swing := cos(TAU * frame / 8.0)
 		var anchor := Vector2(ox + 16, 2)
 		var blade := Vector2(ox + 16 + swing * 11.0, 46 - absf(swing) * 6.0)

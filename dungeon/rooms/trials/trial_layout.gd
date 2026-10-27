@@ -46,6 +46,15 @@ static func get_wall_rects(shortcut_open := false) -> Array[Rect2i]:
 	return rects
 
 
+## Tiles of the shortcut gate (opened with RoomTiles.open_wall_tiles once the chest is open).
+static func get_gate_tiles() -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for y in range(GATE.position.y, GATE.end.y):
+		for x in range(GATE.position.x, GATE.end.x):
+			tiles.append(Vector2i(x, y))
+	return tiles
+
+
 ## Floor tiles of the parcours (lane A, turn, lane B).
 static func get_parcours_tiles() -> Dictionary[Vector2i, bool]:
 	var tiles: Dictionary[Vector2i, bool] = {}

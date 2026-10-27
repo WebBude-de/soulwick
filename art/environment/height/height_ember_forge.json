@@ -1,0 +1,57 @@
+{
+  "notes": [
+    "platform_top 32×32 wie Bodenkachel in hellerem Ton (Plateau).",
+    "platform_front 32×16 = halbe Stufe (16 px Vorderseite) unter die Plateaukante.",
+    "stairs_half 32×16: zwei Stufen à 8 px, führt vom Boden aufs Plateau."
+  ],
+  "items": [
+    {
+      "name": "platform_front_ember_forge",
+      "file": "platform_front_ember_forge.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "platform_top_ember_forge",
+      "file": "platform_top_ember_forge.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "stairs_half_ember_forge",
+      "file": "stairs_half_ember_forge.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "door_frame_boss 64×60 (Durchgang 32 px, transparent; Türblatt door_boss_open_4f bei x+16, y+28) und door_frame_boss_low 64×48 für niedrige Wände (Türblatt bei x+16, y+16). Biomneutral grau, per Modulate einfärben; Fackeln sind helle Pixel (Light2D extra)."
+  ],
+  "items": [
+    {
+      "name": "door_frame_boss",
+      "file": "door_frame_boss.png",
+      "frame_size": [
+        64,
+        60
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        59
+      ],
+      "note": ""
+    },
+    {
+      "name": "door_frame_boss_low",
+      "file": "door_frame_boss_low.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

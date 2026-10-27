@@ -6,6 +6,8 @@ extends GutTest
 ## half of them), crumbling ledges in the other half. Round 3: six plans per biome, a turret mount in
 ## every plan (floor, ceiling or wall, away from start and door), pools that slow and shorten jumps,
 ## spike runs. D-144: a chest niche in every plan, off the way, a detour without the double jump.
+## SV2 (D-195): four jump trial plans per biome on top (SideTrialPlans, tiers, up to 22 rows); their
+## elements and rules: tests/unit/test_side_elements.gd.
 
 const MINI := [
 	"##########",
@@ -18,14 +20,16 @@ const MINI := [
 ]
 
 
-func test_every_biome_has_six_plans() -> void:
+func test_every_biome_has_six_plans_and_four_jump_trials() -> void:
 	for biome in [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]:
 		var ids := SidePlans.ids_for(biome)
-		assert_eq(ids.size(), 6, "six plans for %s" % biome)
+		assert_eq(ids.size(), 10, "six plans and four jump trials for %s" % biome)
+		assert_eq((SidePlans.BIOME_PLANS[biome] as Array).size(), 6, "six plans of rounds 1-3")
+		assert_eq((SideTrialPlans.BIOME_PLANS[biome] as Array).size(), 4, "four jump trial plans (SV2)")
 		for id in ids:
 			assert_eq(SidePlans.biome_of(id), biome)
 			assert_false(SidePlans.get_rows(id).is_empty(), "%s has rows" % id)
-	assert_eq(SidePlans.all_ids().size(), 24)
+	assert_eq(SidePlans.all_ids().size(), 40)
 
 
 func test_every_plan_and_its_mirror_follows_the_rules() -> void:
@@ -38,16 +42,21 @@ func test_every_plan_and_its_mirror_follows_the_rules() -> void:
 func test_plan_numbers_stay_in_the_ranges() -> void:
 	for id in SidePlans.all_ids():
 		var layout := SidePlans.build(id)
+		var trial := SideTrialPlans.PLANS.has(id)
 		assert_between(layout.size.x, 40, 60, "%s width" % id)
-		assert_eq(layout.size.y, SideRules.ROWS, "%s height" % id)
-		assert_between(layout.count_platforms(), 8, 14, "%s platforms" % id)
+		if trial:
+			assert_between(layout.size.y, SideRules.ROWS, SideRules.MAX_ROWS, "%s height" % id)
+		else:
+			assert_eq(layout.size.y, SideRules.ROWS, "%s height" % id)
+		assert_between(layout.count_platforms(), 8, 14 + layout.size.y - SideRules.ROWS, "%s platforms" % id)
 		assert_between(layout.count_pits(), 1, 2, "%s pits" % id)
 		assert_between(layout.coins.size(), SideLayout.COIN_RANGE.x, SideLayout.COIN_RANGE.y, "%s coins" % id)
-		assert_between(layout.slimes.size() + layout.skeletons.size(), 1, 3, "%s enemies" % id)
-		assert_between(layout.spikes.size(), 1, 3, "%s spike traps" % id)
+		assert_between(layout.enemy_cells().size(), 1, 3, "%s enemies" % id)
+		assert_between(layout.spikes.size(), 0 if not layout.saws.is_empty() else 1, 3, "%s spike traps" % id)
 		assert_between(layout.turrets.size(), 1, 2, "%s turret mounts" % id)
 		assert_true(layout.golden_coin.x >= 0, "%s golden coin" % id)
-		assert_false(layout.ladders.is_empty(), "%s ladder" % id)
+		if not trial:
+			assert_false(layout.ladders.is_empty(), "%s ladder" % id)
 		assert_gt(layout.door.x, layout.start.x, "%s runs to the right" % id)
 
 
@@ -257,7 +266,7 @@ func test_turret_normal_follows_the_rock() -> void:
 func test_round_three_plans_have_a_pool_and_a_spike_run() -> void:
 	for biome in SidePlans.BIOME_PLANS:
 		var ids := SidePlans.ids_for(biome)
-		for id in ids.slice(4):
+		for id in ids.slice(4, 6):
 			var layout := SidePlans.build(id)
 			assert_eq(layout.pools.size(), 1, "%s: a pool" % id)
 			assert_gte(layout.spikes.size(), 2, "%s: a spike run" % id)

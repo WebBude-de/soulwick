@@ -1,6 +1,6 @@
 class_name CurseArt
 extends RefCounted
-## Curse symbols for the pact altar and the Tab overview (docs/design/sprites/SPRITES_V5.md §4): one strip of
+## Curse symbols for the pact altar and the Tab overview (docs/design/sprites/delivered/SPRITES_V5.md §4): one strip of
 ## 16x16 symbols in PlayerCurses.Curse order (-1 max heart, faster enemies, smaller light circle,
 ## fountains heal half). Loads art/environment/trials/curse_icons.png, until then a drawn
 ## placeholder of the same layout (pure optics, fixed shapes, no RNG).

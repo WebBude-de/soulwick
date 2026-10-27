@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "32×32, 10 fps einmalig, Pivot (16,31); Frame 1 heil, 2-3 Risse, 4-5 fällt, 6 Trümmer am Boden."
+  ],
+  "items": [
+    {
+      "name": "training_dummy_shield_break",
+      "file": "training_dummy_shield_break_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    }
+  ]
+}

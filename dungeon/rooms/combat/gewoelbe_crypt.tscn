@@ -42,7 +42,7 @@ position = Vector2(800, 32)
 position = Vector2(608, 416)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(928, 160)
+position = Vector2(992, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(608, 544)

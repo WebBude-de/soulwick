@@ -1,5 +1,5 @@
 extends GutTest
-## Flanking (KONZEPT_RAEUME_V2 §6): close-combat enemies spread over ring places around their
+## Flanking (RAEUME §6): close-combat enemies spread over ring places around their
 ## target instead of queueing, a part cuts off a fleeing target, ranged enemies change sides now
 ## and then; all gentle in the first rooms (EnemyTactics.intensity).
 

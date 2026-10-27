@@ -147,6 +147,26 @@ func test_collapse_fields_break_here_when_the_host_says_so() -> void:
 	assert_eq(mode.chests.size(), 1, "the bonus chest waits at the end of the way")
 
 
+func test_a_sinkhole_opens_and_closes_here_when_the_host_says_so() -> void:
+	var room := _room(COLLAPSE_ROOM, 17, true)
+	var mode := CollapseMode.attach(room, 13)
+	var modes := _client_modes()
+	modes.on_room_prepared(room)
+	var tiles: Array[Vector2i] = []
+	tiles.assign(mode.fields[0])
+	for tile in tiles:
+		assert_false(room.tiles.is_pit(tile), "standing floor before")
+	var args := NetModes._sinkhole_args(tiles, CollapseMode.SinkPhase.OPENED)
+	assert_eq(NetModes._sinkhole_tiles(args), tiles, "the tiles survive the wire")
+	assert_true(modes.apply_event(room, NetModes.Event.SINKHOLE, args))
+	for tile in tiles:
+		assert_true(room.tiles.is_pit(tile), "the sinkhole is abyss here too")
+	modes.apply_event(room, NetModes.Event.SINKHOLE, NetModes._sinkhole_args(tiles, CollapseMode.SinkPhase.CLOSED))
+	for tile in tiles:
+		assert_false(room.tiles.is_pit(tile), "and floor again when the host closes it")
+	assert_not_null(mode)
+
+
 func test_the_villager_walks_and_loses_hearts_as_at_the_host() -> void:
 	var host := _room()
 	var client := _room(HALL, 17, true)

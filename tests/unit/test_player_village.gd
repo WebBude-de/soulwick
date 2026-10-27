@@ -8,7 +8,6 @@ extends GutTest
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const VILLAGE_SCENE := "res://world/village/village.tscn"
 const BOW: WeaponData = preload("res://weapons/data/bow.tres")
-const GuideScript := preload("res://world/village/village_guide.gd")
 const TEST_SAVE_PATH := "user://test_player_village.cfg"
 
 var _old_save_path: String
@@ -21,8 +20,6 @@ func before_all() -> void:
 	SaveManager.save_path = TEST_SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SAVE_PATH))
 	SaveManager.load_game()
-	# The chronicler's opening words would open a dialog over the village.
-	GuideScript.mark_opening_seen()
 	_old_phase = GameManager.get_phase()
 	_plain_world = _make_plain_world()
 
@@ -211,9 +208,8 @@ func test_dungeon_players_are_armed_and_keep_the_forge_dash() -> void:
 	assert_true(player.is_armed())
 	assert_true(_pivot(player).visible)
 	assert_almost_eq(player.dash_cooldown, MetaProgression.BASE_DASH_COOLDOWN, 0.001, "no village dash in the dungeon")
-	# Forge "Dash-Training" 2 on the fresh player (DungeonManager.on_player_spawned -> apply_to_run).
-	SaveManager.set_meta_level(MetaProgression.DASH_TRAINING, 2)
+	# The forge on the fresh player (DungeonManager.on_player_spawned -> apply_to_run) keeps the
+	# dungeon dash: Dash-Training is a talent since KE4 (TalentEffects), not the village's dash.
 	MetaProgression.apply_to_run(player, null)
-	SaveManager.set_meta_level(MetaProgression.DASH_TRAINING, 0)
-	assert_almost_eq(player.dash_cooldown, MetaProgression.get_value_at_level(MetaProgression.DASH_TRAINING, 2), 0.001,
-		"forge level 2 = 1,2 s, not the village's %.2f s" % Village.DASH_COOLDOWN)
+	assert_almost_eq(player.dash_cooldown, MetaProgression.BASE_DASH_COOLDOWN, 0.001,
+		"not the village's %.2f s" % Village.DASH_COOLDOWN)

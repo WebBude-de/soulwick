@@ -54,7 +54,7 @@ const TABLE: Dictionary[StringName, Dictionary] = {
 	&"elite_nest": {"key": "ROOM_ELITE_NEST", "group": Group.COMBAT, "color": Color("#e0b84a"), "icon": "door:elite_nest", "tint": false},
 	# Way-finding (A10): the secret niche, named when its wall breaks.
 	SECRET: {"key": "ROOM_SECRET", "group": Group.COMBAT, "color": Color("#c9b8ff"), "icon": "", "tint": false},
-	# Room modes v2 (KONZEPT_RAEUME_V2 §2, R3, R4): announced by their RoomIntro, not by show_room_genre;
+	# Room modes v2 (RAEUME §2, R3, R4): announced by their RoomIntro, not by show_room_genre;
 	# the entries carry the first-time card. Ids = RoomObjective.MODES = ModeRegistry ids (Lichtfeuer
 	# lifted for the dark card); a room answers its mode through get_variant_id().
 	&"escort": {"key": "MODE_ESCORT", "group": Group.COMBAT, "color": Color("#ffd166"), "icon": "mode:escort", "tint": true},

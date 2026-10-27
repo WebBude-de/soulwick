@@ -481,43 +481,38 @@ func _fade_light() -> void:
 func _draw() -> void:
 	if is_wall_source():
 		return
-	# Drawn at the pivot (the node sorts sort_lift above it).
+	# Drawn at the pivot (the node sorts sort_lift above it). Pixel art (D-218, PixelDraw).
 	var floor_offset := Vector2(0.0, sort_lift())
 	var color := get_color()
 	if phase == Phase.WARN:
-		# Pulsing ring on the floor: readable even before the light has grown.
+		# Pulsing ring on the floor: readable even before the light has grown. Blinks in two steps.
 		var t := clampf(_phase_time / _phase_length, 0.0, 1.0)
-		var pulse := 0.5 + 0.5 * sin(_phase_time * 14.0)
-		draw_set_transform(floor_offset, 0.0, Vector2(1.0, RING_SQUASH))
-		draw_circle(Vector2.ZERO, RING_RADIUS * (0.7 + 0.3 * t), Color(color, 0.12 + 0.18 * t))
-		draw_arc(Vector2.ZERO, RING_RADIUS * (0.8 + 0.4 * t), 0.0, TAU, 28, Color(color, 0.35 + 0.4 * pulse), 2.0)
-		draw_set_transform(Vector2.ZERO)
+		var pulse := 1.0 if sin(_phase_time * 14.0) >= 0.0 else 0.0
+		var fill := RING_RADIUS * (0.7 + 0.3 * t)
+		var ring := RING_RADIUS * (0.8 + 0.4 * t)
+		PixelDraw.ellipse(self, floor_offset, Vector2(fill, fill * RING_SQUASH), Color(color, 0.12 + 0.18 * t))
+		PixelDraw.ellipse_ring(self, floor_offset, Vector2(ring, ring * RING_SQUASH), Color(color, 0.35 + 0.4 * pulse))
 	if _sprite == null:
 		_draw_placeholder(color, floor_offset)
 
 
-## Drawn stand-in while the art is missing.
+## Drawn stand-in while the art is missing (pixel art, D-218).
 func _draw_placeholder(color: Color, floor_offset := Vector2.ZERO) -> void:
-	var glow := Color(color, 0.25 + _glimmer())
-	draw_set_transform(floor_offset, 0.0, Vector2(1.0, RING_SQUASH))
+	var glow := Color(color, PixelDraw.stepped(0.25 + _glimmer(), 4))
 	match kind:
 		SpawnSourceRules.Kind.GRAVE:
-			draw_circle(Vector2(0, -4), 22.0, Color("4a3d33"))
-			draw_set_transform(floor_offset)
-			draw_rect(Rect2(-9, -40, 18, 26), Color("6b6275"))
-			draw_rect(Rect2(-9, -40, 18, 3), Color("8d8498"))
-			draw_circle(Vector2(0, -6), 6.0, glow)
+			PixelDraw.ellipse(self, floor_offset + Vector2(0, -2), Vector2(22.0, 22.0 * RING_SQUASH), Color("4a3d33"))
+			PixelDraw.rect(self, Rect2(floor_offset + Vector2(-9, -40), Vector2(18, 26)), Color("6b6275"))
+			PixelDraw.rect(self, Rect2(floor_offset + Vector2(-9, -40), Vector2(18, 2)), Color("8d8498"))
+			PixelDraw.disc(self, floor_offset + Vector2(0, -6), 6.0, glow)
 		SpawnSourceRules.Kind.SARCOPHAGUS:
-			draw_set_transform(floor_offset)
-			draw_rect(Rect2(-24, -66, 48, 66), Color("4b4655"))
-			draw_rect(Rect2(-20, -62, 40, 58), Color("6b6275"))
-			draw_line(Vector2(0, -56), Vector2(0, -16), glow, 3.0)
+			PixelDraw.rect(self, Rect2(floor_offset + Vector2(-24, -66), Vector2(48, 66)), Color("4b4655"))
+			PixelDraw.rect(self, Rect2(floor_offset + Vector2(-20, -62), Vector2(40, 58)), Color("6b6275"))
+			PixelDraw.line(self, floor_offset + Vector2(0, -56), floor_offset + Vector2(0, -16), glow, 2)
 		SpawnSourceRules.Kind.PUDDLE:
-			draw_circle(Vector2.ZERO, 24.0, Color(color.darkened(0.55), 0.85))
-			draw_circle(Vector2(-4, -2), 12.0, glow)
+			PixelDraw.ellipse(self, floor_offset, Vector2(24.0, 24.0 * RING_SQUASH), Color(color.darkened(0.55), 0.85))
+			PixelDraw.ellipse(self, floor_offset + Vector2(-4, -1), Vector2(12.0, 12.0 * RING_SQUASH), glow)
 		_:
-			draw_set_transform(Vector2.ZERO)
 			var crack := PackedVector2Array([Vector2(-22, -4), Vector2(-10, 2), Vector2(-2, -5), Vector2(8, 3), Vector2(20, -2)])
-			draw_polyline(crack, Color("120d18"), 6.0)
-			draw_polyline(crack, glow, 2.0)
-	draw_set_transform(Vector2.ZERO)
+			PixelDraw.polyline(self, crack, Color("120d18"), 3)
+			PixelDraw.polyline(self, crack, glow, 1)

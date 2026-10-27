@@ -11,7 +11,7 @@ extends Node2D
 ## SecretNiche); it is no room of its own.
 ## Streaming counts slots, not room numbers: after every boss room a campfire takes a slot of its
 ## own without a room number (D-103, RoomSequence slots), so N-1/N/N+1 include the campfire.
-## Nothing pops up (R5, KONZEPT_RAEUME_V2 §1.2/§4): every prepared room lies built and dark behind its
+## Nothing pops up (R5, RAEUME §1.2/§4): every prepared room lies built and dark behind its
 ## door (RoomVeil) and lights up when a player walks in; its exit door shows what waits behind it
 ## (DoorSigns: mode symbol, light cone) and the corridor between gets a style (CorridorDressing). A
 ## branch room builds both ways when it is entered (one more live room, MAX_LIVE_ROOMS_BRANCH); the
@@ -63,7 +63,7 @@ const EXTRA_DARK_VISION_RADIUS := 190.0
 const SPECIAL_ROOM_DARKNESS := 0.2
 const CRYSTALS_PER_BOSS := 3
 const CRYSTALS_PER_CHAMPION := 1
-## Test aid (ROADMAP_AUSBAU A1): normal combat rooms announce their kind and size in the banner.
+## Test aid (ROADMAP A1): normal combat rooms announce their kind and size in the banner.
 const SHOW_ROOM_KIND_BANNER := false
 const INPUT_LOCK_BOSS_INTRO := &"boss_intro"
 const ROOM_KIND_BANNER_COLOR := Color(0.75, 0.8, 0.9)
@@ -76,7 +76,7 @@ const CAMPFIRE_EXIT_PORTAL := true  # TESTWERT
 const CAMPFIRE_DARKNESS := 0.9
 const CAMPFIRE_TEMPLATE_PATH := "res://dungeon/rooms/campfire/campfire_room.tscn"
 const CAMPFIRE_BANNER_COLOR := Color(1.0, 0.7, 0.4)
-## Branch banner (D-105) and the once-per-save hint at a cracked wall (A10).
+## Branch banner (D-105) and the save's flag for the cracked wall hint (A10, Flint says it, D-211).
 const BRANCH_BANNER_COLOR := Color(0.95, 0.8, 0.45)
 const SECRET_HINT_ID := &"hint_secret_wall"
 ## Elite nest variant (A10); see _prepare_slot why it is loaded at runtime.
@@ -101,6 +101,8 @@ var _rooms: Dictionary[int, RoomController] = {}
 var _active_slot := 0
 var _completed_rooms := 0
 var _previous_special := -1
+## Room number of the last soul gate (place 4 or campfire, KE3): RoomSequence.roll_portal's guarantee.
+var _last_gate_room := 0
 ## Weighted special room draw (D-102, A8).
 var _special_table: SpecialTable = SpecialTable.load_default()
 ## Kind of the room prepared last (-1 after a non-combat room): no abyss twice in a row (D-086).
@@ -165,6 +167,7 @@ class ChainState:
 	extends RefCounted
 	var previous_special := -1
 	var previous_kind := -1
+	var last_gate_room := 0
 	var previous_variant: StringName = &""
 	var branch_cycle := -1
 
@@ -200,6 +203,12 @@ func _ready() -> void:
 	var first := _prepare_slot(1)
 	_player_spawn.global_position = first.get_player_start()
 	_prepare_slot(2)
+	# Practice run (WK10): alone and not seen yet, a hall before room 1 (moves PlayerSpawn there,
+	# holds room 1 until the player walks through its gate); in a group game Flint's co-op tips
+	# instead. No dungeon RNG, so the room stream stays the same. Tools and tests (script runs) start
+	# in room 1 unless they ask for it (TutorialRun.force_next, smoke_test).
+	if not PlayerProfile.is_script_run() or TutorialRun.force_next:
+		TutorialRun.begin(self)
 	# The idle warm-up of the later biomes starts with the next frame.
 	_update_pending_hook()
 
@@ -254,12 +263,88 @@ func on_player_spawned(player: Player) -> void:
 	upgrade_effects.player = player
 	# Village meta upgrades and Proviant boosts (D-078), summarized in one banner (D-087); only
 	# from the local save in single player (D-081: quick games start without them).
-	if GameMode.of(self).get_meta_source() == GameMode.MetaSource.LOCAL:
+	var mode := GameMode.of(self)
+	if mode.get_meta_source() == GameMode.MetaSource.LOCAL:
 		var applied := MetaProgression.apply_to_run(player, context)
 		var summary := MetaProgression.get_run_start_summary(applied)
 		if not summary.is_empty():
 			ui.show_banner(MetaProgression.RUN_BANNER_TITLE, summary)
+	elif mode.get_meta_source() == GameMode.MetaSource.NONE and not mode.is_networked():
+		# A quick game at one machine (no relay): the own Proviant on the first player (KE5); a relay
+		# room's host puts every player's own on it from the lobby profile (NetPlayers).
+		MetaProgression.apply_provisions(player, MetaProgression.provision_snapshot(RunManager.get_run_boosts()), context)
+	_apply_account_talents(player)
+	refresh_group_gold()
 	heal_countdown_changed.emit(get_rooms_until_heal())
+
+
+## Goldregen of a group run (KE5, KONZEPT §9): the shared purse takes the mean of the players' gold
+## factors (MetaProgression.group_gold_factor); solo the own boost counts. Called when a player came
+## and after the host put a player's Proviant on it (NetPlayers).
+func refresh_group_gold() -> void:
+	if GameMode.of(self).is_multiplayer():
+		RunManager.set_group_gold_factor(MetaProgression.group_gold_factor(get_session_players()))
+
+
+## The solo character's talents (KONZEPT §9, KE6) on the primary player of a run at this machine.
+## Not tied to the meta source: talents also count where the forge does not. A relay room's host
+## puts them on every player from the lobby profiles (NetPlayers); guild runs get the guild
+## character later (MP8b).
+func _apply_account_talents(player: Player) -> void:
+	var mode := GameMode.of(self)
+	if mode.is_networked() or mode.kind == GameMode.Kind.GUILD:
+		return
+	var state := AccountTalents.load_state()
+	if not state.levels.is_empty():
+		TalentEffects.apply_to(player, state)
+
+
+# --- Rückkehrstein (KE5, KONZEPT §2) ---
+
+## The return stone key (G, PlayerInput.USE_RETURN_STONE) of a player at this machine. Gamepad
+## (Select held) and the pause menu call request_return_stone directly (GameUI).
+func _physics_process(_delta: float) -> void:
+	for player in _players:
+		if is_instance_valid(player) and player.is_local and player.input != null \
+				and player.input.is_just_pressed(PlayerInput.USE_RETURN_STONE):
+			request_return_stone(player)
+
+
+## The room a return stone of this run opens its gate in: the active room.
+func get_return_stone_room() -> RoomController:
+	return _rooms.get(_active_slot, null) if _active_slot > 0 else null
+
+
+## The local player wants to break its return stone: the host does it at once, a client asks the
+## host (D-126: the gate is the host's decision, the clients get the event). Returns whether it was
+## sent or done; "not now" (big fight, gate already there) shows a hint at this machine only.
+func request_return_stone(player: Player) -> bool:
+	if _run_ending or player == null or not is_instance_valid(player) or not player.is_alive():
+		return false
+	if not MetaProgression.can_use_return_stone(player):
+		return false
+	if not SoulGateRules.can_open_return_gate(get_return_stone_room(), false):
+		ui.show_banner(Loc.t(&"RETURN_STONE_BLOCKED_TITLE"), Loc.t(&"RETURN_STONE_BLOCKED_SUB"), UiKit.COLOR_CRYSTAL)
+		return false
+	if _is_net_client():
+		net.request_return_stone()
+		return true
+	return use_return_stone(player)
+
+
+## Host (or solo): breaks player's return stone, the gate opens in the active room, the stone is
+## used for this run; a relay room's clients get the event (NetDungeon.return_gate_net).
+func use_return_stone(player: Player) -> bool:
+	if _run_ending or not MetaProgression.can_use_return_stone(player):
+		return false
+	var room := get_return_stone_room()
+	if not SoulGateRules.can_open_return_gate(room, false):
+		return false
+	SoulGate.open_return_gate(room, false, player.global_position)
+	MetaProgression.mark_return_stone_used(player)
+	if net != null:
+		net.on_return_stone_used(player, room)
+	return true
 
 
 ## Every player of this run still in the world (downed ones too), in spawn order.
@@ -456,9 +541,11 @@ func _prepare_slot(slot: int, option: BranchOption = null, via_exit := -1, stage
 		if option != null and option.special_type >= 0:
 			special = option.special_type
 		_previous_special = special
-		portal = RoomSequence.roll_portal(context.rng)
+		portal = RoomSequence.roll_portal(context.rng, index, _last_gate_room)
 	elif room_type == RoomSequence.RoomType.CAMPFIRE:
 		portal = CAMPFIRE_EXIT_PORTAL
+	if portal:
+		_last_gate_room = index
 
 	var rolled_kind := -1
 	# A7: variant, wager altar or nothing - three numbers per normal combat room, none otherwise.
@@ -960,6 +1047,7 @@ func _free_rock_fills(slot: int) -> void:
 func _capture_chain() -> ChainState:
 	var state := ChainState.new()
 	state.previous_special = _previous_special
+	state.last_gate_room = _last_gate_room
 	state.previous_kind = _previous_kind
 	state.previous_variant = _previous_variant
 	state.branch_cycle = _branch_cycle
@@ -968,6 +1056,7 @@ func _capture_chain() -> ChainState:
 
 func _restore_chain(state: ChainState) -> void:
 	_previous_special = state.previous_special
+	_last_gate_room = state.last_gate_room
 	_previous_kind = state.previous_kind
 	_previous_variant = state.previous_variant
 	_branch_cycle = state.branch_cycle
@@ -1073,12 +1162,13 @@ func _on_secret_opened(niche: SecretNiche) -> void:
 	ui.show_genre(RoomGenre.SECRET, niche.room)
 
 
-## Struck without an explosion: once per save the hint how cracked walls open.
+## Struck without an explosion: Flint says once how cracked walls open (D-211, FlintControls; a
+## save that saw the old card keeps it seen).
 func _on_secret_tapped(_niche: SecretNiche) -> void:
 	if SaveManager.has_seen(SECRET_HINT_ID):
 		return
-	SaveManager.mark_seen(SECRET_HINT_ID)
-	ui.show_hint(DungeonTexts.t(&"SECRET_HINT_TITLE"), DungeonTexts.t(&"SECRET_HINT_TEXT"))
+	if ui.show_flint_hint(FlintControls.SECRET_WALL):
+		SaveManager.mark_seen(SECRET_HINT_ID)
 
 
 func _on_secret_used(niche: SecretNiche) -> void:
@@ -1086,9 +1176,23 @@ func _on_secret_used(niche: SecretNiche) -> void:
 		ui.show_banner(DungeonTexts.t(&"SECRET_CRYSTALS_TITLE"), DungeonTexts.t(&"SECRET_CRYSTALS_SUB", [SecretRules.CRYSTALS]), UiKit.COLOR_GOLD)
 
 
-## Branch room cleared: the doors wait (D-105).
-func _on_branch_offered(_room: RoomController) -> void:
-	ui.show_banner(DungeonTexts.t(&"BRANCH_TITLE"), DungeonTexts.t(&"BRANCH_SUB"), BRANCH_BANNER_COLOR)
+## Branch room cleared: the doors wait (D-105). With Spürnase (KE5, optics at this machine) the
+## banner names what waits behind each door.
+func _on_branch_offered(room: RoomController) -> void:
+	var preview := BranchOption.reward_preview(_branch_reward_texts(room), Hud.local_player(get_tree()) if is_inside_tree() else null)
+	ui.show_banner(DungeonTexts.t(&"BRANCH_TITLE"), preview if not preview.is_empty() else DungeonTexts.t(&"BRANCH_SUB"), BRANCH_BANNER_COLOR)
+
+
+## What every way of room gives (Spürnase), door order; a hidden variant named by its room mode.
+static func _branch_reward_texts(room: RoomController) -> Array[String]:
+	var texts: Array[String] = []
+	for option in room.branch_options:
+		var mode: StringName = DoorSigns.VARIANT_MODES.get(option.variant_id, option.variant_id)
+		var title := ""
+		if option.kind == BranchOption.Kind.UNKNOWN and RoomObjective.has_mode(mode):
+			title = DungeonTexts.t(StringName(RoomObjective.get_text_prefix(mode) + "_TITLE"))
+		texts.append(option.reward_text(title))
+	return texts
 
 
 ## The group chose a way: its room stands built behind the door and becomes room n+1; the other way
@@ -1365,6 +1469,7 @@ func _on_room_completed(room: RoomController) -> void:
 		else:
 			# Checkpoint: after every boss an exit portal appears (D-073).
 			room.spawn_exit_portal()
+			_last_gate_room = maxi(_last_gate_room, room.room_index)
 			ui.show_banner(DungeonTexts.t(&"PORTAL_APPEARED_TITLE"), DungeonTexts.t(&"PORTAL_APPEARED_SUB"), Color(0.6, 0.85, 1.0))
 	# MP3: a network client opens the exit when the host does.
 	if is_instance_valid(room) and (net == null or net.may_open_exit(room)):
@@ -1424,12 +1529,12 @@ func _announce_room(room: RoomController, biome: BiomeData) -> void:
 	# Arena, catacomb, special rooms, trials: named banner, explained once per save (UX2). Normal
 	# combat rooms stay unnamed; banners queue behind each other.
 	var genre := ui.show_room_genre(room)
-	# Small holes outside a chasm room: the dash hint once per save (A4).
+	# Small holes outside a chasm room: Flint's dash hint once (A4, D-211).
 	var hint := ChasmRules.get_hint_entry(room.tiles.has_pits(), genre == RoomGenre.CHASM,
 			SaveManager.has_seen(RoomGenre.get_seen_id(RoomGenre.CHASM)), SaveManager.has_seen(ChasmRules.HINT_ID))
 	if not hint.is_empty():
 		SaveManager.mark_seen(hint["id"])
-		ui.show_hint(hint["title"], hint["text"], hint["badge"])
+		ui.show_flint_hint(FlintControls.CHASM)
 
 
 ## Name of a combat room with gameplay of its own (D-110): "Arena", "Abgrund", "Katakombe"; empty for
@@ -1444,11 +1549,11 @@ static func _with_kind(subtitle: String, kind_text: String) -> String:
 	return subtitle if kind_text.is_empty() else "%s · %s" % [subtitle, kind_text]
 
 
-func _on_encounter_started(_room: RoomController, enemies: Array[Enemy]) -> void:
+func _on_encounter_started(room: RoomController, enemies: Array[Enemy]) -> void:
 	for enemy in enemies:
 		if enemy.data.is_boss or enemy.is_miniboss:
-			# Soul crystals for bosses and champions (D-078, TESTWERTE).
-			var crystals := CRYSTALS_PER_BOSS if enemy.data.is_boss else CRYSTALS_PER_CHAMPION
+			# Soul crystals for bosses and champions (D-078, TESTWERTE); boss crystals +10 % per block (KE3).
+			var crystals := EconomyConfig.depth_crystals(CRYSTALS_PER_BOSS, room.room_index) if enemy.data.is_boss else CRYSTALS_PER_CHAMPION
 			enemy.died.connect(func(_e: Enemy) -> void: RunManager.add_run_crystals(crystals))
 		if enemy.data.is_boss:
 			# Not awaited: the intro must start in this frame, the rest of the encounter goes on.

@@ -1,5 +1,5 @@
 extends GutTest
-## Campfire between two biomes (D-103, ROADMAP_AUSBAU A6): slots outside the room count, the
+## Campfire between two biomes (D-103, ROADMAP A6): slots outside the room count, the
 ## template, the floor blend, the one choice per player (heal or one more stack) and the dialog.
 
 const CAMPFIRE_SCENE: PackedScene = preload("res://dungeon/rooms/campfire/campfire_room.tscn")

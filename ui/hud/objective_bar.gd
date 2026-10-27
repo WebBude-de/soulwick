@@ -1,6 +1,6 @@
 class_name ObjectiveBar
 extends VBoxContainer
-## Task bar at the top centre (KONZEPT_RAEUME_V2 §1.4, 07_ui.md, R3): mode symbol in the mode
+## Task bar at the top centre (RAEUME §1.4, 07_ui.md, R3): mode symbol in the mode
 ## colour, mode name, progress text ("Welle 1/3 · 6 Gegner"), an optional bar (share or count) and
 ## the time or the share on the right; an optional status line under it ("Der Dorfbewohner bleibt
 ## stehen"). Danger (flame < 30 %) turns it red and lets it pulse. At the end a short success or

@@ -1,0 +1,1087 @@
+{
+  "name": "flint",
+  "generated_by": "tools/generate_flint.py (D-217)",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "left",
+  "anchors": {
+    "eyes": [
+      16,
+      22
+    ],
+    "speech": [
+      11,
+      12
+    ]
+  },
+  "notes": [
+    "Vorlage ist die Website-Figur (D-217); alle Bilder kommen aus tools/generate_flint.py, nicht von Hand ändern.",
+    "Spielgröße (D-205): Körper 13 px, mit Flamme 20 px; Frame 32×32 wie auf der Website, Füße auf Zeile 30, Blick nach links.",
+    "Anker flame (Mitte der Flammenpixel) und head (Oberkante der Kontur) je Frame; flame_mask_*: weiß = Flamme.",
+    "Kein Licht in den Pixeln (D-174): Schein und Funken macht der Code (FlintShine)."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "flint_idle_36f.png",
+      "frames": 36,
+      "fps": 8,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            15.5
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ]
+        ]
+      }
+    },
+    {
+      "name": "move",
+      "file": "flint_move_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            17.5,
+            14.5
+          ],
+          [
+            18.0,
+            15.0
+          ],
+          [
+            17.5,
+            13.5
+          ],
+          [
+            18.0,
+            14.0
+          ],
+          [
+            17.5,
+            14.5
+          ],
+          [
+            18.0,
+            15.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "cast",
+      "file": "flint_cast_6f.png",
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.0,
+            14.5
+          ],
+          [
+            16.5,
+            12.5
+          ],
+          [
+            16.5,
+            12.5
+          ],
+          [
+            16.5,
+            13.5
+          ],
+          [
+            16.5,
+            14.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "talk",
+      "file": "flint_talk_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "joy",
+      "file": "flint_joy_8f.png",
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            12.5
+          ],
+          [
+            16.5,
+            11.5
+          ],
+          [
+            16.5,
+            10.0
+          ],
+          [
+            16.5,
+            11.5
+          ],
+          [
+            16.5,
+            13.0
+          ],
+          [
+            16.5,
+            15.5
+          ],
+          [
+            16.5,
+            14.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            16
+          ],
+          [
+            16,
+            15
+          ],
+          [
+            16,
+            14
+          ],
+          [
+            16,
+            15
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "curious",
+      "file": "flint_curious_4f.png",
+      "frames": 4,
+      "fps": 5,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.0,
+            14.5
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.0,
+            14.5
+          ],
+          [
+            16.5,
+            14.5
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "pulse",
+      "file": "flint_pulse_8f.png",
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            16.0
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            12.5
+          ],
+          [
+            16.5,
+            12.5
+          ],
+          [
+            16.5,
+            13.5
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            17
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "point",
+      "file": "flint_point_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ],
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.5
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "scared",
+      "file": "flint_scared_4f.png",
+      "frames": 4,
+      "fps": 10,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            16.0
+          ],
+          [
+            17.5,
+            16.0
+          ],
+          [
+            16.5,
+            16.0
+          ],
+          [
+            15.5,
+            16.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            19
+          ],
+          [
+            17,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            15,
+            19
+          ]
+        ]
+      }
+    },
+    {
+      "name": "sad",
+      "file": "flint_sad_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ],
+          [
+            16.5,
+            15.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "blink",
+      "file": "flint_blink_2f.png",
+      "frames": 2,
+      "fps": 2,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            14.0
+          ],
+          [
+            16.5,
+            14.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "dim",
+      "file": "flint_dim_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            16.0
+          ],
+          [
+            16.5,
+            16.5
+          ],
+          [
+            16.5,
+            16.0
+          ],
+          [
+            16.5,
+            15.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "hurt",
+      "file": "flint_hurt_3f.png",
+      "frames": 3,
+      "fps": 10,
+      "loop": false,
+      "anchors": {
+        "flame": [
+          [
+            17.5,
+            15.5
+          ],
+          [
+            15.5,
+            16.0
+          ],
+          [
+            16.5,
+            14.0
+          ]
+        ],
+        "head": [
+          [
+            17,
+            19
+          ],
+          [
+            15,
+            19
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "sleep",
+      "file": "flint_sleep_4f.png",
+      "frames": 4,
+      "fps": 2,
+      "loop": true,
+      "anchors": {
+        "flame": [
+          [
+            16.5,
+            16.0
+          ],
+          [
+            16.5,
+            17.5
+          ],
+          [
+            16.5,
+            17.0
+          ],
+          [
+            16.5,
+            16.0
+          ]
+        ],
+        "head": [
+          [
+            16,
+            18
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            19
+          ],
+          [
+            16,
+            18
+          ]
+        ]
+      }
+    },
+    {
+      "name": "flame_mask_idle",
+      "file": "flint_flame_mask_idle_36f.png",
+      "frames": 36,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_move",
+      "file": "flint_flame_mask_move_6f.png",
+      "frames": 6,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_cast",
+      "file": "flint_flame_mask_cast_6f.png",
+      "frames": 6,
+      "fps": 12,
+      "loop": false
+    },
+    {
+      "name": "flame_mask_talk",
+      "file": "flint_flame_mask_talk_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_joy",
+      "file": "flint_flame_mask_joy_8f.png",
+      "frames": 8,
+      "fps": 12,
+      "loop": false
+    },
+    {
+      "name": "flame_mask_curious",
+      "file": "flint_flame_mask_curious_4f.png",
+      "frames": 4,
+      "fps": 5,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_pulse",
+      "file": "flint_flame_mask_pulse_8f.png",
+      "frames": 8,
+      "fps": 12,
+      "loop": false
+    },
+    {
+      "name": "flame_mask_point",
+      "file": "flint_flame_mask_point_4f.png",
+      "frames": 4,
+      "fps": 6,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_scared",
+      "file": "flint_flame_mask_scared_4f.png",
+      "frames": 4,
+      "fps": 10,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_sad",
+      "file": "flint_flame_mask_sad_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_blink",
+      "file": "flint_flame_mask_blink_2f.png",
+      "frames": 2,
+      "fps": 2,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_dim",
+      "file": "flint_flame_mask_dim_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "flame_mask_hurt",
+      "file": "flint_flame_mask_hurt_3f.png",
+      "frames": 3,
+      "fps": 10,
+      "loop": false
+    },
+    {
+      "name": "flame_mask_sleep",
+      "file": "flint_flame_mask_sleep_4f.png",
+      "frames": 4,
+      "fps": 2,
+      "loop": true
+    }
+  ]
+}

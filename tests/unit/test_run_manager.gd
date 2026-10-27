@@ -1,5 +1,5 @@
 extends GutTest
-## RunManager gold, payout and run-end guarantees (D-038, D-039).
+## RunManager gold, payout and run-end guarantees (D-038, D-039; loss payout 25 %, KE3).
 
 const TEST_SAVE_PATH := "user://test_run_manager_save.cfg"
 
@@ -57,9 +57,10 @@ func test_advance_room() -> void:
 
 func test_payout_ratios() -> void:
 	assert_eq(RunManager.calculate_payout(40, RunManager.EndReason.EXIT), 40, "regular exit: 100 %")
-	assert_eq(RunManager.calculate_payout(40, RunManager.EndReason.DEATH), 20, "death: 50 %")
-	assert_eq(RunManager.calculate_payout(40, RunManager.EndReason.ABORT), 20, "abort: 50 %")
-	assert_eq(RunManager.calculate_payout(7, RunManager.EndReason.DEATH), 4, "odd amounts round up (D-062)")
+	assert_eq(RunManager.calculate_payout(40, RunManager.EndReason.DEATH), 10, "death: 25 % (KE3)")
+	assert_eq(RunManager.calculate_payout(40, RunManager.EndReason.ABORT), 10, "abort: 25 % (KE3)")
+	assert_eq(RunManager.calculate_payout(7, RunManager.EndReason.DEATH), 2, "odd amounts round up (D-062): 1.75 -> 2")
+	assert_eq(RunManager.calculate_payout(1, RunManager.EndReason.DEATH), 1, "a single coin stays a coin")
 	assert_eq(RunManager.calculate_payout(0, RunManager.EndReason.EXIT), 0)
 
 
@@ -70,3 +71,18 @@ func test_payout_is_credited_exactly_once() -> void:
 	RunManager.end_run(RunManager.EndReason.EXIT)
 	assert_eq(SaveManager.get_permanent_gold(), before + 30)
 	assert_eq(RunManager.get_last_summary().get("payout"), 30)
+
+
+func test_death_pays_a_quarter_plus_the_danger_bonus() -> void:
+	RunManager.end_run(RunManager.EndReason.ABORT)
+	RunManager.set_danger_level(4)
+	RunManager.start_run()
+	var gold_before := SaveManager.get_permanent_gold()
+	var crystals_before := SaveManager.get_permanent_crystals()
+	RunManager.add_run_gold(100)
+	RunManager.add_run_crystals(6)
+	RunManager.end_run(RunManager.EndReason.DEATH)
+	RunManager.set_danger_level(0)
+	# 25 % of 100 = 25, +20 % at G 4 = 30; 25 % of 6 = 1.5 -> 2, +20 % = 2.4 -> 2.
+	assert_eq(SaveManager.get_permanent_gold(), gold_before + 30)
+	assert_eq(SaveManager.get_permanent_crystals(), crystals_before + 2)

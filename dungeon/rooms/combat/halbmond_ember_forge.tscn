@@ -91,7 +91,7 @@ metadata/floor_tile = Vector2i(16, 4)
 metadata/wall_side = -1
 
 [node name="Source5" type="Marker2D" parent="Sources"]
-position = Vector2(736, 224)
+position = Vector2(736, 232)
 metadata/source_kind = &"vent"
 metadata/tile = Vector2i(11, 3)
 metadata/floor_tile = Vector2i(11, 3)

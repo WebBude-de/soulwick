@@ -7,6 +7,9 @@ extends VBoxContainer
 ## levels) and fades; "+86 XP · Level 4!" stays. Several levels fill one after another. Runs while
 ## the game is paused (the run end dialog pauses, UiKit.ui_tween); skip() shows the end at once.
 ## Built by RunRecap.create_xp_view() from AccountProgress.record_run()'s result.
+## KE1: a level up names its talent point ("+1 Talentpunkt"); when the run changed the own rank, a
+## line with the rank badge says so ("Rang gestiegen: Kerze II", gold; falling: muted) and the badge
+## bumps once the bar is done.
 
 signal finished
 signal leveled_up(level: int)
@@ -27,6 +30,8 @@ var _parts_label: Label = null
 var _xp_label: Label = null
 var _banner_layer: CanvasLayer = null
 var _banner_text := ""
+var _rank_line: HBoxContainer = null
+var _rank_badge: RankBadge = null
 var _shown_xp := 0
 var _tween: Tween = null
 var _done := false
@@ -66,8 +71,35 @@ func _ready() -> void:
 	_parts_label.name = "Parts"
 	_parts_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_parts_label)
+	_add_rank_line()
 	_show_xp(_shown_xp)
 	_play.call_deferred()
+
+
+## "Rang gestiegen: Kerze II" with the new rank's badge, only when the rank changed.
+func _add_rank_line() -> void:
+	var before := int(result.get("danger_before", 0))
+	var after := int(result.get("danger_after", before))
+	var text := RunRecap.rank_change_text(before, after)
+	if text.is_empty():
+		return
+	_rank_line = UiKit.hbox(int(UiKit.px(3)))
+	_rank_line.name = "RankChange"
+	_rank_line.alignment = BoxContainer.ALIGNMENT_CENTER
+	_rank_badge = RankBadge.create(after, BADGE_SIZE)
+	_rank_line.add_child(_rank_badge)
+	var label := UiKit.text_label(text, UiKit.SIZE_BODY, UiKit.COLOR_GOLD if after > before else UiKit.COLOR_MUTED, after > before)
+	label.name = "RankText"
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_rank_line.add_child(label)
+	add_child(_rank_line)
+
+
+## The rank line's text ("" when the rank stayed).
+func get_rank_text() -> String:
+	if _rank_line == null:
+		return ""
+	return (_rank_line.get_node(^"RankText") as Label).text
 
 
 ## "Räume ×12 +60 · Boss +50 · Koop-Bonus +22".
@@ -172,7 +204,7 @@ func _show_banner(level: int) -> void:
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
 	var reward := level % AccountProgress.REWARD_EVERY == 0 and level <= AccountProgress.REWARD_MAX_LEVEL
-	var sub := UiKit.text_label(Loc.t(&"LEVEL_UP_REWARD") if reward else Loc.t(&"LEVEL_UP_SUB"), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
+	var sub := UiKit.text_label(Loc.t(&"LEVEL_UP_REWARD") if reward else Loc.t(&"LEVEL_UP_POINT"), UiKit.SIZE_BODY, UiKit.COLOR_TEXT_SOFT)
 	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(sub)
 	banner.add_child(box)
@@ -197,4 +229,6 @@ func _finish() -> void:
 	if _done:
 		return
 	_done = true
+	if _rank_badge != null and is_inside_tree() and int(result.get("danger_after", 0)) > int(result.get("danger_before", 0)):
+		UiKit.bump(_rank_badge, 1.4, 0.3)
 	finished.emit()

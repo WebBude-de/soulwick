@@ -1,6 +1,6 @@
 class_name WallAutotile
 extends RefCounted
-## One rule for every wall of a room, outer and inner (docs/design/sprites/SPRITES_V6.md, D-110, decisions of the
+## One rule for every wall of a room, outer and inner (docs/design/sprites/delivered/SPRITES_V6.md, D-110, decisions of the
 ## orchestrator 14.10.2026), derived from a floor mask (RoomTiles.get_floor_mask()):
 ## - every tile that is not floor is solid; cut-out corners of a shape are rock like the area
 ##   around the room, bounded like the room's own edges;

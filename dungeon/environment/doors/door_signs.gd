@@ -1,6 +1,6 @@
 class_name DoorSigns
 extends RefCounted
-## Door recognition (R5, KONZEPT_RAEUME_V2 §1.2, docs/design/responses/05_tueren.md): what
+## Door recognition (R5, RAEUME §1.2, docs/design/responses/05_tueren.md): what
 ## an exit door tells about the room behind it. The DungeonManager calls show_way() once the next
 ## room is prepared (it lies built and dark behind the door): the door then shows the mode symbol of
 ## that room over the arch and throws a light cone in the mode colour into the room.
@@ -15,7 +15,7 @@ extends RefCounted
 ## variant (RoomVariants.get_variant_id: R4 mode ids directly, old A7/A9 variants mapped onto their
 ## v2 mode), the arena flag. All of them are known when the room is prepared.
 
-## Old combat variants (A7/A9) and the v2 mode they became (KONZEPT_RAEUME_V2 §2, "Gestrichen oder
+## Old combat variants (A7/A9) and the v2 mode they became (RAEUME §2, "Gestrichen oder
 ## umgebaut"). The gravedigger is an enemy trait now: plain clearing room.
 ## Values are RoomObjective mode ids.
 const VARIANT_MODES: Dictionary[StringName, StringName] = {

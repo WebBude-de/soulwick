@@ -1,0 +1,247 @@
+{
+  "notes": [
+    "Licht wächst mit dem Rang: Funke → Kerze → Flamme → Laterne → Leuchtfeuer → Seelenmeister (violett-gold, Krone)."
+  ],
+  "items": [
+    {
+      "name": "rank_spark",
+      "file": "rank_spark.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_spark_16",
+      "file": "rank_spark_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_candle",
+      "file": "rank_candle.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_candle_16",
+      "file": "rank_candle_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_flame",
+      "file": "rank_flame.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_flame_16",
+      "file": "rank_flame_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_lantern",
+      "file": "rank_lantern.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_lantern_16",
+      "file": "rank_lantern_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_beacon",
+      "file": "rank_beacon.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_beacon_16",
+      "file": "rank_beacon_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_soul_master",
+      "file": "rank_soul_master.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_soul_master_16",
+      "file": "rank_soul_master_16.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_pips",
+      "file": "rank_pips.png",
+      "frame_size": [
+        24,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "3 × 8×8: I, II, III"
+    },
+    {
+      "name": "rank_soul_master_glow",
+      "file": "rank_soul_master_glow_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "rank_up_burst",
+      "file": "rank_up_burst_8f.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 8,
+      "fps": 14,
+      "loop": false,
+      "pivot": [
+        32,
+        32
+      ],
+      "note": ""
+    }
+  ]
+}

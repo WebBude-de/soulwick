@@ -1,6 +1,6 @@
 class_name VariantTable
 extends Resource
-## Mode table of the normal combat rooms (places 1-3 of the cycle, KONZEPT_RAEUME_V2 §4, D-120):
+## Mode table of the normal combat rooms (places 1-3 of the cycle, RAEUME §4, D-120):
 ## minigame (ModeRegistry), wager altar or a plain fight. The chances live in variant_table.tres,
 ## the modes and their weights in ModeRegistry (one line per mode). Randomness only through the RNG
 ## handed in (the dungeon RNG).
@@ -20,11 +20,11 @@ extends Resource
 const DEFAULT_PATH := "res://dungeon/variants/variant_table.tres"
 const NONE := &""
 
-## First room with minigames and wager altars (cycle 1 stays plain, KONZEPT_RAEUME_V2 §4).
+## First room with minigames and wager altars (cycle 1 stays plain, RAEUME §4).
 @export var from_room := 6
 ## Share of the combat rooms that become a minigame (D-120: 30-40 %). TESTWERT
 @export_range(0.0, 1.0) var variant_chance := 0.35
-## At most this many minigames per cycle (KONZEPT_RAEUME_V2 §4). TESTWERT
+## At most this many minigames per cycle (RAEUME §4). TESTWERT
 @export var max_per_cycle := 2
 ## Share of the other combat rooms with a wager altar (D-104). TESTWERT
 @export_range(0.0, 1.0) var wager_chance := 0.12

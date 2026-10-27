@@ -1,6 +1,6 @@
 class_name HuntRules
 extends RefCounted
-## Rules and numbers of "Jagd" (KONZEPT_RAEUME_V2 §3.8, R4b; before: Kopfgeld, D-114). No nodes,
+## Rules and numbers of "Jagd" (RAEUME §3.8, R4b; before: Kopfgeld, D-114). No nodes,
 ## unit-testable; HuntMode and BountyFlight only apply them.
 
 ## The escape hole opens over this time after the crowned one saw a player; when it is open and he

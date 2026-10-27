@@ -1,12 +1,14 @@
 class_name EscortMode
 extends CombatVariant
-## Minigame "Geleit" (KONZEPT_RAEUME_V2 §3.3, design answer 01_raumarten.md, R4a): a lost villager
+## Minigame "Geleit" (RAEUME §3.3, design answer 01_raumarten.md, R4a): a lost villager
 ## with a small lantern waits in the room (plan marker escort_start); after the intro he walks a
 ## glowing path to the exit. Enemies go for him first (EnemyDecoy, EscortRules.TARGET_SHARE). He stops
 ## and calls for help while an enemy is closer than 3 tiles and walks 1.2 times faster with a player
 ## beside him. Every enemy hit costs him a heart. Rarely (5 %) it is a chicken with a lantern.
 ##   Arrived: success - the remaining enemies flee from his light (they fall), a bonus chest appears
 ##            at the exit and the rescue is noted in the save (RescueRecord, the village shows it, R7).
+##            He stays at the end of his way, cheering, until the room goes (playtest 23.10.2026
+##            #9ea58659: his walk out was a straight tween into the doorway, through door and wall).
 ##   Fallen:  no bonus - the enemies stay, the room is cleared as usual. Never costs the run.
 ## The room stays shut while he walks (holds_completion). Task bar: his hearts, progress in %, a status
 ## line while he stands or walks faster. Pushes of enemies out of sources near his way keep it busy.
@@ -20,9 +22,6 @@ signal rescued(mode: EscortMode, chicken: bool)
 signal villager_lost(mode: EscortMode)
 
 enum Walk { WAITING, WALKING, STOPPED, ARRIVED, DOWN }
-
-## Seconds he needs to walk out through the opened exit before he fades.
-const LEAVE_TIME := 1.2
 
 var villager: LostVillager = null
 var path_view: EscortPathView = null
@@ -133,8 +132,10 @@ func _on_finish() -> void:
 	if villager == null or not is_instance_valid(villager):
 		return
 	if walk_state == Walk.ARRIVED:
-		# The exit opens: he walks out through it and is on his way home.
-		_walk_out()
+		# He stays where his way ended: no walk through the doorway (a straight tween ignores walls).
+		travelled = path_total
+		_place_villager()
+		villager.set_look(LostVillager.Look.CHEER)
 	elif walk_state == Walk.DOWN:
 		villager.fade_out(1.2)
 
@@ -211,6 +212,19 @@ func begin_intro() -> void:
 	path_view.reveal()
 	villager.say(_help_text())
 	RoomIntro.start(room, objective, villager.global_position)
+
+
+## Flint's first-time tour (WK11): the villager, his way to the exit with his hearts, where the
+## monsters come from (the source nearest the middle of his way).
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var start := villager.global_position if villager != null and villager.is_inside_tree() else Vector2.INF
+	var goal := Vector2.INF
+	var middle := Vector2.INF
+	if not path_points.is_empty() and room != null:
+		goal = room.to_global(path_points[path_points.size() - 1])
+		middle = room.to_global(EscortRules.point_at(path_points, path_total * 0.5))
+	var hearts := villager.max_hearts if villager != null else EscortRules.HEARTS
+	return RoomFlint.steps(RoomObjective.ESCORT, [start, goal, RoomFlint.source_point(room, middle)], {1: [hearts]})
 
 
 ## A small push out of the sources near his way (at least PUSH_MIN_PLAYER_DISTANCE from every player).
@@ -386,20 +400,6 @@ func _chest_spot() -> Vector2:
 	var inward := -RoomTiles.SIDE_DIRECTIONS[room.tiles.exit_side]
 	var end := path_tiles[path_tiles.size() - 1]
 	return RoomTiles.tile_center(end + inward)
-
-
-func _walk_out() -> void:
-	if not is_inside_tree():
-		villager.queue_free()
-		return
-	var door := RoomTiles.tile_center(room.get_exit_tile())
-	var outward := Vector2(RoomTiles.SIDE_DIRECTIONS[room.tiles.exit_side])
-	var target := door + outward * RoomTiles.TILE_WORLD * 0.5 - Player.FEET_OFFSET
-	villager.set_look(LostVillager.Look.WALK, target.x < villager.position.x - 0.5)
-	var tween := villager.create_tween()
-	tween.tween_interval(0.5)
-	tween.tween_property(villager, "position", target, LEAVE_TIME)
-	tween.tween_callback(villager.fade_out.bind(0.5))
 
 
 # --- Way ---

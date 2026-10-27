@@ -7,11 +7,15 @@ extends CharacterBody2D
 ## the telegraph ends. Normal enemies have no general I-frames (D-020).
 ## Bosses and champions have two phases (BossRules): below half health they roar (briefly
 ## invulnerable), get faster and chain specials, spiral volleys, landing rings and eruptions.
+## Bosses also hurt whoever touches their body (contact damage per tick); kills of their minions pay
+## no ON_KILL rewards (BossRules).
+## Bosses with BossPressure data answer kiting with lobbed lava balls and crowding with a short
+## stunning stomp, outside their attack pattern (_try_pressure).
 ## Abysses (A4, D-086): the pit physics layer blocks enemies like a wall. A strong knockback
 ## towards a pit lifts that block until the knockback settles; an enemy that then stands over a
 ## pit falls and dies (a kill, its gold drops at the rim). Champions, golems and bosses never fall
 ## (ChasmRules.can_enemy_fall).
-## Group tactics (KONZEPT_RAEUME_V2 §6): normal enemies ask the coordinator of their room
+## Group tactics (RAEUME §6): normal enemies ask the coordinator of their room
 ## (EnemyPack) where to walk - ring places around their target, cutting off a fleeing target, side
 ## changes of ranged enemies - and slimes (tag "swarm") hop in packs, one after another, with a
 ## landing marker and without damage in the air. Bosses and champions keep their own behaviour.
@@ -34,7 +38,7 @@ signal emerge_started(enemy: Enemy, wait: float, rise_time: float, style: Emerge
 signal death_wait_over
 
 enum State { IDLE, CHASE, TELEGRAPH, ATTACK, CHARGE, LEAP, RECOVER, DEAD, ROAR, HOP }
-enum Action { NORMAL, VOLLEY, SPECIAL, SUMMON }
+enum Action { NORMAL, VOLLEY, SPECIAL, SUMMON, LOB, STOMP }
 enum Elite { NONE, SWIFT, ARMORED, VOLATILE }
 ## How an enemy comes out of its spawn source (R2, begin_emerge): grows out of the ground at its
 ## feet (grave, rift, vent, sarcophagus), hops out of a puddle, or steps out of a wall (the source
@@ -42,7 +46,9 @@ enum Elite { NONE, SWIFT, ARMORED, VOLATILE }
 enum Emerge { RISE, JUMP, STEP }
 
 const ENEMY_SCENE_PATH := "res://enemies/enemy_base.tscn"
-const GOLD_PICKUP_SCENE: PackedScene = preload("res://economy/gold_pickup.tscn")
+## Loaded on first use, not preloaded: gold_pickup.gd names Player, and Player reaches Enemy again
+## (talents, spells), so a preload here closed a load cycle and the scene came out empty on clients.
+const GOLD_PICKUP_PATH := "res://economy/gold_pickup.tscn"
 const HIT_SPARK_TEXTURE: Texture2D = preload("res://art/effects/hit_spark_3f.png")
 ## Projectile art for types without own projectiles (melee bosses, champion shadows).
 const FALLBACK_PROJECTILE_TEXTURE: Texture2D = preload("res://art/projectiles/magic_orb_4f.png")
@@ -52,6 +58,8 @@ const DEATH_DISSOLVE_TIME := 0.5
 const DEATH_ANIMATION_MARGIN := 0.25
 ## ... and never longer than this (a broken fps value must not keep a corpse around).
 const DEATH_ANIMATION_MAX_TIME := 2.0
+## TESTWERT (KE7, Lichtblitz): bosses stay blinded for this share of the duration.
+const BOSS_BLIND_FACTOR := 0.5
 ## Enemy HP bar (docs/design ui_spec): 20 x 4 art pixels, #e0463a on #1c1a2b.
 const HEALTH_BAR_FILL := Color("#e0463a")
 const HEALTH_BAR_BACKGROUND := Color("#1c1a2b")
@@ -63,6 +71,10 @@ const CHAMPION_LABEL_COLOR := Color("#f2cf4a")
 const MINIBOSS_VISUAL_SCALE := 1.5
 const TELEGRAPH_COLOR := Color(1, 0.15, 0.1, 0.3)
 const SPECIAL_TELEGRAPH_COLOR := Color(1, 0.85, 0.15, 0.35)
+## Stomp wind-up (BossPressure): an earthy orange ring around the boss.
+const STOMP_TELEGRAPH_COLOR := Color(1.0, 0.55, 0.15, 0.28)
+## Lava balls and their warning circles.
+const LAVA_COLOR := Color(1.0, 0.4, 0.1)
 const ENRAGE_COLOR := Color(1.0, 0.25, 0.1)
 const ELITE_COLORS := {
 	Elite.SWIFT: Color(0.35, 0.9, 1.0),
@@ -82,6 +94,9 @@ const TELEPORT_ATTEMPTS := 12
 ## hanging at one) teleports right away instead of waiting for its turn in the pattern, which only
 ## comes with attacks (s). TESTWERT
 const STUCK_TELEPORT_AFTER := 4.0
+## A shooter sent after a decoy (soul flame) whose line is covered by a player walks round it for a
+## free line (ShotLine); after this long it shoots anyway, into the defender (s). TESTWERT
+const COVERED_PATIENCE := 2.5
 const FUSE_BEEP_INTERVAL := 0.15
 const ERUPTION_RANGE := 420.0
 const ERUPTION_DELAY := 0.75
@@ -127,6 +142,11 @@ var _knockback_velocity := Vector2.ZERO
 var _health_multiplier := 1.0
 var _damage_multiplier := 1.0
 var _speed_multiplier := 1.0
+## Slow from outside (Windläufer trail, KE6): factor on the walking speed while _slow_left runs.
+var _slow_factor := 1.0
+var _slow_left := 0.0
+## Blinded (KE7 Lichtblitz, apply_blind): seconds without attacks, specials and chains.
+var _blind_left := 0.0
 var _telegraph_multiplier := 1.0
 var _cooldown_factor := 1.0
 var _room_index := 1
@@ -138,6 +158,8 @@ var _target: Node2D = null
 var _attack_count := 0
 ## Seconds chased without a free shot since the last attack started (STUCK_TELEPORT_AFTER).
 var _chase_without_shot := 0.0
+## Seconds a decoy shooter walked round a player covering its line (COVERED_PATIENCE).
+var _covered_time := 0.0
 var _visual_scale := 1.0
 var _sprite_scale := 1.0
 var _shadow: DropShadow = null
@@ -173,6 +195,17 @@ var _hop_marker: PlaceholderShape = null
 var _hop_tween: Tween = null
 var _hop_blocked_left := 0.0
 var _base_layer := 0
+## False for boss minions and their split children: their kills pay no ON_KILL rewards
+## (BossRules.minion_grants_kill_rewards). Set before the enemy enters the tree.
+var grants_kill_rewards := true
+## Contact damage of bosses (BossRules.has_contact_damage): its own hitbox around the body, a new
+## attack instance every BossRules.CONTACT_INTERVAL. Null for enemies without contact damage.
+var _contact_hitbox: Hitbox = null
+var _contact_left := 0.0
+## Lava balls and stomp (BossPressure); null for enemies without them.
+var _pressure: BossPressure = null
+## Player the lava balls of the current throw go at.
+var _lob_target: Node2D = null
 ## Coming out of a spawn source (R2): hidden, then rising; passive and invulnerable throughout.
 var _emerging := false
 var _emerge_tween: Tween = null
@@ -248,6 +281,15 @@ func is_champion() -> bool:
 	return is_miniboss and not data.is_boss
 
 
+## Target of the talent Schildbrecher (KE6): champions, armored elites and enemies with the shield
+## charge; bosses are neither. Lives here so TalentEffects needs no Enemy type (that type reference
+## closed a load cycle gold_pickup -> Player -> TalentEffects -> Enemy -> gold_pickup).
+func is_shield_breaker_target() -> bool:
+	if data == null or data.is_boss:
+		return false
+	return is_champion() or elite == Elite.ARMORED or data.special == EnemyData.Special.SHIELD_CHARGE
+
+
 ## Bosses and champions fight in two phases.
 func has_phases() -> bool:
 	return data.is_boss or is_miniboss
@@ -321,6 +363,7 @@ func begin_intro(max_duration: float) -> void:
 	_intro_time_left = max_duration
 	hurtbox.set_invulnerable(INTRO_INVULNERABILITY, true)
 	_attack_hitbox.end_attack()
+	_end_contact()
 	_special_chain_left = 0
 	_in_chain = false
 	_knockback_velocity = Vector2.ZERO
@@ -492,6 +535,9 @@ func _apply_data() -> void:
 	_body_shape.position = Vector2(0.0, radius * 0.5)
 	(_hurtbox_shape.shape as CircleShape2D).radius = radius
 	(_attack_shape.shape as CircleShape2D).radius = data.attack_radius
+	_setup_contact(radius)
+	if _pressure == null:
+		_pressure = BossPressure.create(data)
 	_telegraph_circle.radius = data.attack_radius
 	_attack_hitbox.knockback_strength = data.knockback_strength
 	_style_health_bar(radius)
@@ -542,7 +588,10 @@ func _physics_process(delta: float) -> void:
 	if _in_intro:
 		_process_intro(delta)
 		return
+	_tick_slow(delta)
 	_update_target()
+	if _pressure != null:
+		_pressure.tick(delta, global_position, get_tree().get_nodes_in_group(&"player"))
 	_navigation.tick(delta)
 	if _pack == null and uses_tactics():
 		_pack = EnemyPack.for_enemy(self)
@@ -603,6 +652,7 @@ func _physics_process(delta: float) -> void:
 		_enter_state(State.RECOVER)
 		_state_time_left = data.attack_cooldown * 1.6
 		CameraShake.shake(self, 3.0)
+	_tick_contact(delta)
 	_update_animation(delta)
 
 
@@ -625,7 +675,52 @@ func get_target() -> Player:
 ## Pathfinding state, for tools and tests.
 ## Walking speed: data, depth scaling and enrage, plus the pact curse of the target (D-112).
 func get_move_speed() -> float:
-	return data.move_speed * _speed_multiplier * PlayerCurses.enemy_speed_factor(_target)
+	return data.move_speed * _speed_multiplier * _slow_factor * PlayerCurses.enemy_speed_factor(_target)
+
+
+## Slows walking to factor of the speed for duration seconds (host: the host runs enemies). While a
+## slow runs, the strongest wins; an equal one only extends it.
+func apply_slow(factor: float, duration: float) -> void:
+	if duration <= 0.0 or _state == State.DEAD:
+		return
+	factor = clampf(factor, 0.0, 1.0)
+	if _slow_left > 0.0 and factor > _slow_factor:
+		return
+	if _slow_left > 0.0 and is_equal_approx(factor, _slow_factor):
+		_slow_left = maxf(_slow_left, duration)
+		return
+	_slow_factor = factor
+	_slow_left = duration
+
+
+func is_slowed() -> bool:
+	return _slow_left > 0.0
+
+
+## Blinds the enemy for duration seconds (KE7 Lichtblitz, host: the host runs enemies): it starts
+## no attack, no special and no chain, and an attack whose telegraph runs out meanwhile fizzles; it
+## still gropes after its target. Bosses for BOSS_BLIND_FACTOR of it. Contact damage (D-199) stays.
+func apply_blind(duration: float) -> void:
+	if duration <= 0.0 or _state == State.DEAD:
+		return
+	if data != null and data.is_boss:
+		duration *= BOSS_BLIND_FACTOR
+	_blind_left = maxf(_blind_left, duration)
+	_special_chain_left = 0
+
+
+func is_blinded() -> bool:
+	return _blind_left > 0.0
+
+
+func _tick_slow(delta: float) -> void:
+	_blind_left = maxf(0.0, _blind_left - delta)
+	if _slow_left <= 0.0:
+		return
+	_slow_left -= delta
+	if _slow_left <= 0.0:
+		_slow_left = 0.0
+		_slow_factor = 1.0
 
 
 func get_navigation() -> EnemyNavigation:
@@ -640,6 +735,12 @@ func _process_chase() -> void:
 	var distance := to_target.length()
 	var direction := to_target / distance if distance > 0.001 else Vector2.RIGHT
 	var speed := get_move_speed()
+	if is_blinded():
+		# Blinded (Lichtblitz): gropes after the target, no attack, no special.
+		velocity = _chase_direction(direction) * speed if distance > data.attack_range * 0.8 else Vector2.ZERO
+		return
+	if _pressure != null and _try_pressure(direction):
+		return
 
 	var next := _next_action()
 	if next == Action.VOLLEY and distance <= data.volley_range:
@@ -677,8 +778,25 @@ func _process_chase() -> void:
 			elif not _navigation.has_free_shot(_body_shape.global_position, _target.global_position):
 				# In range, but a wall is in the way: find a firing position over the navigation.
 				velocity = _firing_position_direction(direction) * speed
+			elif _walk_past_cover():
+				pass
 			else:
+				_covered_time = 0.0
 				_start_telegraph(direction, Action.NORMAL)
+
+
+## A shooter after its decoy (soul flame) with a player in the line walks round the decoy until the
+## line is free (ShotLine, #56d68b40); true while it does. After COVERED_PATIENCE it shoots anyway.
+func _walk_past_cover() -> bool:
+	if not is_same(_target, EnemyDecoy.get_decoy(self)):
+		return false
+	var blocker := ShotLine.blocking_player(get_tree(), global_position, _target.global_position, data.projectile_radius)
+	if blocker == null or _covered_time >= COVERED_PATIENCE:
+		return false
+	_covered_time += get_physics_process_delta_time()
+	var goal := ShotLine.side_step_goal(global_position, _target.global_position, blocker.global_position)
+	velocity = _walk_direction(goal) * get_move_speed()
+	return true
 
 
 ## Ranged teleporters count the time they chase without a free shot (STUCK_TELEPORT_AFTER).
@@ -849,6 +967,8 @@ func _start_telegraph(direction: Vector2, action: Action) -> void:
 			var chain_factor := BossRules.CHAIN_TELEGRAPH_FACTOR if _in_chain else 1.0
 			_state_time_left = data.special_telegraph_time * _telegraph_multiplier * chain_factor
 			_start_special_telegraph(direction)
+		Action.LOB, Action.STOMP:
+			_start_pressure_telegraph(action)
 		_:
 			if data.attack_kind == EnemyData.AttackKind.MELEE:
 				_telegraph_circle.global_position = global_position + direction * data.attack_reach
@@ -903,10 +1023,26 @@ func _process_telegraph(delta: float) -> void:
 			Sfx.play_at(self, &"fuse", global_position)
 			SpriteFx.flash(_sprite, Color(1, 0.3, 0.1), 0.08)
 	if _state_time_left <= 0.0:
-		_perform_attack()
+		if is_blinded():
+			_fizzle_attack()
+		else:
+			_perform_attack()
+
+
+## A telegraphed attack that ran out while blinded: nothing fires, the enemy recovers (a teleport's
+## fade-out comes back).
+func _fizzle_attack() -> void:
+	_special_chain_left = 0
+	_in_chain = false
+	if data.idle_alpha >= 1.0:
+		_sprite.modulate.a = 1.0
+	_enter_state(State.RECOVER)
 
 
 func _perform_attack() -> void:
+	if _action == Action.LOB or _action == Action.STOMP:
+		_perform_pressure()
+		return
 	# Chained specials belong to the attack that started the chain.
 	if not _in_chain:
 		_attack_count += 1
@@ -963,7 +1099,7 @@ func _perform_special() -> void:
 func _finish_special() -> void:
 	if _state == State.DEAD:
 		return
-	if _special_chain_left > 0 and _target != null:
+	if _special_chain_left > 0 and _target != null and not is_blinded():
 		_special_chain_left -= 1
 		_in_chain = true
 		var to_target := _target.global_position - global_position
@@ -1118,12 +1254,109 @@ func _summon() -> void:
 		minion.position = parent.to_local(spot) if parent != null else spot
 		minion.apply_scaling(_room_index, false)
 		minion.arena = arena
+		minion.grants_kill_rewards = BossRules.minion_grants_kill_rewards(data, grants_kill_rewards)
 		get_parent().add_child(minion)
 		_minions.append(minion)
 		Burst.spawn(get_parent(), minion.global_position, minion_data.placeholder_color, 12, 120.0)
 		summoned.emit(minion)
 	Sfx.play_at(self, &"teleport", global_position)
 	ability_used.emit(self, &"summon")
+
+
+# --- Lava balls and stomp (BossPressure) ---
+
+## Outside the attack pattern: a stomp while a player crowds the boss, else lava balls at the
+## farthest player out of melee reach when their timer ran out. True when one started.
+func _try_pressure(direction: Vector2) -> bool:
+	var players := get_tree().get_nodes_in_group(&"player")
+	if _pressure.wants_stomp(global_position, players, phase):
+		_start_telegraph(direction, Action.STOMP)
+		return true
+	var target := _pressure.lob_target(global_position, players)
+	if target == null:
+		return false
+	_lob_target = target
+	var to_target := target.global_position - global_position
+	_start_telegraph(to_target.normalized() if to_target.length() > 0.001 else direction, Action.LOB)
+	return true
+
+
+## Stomp: a ring around the boss for the wind-up (at least BossPressure.MIN_WARNING). Lava balls:
+## a short wind-up; their landing circles warn while they fly.
+func _start_pressure_telegraph(action: Action) -> void:
+	if action == Action.STOMP:
+		_pressure.stomp_started(phase)
+		_state_time_left = _pressure.stomp_warning(_telegraph_multiplier)
+		_telegraph_circle.global_position = global_position
+		_telegraph_circle.radius = _pressure.stomp_radius(phase)
+		_telegraph_circle.color = STOMP_TELEGRAPH_COLOR
+		_telegraph_circle.visible = true
+		Sfx.play_at(self, &"charge", global_position, -4.0)
+		return
+	_pressure.lob_started(phase)
+	_state_time_left = maxf(0.2, data.lob_windup * _telegraph_multiplier)
+	SpriteFx.flash(_sprite, LAVA_COLOR, _state_time_left)
+	Sfx.play_at(self, &"fuse", global_position)
+
+
+func _perform_pressure() -> void:
+	if _action == Action.STOMP:
+		_stomp()
+		_enter_state(State.RECOVER)
+		return
+	_throw_lava_balls()
+	_lob_target = null
+	_enter_state(State.CHASE)
+
+
+## Lava balls in an arc onto the target's way: each lands as a Blast whose warning circle fills
+## up while it flies (at least BossPressure.MIN_WARNING) and leaves a burning LavaPool.
+func _throw_lava_balls() -> void:
+	var target: Node2D = _lob_target if EnemyTargeting.is_alive(_lob_target) else _target
+	if target == null:
+		return
+	var flight := _pressure.flight_time(phase)
+	var count := BossPressure.lob_count(data, _boss_tier, phase)
+	var spots := BossPressure.lob_spots(_pressure.aim_point(target, flight), count, data.lob_spread, _pressure.throws)
+	var hit := data.damage * _damage_multiplier
+	var hands := global_position + Vector2(0.0, -data.body_radius * _visual_scale)
+	for i in spots.size():
+		var spot := spots[i]
+		if arena.size != Vector2.ZERO:
+			var inner := arena.grow(-24.0)
+			spot = spot.clamp(inner.position, inner.end)
+		var blast := Blast.spawn(get_parent(), spot, data.lob_radius, hit * data.lob_damage_factor, flight + 0.06 * i)
+		blast.source = self
+		blast.color = LAVA_COLOR
+		blast.look = Blast.LOOK_LAVA
+		blast.tags.assign([&"lava", &"fire"])
+		blast.knockback = 120.0
+		blast.shake = 3.0
+		blast.lob_from = hands
+		blast.pool_time = _pressure.pool_time(phase)
+		blast.pool_damage = BossPressure.pool_damage(hit)
+	Sfx.play_at(self, &"enemy_shoot", global_position)
+	ability_used.emit(self, &"lava_ball")
+
+
+## Ground wave around the boss: hurts a little, stuns briefly (never above BossPressure.MAX_STUN)
+## and pushes away; a dash through it (I-frames) avoids both.
+func _stomp() -> void:
+	var blast := Blast.spawn(get_parent(), global_position, _pressure.stomp_radius(phase), data.damage * _damage_multiplier * data.stomp_damage_factor)
+	blast.source = self
+	blast.look = Blast.LOOK_STOMP
+	blast.tags.assign([&"stomp"])
+	blast.stun_duration = _pressure.stomp_stun(phase)
+	blast.knockback = 260.0
+	blast.sound = &"slam"
+	blast.shake = 8.0
+	blast.color = data.placeholder_color
+	ability_used.emit(self, &"stomp")
+
+
+## Lava balls and stomp of this enemy (null without them). For tools and tests.
+func get_pressure() -> BossPressure:
+	return _pressure
 
 
 # --- Pack hop (EnemyPack beat, EnemyHop) ---
@@ -1289,6 +1522,74 @@ func _finish_roar() -> void:
 		_summon()
 
 
+## Tells the run (rewards, stats, log) about a hit on this enemy; a kill of a boss minion carries
+## grants_kill_rewards = false so ON_KILL upgrades skip it.
+func _emit_damaged(result: DamageResult, damage: DamageData) -> void:
+	if result.killed and not grants_kill_rewards:
+		result.grants_kill_rewards = false
+	EventBus.enemy_damaged.emit(self, result, damage)
+
+
+# --- Contact damage (bosses, BossRules) ---
+
+## Creates (once) or resizes the contact hitbox of a boss around its visual body.
+func _setup_contact(body_radius: float) -> void:
+	if not BossRules.has_contact_damage(data):
+		_end_contact()
+		return
+	if _contact_hitbox == null:
+		_contact_hitbox = Hitbox.new()
+		_contact_hitbox.name = "ContactHitbox"
+		_contact_hitbox.collision_layer = 0
+		_contact_hitbox.collision_mask = PhysicsLayers.PLAYER_HURTBOX
+		var shape := CollisionShape2D.new()
+		shape.shape = CircleShape2D.new()
+		_contact_hitbox.add_child(shape)
+		add_child(_contact_hitbox)
+	_contact_hitbox.knockback_strength = BossRules.CONTACT_KNOCKBACK
+	var circle := (_contact_hitbox.get_child(0) as CollisionShape2D).shape as CircleShape2D
+	circle.radius = body_radius * BossRules.CONTACT_RADIUS_SHARE
+
+
+## Who stands in the boss is hurt every CONTACT_INTERVAL: each tick starts a new attack instance
+## (D-020), the hitbox itself polls the overlaps. Off while the body is not really there.
+func _tick_contact(delta: float) -> void:
+	if _contact_hitbox == null:
+		return
+	if not can_touch():
+		_end_contact()
+		return
+	_contact_left -= delta
+	if _contact_left <= 0.0 or not _contact_hitbox.is_active():
+		_contact_left = BossRules.CONTACT_INTERVAL
+		_contact_hitbox.begin_attack(_create_contact_damage())
+
+
+## The body can hurt by touch: alive, out of intro and source, on the ground (not in a leap or hop).
+func can_touch() -> bool:
+	return _contact_hitbox != null and _state != State.DEAD and _state != State.LEAP \
+		and not _in_intro and not _emerging and not is_airborne() and is_inside_tree()
+
+
+func is_contact_active() -> bool:
+	return _contact_hitbox != null and _contact_hitbox.is_active()
+
+
+func _end_contact() -> void:
+	_contact_left = 0.0
+	if _contact_hitbox != null:
+		_contact_hitbox.end_attack()
+
+
+func _create_contact_damage() -> DamageData:
+	var damage := DamageData.new()
+	damage.amount = BossRules.contact_damage(data.damage * _damage_multiplier)
+	damage.source = self
+	damage.tags.assign(data.tags)
+	damage.tags.append(&"contact")
+	return damage
+
+
 func _create_damage() -> DamageData:
 	var damage := DamageData.new()
 	damage.amount = data.damage * _damage_multiplier
@@ -1406,7 +1707,7 @@ func _play_attack_animation(duration: float, action := Action.NORMAL) -> void:
 	if frames == null or _state == State.DEAD:
 		return
 	var animation := &"attack"
-	if action == Action.SPECIAL and frames.has_animation(&"attack2"):
+	if action in [Action.SPECIAL, Action.LOB, Action.STOMP] and frames.has_animation(&"attack2"):
 		animation = &"attack2"
 	elif action == Action.SUMMON and frames.has_animation(&"summon"):
 		animation = &"summon"
@@ -1512,7 +1813,7 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	SpriteFx.flash(_sprite)
 	Sfx.play_at(self, &"hit_enemy", global_position)
 	CameraShake.shake(self, 1.5)
-	EventBus.enemy_damaged.emit(self, result, damage)
+	_emit_damaged(result, damage)
 
 
 func _on_died() -> void:
@@ -1524,6 +1825,7 @@ func _on_died() -> void:
 	_enter_state(State.DEAD)
 	end_intro()
 	_attack_hitbox.end_attack()
+	_end_contact()
 	velocity = Vector2.ZERO
 	set_deferred("collision_layer", 0)
 	set_deferred("collision_mask", 0)
@@ -1611,6 +1913,7 @@ func _spawn_on_death() -> void:
 			child.position = parent.to_local(_navigation.snap_to_navigation(parent.to_global(child.position)))
 		child.apply_scaling(_room_index, false)
 		child.arena = arena
+		child.grants_kill_rewards = grants_kill_rewards
 		get_parent().add_child.call_deferred(child)
 		summoned.emit(child)
 	ability_used.emit(self, &"split")
@@ -1619,7 +1922,7 @@ func _spawn_on_death() -> void:
 func _drop_gold() -> void:
 	if gold_drop <= 0:
 		return
-	var pickup := GOLD_PICKUP_SCENE.instantiate() as GoldPickup
+	var pickup := gold_pickup_scene().instantiate() as GoldPickup
 	pickup.amount = gold_drop
 	pickup.position = position
 	var parent := get_parent() as Node2D
@@ -1699,7 +2002,7 @@ func fall_into_pit() -> void:
 	damage.tags.assign([ChasmRules.DAMAGE_TAG])
 	damage.hit_id = DamageData.next_hit_id()
 	var result := DamageProcessor.process_hit(damage, health, null, false)
-	EventBus.enemy_damaged.emit(self, result, damage)
+	_emit_damaged(result, damage)
 
 
 ## Shrinks, turns and fades into the dark instead of the death animation.
@@ -1711,3 +2014,8 @@ func _play_fall() -> void:
 	tween.tween_property(_sprite, "position:y", 18.0, ChasmRules.FALL_TIME)
 	tween.tween_property(_sprite, "modulate", Color(0.2, 0.2, 0.3, 0.0), ChasmRules.FALL_TIME)
 	tween.chain().tween_callback(queue_free)
+
+
+## The gold pickup scene (cached by the resource loader after the first call).
+static func gold_pickup_scene() -> PackedScene:
+	return load(GOLD_PICKUP_PATH) as PackedScene

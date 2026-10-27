@@ -107,6 +107,10 @@ func test_every_game_and_menu_action_has_a_pad_button_with_a_symbol() -> void:
 
 
 func test_pad_buttons_drive_side_view_and_interaction_actions() -> void:
+	# Like the game, read presses outside a physics frame: there a parsed press only counts for the
+	# next physics frame (a previous test may hand GUT over inside one).
+	if Engine.is_in_physics_frame():
+		await wait_process_frames(1)
 	var input := LocalKeyboardMouseInput.new()
 	for pair: Array in [[JOY_BUTTON_A, PlayerInput.DASH], [JOY_BUTTON_B, PlayerInput.SIDE_DASH], [JOY_BUTTON_X, PlayerInput.INTERACT]]:
 		Input.parse_input_event(MenuInput.pad_button_event(pair[0]))

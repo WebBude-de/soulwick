@@ -1,6 +1,6 @@
 class_name RelicMode
 extends RoomMode
-## Minigame "Reliquie holen" (KONZEPT_RAEUME_V2 §3.5, design answer 01_raumarten.md, R4b; replaces
+## Minigame "Reliquie holen" (RAEUME §3.5, design answer 01_raumarten.md, R4b; replaces
 ## the lantern bearer of D-116): "Hol die Reliquie und bring sie zum Altar."
 ##   Intro:  camera on the relic at the far end (plan marker relic), banner "Hol die Reliquie".
 ##   Fight:  only the guards of the plan stand there at first. When the relic is first lifted every
@@ -69,6 +69,13 @@ func get_focus() -> Vector2:
 	if relics.is_empty() or not relics[0].is_inside_tree():
 		return Vector2.INF
 	return relics[0].global_position
+
+
+## Flint's first-time tour (WK11): the relic, the altar, the graves that wake when it is lifted.
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var relic := get_focus()
+	var altar_point := altar.global_position if altar != null and is_instance_valid(altar) and altar.is_inside_tree() else Vector2.INF
+	return RoomFlint.steps(RoomObjective.RELIC, [relic, altar_point, RoomFlint.source_point(room, relic)])
 
 
 func _setup_objective(goal: RoomObjective) -> void:

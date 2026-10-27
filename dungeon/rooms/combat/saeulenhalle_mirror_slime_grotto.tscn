@@ -20,7 +20,7 @@ front_fixtures = Array[Vector2i]([Vector2i(5, -1), Vector2i(15, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(3, 5, 2), Vector3i(3, 6, 2), Vector3i(3, 7, 2), Vector3i(4, 5, 2), Vector3i(4, 6, 2), Vector3i(4, 7, 2), Vector3i(5, 5, 2), Vector3i(5, 6, 2), Vector3i(7, 3, 0), Vector3i(8, 0, 0), Vector3i(8, 1, 0), Vector3i(8, 2, 0), Vector3i(8, 3, 0), Vector3i(8, 4, 0), Vector3i(8, 7, 1), Vector3i(9, 0, 0), Vector3i(9, 1, 0), Vector3i(9, 4, 1), Vector3i(9, 5, 1), Vector3i(9, 6, 1), Vector3i(9, 7, 1), Vector3i(10, 5, 1), Vector3i(10, 6, 1), Vector3i(10, 7, 1)])
-overlay_cells = Array[Vector3i]([Vector3i(2, 6, 0), Vector3i(4, 4, 12), Vector3i(4, 5, 10), Vector3i(4, 6, 1), Vector3i(4, 7, 12), Vector3i(5, 0, 2), Vector3i(5, 4, 4), Vector3i(5, 5, 13), Vector3i(5, 7, 1), Vector3i(7, 3, 4), Vector3i(7, 7, 10), Vector3i(8, 1, 10), Vector3i(9, 1, 1), Vector3i(11, 7, 10), Vector3i(12, 6, 10), Vector3i(12, 7, 4), Vector3i(13, 4, 2), Vector3i(13, 5, 2), Vector3i(13, 6, 5), Vector3i(15, 5, 9), Vector3i(15, 6, 4), Vector3i(15, 7, 9), Vector3i(16, 5, 2), Vector3i(16, 6, 2)])
+overlay_cells = Array[Vector3i]([Vector3i(2, 6, 0), Vector3i(4, 4, 12), Vector3i(4, 5, 10), Vector3i(4, 6, 1), Vector3i(4, 7, 12), Vector3i(5, 0, 2), Vector3i(5, 4, 4), Vector3i(5, 5, 13), Vector3i(5, 7, 1), Vector3i(7, 3, 4), Vector3i(7, 7, 10), Vector3i(8, 1, 10), Vector3i(9, 1, 1), Vector3i(11, 7, 10), Vector3i(12, 6, 10), Vector3i(12, 7, 4), Vector3i(13, 5, 2), Vector3i(13, 6, 2), Vector3i(14, 1, 5), Vector3i(15, 1, 9), Vector3i(15, 4, 1), Vector3i(15, 6, 9), Vector3i(16, 2, 2), Vector3i(16, 3, 2)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(416, 416)
@@ -29,31 +29,31 @@ position = Vector2(416, 416)
 position = Vector2(608, 32)
 
 [node name="Spawn3" parent="SpawnPoints"]
-position = Vector2(928, 32)
+position = Vector2(864, 224)
 
 [node name="Spawn4" parent="SpawnPoints"]
-position = Vector2(928, 480)
+position = Vector2(992, 480)
 
 [node name="Spawn5" parent="SpawnPoints"]
 position = Vector2(352, 96)
 
 [node name="Spawn6" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(736, 224)
-
-[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
 position = Vector2(160, 416)
 
+[node name="Spawn7" type="Marker2D" parent="SpawnPoints"]
+position = Vector2(544, 224)
+
 [node name="Spawn8" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(992, 288)
+position = Vector2(800, 416)
 
 [node name="Spawn9" type="Marker2D" parent="SpawnPoints"]
-position = Vector2(544, 224)
+position = Vector2(992, 96)
 
 [node name="ContentAnchor" parent="."]
 position = Vector2(608, 288)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(864, 160)
+position = Vector2(800, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(864, 480)
@@ -102,10 +102,10 @@ script = ExtResource("3_deco")
 item = &"bones_2"
 
 [node name="Group1" type="Node2D" parent="Props"]
-position = Vector2(992, 120)
+position = Vector2(928, 56)
 script = ExtResource("3_deco")
 item = &"group_large_2"
-blocked_tiles = Array[Vector2i]([Vector2i(14, 1), Vector2i(15, 1), Vector2i(16, 1)])
+blocked_tiles = Array[Vector2i]([Vector2i(13, 0), Vector2i(14, 0), Vector2i(15, 0)])
 solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 

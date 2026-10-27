@@ -148,7 +148,7 @@ func test_village_villagers_sound_confused_animals_stay_silent() -> void:
 		var walker := node as Villager
 		if walker == null:
 			continue
-		if walker.art_name == "chicken" or walker.art_name == "cat":
+		if walker.animal != &"":
 			animals += 1
 			assert_eq(walker.dodge_sound, &"", "%s: no villager sound for animals" % walker.name)
 		else:

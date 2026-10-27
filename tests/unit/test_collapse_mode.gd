@@ -1,5 +1,5 @@
 extends GutTest
-## Minigame "Einsturz" (R4a, KONZEPT_RAEUME_V2 §3.10): the floor breaks in fields of 2×2 tiles in a
+## Minigame "Einsturz" (R4a, RAEUME §3.10): the floor breaks in fields of 2×2 tiles in a
 ## fixed order from the outside in (1 s warning, then abyss via RoomTiles.add_pit_tiles); enemies on
 ## a field fall with it; after 30 s only the way to the exit stands, with the bonus chest at its end.
 

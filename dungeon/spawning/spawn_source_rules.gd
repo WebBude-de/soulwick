@@ -1,6 +1,6 @@
 class_name SpawnSourceRules
 extends RefCounted
-## Pure rules of enemy sources (R2, KONZEPT_RAEUME_V2 §5, design answer 03_gegner_auftritt.md):
+## Pure rules of enemy sources (R2, RAEUME §5, design answer 03_gegner_auftritt.md):
 ## which sources one push uses and when each enemy comes out. No nodes, unit-testable.
 ## SpawnSources applies the rules to a room, SpawnSource and Enemy.begin_emerge show them.
 ##
@@ -59,7 +59,7 @@ const MIN_WALLS := 2
 ## Gates of an arena without gate markers (fallback in the outer walls). TESTWERT (plan: 6 gates)
 const ARENA_GATE_COUNT := 6
 ## Preference by direction seen from the nearest player: behind it, beside it, in front of it.
-## TESTWERTE (KONZEPT_RAEUME_V2 §5: "meist hinter dem Spieler")
+## TESTWERTE (RAEUME §5: "meist hinter dem Spieler")
 const WEIGHT_BEHIND := 3.0
 const WEIGHT_SIDE := 2.0
 const WEIGHT_FRONT := 1.0

@@ -1,0 +1,119 @@
+{
+  "notes": [
+    "spring_4f: ruhig, gedrückt, schnellt hoch, schwingt nach. saw_8f dreht sich, saw_rail kachelbar. boost_pad_4f 32×8 pulsiert violett. checkpoint_lantern_2f aus/an. rush_start_gate / rush_finish_arch 64×48, Pivot (32,47)."
+  ],
+  "items": [
+    {
+      "name": "spring",
+      "file": "spring_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "saw",
+      "file": "saw_8f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 8,
+      "fps": 16,
+      "loop": true,
+      "pivot": [
+        16,
+        16
+      ],
+      "note": ""
+    },
+    {
+      "name": "saw_rail",
+      "file": "saw_rail.png",
+      "frame_size": [
+        32,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        4
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_pad",
+      "file": "boost_pad_4f.png",
+      "frame_size": [
+        32,
+        8
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        0,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "checkpoint_lantern",
+      "file": "checkpoint_lantern_2f.png",
+      "frame_size": [
+        16,
+        32
+      ],
+      "frames": 2,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "rush_start_gate",
+      "file": "rush_start_gate.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    },
+    {
+      "name": "rush_finish_arch",
+      "file": "rush_finish_arch.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

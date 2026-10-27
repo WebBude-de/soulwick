@@ -16,7 +16,6 @@ const KEYS := {
 	"VILLAGE_UI_MISSING_GOLD": ["%d more gold", "Noch %d Gold"],
 	"VILLAGE_UI_MISSING_CRYSTAL": ["%d more crystal", "Noch %d Kristall"],
 	"VILLAGE_UI_MISSING_CRYSTALS": ["%d more crystals", "Noch %d Kristalle"],
-	"VILLAGE_OPENING_CLOSE_PAD": ["A: close", "A: schließen"],
 }
 
 var _old_locale: String
@@ -60,7 +59,7 @@ func after_all() -> void:
 		TranslationServer.remove_translation(translation)
 	TranslationServer.set_locale(_old_locale)
 	AffordableScript.clear_visits()
-	for suffix in ["", ".bak", ".tmp", ".v2.bak", ".v3.bak"]:
+	for suffix in ["", ".bak", ".tmp", ".v2.bak", ".v3.bak", ".v4.bak"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + suffix))
 	SaveManager.save_path = _old_path
 	SaveManager.load_game()
@@ -79,6 +78,13 @@ func _after_first_run(gold: int) -> void:
 	SaveManager.mark_seen(VillageBuildings.get_intro_key(VillageBuildings.FORGE))
 	SaveManager.mark_seen(VillageBuildings.get_intro_key(VillageBuildings.TRADER))
 	SaveManager.add_permanent_gold(gold)
+
+
+## Every Arsenal entry and the second start slot bought (the fullest weapon rows).
+func _unlock_all_weapons() -> void:
+	for id in MetaProgression.ARSENAL_UPGRADES:
+		SaveManager.set_meta_level(id, 1)
+	SaveManager.set_meta_level(MetaProgression.SECOND_SLOT, 1)
 
 
 func _cheapest_forge_cost() -> int:
@@ -113,19 +119,21 @@ func test_nothing_affordable_without_gold() -> void:
 	assert_true(AffordableScript.affordable_items(VillageBuildings.FORGE).is_empty())
 	assert_false(AffordableScript.needs_marker(VillageBuildings.FORGE))
 	assert_false(AffordableScript.needs_forge_goal())
-	var cost := MetaProgression.get_next_cost(MetaProgression.VITALITY)
-	assert_eq(AffordableScript.gold_missing(MetaProgression.VITALITY), cost - 5, "Noch N Gold")
+	var cost := MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE)
+	assert_eq(AffordableScript.gold_missing(MetaProgression.SHIELD_PLATE), cost - 5, "Noch N Gold")
 
 
 func test_locked_buildings_and_upgrades_never_count() -> void:
 	_after_first_run(10000)
 	SaveManager.add_permanent_crystals(5)
 	var items := AffordableScript.affordable_items(VillageBuildings.FORGE)
-	assert_has(items, MetaProgression.VITALITY)
-	assert_does_not_have(items, MetaProgression.ARSENAL, "locked until the first boss (D-087)")
+	assert_has(items, MetaProgression.SHIELD_PLATE)
+	assert_does_not_have(items, MetaProgression.ARSENAL_BOW, "locked until the first boss (D-087)")
 	assert_true(AffordableScript.affordable_items(VillageBuildings.TRADER).is_empty(), "trading post still locked")
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
-	assert_eq(AffordableScript.affordable_items(VillageBuildings.TRADER).size(), MetaProgression.BOOST_ORDER.size())
+	# KE5: every Proviant and the trade levels the crystals pay.
+	var trades := MetaProgression.TRADE_ORDER.filter(func(id: StringName) -> bool: return MetaProgression.can_buy_trade(id)).size()
+	assert_eq(AffordableScript.affordable_items(VillageBuildings.TRADER).size(), MetaProgression.BOOST_ORDER.size() + trades)
 	assert_true(AffordableScript.affordable_items(VillageBuildings.CHRONICLE).is_empty(), "nothing to buy there")
 
 
@@ -153,7 +161,7 @@ func test_forge_goal_only_after_a_run_and_until_the_first_purchase() -> void:
 	assert_false(AffordableScript.needs_forge_goal(), "before the first run the dungeon is the goal")
 	SaveManager.add_stat(StatsTracker.RUNS, 1)
 	assert_true(AffordableScript.needs_forge_goal())
-	assert_true(MetaProgression.try_buy(MetaProgression.VITALITY))
+	assert_true(MetaProgression.try_buy(MetaProgression.SHIELD_PLATE))
 	assert_false(AffordableScript.needs_forge_goal(), "first purchase done")
 
 
@@ -235,9 +243,9 @@ func test_visit_without_buying_hides_the_marker_but_keeps_the_goal() -> void:
 func test_trader_marker_with_crystals() -> void:
 	_after_first_run(0)
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
-	SaveManager.add_permanent_crystals(1)
+	SaveManager.add_permanent_crystals(MetaProgression.get_boost_price(MetaProgression.BOOST_CLEAR_SIGHT))
 	var village := _village()
-	assert_true(village.has_afford_marker(VillageBuildings.TRADER), "a Proviant for 1 crystal")
+	assert_true(village.has_afford_marker(VillageBuildings.TRADER), "the cheapest Proviant (2 crystals, KE5)")
 	assert_false(village.has_afford_marker(VillageBuildings.FORGE))
 
 
@@ -255,13 +263,13 @@ func test_marker_moves_beside_the_info_marker() -> void:
 # --- Dialogs: Leistbar / Noch N Gold ---
 
 func test_forge_cards_say_affordable_or_missing() -> void:
-	var cost := MetaProgression.get_next_cost(MetaProgression.VITALITY)
+	var cost := MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE)
 	_after_first_run(cost)
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_forge()
 	var modal := ui.get_building_modal()
-	var vitality := modal.find_child("Buy_%s" % MetaProgression.VITALITY, true, false) as Button
+	var vitality := modal.find_child("Buy_%s" % MetaProgression.SHIELD_PLATE, true, false) as Button
 	assert_not_null(vitality)
 	assert_false(vitality.disabled)
 	var card := vitality.get_parent()
@@ -269,10 +277,10 @@ func test_forge_cards_say_affordable_or_missing() -> void:
 	assert_eq((card.find_child("AffordableTag", true, false) as Label).text, "Leistbar")
 	var frame := (card.get_parent() as PanelContainer).get_theme_stylebox("panel") as StyleBoxTexture
 	assert_eq(frame.texture, UiKit.panel_style(&"gold").texture, "gold frame")
-	var sharpness := modal.find_child("Buy_%s" % MetaProgression.SHARPNESS, true, false) as Button
+	var sharpness := modal.find_child("Buy_%s" % MetaProgression.SMITH_SWORD, true, false) as Button
 	var missing := sharpness.get_parent().find_child("MissingLabel", true, false) as Label
 	assert_not_null(missing, "not affordable: what is missing")
-	var expected := MetaProgression.get_next_cost(MetaProgression.SHARPNESS) - cost
+	var expected := MetaProgression.get_next_cost(MetaProgression.SMITH_SWORD) - cost
 	assert_eq(missing.text, "Noch %d Gold" % expected)
 	assert_null(sharpness.get_parent().find_child("AffordableTag", true, false))
 	modal.finish()
@@ -280,11 +288,11 @@ func test_forge_cards_say_affordable_or_missing() -> void:
 
 func test_maxed_upgrade_has_no_line() -> void:
 	_after_first_run(0)
-	SaveManager.set_meta_level(MetaProgression.START_SHIELD, MetaProgression.get_max_level(MetaProgression.START_SHIELD))
+	SaveManager.set_meta_level(MetaProgression.SHIELD_PLATE, MetaProgression.get_max_level(MetaProgression.SHIELD_PLATE))
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_forge()
-	var shield := ui.get_building_modal().find_child("Buy_%s" % MetaProgression.START_SHIELD, true, false) as Button
+	var shield := ui.get_building_modal().find_child("Buy_%s" % MetaProgression.SHIELD_PLATE, true, false) as Button
 	assert_null(shield.get_parent().find_child("MissingLabel", true, false))
 	assert_null(shield.get_parent().find_child("AffordableTag", true, false))
 	ui.get_building_modal().finish()
@@ -293,14 +301,14 @@ func test_maxed_upgrade_has_no_line() -> void:
 func test_trader_cards_say_affordable_or_missing() -> void:
 	_after_first_run(0)
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
-	SaveManager.add_permanent_crystals(1)
+	SaveManager.add_permanent_crystals(MetaProgression.get_boost_price(MetaProgression.BOOST_HEALING_POTION))
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_trader()
 	var modal := ui.get_building_modal()
-	var potion := modal.find_child("Boost_%s" % MetaProgression.BOOST_POTION, true, false) as Button
+	var potion := modal.find_child("Boost_%s" % MetaProgression.BOOST_HEALING_POTION, true, false) as Button
 	assert_not_null(potion.get_parent().find_child("AffordableTag", true, false))
-	var upgrade := modal.find_child("Boost_%s" % MetaProgression.BOOST_UPGRADE, true, false) as Button
+	var upgrade := modal.find_child("Boost_%s" % MetaProgression.BOOST_LUCKY_AMULET, true, false) as Button
 	var missing := upgrade.get_parent().find_child("MissingLabel", true, false) as Label
 	assert_not_null(missing)
 	assert_eq(missing.text, "Noch 1 Kristall")
@@ -322,39 +330,48 @@ func _frame_size(modal: Modal) -> Vector2:
 
 
 func test_trader_keeps_its_size_after_buying() -> void:
-	_all_open(0, 30)
+	_all_open(0, 40)
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_trader()
 	await _frames(2)
 	var modal := ui.get_building_modal()
 	var before := _frame_size(modal)
-	for id in MetaProgression.BOOST_ORDER:
+	# KE5: three Proviant slots at most; the trade level itself is bought in the dialog too.
+	for i in MetaProgression.get_trade_max_level(MetaProgression.TRADE_PROVISION_SLOT):
+		assert_true(MetaProgression.try_buy_trade(MetaProgression.TRADE_PROVISION_SLOT))
+		ui._request_refresh()
+		await _frames(2)
+		assert_eq(_frame_size(modal), before, "same size after a Proviant slot (#bf9c698d)")
+	for id in MetaProgression.BOOST_ORDER.slice(0, MetaProgression.get_provision_slots()):
 		assert_true(MetaProgression.try_buy_boost(id))
 		ui._request_refresh()
 		await _frames(2)
 		assert_eq(_frame_size(modal), before, "same size after buying %s (#bf9c698d)" % id)
-	var packed := modal.find_child("Boost_%s" % MetaProgression.BOOST_POTION, true, false) as Button
+	var full := modal.find_child("Boost_%s" % MetaProgression.BOOST_ORDER[-1], true, false) as Button
+	assert_true(full.disabled, "every slot is packed")
+	assert_not_null(full.get_parent().find_child("SlotsFullLabel", true, false), "says why")
+	var packed := modal.find_child("Boost_%s" % MetaProgression.BOOST_ORDER[0], true, false) as Button
 	assert_eq(packed.text, Loc.t(&"VILLAGE_UI_PACKED"))
 	assert_not_null(packed.get_parent().find_child("AffordSpacer", true, false), "an invisible line keeps the height")
 	modal.finish()
 
 
 func test_affordable_and_poor_cards_are_equally_large() -> void:
-	_all_open(MetaProgression.get_next_cost(MetaProgression.VITALITY))
+	_all_open(MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE))
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_forge()
 	await _frames(2)
 	var modal := ui.get_building_modal()
-	var gold_card := modal.find_child("Buy_%s" % MetaProgression.VITALITY, true, false).get_parent().get_parent() as Control
-	var dark_card := modal.find_child("Buy_%s" % MetaProgression.SHARPNESS, true, false).get_parent().get_parent() as Control
+	var gold_card := modal.find_child("Buy_%s" % MetaProgression.SHIELD_PLATE, true, false).get_parent().get_parent() as Control
+	var dark_card := modal.find_child("Buy_%s" % MetaProgression.SMITH_SWORD, true, false).get_parent().get_parent() as Control
 	var gold_style := gold_card.get_theme_stylebox("panel")
 	var dark_style := dark_card.get_theme_stylebox("panel")
 	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
 		assert_eq(gold_style.get_margin(side), dark_style.get_margin(side), "same padding, only the colour differs")
 	var before := _frame_size(modal)
-	assert_true(MetaProgression.try_buy(MetaProgression.VITALITY))
+	assert_true(MetaProgression.try_buy(MetaProgression.SHIELD_PLATE))
 	ui._request_refresh()
 	await _frames(2)
 	assert_eq(_frame_size(modal), before, "no longer affordable: same size")
@@ -369,7 +386,7 @@ func test_forge_keeps_its_size_up_to_max() -> void:
 	await _frames(2)
 	var modal := ui.get_building_modal()
 	var before := _frame_size(modal)
-	var id := MetaProgression.START_SHIELD
+	var id := MetaProgression.SHIELD_PLATE
 	while MetaProgression.can_buy(id):
 		assert_true(MetaProgression.try_buy(id))
 		ui._request_refresh()
@@ -383,13 +400,13 @@ func test_forge_keeps_its_size_up_to_max() -> void:
 func test_forge_fits_a_720_px_screen_without_scrolling() -> void:
 	# The fullest forge: every upgrade affordable (gold frames, "Leistbar") and the weapon choice.
 	_all_open(100000)
-	SaveManager.set_meta_level(MetaProgression.ARSENAL, MetaProgression.get_max_level(MetaProgression.ARSENAL))
+	_unlock_all_weapons()
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	ui.open_forge()
 	await _frames(3)
 	var modal := ui.get_building_modal()
-	assert_not_null(modal.find_child("Weapon_%s" % MetaProgression.WEAPON_STAFF, true, false), "with the weapon choice")
+	assert_not_null(modal.find_child("Start_%s" % MetaProgression.WEAPON_STAFF, true, false), "with the weapon choice")
 	gut.p("forge: %s" % _frame_size(modal))
 	assert_lte(_frame_size(modal).y, 700.0, "fits 720 px with room to spare (#0efb405c)")
 	assert_false(modal.is_scrolling())
@@ -398,7 +415,7 @@ func test_forge_fits_a_720_px_screen_without_scrolling() -> void:
 
 func test_every_dialog_button_is_a_bold_dialog_button() -> void:
 	_all_open(100000, 30)
-	SaveManager.set_meta_level(MetaProgression.ARSENAL, MetaProgression.get_max_level(MetaProgression.ARSENAL))
+	_unlock_all_weapons()
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
 	for open: Callable in [ui.open_forge, ui.open_trader]:
@@ -415,11 +432,6 @@ func test_every_dialog_button_is_a_bold_dialog_button() -> void:
 			assert_eq(button.get_theme_font_size("font_size"), UiKit.font_px(UiKit.SIZE_KEY_HINT), "%s in the dialog size" % button.name)
 		modal.finish()
 		await _frames(2)
-	ui.show_intro(VillageBuildings.FORGE)
-	await _frames(2)
-	var confirm := ui.get_intro_modal().find_child("ConfirmButton", true, false) as Button
-	assert_eq(confirm.get_theme_font("font"), UiKit.bold_font(), "Verstanden too")
-	ui.get_intro_modal().finish()
 
 
 # --- Gamepad ---
@@ -432,13 +444,13 @@ func _frames(count: int) -> void:
 
 ## No input guard in the tests (it only swallows keys right after opening).
 func _unguard(ui: VillageUI) -> void:
-	for modal: Modal in [ui.get_building_modal(), ui.get_intro_modal()]:
-		if modal != null:
-			modal.input_guard = 0.0
+	var modal := ui.get_building_modal()
+	if modal != null:
+		modal.input_guard = 0.0
 
 
 func test_gamepad_focus_starts_on_an_affordable_entry_and_a_buys() -> void:
-	_after_first_run(MetaProgression.get_next_cost(MetaProgression.VITALITY))
+	_after_first_run(MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE))
 	InputDevice.shared().set_kind(InputDevice.Kind.GAMEPAD)
 	var ui := VillageUI.new()
 	add_child_autofree(ui)
@@ -446,18 +458,18 @@ func test_gamepad_focus_starts_on_an_affordable_entry_and_a_buys() -> void:
 	await _frames(2)
 	var focused := ui.get_focused_button()
 	assert_not_null(focused, "the gamepad has a focus right away")
-	assert_eq(String(focused.name), "Buy_%s" % MetaProgression.VITALITY, "the affordable entry")
+	assert_eq(String(focused.name), "Buy_%s" % MetaProgression.SHIELD_PLATE, "the affordable entry")
 	assert_eq(focused.focus_mode, Control.FOCUS_ALL)
 	assert_true(focused.get_theme_stylebox("focus") is StyleBoxFlat, "a visible focus frame")
 	# Wait for the input guard of the dialog, then A (ui_accept) presses the focused button.
 	_unguard(ui)
 	_press(&"ui_accept")
 	await _frames(3)
-	assert_eq(MetaProgression.get_level(MetaProgression.VITALITY), 1, "bought with A")
+	assert_eq(MetaProgression.get_level(MetaProgression.SHIELD_PLATE), 1, "bought with A")
 	var after := ui.get_focused_button()
 	assert_not_null(after, "the focus survives the rebuild")
 	if after != null:
-		assert_eq(String(after.name), "Buy_%s" % MetaProgression.VITALITY, "on the same entry")
+		assert_eq(String(after.name), "Buy_%s" % MetaProgression.SHIELD_PLATE, "on the same entry")
 	ui.get_building_modal().finish()
 
 
@@ -475,10 +487,12 @@ func test_dpad_moves_the_focus_and_b_closes() -> void:
 	var second := ui.get_focused_button()
 	assert_not_null(second)
 	assert_ne(second, first, "the D-pad moves to the next card")
-	_press(&"ui_down")
-	await _frames(2)
-	_press(&"ui_down")
-	await _frames(2)
+	# KE4: one row per weapon and equipment; down walks the rows and ends on Schließen.
+	for i in 12:
+		if ui.get_focused_button() != null and ui.get_focused_button().name == &"CloseButton":
+			break
+		_press(&"ui_down")
+		await _frames(2)
 	assert_eq(String(ui.get_focused_button().name), "CloseButton", "down reaches Schließen")
 	_press(&"ui_cancel")
 	await _frames(2)
@@ -516,40 +530,6 @@ func test_chronicle_with_gamepad_focuses_close() -> void:
 	assert_null(ui.get_building_modal(), "A on Schließen closes")
 
 
-func test_explanation_on_top_takes_a_not_the_dialog_below() -> void:
-	_after_first_run(MetaProgression.get_next_cost(MetaProgression.VITALITY))
-	InputDevice.shared().set_kind(InputDevice.Kind.GAMEPAD)
-	var ui := VillageUI.new()
-	add_child_autofree(ui)
-	ui.open_forge()
-	await _frames(2)
-	assert_not_null(ui.get_focused_button())
-	ui.show_intro(VillageBuildings.FORGE)
-	await _frames(2)
-	assert_null(ui.get_focused_button(), "no focus below the explanation")
-	_unguard(ui)
-	var a := InputEventJoypadButton.new()
-	a.button_index = JOY_BUTTON_A
-	a.pressed = true
-	ui._unhandled_input(a)
-	await _frames(2)
-	assert_false(ui.is_intro_open(), "A closes the explanation")
-	assert_eq(MetaProgression.get_level(MetaProgression.VITALITY), 0, "nothing bought underneath")
-	assert_not_null(ui.get_focused_button(), "focus back on the dialog")
-	ui.get_building_modal().finish()
-
-
-func test_gamepad_closes_the_opening_card() -> void:
-	var village := _village()
-	assert_not_null(village.ui.get_opening())
-	var a := InputEventJoypadButton.new()
-	a.button_index = JOY_BUTTON_A
-	a.pressed = true
-	village.ui._unhandled_input(a)
-	await _frames(2)
-	assert_null(village.ui.get_opening(), "A closes the opening words")
-
-
 # --- Old saves ---
 
 func test_old_v2_save_loads_and_marks_what_is_affordable() -> void:
@@ -561,8 +541,8 @@ func test_old_v2_save_loads_and_marks_what_is_affordable() -> void:
 	assert_true(village.has_afford_marker(VillageBuildings.FORGE))
 	assert_eq(village.get_goal_kind(), Village.GOAL_FORGE, "nothing bought yet")
 	file = FileAccess.open(TEST_PATH, FileAccess.WRITE)
-	file.store_string("[meta]\nversion=2\n[progress]\npermanent_gold=500\n[stats]\nruns=6\n[meta_upgrades]\nvitality=3\n")
+	file.store_string("[meta]\nversion=2\n[progress]\npermanent_gold=500\n[stats]\nruns=6\n[meta_upgrades]\nstart_shield=3\n")
 	file.close()
 	assert_eq(SaveManager.load_game(), OK)
 	var again := _village()
-	assert_eq(again.get_goal_kind(), &"", "bought before: no forge goal")
+	assert_eq(again.get_goal_kind(), &"", "bought before (Startschild -> Schildplatte, KE4): no forge goal")

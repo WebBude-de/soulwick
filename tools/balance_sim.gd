@@ -37,6 +37,8 @@ extends SceneTree
 ##                     rate crashed about every second to tenth process (segfault in
 ##                     AudioServer::_mix_step). 1 = keep the sound (crash diagnosis only)
 ##   max_fps=0         cap the frame rate (0 = unlimited)
+##   room_timeout=240  seconds before the enemies of a room are removed (the bot cannot climb plateaus,
+##                     M3, and does not play room modes: lower values cut the attrition while stuck)
 ## Recommended realistic bot: hazards=1 falls=1 nav=1 (off by default to stay comparable with
 ## older measurements).
 ## Death cause: the cause column / SUMMARY keep the short source (enemy id, trap, pit, explosion);
@@ -48,6 +50,7 @@ extends SceneTree
 ##   set.hp_mult=1.0         flat factor on all non-boss enemy HP
 ##   set.dmg_mult=1.0        flat factor on all enemy damage
 ##   set.champ_hp=3.0        miniboss HP factor (replaces EnemyScaling.MINIBOSS_HEALTH_FACTOR)
+##   set.champ_dmg=1.5       miniboss damage factor (replaces EnemyScaling.MINIBOSS_DAMAGE_FACTOR)
 ##   set.boss_hp=1.0         flat factor on boss HP
 ##   set.waves=20:2,45:3     waves per normal combat room from room X (replaces RoomSequence)
 ##   set.extra=10:1,40:2     extra enemies per wave from room X
@@ -65,6 +68,7 @@ extends SceneTree
 ##   vt.chance=0.9           room variant chance (variant_table.tres)
 ##   vt.wager=0              wager altar chance
 ##   vt.only=<variant id>    only this variant, in every biome
+##   vt.skip=collapse,flame  never these variants (e.g. modes the bot cannot play; enemy balance only)
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
 const ROOM_TIMEOUT := 240.0
@@ -78,7 +82,7 @@ var opt := {
 	"runs": 3, "policy": "sword", "pick": "greedy", "max_rooms": 150, "skill": 0.8,
 	"reaction": 0.22, "seed": 0, "out": "", "quiet": 0, "debug": 0, "branch": "first",
 	"dseed": 1, "hazards": 0, "falls": 0, "nav": 0, "smart": 0, "god_until": 0, "bosshits": 0,
-	"audio": 0, "max_fps": 0,
+	"audio": 0, "max_fps": 0, "room_timeout": ROOM_TIMEOUT,
 }
 var ovr := {}
 var res_overrides: Array = []
@@ -390,7 +394,7 @@ func _fight_room(room: Node) -> void:
 		_bot_step(room)
 		if not player.is_alive():
 			return
-		if _time - started > ROOM_TIMEOUT:
+		if _time - started > float(opt.room_timeout):
 			_rec.timeout = 1
 			for enemy in _alive(room):
 				enemy.health.take_damage(INF)
@@ -819,6 +823,8 @@ func _apply_enemy_overrides(room: Node, enemies: Array) -> void:
 			hp_ratio *= float(ovr.get("hp_mult", 1.0))
 		if enemy.is_miniboss and ovr.has("champ_hp"):
 			hp_ratio *= float(ovr.champ_hp) / scaling.MINIBOSS_HEALTH_FACTOR
+		if enemy.is_miniboss and ovr.has("champ_dmg"):
+			dmg_ratio *= float(ovr.champ_dmg) / scaling.MINIBOSS_DAMAGE_FACTOR
 		dmg_ratio *= float(ovr.get("dmg_mult", 1.0))
 		if not is_equal_approx(hp_ratio, 1.0):
 			enemy.health.reset(enemy.health.get_max_health() * hp_ratio)
@@ -1167,6 +1173,13 @@ func _apply_variant_overrides() -> void:
 				table.variant_chance = float(parts[1])
 			"vt.wager":
 				table.wager_chance = float(parts[1])
+			"vt.skip":
+				var skipped := parts[1].split(",")
+				var kept: Array[float] = []
+				for i in table.variant_ids.size():
+					var weight: float = table.variant_weights[i] if i < table.variant_weights.size() else 0.0
+					kept.append(0.0 if skipped.has(String(table.variant_ids[i])) else weight)
+				table.variant_weights = kept
 			"vt.only":
 				var weights: Array[float] = []
 				for id in table.variant_ids:

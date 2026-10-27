@@ -11,6 +11,13 @@ extends Node2D
 ## through remove_players; their health, shield, gold, weapons and upgrades stay theirs.
 ## Decisions here (coins, golden coin, door, crumbling ledges, co-op catch-up), looks in the
 ## children and through signals (each player's moves: SidePlayerFx). Randomness only from the seed handed to setup (multiplayer rule).
+## Jump trial (SV2, D-195): the elements of dungeon/side/elements/ - moving platforms and saws run
+## on a clock with a phase from the seed (get_element_clock / apply_element_clock for the co-op),
+## tilting platforms and bridge pieces are crumbles (get_crumbles, after the plain crumbling ledges),
+## springs, lanterns and the hints of shafts; every side enemy kind of SV4 is built through
+## SideEnemyKinds.make; the return spot after a pit is the layout's safe spot.
+## Obstacle run (Hindernislauf, D-216): the same world for a composed layout (ObstacleRunPlans), with
+## the slopes and ramps of its two-way piece (SideSlopes) and the door at the end.
 
 signal finished(segment: SideSegment)
 signal coin_collected(player: Player, gold: int)
@@ -83,8 +90,15 @@ var _crumbles: Array[SideCrumble] = []
 var _turrets: Array[SideTurret] = []
 var _pools: Array[SidePool] = []
 var _fx: Dictionary[Player, SidePlayerFx] = {}
+var _seed := 0
+var _movers: Array[SideMover] = []
+var _saws: Array[SideSaw] = []
+var _springs: Array[SideSpring] = []
+var _lanterns: Array[SideLantern] = []
 ## Co-op: players waiting at the door for the others (set_door_waiting).
 var _door_waiting: Array[Player] = []
+## Every coin built (also the taken ones: a client's coins go without passing through _coins).
+var _all_coins: Array[SideCoin] = []
 
 
 ## Before entering the tree.
@@ -93,6 +107,7 @@ func setup(segment_layout: SideLayout, index: int, run_context: DungeonContext, 
 	room_index = index
 	context = run_context
 	_rng.seed = rng_seed
+	_seed = rng_seed
 	name = "SideSegment"
 
 
@@ -107,10 +122,13 @@ func _ready() -> void:
 	_build_tiles()
 	_build_edges()
 	add_child(SideDecor.create(layout))
+	if not layout.slopes.is_empty():
+		add_child(SideSlopes.create(self))
 	_build_entrance()
 	_build_torches()
 	_build_ladders()
 	_build_crumbles()
+	_build_elements()
 	_build_pools()
 	_build_coins()
 	_build_spikes()
@@ -255,7 +273,7 @@ func get_ladder_bodies() -> Array[PhysicsBody2D]:
 ## cell is no safe ground (spikes, ladder step, outside).
 func safe_feet_for(feet: Vector2) -> Vector2:
 	var cell := SideLayout.cell_at(to_local(feet) + Vector2(0, -4))
-	if not layout.is_standable(cell) or layout.spikes.has(cell):
+	if not layout.is_safe_spot(cell):
 		return Vector2.INF
 	if layout.is_ladder_top(cell + Vector2i.DOWN):
 		return Vector2.INF
@@ -501,8 +519,103 @@ func _build_crumbles() -> void:
 		_crumbles.append(crumble)
 
 
+## Crumbling ledges, then tilting platforms, then bridge pieces (build order = NetSide index).
 func get_crumbles() -> Array[SideCrumble]:
 	return _crumbles
+
+
+## The jump trial's elements (SV2): moving platforms, tilting platforms and bridge pieces (as
+## crumbles), springs, saws, lanterns and the drawn hints. Platform and saw phases come from the
+## segment seed and the build index (no draw from _rng, so the enemies keep their seeds).
+func _build_elements() -> void:
+	for run in layout.tilts:
+		_add_crumble(SideTilt.new(), "Tilt", run)
+	for run in layout.bridges:
+		for column in range(run.x, run.y + 1):
+			_add_crumble(SideBridge.new(), "Bridge", Vector3i(column, column, run.z))
+	var index := 0
+	for plan_mover in layout.movers:
+		var mover := SideMover.new()
+		mover.setup(plan_mover, layout.biome_id, _seed, index)
+		add_child(mover)
+		_movers.append(mover)
+		index += 1
+	for plan_saw in layout.saws:
+		var saw := SideSaw.new()
+		saw.setup(plan_saw, _seed, index)
+		saw.position = SideLayout.cell_center(plan_saw.cell)
+		add_child(saw)
+		_saws.append(saw)
+		index += 1
+	for cell in layout.springs:
+		var spring := SideSpring.new()
+		spring.name = "Spring%d_%d" % [cell.x, cell.y]
+		spring.segment = self
+		spring.position = SideLayout.feet_of(cell)
+		add_child(spring)
+		_springs.append(spring)
+	for cell in layout.lanterns:
+		var lantern := SideLantern.new()
+		lantern.name = "Lantern%d_%d" % [cell.x, cell.y]
+		lantern.segment = self
+		lantern.position = SideLayout.feet_of(cell)
+		add_child(lantern)
+		_lanterns.append(lantern)
+	if not layout.shafts.is_empty():
+		add_child(SideElementHints.create(layout))
+
+
+func _add_crumble(crumble: SideCrumble, prefix: String, run: Vector3i) -> void:
+	crumble.name = "%s%d_%d" % [prefix, run.x, run.z]
+	crumble.cells = run.y - run.x + 1
+	crumble.biome_id = layout.biome_id
+	crumble.position = SideLayout.cell_origin(Vector2i(run.x, run.z))
+	add_child(crumble)
+	_crumbles.append(crumble)
+
+
+func get_movers() -> Array[SideMover]:
+	return _movers
+
+
+func get_saws() -> Array[SideSaw]:
+	return _saws
+
+
+func get_springs() -> Array[SideSpring]:
+	return _springs
+
+
+func get_lanterns() -> Array[SideLantern]:
+	return _lanterns
+
+
+## Clock of the moving platforms and saws (seconds since the segment began; 0 without any). Co-op
+## hook: the host sends it now and then, a client applies it (apply_element_clock).
+func get_element_clock() -> float:
+	if not _movers.is_empty():
+		return _movers[0].clock
+	if not _saws.is_empty():
+		return _saws[0].clock
+	return 0.0
+
+
+## The host's clock on a client (NetSide): every platform and saw at the host's place.
+func apply_element_clock(time: float) -> void:
+	for mover in _movers:
+		if is_instance_valid(mover):
+			mover.apply_clock(time)
+	for saw in _saws:
+		if is_instance_valid(saw):
+			saw.apply_clock(time)
+
+
+## The moving platform whose top the feet (global) stand on, or null.
+func mover_under(feet: Vector2) -> SideMover:
+	for mover in _movers:
+		if is_instance_valid(mover) and mover.carries(feet):
+			return mover
+	return null
 
 
 func _build_coins() -> void:
@@ -511,6 +624,7 @@ func _build_coins() -> void:
 		coin.position = SideLayout.cell_center(cell)
 		add_child(coin)
 		_coins.append(coin)
+		_all_coins.append(coin)
 	coins_total = _coins.size()
 	if layout.golden_coin.x >= 0:
 		_golden = SideCoin.new()
@@ -559,15 +673,13 @@ func _build_exit() -> void:
 	add_child(_exit)
 
 
+## Every side enemy of the plan (SideLayout.enemy_cells: slimes, skeletons, then the SV4 kinds),
+## one draw from the segment RNG each, in this order (old seeds keep their enemies; build order =
+## NetSide index).
 func _build_enemies() -> void:
-	var cells: Array[Vector2i] = []
-	cells.append_array(layout.slimes)
-	cells.append_array(layout.skeletons)
-	for cell in cells:
-		var enemy := SideEnemy.new()
-		var kind := SideEnemy.Kind.SLIME if layout.slimes.has(cell) else SideEnemy.Kind.SKELETON
-		enemy.setup(kind, room_index, self, _rng.randi())
-		enemy.position = SideLayout.feet_of(cell)
+	for entry in layout.enemy_cells():
+		var enemy := SideEnemyKinds.make(entry.z as SideEnemy.Kind, room_index, self, _rng.randi())
+		enemy.position = SideLayout.feet_of(Vector2i(entry.x, entry.y))
 		add_child(enemy)
 		_enemies.append(enemy)
 
@@ -584,6 +696,24 @@ func get_coins_left() -> int:
 	return _coins.size()
 
 
+## Coins taken so far, on every machine (a client's go through NetSide).
+func count_taken_coins() -> int:
+	var taken := 0
+	for coin in _all_coins:
+		if not is_instance_valid(coin) or coin.is_taken:
+			taken += 1
+	return taken
+
+
+## Enemies beaten so far (dead or gone).
+func count_defeated_enemies() -> int:
+	var count := 0
+	for enemy in _enemies:
+		if not is_instance_valid(enemy) or enemy.is_dead():
+			count += 1
+	return count
+
+
 func has_golden_coin() -> bool:
 	return _golden != null and is_instance_valid(_golden)
 
@@ -593,10 +723,12 @@ func get_chest() -> SideChest:
 
 
 ## Darkness rising out of the pits (they fall into nothing), lit faintly in the biome's colour from
-## far below.
+## far below; both in hard bands (D-218).
 class _Abyss:
 	extends Node2D
 	const DEPTH := 3.0
+	const BANDS := 6
+	const GLOW_BANDS := 4
 	var layout: SideLayout = null
 	var glow := Color(0, 0, 0, 0)
 
@@ -608,13 +740,11 @@ class _Abyss:
 		var dark := Color(0.0, 0.0, 0.02, 0.95)
 		for column in layout.pit_columns():
 			var x := column * tile
-			draw_polygon(PackedVector2Array([Vector2(x, top), Vector2(x + tile, top), Vector2(x + tile, bottom), Vector2(x, bottom)]),
-					PackedColorArray([clear, clear, dark, dark]))
+			SidePixels.bands(self, Rect2(x, top, tile, bottom - top), clear, dark, BANDS)
 			if glow.a > 0.0:
 				var lit := (layout.size.y + 0.4) * tile
 				var faint := Color(glow, 0.0)
-				draw_polygon(PackedVector2Array([Vector2(x, lit - tile * 1.2), Vector2(x + tile, lit - tile * 1.2), Vector2(x + tile, bottom), Vector2(x, bottom)]),
-						PackedColorArray([faint, faint, glow, glow]))
+				SidePixels.bands(self, Rect2(x, lit - tile * 1.2, tile, bottom - lit + tile * 1.2), faint, glow, GLOW_BANDS)
 
 
 ## Surface edges (placeholder until platform_edge_<biome> exists).
@@ -629,7 +759,10 @@ class _Edges:
 		for row in range(1, layout.size.y):
 			for column in range(1, layout.size.x - 1):
 				var cell := Vector2i(column, row)
-				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.UP) or layout.is_crumble(cell):
+				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.UP) or layout.is_element_ground(cell):
+					continue
+				# Under a slope the slope's art carries the edge (SideSlopes).
+				if layout.is_slope(cell + Vector2i.UP):
 					continue
 				var left := layout.is_blocking(cell + Vector2i.LEFT) and not layout.is_blocking(cell + Vector2i(-1, -1))
 				var right := layout.is_blocking(cell + Vector2i.RIGHT) and not layout.is_blocking(cell + Vector2i(1, -1))
@@ -640,5 +773,5 @@ class _Edges:
 					continue
 				var inset_left := 0.0 if left else 6.0
 				var inset_right := 0.0 if right else 6.0
-				draw_rect(Rect2(origin.x + inset_left, origin.y - 2.0, tile - inset_left - inset_right, 5.0), color)
-				draw_rect(Rect2(origin.x + inset_left, origin.y + 3.0, tile - inset_left - inset_right, 2.0), color * Color(0.6, 0.6, 0.6, 0.8))
+				draw_rect(Rect2(origin.x + inset_left, origin.y - 2.0, tile - inset_left - inset_right, 6.0), color)
+				draw_rect(Rect2(origin.x + inset_left, origin.y + 4.0, tile - inset_left - inset_right, 2.0), color * Color(0.6, 0.6, 0.6, 0.8))

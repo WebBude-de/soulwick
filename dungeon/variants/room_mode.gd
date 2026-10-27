@@ -1,6 +1,6 @@
 class_name RoomMode
 extends CombatVariant
-## A minigame of a combat room (KONZEPT_RAEUME_V2 §1, §3, D-120): one goal in one sentence, the same
+## A minigame of a combat room (RAEUME §1, §3, D-120): one goal in one sentence, the same
 ## intro (door, camera on the goal, banner, 3-2-1), a task bar, a clear end and a bonus. The base of
 ## Flamme hüten, Reliquie holen, Risse schließen, Jagd and Lichtfeuer (R4b) and of R4a's modes.
 ##

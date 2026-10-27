@@ -41,6 +41,18 @@ func poll(body: Node2D) -> void:
 		var known := InputMap.has_action(action)
 		_pressed[action] = known and Input.is_action_pressed(action)
 		_just_pressed[action] = known and Input.is_action_just_pressed(action)
+	# The return stone's pad button is a hold (GameUI): a press of Select alone is no stone.
+	if _pressed.get(USE_RETURN_STONE, false) and is_pad_button_down(JOY_BUTTON_BACK):
+		_pressed[USE_RETURN_STONE] = false
+		_just_pressed[USE_RETURN_STONE] = false
+
+
+## button is held on any connected gamepad.
+static func is_pad_button_down(button: JoyButton) -> bool:
+	for device in Input.get_connected_joypads():
+		if Input.is_joy_button_pressed(device, button):
+			return true
+	return false
 
 
 ## The right stick aims (not the mouse): the gamepad is the device in use, or its aim stick is

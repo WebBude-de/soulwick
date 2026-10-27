@@ -1,0 +1,104 @@
+{
+  "generated_by": "tools/generate_flint.py (D-217)",
+  "anchors": {
+    "flame": [
+      25.0,
+      9.5
+    ]
+  },
+  "notes": [
+    "Website-Figur zweifach (32×48) im 48×48-Rahmen, Blick nach links zur Sprechblase; Schein und Funken macht FlintPortrait am Anker flame (Mitte der Flamme im neutralen Frame)."
+  ],
+  "items": [
+    {
+      "name": "flint_portrait_neutral",
+      "file": "flint_portrait_neutral_12f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 12,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    },
+    {
+      "name": "flint_portrait_talk",
+      "file": "flint_portrait_talk_6f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    },
+    {
+      "name": "flint_portrait_happy",
+      "file": "flint_portrait_happy_4f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    },
+    {
+      "name": "flint_portrait_worried",
+      "file": "flint_portrait_worried_4f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    },
+    {
+      "name": "flint_portrait_point",
+      "file": "flint_portrait_point_4f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    },
+    {
+      "name": "flint_portrait_proud",
+      "file": "flint_portrait_proud_4f.png",
+      "frame_size": [
+        48,
+        48
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        24,
+        24
+      ]
+    }
+  ]
+}

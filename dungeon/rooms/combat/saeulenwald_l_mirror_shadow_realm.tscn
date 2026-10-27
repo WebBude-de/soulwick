@@ -66,7 +66,7 @@ position = Vector2(1248, 288)
 position = Vector2(800, 288)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(1184, 160)
+position = Vector2(1120, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(928, 544)
@@ -136,6 +136,7 @@ script = ExtResource("4_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(3, 0), Vector2i(4, 0)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -144,6 +145,7 @@ script = ExtResource("4_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(-66, -18, 18, 60)
 biome = &"shadow_realm"
 
 [node name="Group4" type="Node2D" parent="Props"]

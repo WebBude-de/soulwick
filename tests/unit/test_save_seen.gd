@@ -99,13 +99,15 @@ func test_new_save_always_writes_seen_section() -> void:
 func test_old_v2_save_loads_without_loss_and_counts_as_all_seen() -> void:
 	_write(OLD_V2_SAVE)
 	assert_eq(SaveManager.load_game(), OK)
-	assert_eq(SaveManager.get_permanent_gold(), 57)
+	# v3 (D-087): Vitalität 2, Schärfe 3 x 5 % -> 2 x 10 %, Dash 1, Goldgier 2; v5 (KE4) refunds them:
+	# 20 + 80, 70 + 150, 60, 60 + 140 = 580 Gold.
+	assert_eq(SaveManager.get_permanent_gold(), 57 + 580)
 	assert_eq(SaveManager.get_permanent_crystals(), 3)
 	assert_true(SaveManager.is_unlocked(&"hint_archer"))
-	assert_eq(SaveManager.get_meta_level(MetaProgression.SHARPNESS), 2, "v3: 3 x 5 % -> 2 x 10 % (D-087)")
-	assert_eq(SaveManager.get_meta_level(MetaProgression.ARSENAL), 1)
-	assert_eq(SaveManager.get_second_weapon(), MetaProgression.WEAPON_BOW)
-	assert_true(SaveManager.has_pending_boost(MetaProgression.BOOST_POTION))
+	assert_eq(SaveManager.get_meta_level(MetaProgression.SHIELD_PLATE), 1, "Startschild 1 -> Schildplatte 1")
+	assert_true(MetaProgression.is_weapon_unlocked(MetaProgression.WEAPON_BOW), "Arsenal 1 -> bow")
+	assert_eq(MetaProgression.get_second_weapon(), MetaProgression.WEAPON_BOW)
+	assert_true(SaveManager.has_pending_boost(MetaProgression.BOOST_HEALING_POTION))
 	assert_eq(SaveManager.get_stat(StatsTracker.KILLS), 402)
 	assert_eq(SaveManager.get_world_display_name(), "Welt 1", "no [world]: default name (D-152)")
 	assert_true(SaveManager.get_legacy_profile().is_empty(), "no [profile]: nothing for the player's profile")
@@ -121,7 +123,7 @@ func test_old_save_stays_all_seen_after_resave() -> void:
 	assert_eq(SaveManager.load_game(), OK)
 	assert_true(SaveManager.has_seen(&"intro_guild"))
 	assert_true(SaveManager.has_seen(&"any_future_explanation"), "all seen survives the first save")
-	assert_eq(SaveManager.get_permanent_gold(), 57)
+	assert_eq(SaveManager.get_permanent_gold(), 57 + 580, "the v5 refund once, not again after saving")
 
 
 func test_v1_save_counts_as_all_seen() -> void:

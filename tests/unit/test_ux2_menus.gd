@@ -11,7 +11,7 @@ const ALTAR_SCRIPT: GDScript = preload("res://dungeon/rooms/special/altar_conten
 ## Files whose DungeonTexts keys must all have a German text.
 const KEY_FILES := [
 	"res://ui/menus/dungeon_ui.gd", "res://ui/menus/ui_dialog.gd", "res://ui/menus/modal.gd",
-	"res://ui/menus/game_ui.gd", "res://ui/hints/room_genre.gd", "res://ui/hints/room_intro_card.gd",
+	"res://ui/menus/game_ui.gd", "res://ui/hints/room_genre.gd",
 	"res://ui/ui_kit.gd",
 ]
 

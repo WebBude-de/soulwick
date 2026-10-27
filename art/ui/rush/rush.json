@@ -1,0 +1,71 @@
+{
+  "notes": [
+    "Medaillen 24×24 (Gold/Silber/Bronze), Krone 16×12 über dem Ersten im Koop."
+  ],
+  "items": [
+    {
+      "name": "medal_gold",
+      "file": "medal_gold.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "medal_silver",
+      "file": "medal_silver.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "medal_bronze",
+      "file": "medal_bronze.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "crown",
+      "file": "crown.png",
+      "frame_size": [
+        16,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        12
+      ],
+      "note": ""
+    }
+  ]
+}

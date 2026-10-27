@@ -1,0 +1,49 @@
+{
+  "tile_size": [
+    32,
+    32
+  ],
+  "columns": 8,
+  "rows": 2,
+  "notes": [
+    "Dielen A/B, Teppichkante, Wand vorn, Ecke links, Ecke rechts, Fenster 2 Kacheln (Mond), Tür; Zeile 2/3 leer."
+  ],
+  "tiles": {
+    "floor_a": {
+      "x": 0,
+      "y": 0
+    },
+    "floor_b": {
+      "x": 32,
+      "y": 0
+    },
+    "rug_edge": {
+      "x": 64,
+      "y": 0
+    },
+    "wall_front": {
+      "x": 96,
+      "y": 0
+    },
+    "wall_corner_l": {
+      "x": 128,
+      "y": 0
+    },
+    "wall_corner_r": {
+      "x": 160,
+      "y": 0
+    },
+    "window_a": {
+      "x": 192,
+      "y": 0
+    },
+    "window_b": {
+      "x": 224,
+      "y": 0
+    },
+    "door_out": {
+      "x": 0,
+      "y": 32
+    }
+  }
+}

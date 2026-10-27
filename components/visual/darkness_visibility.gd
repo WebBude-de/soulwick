@@ -244,12 +244,12 @@ func _collect_circles() -> bool:
 		return false
 	if overlay.get_visual_darkness() < MIN_DARKNESS:
 		return false
-	_circles.append(LightQuery.circle(viewer.global_position, player_edge(overlay.get_visual_radius(), overlay.get_visual_softness())))
-	# Co-op: the mates' circles show enemies too (logical radius at the player, scaled like ours).
+	_circles.append(LightQuery.circle(LightQuery.get_player_light_center(viewer), player_edge(overlay.get_visual_radius(), overlay.get_visual_softness())))
+	# Co-op: the mates' circles show enemies too (logical radius at the mate, scaled like ours).
 	for mate in EnemyTargeting.living_players(get_tree()):
 		if mate != viewer:
 			var drawn := LightQuery.get_player_radius(mate) * overlay.get_player_scale()
-			_circles.append(LightQuery.circle(mate.global_position, player_edge(drawn, overlay.get_visual_softness())))
+			_circles.append(LightQuery.circle(LightQuery.get_player_light_center(mate), player_edge(drawn, overlay.get_visual_softness())))
 	var source_scale := overlay.get_source_scale()
 	var view_rect := _visible_world_rect().grow(CULL_MARGIN)
 	for node in get_tree().get_nodes_in_group(LightSource.GROUP):

@@ -54,7 +54,7 @@ position = Vector2(800, 96)
 position = Vector2(608, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(928, 160)
+position = Vector2(864, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(864, 416)
@@ -132,6 +132,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(12, 0), Vector2i(13, 0), Vector2i(14, 0)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(18, 60)
 biome = &"ember_forge"
 
 [node name="Group3" type="Node2D" parent="Props"]

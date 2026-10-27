@@ -1,9 +1,11 @@
 class_name DashedBox
 extends Control
-## Empty slot placeholder: 1 px dashed border (#3b3650) with a centred muted caption
-## (ui_spec shop.empty_slot, "kein 6. Angebot").
+## Empty slot placeholder: dashed border one art pixel wide (#3b3650) with a centred muted caption
+## (ui_spec shop.empty_slot, "kein 6. Angebot"). Pixel art (D-218): the dashes are whole UI art
+## pixels (UiKit.ART_SCALE) on a grid centred in the box.
 
-const DASH := 4.0
+## Dash and gap length in art pixels.
+const DASH := 4
 
 var caption := "":
 	set(value):
@@ -25,17 +27,19 @@ func _ready() -> void:
 
 
 func _draw() -> void:
-	var width := maxf(1.0, UiKit.px(1))
-	var dash := UiKit.px(DASH)
-	var rect := Rect2(Vector2.ZERO, size).grow(-width * 0.5)
-	var corners := [rect.position, Vector2(rect.end.x, rect.position.y), rect.end, Vector2(rect.position.x, rect.end.y)]
+	var pixel := float(UiKit.ART_SCALE)
+	var cells := Vector2i((size / pixel).floor())
+	if cells.x < 2 or cells.y < 2:
+		return
+	# Centre the cell grid in the box, so the frame sits evenly on all sides.
+	draw_set_transform(((size - Vector2(cells) * pixel) * 0.5).floor())
+	paint_frame(self, cells, pixel)
+	draw_set_transform(Vector2.ZERO)
+
+
+## The dashed frame over cells (art pixels of size pixel) into item, top left at its origin.
+static func paint_frame(item: Object, cells: Vector2i, pixel: float) -> void:
+	var last := Vector2(cells - Vector2i.ONE) * pixel
+	var corners: Array[Vector2] = [Vector2.ZERO, Vector2(last.x, 0.0), last, Vector2(0.0, last.y)]
 	for i in 4:
-		var from: Vector2 = corners[i]
-		var to: Vector2 = corners[(i + 1) % 4]
-		var length := from.distance_to(to)
-		var direction := (to - from) / maxf(0.001, length)
-		var travelled := 0.0
-		while travelled < length:
-			var end := minf(travelled + dash, length)
-			draw_line(from + direction * travelled, from + direction * end, UiKit.COLOR_LINE, width)
-			travelled += dash * 2.0
+		PixelDraw.dashed_line(item, corners[i], corners[(i + 1) % 4], UiKit.COLOR_LINE, DASH, DASH, 1, pixel)

@@ -149,6 +149,13 @@ static func find_sites(tiles: RoomTiles, forbidden: Dictionary, torch_columns: A
 		open[tile] = true
 	for tile in tiles.get_extra_floor_tiles():
 		open[tile] = true
+	# The height (M3) counts as wall mass for the floor rules, but a plateau, its cliff, stairs and
+	# ladders are no rock to blow a niche into (bug report 22.10.2026 #f5026f89: the crack sat in a
+	# cliff and opened the plateau's chest to the ground).
+	var height: Dictionary[Vector2i, bool] = {}
+	for list: Array[Vector2i] in [tiles.plateau_tiles, tiles.ladder_tiles, tiles.stair_tiles]:
+		for tile in list:
+			height[tile] = true
 	var door_columns: Array[int] = []
 	for exit in tiles.get_exit_doors():
 		if exit.x == RoomTiles.DoorSide.NORTH:
@@ -173,7 +180,7 @@ static func find_sites(tiles: RoomTiles, forbidden: Dictionary, torch_columns: A
 			continue
 		var solid := true
 		for tile in site.niche + site.opening + site.get_enclosure():
-			solid = solid and _is_solid(tile, floor_rect, mass, open)
+			solid = solid and _is_solid(tile, floor_rect, mass, open) and not height.has(tile)
 		if not solid:
 			continue
 		# Carved niche and later opening keep every wall at least two tiles tall.

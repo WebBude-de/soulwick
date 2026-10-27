@@ -77,3 +77,5 @@ func _update() -> void:
 		player_scale = overlay.get_player_scale()
 		source_scale = overlay.get_source_scale()
 	radius = radius_for(LightQuery.get_player_radius(mate), player_scale, source_scale, mate.is_downed())
+	# The mate's circle sits at the mate's figure like the own one (D-212).
+	global_position = LightQuery.get_player_light_center(mate)

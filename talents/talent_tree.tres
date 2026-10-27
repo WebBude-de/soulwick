@@ -1,0 +1,205 @@
+[gd_resource type="Resource" script_class="TalentTree" format=3]
+
+[ext_resource type="Script" uid="uid://bwqfasbpj3tii" path="res://talents/talent_tree.gd" id="1_hwkfk"]
+[ext_resource type="Script" uid="uid://cx88cxxekxe16" path="res://talents/talent_def.gd" id="2_tljwo"]
+
+[sub_resource type="Resource" id="Resource_p303n"]
+script = ExtResource("2_tljwo")
+id = &"light_foot"
+path = &"wind"
+rank = 1
+max_level = 3
+effect = 0
+value = 0.05
+
+[sub_resource type="Resource" id="Resource_qs7ff"]
+script = ExtResource("2_tljwo")
+id = &"dash_training"
+path = &"wind"
+rank = 1
+max_level = 3
+effect = 1
+value = 0.15
+
+[sub_resource type="Resource" id="Resource_ebkk6"]
+script = ExtResource("2_tljwo")
+id = &"swift_blade"
+path = &"wind"
+rank = 2
+max_level = 3
+effect = 2
+value = 0.08
+weapon_tags = Array[StringName]([&"dagger", &"bow"])
+
+[sub_resource type="Resource" id="Resource_hreps"]
+script = ExtResource("2_tljwo")
+id = &"evasion"
+path = &"wind"
+rank = 2
+max_level = 2
+effect = 4
+value = 0.15
+
+[sub_resource type="Resource" id="Resource_c2s0m"]
+script = ExtResource("2_tljwo")
+id = &"double_dash"
+path = &"wind"
+rank = 3
+max_level = 1
+effect = 5
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_jpos0"]
+script = ExtResource("2_tljwo")
+id = &"wind_runner"
+path = &"wind"
+rank = 4
+max_level = 1
+effect = 6
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_i8314"]
+script = ExtResource("2_tljwo")
+id = &"vitality"
+path = &"ember"
+rank = 1
+max_level = 5
+effect = 7
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_vhoc6"]
+script = ExtResource("2_tljwo")
+id = &"might"
+path = &"ember"
+rank = 1
+max_level = 3
+effect = 3
+value = 0.08
+weapon_tags = Array[StringName]([&"sword", &"hammer"])
+
+[sub_resource type="Resource" id="Resource_p3bfg"]
+script = ExtResource("2_tljwo")
+id = &"steadfast"
+path = &"ember"
+rank = 2
+max_level = 2
+effect = 8
+value = 0.25
+
+[sub_resource type="Resource" id="Resource_68fua"]
+script = ExtResource("2_tljwo")
+id = &"shield_breaker"
+path = &"ember"
+rank = 2
+max_level = 2
+effect = 9
+value = 0.2
+
+[sub_resource type="Resource" id="Resource_qf8lx"]
+script = ExtResource("2_tljwo")
+id = &"second_heart"
+path = &"ember"
+rank = 3
+max_level = 1
+effect = 10
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_7rrjw"]
+script = ExtResource("2_tljwo")
+id = &"ember_heart"
+path = &"ember"
+rank = 4
+max_level = 1
+effect = 11
+value = 1.0
+
+[sub_resource type="Resource" id="Resource_ydwg6"]
+script = ExtResource("2_tljwo")
+id = &"light_flash"
+path = &"soul"
+rank = 1
+max_level = 1
+effect = 12
+value = 1.0
+spell = &"light_flash"
+
+[sub_resource type="Resource" id="Resource_1qe5r"]
+script = ExtResource("2_tljwo")
+id = &"spell_power"
+path = &"soul"
+rank = 1
+max_level = 3
+effect = 13
+value = 0.1
+
+[sub_resource type="Resource" id="Resource_6yynd"]
+script = ExtResource("2_tljwo")
+id = &"focus"
+path = &"soul"
+rank = 2
+max_level = 3
+effect = 14
+value = 0.08
+
+[sub_resource type="Resource" id="Resource_pljga"]
+script = ExtResource("2_tljwo")
+id = &"soul_shield"
+path = &"soul"
+rank = 2
+max_level = 1
+effect = 12
+value = 1.0
+spell = &"soul_shield"
+
+[sub_resource type="Resource" id="Resource_o0xe1"]
+script = ExtResource("2_tljwo")
+id = &"flame_ring"
+path = &"soul"
+rank = 2
+max_level = 1
+effect = 12
+value = 1.0
+spell = &"flame_ring"
+
+[sub_resource type="Resource" id="Resource_j2trj"]
+script = ExtResource("2_tljwo")
+id = &"will_o_wisp"
+path = &"soul"
+rank = 3
+max_level = 1
+effect = 12
+value = 1.0
+spell = &"will_o_wisp"
+
+[sub_resource type="Resource" id="Resource_8j2fw"]
+script = ExtResource("2_tljwo")
+id = &"heal_spark"
+path = &"soul"
+rank = 3
+max_level = 1
+effect = 12
+value = 1.0
+spell = &"heal_spark"
+
+[sub_resource type="Resource" id="Resource_2jy2n"]
+script = ExtResource("2_tljwo")
+id = &"staff_master"
+path = &"soul"
+rank = 3
+max_level = 2
+effect = 3
+value = 0.08
+weapon_tags = Array[StringName]([&"staff"])
+
+[sub_resource type="Resource" id="Resource_bkusr"]
+script = ExtResource("2_tljwo")
+id = &"second_spell_slot"
+path = &"soul"
+rank = 4
+max_level = 1
+effect = 15
+value = 1.0
+
+[resource]
+script = ExtResource("1_hwkfk")
+talents = Array[ExtResource("2_tljwo")]([SubResource("Resource_p303n"), SubResource("Resource_qs7ff"), SubResource("Resource_ebkk6"), SubResource("Resource_hreps"), SubResource("Resource_c2s0m"), SubResource("Resource_jpos0"), SubResource("Resource_i8314"), SubResource("Resource_vhoc6"), SubResource("Resource_p3bfg"), SubResource("Resource_68fua"), SubResource("Resource_qf8lx"), SubResource("Resource_7rrjw"), SubResource("Resource_ydwg6"), SubResource("Resource_1qe5r"), SubResource("Resource_6yynd"), SubResource("Resource_pljga"), SubResource("Resource_o0xe1"), SubResource("Resource_j2trj"), SubResource("Resource_8j2fw"), SubResource("Resource_2jy2n"), SubResource("Resource_bkusr")])

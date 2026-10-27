@@ -25,7 +25,9 @@ const CYCLE_LENGTH := 5
 ## Every 15th room is a boss room, endlessly (D-073).
 const BOSS_INTERVAL := 15
 const BIOME_COUNT := 4
-const PORTAL_CHANCE := 0.3
+## TESTWERT (KE3, KONZEPT §2): chance of a soul gate at place 4 of a cycle (was 30 % of every
+## special room, D-006). With the guarantee below about two of three cycles get one.
+const PORTAL_CHANCE := 0.5
 
 
 static func get_room_type(room_index: int) -> RoomType:
@@ -89,8 +91,45 @@ static func get_enemy_count_range(room_index: int) -> Vector2i:
 	if room_index < 15:
 		return Vector2i(4, 5)
 	if room_index < 30:
-		return Vector2i(4, 6)
-	return Vector2i(4, 7)  # TESTWERT (D-154 follow-up: 5-8 -> 4-7, jump at room 31 too steep)
+		return Vector2i(7, 9)  # TESTWERT (D-200: 4-6 -> 6-8, playtest "much too easy"; D-213: 6-8 -> 7-9, still too easy)
+	return Vector2i(6, 8)  # TESTWERT (D-154 follow-up: 5-8 -> 4-7; D-210: 4-7 -> 5-7; D-213: 5-7 -> 6-8 per wave)
+
+
+# --- Elites and champions with the danger level (KE2, KONZEPT §3) ---
+
+## Elite rules live here, not in EnemySpawner: EnemySpawner preloads enemy_base.tscn, whose script
+## reaches RoomSequence through EnemyScaling, so reading the spawner's constants from here would be
+## a load cycle (the enemy scene then loads empty). EnemySpawner keeps aliases of these.
+## First room with elites in the warm-up rules (D-069).
+const ELITE_FROM_ROOM := 6
+## Elite chance from ELITE_FROM_ROOM on, plus per five-room block (D-074), capped.
+const ELITE_BASE_CHANCE := 0.12
+## TESTWERT (D-074: 0.02; D-210: 0.03, more elites in the late run: room 31 30 % instead of 24 %,
+## room 61 48 % instead of 36 %; rooms 6-15 only +1-2 points).
+const ELITE_CHANCE_PER_BLOCK := 0.03
+const MAX_ELITE_CHANCE := 0.5
+## TESTWERT (KE2): elite chance +1.5 percentage points per danger level, capped like before
+## (MAX_ELITE_CHANCE, 50 %).
+const ELITE_CHANCE_PER_DANGER := 0.015
+## TESTWERT (KE2, KONZEPT §3 "ab G 3 erste Champions schon im ersten Zyklus"): from this level on
+## the first cycle is no warm-up any more; elites (glowing enemies with a trait, champion-like)
+## already appear from room 1 instead of ELITE_FROM_ROOM (6). The champion of
+## room 5 exists at every level.
+const EARLY_ELITES_FROM_DANGER := 3
+
+
+## First room in which normal enemies may become elites at danger level G.
+static func get_elite_from_room(danger: int) -> int:
+	return 1 if danger >= EARLY_ELITES_FROM_DANGER else ELITE_FROM_ROOM
+
+
+## Chance that a normal enemy becomes an elite (D-069, D-074, KE2, D-210): 12 % + 3 % per five-room block
+## + 1.5 % per danger level, at most 50 %; 0 before get_elite_from_room(danger).
+static func get_elite_chance(room_index: int, danger: int) -> float:
+	if room_index < get_elite_from_room(danger):
+		return 0.0
+	var chance := ELITE_BASE_CHANCE + ELITE_CHANCE_PER_BLOCK * EnemyScaling.get_block(room_index)
+	return minf(MAX_ELITE_CHANCE, chance + ELITE_CHANCE_PER_DANGER * maxi(0, danger))
 
 
 ## Number of enemy waves in a normal combat room: more pressure deeper down (D-074).
@@ -156,9 +195,29 @@ static func roll_extra_dark(room_index: int, room_type: RoomType, rng: RandomNum
 	return rng.randf() < EXTRA_DARK_CHANCE
 
 
-## Rolled independently after the special type (draw order OPEN, proposal D-058).
-static func roll_portal(rng: RandomNumberGenerator) -> bool:
-	return rng.randf() < PORTAL_CHANCE
+## Soul gate of a special room (KE3, KONZEPT §2), rolled after the special type (D-058): only at
+## place 4 of a cycle, PORTAL_CHANCE, and always when the cycle before had no gate at all (place 4
+## or the campfire behind its boss), so never two cycles in a row go without one.
+## last_gate_room: room number of the last gate the run had (a campfire counts with its boss room's
+## number, 0 = none yet). Always exactly one draw, so the room stream stays the same either way.
+## room_index 0: only the chance (callers that do not track the gates yet).
+static func roll_portal(rng: RandomNumberGenerator, room_index := 0, last_gate_room := 0) -> bool:
+	var rolled := rng.randf() < PORTAL_CHANCE
+	if room_index <= 0:
+		return rolled
+	if get_room_type(room_index) != RoomType.SPECIAL:
+		return false
+	return rolled or is_gate_due(room_index, last_gate_room)
+
+
+## Cycle of a room number (1 for rooms 1-5); 0 before the first room.
+static func get_cycle(room_index: int) -> int:
+	return 0 if room_index <= 0 else floori(float(room_index - 1) / CYCLE_LENGTH) + 1
+
+
+## true when the cycle before room_index's had no gate: then this cycle's place 4 gets one for sure.
+static func is_gate_due(room_index: int, last_gate_room: int) -> bool:
+	return get_cycle(room_index) - get_cycle(last_gate_room) >= 2
 
 
 ## Arena and chasm rooms appear from this room on; earlier rooms are normal combat rooms (D-100).

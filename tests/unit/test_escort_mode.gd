@@ -1,5 +1,5 @@
 extends GutTest
-## Minigame "Geleit" (R4a, KONZEPT_RAEUME_V2 §3.3): a lost villager walks a visible path from his
+## Minigame "Geleit" (R4a, RAEUME §3.3): a lost villager walks a visible path from his
 ## start to the exit; enemies go for him first, he stops while an enemy is closer than 3 tiles, walks
 ## 1.2 times faster with a player beside him, every enemy hit costs a heart. Arrived = bonus chest and
 ## a rescue in the save; fallen = no bonus, never the run.

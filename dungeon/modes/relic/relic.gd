@@ -1,6 +1,6 @@
 class_name Relic
 extends Node2D
-## The relic of "Reliquie holen" (KONZEPT_RAEUME_V2 §3.5, R4b): a banner (crypt), lantern (grotto,
+## The relic of "Reliquie holen" (RAEUME §3.5, R4b): a banner (crypt), lantern (grotto,
 ## shadow realm) or skull (ember forge) that lies at the far end of the room. E takes it, E puts it
 ## down; put down at the altar (or carried into its reach and E) it lies on the altar for good. The
 ## carrier is slower and cannot attack, dash stays (LanternCarry, state at the player). A hit that

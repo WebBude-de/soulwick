@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "ember_wave_6f 128×128: Ring breitet sich von der Figur nach außen aus, Pivot Mitte (64,64), 12 fps.",
+    "wind_trail_4f 32×16: waagerecht kachelbar, hinter der Figur, 10 fps."
+  ],
+  "items": [
+    {
+      "name": "ember_wave",
+      "file": "ember_wave_6f.png",
+      "frame_size": [
+        128,
+        128
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        64,
+        64
+      ],
+      "note": ""
+    },
+    {
+      "name": "wind_trail",
+      "file": "wind_trail_4f.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": true,
+      "pivot": [
+        32,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

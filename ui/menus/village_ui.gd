@@ -1,22 +1,27 @@
 class_name VillageUI
 extends CanvasLayer
-## Village building dialogs (D-078): Schmiede (permanent upgrades), Handelsposten (Proviant only,
-## no crystal exchange since D-087), Chronik (statistics), Gilde (the online menu of D-147, OnlineMenu:
+## Village building dialogs (D-078): Schmiede (permanent upgrades), Handelsposten (Proviant and
+## trade levels for crystals, KE5; no crystal exchange since D-087), Chronik (statistics), Gilde (the online menu of D-147, OnlineMenu:
 ## quick game with a room code on the relay and the player's guilds with guild rooms; the same menu
 ## as "Online spielen" in the main menu) and Zuhause with the profile editor (D-152: name, figure and
 ## colours of the player, the same editor as the mirror next to it, the first start and the lobby).
 ## Created by Village; every dialog is a Modal and pauses the village while open (single player
 ## only: in a room the world runs on, GameMode.pauses_for_menus).
-## D-087: on the first visit a building explains itself (show_intro, "Verstanden"), its role
-## sentence stays as dialog subtitle and the info button next to the title shows the explanation again.
+## D-087, WK9: on the first visit Flint explains the building before its dialog opens
+## (explain_building, VillageTour: role and a tip, once per account; the old explanation card is gone),
+## the role sentence stays as dialog subtitle and the info button next to the title asks Flint again
+## (the dialog closes while he talks, single player pauses the village, and opens again after him).
 ## Locked forge upgrades (MetaUnlocks) are not shown; one line with a lock says when more open.
+## KE4 (KONZEPT §5.1): the forge is one compact row per weapon ("Waffe schmieden" I–V with the real
+## damage "Schaden 15 → 16,2", the Arsenal entry or the start choice) and one per equipment
+## (Schildplatte, Laterne, Zweiter Startplatz); after the v5 migration a box on top says once what
+## changed (refund, Schildplatte, unlocked weapons).
 ## The chronicle shows "Dein Fortschritt" (ProgressView, D-188 KF1) next to its statistics.
 ## Short non-blocking notices (show_notice): "Neu freigeschaltet" and "Öffnet nach …" at locked doors.
 ## Texts come from localization/translations.csv (D-111) and are resolved when a dialog is built.
-## P1-2 (first visit of a world, VillageGuide decides when): the opening words of a villager
-## (show_opening: a card at the top that never pauses or blocks walking; Enter, a click or
-## OPENING_TIME close it) and the goal line top left ("Steig in den Dungeon hinab", show_goal)
-## until the first run.
+## P1-2 (VillageGuide decides when): the goal line top left ("Steig in den Dungeon hinab",
+## show_goal) until the first run. The chronicler's opening words are replaced by Flint's village
+## tour (WK9, VillageTour, started by Village.on_player_spawned).
 ## P1-3 "Was kann ich mir leisten?": affordable forge levels and Proviant get a gold card and a
 ## "Leistbar" tag, the others say what is missing ("Noch 28 Gold"). show_goal takes an icon (the
 ## forge goal of Village). Gamepad (P1-3): the building dialogs move a visible focus with the D-pad
@@ -27,16 +32,19 @@ extends CanvasLayer
 ## card stays (invisible) once bought or maxed, so the dialog keeps its size after a purchase
 ## (#bf9c698d); the forge keeps level and "Noch N Gold" on one line and fits a 720 px high screen
 ## without scrolling (#0efb405c).
-
-signal opening_closed
+## KE1 (D-196, KONZEPT §3): near the dungeon entrance a card shows rank, danger level and loot bonus,
+## only for show (the level is never picked). Solo it is the own level; in a group the level the
+## host computed (set_group_danger, KE2). When the village asks for the dungeon (dungeon_requested)
+## the shown level goes to RunManager.set_danger_level before the run starts.
+## Report #d1a7f411 (23.10.2026, "Man sollte nicht runter scrollen müssen zum Close-Button"): only
+## the body of a building dialog scrolls (BodyScroll, as tall as the screen allows); title,
+## currencies and "Schließen" stay visible. The D-pad focus scrolls the body (follow_focus), the
+## right stick scrolls it (Modal.scroll_target), touch drags it.
 
 const PAUSE_VILLAGE_DIALOG: StringName = &"village_dialog"
-const PAUSE_VILLAGE_INTRO: StringName = &"village_intro"
 ## P1-3: what the village marks as affordable (preloaded: works before the class cache knows it).
 const AffordableScript := preload("res://world/village/village_affordable.gd")
 const CARD_WIDTH := 240.0
-const INTRO_TEXT_WIDTH := 440.0
-const NPC_PORTRAIT_SCALE := 3.0
 ## Width of "Dein Fortschritt" next to the chronicle's statistics (mockup px, D-188 KF1).
 const CHRONICLE_PROGRESS_WIDTH := 210.0
 ## Width of the profile editor in the village dialogs (mockup px).
@@ -52,12 +60,6 @@ const NOTICE_FADE := 0.4
 const NOTICE_TOP := 104.0
 const NOTICE_TEXT_WIDTH := 520.0
 const LADDER_ICON: Texture2D = preload("res://art/ui/symbol_ladder.png")
-## TESTWERT: the opening card stays this long (s) unless closed earlier; it sits at the top centre
-## below the goal line (the player starts at the bottom of the village), text width in px.
-const OPENING_TIME := 20.0
-const OPENING_TOP := 72.0
-const OPENING_TEXT_WIDTH := 470.0
-const OPENING_PORTRAIT_SCALE := 2.0
 ## Goal line at the top left (px; the village HUD has its currencies top right, records bottom left).
 const GOAL_MARGIN := Vector2(16, 16)
 ## P1-3: affordable cards and the gamepad focus frame (px).
@@ -72,19 +74,41 @@ const BUTTON_WIDTH := OnlineMenu.BUTTON_WIDTH
 const CARD_PADDING := Vector2(4, 6)
 ## Gap between the rows of a card (px).
 const CARD_GAP := 4
-const UPGRADE_ICONS := {
-	MetaProgression.VITALITY: preload("res://art/ui/meta_vitality.png"),
-	MetaProgression.START_SHIELD: preload("res://art/ui/meta_shield.png"),
-	MetaProgression.SHARPNESS: preload("res://art/ui/meta_sharpness.png"),
-	MetaProgression.GOLD_GREED: preload("res://art/ui/meta_greed.png"),
-	MetaProgression.DASH_TRAINING: preload("res://art/ui/meta_dash.png"),
-	MetaProgression.ARSENAL: preload("res://art/ui/meta_arsenal.png"),
+## Forge icons (SPRITES_V13 §B7, art/ui/forge/): loaded when delivered, else these placeholders.
+const FORGE_ICON_DIR := "res://art/ui/forge/"
+const FORGE_ICONS := {
+	MetaProgression.SECOND_SLOT: ["forge_second_slot.png", "res://art/ui/meta_arsenal.png"],
+	MetaProgression.SHIELD_PLATE: ["forge_shield_plate.png", "res://art/ui/meta_shield.png"],
+	MetaProgression.LANTERN: ["forge_lantern.png", "res://art/environment/objectives/relic_lantern.png"],
 }
-const BOOST_ICONS := {
-	MetaProgression.BOOST_POTION: preload("res://art/ui/upgrade_heal_on_kill.png"),
-	MetaProgression.BOOST_UPGRADE: preload("res://art/ui/upgrade_magic_power.png"),
-	MetaProgression.BOOST_GOLD: preload("res://art/ui/gold_icon.png"),
+## Weapon icons of the forge rows (art/ui/icon_<weapon>.png, delivered).
+const WEAPON_ICON_PATH := "res://art/ui/icon_%s.png"
+## Forge rows (mockup px → px via the label sizes): widths of name, value step, "Leistbar" line,
+## buy button and the start/Arsenal cell, so the rows line up like a table and fit 720 px (KE4).
+const FORGE_ROW_PADDING := Vector2(1, 5)
+const FORGE_NAME_WIDTH := 170.0
+const FORGE_STEP_WIDTH := 300.0
+const FORGE_AFFORD_WIDTH := 120.0
+const FORGE_BUY_WIDTH := 110.0
+const FORGE_START_WIDTH := 170.0
+const FORGE_ICON_SIZE := 28.0
+const FORGE_NOTICE_WIDTH := 880.0
+## Trading post icons (SPRITES_V13 §B7, art/ui/trading/, delivered): boost_<id>.png per Proviant,
+## trade_slot/trade_luck/trade_merchant_friend.png per trade level.
+const TRADING_ICON_DIR := "res://art/ui/trading/"
+const TRADE_ICON_FILES := {
+	MetaProgression.TRADE_PROVISION_SLOT: "trade_slot.png",
+	MetaProgression.TRADE_LUCK: "trade_luck.png",
+	MetaProgression.TRADE_MERCHANT_FRIEND: "trade_merchant_friend.png",
 }
+## Proviant cards per row (7 cards: 4 + 3, so the page with the trade levels fits 720 px).
+## #d1a7f411 (TESTWERT, mockup px): room kept free above and below the dialog, scroll bar room, and
+## the body is never lower than BODY_MIN_HEIGHT.
+const SCREEN_GAP := 8.0
+const BODY_SCROLL_BAR := 6.0
+const BODY_MIN_HEIGHT := 48.0
+const MobileUiScript := preload("res://ui/menus/mobile_ui.gd")
+const TRADER_COLUMNS := 4
 ## Chronicle rows: stat id -> translation key of its caption (D-111).
 const STAT_ROWS := [
 	[StatsTracker.RUNS, &"VILLAGE_UI_STAT_RUNS"],
@@ -102,19 +126,30 @@ const STAT_ROWS := [
 ]
 
 var _open_modal: Modal = null
-var _intro_modal: Modal = null
-## True from the door until the building dialog is closed (covers the explanation in between).
+## True from the door until the building dialog is closed (covers Flint's explanation in between).
 var _busy := false
+## The building Flint explains right now (&"" otherwise) and the one whose info button asked him.
+var _explaining: StringName = &""
+var _replay_intro: StringName = &""
 var _build: Callable
 var _body: VBoxContainer = null
+## #d1a7f411: the scroll area around _body (null while no building dialog is open).
+var _body_scroll: ScrollContainer = null
+var _fit_queued := false
 var _currencies: HBoxContainer = null
 var _notice_root: Control = null
 var _notice: Control = null
 ## The online menu of the open guild dialog (null otherwise).
 var _online_menu: OnlineMenu = null
-## P1-2: opening card and goal line (null while not shown).
-var _opening: Control = null
+## P1-2: goal line (null while not shown).
 var _goal: Control = null
+## KE1: the dungeon entrance the card belongs to (Village sets it or it is found under the parent at
+## ENTRANCE_NODE), the group level from the host (-1 = solo, the own level) and the card.
+var entrance_anchor: Node2D = null
+var _group_danger := -1
+var _entrance_card: Control = null
+## KE4: what the v5 migration did, shown once at the top of the forge (empty otherwise).
+var _forge_notice: Array[String] = []
 
 
 func _ready() -> void:
@@ -127,36 +162,31 @@ func _ready() -> void:
 	add_child(_notice_root)
 	UiKit.MobileUi.fit_to_safe_area(_notice_root)
 	_resume_lobby.call_deferred()
-
-
-## Enter/Space confirms an open explanation like the "Verstanden" button (Esc does too, via Modal).
-func _unhandled_input(event: InputEvent) -> void:
-	if _intro_modal != null and event.is_action_pressed(&"ui_accept"):
-		get_viewport().set_input_as_handled()
-		_intro_modal.finish()
-	elif get_opening() != null and not is_dialog_open() and (MenuInput.is_enter(event) or _is_pad_confirm(event)):
-		get_viewport().set_input_as_handled()
-		close_opening()
-
-
-## A or B of a gamepad (ui_accept / ui_cancel): closes the opening card like Enter.
-static func _is_pad_confirm(event: InputEvent) -> bool:
-	return event is InputEventJoypadButton and (event.is_action_pressed(&"ui_accept") or event.is_action_pressed(&"ui_cancel"))
+	_hook_entrance()
 
 
 func is_dialog_open() -> bool:
-	return _busy or _open_modal != null or _intro_modal != null
+	return _busy or _open_modal != null
 
 
+## True while Flint explains a building (before its dialog opens or from the info button).
 func is_intro_open() -> bool:
-	return _intro_modal != null
+	return _explaining != &""
 
 
-## The open explanation or building dialog (null if none), e.g. for tests and tools.
+## The building Flint explains right now (&"" otherwise), for tests and tools.
+func get_explaining() -> StringName:
+	return _explaining
+
+
+## Always null since WK9: Flint explains the buildings, there is no explanation card any more. Kept
+## for tools that still close the card (screenshots, scene_gallery; integrator: let them skip
+## Flint, FlintGuide.of(player).skip()).
 func get_intro_modal() -> Modal:
-	return _intro_modal
+	return null
 
 
+## The open building dialog (null if none), e.g. for tests and tools.
 func get_building_modal() -> Modal:
 	return _open_modal
 
@@ -164,58 +194,191 @@ func get_building_modal() -> Modal:
 # --- Schmiede ---
 
 func open_forge() -> void:
+	# The migration notice of v5 (KE4) is shown once, on the first forge visit after loading.
+	_forge_notice = MetaProgression.take_migration_notice()
+	if not _forge_notice.is_empty():
+		SaveManager.save_game()
 	await _open(VillageBuildings.FORGE, _build_forge)
+	_forge_notice = []
 
 
 func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
-	var grid := _grid(3)
-	body.add_child(grid)
+	if not _forge_notice.is_empty():
+		body.add_child(_forge_notice_box(_forge_notice))
+	var rows := UiKit.vbox(CARD_GAP)
+	rows.name = "ForgeRows"
+	body.add_child(rows)
+	for weapon in MetaProgression.WEAPON_ORDER:
+		rows.add_child(_weapon_row(weapon, refresh))
 	# Locked upgrades stay hidden until they open (D-087); one line says when more come.
-	for id in MetaUnlocks.get_open_upgrades():
-		grid.add_child(_forge_card(id, refresh))
+	for id in MetaProgression.EQUIPMENT_UPGRADES:
+		if MetaUnlocks.is_upgrade_open(id):
+			rows.add_child(_equipment_row(id, refresh))
 	for event in MetaUnlocks.get_locked_upgrade_events():
 		var hint := _lock_row(MetaUnlocks.get_forge_lock_text(event))
 		hint.name = "LockedUpgradesHint"
 		body.add_child(hint)
-	var weapons := MetaProgression.get_available_second_weapons()
-	if weapons.size() > 1:
-		var row := UiKit.hbox(10)
-		row.alignment = BoxContainer.ALIGNMENT_CENTER
-		row.add_child(UiKit.label(MetaProgression.get_upgrade_stat(MetaProgression.ARSENAL), 16))
-		var chosen := MetaProgression.get_second_weapon()
-		for weapon_id in weapons:
-			var pick := _button(MetaProgression.get_weapon_name(weapon_id), func() -> void:
-				MetaProgression.set_second_weapon(weapon_id)
-				refresh.call())
-			pick.name = "Weapon_%s" % weapon_id
-			pick.disabled = weapon_id == chosen
-			row.add_child(pick)
-		body.add_child(row)
 
 
-func _forge_card(id: StringName, refresh: Callable) -> Control:
+## "Die Schmiede ist neu" with the lines of MetaProgression.describe_migration (KE4).
+func _forge_notice_box(lines: Array[String]) -> Control:
+	var card := UiKit.panel(&"gold")
+	card.name = "ForgeMigrationNotice"
+	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", CARD_PADDING.x, CARD_PADDING.y))
+	var box := UiKit.vbox(2)
+	card.add_child(box)
+	box.add_child(_centered(UiKit.label(Loc.t(&"FORGE_MIGRATION_TITLE"), 18, UiKit.ACCENT_COLOR)))
+	var text := UiKit.wrapped_label(" ".join(lines), FORGE_NOTICE_WIDTH, 14)
+	text.name = "ForgeMigrationText"
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(text)
+	return card
+
+
+## One weapon: icon, name with its level, the damage step with real values, "Leistbar"/"Noch N Gold",
+## the "Waffe schmieden" button and the start cell (Arsenal entry or start choice).
+func _weapon_row(weapon: StringName, refresh: Callable) -> Control:
+	var id := MetaProgression.smith_id(weapon)
+	var row := _forge_row(id, load(WEAPON_ICON_PATH % weapon) as Texture2D, MetaProgression.get_weapon_name(weapon), refresh)
+	row.add_child(_start_cell(weapon, refresh))
+	return row.get_parent()
+
+
+func _equipment_row(id: StringName, refresh: Callable) -> Control:
+	var row := _forge_row(id, _forge_icon(id), MetaProgression.get_upgrade_name(id), refresh)
+	var spacer := Control.new()
+	spacer.custom_minimum_size.x = FORGE_START_WIDTH
+	row.add_child(spacer)
+	return row.get_parent()
+
+
+## A dark (or, when affordable, gold) row with icon, name and level, value step, afford line and buy
+## button; returns the row's HBox (card = get_parent()). Buy_<id> sits next to its afford line, so
+## the line is found under button.get_parent() like on the cards.
+func _forge_row(id: StringName, icon: Texture2D, title: String, refresh: Callable) -> HBoxContainer:
+	var card := UiKit.panel(&"dark")
+	card.name = "Row_%s" % id
+	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", FORGE_ROW_PADDING.x, FORGE_ROW_PADDING.y))
+	var row := UiKit.hbox(10)
+	card.add_child(row)
 	var level := MetaProgression.get_level(id)
 	var max_level := MetaProgression.get_max_level(id)
-	var box := _card(UPGRADE_ICONS.get(id), MetaProgression.get_upgrade_name(id), MetaProgression.get_upgrade_summary(id))
-	# Real values instead of "+1 je Stufe" (D-087): "Max-HP 6 → 7".
-	var step := UiKit.wrapped_label(MetaProgression.describe_level_step(id, level), CARD_WIDTH - 40.0, 16, UiKit.ACCENT_COLOR)
-	step.name = "StepLabel"
-	box.add_child(step)
-	var level_text := Loc.t(&"VILLAGE_UI_LEVEL", [level, max_level])
-	if id == MetaProgression.ARSENAL and level > 0:
-		level_text += " · %s" % MetaProgression.get_weapon_name(MetaProgression.get_second_weapon())
-	var level_label := UiKit.label(level_text, 14, UiKit.MUTED_COLOR)
+	if icon != null:
+		var image := UiKit.icon(icon, FORGE_ICON_SIZE)
+		image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(image)
+	var name_box := UiKit.vbox(0)
+	name_box.custom_minimum_size.x = FORGE_NAME_WIDTH
+	name_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_box.add_child(UiKit.label(title, 16, UiKit.ACCENT_COLOR))
+	var level_label := UiKit.label(Loc.t(&"VILLAGE_UI_LEVEL", [level, max_level]), 13, UiKit.MUTED_COLOR)
 	level_label.name = "LevelLabel"
+	name_box.add_child(level_label)
+	row.add_child(name_box)
+	# Real values instead of "+8 % je Stufe" (D-087): "Schaden 15 → 16,2".
+	var step := UiKit.label(MetaProgression.describe_level_step(id, level), 15, UiKit.ACCENT_COLOR)
+	step.name = "StepLabel"
+	step.custom_minimum_size.x = FORGE_STEP_WIDTH
+	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	step.tooltip_text = MetaProgression.get_upgrade_effect(id)
+	step.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(step)
 	var cost := MetaProgression.get_next_cost(id)
-	var buy := _card_button("Max." if cost < 0 else "%d Gold" % cost, func() -> void:
+	var buy := _card_button("Max." if cost < 0 else Loc.t(&"VILLAGE_UI_GOLD", [cost]), func() -> void:
 		if MetaProgression.try_buy(id):
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	buy.name = "Buy_%s" % id
+	buy.custom_minimum_size.x = FORGE_BUY_WIDTH
+	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy.disabled = not MetaProgression.can_buy(id)
-	_add_afford_line(box, buy, cost >= 0 and not buy.disabled, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD", level_label)
-	box.add_child(buy)
-	return box.get_parent()
+	var affordable := cost >= 0 and not buy.disabled
+	var line := _afford_label(card, buy, affordable, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD")
+	line.custom_minimum_size.x = FORGE_AFFORD_WIDTH
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(line)
+	row.add_child(buy)
+	return row
+
+
+## The start cell of a weapon row: an unlocked weapon picks the start loadout (Start_<weapon>), a
+## locked one shows its Arsenal entry (Buy_arsenal_<weapon>) or, before the first boss, a lock.
+func _start_cell(weapon: StringName, refresh: Callable) -> Control:
+	if MetaProgression.is_weapon_unlocked(weapon):
+		var pick := _card_button(_start_cell_text(weapon), func() -> void:
+			if _toggle_start_weapon(weapon):
+				Sfx.play_ui(self, &"ui_click")
+			refresh.call())
+		pick.name = "Start_%s" % weapon
+		pick.custom_minimum_size.x = FORGE_START_WIDTH
+		pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		pick.disabled = not _can_toggle_start_weapon(weapon)
+		pick.tooltip_text = Loc.t(&"FORGE_ARSENAL_UNLOCK_EFFECT", [MetaProgression.get_weapon_name(weapon)])
+		return pick
+	var id := MetaProgression.arsenal_id(weapon)
+	if not MetaUnlocks.is_upgrade_open(id):
+		var locked := UiKit.hbox(4)
+		locked.name = "ArsenalLocked_%s" % weapon
+		locked.custom_minimum_size.x = FORGE_START_WIDTH
+		locked.alignment = BoxContainer.ALIGNMENT_CENTER
+		locked.add_child(UiKit.icon(LOCK_ICON, 18.0))
+		locked.add_child(UiKit.label(Loc.t(&"FORGE_ARSENAL_NAME"), 13, UiKit.MUTED_COLOR))
+		locked.tooltip_text = MetaUnlocks.get_lock_text(MetaUnlocks.get_upgrade_event(id))
+		return locked
+	var cost := MetaProgression.get_next_cost(id)
+	var unlock := _card_button("%s · %s" % [Loc.t(&"FORGE_ARSENAL_NAME"), Loc.t(&"VILLAGE_UI_GOLD", [cost])], func() -> void:
+		if MetaProgression.try_buy(id):
+			Sfx.play_ui(self, &"coin")
+		refresh.call())
+	unlock.name = "Buy_%s" % id
+	unlock.custom_minimum_size.x = FORGE_START_WIDTH
+	unlock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	unlock.disabled = not MetaProgression.can_buy(id)
+	unlock.tooltip_text = MetaProgression.get_upgrade_effect(id)
+	if not unlock.disabled:
+		unlock.add_theme_color_override("font_color", AFFORDABLE_COLOR)
+	return unlock
+
+
+## "Startwaffe" / "1. Waffe" / "2. Waffe" for a weapon in the loadout, else "Mitnehmen".
+static func _start_cell_text(weapon: StringName) -> String:
+	if weapon == MetaProgression.get_start_weapon():
+		return Loc.t(&"VILLAGE_UI_LOADOUT_FIRST" if MetaProgression.has_second_slot() else &"VILLAGE_UI_LOADOUT_ONLY")
+	if weapon == MetaProgression.get_second_weapon():
+		return Loc.t(&"VILLAGE_UI_LOADOUT_SECOND")
+	return Loc.t(&"VILLAGE_UI_LOADOUT_PICK")
+
+
+## Whether pressing a weapon's start cell changes the loadout (the only start weapon cannot be put
+## away; the first one swaps with a second one).
+static func _can_toggle_start_weapon(weapon: StringName) -> bool:
+	if weapon == MetaProgression.get_start_weapon():
+		return MetaProgression.get_second_weapon() != &""
+	return true
+
+
+## Start cell pressed: a new weapon becomes the start weapon (one slot) or the second one (two
+## slots, replacing the old second); the second one is put away; the first swaps with the second.
+static func _toggle_start_weapon(weapon: StringName) -> bool:
+	if weapon == MetaProgression.get_start_weapon():
+		var second := MetaProgression.get_second_weapon()
+		return second != &"" and MetaProgression.set_start_weapon(second)
+	if weapon == MetaProgression.get_second_weapon():
+		return MetaProgression.set_second_weapon(&"")
+	if MetaProgression.has_second_slot():
+		return MetaProgression.set_second_weapon(weapon)
+	return MetaProgression.set_start_weapon(weapon)
+
+
+## Forge icon of an equipment entry: the delivered art/ui/forge/ file, else the placeholder.
+static func _forge_icon(id: StringName) -> Texture2D:
+	if not FORGE_ICONS.has(id):
+		return null
+	var entry: Array = FORGE_ICONS[id]
+	var delivered := FORGE_ICON_DIR + String(entry[0])
+	return load(delivered) as Texture2D if ResourceLoader.exists(delivered) else load(String(entry[1])) as Texture2D
 
 
 ## P1-3: under an affordable entry a gold "Leistbar" and a gold card frame; under one that is not
@@ -224,21 +387,7 @@ func _forge_card(id: StringName, refresh: Callable) -> Control:
 ## of a card (#bf9c698d). lead (the forge's level) shares the line, left; the line wraps below it
 ## only when both do not fit (HFlowContainer), so the forge stays low enough for a 720 px screen.
 func _add_afford_line(box: VBoxContainer, button: Button, affordable: bool, missing: int, missing_key: StringName, lead: Label = null) -> void:
-	var card := box.get_parent() as PanelContainer
-	var line: Label = null
-	if affordable:
-		if card != null:
-			card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", CARD_PADDING.x, CARD_PADDING.y))
-		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
-		line.name = "AffordableTag"
-		button.add_theme_color_override("font_color", AFFORDABLE_COLOR)
-	elif missing > 0:
-		line = UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
-		line.name = "MissingLabel"
-	else:
-		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15)
-		line.name = "AffordSpacer"
-		line.modulate.a = 0.0
+	var line := _afford_label(box.get_parent() as PanelContainer, button, affordable, missing, missing_key)
 	if lead == null:
 		line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(line)
@@ -256,6 +405,27 @@ func _add_afford_line(box: VBoxContainer, button: Button, affordable: bool, miss
 	box.add_child(row)
 
 
+## The afford line itself: "Leistbar" (and a gold frame on card, gold button text), "Noch N Gold",
+## or an invisible line of the same height (maxed, packed). card may be null.
+func _afford_label(card: PanelContainer, button: Button, affordable: bool, missing: int, missing_key: StringName) -> Label:
+	var line: Label = null
+	if affordable:
+		if card != null:
+			var padding := FORGE_ROW_PADDING if card.name.begins_with("Row_") else CARD_PADDING
+			card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", padding.x, padding.y))
+		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
+		line.name = "AffordableTag"
+		button.add_theme_color_override("font_color", AFFORDABLE_COLOR)
+	elif missing > 0:
+		line = UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
+		line.name = "MissingLabel"
+	else:
+		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15)
+		line.name = "AffordSpacer"
+		line.modulate.a = 0.0
+	return line
+
+
 ## Text with one number ("Noch %d Gold"); a key without its text yet (a new key before it is in
 ## translations.csv) shows "KEY 28" instead of a formatting error.
 static func _amount_text(key: StringName, amount: int) -> String:
@@ -269,28 +439,120 @@ func open_trader() -> void:
 	await _open(VillageBuildings.TRADER, _build_trader)
 
 
-## Proviant only: the crystal exchange was removed (D-087), crystals are spent here and nowhere else.
+## KE5 (KONZEPT §5.2): Proviant for the next run (seven cards, "Eingepackt: 1 von 2 Plätzen") and the
+## permanent trade levels (Proviant-Platz, Glück, Händlerfreund) as rows like the forge's, with real
+## values ("Plätze 1 → 2"). Only crystals are spent here; the crystal exchange is gone (D-087).
 func _build_trader(body: VBoxContainer, refresh: Callable) -> void:
 	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_PROVISIONS")))
-	var grid := _grid(3)
+	body.add_child(_provision_slots_line())
+	var grid := _grid(TRADER_COLUMNS)
+	grid.name = "ProvisionGrid"
 	body.add_child(grid)
 	for id in MetaProgression.BOOST_ORDER:
-		var box := _card(BOOST_ICONS.get(id), MetaProgression.get_boost_name(id), MetaProgression.get_boost_effect(id))
-		var pending := SaveManager.has_pending_boost(id)
-		var price := MetaProgression.get_boost_price(id)
-		var price_text := Loc.t(&"VILLAGE_UI_PRICE_CRYSTAL" if price == 1 else &"VILLAGE_UI_PRICE_CRYSTALS", [price])
-		var button := _card_button(Loc.t(&"VILLAGE_UI_PACKED") if pending else price_text, func() -> void:
-			if MetaProgression.try_buy_boost(id):
-				Sfx.play_ui(self, &"coin")
-			refresh.call())
-		button.name = "Boost_%s" % id
-		button.disabled = not MetaProgression.can_buy_boost(id)
+		grid.add_child(_provision_card(id, refresh))
+	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_TRADE_LEVELS")))
+	var rows := UiKit.vbox(CARD_GAP)
+	rows.name = "TradeRows"
+	body.add_child(rows)
+	for id in MetaProgression.TRADE_ORDER:
+		rows.add_child(_trade_row(id, refresh))
+	body.add_child(_centered(UiKit.label(Loc.t(&"VILLAGE_TRADER_HINT_2"), 14, UiKit.MUTED_COLOR)))
+
+
+## "Eingepackt: 1 von 2 Plätzen" with the slot icon.
+func _provision_slots_line() -> Control:
+	var row := UiKit.hbox(6)
+	row.name = "ProvisionSlots"
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_child(UiKit.icon(_trading_icon(TRADE_ICON_FILES[MetaProgression.TRADE_PROVISION_SLOT]), 20.0))
+	var text := UiKit.label(Loc.t(&"VILLAGE_UI_PROVISION_SLOTS",
+		[MetaProgression.get_packed_boosts().size(), MetaProgression.get_provision_slots()]), 15, UiKit.MUTED_COLOR)
+	text.name = "ProvisionSlotsLabel"
+	row.add_child(text)
+	return row
+
+
+## One Proviant: icon, name, effect, the afford line ("Leistbar", "Noch 2 Kristalle", "Kein Platz
+## frei") and the buy button (price or "Eingepackt").
+func _provision_card(id: StringName, refresh: Callable) -> Control:
+	var box := _card(_trading_icon("boost_%s.png" % id), MetaProgression.get_boost_name(id), MetaProgression.get_boost_effect(id))
+	box.get_parent().name = "Provision_%s" % id
+	var pending := SaveManager.has_pending_boost(id)
+	var button := _card_button(Loc.t(&"VILLAGE_UI_PACKED") if pending else _crystal_price_text(MetaProgression.get_boost_price(id)), func() -> void:
+		if MetaProgression.try_buy_boost(id):
+			Sfx.play_ui(self, &"coin")
+		refresh.call())
+	button.name = "Boost_%s" % id
+	button.disabled = not MetaProgression.can_buy_boost(id)
+	if not pending and not MetaProgression.has_free_provision_slot():
+		var full := UiKit.label(Loc.t(&"VILLAGE_UI_SLOTS_FULL"), 15, MISSING_COLOR)
+		full.name = "SlotsFullLabel"
+		full.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(full)
+	else:
 		var missing := AffordableScript.crystals_missing(id)
 		_add_afford_line(box, button, not button.disabled, missing,
 			&"VILLAGE_UI_MISSING_CRYSTAL" if missing == 1 else &"VILLAGE_UI_MISSING_CRYSTALS")
-		box.add_child(button)
-		grid.add_child(box.get_parent())
-	body.add_child(UiKit.label(Loc.t(&"VILLAGE_TRADER_HINT_2"), 14, UiKit.MUTED_COLOR))
+	box.add_child(button)
+	return box.get_parent()
+
+
+## One trade level as a row like the forge's: icon, name and level, the step with real values, the
+## afford line and the buy button (BuyTrade_<id>).
+func _trade_row(id: StringName, refresh: Callable) -> Control:
+	var card := UiKit.panel(&"dark")
+	card.name = "Row_trade_%s" % id
+	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", FORGE_ROW_PADDING.x, FORGE_ROW_PADDING.y))
+	var row := UiKit.hbox(10)
+	card.add_child(row)
+	var image := UiKit.icon(_trading_icon(TRADE_ICON_FILES[id]), FORGE_ICON_SIZE)
+	image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(image)
+	var name_box := UiKit.vbox(0)
+	name_box.custom_minimum_size.x = FORGE_NAME_WIDTH
+	name_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	name_box.add_child(UiKit.label(MetaProgression.get_trade_name(id), 16, UiKit.ACCENT_COLOR))
+	var level_label := UiKit.label(Loc.t(&"VILLAGE_UI_LEVEL",
+		[MetaProgression.get_trade_level(id), MetaProgression.get_trade_max_level(id)]), 13, UiKit.MUTED_COLOR)
+	level_label.name = "LevelLabel"
+	name_box.add_child(level_label)
+	row.add_child(name_box)
+	var step := UiKit.label(MetaProgression.describe_next_trade_level(id), 15, UiKit.ACCENT_COLOR)
+	step.name = "StepLabel"
+	step.custom_minimum_size.x = FORGE_STEP_WIDTH
+	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	step.tooltip_text = MetaProgression.get_trade_effect(id)
+	step.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(step)
+	var cost := MetaProgression.get_trade_next_cost(id)
+	var buy := _card_button("Max." if cost < 0 else _crystal_price_text(cost), func() -> void:
+		if MetaProgression.try_buy_trade(id):
+			Sfx.play_ui(self, &"coin")
+		refresh.call())
+	buy.name = "BuyTrade_%s" % id
+	buy.custom_minimum_size.x = FORGE_BUY_WIDTH
+	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	buy.disabled = not MetaProgression.can_buy_trade(id)
+	var missing := MetaProgression.trade_crystals_missing(id)
+	var line := _afford_label(card, buy, cost >= 0 and not buy.disabled, missing,
+		&"VILLAGE_UI_MISSING_CRYSTAL" if missing == 1 else &"VILLAGE_UI_MISSING_CRYSTALS")
+	line.custom_minimum_size.x = FORGE_AFFORD_WIDTH
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(line)
+	row.add_child(buy)
+	return card
+
+
+static func _crystal_price_text(price: int) -> String:
+	return Loc.t(&"VILLAGE_UI_PRICE_CRYSTAL" if price == 1 else &"VILLAGE_UI_PRICE_CRYSTALS", [price])
+
+
+## A delivered icon of art/ui/trading/; the crystal icon as placeholder while a file is missing.
+static func _trading_icon(file: String) -> Texture2D:
+	var path := TRADING_ICON_DIR + file
+	return load(path) as Texture2D if ResourceLoader.exists(path) else CRYSTAL_ICON
 
 
 # --- Chronik ---
@@ -391,26 +653,12 @@ func _on_guild_payout(payout: Dictionary) -> void:
 	show_notice(Loc.t(&"GUILD_TREASURY"), lines, UiKit.GOLD_ICON)
 
 
-# --- Zuhause and the mirror: the profile editor (D-152) ---
+# --- The mirror: the profile editor (D-152) ---
 
-func open_home() -> void:
-	await _open(VillageBuildings.HOME, _build_home)
-
-
-## Name, figure and colours of the player (ProfileEditor). Saving closes the dialog; the player in
-## the village follows via SaveManager.profile_changed (in a room the others see it too, NetPlayers).
-func _build_home(body: VBoxContainer, _refresh: Callable) -> void:
-	var editor := _profile_editor()
-	editor.show_cancel = false
-	body.add_child(editor)
-	var modal := _open_modal
-	if modal != null:
-		modal.input_handler = editor.handle_input
-		editor.saved.connect(modal.finish)
-		editor.cancelled.connect(modal.finish)
-
-
-## The mirror next to Zuhause (VillageMirror): the same editor without the building around it.
+## The mirror next to Zuhause (VillageMirror) and in the home (KE8): name, figure and colours of the
+## player (ProfileEditor). Saving closes the dialog; the player in the village follows via
+## SaveManager.profile_changed (in a room the others see it too, NetPlayers). The home's door leads
+## inside since KE8 (VillageBuildings.enter_home).
 func open_mirror() -> void:
 	if is_dialog_open():
 		return
@@ -460,135 +708,46 @@ func get_profile_editor() -> ProfileEditor:
 	return _open_modal.find_child("ProfileEditor", true, false) as ProfileEditor
 
 
-# --- Explanation (D-087) ---
+# --- Explanation (D-087, WK9: by Flint) ---
 
-## Shows the building's explanation: NPC, name, the role sentence from D-087 and short hints, closed
-## with "Verstanden" (or Esc). Marks it as seen when closed. Also reachable via the info button.
-func show_intro(building_id: StringName) -> void:
-	if _intro_modal != null or not VillageBuildings.has_building(building_id):
-		return
-	var modal := Modal.create(PAUSE_VILLAGE_INTRO, &"gold")
-	modal.name = "IntroModal"
-	_intro_modal = modal
-	var row := UiKit.hbox(18)
-	row.add_child(_npc_portrait(building_id))
-	var text := UiKit.vbox(8)
-	var header := UiKit.hbox(8)
-	header.add_child(UiKit.icon(INFO_ICON, 28.0))
-	header.add_child(UiKit.label(VillageBuildings.get_display_name(building_id), 28, UiKit.ACCENT_COLOR))
-	text.add_child(header)
-	var role := UiKit.wrapped_label(VillageBuildings.get_role(building_id), INTRO_TEXT_WIDTH, 20)
-	role.name = "RoleLabel"
-	text.add_child(role)
-	for hint in VillageBuildings.get_hints(building_id):
-		text.add_child(UiKit.wrapped_label("• " + hint, INTRO_TEXT_WIDTH, 15, UiKit.MUTED_COLOR))
-	row.add_child(text)
-	modal.content.add_child(row)
-	var confirm := _button(Loc.t(&"VILLAGE_UI_UNDERSTOOD"), modal.finish, true)
-	confirm.name = "ConfirmButton"
-	confirm.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	modal.content.add_child(confirm)
-	# Gamepad: A (ui_accept) confirms in _unhandled_input; a focused button of the dialog below
-	# would take it first, so the focus waits until the explanation is closed.
-	var below := get_viewport().gui_get_focus_owner() if is_inside_tree() else null
-	if below != null:
-		below.release_focus()
-	await modal.open(self)
-	_intro_modal = null
+## Flint explains building_id to the local player nearest to its door (role and a tip) and returns
+## when he is done or skipped; the first time also marks it as explained in this world (D-087).
+## force: again (info button). False when nobody could hear it (no local player, a script run
+## without VillageTour.force_in_scripts, unknown building): then nothing is marked.
+func explain_building(building_id: StringName, force := false) -> bool:
+	var player := _nearest_local_player(VillageTour.station_node(get_parent(), building_id))
+	if not VillageTour.explain_building(player, building_id, force):
+		return false
+	_explaining = building_id
+	await VillageTour.wait_until_done(player, VillageTour.explanation_id(building_id))
+	_explaining = &""
 	VillageBuildings.mark_intro_seen(building_id)
-	if below != null and is_instance_valid(below) and below.is_inside_tree():
-		below.grab_focus()
+	return true
 
 
-## The building's NPC, animated, in a dark frame (empty frame if the sprite is missing). Zuhause has
-## no NPC: it shows the player's own character.
-func _npc_portrait(building_id: StringName, portrait_scale := NPC_PORTRAIT_SCALE) -> Control:
-	var frame := UiKit.panel(&"dark")
-	frame.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	if building_id == VillageBuildings.HOME:
-		var own := CharacterPreview.create(int(portrait_scale))
-		own.name = "OwnPortrait"
-		frame.add_child(own)
-		own.set_look(PlayerProfile.current().look)
-		return frame
-	var holder := Control.new()
-	holder.custom_minimum_size = Vector2(32, 32) * portrait_scale
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	frame.add_child(holder)
-	var frames := VillageBuildings.get_npc_frames(building_id)
-	if frames != null and frames.has_animation(&"idle"):
-		var sprite := AnimatedSprite2D.new()
-		sprite.sprite_frames = frames
-		sprite.scale = Vector2.ONE * portrait_scale
-		sprite.position = holder.custom_minimum_size * 0.5
-		holder.add_child(sprite)
-		sprite.play(&"idle")
-	return frame
+## True if Flint could explain building_id here (the info button shows only then).
+func can_explain(building_id: StringName) -> bool:
+	return VillageTour.has_building_explanation(building_id) and VillageTour.may_explain(_nearest_local_player(null))
 
 
-# --- First visit (P1-2): opening words and the goal line ---
-
-## A villager's opening words: the NPC of speaker_building (portrait), its name and the lines. Never
-## pauses (no global pause, Koop); closed by Enter, a click or after OPENING_TIME, then opening_closed.
-func show_opening(speaker_building: StringName, speaker_name: String, lines: Array[String]) -> void:
-	close_opening(false)
-	var card := UiKit.panel(&"gold")
-	card.name = "Opening"
-	card.mouse_filter = Control.MOUSE_FILTER_STOP
-	var row := UiKit.hbox(14)
-	var portrait := _npc_portrait(speaker_building, OPENING_PORTRAIT_SCALE)
-	portrait.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_child(portrait)
-	var text := UiKit.vbox(4)
-	text.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var speaker := UiKit.label(speaker_name, 20, UiKit.ACCENT_COLOR)
-	speaker.name = "Speaker"
-	text.add_child(speaker)
-	for line in lines:
-		var label := UiKit.wrapped_label(line, OPENING_TEXT_WIDTH, 16)
-		label.add_to_group(&"village_opening_line")
-		text.add_child(label)
-	var hint := UiKit.label(Loc.t(&"VILLAGE_OPENING_CLOSE_PAD" if InputDevice.is_gamepad() else &"VILLAGE_OPENING_CLOSE"), 13, UiKit.MUTED_COLOR)
-	hint.name = "CloseHint"
-	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	text.add_child(hint)
-	row.add_child(text)
-	card.add_child(row)
-	card.gui_input.connect(func(event: InputEvent) -> void:
-		var click := event as InputEventMouseButton
-		if (click != null and click.pressed and click.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-			card.accept_event()
-			close_opening())
-	_notice_root.add_child(card)
-	_opening = card
-	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
-	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
-	card.position.y = OPENING_TOP
-	card.modulate.a = 0.0
-	var tween := card.create_tween()
-	tween.tween_property(card, "modulate:a", 1.0, NOTICE_FADE)
-	tween.tween_interval(OPENING_TIME)
-	tween.tween_callback(close_opening)
+## The local player closest to near (any local one without near; null if none on this machine).
+func _nearest_local_player(near: Node2D) -> Player:
+	var best: Player = null
+	var best_distance := INF
+	if not is_inside_tree():
+		return null
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player == null or not is_instance_valid(player) or not player.is_local or player.is_queued_for_deletion():
+			continue
+		var distance := player.global_position.distance_to(near.global_position) if near != null and is_instance_valid(near) else 0.0
+		if best == null or distance < best_distance:
+			best = player
+			best_distance = distance
+	return best
 
 
-## Fades the opening card out (emit: announce it with opening_closed, e.g. to mark it as seen).
-func close_opening(emit := true) -> void:
-	var card := get_opening()
-	_opening = null
-	if card == null:
-		return
-	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var tween := card.create_tween()
-	tween.tween_property(card, "modulate:a", 0.0, NOTICE_FADE)
-	tween.tween_callback(card.queue_free)
-	if emit:
-		opening_closed.emit()
-
-
-## The opening card while it is up (null otherwise), for tests and tools.
-func get_opening() -> Control:
-	return _opening if _opening != null and is_instance_valid(_opening) and not _opening.is_queued_for_deletion() else null
-
+# --- First visit (P1-2): the goal line ---
 
 ## The goal line at the top left: a symbol (the ladder to the dungeon by default), "Ziel" and the
 ## text (a translation key stays live: the labels translate themselves). Replaces an older one.
@@ -697,15 +856,27 @@ func _lock_row(text: String) -> Control:
 
 # --- Shared widgets ---
 
-## Opens one building: on the first visit its explanation, then the dialog with title (+ info
+## Opens one building: on the first visit Flint explains it, then the dialog with title (+ info
 ## button), the role sentence as subtitle, currency bar, a body built by build(body, refresh) and
-## rebuilt whenever refresh is called (after purchases), and a close button. One at a time.
+## rebuilt whenever refresh is called (after purchases), and a close button. One at a time. The info
+## button closes the dialog, Flint explains again, then the dialog opens anew.
 func _open(building_id: StringName, build: Callable, skip_intro := false) -> void:
 	if is_dialog_open():
 		return
 	_busy = true
 	if VillageBuildings.needs_intro(building_id) and not skip_intro:
-		await show_intro(building_id)
+		await explain_building(building_id)
+	while true:
+		await _show_building(building_id, build)
+		var again := _replay_intro == building_id
+		_replay_intro = &""
+		if not again or not is_inside_tree() or not await explain_building(building_id, true):
+			break
+	_busy = false
+
+
+## The building dialog itself (see _open); returns when it is closed.
+func _show_building(building_id: StringName, build: Callable) -> void:
 	var modal := Modal.create(PAUSE_VILLAGE_DIALOG)
 	modal.name = "BuildingModal"
 	_open_modal = modal
@@ -718,7 +889,11 @@ func _open(building_id: StringName, build: Callable, skip_intro := false) -> voi
 	_currencies.alignment = BoxContainer.ALIGNMENT_CENTER
 	modal.content.add_child(_currencies)
 	_body = UiKit.vbox(10)
-	modal.content.add_child(_body)
+	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_body_scroll = _make_body_scroll()
+	_body_scroll.add_child(_body)
+	modal.content.add_child(_body_scroll)
+	_body.minimum_size_changed.connect(_queue_fit_body)
 	var close := _button(Loc.t(&"MENU_CLOSE"), modal.finish)
 	close.name = "CloseButton"
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -729,16 +904,79 @@ func _open(building_id: StringName, build: Callable, skip_intro := false) -> voi
 	if not modal.input_handler.is_valid():
 		modal.input_handler = _on_dialog_key
 	modal.show_on(self)
+	fit_body()
+	if not get_viewport().size_changed.is_connected(_queue_fit_body):
+		get_viewport().size_changed.connect(_queue_fit_body)
 	if modal.input_handler == _on_dialog_key and InputDevice.is_gamepad():
 		focus_default()
 	await modal.finished
+	if get_viewport() != null and get_viewport().size_changed.is_connected(_queue_fit_body):
+		get_viewport().size_changed.disconnect(_queue_fit_body)
 	_open_modal = null
 	_body = null
+	_body_scroll = null
 	_currencies = null
-	_busy = false
 
 
-## Building name with an info button that shows the explanation again.
+# --- Scrolling body, "Schließen" always visible (#d1a7f411) ---
+
+func _make_body_scroll() -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = "BodyScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+	Modal._style_scroll_bar(scroll.get_v_scroll_bar())
+	return scroll
+
+
+func _queue_fit_body() -> void:
+	if _fit_queued:
+		return
+	_fit_queued = true
+	fit_body.call_deferred()
+
+
+## Gives the body as much height as the screen leaves next to title, currencies, "Schließen" and
+## the panel frame; a taller body scrolls inside, so the dialog itself never has to.
+func fit_body() -> void:
+	_fit_queued = false
+	if _body_scroll == null or not is_instance_valid(_body_scroll) or _open_modal == null \
+			or not is_instance_valid(_open_modal) or not _open_modal.is_inside_tree():
+		return
+	var need := _body.get_combined_minimum_size()
+	var room := maxf(UiKit.px(BODY_MIN_HEIGHT), body_room())
+	var scrolls := need.y > room + 0.5
+	_body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if scrolls else ScrollContainer.SCROLL_MODE_DISABLED
+	var bar := UiKit.px(BODY_SCROLL_BAR) if scrolls else 0.0
+	_body_scroll.custom_minimum_size = Vector2(need.x + bar, minf(need.y, room))
+
+
+## Height (layout px) the body may take in the open dialog: the screen (safe area at the menu zoom)
+## minus everything else in the panel.
+func body_room() -> float:
+	var viewport := _open_modal.get_viewport()
+	var screen := MobileUiScript.safe_rect(viewport).size.y - 2.0 * MobileUiScript.touch_margin(viewport)
+	screen /= maxf(MobileUiScript.menu_zoom(viewport), 0.01)
+	var style := _open_modal.frame.get_theme_stylebox(&"panel")
+	var padding := style.get_minimum_size().y if style != null else 0.0
+	var others := _open_modal.content.get_combined_minimum_size().y - _body_scroll.get_combined_minimum_size().y
+	return floorf(screen - padding - others - 2.0 * UiKit.px(SCREEN_GAP))
+
+
+## True while the body of the open dialog scrolls (for tests and tools).
+func is_body_scrolling() -> bool:
+	return _body_scroll != null and is_instance_valid(_body_scroll) \
+			and _body_scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+
+
+func get_body_scroll() -> ScrollContainer:
+	return _body_scroll if _body_scroll != null and is_instance_valid(_body_scroll) else null
+
+
+## Building name with an info button: Flint explains the building again (only where he can).
 func _title_row(building_id: StringName) -> Control:
 	var row := UiKit.hbox(10)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -755,9 +993,18 @@ func _title_row(building_id: StringName) -> Control:
 	info.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	info.pressed.connect(func() -> void:
 		Sfx.play_ui(info, &"ui_click")
-		show_intro(building_id))
+		ask_flint_again(building_id))
+	info.visible = can_explain(building_id)
 	row.add_child(info)
 	return row
+
+
+## The info button: closes the building's dialog, Flint explains it again, then it opens anew (_open).
+func ask_flint_again(building_id: StringName) -> void:
+	if _open_modal == null or not is_instance_valid(_open_modal) or not can_explain(building_id):
+		return
+	_replay_intro = building_id
+	_open_modal.finish()
 
 
 ## Rebuilds the open dialog at the end of the frame (safe to call from a button inside it).
@@ -783,7 +1030,7 @@ func _rebuild() -> void:
 	# While the dialog is open it never shrinks after a purchase (#bf9c698d): the body keeps the
 	# largest size of this visit (a new body per visit, so the next one starts fresh).
 	_body.custom_minimum_size = _body.custom_minimum_size.max(before)
-	if _build != _build_guild and _build != _build_home:
+	if _build != _build_guild:
 		for node in _body.find_children("*", "Button", true, false):
 			make_focusable(node as Button)
 	if focused_name != &"":
@@ -845,7 +1092,7 @@ func get_focused_button() -> Button:
 ## Key handler of the forge, trader and chronicle: while nothing has the focus the first arrow,
 ## stick or A press puts it on the default entry (afterwards Godot moves and presses it).
 func _on_dialog_key(event: InputEvent) -> bool:
-	if get_focused_button() != null or _intro_modal != null:
+	if get_focused_button() != null:
 		return false
 	var direction := MenuInput.is_up(event) or MenuInput.is_down(event) or MenuInput.is_left(event) or MenuInput.is_right(event)
 	if direction or (event is InputEventJoypadButton and event.is_action_pressed(&"ui_accept")):
@@ -921,3 +1168,150 @@ func _section_title(text: String) -> Label:
 func _centered(label: Label) -> Label:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	return label
+
+
+# --- Dungeon entrance: rank, danger level, loot bonus (KE1, D-196: shown only, never picked) ---
+
+## The entrance node under the village (scene world/village/village.tscn).
+const ENTRANCE_NODE := ^"Buildings/DungeonEntrance"
+## TESTWERT: the card shows while a local player is this close to the entrance (px, like the
+## building captions of Village).
+const ENTRANCE_NEAR := 400.0
+const ENTRANCE_BADGE_SIZE := 24.0
+
+
+## Connects to the village's dungeon_requested (sets the run's danger level first) and finds the
+## entrance. Without a village parent (tests, tools) nothing happens.
+func _hook_entrance() -> void:
+	var village := get_parent()
+	if village == null:
+		return
+	if village.has_signal(&"dungeon_requested") and not village.is_connected(&"dungeon_requested", apply_entrance_danger):
+		village.connect(&"dungeon_requested", apply_entrance_danger)
+	if entrance_anchor == null:
+		entrance_anchor = village.get_node_or_null(ENTRANCE_NODE) as Node2D
+
+
+## Co-op hook (integrator, KE2 online/coop_rules.gd): the group level the host computed for this
+## room; -1 goes back to the own level.
+func set_group_danger(level: int) -> void:
+	_group_danger = maxi(-1, level)
+	if get_entrance_info() != null:
+		_fill_entrance_info(_entrance_card)
+
+
+func get_group_danger() -> int:
+	return _group_danger
+
+
+## The danger level of the next run: the group's when set, else this player's own.
+func get_entrance_danger() -> int:
+	return _group_danger if _group_danger >= 0 else AccountProgress.current().get_danger_level()
+
+
+## Hands the shown level to the run (RunManager.set_danger_level before start_run).
+func apply_entrance_danger() -> void:
+	RunManager.set_danger_level(get_entrance_danger())
+
+
+func _process(_delta: float) -> void:
+	if entrance_anchor != null and is_instance_valid(entrance_anchor):
+		update_entrance(_local_player_positions())
+
+
+## Language switch (pause menu options): the entrance card is composed text, fill it again.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and get_entrance_info() != null:
+		_fill_entrance_info(_entrance_card)
+
+
+## Shows the card while one of positions is near the entrance and nothing else is on screen
+## (dialog, notice), hides it otherwise.
+func update_entrance(positions: Array[Vector2]) -> void:
+	var near := false
+	if entrance_anchor != null and is_instance_valid(entrance_anchor):
+		for point in positions:
+			if point.distance_to(entrance_anchor.global_position) <= ENTRANCE_NEAR:
+				near = true
+				break
+	if near and not is_dialog_open() and get_notice() == null:
+		show_entrance_info()
+	else:
+		hide_entrance_info()
+
+
+## The card at the top: rank badge, "Dein Rang" (or "Eure Gruppe"), "Kerze II" and
+## "Gefahrenstufe 4 · Beute +20 %". Stays until hide_entrance_info().
+func show_entrance_info() -> void:
+	if get_entrance_info() != null:
+		return
+	var card := UiKit.panel(&"dark")
+	card.name = "EntranceInfo"
+	card.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fill_entrance_info(card)
+	_notice_root.add_child(card)
+	_entrance_card = card
+	# WK8: the first time the card shows, Flint introduces "Deine Gefahr" (once per local player).
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player != null and is_instance_valid(player) and player.is_local:
+			FlintExplanations.entrance_danger(player, entrance_anchor if is_instance_valid(entrance_anchor) else null)
+	card.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
+	card.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	card.position.y = NOTICE_TOP
+	card.modulate.a = 0.0
+	card.create_tween().tween_property(card, "modulate:a", 1.0, NOTICE_FADE)
+
+
+func hide_entrance_info() -> void:
+	var card := get_entrance_info()
+	_entrance_card = null
+	if card == null:
+		return
+	var tween := card.create_tween()
+	tween.tween_property(card, "modulate:a", 0.0, NOTICE_FADE * 0.5)
+	tween.tween_callback(card.queue_free)
+
+
+## The entrance card while shown (null otherwise), for tests and tools.
+func get_entrance_info() -> Control:
+	return _entrance_card if _entrance_card != null and is_instance_valid(_entrance_card) and not _entrance_card.is_queued_for_deletion() else null
+
+
+## Texts of the card: [eyebrow, rank, danger and loot line] (current language).
+func entrance_texts() -> Array[String]:
+	var danger := get_entrance_danger()
+	var eyebrow := Loc.t(&"ENTRANCE_INFO_GROUP" if _group_danger >= 0 else &"ENTRANCE_INFO_RANK")
+	var line := "%s · %s" % [Loc.t(&"ENTRANCE_INFO_DANGER", [danger]), Loc.t(&"ENTRANCE_INFO_LOOT", [DangerRank.loot_percent(danger)])]
+	return [eyebrow, DangerRank.rank_text(danger), line]
+
+
+func _fill_entrance_info(card: Control) -> void:
+	for child in card.get_children():
+		card.remove_child(child)
+		child.queue_free()
+	var texts := entrance_texts()
+	var row := UiKit.hbox(10)
+	row.add_child(RankBadge.create(get_entrance_danger(), ENTRANCE_BADGE_SIZE))
+	var box := UiKit.vbox(0)
+	var eyebrow := UiKit.label(texts[0], 13, UiKit.MUTED_COLOR)
+	eyebrow.uppercase = true
+	box.add_child(eyebrow)
+	var rank := UiKit.label(texts[1], 20, UiKit.ACCENT_COLOR)
+	rank.name = "EntranceRank"
+	box.add_child(rank)
+	var line := UiKit.label(texts[2], 15, UiKit.TEXT_COLOR)
+	line.name = "EntranceDanger"
+	box.add_child(line)
+	row.add_child(box)
+	card.add_child(row)
+
+
+## Positions of the players on this machine (co-op: never the others').
+func _local_player_positions() -> Array[Vector2]:
+	var positions: Array[Vector2] = []
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player != null and is_instance_valid(player) and player.is_local:
+			positions.append(player.global_position)
+	return positions

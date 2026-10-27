@@ -1,6 +1,6 @@
 class_name LightfireRules
 extends RefCounted
-## Rules and numbers of "Lichtfeuer" (KONZEPT_RAEUME_V2 §3.9, R4b; replaces the torch room and the
+## Rules and numbers of "Lichtfeuer" (RAEUME §3.9, R4b; replaces the torch room and the
 ## stone guardian variant of D-116). No nodes, unit-testable; LightfireMode, RoomTorch and
 ## StoneGuardian only apply them. Whether a point is lit is LightQuery's decision.
 

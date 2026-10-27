@@ -222,43 +222,36 @@ func _draw() -> void:
 		_draw_breach()
 
 
+## Drawn stand-ins in pixel art (D-218, PixelDraw).
 func _draw_gate() -> void:
-	draw_rect(Rect2(-26.0, -_depth, 52.0, _depth), GATE_FRAME_COLOR)
+	PixelDraw.rect(self, Rect2(-26.0, -_depth, 52.0, _depth), GATE_FRAME_COLOR)
 	var inner := _depth - 7.0
-	draw_rect(Rect2(-19.0, -inner, 38.0, inner), HOLE_COLOR)
+	PixelDraw.rect(self, Rect2(-19.0, -inner, 38.0, inner), HOLE_COLOR)
 	# Bars slide up into the wall while the gate opens.
 	var bottom := lerpf(0.0, 3.0 - inner, opening)
 	for i in 5:
 		var x := -16.0 + i * 8.0
-		draw_line(Vector2(x, -inner), Vector2(x, bottom), GATE_BAR_COLOR, 3.0)
-	draw_line(Vector2(-19.0, bottom - 2.0), Vector2(19.0, bottom - 2.0), GATE_BAR_COLOR, 3.0)
+		PixelDraw.rect(self, Rect2(x - 2.0, -inner, 4.0, bottom + inner), GATE_BAR_COLOR)
+	PixelDraw.rect(self, Rect2(-19.0, bottom - 4.0, 38.0, 4.0), GATE_BAR_COLOR)
 	if opening > 0.0:
-		draw_circle(_hole_centre + Vector2(0, 10), 10.0 * opening, Color(CRACK_GLOW, 0.25 * opening))
+		PixelDraw.disc(self, _hole_centre + Vector2(0, 10), 10.0 * opening, Color(CRACK_GLOW, 0.25 * opening))
 
 
 func _draw_breach() -> void:
 	if is_broken:
 		var radii := Vector2(HOLE_RADII.x, minf(HOLE_RADII.y, _depth * 0.5 + 4.0))
-		_draw_ellipse(_hole_centre, radii + Vector2(5, 5), STONE_LIGHT)
-		_draw_ellipse(_hole_centre, radii, HOLE_COLOR)
+		PixelDraw.ellipse(self, _hole_centre, radii + Vector2(5, 5), STONE_LIGHT)
+		PixelDraw.ellipse(self, _hole_centre, radii, HOLE_COLOR)
 		for stone in _rubble:
-			draw_rect(Rect2(stone, Vector2(6, 4)), STONE_COLOR)
-			draw_rect(Rect2(stone + Vector2(1, -1), Vector2(4, 1)), STONE_LIGHT)
+			PixelDraw.rect(self, Rect2(stone, Vector2(6, 4)), STONE_COLOR)
+			PixelDraw.rect(self, Rect2(stone + Vector2(2, -2), Vector2(2, 2)), STONE_LIGHT)
 		return
 	if crack <= 0.0:
 		return
 	# Cracks run out from the centre, glowing from behind.
-	draw_circle(_hole_centre, 6.0 + 8.0 * crack, Color(CRACK_GLOW, 0.35 * crack))
+	PixelDraw.disc(self, _hole_centre, 6.0 + 8.0 * crack, Color(CRACK_GLOW, 0.35 * crack))
 	for angle in _crack_angles:
 		var direction := Vector2.from_angle(angle)
 		var middle := _hole_centre + direction * 16.0 * crack + direction.orthogonal() * 3.0
 		var tip := _hole_centre + direction * 30.0 * crack
-		draw_polyline(PackedVector2Array([_hole_centre, middle, tip]), Color(HOLE_COLOR, 0.85), 2.0)
-
-
-func _draw_ellipse(centre: Vector2, radii: Vector2, color: Color) -> void:
-	var points := PackedVector2Array()
-	for i in 16:
-		var angle := TAU * i / 16.0
-		points.append(centre + Vector2(cos(angle) * radii.x, sin(angle) * radii.y))
-	draw_colored_polygon(points, color)
+		PixelDraw.polyline(self, PackedVector2Array([_hole_centre, middle, tip]), Color(HOLE_COLOR, 0.85))

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="FlintExplanation" format=3]
+
+[ext_resource type="Script" path="res://companions/guide/flint_explanation.gd" id="1_expl"]
+[ext_resource type="Script" path="res://companions/guide/flint_guide_step.gd" id="2_step"]
+
+[sub_resource type="Resource" id="Resource_firstsoulg_1"]
+script = ExtResource("2_step")
+text_key = &"FLINT_FIRST_SOUL_GATE"
+mood = 3
+
+[resource]
+script = ExtResource("1_expl")
+id = &"flint_first_soul_gate"
+style = 1
+steps = Array[ExtResource("2_step")]([SubResource("Resource_firstsoulg_1")])

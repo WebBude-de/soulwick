@@ -108,3 +108,17 @@ func test_detached_client_decides_alone_again() -> void:
 	assert_false(segment.get_turrets()[0].remote_controlled)
 	for trap in segment.get_spikes():
 		assert_false(trap.remote_controlled)
+
+
+func test_a_client_obstacle_run_builds_its_slopes_without_rush_events() -> void:
+	var side := _side(false)
+	side._segment_slot = SLOT
+	var segment := SideSegment.new()
+	segment.setup(ObstacleRunPlans.build(&"crypt_run_lift"), 1, null, 21)
+	side.on_node_added(segment)
+	add_child_autofree(segment)
+	segment.global_position = Vector2(0, 11000)
+	assert_not_null(segment.get_node_or_null(^"Slopes"), "the two-way piece's slopes on the client too")
+	for gone: StringName in [&"side_rush_crown_net", &"side_rush_combo_net", &"side_rush_result_net"]:
+		assert_false(side.has_method(gone), "%s: no crown, combo or result any more (D-216)" % gone)
+

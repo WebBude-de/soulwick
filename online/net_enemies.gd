@@ -300,7 +300,8 @@ func _register_blast(blast: Blast) -> void:
 	var enemy := blast.source as Enemy
 	if enemy == null or not is_instance_valid(enemy) or enemy.is_dead():
 		return
-	_send(&"blast_spawned", [blast.global_position, blast.radius, maxf(0.0, blast.delay), blast.color, blast.sound, blast.shake])
+	# look, lob_from and pool_time (Ember Golem lava balls, D-209) so clients see the flying ball and the pool.
+	_send(&"blast_spawned", [blast.global_position, blast.radius, maxf(0.0, blast.delay), blast.color, blast.sound, blast.shake, blast.look, blast.lob_from, blast.pool_time])
 
 
 func _watch_breakable(crate: Breakable) -> void:
@@ -686,7 +687,7 @@ func projectile_gone(id: int) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func blast_spawned(at: Vector2, radius: float, delay: float, color: Color, sound: StringName, shake: float) -> void:
+func blast_spawned(at: Vector2, radius: float, delay: float, color: Color, sound: StringName, shake: float, look: Variant = null, lob_from := Vector2.INF, pool_time := 0.0) -> void:
 	if is_host or _detached:
 		return
 	# Only the picture and the warning: the host's blast deals the damage.
@@ -698,6 +699,12 @@ func blast_spawned(at: Vector2, radius: float, delay: float, color: Color, sound
 	blast.color = color
 	blast.sound = sound
 	blast.shake = shake
+	if look != null:
+		blast.look = look
+	blast.lob_from = lob_from
+	# The pool is only a picture here: the host's pool deals the damage.
+	blast.pool_time = pool_time
+	blast.pool_damage = 0.0
 	var room := dm.get_room_at_slot(dm.get_active_slot())
 	var parent: Node = room.enemy_container if room != null else dm
 	parent.add_child(blast)
@@ -708,7 +715,7 @@ func blast_spawned(at: Vector2, radius: float, delay: float, color: Color, sound
 func pickup_spawned(id: int, at: Vector2, amount: int, kind: int) -> void:
 	if is_host or _detached:
 		return
-	var pickup := Enemy.GOLD_PICKUP_SCENE.instantiate() as GoldPickup
+	var pickup := Enemy.gold_pickup_scene().instantiate() as GoldPickup
 	pickup.amount = amount
 	pickup.kind = kind as GoldPickup.Kind
 	pickup.visual_only = true

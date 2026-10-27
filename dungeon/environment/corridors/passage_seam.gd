@@ -214,10 +214,13 @@ static func _share_lip(first_tiles: RoomTiles, in_first: Vector2i, second_tiles:
 	var second_coords := second_tiles.get_cell_atlas_coords(in_second)
 	if not RockTerrain.is_solid_cell(first_source, first_coords) or not RockTerrain.is_solid_cell(second_source, second_coords):
 		return false
-	var first_lip := RockTerrain.is_lip_coords(first_coords)
-	var second_lip := RockTerrain.is_lip_coords(second_coords)
-	if first_lip == second_lip:
+	# The same for a front (RockTerrain.FRONT_REACH, bug report 23.10.2026 #08fe4567): the cell that
+	# lets a figure closer wins, so the other room's full solid never sticks out over it.
+	var first_open := _open_sides(first_coords)
+	var second_open := _open_sides(second_coords)
+	if first_open == second_open or (first_open & second_open != first_open and first_open & second_open != second_open):
 		return false
+	var first_lip := first_open & second_open == second_open
 	var full_tiles := second_tiles if first_lip else first_tiles
 	var full_cell := in_second if first_lip else in_first
 	var lip_coords := first_coords if first_lip else second_coords
@@ -232,6 +235,12 @@ static func _share_lip(first_tiles: RoomTiles, in_first: Vector2i, second_tiles:
 	return true
 
 
+## Which sides of a solid tile's collision are cut back: 1 = the top (a lip), 2 = the bottom (a
+## front, RockTerrain.FRONT_REACH).
+static func _open_sides(coords: Vector2i) -> int:
+	return (1 if RockTerrain.is_lip_coords(coords) else 0) | (2 if RockTerrain.is_front_coords(coords) else 0)
+
+
 ## Gives tiles back the collision cells it took over from the room with instance id key (_share_lip).
 static func _unlip(tiles: RoomTiles, key: int) -> void:
 	if tiles == null or not tiles.has_meta(META_LIPPED):
@@ -242,7 +251,7 @@ static func _unlip(tiles: RoomTiles, key: int) -> void:
 	var cells: Dictionary = lipped[key]
 	for cell: Vector2i in cells:
 		var entry: Array = cells[cell]
-		if RockTerrain.is_lip_coords(tiles.get_cell_atlas_coords(cell)):
+		if _open_sides(tiles.get_cell_atlas_coords(cell)) != 0:
 			tiles.set_cell(cell, entry[0], entry[1], entry[2])
 	lipped.erase(key)
 

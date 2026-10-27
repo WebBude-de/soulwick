@@ -65,7 +65,7 @@ position = Vector2(992, 160)
 position = Vector2(800, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(1184, 160)
+position = Vector2(1248, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(928, 544)
@@ -162,6 +162,7 @@ script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(17, 9), Vector2i(18, 9), Vector2i(19, 9)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(18, 60)
 biome = &"ember_forge"
 
 [node name="Ingredients" type="Node2D" parent="."]

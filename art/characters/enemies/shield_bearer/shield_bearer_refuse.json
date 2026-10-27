@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "refuse_3f: Schild hoch über den Kopf (Stampfen abgewehrt), kurzer Rückstoß."
+  ],
+  "items": [
+    {
+      "name": "shield_bearer_refuse",
+      "file": "shield_bearer_refuse_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    }
+  ]
+}

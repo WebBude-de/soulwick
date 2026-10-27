@@ -20,7 +20,7 @@ extends RefCounted
 
 ## Preloaded: works before the global class cache knows SafeSave (new file).
 const SafeSaveScript := preload("res://meta/safe_save.gd")
-const DEFAULT_API_URL := "http://localhost:3101"
+const DEFAULT_API_URL := "http://localhost:3102"
 const DEFAULT_RELAY_URL := "ws://localhost:3103/v1"
 ## Must equal PROTOCOL_VERSION in soulwick-platform/packages/contracts/src/lobby.ts and the relay.
 const PROTOCOL_VERSION := 1

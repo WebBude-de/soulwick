@@ -46,6 +46,9 @@ const SOURCE_MASONRY_ROCK := 24
 const SOURCE_MASONRY_GROUND := 25
 const SOURCE_MASONRY_ZONES := 26
 const TILE := 32
+## Meta key prefix (plus the rock source id) of the floorless rock pieces on a biome TileSet
+## (lip_texture).
+const LIP_TEXTURE_META := "rock_lip_texture_"
 const TILES_DIR := "res://art/environment/tiles/"
 ## Ground atlas of the biome tilesets (RoomTiles, source 0): plain floor and wall top.
 const GROUND_FLOOR := Vector2i(0, 0)
@@ -65,16 +68,32 @@ const COLLISION_STEPS := 4
 ## Row of the solid tiles of a lip (rock with floor north of it, see is_lip): their collision starts
 ## LIP_WALK art px below the tile's top, so characters walk a bit behind the rock's top edge and the
 ## lip, drawn above them (RoomTiles lip sprites), hides their feet and shadow (playtest 15.10.2026,
-## note 17: "the shadow lies on top of the wall"). TESTWERT
+## note 17: "the shadow lies on top of the wall"). Bug reports 22.10.2026 (#81959d11, #784047ba:
+## "bis zur Hälfte sollte man von der Perspektive her reinkommen"): half a tile. A plateau has the
+## same band at its north edge, shallower (HeightField.BAND: things stand on its edge row). TESTWERT
 const SOLID_LIP_ROW := 2
-const LIP_WALK := 12
-## Bug report 17.10.2026 (#b16194d4, "da bin ich transparent"): the walkable band of a lip is closed
-## at an end of the block (floor beside it), so nobody walks into the rock's top from the side and is
-## cut by the lip drawn over him; only from the north. Bits of the caps, the rows of their solid
-## tiles (lip row + bits) and the cap width in art px (the rounded corner's radius). TESTWERT
+const LIP_WALK := 16
+## Bug report 17.10.2026 (#b16194d4, "da bin ich transparent"): the walkable band of a lip was closed
+## at an end of the block (floor beside it), so nobody walked into the rock's top from the side. Bug
+## report 22.10.2026 (#db6117ad, "warum ist hier eine unsichtbare Wand"): that cap is an invisible
+## wall; one rule for every raised mass (RoomTiles: the band behind it is open from the north and
+## from the sides, a figure in it is drawn behind it). LIP_CAPS switches the caps back on. Bits of
+## the caps, the rows of their solid tiles (lip row + bits) and the cap width in art px (the rounded
+## corner's radius). TESTWERT
+const LIP_CAPS := false
 const CAP_LEFT := 1
 const CAP_RIGHT := 2
 const LIP_CAP_WIDTH := 8.0
+## Bug reports 23.10.2026 (#08fe4567 "noch 3-4 Pixel weiter nach oben", #019f28b3): a figure walking
+## north up to a raised mass stops with its feet well below the foot line, because its body circle
+## sits above its feet. The collision of every rock tile with floor right below it ends this many art
+## px above the tile's foot line, so feet come that much closer to the front; the plateau uses the
+## same reach for its cliffs and its back edge (HeightField). One value for every upper edge.
+## TESTWERT
+const FRONT_REACH := 4
+## The solid tiles of a front (floor right below) lie this many rows below their plain twins
+## (SOLID / SOLID_LIP_ROW + caps): rows 1..5 plain, 6..10 with FRONT_REACH.
+const SOLID_FRONT_SHIFT := 5
 
 ## Per biome: true = the soft set for caves (crypt_soft or its palette swap by
 ## tools/build_tilesets.gd), false = the delivered biome set (rock_blob_<biome>, the biome's floor,
@@ -370,15 +389,18 @@ static func ensure_sources(tileset: TileSet) -> bool:
 	var masonry_rock := _load_image(masonry["rock"])
 	var inner := inner_pieces(biome)
 	_add_rock_source(tileset, SOURCE_ROCK, compose_rock(cave_rock, cave_floor.get_region(Rect2i(0, 0, TILE, TILE)), inner))
+	_add_lip_texture(tileset, SOURCE_ROCK, compose_rock(cave_rock, _clear_tile(), inner))
 	var soft_floor := _load_image(masonry["floor"]) if masonry.get("soft", false) else null
 	if masonry_rock != null and soft_floor != null:
 		# Soft masonry: its own flagstones (with navigation) under the soft rock with brick fronts.
 		_add_rock_source(tileset, SOURCE_MASONRY_ROCK, compose_rock(masonry_rock, soft_floor.get_region(Rect2i(0, 0, TILE, TILE)), inner))
+		_add_lip_texture(tileset, SOURCE_MASONRY_ROCK, compose_rock(masonry_rock, _clear_tile(), inner))
 		_add_floor_source(tileset, SOURCE_MASONRY_GROUND, soft_floor)
 	elif masonry_rock != null:
 		var masonry_floor := ground_image.get_region(Rect2i(GROUND_FLOOR * TILE, Vector2i(TILE, TILE)))
 		var wall_top := ground_image.get_pixel(GROUND_WALL_TOP.x * TILE + TILE / 2, TILE / 2)
 		_add_rock_source(tileset, SOURCE_MASONRY_ROCK, compose_rock(recolor_fill(masonry_rock, wall_top), masonry_floor))
+		_add_lip_texture(tileset, SOURCE_MASONRY_ROCK, compose_rock(recolor_fill(masonry_rock, wall_top), _clear_tile()))
 	_add_ground_source(tileset, cave_floor)
 	for pair: Array in [[cave["zones"], SOURCE_ZONES], [masonry["zones"], SOURCE_MASONRY_ZONES]]:
 		var zones := _load_image(pair[0])
@@ -426,7 +448,7 @@ static func _add_rock_source(tileset: TileSet, id: int, image: Image) -> void:
 ## Cave floor (row 0, navigation) and the invisible solid tiles (row 1, collision): column = corner
 ## bits of the rounded collision (solid_corners).
 static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
-	var image := Image.create_empty(TILE * SOLID_VARIANTS, TILE * (SOLID_LIP_ROW + 4), false, Image.FORMAT_RGBA8)
+	var image := Image.create_empty(TILE * SOLID_VARIANTS, TILE * (SOLID.y + 2 * SOLID_FRONT_SHIFT), false, Image.FORMAT_RGBA8)
 	image.blit_rect(floor_image, Rect2i(0, 0, TILE * 4, TILE), Vector2i.ZERO)
 	var source := _add_source(tileset, SOURCE_GROUND, image)
 	var half := TILE / 2.0
@@ -438,29 +460,37 @@ static func _add_ground_source(tileset: TileSet, floor_image: Image) -> void:
 			navigation.vertices = box
 			navigation.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 			source.get_tile_data(Vector2i(x, 0), 0).set_navigation_polygon(0, navigation)
-	for caps in 4:
-		for lip in ([false, true] if caps == 0 else [true]):
-			for bits in SOLID_VARIANTS:
-				var coords := solid_coords(bits, lip, caps)
-				source.create_tile(coords)
-				if tileset.get_physics_layers_count() > 0:
-					var data := source.get_tile_data(coords, 0)
-					data.add_collision_polygon(0)
-					data.set_collision_polygon_points(0, 0, solid_polygon(bits, lip))
-					for cap: int in [CAP_LEFT, CAP_RIGHT]:
-						if caps & cap:
-							var index := data.get_collision_polygons_count(0)
-							data.add_collision_polygon(0)
-							data.set_collision_polygon_points(0, index, lip_cap_polygon(bits, cap))
+	for front: bool in [false, true]:
+		for caps in 4:
+			for lip in ([false, true] if caps == 0 else [true]):
+				for bits in SOLID_VARIANTS:
+					_add_solid_tile(tileset, source, bits, lip, caps, front)
+
+
+## One invisible solid tile (see _add_ground_source) with its collision polygons.
+static func _add_solid_tile(tileset: TileSet, source: TileSetAtlasSource, bits: int, lip: bool, caps: int, front: bool) -> void:
+	var coords := solid_coords(bits, lip, caps, front)
+	source.create_tile(coords)
+	if tileset.get_physics_layers_count() > 0:
+		var data := source.get_tile_data(coords, 0)
+		data.add_collision_polygon(0)
+		data.set_collision_polygon_points(0, 0, solid_polygon(bits, lip, front))
+		for cap: int in [CAP_LEFT, CAP_RIGHT]:
+			if caps & cap:
+				var index := data.get_collision_polygons_count(0)
+				data.add_collision_polygon(0)
+				data.set_collision_polygon_points(0, index, lip_cap_polygon(bits, cap))
 
 
 ## Collision of a solid tile (tile space, centred): the square with the corners of bits rounded; a
-## lip starts LIP_WALK below the top (its upper corners are cut off with it).
-static func solid_polygon(bits: int, lip := false) -> PackedVector2Array:
+## lip starts LIP_WALK below the top (its upper corners are cut off with it), a front (floor below)
+## ends FRONT_REACH above the bottom (its lower corners move up with it).
+static func solid_polygon(bits: int, lip := false, front := false) -> PackedVector2Array:
 	var half := TILE / 2.0
+	var bottom := half - (float(FRONT_REACH) if front else 0.0)
 	var points := PackedVector2Array()
 	# Clockwise from the top-left corner: [bit, corner, start angle of its arc (degrees)].
-	for corner: Array in [[CORNER_TL, Vector2(-half, -half), 180.0], [CORNER_TR, Vector2(half, -half), 270.0], [CORNER_BR, Vector2(half, half), 0.0], [CORNER_BL, Vector2(-half, half), 90.0]]:
+	for corner: Array in [[CORNER_TL, Vector2(-half, -half), 180.0], [CORNER_TR, Vector2(half, -half), 270.0], [CORNER_BR, Vector2(half, bottom), 0.0], [CORNER_BL, Vector2(-half, bottom), 90.0]]:
 		var point: Vector2 = corner[1]
 		if lip and point.y < 0.0:
 			points.append(Vector2(point.x, -half + LIP_WALK))
@@ -505,6 +535,8 @@ static func lip_cap_polygon(bits: int, cap: int) -> PackedVector2Array:
 ## Caps of a lip (CAP_LEFT | CAP_RIGHT): an end of the block with open floor beside it; open_ends are
 ## floor cells the band may run into (door corridors: the passage goes on there).
 static func lip_caps(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], open_ends: Dictionary[Vector2i, bool] = {}) -> int:
+	if not LIP_CAPS:
+		return 0
 	var caps := 0
 	for pair: Array in [[CAP_LEFT, Vector2i.LEFT], [CAP_RIGHT, Vector2i.RIGHT]]:
 		var side: Vector2i = tile + (pair[1] as Vector2i)
@@ -514,22 +546,36 @@ static func lip_caps(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], ope
 
 
 ## Atlas coords of the solid tile with these rounded corners (bits CORNER_TL | CORNER_TR | ...),
-## lip: the shortened collision of a lip, caps: its band closed at the ends (lip_caps).
-static func solid_coords(bits: int, lip := false, caps := 0) -> Vector2i:
+## lip: the shortened collision of a lip, caps: its band closed at the ends (lip_caps), front: floor
+## right below it (FRONT_REACH).
+static func solid_coords(bits: int, lip := false, caps := 0, front := false) -> Vector2i:
 	var row := SOLID.y
 	if lip:
 		row = SOLID_LIP_ROW + clampi(caps, 0, 3)
+	if front:
+		row += SOLID_FRONT_SHIFT
 	return Vector2i(clampi(bits, 0, SOLID_VARIANTS - 1), row)
 
 
-## Is the cell one of the invisible solid tiles (any corner variant, lip or not)?
+## Is the cell one of the invisible solid tiles (any corner variant, lip or not, front or not)?
 static func is_solid_cell(source_id: int, coords: Vector2i) -> bool:
-	return source_id == SOURCE_GROUND and coords.y >= SOLID.y and coords.y <= SOLID_LIP_ROW + 3
+	return source_id == SOURCE_GROUND and coords.y >= SOLID.y and coords.y < SOLID.y + 2 * SOLID_FRONT_SHIFT
 
 
 ## Is the solid tile at these atlas coords a lip (any caps)?
 static func is_lip_coords(coords: Vector2i) -> bool:
-	return coords.y >= SOLID_LIP_ROW and coords.y <= SOLID_LIP_ROW + 3
+	var row := coords.y - SOLID_FRONT_SHIFT if coords.y >= SOLID.y + SOLID_FRONT_SHIFT else coords.y
+	return row >= SOLID_LIP_ROW and row <= SOLID_LIP_ROW + 3
+
+
+## Is the solid tile at these atlas coords one with floor right below it (FRONT_REACH)?
+static func is_front_coords(coords: Vector2i) -> bool:
+	return coords.y >= SOLID.y + SOLID_FRONT_SHIFT and coords.y < SOLID.y + 2 * SOLID_FRONT_SHIFT
+
+
+## Does the collision of a solid tile end FRONT_REACH above its foot line: floor right below it?
+static func has_front_reach(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> bool:
+	return not floor_mask.has(tile) and floor_mask.has(tile + Vector2i.DOWN)
 
 
 ## A lip: rock that is no front with floor right north of it (the top edge of a block, of the south
@@ -792,6 +838,29 @@ static func build_zones(sheet: Image) -> Image:
 						tile.set_pixel(x, y, Color(0, 0, 0, 0))
 			atlas.blit_rect(tile, Rect2i(0, 0, TILE, TILE), Vector2i(mask, zone) * TILE)
 	return atlas
+
+
+## The rock pieces of a look once more without the floor in their rounded corners (same atlas
+## coords as the rock source; Texture2D, lip_texture): for the copies drawn over the characters
+## (RoomTiles lips and sorted fronts). The rock source itself carries the look's floor in every
+## corner, so its copy covered a figure beside a block's rounded corner with floor (bug report
+## 22.10.2026 #581b8b3d, "der Layer passt hier nicht richtig gut": legs cut off in the open floor).
+static func lip_texture(tileset: TileSet, look: Look) -> Texture2D:
+	if tileset == null:
+		return null
+	var key := StringName("%s%d" % [LIP_TEXTURE_META, rock_source(look)])
+	if tileset.has_meta(key):
+		return tileset.get_meta(key) as Texture2D
+	var source := tileset.get_source(rock_source(look)) as TileSetAtlasSource if tileset.has_source(rock_source(look)) else null
+	return source.texture if source != null else null
+
+
+static func _add_lip_texture(tileset: TileSet, id: int, image: Image) -> void:
+	tileset.set_meta(StringName("%s%d" % [LIP_TEXTURE_META, id]), ImageTexture.create_from_image(image))
+
+
+static func _clear_tile() -> Image:
+	return Image.create_empty(TILE, TILE, false, Image.FORMAT_RGBA8)
 
 
 static func _add_source(tileset: TileSet, id: int, image: Image) -> TileSetAtlasSource:

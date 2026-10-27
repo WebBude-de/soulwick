@@ -1,7 +1,7 @@
 extends GutTest
 ## Side-view motion of the real player (M5) in a small segment, stepped by hand with the real body
-## physics: standing, a 2.5-tile jump, variable height, coyote time, jump buffer, the horizontal
-## dash, ladders up and down, a pit (an abyss's damage past the shield, back on the last platform,
+## physics: standing, a 2.5-tile jump, variable height, coyote time, jump buffer, no dash (D-216),
+## ladders up and down, a pit (an abyss's damage past the shield, back on the last platform,
 ## may kill), coins, the door, the co-op catch-up, the body animations and leaving the side view
 ## (shape and motion mode restored). Round 2: double jump, apex hang, wall slide and wall jump,
 ## crumbling ledges, squash/stretch, salto and the camera kick. The autopilot crosses the segment.
@@ -80,11 +80,10 @@ func _take_input() -> PlayerSideMotion.SideInput:
 	return input
 
 
-func _press(axis := Vector2.ZERO, jump_just := false, jump_held := false, dash := false) -> void:
+func _press(axis := Vector2.ZERO, jump_just := false, jump_held := false) -> void:
 	_input.axis = axis
 	_input.jump_just_pressed = jump_just
 	_input.jump_pressed = jump_held or jump_just
-	_input.dash_just_pressed = dash
 
 
 func _run(players: Array[Player], frames: int) -> void:
@@ -203,19 +202,18 @@ func test_jump_buffer_jumps_on_landing() -> void:
 	assert_true(jumped, "the early press jumps when the feet touch the ground")
 
 
-func test_dash_is_horizontal() -> void:
+func test_there_is_no_dash_in_side_view() -> void:
 	var player := (await _setup())[0]
+	assert_false("dash_just_pressed" in PlayerSideMotion.SideInput.new(), "the side input has no dash (D-216)")
+	player.side_motion.input_source = Callable()
 	_run([player], 10)
-	var y := _feet_local(player).y
 	var x := _feet_local(player).x
-	_press(Vector2.ZERO, false, false, true)
+	Input.action_press(PlayerSideMotion.DASH_ACTION)
 	_run([player], 1)
-	assert_true(player.is_dashing())
-	assert_almost_eq(player.velocity.y, 0.0, 0.01)
-	_press()
+	Input.action_release(PlayerSideMotion.DASH_ACTION)
 	_run([player], 10)
-	assert_gt(_feet_local(player).x - x, 60.0, "dashed in the facing direction (right)")
-	assert_almost_eq(_feet_local(player).y, y, 2.0)
+	assert_false(player.is_dashing(), "the side dash key does nothing")
+	assert_almost_eq(_feet_local(player).x, x, 1.0, "no dash forward")
 
 
 func test_ladder_up_and_down() -> void:

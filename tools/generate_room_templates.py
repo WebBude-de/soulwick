@@ -98,7 +98,8 @@ Rules checked for every template (the generator stops on the first broken plan):
     be entered from the side), so no plateau or rock may fill a whole side wall;
   - every floor tile reachable on foot from the entrance with every solid prop and every source
     treated as blocked (sources never close a way), every door reachable;
-  - no decoration on a tile that is the only way (articulation point of the floor);
+  - no decoration on a tile that is the only way (articulation point of the floor), and no group
+    that closes a short way around it (the floor beside it stays joined within two tiles);
   - spike traps only with a reason: next to a chest or in a side passage;
   - the floor tile in front of a cracked wall ('q') stays free (no prop, no spawn marker, no group):
     the secret niche needs it; an explosive barrel ('F') right beside it opens the wall without a
@@ -119,12 +120,19 @@ Height (M3, HeightLayout in dungeon/rooms/height/; plateaus count as rock for ev
   - stairs and ladders in the cliff row: plain floor below them (kept free: no prop, no source),
     plateau surface above them; every cliff has surface above it (a plateau has two rows at least);
   - no plateau tile right above an abyss or water, none (and no foot of stairs) in a door lane;
+  - no free-standing rock block right beside or below a plateau (it reads as a lower step);
+  - plateaus are half high (D-205) and stand free: no rock among the eight neighbours of a height
+    tile (PLATEAU_WALL_GAP), so no platform touches the outer wall; the floor ring around it may be
+    one tile wide (no one-tile slot rule between a plateau and the rock);
   - every plateau has stairs or a ladder and all of its surface is reached from them (chests,
     sources and solid lights on it count as blocked), at least MIN_PLATEAU_SURFACE surface tiles;
   - sources, guards and the soul flame on a plateau only where it has stairs (enemies come down and
     go up to the flame; a ladder plateau stays a safe island, D-189); things players take or light
     (chest, relic, soul, torch stand) off the edges (no ground among their eight neighbours), out of
-    reach from below;
+    reach from below; a source in the north row of its plateau stands PLATEAU_NORTH_SOURCE_SHIFT
+    south of the tile centre (its stone stays out of the band behind the north edge);
+  - nothing solid (chest, solid decoration, solid objective) on the ground right behind a plateau's
+    north edge: its foot would lie on the rim line and it would seem to float over the edge;
   - cave combat plans with plateaus: at most MAX_PLATEAUS of them, covering PLATEAU_SHARE of the
     floor (the plateau tiles included), so a room reads at a glance (two levels at most).
 What the generator adds (fixed per template from its id, no dungeon RNG):
@@ -268,6 +276,16 @@ PLATEAU_BACK_ITEMS = {"c", "R", "*", "t", "u"}
 MAX_PLATEAUS = 2
 PLATEAU_SHARE = (0.10, 0.25)
 MIN_PLATEAU_SURFACE = 4
+# Floor kept between a plateau and any rock (D-205, CR6; TESTWERT): no rock among the eight
+# neighbours of a height tile, so a platform never touches the outer wall ("man denkt, man kann aus
+# der Map laufen", #25371167, #276ffad7). HeightLayout.problems checks the same in the live room.
+PLATEAU_WALL_GAP = 1
+# A source in the north row of its plateau stands this far south of the tile centre (world px,
+# TESTWERT): a grave sorts at the foot of its stone (SpawnSource, 37 px above its pivot), and that foot
+# has to lie south of the band behind the north edge (HeightField.BAND, 16 world px), or the plateau's
+# copy over the figures behind it covers the stone (bug report 22.10.2026 #28fef95b, "Das ist
+# ineinander verbuggt").
+PLATEAU_NORTH_SOURCE_SHIFT = 8
 # RoomTiles.RockStyle.
 ROCK_STYLES = {"wall": 0, "blob": 1}
 
@@ -704,6 +722,9 @@ WALL_ITEM_LIFT = 4
 MARKER_OBJECTIVES = {"merchant", "guard", "soul", "collapse_field", "escort_start", "crowned", "stone_guardian", "boss", "log", "bedroll", "relic"}
 # Fixed objects keep this Chebyshev distance (2 = one free tile between them).
 OBJECT_SPACING = 2
+# Floor the soul gate needs (SoulGate, 48x64 art px with its foot at the tile's middle): one tile to
+# each side, two rows above (Room._gate_clear).
+GATE_CLEARANCE = (1, 2)
 # Caves: at most one composed decoration group per this many floor tiles (playtest: fewer, larger).
 CAVE_GROUP_TILES = 28
 # Overlays at decoration groups (their border).
@@ -728,13 +749,15 @@ def has_group_art(biome):
 # (stones, pillars, crates); lower bits (candles, bones, puddles) stay walkable (playtest 15.10.2026,
 # notes 22/24: "weird hitbox"). TESTWERT
 GROUP_SOLID_MIN = 9
+# Bug report 23.10.2026 #9a693e5f ("Hier ist eine Hitbox wo man nicht durchkommt"): a run of columns
+# below GROUP_SOLID_MIN at least this many art px wide inside a group picture (the gap between a
+# mushroom bed and a stone) stays open, a figure (body 9 art px wide) walks through it. TESTWERT
+GROUP_GAP_MIN = 12
 _spans = {}
 
 
-def group_solid_span(item, biome):
-    """Solid part of a group picture along x in world px from its origin (drawn unflipped, pivot at
-    the bottom middle): the columns with at least GROUP_SOLID_MIN opaque art px. None without the
-    picture (the item's whole footprint then)."""
+def _group_columns(item, biome):
+    """(width, sorted solid columns) of a group picture, None without the picture."""
     key = (item, biome)
     if key in _spans:
         return _spans[key]
@@ -743,7 +766,7 @@ def group_solid_span(item, biome):
     else:
         name = item.replace("group_", f"deco_group_{biome}_")
     path = GROUP_ART_DIR / f"{name}.png"
-    span = None
+    result = None
     if path.exists():
         from PIL import Image  # only needed here (the tools have Pillow)
         image = Image.open(path).convert("RGBA")
@@ -751,9 +774,34 @@ def group_solid_span(item, biome):
         alpha = image.getchannel("A").load()
         solid = [x for x in range(width) if sum(1 for y in range(height) if alpha[x, y] > 0) >= GROUP_SOLID_MIN]
         if solid:
-            span = ((min(solid) - width / 2) * 2, (max(solid) + 1 - width / 2) * 2)
-    _spans[key] = span
-    return span
+            result = (width, solid)
+    _spans[key] = result
+    return result
+
+
+def group_solid_span(item, biome):
+    """Solid part of a group picture along x in world px from its origin (drawn unflipped, pivot at
+    the bottom middle): the columns with at least GROUP_SOLID_MIN opaque art px. None without the
+    picture (the item's whole footprint then)."""
+    columns = _group_columns(item, biome)
+    if columns is None:
+        return None
+    width, solid = columns
+    return ((min(solid) - width / 2) * 2, (max(solid) + 1 - width / 2) * 2)
+
+
+def group_solid_gaps(item, biome):
+    """Open gaps inside the solid span of a group picture (world px from its origin, unflipped, west
+    to east): runs of at least GROUP_GAP_MIN art px without a solid column (#9a693e5f)."""
+    columns = _group_columns(item, biome)
+    if columns is None:
+        return []
+    width, solid = columns
+    gaps = []
+    for a, b in zip(solid, solid[1:]):
+        if b - a - 1 >= GROUP_GAP_MIN:
+            gaps.append(((a + 1 - width / 2) * 2, (b - width / 2) * 2))
+    return gaps
 
 
 # Composed decoration groups (the fallback from delivered parts where a biome has no group art):
@@ -1436,7 +1484,7 @@ class Room:
                     continue
                 if any(k and chebyshev(t, k) <= 1 for t in row for k in keep):
                     continue
-                if not self._keeps_ways(row):
+                if not self._keeps_ways(row) or not self._keeps_local_ways(row):
                     continue
                 names = [f"group_large_{n}" for n in (1, 2)] if length == 3 else [f"group_{n}" for n in (1, 2, 3)]
                 names = [n for n in names if n not in GROUP_ART_SKIP.get(self.biome, ())]
@@ -1461,6 +1509,7 @@ class Room:
                 prop = dict(deco=item, name="Group", pos=pos, blocked=blocked, flip=flip, group=f"auto{tile}")
                 if span is not None:
                     prop["solid_span"] = span
+                    prop["solid_gaps"] = group_solid_gaps(item, self.biome)
                 self._add_prop(prop)
                 self.blocked.update(blocked)
                 self._occupy(row, "decoration")
@@ -1548,6 +1597,23 @@ class Room:
         start = self.inside_tile(SOUTH, self.entrance)
         reached = flood(walk, start)
         return all(t in reached for t in walk)
+
+    def _keeps_local_ways(self, extra, reach=2):
+        """Does the floor around extra (the tiles of a group) stay joined close by? Every walkable
+        4-neighbour of extra reaches the others within reach tiles around it. Bug report 22.10.2026
+        (#81959d11, "da muesste man unten lang kommen"): a group between a plateau and the rock
+        closed the short way into a bay, which was only reached by a long detour."""
+        row = set(extra)
+        walk = self.walk_floor() - self.blocked - row - {s["floor_tile"] for s in self.sources if s["wall_side"] < 0}
+        xs = [t[0] for t in row]
+        ys = [t[1] for t in row]
+        box = {(x, y) for x in range(min(xs) - reach, max(xs) + reach + 1) for y in range(min(ys) - reach, max(ys) + reach + 1)}
+        near = walk & box
+        ends = sorted({n for t in row for n in neighbours4(t) if n in near})
+        if len(ends) < 2:
+            return True
+        reached = flood(near, ends[0])
+        return all(e in reached for e in ends)
 
     def _group_centres(self):
         centres = {}
@@ -1729,6 +1795,23 @@ class Room:
         for x, y in sorted(self.cliffs):
             if (x, y - 1) not in self.surface and (x, y - 1) not in self.cliffs:
                 self.fail(f"cliff at {(x, y)} without a plateau surface above it (a plateau needs two rows)")
+        # A free-standing rock block glued to the side or the foot of a plateau reads as a lower step
+        # of it that nobody can walk on (bug report 22.10.2026 #35292dbf, "warum ist das da dran
+        # generiert"): blocks keep a gap to the height; the outline may hold a plateau.
+        for tile in sorted(self.rock_blocks_beside_height()):
+            self.fail(f"rock block at {tile} right beside a plateau (leave floor between them)")
+        # Right behind a north edge a solid thing stands on the rim line and seems to float (bug report
+        # 22.10.2026 #2d4a4686, "Truhe fliegt irgendwie").
+        behind = self.behind_height()
+        for prop in self.props:
+            solid = prop.get("scene") == "chest" or prop.get("blocked")
+            if solid and prop_tile(prop) in behind:
+                self.fail(f"{prop.get('name', 'prop')} at {prop_tile(prop)} right behind the north edge of a plateau")
+        for tile in sorted(behind & self.blocked):
+            self.fail(f"{self.occupied.get(tile, 'something solid')} at {tile} right behind the north edge of a plateau")
+        # Half-height platforms stand free in the room (D-205): floor all round, never at a wall.
+        for tile, rock in self.rock_near_height():
+            self.fail(f"height tile {tile} with rock at {rock} (keep {PLATEAU_WALL_GAP} tile of floor to every wall, D-205)")
         for side, place in self.door_slots():
             for tile in self.corridor(side, place) + self.lane(side, place, DOOR_LANE_ROWS):
                 if tile in height or (tile[0], tile[1] - 1) in connectors:
@@ -1775,6 +1858,53 @@ class Room:
         if not hasattr(self, "_corridors"):
             self._corridors = set(self._all_corridors())
         return self._corridors
+
+    def behind_height(self):
+        """Ground tiles right north of a plateau's north edge (HeightLayout.get_behind_tiles)."""
+        height = self.height_tiles()
+        ground = self.floor_tiles() - height
+        return {(x, y - 1) for x, y in self.surface if (x, y - 1) in ground}
+
+    def in_north_row(self, tile):
+        """Is tile a plateau surface tile with ground right north of it (the band lies in it)?"""
+        return tile in self.surface and (tile[0], tile[1] - 1) in self.behind_height()
+
+    def rock_blocks_beside_height(self):
+        """Tiles of free-standing rock blocks (rock not joined to the outline without the height)
+        right west, east or south of a height tile."""
+        height = self.height_tiles()
+        rock = set(self.walls) - height
+        w, h = self.size
+        seen = {t for t in rock if t[0] in (0, w - 1) or t[1] in (0, h - 1)}
+        queue = deque(seen)
+        while queue:
+            tile = queue.popleft()
+            for n in neighbours4(tile):
+                if n in rock and n not in seen:
+                    seen.add(n)
+                    queue.append(n)
+        blocks = rock - seen
+        found = set()
+        for x, y in height:
+            for n in ((x - 1, y), (x + 1, y), (x, y + 1)):
+                if n in blocks:
+                    found.add(n)
+        return found
+
+    def rock_near_height(self):
+        """(height tile, rock tile) pairs closer than PLATEAU_WALL_GAP tiles of floor (Chebyshev,
+        rock = wall, block or anything outside the floor but door corridors), sorted; one per
+        height tile."""
+        height = self.height_tiles()
+        found = []
+        reach = PLATEAU_WALL_GAP
+        for tile in sorted(height):
+            near = sorted((tile[0] + dx, tile[1] + dy) for dx in range(-reach, reach + 1) for dy in range(-reach, reach + 1))
+            for other in near:
+                if other not in height and self.solid(other):
+                    found.append((tile, other))
+                    break
+        return found
 
     def outline_rock(self):
         """Rock tiles inside the floor rectangle joined to the ring (the outline), as opposed to
@@ -2068,11 +2198,18 @@ class Room:
                 return False
             return tile not in floor or (tile in self.pits and tile not in self.bridges)
 
+        # The floor ring around a half-height plateau may be one tile wide (D-205: "mindestens 1
+        # Kachel Abstand"): a low platform beside a way reads as a step, not as a second wall.
+        height = self.height_tiles()
+
+        def slot(a, b):
+            return blocked(a) and blocked(b) and a not in height and b not in height
+
         for tile in sorted(self.walk_floor() - self.bridges):
             x, y = tile
-            if blocked((x - 1, y)) and blocked((x + 1, y)):
+            if slot((x - 1, y), (x + 1, y)):
                 self.fail(f"one-tile slot at {tile} (solid west and east)")
-            if blocked((x, y - 1)) and blocked((x, y + 1)):
+            if slot((x, y - 1), (x, y + 1)):
                 self.fail(f"one-tile slot at {tile} (solid north and south)")
         for x, y in sorted(self.pits):
             above = (x, y - 1)
@@ -2135,6 +2272,13 @@ class Room:
             self.fail(f"needs exactly {BASE_SPAWNS} spawn markers, found room for {len(seeds)}")
         self.spawns = seeds
 
+    def _gate_clear(self, tile):
+        """Has the soul gate on tile room to stand (bug report 23.10.2026 #b28a0f5e, "so nah an der Wand
+        und überlappt"): its picture is 1.5 tiles wide and 2 tall with its foot at the tile's middle,
+        so floor on the tile, beside it and on the two rows above."""
+        floor = self.walk_floor()
+        return all((tile[0] + dx, tile[1] + dy) in floor for dx in range(-GATE_CLEARANCE[0], GATE_CLEARANCE[0] + 1) for dy in range(-GATE_CLEARANCE[1], 1))
+
     def _place_anchors(self):
         w, h = self.size
         free = sorted(self.walk_floor() - self.blocked - set(self.occupied) - self.bridges)
@@ -2161,7 +2305,13 @@ class Room:
             content = first(["soul_flame", "boss"])
         if content is None:
             content = nearest((w / 2, h / 2))
-        portal = first(["exit_portal"]) or nearest((w * 0.75, 2.5))
+        portal = first(["exit_portal"])
+        if portal is not None and not self._gate_clear(portal):
+            self.fail(f"the soul gate at {portal} needs floor on the {GATE_CLEARANCE} tiles around and above it (#b28a0f5e)")
+        if portal is None:
+            clear = [t for t in free if self._gate_clear(t)]
+            target = (w * 0.75, 2.5)
+            portal = min(clear, key=lambda t: ((t[0] + 0.5 - target[0]) ** 2 + (t[1] + 0.5 - target[1]) ** 2, t[1], t[0])) if clear else nearest(target)
         self.content = content
         self.portal = portal
         if self.player_start is None:
@@ -2338,6 +2488,8 @@ def write_scene(room, rel_path):
         text += '\n[node name="Objectives" type="Node2D" parent="."]\n'
     for i, s in enumerate(room.sources):
         pos = centre(s["tile"])
+        if s.get("plateau") and room.in_north_row(s["tile"]):
+            pos = (pos[0], pos[1] + PLATEAU_NORTH_SOURCE_SHIFT)
         text += f'\n[node name="Source{i + 1}" type="Marker2D" parent="Sources"]\nposition = {vec2(*pos)}\n'
         text += f'metadata/source_kind = &"{s["kind"]}"\nmetadata/tile = Vector2i({s["tile"][0]}, {s["tile"][1]})\n'
         text += f'metadata/floor_tile = Vector2i({s["floor_tile"][0]}, {s["floor_tile"][1]})\nmetadata/wall_side = {s["wall_side"]}\n'
@@ -2381,6 +2533,8 @@ def write_scene(room, rel_path):
                 text += f"blocked_tiles = {vec2i_list(p['blocked'])}\n"
             if p.get("solid_span"):
                 text += f"solid_span = {vec2(*p['solid_span'])}\n"
+            if p.get("solid_gaps"):
+                text += f"solid_gaps = PackedVector2Array({', '.join(fmt(v) for gap in p['solid_gaps'] for v in gap)})\n"
             if "still" in p:
                 text += f"still_frame = {p['still']}\n"
             if p["deco"] == "puddle" or p["deco"].startswith("group_") or p["deco"] == "wall_niche_soft":

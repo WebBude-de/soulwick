@@ -1,6 +1,7 @@
 # Makeover 3, Mockup 31 (weiche Hoehle): Mund oben in der Mitte, zwei Emporen links und rechts (M3:
 # links mit Treppe, rechts nur mit Leiter - sichere Insel fuer Bogen und Stab, oben eine Truhe),
 # Felsblock in der Mitte, gestufter Umriss unten.
+# CR6 (D-205): beide Emporen stehen frei, ringsum eine Kachel Boden (halbe Hoehe, nie an der Wand).
 role: combat
 mode: clear
 mirror: yes
@@ -11,13 +12,13 @@ size: 23x13
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxT###N###T##xxxxxx
-xx^^^^..........^^c^xxx
-xx^^^^.....::...^^^^xxx
-xx^^&^.......,,.^L^^xxx
-xx.....G....,,.......xx
-xx.....###......C.G..xx
-xx....K###....G......xx
-xxxxG......@......xxxxx
+xx......#...##.......xx
+xx.^^^^....::...^^^^.xx
+xx.^^^^......,,.^^c^.xx
+xx.^^&^.....G,..L^^^.xx
+xx.......###.........xx
+xx....K..###..G...C..xx
+xx..G......@.........xx
 xxxxxx.......xx..xxxxxx
 xxxxxxxxxxSxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
@@ -25,9 +26,9 @@ xxxxxxxxxxxxxxxxxxxxxxx
 .......................
 .......................
 .......................
+.......................
+.......................
 ..................^....
-.......................
-.......................
 .......................
 .......................
 .......................

@@ -1,0 +1,117 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "spell_light_flash",
+      "file": "spell_light_flash.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_soul_shield",
+      "file": "spell_soul_shield.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_flame_ring",
+      "file": "spell_flame_ring.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_will_o_wisp",
+      "file": "spell_will_o_wisp.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_heal_spark",
+      "file": "spell_heal_spark.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_slot",
+      "file": "spell_slot.png",
+      "frame_size": [
+        20,
+        20
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        10,
+        10
+      ],
+      "note": ""
+    },
+    {
+      "name": "spell_cooldown_mask",
+      "file": "spell_cooldown_mask.png",
+      "frame_size": [
+        20,
+        20
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        10,
+        10
+      ],
+      "note": "halbe Scheibe; Code dreht/maskiert"
+    }
+  ]
+}

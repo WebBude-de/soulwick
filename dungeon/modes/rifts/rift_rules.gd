@@ -1,6 +1,6 @@
 class_name RiftRules
 extends RefCounted
-## Rules and numbers of "Risse schließen" (KONZEPT_RAEUME_V2 §3.7, R4b; before: Beschwörungsrisse,
+## Rules and numbers of "Risse schließen" (RAEUME §3.7, R4b; before: Beschwörungsrisse,
 ## D-114). No nodes, unit-testable; RiftsMode and SummoningRift only apply them.
 
 ## Rifts of a room without wall rifts in its plan (inclusive range, one roll).

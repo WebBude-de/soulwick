@@ -218,9 +218,12 @@ func _process(delta: float) -> void:
 	if running:
 		_blind_left = maxf(0.0, _blind_left - delta)
 	var blinded := _blind_left > 0.0
-	var target_radius := minf(_base_radius, BLIND_RADIUS) if blinded else _base_radius
-	# Dark zones of a room (A3 ingredient) narrow the circle while the player stands in them.
-	if _player != null and is_instance_valid(_player):
+	# Laterne of the forge (KE4) widens the circle; blindness still wins (BLIND_RADIUS caps it).
+	var lit_radius := _base_radius * MetaProgression.player_light_factor(get_bound_player())
+	var target_radius := minf(lit_radius, BLIND_RADIUS) if blinded else lit_radius
+	# Dark zones of a room (A3 ingredient) narrow the circle while the player stands in them;
+	# Klarsicht (KE5 Proviant) keeps it open there.
+	if _player != null and is_instance_valid(_player) and not MetaProgression.player_blind_immune(_player):
 		target_radius *= DarkZone.get_vision_factor_at(get_tree(), _player.global_position)
 	_radius = lerpf(_radius, target_radius, 1.0 - exp(-RADIUS_SMOOTHING * delta))
 	# The logical circle is the player's light for gameplay (LightQuery, A9): state at the player.
@@ -257,7 +260,8 @@ func _process(delta: float) -> void:
 
 	var low_hp := 0.0
 	if _player != null and is_instance_valid(_player) and _player.is_alive():
-		_material.set_shader_parameter(&"player_pos", canvas * _player.global_position)
+		# The circle sits where gameplay counts it: at the player's figure (LightQuery, D-212).
+		_material.set_shader_parameter(&"player_pos", canvas * LightQuery.get_player_light_center(_player))
 		var hp := _player.health.get_health()
 		low_hp = 1.0 if hp <= 1.0 else (0.55 if hp <= 2.0 else 0.0)
 	_material.set_shader_parameter(&"low_hp", low_hp)

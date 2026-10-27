@@ -333,20 +333,26 @@ func is_ambush_active() -> bool:
 # --- Effective values (shared by attacks and UI) ---
 
 ## context_multiplier: situational multipliers such as finisher or special (D-019).
+## Talents (KE6) add their percent next to the forge bonus and their situational factor
+## (Ausweichkunst) to the context multiplier; neutral for a player without talents.
 func get_effective_damage(weapon: WeaponData, context_multiplier := 1.0) -> float:
+	var owner_player := get_parent()
 	return StatCalculator.compute_raw_damage(
 		weapon.base_damage,
 		_modifier(UpgradeData.Effect.DAMAGE_FLAT, weapon),
-		_modifier(UpgradeData.Effect.DAMAGE_PERCENT, weapon) + get_meta_damage_bonus(),
-		context_multiplier)
+		_modifier(UpgradeData.Effect.DAMAGE_PERCENT, weapon) + get_meta_damage_bonus(weapon)
+			+ TalentEffects.damage_bonus(owner_player, weapon.tags),
+		context_multiplier * TalentEffects.attack_multiplier(owner_player))
 
 
+## The special with the forge's factor from level III on (KE4, MetaProgression.player_special_factor).
 func get_effective_special_damage(weapon: WeaponData) -> float:
-	return get_effective_damage(weapon, weapon.special_damage_multiplier)
+	return get_effective_damage(weapon, weapon.special_damage_multiplier * MetaProgression.player_special_factor(get_parent(), weapon))
 
 
 func get_effective_attack_rate(weapon: WeaponData) -> float:
-	return StatCalculator.compute_attack_rate(weapon.attack_rate, 0.0, _modifier(UpgradeData.Effect.ATTACK_RATE_PERCENT, weapon))
+	return StatCalculator.compute_attack_rate(weapon.attack_rate, 0.0,
+		_modifier(UpgradeData.Effect.ATTACK_RATE_PERCENT, weapon) + TalentEffects.attack_rate_bonus(get_parent(), weapon.tags))
 
 
 func get_effective_projectile_speed(weapon: WeaponData) -> float:
@@ -378,13 +384,14 @@ func get_nova_radius(weapon: WeaponData) -> float:
 	return get_effective_aoe_radius(weapon) * NOVA_RADIUS_MULTIPLIER
 
 
-## Village damage bonus (Schärfe) of this run: only where the session takes the local save's upgrades
-## (single player, D-081). Quick games start without it - and the host must never add its own save's
-## level to the attacks of the other players' copies.
-func get_meta_damage_bonus() -> float:
-	if GameMode.of(self).get_meta_source() != GameMode.MetaSource.LOCAL:
-		return 0.0
-	return MetaProgression.get_damage_bonus()
+## Forge bonus of weapon ("Waffe schmieden", KE4): from the forge snapshot stored at this player
+## (MetaProgression.apply_forge_snapshot - solo the own save, in a quick game the host puts each
+## player's lobby snapshot on that player's copy, guild runs none). So the host never adds its own
+## save to the other players' attacks (D-081). weapon null = the active weapon (spells).
+func get_meta_damage_bonus(weapon: WeaponData = null) -> float:
+	if weapon == null:
+		weapon = get_active_weapon()
+	return MetaProgression.player_weapon_damage_bonus(get_parent(), weapon)
 
 
 func _modifier(effect: UpgradeData.Effect, weapon: WeaponData) -> float:
@@ -412,6 +419,8 @@ func _owner_is_armed() -> bool:
 
 func _create_damage(weapon: WeaponData, context_multiplier := 1.0, extra_tag: StringName = &"") -> DamageData:
 	var damage := DamageData.new()
+	if extra_tag == &"special":
+		context_multiplier *= MetaProgression.player_special_factor(get_parent(), weapon)
 	damage.amount = get_effective_damage(weapon, context_multiplier)
 	damage.source = get_parent()
 	damage.tags.assign(weapon.tags)

@@ -1,6 +1,6 @@
 class_name StoneGuardian
 extends Enemy
-## Stone guardian of "Lichtfeuer" (KONZEPT_RAEUME_V2 §3.9; before the variant "Steinwächter", A9): a
+## Stone guardian of "Lichtfeuer" (RAEUME §3.9; before the variant "Steinwächter", A9): a
 ## knight statue that only moves outside every light circle. In the light (LightQuery: the fires,
 ## crystals, torches; the players' own circles only if player_light_counts) it freezes - eyes out, a
 ## puff of stone dust - and takes damage; in

@@ -4,7 +4,7 @@ extends Node2D
 ## that shrinks the light circle of whoever stands in it. The decision lives in one place,
 ## get_vision_factor_at(), for any point, so every player gets their own factor (Koop); the effect
 ## (a smaller vision radius) is applied by the VisionOverlay (hook, see the A3 report). The patch
-## itself is drawn here: a soft dark blob with slowly drifting wisps.
+## itself is drawn here: a dark pixel blob that fades out in a few hard steps (D-218) and breathes.
 
 const GROUP := &"dark_zones"
 ## Radius in world px and the vision factor in its middle (TESTWERTE).
@@ -14,12 +14,11 @@ const DEFAULT_VISION_FACTOR := 0.6
 const CORE_SHARE := 0.5
 const SHADE_ALPHA := 0.55
 const Z := -5
-const TEXTURE_SIZE := 64
+## The patch fades out in this many hard rings.
+const SHADE_STEPS := 4
 
 @export var radius := DEFAULT_RADIUS
 @export_range(0.0, 1.0) var vision_factor := DEFAULT_VISION_FACTOR
-
-static var _texture: Texture2D = null
 
 var _time := 0.0
 var _shade: Sprite2D = null
@@ -53,33 +52,26 @@ func _enter_tree() -> void:
 func _ready() -> void:
 	z_index = Z
 	_shade = Sprite2D.new()
-	_shade.texture = _get_texture()
-	_shade.scale = Vector2.ONE * (radius * 2.0 / TEXTURE_SIZE)
+	_shade.texture = get_shade_texture(radius)
+	_shade.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# One texel per art pixel (D-218).
+	_shade.scale = Vector2.ONE * PixelDraw.WORLD_PIXEL
 	_shade.modulate = Color(1, 1, 1, SHADE_ALPHA)
 	add_child(_shade)
 
 
 func _process(delta: float) -> void:
-	# Optics only: the blob breathes a little.
+	# Optics only: the blob breathes a little (no turning: its pixels stay on the grid).
 	_time += delta
 	_shade.modulate.a = SHADE_ALPHA * (0.9 + 0.1 * sin(_time * 0.8))
-	_shade.rotation = _time * 0.05
 
 
-## Radial gradient, black in the middle, transparent at the edge.
-static func _get_texture() -> Texture2D:
-	if _texture != null:
-		return _texture
+## Dark patch for a zone of zone_radius world px: black in the middle, SHADE_STEPS hard steps to
+## transparent at the edge (pixel art, D-218; cached per size in PixelDraw).
+static func get_shade_texture(zone_radius: float) -> Texture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color(0.0, 0.0, 0.02, 1.0))
 	gradient.set_color(1, Color(0.0, 0.0, 0.02, 0.0))
 	gradient.add_point(0.55, Color(0.0, 0.0, 0.02, 0.75))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.5)
-	texture.fill_to = Vector2(1.0, 0.5)
-	texture.width = TEXTURE_SIZE
-	texture.height = TEXTURE_SIZE
-	_texture = texture
-	return _texture
+	var radius_pixels := maxi(1, roundi(zone_radius / PixelDraw.WORLD_PIXEL))
+	return PixelDraw.stepped_glow_texture(radius_pixels, gradient, SHADE_STEPS)

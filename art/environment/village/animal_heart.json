@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "8×8, erscheint 6 px über dem Tier beim Streicheln, 1 s, steigt 4 px."
+  ],
+  "items": [
+    {
+      "name": "animal_heart",
+      "file": "animal_heart.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        4,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

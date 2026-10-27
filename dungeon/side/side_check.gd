@@ -1,7 +1,8 @@
 extends SceneTree
-## Plays every side-segment layout (M5) with the autopilot (SideBot) and checks the rules at runtime:
-## the plan rules (SideLayout.check), the door is reached by jumping and climbing within
-## SideRules.MAX_SEGMENT_SECONDS, the golden coin is fetched with the double jump on the way, the
+## Plays every obstacle run (Hindernislauf, D-216: ObstacleRunPlans, plain and mirrored) with the
+## autopilot (SideBot) and checks the rules at runtime: the run rules (SideLayout.check), the door is
+## reached by jumping and climbing within SideRules.RUN_SECONDS_RANGE (about a minute, not shorter
+## than its low end either), the golden coin is fetched with the double jump on the way, the
 ## player never falls into a pit, the autopilot walks up to every niche chest (it stands in the
 ## chest's interaction range, D-144), enemies, spikes and crumbling ledges are only counted. The
 ## player is invulnerable for the check (it measures the way, not the fight).
@@ -9,8 +10,12 @@ extends SceneTree
 ## segments) and its shots are counted, pools count the players they slowed. hits=1 lets the player
 ## take hits (health stays high): turret slows and spikes act on the run, and the bot must still
 ## make it without falling into a pit.
+## The rule "the bot makes every run" - every tier and element: moving platforms (waits and rides),
+## springs, tilting platforms, collapsing bridges, saws (waits; hits are counted), wall-jump shafts,
+## lanterns, slopes and ramps; no dash (D-216). tier=<1-3> plays only the runs of one tier;
+## pieces=1 plays the pieces of the runs alone (SidePlans, up to SideRules.MAX_PIECE_SECONDS).
 ## Usage (repo root):
-##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- [plan=<id>] [mirror=0|1] [hits=1]
+##   godot --headless --audio-driver Dummy --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- [plan=<id>] [mirror=0|1] [hits=1] [pieces=1]
 ##   godot --headless --fixed-fps 60 --path . -s dungeon/side/side_check.gd -- dungeon
 ##     (the hook path in the real dungeon: SideWays.plan puts a gate between room 1 and 2, the
 ##     player walks in, SideTransit runs the segment with the autopilot, room 2 starts afterwards)
@@ -22,13 +27,17 @@ const SAVE_PATH := "user://side_check_save.cfg"
 const SETTINGS_PATH := "user://side_check_settings.cfg"
 const PLAYER_SCENE_PATH := "res://player/player.tscn"
 const SHOT_BIOMES := [&"crypt", &"slime_grotto", &"shadow_realm", &"ember_forge"]
-const SHOT_PLANS := [&"crypt_cistern", &"grotto_spores", &"shadow_rift", &"ember_quench"]
+const SHOT_PLANS := [&"crypt_run_lift", &"grotto_run_saws", &"shadow_run_shaft", &"ember_run_rails"]
 
 var _failures: Array[String] = []
 var _shots_dir := ""
 var _dungeon_mode := false
 var _take_hits := false
 var _chests_reached := 0
+## chest=0: the niche stays empty (the way outside the ladder way: the bot goes straight on).
+var _with_chest := true
+## pieces=1: the pieces alone instead of the runs.
+var _pieces := false
 
 
 func _init() -> void:
@@ -38,6 +47,7 @@ func _init() -> void:
 func _run() -> void:
 	var only_plan := ""
 	var only_mirror := -1
+	var only_tier := 0
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("plan="):
 			only_plan = arg.trim_prefix("plan=")
@@ -49,6 +59,12 @@ func _run() -> void:
 			_dungeon_mode = true
 		elif arg == "hits=1":
 			_take_hits = true
+		elif arg == "chest=0":
+			_with_chest = false
+		elif arg.begins_with("tier="):
+			only_tier = int(arg.trim_prefix("tier="))
+		elif arg == "pieces=1":
+			_pieces = true
 	var save_manager := root.get_node("SaveManager")
 	save_manager.save_path = SAVE_PATH
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
@@ -64,19 +80,27 @@ func _run() -> void:
 		await _dungeon_check()
 		_finish()
 		return
-	var plans_script: GDScript = load("res://dungeon/side/side_plans.gd")
+	var plans_script: GDScript = _plans_script()
 	var total := 0
 	var seconds_sum := 0.0
+	var shortest := INF
+	var longest := 0.0
 	for plan_id: StringName in plans_script.all_ids():
 		if not only_plan.is_empty() and String(plan_id) != only_plan:
+			continue
+		if only_tier > 0 and plans_script.tier_of(plan_id) != only_tier:
 			continue
 		for mirrored in [false, true]:
 			if only_mirror >= 0 and int(mirrored) != only_mirror:
 				continue
 			var result: Dictionary = await _play(plan_id, mirrored)
+			var seconds := float(result.get("seconds", 0.0))
 			total += 1
-			seconds_sum += float(result.get("seconds", 0.0))
-	print("side_check: %d layouts, mean %.1f s, %d chests reached" % [total, seconds_sum / maxf(1.0, total), _chests_reached])
+			seconds_sum += seconds
+			shortest = minf(shortest, seconds)
+			longest = maxf(longest, seconds)
+	print("side_check: %d layouts, mean %.1f s, shortest %.1f s, longest %.1f s, %d chests reached" % [
+			total, seconds_sum / maxf(1.0, total), shortest, longest, _chests_reached])
 	_finish()
 
 
@@ -91,9 +115,14 @@ func _finish() -> void:
 		quit(1)
 
 
+## The plans played: the obstacle runs, or their pieces (pieces=1).
+func _plans_script() -> GDScript:
+	return load("res://dungeon/side/side_plans.gd" if _pieces else "res://dungeon/side/obstacle_run_plans.gd")
+
+
 func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
-	var plans_script: GDScript = load("res://dungeon/side/side_plans.gd")
-	var layout: Variant = plans_script.build(plan_id, mirrored)
+	var layout: Variant = _plans_script().build(plan_id, mirrored)
+	layout.chest_enabled = _with_chest
 	var name := "%s%s" % [plan_id, " (gespiegelt)" if mirrored else ""]
 	for error: String in layout.check():
 		_failures.append(error + (" (gespiegelt)" if mirrored else ""))
@@ -116,7 +145,10 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	bot.fetch_chest = chest != null
 	var interaction_area: Area2D = player.get_node("InteractionArea")
 	var chest_reached := false
-	var max_frames := int(70.0 * Engine.physics_ticks_per_second)
+	var rules: GDScript = load("res://dungeon/side/side_rules.gd")
+	var limit: float = rules.max_seconds_for(layout)
+	var minimum: float = rules.RUN_SECONDS_RANGE.x if layout.is_obstacle_run() else 0.0
+	var max_frames := int((limit + 25.0) * Engine.physics_ticks_per_second)
 	var frames := 0
 	var slowed_frames := 0
 	while not segment.is_finished and frames < max_frames:
@@ -136,20 +168,36 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 	var crumbled := 0
 	for crumble: Node in segment.get_crumbles():
 		crumbled += crumble.crumble_count
-	var line := "%s: %s in %.1f s, %d/%d Münzen, goldene Münze %s, Truhe %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze, %d Türme (%d Schüsse), %d Becken (%.1f s gebremst), %d Stacheln" % [
-		name, "Tür erreicht" if segment.is_finished else "Tür NICHT erreicht", seconds,
+	var saw_hits := 0
+	for saw: Node in segment.get_saws():
+		saw_hits += saw.hits
+	var launches := 0
+	for spring: Node in segment.get_springs():
+		launches += spring.launches
+	var lit := 0
+	for lantern: Node in segment.get_lanterns():
+		lit += int(lantern.is_lit)
+	var line := "%s: Stufe %d, %s in %.1f s, %d/%d Münzen, goldene Münze %s, Truhe %s, Gold %d, %d Sprünge, %d Doppelsprünge%s, %d Wandsprünge, %d Bröckel, %d Stürze, %d Türme (%d Schüsse), %d Becken (%.1f s gebremst), %d Stacheln" % [
+		name, layout.tier, "Tür erreicht" if segment.is_finished else "Tür NICHT erreicht", seconds,
 		segment.coins_taken, segment.coins_total, "ja" if segment.golden_coin_taken else "nein",
 		"erreicht" if chest_reached else ("NICHT erreicht" if chest != null else "keine"), segment.gold_earned,
 		bot.jumps, player.side_motion.double_jumps, " (Pflicht)" if layout.way_needs_double_jump() else "",
 		player.side_motion.wall_jumps, crumbled, falls, segment.get_turrets().size(), turret_shots,
 		segment.get_pools().size(), slowed_frames / float(Engine.physics_ticks_per_second), segment.get_spikes().size()]
+	if not layout.element_kinds().is_empty() or not layout.lanterns.is_empty():
+		line += ", Elemente %s: %d Plattformen (%.1f s gewartet), %d Federn (%d Würfe), %d Sägen (%d Treffer, %.1f s gewartet), %d Wandsprung-Tasten, %d Rampenwürfe, Laternen %d/%d" % [
+			",".join(layout.element_kinds()), segment.get_movers().size(), bot.mover_wait_frames / float(Engine.physics_ticks_per_second),
+			segment.get_springs().size(), launches, segment.get_saws().size(), saw_hits,
+			bot.saw_wait_frames / float(Engine.physics_ticks_per_second), bot.wall_jump_presses, player.side_motion.ramp_launches, lit, segment.get_lanterns().size()]
 	print(line)
 	if chest_reached:
 		_chests_reached += 1
 	if not segment.is_finished:
 		_failures.append("%s: door not reached (bot at %s)" % [name, segment.to_local(player.get_feet_position())])
-	elif seconds > 45.0:
-		_failures.append("%s: %.1f s > 45 s" % [name, seconds])
+	elif seconds > limit:
+		_failures.append("%s: %.1f s > %.0f s" % [name, seconds, limit])
+	elif seconds < minimum:
+		_failures.append("%s: %.1f s < %.0f s (too short for an obstacle run)" % [name, seconds, minimum])
 	if falls > 0:
 		_failures.append("%s: %d falls into a pit" % [name, falls])
 	if segment.get_turrets().size() != layout.turrets.size():
@@ -158,7 +206,7 @@ func _play(plan_id: StringName, mirrored: bool) -> Dictionary:
 		_failures.append("%s: golden coin not reached with the double jump" % name)
 	if layout.chest.x < 0:
 		_failures.append("%s: no chest niche" % name)
-	elif not chest_reached:
+	elif not chest_reached and _with_chest:
 		_failures.append("%s: chest at %s not reached (bot at %s)" % [name, layout.chest, segment.to_local(player.get_feet_position())])
 	segment.remove_players()
 	world.queue_free()
@@ -210,7 +258,7 @@ func _dungeon_check() -> void:
 	_expect(player.is_side_view(), "the player is in side view")
 	var _bot: Variant = (load("res://dungeon/side/side_bot.gd") as GDScript).drive(transit.segment, player)
 	waited = 0.0
-	while is_instance_valid(transit) and waited < 70.0:
+	while is_instance_valid(transit) and waited < 110.0:
 		await _seconds(0.25)
 		waited += 0.25
 	_bot = null
@@ -245,7 +293,7 @@ func _screenshots() -> void:
 	var player: Node2D = controller.get_player()
 	player.health.reset(99999.0)
 	player.hurtbox.set_invulnerable(&"side_check", true)
-	var plans_script: GDScript = load("res://dungeon/side/side_plans.gd")
+	var plans_script: GDScript = load("res://dungeon/side/obstacle_run_plans.gd")
 	var transit_script: GDScript = load("res://dungeon/side/side_transit.gd")
 	var start: Vector2 = player.global_position
 	for i in SHOT_BIOMES.size():
@@ -272,7 +320,7 @@ func _screenshots() -> void:
 		var shots_taken := 0
 		var elapsed := 0.0
 		var crumble_shot := false
-		while is_instance_valid(transit) and transit.segment != null and not transit.segment.is_finished and elapsed < 60.0:
+		while is_instance_valid(transit) and transit.segment != null and not transit.segment.is_finished and elapsed < 90.0:
 			await _seconds(0.1)
 			elapsed += 0.1
 			if shots_taken < 2 and elapsed >= 5.0 + shots_taken * 6.0:

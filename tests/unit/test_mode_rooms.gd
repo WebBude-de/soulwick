@@ -1,5 +1,5 @@
 extends GutTest
-## Room modes in a plain combat room without plan markers (R4b, KONZEPT_RAEUME_V2 §3; the hall is the
+## Room modes in a plain combat room without plan markers (R4b, RAEUME §3; the hall is the
 ## fallback when no plan of a mode fits): attaching through RoomVariants (one RNG number, never two),
 ## the shared RoomMode interface (goal and intro on entry, start with the fight, end with the room),
 ## every mode finds its own spots, the flame (pushes, raid time, flame out, light), the rifts (count

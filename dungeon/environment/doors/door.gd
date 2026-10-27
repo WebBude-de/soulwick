@@ -2,7 +2,7 @@ class_name Door
 extends StaticBody2D
 ## One-tile door on the world layer. Node origin = top-left corner of its tile.
 ## Logic only: open/closed and the collision. Looks, particles, light and sound live in DoorView
-## ($View), which follows state_changed (ROADMAP_AUSBAU D1, decisions separate from effects).
+## ($View), which follows state_changed (ROADMAP D1, decisions separate from effects).
 ## Biome and destination come from outside: configure() / configure_for_room() / set_destination().
 ## The way behind an exit door (R5): show_way() puts the mode symbol over it and a light cone in the
 ## mode colour in front of it (DoorSigns decides both from the prepared next room).

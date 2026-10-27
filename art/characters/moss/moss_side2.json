@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "Teil C: echter Laufzyklus, Lehne 18°, stomp Frame 1 airborne."
+  ],
+  "items": [
+    {
+      "name": "moss_sprint",
+      "file": "moss_sprint_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 14,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "Laufzyklus: Kontakt, Abdruck, Flug, Kontakt; ~18° nach vorn geneigt, Haare/Schal wehen"
+    },
+    {
+      "name": "moss_stomp",
+      "file": "moss_stomp_3f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 3,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": "1 in der Luft (Füße unten), 2 Aufprall gestaucht, 3 Rückfeder"
+    }
+  ]
+}

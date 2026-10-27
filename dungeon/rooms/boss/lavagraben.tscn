@@ -16,7 +16,7 @@ pit_rects = Array[Rect2i]([Rect2i(2, 4, 17, 2)])
 bridge_rects = Array[Rect2i]([Rect2i(5, 4, 2, 2), Rect2i(14, 4, 2, 2)])
 door_slots = Array[Vector2i]([Vector2i(2, 10), Vector2i(0, 10)])
 front_fixtures = Array[Vector2i]([Vector2i(1, -1), Vector2i(4, -1), Vector2i(16, -1), Vector2i(19, -1)])
-overlay_cells = Array[Vector3i]([Vector3i(0, 0, 8), Vector3i(0, 1, 0), Vector3i(0, 3, 8), Vector3i(0, 6, 0), Vector3i(0, 7, 9), Vector3i(5, 9, 0), Vector3i(8, 6, 3), Vector3i(8, 7, 8), Vector3i(9, 6, 0), Vector3i(10, 6, 9), Vector3i(11, 6, 11), Vector3i(12, 8, 13), Vector3i(12, 9, 8), Vector3i(13, 9, 0), Vector3i(14, 0, 8), Vector3i(16, 0, 9), Vector3i(16, 9, 8), Vector3i(17, 9, 1), Vector3i(18, 8, 0), Vector3i(19, 8, 0), Vector3i(20, 6, 5), Vector3i(20, 8, 8)])
+overlay_cells = Array[Vector3i]([Vector3i(0, 0, 8), Vector3i(0, 1, 0), Vector3i(0, 3, 8), Vector3i(0, 6, 0), Vector3i(0, 7, 9), Vector3i(4, 8, 3), Vector3i(5, 1, 13), Vector3i(8, 6, 3), Vector3i(8, 7, 8), Vector3i(9, 6, 0), Vector3i(10, 6, 9), Vector3i(11, 6, 11), Vector3i(12, 8, 13), Vector3i(12, 9, 8), Vector3i(13, 9, 0), Vector3i(14, 0, 8), Vector3i(16, 0, 9), Vector3i(16, 9, 8), Vector3i(17, 9, 1), Vector3i(18, 8, 0), Vector3i(20, 4, 5), Vector3i(20, 7, 8)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(96, 96)
@@ -134,6 +134,7 @@ item = &"group_large_2"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(0, 9), Vector2i(1, 9), Vector2i(2, 9)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(16, 60)
 biome = &"ember_forge"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -143,6 +144,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(18, 9), Vector2i(19, 9), Vector2i(20, 9)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(18, 60)
 biome = &"ember_forge"
 
 [node name="Group3" type="Node2D" parent="Props"]
@@ -152,13 +154,13 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(5, 0), Vector2i(6, 0), Vector2i(7, 0)])
 solid_span = Vector2(-86, 86)
+solid_gaps = PackedVector2Array(18, 60)
 biome = &"ember_forge"
 
 [node name="Group4" type="Node2D" parent="Props"]
-position = Vector2(1280, 248)
+position = Vector2(320, 632)
 script = ExtResource("4_deco")
-item = &"group_2"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(19, 3), Vector2i(20, 3)])
-solid_span = Vector2(-52, 48)
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(4, 9), Vector2i(5, 9)])
+solid_span = Vector2(-50, 46)
 biome = &"ember_forge"

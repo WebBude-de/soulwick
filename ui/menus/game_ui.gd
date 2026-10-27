@@ -10,6 +10,9 @@ extends CanvasLayer
 ## on phones.
 ## P1-3: the run end names what the village gold buys now ("Im Dorf leistbar: Vitalität I (40 Gold)")
 ## or how much is missing for the cheapest forge step; the first run always counts as a record.
+## Rückkehrstein (KE5): "Rückkehrstein einsetzen" in the pause menu (with a question) while the local
+## player's stone is ready; on the gamepad Select held RETURN_STONE_HOLD_MSEC breaks it, a short press
+## still opens the upgrade overview (on release). Both ask DungeonManager.request_return_stone.
 
 signal abort_run_requested
 signal main_menu_requested
@@ -24,6 +27,8 @@ const PAUSE_OPTIONS: StringName = &"options"
 const PAUSE_WIDTH := 170.0
 const RUN_END_WIDTH := 300.0
 const CONFIRM_WIDTH := 220.0
+## Gamepad: Select held this long breaks the return stone (KE5). TESTWERT
+const RETURN_STONE_HOLD_MSEC := 500
 ## Run end stat tiles (mockup pixels; R8 lower, the dialog stays under 60 % of the screen).
 const STAT_TILE_SIZE := Vector2(62, 24)
 const SKULL_ICON: Texture2D = preload("res://art/ui/skull_icon.png")
@@ -41,6 +46,9 @@ var _recap: RunRecap = null
 ## Texts of the open pause menu: [node, key, args] (D-111). The language can change in the options
 ## opened from it, so _notification() sets them again.
 var _pause_texts: Array = []
+## Gamepad Select in the dungeon: when it went down (-1 = up) and whether the hold broke the stone.
+var _select_down_msec := -1
+var _select_fired := false
 
 
 func _ready() -> void:
@@ -62,6 +70,67 @@ func get_recap() -> RunRecap:
 
 func get_pause_modal() -> Modal:
 	return _pause_modal
+
+
+## Gamepad Select in the dungeon (KE5): held back here, a short press becomes the upgrade overview
+## on release, a hold the return stone (_process). Only over running gameplay: menus keep Select.
+func _input(event: InputEvent) -> void:
+	var pad := event as InputEventJoypadButton
+	if pad == null or pad.button_index != JOY_BUTTON_BACK or not in_dungeon:
+		return
+	if pad.pressed:
+		if _select_down_msec >= 0 or GameManager.is_game_paused():
+			return
+		get_viewport().set_input_as_handled()
+		_select_down_msec = Time.get_ticks_msec()
+		_select_fired = false
+		return
+	if _select_down_msec < 0:
+		return
+	get_viewport().set_input_as_handled()
+	var fired := _select_fired
+	_select_down_msec = -1
+	_select_fired = false
+	if not fired:
+		_replay_action(&"upgrade_overview")
+
+
+func _process(_delta: float) -> void:
+	if _select_down_msec < 0 or _select_fired:
+		return
+	if Time.get_ticks_msec() - _select_down_msec >= RETURN_STONE_HOLD_MSEC and _stone_ready():
+		_select_fired = true
+		break_return_stone()
+
+
+## A press (and release) of action as if its key was used (the held-back Select).
+func _replay_action(action: StringName) -> void:
+	for pressed in [true, false]:
+		var event := InputEventAction.new()
+		event.action = action
+		event.pressed = pressed
+		Input.parse_input_event(event)
+
+
+## The dungeon of this game, null in the village or without a WorldController.
+func get_dungeon() -> DungeonManager:
+	var owner_node := get_tree().get_first_node_in_group(GameMode.OWNER_GROUP) if is_inside_tree() else null
+	if owner_node == null or not owner_node.has_method(&"get_world"):
+		return null
+	return owner_node.call(&"get_world") as DungeonManager
+
+
+## The local player can break its return stone now (Proviant packed, not used yet, in the dungeon).
+func _stone_ready() -> bool:
+	var player := Hud.local_player(get_tree()) if is_inside_tree() else null
+	return in_dungeon and player != null and MetaProgression.can_use_return_stone(player)
+
+
+## Breaks the local player's return stone (pause menu, Select held): the host opens the gate.
+func break_return_stone() -> bool:
+	var dungeon := get_dungeon()
+	var player := Hud.local_player(get_tree())
+	return dungeon != null and player != null and dungeon.request_return_stone(player)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -99,9 +168,12 @@ func open_pause_menu() -> void:
 	_pause_texts.append([title, &"GAME_UI_PAUSE", []])
 	_add_pause_button(modal, _pause_button(&"GAME_UI_RESUME", &"", [], modal.finish.bind(&"resume")))
 	_add_pause_button(modal, _pause_button(&"MENU_OPTIONS", &"MENU_OPTIONS_HINT", [], open_options))
+	if in_dungeon and _stone_ready():
+		_add_pause_button(modal, _pause_button(&"GAME_UI_RETURN_STONE", &"GAME_UI_RETURN_STONE_HINT", [], modal.finish.bind(&"return_stone")))
 	if in_dungeon:
 		var payout := RunManager.calculate_payout(RunManager.get_run_gold(), RunManager.EndReason.ABORT)
-		_add_pause_button(modal, _pause_button(&"GAME_UI_ABORT_RUN", &"GAME_UI_ABORT_RUN_HINT", [payout], modal.finish.bind(&"abort"), true))
+		var ratio := roundi(RunManager.get_loss_payout_ratio() * 100.0)
+		_add_pause_button(modal, _pause_button(&"GAME_UI_ABORT_RUN", &"GAME_UI_ABORT_RUN_HINT", [ratio, payout], modal.finish.bind(&"abort"), true))
 	else:
 		_add_pause_button(modal, _pause_button(&"GAME_UI_MAIN_MENU", &"GAME_UI_MAIN_MENU_HINT", [], modal.finish.bind(&"main_menu")))
 	# A browser tab cannot close itself.
@@ -122,6 +194,9 @@ func open_pause_menu() -> void:
 	_pause_buttons.clear()
 	_pause_texts.clear()
 	match choice:
+		&"return_stone":
+			if await _confirm_return_stone():
+				break_return_stone()
 		&"abort":
 			if await _confirm_abort():
 				abort_run_requested.emit()
@@ -209,7 +284,7 @@ func show_run_end(summary: Dictionary, stats: Dictionary = {}) -> StringName:
 		stats = _recap.get_stats()
 	var reason: int = summary.get("reason", RunManager.EndReason.DEATH)
 	var title_text := DungeonTexts.t(&"RUNEND_DEATH")
-	var ratio_text := "50 %"
+	var ratio_text := "%d %%" % roundi(float(summary.get("loss_ratio", RunManager.LOSS_PAYOUT_RATIO)) * 100.0)
 	var title_color := UiKit.COLOR_DANGER
 	if reason == RunManager.EndReason.EXIT:
 		title_text = DungeonTexts.t(&"RUNEND_EXIT")
@@ -339,7 +414,7 @@ func _forge_hint(step: Dictionary) -> Label:
 static func forge_hint_text(step: Dictionary) -> String:
 	if step.is_empty():
 		return ""
-	var upgrade := "%s %s" % [MetaProgression.get_upgrade_name(step["id"]), RunRecap.roman(int(step["level"]))]
+	var upgrade := str(step.get("name", MetaProgression.get_step_name(step["id"], int(step["level"]))))
 	var missing := int(step.get("missing", 0))
 	if missing <= 0:
 		return PadNav.text(&"RUNEND_FORGE_AFFORDABLE", [upgrade, int(step["cost"])], "Affordable in the village: %s (%d gold)")
@@ -399,14 +474,27 @@ func _select_pause_button(index: int, by_key: bool) -> void:
 		_pause_buttons[i].add_theme_stylebox_override("normal", UiKit.padded_style(&"button_hover" if selected else &"button", 4, 8))
 
 
+## "Rückkehrstein einsetzen?" (KE5): true = break it, a soul gate opens in this room.
+func _confirm_return_stone() -> bool:
+	var modal := UiDialog.create(GameManager.PAUSE_CONFIRM, CONFIRM_WIDTH, Loc.t(&"GAME_UI_RETURN_STONE_QUESTION"),
+		Loc.t(&"GAME_UI_RETURN_STONE_TEXT"))
+	modal.cancel_result = false
+	UiDialog.add_buttons(modal, [
+		{"text": Loc.t(&"GAME_UI_RETURN_STONE_CONFIRM"), "sub": "", "result": true, "default": true},
+		{"text": Loc.t(&"GAME_UI_RESUME"), "sub": "Esc", "result": false},
+	])
+	return await modal.open(self)
+
+
 func _confirm_abort() -> bool:
 	var gold := RunManager.get_run_gold()
+	var ratio := roundi(RunManager.get_loss_payout_ratio() * 100.0)
 	var modal := UiDialog.create(GameManager.PAUSE_CONFIRM, CONFIRM_WIDTH, Loc.t(&"GAME_UI_ABORT_QUESTION"),
-		Loc.t(&"GAME_UI_ABORT_TEXT", [gold]))
+		Loc.t(&"GAME_UI_ABORT_TEXT", [ratio, gold]))
 	modal.cancel_result = false
 	UiDialog.add_rows(modal, [
 		[Loc.t(&"GAME_UI_RUN_GOLD"), str(gold), UiKit.COLOR_GOLD],
-		[DungeonTexts.t(&"RUNEND_PAYOUT", ["50 %"]), str(RunManager.calculate_payout(gold, RunManager.EndReason.ABORT)), UiKit.COLOR_SUCCESS],
+		[DungeonTexts.t(&"RUNEND_PAYOUT", ["%d %%" % ratio]), str(RunManager.calculate_payout(gold, RunManager.EndReason.ABORT)), UiKit.COLOR_SUCCESS],
 	])
 	UiDialog.add_buttons(modal, [
 		{"text": Loc.t(&"GAME_UI_ABORT_CONFIRM"), "sub": "", "result": true},

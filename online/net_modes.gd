@@ -25,7 +25,7 @@ const ACTION_RANGE := 140.0
 ## Client: the villager follows the host's way share at this many px per second at most.
 const VILLAGER_FOLLOW_SPEED := 260.0
 
-enum Event { STARTED, SOUL_SPAWNED, SOUL_TAKEN, SOUL_LOST, SOULS_OVER, FIELD_WARNED, FIELD_BROKEN, SURVIVED, TORCH_LIT, RESCUED, VILLAGER_LOST }
+enum Event { STARTED, SOUL_SPAWNED, SOUL_TAKEN, SOUL_LOST, SOULS_OVER, FIELD_WARNED, FIELD_BROKEN, SURVIVED, TORCH_LIT, RESCUED, VILLAGER_LOST, SINKHOLE }
 
 var net: NetDungeon = null
 var dm: DungeonManager = null
@@ -140,6 +140,8 @@ func _watch_host(room: RoomController, mode: CombatVariant) -> void:
 		collapse.field_warned.connect(func(_m: CollapseMode, index: int) -> void: _event(room, Event.FIELD_WARNED, [index]))
 		collapse.field_broken.connect(func(_m: CollapseMode, index: int, _tiles: Array[Vector2i]) -> void: _event(room, Event.FIELD_BROKEN, [index]))
 		collapse.survived.connect(func(_m: CollapseMode) -> void: _event(room, Event.SURVIVED))
+		collapse.sinkhole_changed.connect(func(_m: CollapseMode, tiles: Array[Vector2i], phase: CollapseMode.SinkPhase) -> void:
+			_event(room, Event.SINKHOLE, _sinkhole_args(tiles, phase)))
 	elif mode is EscortMode:
 		var escort := mode as EscortMode
 		escort.rescued.connect(func(_m: EscortMode, _chicken: bool) -> void:
@@ -519,6 +521,10 @@ func apply_event(room: RoomController, kind: int, args: Array = []) -> bool:
 			if not mode is CollapseMode:
 				return false
 			_apply_collapse(room, mode as CollapseMode, kind, args)
+		Event.SINKHOLE:
+			if not mode is CollapseMode or args.is_empty():
+				return false
+			(mode as CollapseMode).apply_sinkhole(_sinkhole_tiles(args), int(args[0]) as CollapseMode.SinkPhase)
 		Event.TORCH_LIT:
 			var torch := mode.get_node_or_null(NodePath(str(args[0]) if not args.is_empty() else "")) as RoomTorch
 			if torch == null:
@@ -710,6 +716,22 @@ func _apply_souls(souls: SoulsMode, kind: int, args: Array) -> void:
 				var crystal := souls.get_crystal_pickup()
 				if crystal != null:
 					crystal.amount = 0
+
+
+## Sinkhole as event arguments: [phase, x0, y0, x1, y1, …] (plain ints for the wire).
+static func _sinkhole_args(tiles: Array[Vector2i], phase: CollapseMode.SinkPhase) -> Array:
+	var args: Array = [int(phase)]
+	for tile in tiles:
+		args.append(tile.x)
+		args.append(tile.y)
+	return args
+
+
+static func _sinkhole_tiles(args: Array) -> Array[Vector2i]:
+	var tiles: Array[Vector2i] = []
+	for i in range(1, args.size() - 1, 2):
+		tiles.append(Vector2i(int(args[i]), int(args[i + 1])))
+	return tiles
 
 
 func _apply_collapse(room: RoomController, collapse: CollapseMode, kind: int, args: Array) -> void:

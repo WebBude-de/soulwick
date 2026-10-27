@@ -701,15 +701,31 @@ func _controller() -> WorldController:
 	return get_tree().get_first_node_in_group(GameMode.OWNER_GROUP) as WorldController
 
 
-## What the other machines need to draw this player: name, character, clothing colour, platform.
+## What the other machines need to draw this player: name, character, clothing colour, platform;
+## and what the host needs to run it (KONZEPT §3.2, §9): the own danger level for the group level,
+## the solo character's talents and the account level (the host sanitizes them against it).
 func _local_profile() -> Dictionary:
 	var session := get_session()
 	var player_name := session.get_player_name() if session != null else ""
 	if player_name.is_empty():
 		player_name = OnlineSession.sanitize_name(SaveManager.get_display_name())
+	var account := AccountProgress.current()
 	return {
 		"name": player_name,
 		"character": String(SaveManager.get_character_id()),
 		"color": SaveManager.get_character_color().to_html(false),
 		"platform": OnlineConfig.get_platform(),
+		"danger": account.get_danger_level(),
+		"level": account.get_level(),
+		"talents": AccountTalents.load_state(account).to_dict(),
+		# KE4: the own forge for the dungeon of a quick game (the host applies it, NetPlayers).
+		"forge": MetaProgression.forge_snapshot(),
+		# KE5: the own Proviant and trade levels for a quick game (the host applies them, NetPlayers).
+		"provisions": MetaProgression.provision_snapshot(own_provisions()),
 	}
+
+
+## The Proviant this machine brings into a quick game: the run's (start_run took it from the save
+## before the dungeon attaches its players) or, in the village, the packed one.
+static func own_provisions() -> Array[StringName]:
+	return RunManager.get_run_boosts() if RunManager.is_run_active() else SaveManager.get_pending_boosts()

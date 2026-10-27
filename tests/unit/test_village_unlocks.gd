@@ -87,7 +87,7 @@ func test_locked_door_shows_a_notice_instead_of_the_dialog() -> void:
 	watch_signals(village)
 	village.enter_building(VillageBuildings.CHRONICLE)
 	assert_null(village.ui.get_building_modal(), "no dialog")
-	assert_null(village.ui.get_intro_modal(), "no explanation either")
+	assert_false(village.ui.is_intro_open(), "no explanation either")
 	assert_false(village.ui.is_dialog_open())
 	assert_signal_not_emitted(village, "building_entered")
 	assert_eq(_notice_title(village.ui), "Chronik")
@@ -125,7 +125,7 @@ func test_village_announces_new_unlocks_once() -> void:
 	SaveManager.add_stat(StatsTracker.BOSSES, 1)
 	var village := _village()
 	assert_eq(_notice_title(village.ui), MetaUnlocks.get_announce_title())
-	assert_eq(_notice_lines(village.ui), ["Chronik", "Schmiede: Goldgier, Dash-Training und Arsenal"] as Array[String])
+	assert_eq(_notice_lines(village.ui), ["Chronik", "Schmiede: Arsenal und Zweiter Startplatz"] as Array[String])
 	assert_false(village.has_lock_marker(VillageBuildings.CHRONICLE), "synced from the statistics on load")
 	assert_eq(SaveManager.load_game(), OK)
 	assert_true(MetaUnlocks.has_event(MetaUnlocks.EVENT_FIRST_BOSS), "the village saved the events")
@@ -156,8 +156,10 @@ func test_forge_hides_locked_upgrades_with_a_hint() -> void:
 	for node in modal.find_children("*", "Label", true, false):
 		texts.append((node as Label).text)
 	assert_has(texts, "Weitere Verbesserungen öffnen nach deinem ersten Boss.")
-	for id in [MetaProgression.GOLD_GREED, MetaProgression.DASH_TRAINING, MetaProgression.ARSENAL]:
-		assert_does_not_have(texts, MetaProgression.get_upgrade_name(id), "%s hidden while locked" % id)
+	assert_does_not_have(texts, MetaProgression.get_upgrade_name(MetaProgression.SECOND_SLOT), "hidden while locked")
+	for id in MetaProgression.ARSENAL_UPGRADES:
+		assert_null(modal.find_child("Buy_%s" % id, true, false), "%s cannot be bought while locked" % id)
+		assert_not_null(modal.find_child("ArsenalLocked_%s" % MetaProgression.get_upgrade_weapon(id), true, false), "a lock instead")
 	modal.finish()
 
 
@@ -174,9 +176,9 @@ func test_trader_has_proviant_but_no_crystal_exchange() -> void:
 		texts.append((node as Label).text)
 	for node in modal.find_children("*", "Button", true, false):
 		texts.append((node as Button).text)
+		# Trade level steps ("Plätze 1 → 2", KE5) are labels; an exchange would be a button.
+		assert_false((node as Button).text.contains("→"), "no exchange button: %s" % (node as Button).text)
 	assert_does_not_have(texts, "Tausch")
-	for text in texts:
-		assert_false(text.contains("→"), "no exchange button: %s" % text)
 	for id in MetaProgression.BOOST_ORDER:
 		assert_has(texts, MetaProgression.get_boost_name(id), "Proviant %s offered" % id)
 	modal.finish()

@@ -114,7 +114,8 @@ func _splash(at: Vector2) -> void:
 	if not is_inside_tree():
 		return
 	var palette := _palette()
-	Burst.spawn(get_parent(), Vector2(at.x, global_position.y + SURFACE_OFFSET), palette[1], 8, 110.0, 0.35, 2.5)
+	# Pixel drops thrown up and falling back (D-218).
+	SideDust.spawn(get_parent(), Vector2(at.x, global_position.y + SURFACE_OFFSET), SideDust.Kind.CHIPS, 0.3, 0.0, palette[1])
 	Sfx.play_at(self, &"slime_land", at, -10.0)
 
 
@@ -125,36 +126,35 @@ func _palette() -> Array:
 func _draw() -> void:
 	if _has_art:
 		return
+	# Placeholder in pixels (D-218): columns of two art pixels, each with its surface pixel on the
+	# wave, the liquid in two hard bands (lighter on top, deeper below).
 	var palette := _palette()
 	var width := cells * SideRules.TILE
 	var bottom := SideRules.TILE
-	var points := PackedVector2Array()
-	var steps := cells * 8
-	for i in steps + 1:
-		var x := width * float(i) / steps
-		points.append(Vector2(x, SURFACE_OFFSET + sin(_time * WAVE_SPEED + x * 0.06) * WAVE_HEIGHT))
-	var body := points.duplicate()
-	body.append(Vector2(width, bottom))
-	body.append(Vector2(0, bottom))
-	var colors := PackedColorArray()
-	for i in points.size():
-		colors.append(palette[0])
 	var deep: Color = (palette[0] as Color).darkened(0.45)
-	colors.append(deep)
-	colors.append(deep)
-	draw_polygon(body, colors)
-	draw_polyline(points, palette[1], 2.0)
+	var column := SidePixels.PIXEL * 2.0
+	var middle := roundf((SURFACE_OFFSET + bottom) * 0.5 / SidePixels.PIXEL) * SidePixels.PIXEL + SidePixels.PIXEL * 2.0
+	var x := 0.0
+	while x < width:
+		var wave := SURFACE_OFFSET + sin(_time * WAVE_SPEED + (x + column * 0.5) * 0.06) * WAVE_HEIGHT
+		var surface := roundf(wave / SidePixels.PIXEL) * SidePixels.PIXEL
+		draw_rect(Rect2(x, surface, column, middle - surface), palette[0])
+		draw_rect(Rect2(x, middle, column, bottom - middle), deep)
+		draw_rect(Rect2(x, surface, column, SidePixels.PIXEL), palette[1])
+		x += column
 	# Glints drifting along the surface.
 	for i in cells * 2:
-		var x := fposmod(i * 37.0 + _time * (14.0 + i * 3.0), width)
+		var glint_x := fposmod(i * 37.0 + _time * (14.0 + i * 3.0), width - 6.0)
 		var y := SURFACE_OFFSET + 8.0 + float((i * 13) % 20)
 		var glint: Color = palette[2]
 		glint.a *= 0.4 + 0.4 * sin(_time * 3.0 + i)
-		draw_rect(Rect2(x, y, 6.0, 2.0), glint)
+		glint.a = roundf(glint.a * 3.0) / 3.0
+		SidePixels.rect(self, Rect2(glint_x, y, 6.0, 2.0), glint)
 	if biome_id in [&"slime_grotto", &"ember_forge"]:
-		# Bubbles rising to the surface.
+		# Bubbles rising to the surface: pixel rings that grow by whole pixels.
 		for i in cells + 1:
 			var phase := fposmod(_time * 0.6 + i * 0.37, 1.0)
-			var x := fposmod(i * 53.0 + 17.0, width)
+			var bubble_x := fposmod(i * 53.0 + 17.0, width)
 			var y := lerpf(bottom - 6.0, SURFACE_OFFSET + 4.0, phase)
-			draw_arc(Vector2(x, y), 2.0 + phase * 2.0, 0.0, TAU, 10, Color(palette[2], 0.7 * (1.0 - phase)), 1.0)
+			var tint := Color(palette[2], SidePixels.fade(0.7, phase))
+			SidePixels.ring(self, Vector2(bubble_x, y), SidePixels.PIXEL * (1.0 + roundf(phase)), tint)

@@ -1,15 +1,18 @@
 class_name SoulsMode
 extends CombatVariant
-## Minigame "Seelen sammeln" (KONZEPT_RAEUME_V2 §3.6, design answer 01_raumarten.md, R4a): after the
+## Minigame "Seelen sammeln" (RAEUME §3.6, design answer 01_raumarten.md, R4a): after the
 ## intro 12 soul lights appear one after another at fixed places (the plan's soul markers, filled up
-## from free floor), each for 6 s; 45 s for the round. Every soul taken makes the sources spit enemies,
-## one push per beat. The task bar counts "Seelen x/12" with the time.
+## from free floor), each a few seconds; about 45 s for the round. Every soul taken makes the sources
+## spit enemies, one push per beat. The task bar counts "Seelen x/12" with the time.
+##   By player count (CR5, SoulsRules): lifetime of a soul, round time and how far the next soul may
+##   be from the last (a chain from the entrance, drawn once on attach).
 ##   End of the round (time up, or every soul came and went): soul crystals by count
 ##   (SoulsRules.CRYSTAL_STEPS) lie by the exit; too few = no bonus. Then the rest of the enemies is
 ##   beaten as usual. Never costs the run.
 ## The room stays shut while the round runs (holds_completion). Decisions (spawn, take, fade, end)
 ## change state and emit signals; the looks follow (SoulWisp). Randomness: the variant RNG (order of
 ## the places). Co-op: every living player takes souls; the crystals are the group's (run crystals).
+## The numbers follow the session's player count (GameMode), the same at the host and its clients.
 
 signal soul_taken(mode: SoulsMode, wisp: SoulWisp, player: Player)
 signal soul_lost(mode: SoulsMode, wisp: SoulWisp)
@@ -68,7 +71,8 @@ func can_host() -> bool:
 func _on_attach() -> void:
 	if spots.is_empty():
 		_plan_spots()
-	var order := SoulsRules.shuffled_order(spots.size(), _rng)
+	var start := room.tiles.get_entrance_inside_tile()
+	var order := SoulsRules.chained_order(spots, start, SoulsRules.max_step(get_player_count()), _rng)
 	var ordered: Array[Vector2i] = []
 	for index in order:
 		ordered.append(spots[index])
@@ -138,6 +142,14 @@ func begin_intro() -> void:
 	RoomIntro.start(room, objective, focus)
 
 
+## Flint's first-time tour (WK11): where the first souls light up, one after another.
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var points: Array = []
+	for i in mini(2, spots.size()):
+		points.append(room.to_global(RoomTiles.tile_center(spots[i])))
+	return RoomFlint.steps(RoomObjective.SOULS, points)
+
+
 ## Souls that can be taken right now.
 func get_visible_wisps() -> Array[SoulWisp]:
 	var visible: Array[SoulWisp] = []
@@ -148,7 +160,17 @@ func get_visible_wisps() -> Array[SoulWisp]:
 
 
 func get_time_left() -> float:
-	return maxf(0.0, SoulsRules.TIME_LIMIT - clock)
+	return maxf(0.0, get_time_limit() - clock)
+
+
+## Time of the round for the session's players (SoulsRules.time_limit).
+func get_time_limit() -> float:
+	return SoulsRules.time_limit(get_player_count())
+
+
+## How long a soul stays for the session's players (SoulWisp asks this when it enters, also on clients).
+func get_soul_lifetime() -> float:
+	return SoulsRules.soul_lifetime(get_player_count())
 
 
 ## A player takes a soul (also called by step when a player's feet reach it).
@@ -194,11 +216,12 @@ func _advance(delta: float) -> void:
 		wisp.age += delta
 		if wisp.age >= wisp.lifetime:
 			_lose(wisp)
-	if SoulsRules.should_spawn(clock, _next_at, spawned):
+	var limit := get_time_limit()
+	if SoulsRules.should_spawn(clock, _next_at, spawned, limit):
 		_spawn_next()
 	if SoulsRules.should_push(_since_push, owed_enemies, get_living_enemies().size()):
 		send_push()
-	if SoulsRules.is_round_over(clock, spawned, get_visible_wisps().size()):
+	if SoulsRules.is_round_over(clock, spawned, get_visible_wisps().size(), limit):
 		_end_round()
 
 
@@ -206,6 +229,7 @@ func _spawn_next() -> void:
 	var wisp := SoulWisp.new()
 	wisp.name = "Soul%d" % spawned
 	wisp.build(spots[spawned % spots.size()])
+	wisp.lifetime = get_soul_lifetime()
 	add_child(wisp)
 	_wisps.append(wisp)
 	spawned += 1
@@ -271,7 +295,7 @@ func _create_objective() -> void:
 	objective = RoomObjective.create(RoomObjective.SOULS)
 	objective.goal_args = [SoulsRules.SOUL_COUNT]
 	RoomObjective.attach(room, objective)
-	objective.set_time(SoulsRules.TIME_LIMIT, false)
+	objective.set_time(get_time_limit(), false)
 	_refresh_bar()
 
 

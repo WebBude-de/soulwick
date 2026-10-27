@@ -16,6 +16,10 @@ extends Node
 ## - Back in the village the host sends end_run (portal, wiped, abandoned) to the relay: the room
 ##   takes new players again until the next start. A newcomer learns the room's run number
 ##   (sync_runs), so its profiles count for the host's current village.
+## - Danger (KE2, KONZEPT §3.2, D-196): every profile carries its player's own danger level; the host
+##   computes the group level (CoopRules.group_danger), shows it in the village of every machine
+##   (share_group_danger, VillageUI.set_group_danger) and sends it with begin_run, so every machine
+##   starts the run on the same level.
 
 signal run_begun(seed_value: int, players: int)
 ## The run report finished: status "sent", "skipped" (not logged in) or "failed:<code>".
@@ -79,7 +83,13 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	EventBus.run_ended.connect(_on_run_ended)
 	multiplayer.peer_connected.connect(_on_peer_connected)
-	multiplayer.peer_disconnected.connect(func(peer: int) -> void: _profiles.erase(peer))
+	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+
+
+func _on_peer_disconnected(peer: int) -> void:
+	_profiles.erase(peer)
+	if multiplayer.is_server():
+		refresh_group_danger()
 
 
 ## The relay name of a run end (end_run reason): portal, everybody down, given up.
@@ -121,6 +131,7 @@ func submit_profile(profile: Dictionary) -> void:
 		return
 	_profiles[peer] = profile
 	_deliver_profile(peer)
+	refresh_group_danger()
 
 
 ## Client -> host: input for the client's player (NetPlayerState, unreliable ordered, channel 1).
@@ -140,6 +151,7 @@ func submit_input(move: Vector2, aim: Vector2, held: int) -> void:
 func on_host_world_ready(_net_players: NetPlayers) -> void:
 	for peer in _profiles.keys():
 		_deliver_profile(peer)
+	refresh_group_danger()
 
 
 func _deliver_profile(peer: int) -> void:
@@ -177,18 +189,28 @@ func start(forced_seed := 0) -> void:
 	if net_players != null:
 		net_players.hide_from_peers()
 	side_ways_skipped = SideWays.is_skipped()
+	var danger := get_group_danger()
+	RunManager.set_danger_level(danger)
 	for peer_id in multiplayer.get_peers():
-		begin_run.rpc_id(peer_id, new_seed, count, runs_begun + 1, side_ways_skipped)
+		begin_run.rpc_id(peer_id, new_seed, count, runs_begun + 1, side_ways_skipped, danger)
 	_begin.call_deferred(new_seed, count)
 
 
 ## Host -> clients: the run (number run_number of this room) starts with this seed for this many
-## players and the host's "Seitenwege auslassen" (skip_side; older hosts send none = off).
+## players, the host's "Seitenwege auslassen" (skip_side; older hosts send none = off) and the group
+## danger level (KE2; set before the dungeon starts its run).
 @rpc("authority", "call_remote", "reliable")
-func begin_run(new_seed: int, count: int, run_number: int, skip_side := false) -> void:
+func begin_run(new_seed: int, count: int, run_number: int, skip_side := false, danger := 0) -> void:
 	if multiplayer.get_remote_sender_id() != RelayProtocol.HOST_PEER_ID or in_run:
 		return
+	accept_run_start(new_seed, count, run_number, skip_side, danger)
+
+
+## Client: takes the host's run start (begin_run after the sender check; tests call it directly).
+func accept_run_start(new_seed: int, count: int, run_number: int, skip_side: bool, danger: int) -> void:
 	side_ways_skipped = skip_side
+	# Before the dungeon is loaded: DungeonManager starts the run in _ready (KE2).
+	RunManager.set_danger_level(danger)
 	# _begin counts this run: afterwards runs_begun is the host's run number (late joiners too).
 	runs_begun = maxi(0, run_number - 1)
 	# Packets behind this one belong to the dungeon: held back until it is loaded (_begin).
@@ -218,6 +240,56 @@ func _begin(new_seed: int, count: int) -> void:
 	controller.load_world(controller.dungeon_scene)
 	if lobby.peer != null:
 		lobby.peer.set_delivering(true)
+
+
+## Host: the group danger level of the room (KONZEPT §3.2): the rounded mean of the own level and
+## the levels in the profiles of every connected client (a client whose profile has not arrived yet
+## does not count).
+func get_group_danger() -> int:
+	return CoopRules.group_danger(get_danger_levels())
+
+
+## Host: the own danger level first, then one per connected client (peers: tests; default the
+## connected peers) with a profile.
+func get_danger_levels(peers: Variant = null) -> Array[int]:
+	var levels: Array[int] = [AccountProgress.current().get_danger_level()]
+	if peers == null:
+		peers = multiplayer.get_peers() if multiplayer.has_multiplayer_peer() else PackedInt32Array()
+	for peer: int in peers:
+		var profile: Dictionary = _profiles.get(peer, {})
+		var level: Variant = profile.get("danger", null)
+		if level is int or level is float:
+			levels.append(maxi(0, int(level)))
+	return levels
+
+
+## Host: shows the group level in its village and tells every client (-1 = alone: the own level).
+func refresh_group_danger() -> void:
+	if lobby == null or not lobby.is_host() or in_run:
+		return
+	var levels := get_danger_levels()
+	var danger := CoopRules.group_danger(levels) if levels.size() > 1 else -1
+	_show_group_danger(danger)
+	if multiplayer.has_multiplayer_peer():
+		for peer_id in multiplayer.get_peers():
+			share_group_danger.rpc_id(peer_id, danger)
+
+
+## Host -> clients: the group danger level of the room for the village card (-1 = own level).
+@rpc("authority", "call_remote", "reliable")
+func share_group_danger(danger: int) -> void:
+	if multiplayer.get_remote_sender_id() != RelayProtocol.HOST_PEER_ID or in_run:
+		return
+	_show_group_danger(danger)
+
+
+## The village of this machine shows danger at the entrance (VillageUI.set_group_danger).
+func _show_group_danger(danger: int) -> void:
+	var controller := lobby.get_world_controller() if lobby != null else null
+	var world: Node = controller.get_world() if controller != null else null
+	var ui: Variant = world.get(&"ui") if world != null else null
+	if ui is Object and (ui as Object).has_method(&"set_group_danger"):
+		ui.set_group_danger(danger)
 
 
 ## Called by the WorldController (through the LobbyClient) for every new world before it enters

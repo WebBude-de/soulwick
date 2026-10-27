@@ -1,0 +1,119 @@
+{
+  "notes": [
+    "moving_platform 96×16 in 32er-Stücken; tilt_platform 64×16 4 Frames (ruhig, wackelt, kippt, fällt); collapse_bridge 32×16 6 Frames; slope 45° (32×32) und 22,5° (64×32) auf/ab."
+  ],
+  "items": [
+    {
+      "name": "moving_platform_crypt",
+      "file": "moving_platform_crypt.png",
+      "frame_size": [
+        96,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "tilt_platform_crypt",
+      "file": "tilt_platform_crypt_4f.png",
+      "frame_size": [
+        64,
+        16
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": false,
+      "pivot": [
+        32,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "collapse_bridge_crypt",
+      "file": "collapse_bridge_crypt_6f.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "slope_crypt",
+      "file": "slope_crypt.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "slope_crypt_down",
+      "file": "slope_crypt_down.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "slope_crypt_long",
+      "file": "slope_crypt_long.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "slope_crypt_long_down",
+      "file": "slope_crypt_long_down.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        31
+      ],
+      "note": ""
+    }
+  ]
+}

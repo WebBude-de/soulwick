@@ -1,6 +1,6 @@
 class_name CollapseRules
 extends RefCounted
-## Rules of the minigame "Einsturz" (KONZEPT_RAEUME_V2 §3.10, design answer 01_raumarten.md, R4a):
+## Rules of the minigame "Einsturz" (RAEUME §3.10, design answer 01_raumarten.md, R4a):
 ## the numbers (TESTWERTE) and the pure decisions - which floor breaks in which order, when, and
 ## which way stays. No nodes, no effects: CollapseMode applies them.
 ## The order is fixed per room (seeded): the floor breaks in fields of 2×2 tiles from the outside
@@ -11,7 +11,7 @@ extends RefCounted
 const ID: StringName = &"collapse"
 ## Plan mode of the templates made for it (RoomTemplate.mode, plan header "mode: collapse").
 const PLAN_MODE: StringName = &"collapse"
-## First room the mode may appear in (2. Biom, KONZEPT_RAEUME_V2 §2). TESTWERT
+## First room the mode may appear in (2. Biom, RAEUME §2). TESTWERT
 const MIN_ROOM := 16
 ## Share among the minigames of a draw (R4b mode table). TESTWERT
 const WEIGHT := 1.0
@@ -45,6 +45,14 @@ const PUSH_LAST := 22.0
 const PUSH_SIZE := 2
 const PUSH_MAX_ALIVE := 6
 const PUSH_MIN_PLAYER_DISTANCE := 160.0
+## Standing still does not pay (playtest 23.10.2026 #9c8ebbe0, "man steht einfach und wartet"): a
+## player whose feet stay within STILL_RADIUS px for STILL_TIME s gets a sinkhole - the 2×2 plate
+## under his feet cracks for WARN_TIME and gives way, also on the way that stays; it closes again
+## after SINK_TIME s, so the way still stands at the end. Never on the floor around a plateau
+## (height_guard, D-189), never in the last WARN_TIME s. Every player for himself. TESTWERTE
+const STILL_TIME := 2.5
+const STILL_RADIUS := 40.0
+const SINK_TIME := 4.0
 
 const DIRECTIONS_4: Array[Vector2i] = [Vector2i.UP, Vector2i.RIGHT, Vector2i.DOWN, Vector2i.LEFT]
 ## Room thirds -> text key (row, column): north/middle/south × west/middle/east.
@@ -80,6 +88,36 @@ static func is_survived(clock: float) -> bool:
 
 static func should_push(clock: float, since_last_push: float, alive: int) -> bool:
 	return clock >= PUSH_FIRST and clock <= PUSH_LAST and since_last_push >= PUSH_INTERVAL and alive < PUSH_MAX_ALIVE
+
+
+## Has a player stood still long enough for a sinkhole (still_for: seconds within STILL_RADIUS)?
+static func is_still_too_long(still_for: float) -> bool:
+	return still_for >= STILL_TIME
+
+
+## Is the feet position still the resting place (within STILL_RADIUS of where they came to rest)?
+static func is_resting(anchor: Vector2, feet: Vector2) -> bool:
+	return anchor.distance_to(feet) <= STILL_RADIUS
+
+
+## May a sinkhole start at this time of the collapse (it has to open before the end)?
+static func may_sink(clock: float) -> bool:
+	return clock >= START_DELAY and clock < DURATION - WARN_TIME
+
+
+## The 2×2 plate under the feet (room-local px): the feet tile and its neighbours on the side of the
+## tile the feet stand on, so the hole lies around them. Only tiles of open (floor that may sink),
+## sorted.
+static func sinkhole_tiles(feet: Vector2, open: Dictionary[Vector2i, bool]) -> Array[Vector2i]:
+	var tile := RoomTiles.local_to_tile(feet)
+	var inside := feet - RoomTiles.tile_to_local(tile)
+	var step := Vector2i(1 if inside.x >= RoomTiles.TILE_WORLD * 0.5 else -1, 1 if inside.y >= RoomTiles.TILE_WORLD * 0.5 else -1)
+	var tiles: Array[Vector2i] = []
+	for candidate: Vector2i in [tile, tile + Vector2i(step.x, 0), tile + Vector2i(0, step.y), tile + step]:
+		if open.has(candidate):
+			tiles.append(candidate)
+	tiles.sort_custom(_tile_before)
+	return tiles
 
 
 ## Shortest way over walkable tiles (4 directions, breadth first, neighbours in a fixed order, so the

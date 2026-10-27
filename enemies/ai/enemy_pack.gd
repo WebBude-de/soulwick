@@ -1,6 +1,6 @@
 class_name EnemyPack
 extends RefCounted
-## Coordinator of the group tactics of one room (KONZEPT_RAEUME_V2 §6): one instance per enemy
+## Coordinator of the group tactics of one room (RAEUME §6): one instance per enemy
 ## container (stored as metadata on it, freed with the room). Every few tenths of a second it plans
 ## per target (nearest living player or decoy, EnemyTargeting / EnemyDecoy, so coop gets places per
 ## player): ring places for the close-combat enemies, cutters ahead of a fleeing target, side
@@ -14,6 +14,9 @@ extends RefCounted
 enum Role { DIRECT, RING, CUT_OFF, RANGED, RELOCATE }
 
 const META := &"enemy_pack"
+## A walking goal around a target keeps this far off the edges of a plateau (px, M3): body radius
+## plus the strip of the edge without navigation. TESTWERT
+const GOAL_EDGE_MARGIN := 20.0
 
 
 ## What one enemy should do right now.
@@ -171,8 +174,8 @@ func walk_goal(enemy: Enemy) -> Vector2:
 	if order == null:
 		return center
 	# Target on the other level of a plateau (M3): straight for it, the navigation finds the stairs
-	# (a ring place below the cliff would only end in front of the rock).
-	if not HeightRules.same_level(enemy, target):
+	# (a ring place below the cliff would only end in front of the rock). On the stairs too.
+	if is_changing_level(enemy, target):
 		return center
 	var goal := center
 	match order.role:
@@ -184,7 +187,7 @@ func walk_goal(enemy: Enemy) -> Vector2:
 			goal = EnemyTactics.orbit_point(enemy.global_position, center, order.angle, order.radius)
 		_:
 			return center
-	return _inside_room(enemy, goal)
+	return _on_target_level(target, _inside_room(enemy, goal))
 
 
 func is_relocating(enemy: Enemy) -> bool:
@@ -215,7 +218,11 @@ func wants_hop(enemy: Enemy) -> bool:
 	if order.role != Role.RING and order.role != Role.CUT_OFF:
 		return false
 	var target := enemy.get_target_node()
-	return target != null and enemy.global_position.distance_to(target.global_position) > order.ring + EnemyTactics.HOP_TARGET_MARGIN
+	if target == null or is_changing_level(enemy, target):
+		# Target on the other level of a plateau (M3): a hop only ends at the edge (feedback
+		# #690502d9: slimes hopped back to the cliff instead of walking round to the stairs).
+		return false
+	return enemy.global_position.distance_to(target.global_position) > order.ring + EnemyTactics.HOP_TARGET_MARGIN
 
 
 ## Landing point of enemy's hop (pure geometry, the enemy checks walls and abysses).
@@ -228,7 +235,7 @@ func hop_landing(enemy: Enemy) -> Vector2:
 	var velocity := track.velocity if track != null else Vector2.ZERO
 	var angle := order.angle if order.role == Role.RING else order.flee.angle()
 	var landing := EnemyTactics.hop_landing(enemy.global_position, target.global_position, velocity, angle, order.ring, order.pack.strength if order.pack != null else 0.0)
-	return _inside_room(enemy, landing)
+	return _on_target_level(target, _inside_room(enemy, landing))
 
 
 func hop_started(enemy: Enemy) -> void:
@@ -323,6 +330,10 @@ func _plan_target(target: Node2D, enemies: Array, elapsed: float) -> void:
 	for member: Enemy in enemies:
 		if member.data.attack_kind == EnemyData.AttackKind.RANGED:
 			ranged.append(member)
+		elif is_changing_level(member, target):
+			# Other level of a plateau or on the stairs (M3): straight for the target at full speed,
+			# the navigation finds the stairs; no ring place below the cliff, no slow creep, no hop.
+			get_order(member).role = Role.DIRECT
 		else:
 			close.append(member)
 	_plan_close(close, center, track, room, strength, elapsed)
@@ -432,6 +443,18 @@ func _plan_ranged(member: Enemy, ranged: Array[Enemy], center: Vector2, strength
 	order.angle = current + side * _rng.randf_range(EnemyTactics.SIDE_SWITCH_ANGLE.x, EnemyTactics.SIDE_SWITCH_ANGLE.y)
 	order.radius = EnemyTactics.ranged_radius(member.data)
 	order.relocate_left = EnemyTactics.RELOCATE_TIME
+
+
+## Is member on its way to the target's level (M3): on the other level of a plateau, or on the
+## stairs (both levels) while the target is not. Such members walk straight at full speed: a pack
+## slime that crept and hopped on the one tile wide stairs held up everyone behind it (#56d68b40,
+## "Nahkämpfer kommen nur einzeln auf die Flammen-Empore").
+static func is_changing_level(member: Node, target: Node) -> bool:
+	if not HeightRules.has_height():
+		return false
+	if not HeightRules.same_level(member, target):
+		return true
+	return HeightRules.level_of(member) == HeightRules.BOTH and HeightRules.level_of(target) != HeightRules.BOTH
 
 
 ## Height (M3b, D-189, "Druck von oben"): a ranged enemy on a plateau whose target stands below
@@ -596,6 +619,18 @@ func _beat(pack: Pack, delta: float) -> void:
 func _reset(order: Order) -> void:
 	order.role = Role.DIRECT
 	order.hop_granted = false
+
+
+## A ring place, cut-off point or hop landing around a target on a plateau may lie off its edge,
+## on the ground below or beside it, or on the edge itself, where the navigation of the ground is
+## nearer than the plateau's (M3, feedback #690502d9): walking there leads down the stairs and round
+## to the rock under the target. Such a point becomes the target itself (the navigation walks the
+## level); the same for a point on the plateau or its edge around a target on the ground.
+static func _on_target_level(target: Node2D, point: Vector2) -> Vector2:
+	if not HeightRules.has_height():
+		return point
+	var feet := HeightRules.body_point(target)
+	return point if HeightRules.is_level_goal(feet, point, GOAL_EDGE_MARGIN) else target.global_position
 
 
 func _inside_room(enemy: Enemy, point: Vector2) -> Vector2:

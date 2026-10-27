@@ -3,13 +3,14 @@ extends GutTest
 ## plateau with stairs; ranged enemies of a push take those sources first ("Druck von oben"),
 ## close-combat enemies come out on the ground (SpawnSourceRules.sort_by_height, SpawnSources).
 
-## Sumpfgrotte: a grave (crypt) on the plateau at the north wall, three on the ground.
+## Sumpfgrotte: a grave (crypt) on the plateau before the north wall (free-standing, D-205), three on
+## the ground.
 const PLAN_ROOM: PackedScene = preload("res://dungeon/rooms/combat/geleit_pfad_crypt.tscn")
 const ENEMY_SCENE: PackedScene = preload("res://enemies/enemy_base.tscn")
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const SKELETON: EnemyData = preload("res://enemies/data/skeleton.tres")
 const ARCHER: EnemyData = preload("res://enemies/data/archer.tres")
-const PLATEAU_GRAVE := Vector2i(7, 0)
+const PLATEAU_GRAVE := Vector2i(7, 2)
 
 var _old_save_path: String
 

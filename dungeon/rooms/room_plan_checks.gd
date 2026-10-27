@@ -11,7 +11,8 @@ extends RefCounted
 ##   - no decoration, no floor source on a tile that is the only way (articulation point);
 ##   - spike traps only with a reason: a chest close by or a side passage;
 ##   - no one-tile slots between two solid or unwalkable things (rock, wall, abyss), no wall front
-##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose;
+##     right above an abyss (M1, playtest 14.10.2026); bridges are ways on purpose; the floor ring
+##     around a half-high plateau may be one tile wide (D-205, CR6);
 ##   - no wall front beside an abyss, no abyss touching another abyss or rock only at a corner
 ##     (playtest 15.10.2026);
 ##   - every wall torch (plan torches and door torches) hangs fully on one wall front, nothing of it
@@ -200,12 +201,17 @@ static func slot_problems(tiles: RoomTiles) -> Array[String]:
 	var result: Array[String] = []
 	var floor_mask := tiles.get_floor_mask()
 	var floor_rect := Rect2i(Vector2i.ZERO, tiles.room_size)
+	# A half-high plateau beside a way reads as a step, not as a wall (D-205: one tile of floor to
+	# the rock is enough): it closes no slot.
+	var open := floor_mask.duplicate()
+	if tiles.has_height():
+		open.merge(tiles.get_height_layout().get_height_tiles())
 	for tile: Vector2i in floor_mask:
 		if not floor_rect.has_point(tile) or tiles.is_pit(tile) or tiles.is_bridge(tile):
 			continue
-		if _closed(tiles, floor_mask, tile + Vector2i.LEFT) and _closed(tiles, floor_mask, tile + Vector2i.RIGHT):
+		if _closed(tiles, open, tile + Vector2i.LEFT) and _closed(tiles, open, tile + Vector2i.RIGHT):
 			result.append("one-tile slot at %s (west/east)" % tile)
-		elif _closed(tiles, floor_mask, tile + Vector2i.UP) and _closed(tiles, floor_mask, tile + Vector2i.DOWN):
+		elif _closed(tiles, open, tile + Vector2i.UP) and _closed(tiles, open, tile + Vector2i.DOWN):
 			result.append("one-tile slot at %s (north/south)" % tile)
 	for pit in tiles.get_pit_tiles():
 		if not floor_mask.has(pit + Vector2i.UP):

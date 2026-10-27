@@ -52,7 +52,7 @@ position = Vector2(480, 288)
 position = Vector2(608, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(928, 160)
+position = Vector2(864, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(672, 416)
@@ -116,6 +116,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(15, 6), Vector2i(16, 6), Vector2i(17, 6)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(8, 60)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]

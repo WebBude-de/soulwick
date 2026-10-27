@@ -56,11 +56,9 @@ func get_available_upgrades(owned_weapons: Array[WeaponData] = []) -> Array[Upgr
 
 ## Up to count different available upgrades; no duplicates within one offer (D-027).
 func roll_offer(owned_weapons: Array[WeaponData], rng: RandomNumberGenerator, count := OFFER_SIZE) -> Array[UpgradeData]:
-	var candidates := get_available_upgrades(owned_weapons)
-	var offer: Array[UpgradeData] = []
-	while not candidates.is_empty() and offer.size() < count:
-		offer.append(candidates.pop_at(rng.randi_range(0, candidates.size() - 1)))
-	return offer
+	# Glück (KE5 trade level of this manager's player): rare upgrades weigh more; at level 0 the draws
+	# are the old uniform ones (same seeds, same offers).
+	return MetaProgression.roll_weighted_offer(get_available_upgrades(owned_weapons), rng, count, MetaProgression.player_luck_level(player))
 
 
 ## All stacks by upgrade id (MP3: the host sends them to every machine).

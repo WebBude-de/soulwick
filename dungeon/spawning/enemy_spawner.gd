@@ -12,11 +12,12 @@ extends Node
 const ENEMY_SCENE: PackedScene = preload("res://enemies/enemy_base.tscn")
 ## Fewest spawn markers of a combat or miniboss template (D-086, was exactly five in D-009).
 const MIN_SPAWN_POINTS := 5
-const EXTENDED_FROM_ROOM := 6
+## Elite numbers live in RoomSequence (KE2, no load cycle); these names stay for older callers.
+const EXTENDED_FROM_ROOM := RoomSequence.ELITE_FROM_ROOM
 const EXTRA_TYPE_CHANCE := 0.2
-const ELITE_BASE_CHANCE := 0.12
-const ELITE_CHANCE_PER_BLOCK := 0.02
-const MAX_ELITE_CHANCE := 0.5
+const ELITE_BASE_CHANCE := RoomSequence.ELITE_BASE_CHANCE
+const ELITE_CHANCE_PER_BLOCK := RoomSequence.ELITE_CHANCE_PER_BLOCK
+const MAX_ELITE_CHANCE := RoomSequence.MAX_ELITE_CHANCE
 const ELITE_GOLD_MULTIPLIER := 2
 
 ## Standard enemy types and their independent per-spawn weights (Slime 50 %, Skeleton 35 %, Archer 15 %).
@@ -36,6 +37,9 @@ const ELITE_GOLD_MULTIPLIER := 2
 var encounter_group: EncounterGroup = null
 ## Enemies the last spawn_encounter() of a combat room could not place (more than markers).
 var last_overflow := 0
+## Guest enemy type per biome stretch from danger level 6 on (KE2), drawn once per stretch with the
+## dungeon RNG; the spawner lives for one run.
+var _guests := {}
 
 
 ## count distinct marker indices out of marker_count, drawn without replacement.
@@ -61,10 +65,9 @@ static func pick_weighted(weights: Array[float], rng: RandomNumberGenerator) -> 
 	return weights.size() - 1
 
 
+## Elite chance of a room at the danger level of the current run (KE2, RoomSequence).
 static func get_elite_chance(room_index: int) -> float:
-	if room_index < EXTENDED_FROM_ROOM:
-		return 0.0
-	return minf(MAX_ELITE_CHANCE, ELITE_BASE_CHANCE + ELITE_CHANCE_PER_BLOCK * EnemyScaling.get_block(room_index))
+	return RoomSequence.get_elite_chance(room_index, EnemyScaling.run_danger())
 
 
 static func roll_elite(room_index: int, rng: RandomNumberGenerator) -> Enemy.Elite:
@@ -187,6 +190,7 @@ func _pick_type(room_index: int, rng: RandomNumberGenerator) -> EnemyData:
 	var biome := get_biome(room_index)
 	if biome != null:
 		var table := biome.get_table(room_index)
+		table = EnemyScaling.table_with_guest(table, biomes, room_index, _guests, rng)
 		if encounter_group != null:
 			table = encounter_group.filter_table(table[0], table[1])
 		var types: Array[EnemyData] = table[0]

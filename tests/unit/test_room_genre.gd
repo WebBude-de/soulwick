@@ -1,7 +1,7 @@
 extends GutTest
 ## Room genres (D-110, UX2): rooms with gameplay of their own get a banner, normal combat rooms
-## none; the explanation card comes once per save ("room_intro_<genre>"), never pauses, and only
-## one teaching card is on screen at a time. Banners queue instead of overwriting each other.
+## none; Flint explains a room type the first time per account (D-211/WK11, RoomFlint; no card),
+## never pauses. Banners queue instead of overwriting each other.
 ## Uses a test save, never the real one.
 
 const TEST_SAVE_PATH := "user://test_room_genre.cfg"
@@ -91,7 +91,6 @@ func test_a_bare_room_controller_is_unnamed() -> void:
 	var ui := _ui()
 	assert_eq(ui.show_room_genre(room), RoomGenre.NONE)
 	assert_null(ui.get_banner(), "normal room: no banner")
-	assert_null(ui.get_room_intro_card())
 
 
 func test_special_rooms_are_named_once_their_content_is_built() -> void:
@@ -121,30 +120,27 @@ func test_every_genre_has_texts_and_a_colour() -> void:
 	assert_not_null(RoomGenre.get_icon(RoomGenre.SHOP), "special rooms: door symbol")
 
 
-# --- Banner and first-time card ---
+# --- Banner and Flint's explanation ---
 
-func test_genre_banner_and_card_once_per_save() -> void:
+## A local player whose Flint keeps its seen flags in seen (no real account).
+func _learner(seen: Dictionary) -> FlintGuide:
+	var player := add_child_autofree(preload("res://player/player.tscn").instantiate()) as Player
+	var guide := FlintGuide.for_player(player)
+	guide.shows_view = false
+	guide.has_seen = func(id: StringName) -> bool: return seen.has(id)
+	guide.mark_seen = func(id: StringName) -> void: seen[id] = true
+	return guide
+
+
+func test_genre_banner_without_a_card() -> void:
 	var ui := _ui()
-	assert_true(RoomGenre.should_explain(RoomGenre.ARENA))
 	ui.show_genre(RoomGenre.ARENA)
 	var banner := ui.get_banner()
 	assert_not_null(banner)
 	assert_eq(banner.name, &"GenreBanner")
 	assert_eq((banner.find_child("Title", true, false) as Label).text, "Arena")
-	var card := ui.get_room_intro_card()
-	assert_not_null(card, "first arena of this save: explanation")
-	assert_eq(card.genre, RoomGenre.ARENA)
-	assert_true(SaveManager.has_seen(&"room_intro_arena"))
+	assert_null(ui._hint_card, "no explanation card any more (D-211)")
 	assert_false(GameManager.is_game_paused(), "never pauses")
-	card.finish()
-	await wait_physics_frames(1)
-	ui.show_genre(RoomGenre.ARENA)
-	assert_null(ui.get_room_intro_card(), "second arena: banner only")
-	var other := _ui()
-	other.show_genre(RoomGenre.ARENA)
-	assert_null(other.get_room_intro_card(), "seen is stored in the save, not in the UI")
-	other.show_genre(RoomGenre.SHOP)
-	assert_not_null(other.get_room_intro_card(), "every genre has its own card")
 
 
 func test_an_arena_started_unannounced_is_named_once() -> void:
@@ -157,32 +153,34 @@ func test_an_arena_started_unannounced_is_named_once() -> void:
 	assert_eq(ui.get_banner_queue_size(), 0, "a room is named once")
 
 
-func test_intro_card_never_shares_the_screen_with_other_cards() -> void:
-	var ui: DungeonUI = add_child_autofree(DungeonUI.new())
-	ui.auto_enemy_hints = false
-	await wait_physics_frames(1)
-	var controls := ui.get_controls_hint()
-	assert_not_null(controls, "fresh save: controls card")
-	ui.show_hint("Slime", "Der rote Kreis zeigt, wo er gleich zuschlägt.")
-	assert_false(controls.visible, "the controls card steps aside for the enemy card")
-	assert_eq(controls.process_mode, Node.PROCESS_MODE_DISABLED, "and keeps its place in the steps")
+func test_flint_explains_a_new_room_type_once_per_account() -> void:
+	var seen: Dictionary = {}
+	var guide := _learner(seen)
+	RoomFlint.set_known(guide.player, [])
+	RoomFlint.explain_in_scripts = true
+	var ui := _ui()
 	ui.show_genre(RoomGenre.SHOP)
-	assert_null(ui.get_room_intro_card(), "the room card waits for the enemy card")
-	ui._hint_card.queue_free()
-	ui._show_next_hint()
-	assert_not_null(ui.get_room_intro_card(), "then the room card")
-	assert_false(controls.visible)
-	ui.get_room_intro_card().finish()
-	await wait_physics_frames(1)
-	assert_true(controls.visible, "the controls card comes back")
-	assert_eq(controls.process_mode, Node.PROCESS_MODE_PAUSABLE)
+	assert_true(guide.is_known(RoomFlint.seen_id(RoomGenre.SHOP)), "Flint explains the shop")
+	assert_null(ui._hint_card, "no card beside him")
+	assert_true(SaveManager.has_seen(RoomGenre.get_seen_id(RoomGenre.SHOP)), "the save keeps its flag (ChasmRules)")
+	guide.skip()
+	await wait_seconds(FlintGuideRules.FLY_BACK_TIME + 0.2)
+	assert_true(seen.has(RoomFlint.seen_id(RoomGenre.SHOP)), "seen for the account")
+	RoomFlint.set_known(guide.player, ["shop"])
+	assert_false(ui._explain_genre(RoomGenre.SHOP), "known: not again")
+	RoomFlint.explain_in_scripts = false
 
 
-func test_intro_duration_grows_with_the_text() -> void:
-	assert_eq(RoomIntroCard.duration_for("kurz"), RoomIntroCard.MIN_TIME)
-	assert_eq(RoomIntroCard.duration_for("x".repeat(1000)), RoomIntroCard.MAX_TIME)
-	var long_text := RoomGenre.get_intro(RoomGenre.TRIAL_GAUNTLET)
-	assert_gt(RoomIntroCard.duration_for(long_text), RoomIntroCard.duration_for(RoomGenre.get_intro(RoomGenre.FOUNTAIN)))
+func test_an_old_save_that_saw_the_card_still_hears_flint_once() -> void:
+	RoomGenre.mark_explained(RoomGenre.FOUNTAIN)
+	assert_false(RoomGenre.should_explain(RoomGenre.FOUNTAIN), "the old card was seen")
+	var seen: Dictionary = {}
+	var guide := _learner(seen)
+	RoomFlint.set_known(guide.player, [])
+	RoomFlint.explain_in_scripts = true
+	_ui().show_genre(RoomGenre.FOUNTAIN)
+	assert_true(guide.is_known(RoomFlint.seen_id(RoomGenre.FOUNTAIN)), "Flint's own flag counts (flint_room_*)")
+	RoomFlint.explain_in_scripts = false
 
 
 # --- Banner queue ---

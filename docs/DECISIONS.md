@@ -3,7 +3,7 @@
 > **Stand:** 13.10.2026 · **Quelle:** Überarbeitetes GDD Master 1.0 (10.10.2026), einschließlich darin konsolidierter GDD 01–11 und bestätigter GitLab-Regeln.  
 > **Zweck:** Getroffene Entscheidungen sichtbar halten. Nicht ohne neue Fakten, protokollierten Grund und Teamfreigabe erneut aufrollen.  
 > **Abgrenzung:** Beschlüsse hier stammen **nicht** aus dem später verworfenen ChatGPT-Testprojekt.  
-> **Aufgelöste Dokumente:** `KONZEPT_RAEUME.md` (v1) und `KONZEPT_ENDLOS.md` wurden am 17.10.2026 aufgelöst (D-178); Abschnittsverweise in älteren Einträgen sind historisch, die Regeln stehen in den jeweiligen D-Einträgen und im Code.
+> **Aufgelöste Dokumente:** `KONZEPT_RAEUME.md` (v1) und `KONZEPT_ENDLOS.md` wurden am 17.10.2026 aufgelöst (D-178); Abschnittsverweise in älteren Einträgen sind historisch, die Regeln stehen in den jeweiligen D-Einträgen und im Code. Am 22.10.2026 sind die Phasen-Roadmaps und die Konzepte in `ROADMAP.md` und `KONZEPT.md` aufgegangen (D-193); Verweise in älteren Einträgen zeigen auf die neuen Dateien, ihre Abschnittsangaben sind historisch.
 
 ## 1. Hierarchie, Status und Änderungsprozess
 
@@ -157,10 +157,10 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 | Mittel | Rückwärtsnavigation, Türkoordinaten und Raumfehler-Fallbacks | Bei Dungeon-Implementierung |
 | Hoch | Basiswerte Gegner (HP/Schaden/Tempo) und Spielertempo als TESTWERTE (aktuell PLATZHALTER, D-055) | Vor M1-Abnahme |
 | Technik | Export-/CI-Ziel (Godot-Version: D-051, Test-Runner: D-052) | Teamentscheidung vor jeweils betroffener Arbeit |
-| Vision | Menüs/Pause im Multiplayer und Verbindungsabbruch (Vorschlag D-085) | Vor [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP3 |
+| Vision | Menüs/Pause im Multiplayer und Verbindungsabbruch (Vorschlag D-085) | Vor [ROADMAP.md](ROADMAP.md) MP3 |
 | Vision | Details Gilden-Fortschritt (Vorschlag D-081) und Ranglisten-Wertung (Vorschlag D-082) | Vor MP8 / MP9 |
 | Vision | Steam: Zeitpunkt, Steamworks-Konto, Rechte am Spiel, Lizenzen | Vor MP10 |
-| Idee | KI-Wunschbosse „Traumweber“: ob und wann, echte Personen/Marken, Bild-Anbieter, Kontingent und Kosten ([KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) §11) | Vor [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) KI3 |
+| Idee | KI-Wunschbosse „Traumweber“: ob und wann, echte Personen/Marken, Bild-Anbieter, Kontingent und Kosten ([KONZEPT.md](KONZEPT.md) §11) | Vor [ROADMAP.md](ROADMAP.md) KI3 |
 
 ## 7a. Neue Entscheidungen ab 13.10.2026
 
@@ -356,7 +356,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ## 7b. Vision nach dem MVP (ab 13.10.2026)
 
-> Grundlage: [PRD.md](PRD.md) Abschnitt 7. Pläne: [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md), [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md). Balance- und Detailwerte hat das Projektmitglied an Claude delegiert („mach einfach“); sie sind **TESTWERTE** und jederzeit per neuer Entscheidung änderbar.
+> Grundlage: [PRD.md](PRD.md) Abschnitt 7. Pläne: [ROADMAP.md](ROADMAP.md). Balance- und Detailwerte hat das Projektmitglied an Claude delegiert („mach einfach“); sie sind **TESTWERTE** und jederzeit per neuer Entscheidung änderbar.
 
 ### D-080 – Zwei Gruppenmodi: Schnelles Spiel und Gilde
 
@@ -459,7 +459,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-088 – Reihenfolge: erst Ausbau, dann Multiplayer, mit Leitplanken
 
 - **Status:** VERBINDLICH · **Datum:** 2026-10-13 / Projektmitglied
-- **Beschluss:** Zuerst wird das Spiel ausgebaut ([ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md)), danach Multiplayer ([ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md)). Neuer Code hält sich an die **Multiplayer-Leitplanken** (ROADMAP_AUSBAU, Abschnitt „Leitplanken“), damit der spätere Umbau klein bleibt.
+- **Beschluss:** Zuerst wird das Spiel ausgebaut ([ROADMAP.md](ROADMAP.md)), danach Multiplayer ([ROADMAP.md](ROADMAP.md)). Neuer Code hält sich an die **Multiplayer-Leitplanken** (ROADMAP, Abschnitt „Leitplanken“), damit der spätere Umbau klein bleibt.
 - **Folgen:** Umsetzung durch eigene Agenten je Arbeitspaket.
 
 ### D-089 – Balance nach Bot-Messung
@@ -495,7 +495,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ### D-092 – Musik je Biom
 
-- **Status:** VERBINDLICH (Wunsch des Projektmitglieds) · Umsetzung **geplant** (ROADMAP_AUSBAU C1) · **Datum:** 2026-10-13 / Projektmitglied
+- **Status:** VERBINDLICH (Wunsch des Projektmitglieds) · Umsetzung **geplant** (ROADMAP C1) · **Datum:** 2026-10-13 / Projektmitglied
 - **Beschluss:** Jedes Biom bekommt einen **eigenen Dungeon-Track** (Krypta: düster, Orgel/Glocken; Schleimgrotte: blubbernd, Tropfen, verspielt-bedrohlich; Schattenreich: kalt, Hall, Flüstern; Glutkammer: treibend, Trommeln, Amboss). Bosskämpfe behalten die **intensivere Musik**, je Boss eine eigene Variante; Phase 2 wird noch einmal intensiver (schneller oder zusätzliche Spur). Champion-Räume dürfen eine gesteigerte Fassung des Biom-Tracks nutzen. Beim Biomwechsel blendet die Musik über (wie heute zwischen Dorf und Dungeon).
 - **Technik (Vorschlag):** `BiomeData.music_track` und `BiomeData.boss_music_track`; `MusicPlayer` wählt beim Raumwechsel nach Biom. Die Tracks erzeugt `tools/generate_music.py`; eigene Dateien gleichen Namens ersetzen sie.
 
@@ -512,7 +512,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Warum getrennt:** kein gemeinsamer Code (GDScript kann die TypeScript-Verträge nicht nutzen), verschiedene Werkzeuge und Tests, verschiedene Veröffentlichungszyklen (der Server muss ohnehin ältere Spielversionen bedienen), das Spiel-Repo bleibt schlank, Server-Zugänge und Admin-Panel bleiben beim Betreiber.
 - **Schnittstelle:** HTTPS-API mit Versionsangabe (`API_VERSION`, Spielversion im Run-Bericht). Quelle der Wahrheit sind die Verträge in `soulwick-platform/packages/contracts`; der GDScript-Client im Spiel wird danach von Hand angepasst. Der Server unterstützt mindestens die aktuelle und die vorige Spielversion.
 - **Admin-Rollen:** `admin` (alles) und `moderator` (sperren, entsperren, Runs markieren). Jede Admin-Aktion landet im Protokoll. Gesperrte Spieler bekommen bei jedem Server-Aufruf „gesperrt“ mit Grund und Ende; das Spiel bleibt offline spielbar.
-- **Ersetzt:** Ordner `server/` aus D-083 und ROADMAP_MULTIPLAYER MP7 → Repository `soulwick-platform`. Ergänzt TECHSTACK §6. Arbeitsweise mit Agenten: [AGENTS.md](../AGENTS.md).
+- **Ersetzt:** Ordner `server/` aus D-083 und ROADMAP MP7 → Repository `soulwick-platform`. Ergänzt TECHSTACK §6. Arbeitsweise mit Agenten: [AGENTS.md](../AGENTS.md).
 
 ### D-094 – Spielname „Soulwick“
 
@@ -581,8 +581,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-100 – Raumarten Normal / Arena / Abgrund, Formen statt „Strukturiert“
 
 - **Status:** VERBINDLICH (Raumkonzept vom Projektmitglied bestätigt) · Werte **TESTWERT** · **Datum:** 2026-10-14 / Projektmitglied
-- **Beschluss:** Raumarten sind **Normal** (`normal`), **Arena** (`arena`, Wellen) und **Abgrund** (`chasm`). Die Raumart „Strukturiert“ entfällt: Innenmauern, Säulen, Engstellen sind **Formen** und **Zutaten** des normalen Kampfraums ([KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md), D-113). Gewichte ab Raum 6: Normal 40 / Arena 35 / Abgrund 25, kein Abgrund zweimal hintereinander; Raum 1–5 nur normale Kampfräume. Raumarten, Formen und Größen werden im Spiel **nie angezeigt**.
-- **Ersetzt:** D-086 (Raumart-Liste und Gewichte; Abgrund-Regeln bleiben), PRD 7.4. Umsetzung: Nacharbeit A1 in ROADMAP_AUSBAU.
+- **Beschluss:** Raumarten sind **Normal** (`normal`), **Arena** (`arena`, Wellen) und **Abgrund** (`chasm`). Die Raumart „Strukturiert“ entfällt: Innenmauern, Säulen, Engstellen sind **Formen** und **Zutaten** des normalen Kampfraums ([RAEUME.md](RAEUME.md), D-113). Gewichte ab Raum 6: Normal 40 / Arena 35 / Abgrund 25, kein Abgrund zweimal hintereinander; Raum 1–5 nur normale Kampfräume. Raumarten, Formen und Größen werden im Spiel **nie angezeigt**.
+- **Ersetzt:** D-086 (Raumart-Liste und Gewichte; Abgrund-Regeln bleiben), PRD 7.4. Umsetzung: Nacharbeit A1 in ROADMAP.
 
 ### D-101 – Kampf-Varianten
 
@@ -615,7 +615,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-106 – Reihenfolge: erst spielbar und alle Räume, dann Multiplayer, KI-Bosse zuletzt
 
 - **Status:** VERBINDLICH · **Datum:** 2026-10-14 / Projektmitglied
-- **Beschluss:** Bestätigt und präzisiert D-088: Phase 1 „spielbar für mich“ (Hauptmenü, Spielstände, UX, Dorf), Phase 2 **der gesamte Raum-Content** aus KONZEPT_RAEUME als Einzelspieler, Phase 3 Multiplayer und Plattform, Phase 4 KI-Bosse (KI1/KI2 dürfen vorgezogen werden). Das Plattform-Repo darf jederzeit parallel entwickelt werden. Jedes Paket der Phase 2 beantwortet den **Koop-Check** in ROADMAP_AUSBAU, damit MP1 klein bleibt; Abgrund (A4) und Licht-Varianten (A9) sind die Pakete mit dem meisten Koop-Bezug und werden besonders darauf geprüft.
+- **Beschluss:** Bestätigt und präzisiert D-088: Phase 1 „spielbar für mich“ (Hauptmenü, Spielstände, UX, Dorf), Phase 2 **der gesamte Raum-Content** aus KONZEPT_RAEUME als Einzelspieler, Phase 3 Multiplayer und Plattform, Phase 4 KI-Bosse (KI1/KI2 dürfen vorgezogen werden). Das Plattform-Repo darf jederzeit parallel entwickelt werden. Jedes Paket der Phase 2 beantwortet den **Koop-Check** in ROADMAP, damit MP1 klein bleibt; Abgrund (A4) und Licht-Varianten (A9) sind die Pakete mit dem meisten Koop-Bezug und werden besonders darauf geprüft.
 - **Gründe:** Das Projektmitglied will zuerst den ganzen Einzelspieler-Content spielen. Der Mehraufwand für MP1 bleibt durch die Leitplanken gering; das Risiko liegt vor allem in Spielerzustand und Lichtabfragen, die das Raumkonzept bereits mehrspielerfähig beschreibt.
 - **Ergänzt:** D-088.
 
@@ -628,7 +628,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-108 – Zielbild Crossplay: Steam, Google Play, App Store
 
 - **Status:** VORGESCHLAGEN (Ziel vom Projektmitglied genannt am 14.10.2026; Details **OFFEN**) · **Datum:** 2026-10-14 / Projektmitglied, Ausarbeitung Claude
-- **Kontext:** D-083 und ROADMAP_MULTIPLAYER planen bisher nur PC über Steam (Steam-Lobbys, Steam-Relay) und eine Anmeldung über Steam-ID oder Geräte-ID. Das Projektmitglied will Soulwick zusätzlich auf Google Play und im App Store anbieten und **plattformübergreifend zusammen spielen** lassen (wie Among Us). Steam-Lobbys funktionieren nur zwischen Steam-Konten; Mobil-Spieler brauchen eine plattformneutrale Stelle.
+- **Kontext:** D-083 und ROADMAP planen bisher nur PC über Steam (Steam-Lobbys, Steam-Relay) und eine Anmeldung über Steam-ID oder Geräte-ID. Das Projektmitglied will Soulwick zusätzlich auf Google Play und im App Store anbieten und **plattformübergreifend zusammen spielen** lassen (wie Among Us). Steam-Lobbys funktionieren nur zwischen Steam-Konten; Mobil-Spieler brauchen eine plattformneutrale Stelle.
 - **Beschluss:**
   - **Zielbild:** Soulwick erscheint auf **Steam, Google Play und im App Store**; Spieler aller drei Plattformen können **gemeinsam** spielen und sich in gemeinsamen Gilden und Ranglisten finden (Details in CP0).
   - **Konto-Modell als Grundlage:** Ein **Soulwick-Konto** (Spieler auf dem Server), an dem **mehrere Plattform-Identitäten** hängen (`steam`, `device`, `google_play`, `game_center`), ohne E-Mail und Passwort; Geräte werden per Verknüpfungscode verbunden; Konto löschen in-App (Store-Pflicht). Jetzt wird nur die Datenbank vorbereitet (`player_identities`, Plattform P-014 / ROADMAP P11); Verknüpfungs-Routen erst nach CP0/CP1.
@@ -639,7 +639,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Erweitert die Datenkategorien aus D-083, D-093 und AGENTS.md Regel 6 der Plattform („nur Steam-ID bzw. Geräte-ID“) um **Google-Play-Games-** und **Game-Center-IDs** (jeweils nur die Nutzer-ID des Providers); Datenschutzerklärung entsprechend ergänzen (eRecht24, Plattform P-013).
   - Lobby/Relay **perspektivisch auf dem eigenen Server**: Fällt CP0 Frage 3 für den eigenen Relay aus, wird D-083 („kein Echtzeit-Spielverkehr über den Server“) zu „Weiterleitung ja, Spiellogik nein“ geändert; das Host-Modell bleibt.
   - Plattform: Tabelle `player_identities` ersetzt `players.steam_id`/`device_id` (P-014, ROADMAP P11); der Vertrag von `/auth/dev` und `/auth/steam` bleibt unverändert.
-  - Neue Roadmap [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) (CP0–CP6) als Phase nach dem Multiplayer; Verweise in AGENTS.md §3 und ROADMAP_MULTIPLAYER „Überblick“. Website (Plattform P9): Steam, Google Play, App Store als „geplant“ mit Crossplay-Hinweis.
+  - Neue Roadmap [ROADMAP.md](ROADMAP.md) (CP0–CP6) als Phase nach dem Multiplayer; Verweise in AGENTS.md §3 und ROADMAP „Überblick“. Website (Plattform P9): Steam, Google Play, App Store als „geplant“ mit Crossplay-Hinweis.
   - **Zu entscheiden vor MP2** (CP0): Geschäftsmodell, Konto-Modell, Lobby/Relay, Plattform-Reihenfolge, Touch-Steuerung, Altersfreigabe, Ranglisten je Plattform oder gemeinsam.
 - **Ergänzt:** D-083, D-093. **Ersetzt:** keine.
 - **Teilweise entschieden in D-119, D-121, D-122** (Relay, Plattform-Reihenfolge und Publisher; Konto-Modell; Zusammenführen von Konten), **weiter entschieden in D-155/D-168** (Touch), **D-173** (Zielgruppe; Freigabe aus IARC) und **D-176** (Geschäftsmodell). Ranglisten je Plattform und Relay-Regionen bleiben OFFEN (CP0).
@@ -702,6 +702,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Wagnis-Altar:** neben dem Eingang, Annehmen mit E nur vor dem Betreten; Prüfungen kein Treffer / unter 30 s / nur Zweitwaffe (nur mit zweiter Waffe), Flüche Lichtkreis −40 % / Gegner +15 % Tempo / keine Heilung im Raum; Erfolg 2 Kristalle („kein Treffer“), sonst 1, je Spieler.
 - **Koop-Parameter (für MP5):** Flamme +50 % HP je weiterem Spieler, +1 Riss je weiterem Spieler, Truhen je Spieler aus.
 - **Offen (Projektmitglied):** Bonus beim Totengräber nur ohne Aufstehen? Wagnis-Kristalle 2/1 passend? Variantenanteil auf echte 20 % ausgleichen? Wagnis-Banner schon beim Öffnen der Tür?
+- **Nachtrag 22.10.2026 (Meldung #eff1c81c, Gekrönter der Jagd pendelte):** Der Gekrönte flieht nur zu Punkten, die mindestens `EVADE_GAIN` = 16 px weiter vom nächsten Spieler weg liegen, und nie auf einem Weg, der einem Spieler näher als 64 px (`EVADE_PASS_DISTANCE`) kommt (TESTWERT); ohne solchen Punkt kauert er in der Ecke und lässt sich fangen. Er greift weiterhin nie an (RAEUME §3.8).
 
 ### D-115 – Abgrund und Brücken: Ausgestaltung (A4)
 
@@ -762,8 +763,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ### D-119 – Crossplay-Architektur: Host + eigener Relay, Steam → Android → iOS, Publisher WebBude
 
-- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (ROADMAP_CROSSPLAY CP0 Fragen 3 und 4, Publisher); Ausarbeitung Claude
-- **Kontext:** D-108 nennt das Zielbild Crossplay über Steam, Google Play und App Store, ließ aber Lobby/Relay (CP0 Frage 3) und die Plattform-Reihenfolge (Frage 4) offen. D-083 schloss Echtzeit-Spielverkehr über den Server aus; ROADMAP_MULTIPLAYER plante ENet, ein virtuelles LAN (Tailscale) und den Steam-Relay. Keiner dieser Wege bringt Handy und PC in einen Raum.
+- **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (ROADMAP CP0 Fragen 3 und 4, Publisher); Ausarbeitung Claude
+- **Kontext:** D-108 nennt das Zielbild Crossplay über Steam, Google Play und App Store, ließ aber Lobby/Relay (CP0 Frage 3) und die Plattform-Reihenfolge (Frage 4) offen. D-083 schloss Echtzeit-Spielverkehr über den Server aus; ROADMAP plante ENet, ein virtuelles LAN (Tailscale) und den Steam-Relay. Keiner dieser Wege bringt Handy und PC in einen Raum.
 - **Beschluss:**
   - **Netzwerk:** Host-Modell wie Among Us (ein Spieler rechnet) plus **eigener Relay** `soulwick-relay` auf dem eigenen Server (CP0 Frage 3a). Der Relay vergibt Raumcodes, prüft das Spieler-Token und leitet Pakete weiter; Spiellogik gibt es nur im Spiel.
   - **Transport in Phase 1:** WebSocket-Relay über eine eigene `MultiplayerPeerExtension` in GDScript (`online/relay_peer.gd`) auf Godots eingebautem `WebSocketPeer`; ohne GDExtension auf allen Zielplattformen, keine Portfreigaben. Spielpakete als Rahmen `{from, to, channel, mode, data}`.
@@ -777,7 +778,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - **D-083** gilt mit Änderung: „Weiterleitung ja, Spiellogik nein“. Echtzeit-Pakete laufen über den Relay, gerechnet wird weiter nur beim Host.
   - **D-108** ist teilweise entschieden (CP0 Fragen 3, 4 und Publisher); der Rest bleibt VORGESCHLAGEN bzw. OFFEN.
   - **Überholt** und bei der nächsten Überarbeitung der Dateien anzupassen: ARCHITECTURE.md („Netzwerk-/Server-API: Nicht vorgesehen“, „kein Backend“), MULTIPLAYER.md §1 („kein Matchmaking“) und §4a Stufe 2 (virtuelles LAN), PRODUKT.md („Relay OFFEN“).
-  - Roadmaps: ROADMAP_MULTIPLAYER MP2–MP6 auf den Relay umgestellt (MP4 Test-Build über den Relay statt Tailscale, MP6 Steam als Zusatz); ROADMAP_CROSSPLAY CP0, CP3 (Relay), neu CP7 (Build-CI und Stores), Abschnitte „Lokal testen“ und „Dedizierter Server (später)“.
+  - Roadmaps: ROADMAP MP2–MP6 auf den Relay umgestellt (MP4 Test-Build über den Relay statt Tailscale, MP6 Steam als Zusatz); ROADMAP CP0, CP3 (Relay), neu CP7 (Build-CI und Stores), Abschnitte „Lokal testen“ und „Dedizierter Server (später)“.
   - Plattform: neuer Dienst `apps/relay` (P-016), Steam nur Zusatz (P-017), Domains `play.playsoulwick.com` und Umgebungen (P-018); Pakete P13–P17 in `soulwick-platform/docs/ROADMAP.md`, Konzept `soulwick-platform/docs/KONZEPT_ONLINE.md`.
   - Datenschutz: Relay-Verbindungsdaten (IP, Spieler-ID, Zeitpunkt, keine Inhalte) und die Plattform-IDs in die Datenschutzerklärung (eRecht24).
 - **Ergänzt:** D-083, D-108. **Ersetzt:** keine.
@@ -786,19 +787,19 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-120 – Räume v2: klare Modi, Minispiele, Abgrund-Raumart gestrichen
 
 - **Status:** VERBINDLICH (Gameplay) · Look folgt aus Claude Design · **Datum:** 2026-10-14 / Projektmitglied
-- **Beschluss:** [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
-- **Folgen:** Phase 2b (ROADMAP_AUSBAU) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/responses/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
+- **Beschluss:** [RAEUME.md](RAEUME.md) gilt: ein Raum = eine Aufgabe in einem Satz, Tür-Erkennung, Intro-Muster (Kameraschwenk, Banner, Countdown), Aufgabenleiste, Misserfolg kostet nur den Bonus. Raumarten: Säubern, Arena (erst kurz vor dem 1. Boss), Minispiele (Geleit, Flamme hüten, Reliquie holen, Seelen sammeln, Risse schließen, Jagd, Lichtfeuer, Einsturz), Ruhe-Räume, Prüfung, Wagnis, Elite-Nest, Miniboss, Boss, Lagerfeuer, Geheimnische. **Hauptsächlich Kämpfen, 30–40 % Minispiele** ab Zyklus 2. **Abgrund als eigene Raumart gestrichen** (nur noch Bauteil der Grundrisse und Kern von Einsturz). Gegner kommen aus sichtbaren Quellen je Biom; mehr, aber schwächere Gegner, Rudel und Flankieren. Eskorte-Figur: verirrter Dorfbewohner, selten ein Huhn (Look offen). Koop-exklusive Raum-Ideen für MP5 vorgemerkt (Konzept §3.11).
+- **Folgen:** Phase 2b (ROADMAP) vor dem Multiplayer; Claude Design liefert Look, Grundrisse, Wand-System, Türen, Dorf und UI (`docs/design/responses/`); danach SPRITES_V8 und Pakete. Ersetzt Teile von D-100, D-101, D-104, D-110, D-114–D-117 (Varianten werden zu Minispielen, Hinterhalt entfällt).
 
 ### D-121 – Konto-Modell: ein Soulwick-Konto mit verknüpften Plattform-Identitäten
 
 - **Status:** VERBINDLICH · Punkt „ohne E-Mail und Passwort“ **ERSETZT durch D-188** (18.10.2026) · Werte **TESTWERT** · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
-- **Kontext:** D-108 schlug ein Soulwick-Konto mit mehreren Plattform-Identitäten vor; ROADMAP_CROSSPLAY CP0 Frage 2 war OFFEN. Die Plattform hat die Tabelle `player_identities` schon (P11, P-014); Store-Anmeldungen (P14) und Verknüpfen (P15) warten auf diese Entscheidung.
+- **Kontext:** D-108 schlug ein Soulwick-Konto mit mehreren Plattform-Identitäten vor; ROADMAP CP0 Frage 2 war OFFEN. Die Plattform hat die Tabelle `player_identities` schon (P11, P-014); Store-Anmeldungen (P14) und Verknüpfen (P15) warten auf diese Entscheidung.
 - **Beschluss:**
   - Je Spieler ein **Soulwick-Konto** (der Spieler auf dem Server), **ohne E-Mail und Passwort**. Daran hängen beliebig viele **Plattform-Identitäten**: `steam`, `device`, `google_play`, `game_center` (je Provider nur dessen Nutzer-ID). Jede Anmeldung findet oder erzeugt eine Identität; eine neue Identität ohne Konto erzeugt ein Konto.
   - **Verknüpfen wie bei Among Us:** Ein angemeldetes Gerät erzeugt einen **6-stelligen Code** (Alphabet wie die Raumcodes), **10 Minuten gültig**; das zweite Gerät löst ihn angemeldet ein, seine Identität hängt danach am Konto des ersten. Hat das zweite Gerät schon ein eigenes Konto, gilt D-122.
   - Eine Identität darf entkoppelt werden, die letzte eines Kontos nicht.
   - **Konto löschen** in der App (Konto-Panel → Bestätigung → `DELETE /me`) **und** als Web-Formular für den Löschantrag (Google-Play-Pflicht; Website `/delete-account`, Ablauf mit Löschcode als Vorschlag in `soulwick-platform/docs/KONZEPT_ONLINE.md` §3.7).
-  - Entscheidet ROADMAP_CROSSPLAY **CP0 Frage 2: (a)**.
+  - Entscheidet ROADMAP **CP0 Frage 2: (a)**.
 - **Gründe / verworfene Alternativen:** (b) nur Plattform-Konten ohne Verknüpfung macht Cross-Progression und gemeinsame Gilden über Plattformen hinweg unmöglich. (c) E-Mail und Passwort bringen Passwort-Reset, mehr personenbezogene Daten und Angriffsfläche ohne Nutzen; die Store-Anmeldungen reichen. Der Code-Weg braucht keine Zusatzdaten und ist vielen Spielern von Among Us vertraut.
 - **Folgen:** Plattform: `player_identities` existiert (P11, P-014); Anmeldung je Provider in **P14**, Verknüpfungscode und Löschantrag-Seite in **P15** (Verträge zuerst in `packages/contracts`). Spiel: Konto-Panel in CP1 (`ui/options/account_panel.gd`), Konto und Token in `online/session.gd` (Node in `game.tscn`, kein Autoload, D-044). Datenschutzerklärung: nur Provider-Nutzer-IDs (eRecht24, P-013). Ohne Konto bleibt das Spiel offline spielbar.
 - **Ersetzt:** keine; macht den Konto-Teil von D-108 verbindlich.
@@ -818,7 +819,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - **Sperren:** Ist eines der beiden Konten gesperrt, wird **nicht** zusammengeführt; die API lehnt ab, ein Admin prüft manuell.
 - **Gründe / verworfene Alternativen:** Die Regel ist vorhersagbar und ohne Vergleich von Inhalten umsetzbar; das ältere Konto hat meist den längeren Verlauf. Niemand verliert unbemerkt seine Gilde, und es entsteht keine doppelte Mitgliedschaft (höchstens eine Gilde je Spieler, D-080). Gesperrte Konten werden nicht automatisch zusammengeführt, damit niemand eine Sperre durch Verknüpfen umgeht oder ein unbeteiligtes Konto mitsperrt. Verworfen: freie Wahl durch den Spieler (fehleranfällig, mehr Oberfläche), „das neuere Konto gewinnt“.
 - **Folgen:** Plattform P15: `POST /me/link` führt in **einer** Transaktion zusammen, Tests für leeres Konto, Konflikt mit Bestätigung, Gildenfälle, Sperre; Hinweis im Admin-Panel bei abgelehnter Zusammenführung. Spiel CP1: Bestätigungsdialog im Konto-Panel. `soulwick-platform/docs/KONZEPT_ONLINE.md` §0, §3.6 und §8 von OFFEN auf D-122 bringen (Plattform-Sitzung). **Offen (Plattform P15):** Was mit der Gründerrolle passiert, wenn das gelöschte Konto eine Gilde gegründet hat.
-- **Ersetzt:** keine; beantwortet den offenen Punkt „Zusammenführen zweier Konten“ aus D-119 und ROADMAP_CROSSPLAY CP1.
+- **Ersetzt:** keine; beantwortet den offenen Punkt „Zusammenführen zweier Konten“ aus D-119 und ROADMAP CP1.
 
 ### D-123 – Menüs, Pause und Verbindungsabbruch im Multiplayer
 
@@ -829,23 +830,23 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - **Multiplayer:** Menüs (Shop, Upgrade-Wahl, Waffenwahl, Tab-Übersicht, Esc) halten das Spiel **nicht** an. Wer ein Menü offen hat, ist geschützt: nicht treffbar, von Gegnern ignoriert, kann selbst nicht angreifen. HitStop ist im Multiplayer aus.
   - **Verbindungsabbruch:** Fällt ein Client heraus, läuft der Run weiter, die Gegneranzahl passt sich ab dem nächsten Raum an. Fällt der Host heraus, endet der Run für alle (Auszahlung wie Tod, 50 %). Kein Host-Wechsel, kein Wiederbeitreten im laufenden Run (später möglich). Über den Relay (D-119) gilt: Verliert der Host die Verbindung zum Relay, ist das ein Host-Abbruch.
 - **Gründe / verworfene Alternativen:** Eine globale Pause würde im Koop alle Spieler anhalten. Upgrade-Wahl und Shop kommen ohnehin in sicheren Momenten, der Schutz kostet daher kaum Spielgefühl. Host-Wechsel und Wiederbeitreten sind im Host-Modell aufwendig und für den Anfang nicht nötig.
-- **Folgen:** Status von D-085 auf VERBINDLICH gesetzt. ROADMAP_MULTIPLAYER: MP0 (Bestätigung erledigt), MP1 (Pause und HitStop je Modus), MP3 (Menüs, Verbindungsabbruch). Keine neuen globalen Pausen (AGENTS.md Regel 6).
+- **Folgen:** Status von D-085 auf VERBINDLICH gesetzt. ROADMAP: MP0 (Bestätigung erledigt), MP1 (Pause und HitStop je Modus), MP3 (Menüs, Verbindungsabbruch). Keine neuen globalen Pausen (AGENTS.md Regel 6).
 - **Ersetzt:** D-043 nur im Multiplayer (wie in D-085 vorgeschlagen).
 
 ### D-124 – Netzwerk-Reihenfolge
 
 - **Status:** VERBINDLICH · **Datum / Teamfreigabe:** 2026-10-14 / Projektmitglied (an Claude delegiert), Ausarbeitung Claude
-- **Kontext:** ROADMAP_MULTIPLAYER und MULTIPLAYER.md planten ENet zuerst (MP2 per IP, MP4 über ein virtuelles LAN) und den Steam-Relay in MP6; der HTTP-Client im Spiel stand erst in MP7. D-119 macht den eigenen Relay zum Hauptweg, und der Relay verlangt ein Spieler-Token.
+- **Kontext:** ROADMAP und MULTIPLAYER.md planten ENet zuerst (MP2 per IP, MP4 über ein virtuelles LAN) und den Steam-Relay in MP6; der HTTP-Client im Spiel stand erst in MP7. D-119 macht den eigenen Relay zum Hauptweg, und der Relay verlangt ein Spieler-Token.
 - **Beschluss:** Reihenfolge der Spiel-Pakete:
   1. **MP1:** Code verträgt mehrere Spieler, noch ohne Netzwerk.
   2. **MP1b – API-Client im Spiel:** `online/api_client.gd` (HTTP mit Token), Dev-Anmeldung über `POST /auth/dev` mit Geräte-ID, Sitzung in `online/session.gd`; vorgezogen aus MP7.
-  3. **MP2** über den Relay (D-119): Raum erstellen, Raumcode eingeben; braucht den Relay (ROADMAP_CROSSPLAY CP3 Teil A, Plattform P13; lokal im Plattform-Repo).
+  3. **MP2** über den Relay (D-119): Raum erstellen, Raumcode eingeben; braucht den Relay (ROADMAP CP3 Teil A, Plattform P13; lokal im Plattform-Repo).
   4. **MP3:** gemeinsamer Dungeon-Run, ebenfalls über den Relay.
   - **ENet** nur optional für LAN-Tests und Entwicklung, hinter derselben `MultiplayerPeer`-Schnittstelle.
   - **Steam** erst in **MP6** und nur als Zusatz (Anmeldung, Einladung mit Raumcode), nicht als Transport.
 - **Gründe / verworfene Alternativen:** Internet-Koop braucht ohnehin Anmeldung und Relay; ein ENet-Zwischenschritt (IP, virtuelles LAN) würde Lobby, Fehlermeldungen und Testanleitung doppelt bauen. Der API-Client ist klein, ohne Netzwerk-Spiellogik testbar und Voraussetzung für das Relay-Token.
-- **Folgen:** ROADMAP_MULTIPLAYER: neues Paket MP1b zwischen MP1 und MP2, Reihenfolge-Zeile; MULTIPLAYER.md §2 und §4a. MP2 bis MP6 folgen D-119 (Raumcode statt IP, Test-Build über den Relay, Steam als Zusatz).
-- **Ersetzt:** die Stufen „ENet direkt → virtuelles LAN → Steam“ (MULTIPLAYER.md §4a) und „Warum ENet zuerst“ (ROADMAP_MULTIPLAYER).
+- **Folgen:** ROADMAP: neues Paket MP1b zwischen MP1 und MP2, Reihenfolge-Zeile; MULTIPLAYER.md §2 und §4a. MP2 bis MP6 folgen D-119 (Raumcode statt IP, Test-Build über den Relay, Steam als Zusatz).
+- **Ersetzt:** die Stufen „ENet direkt → virtuelles LAN → Steam“ (MULTIPLAYER.md §4a) und „Warum ENet zuerst“ (ROADMAP).
 
 ### D-125 – Lobby im Dorf und Netz-Testwerte (MP2)
 
@@ -932,7 +933,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 ### D-135 – Minispiele Geleit, Seelen sammeln, Einsturz (R4a)
 
-- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach KONZEPT_RAEUME_V2 §3.3/§3.6/§3.10
+- **Status:** VERBINDLICH (Werte **TESTWERT**) · **Datum:** 2026-10-14 / Claude nach RAEUME §3.3/§3.6/§3.10
 - **Geleit:** verirrter Dorfbewohner (5 % Huhn) läuft einen sichtbaren Pfad zum Ausgang; Köder für 60 % der Gegner, bleibt bei Gegner < 3 Kacheln stehen und ruft, 1,2× schneller neben einem Spieler, 4 Herzen (+1 je weiterem Spieler). Ankunft: Restgegner zerfallen (zählen als Kill), Bonus-Truhe, Rettung im Spielstand (`rescued_villagers`/`rescued_chickens`). Sturz: kein Bonus.
 - **Seelen:** 12 Seelen nacheinander, je 6 s, 45 s gesamt, 1 Gegner je Seele im 1,5-s-Takt; Kristalle 12/9/6 → 3/2/1.
 - **Einsturz:** 30 s, 2×2-Felder brechen von außen nach innen mit 1 s Warnung, nie Inseln; Gegner fallen mit, Spieler landen auf dem Restweg (D-115); Restweg 3 Kacheln breit mit Bonus-Truhe.
@@ -1165,11 +1166,11 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 ### D-155 – Touch: zwei Sticks (laufen links, zielen und angreifen rechts)
 
 - **Status:** VERBINDLICH (Projektmitglied 16.10.2026: „zwei Joysticks, links laufen, rechts schießen … in die Richtung, in die ich gucke, schlage ich automatisch … Special-Button links, wo ich laufe … Jump-Buttons trotzdem rechts“) · Werte **TESTWERT** (Claude)
-- **Beschluss:** Linker Stick läuft. Rechter Stick zielt; ab der Auto-Angriffs-Schwelle greift die Figur in Stick-Richtung automatisch an (alle Waffen), darunter dreht er nur die Figur. Spezial-Knopf links neben dem Lauf-Stick, löst in Ziel- bzw. Blickrichtung aus und pausiert den Auto-Angriff, solange er gehalten wird. Dash, Benutzen, Waffe wechseln, in der Seitenansicht Springen und Seiten-Dash liegen rechts um den Ziel-Stick; der Angriffsknopf entfällt. Ohne rechten Stick gilt die Laufrichtung als Blickrichtung, die alte Zielhilfe auf den nächsten Gegner (200 px) ist entfernt. Seitenansicht: Der rechte Stick zielt und greift dort genauso an. Maus, Tastatur und Gamepad unverändert. Setzt CP0 Frage 5 (ROADMAP_CROSSPLAY) praktisch als (b) „zwei Sticks“ um.
+- **Beschluss:** Linker Stick läuft. Rechter Stick zielt; ab der Auto-Angriffs-Schwelle greift die Figur in Stick-Richtung automatisch an (alle Waffen), darunter dreht er nur die Figur. Spezial-Knopf links neben dem Lauf-Stick, löst in Ziel- bzw. Blickrichtung aus und pausiert den Auto-Angriff, solange er gehalten wird. Dash, Benutzen, Waffe wechseln, in der Seitenansicht Springen und Seiten-Dash liegen rechts um den Ziel-Stick; der Angriffsknopf entfällt. Ohne rechten Stick gilt die Laufrichtung als Blickrichtung, die alte Zielhilfe auf den nächsten Gegner (200 px) ist entfernt. Seitenansicht: Der rechte Stick zielt und greift dort genauso an. Maus, Tastatur und Gamepad unverändert. Setzt CP0 Frage 5 (ROADMAP) praktisch als (b) „zwei Sticks“ um.
 - **Werte (TESTWERT):** Tot-Zone Ziel-Stick 0,2 des Radius (90 px), Auto-Angriff ab 0,25 nach der Tot-Zone (≈ 40 % Radius), angetippter Spezial-Angriff bleibt 15 Frames angefordert, Ziel-Stick startet im rechten 45-%-Streifen (Knöpfe haben Vorrang); Lauf-Stick unverändert (Tot-Zone 0,18).
 - **Zielhilfe (Claude entschieden 16.10.2026, Projektmitglied: „den Rest kannst du selber entscheiden“, TESTWERTE):** nur bei Fernwaffen (Bogen, Stab; `WeaponData.is_melee()` = false) und nur solange der Ziel-Stick ausgelenkt ist: Ein lebender, sichtbarer Gegner (nicht beim Auftauchen, im Dunkeln mindestens Alpha 0,5) im Kegel ±12° um die Stick-Richtung und in voller Waffenreichweite zieht das Ziel auf sich; bei mehreren der kleinste Winkel, dann der nähere. Gilt auch für den Spezial-Angriff. `player/input/touch_aim_assist.gd`, `tests/unit/test_touch_aim_assist.gd`. Seitenansicht: wirkt dort noch nicht (`SideEnemy` nicht in der Gruppe `enemies`).
 - **OFFEN:** Gerätetest auf 20:9-Handys (Daumenreichweite, Kegel und Reichweite der Zielhilfe).
-- **Folgen:** `ui/touch/touch_overlay.gd`, `ui/touch/touch_stick.gd` (neu), `ui/touch/touch_art.gd` (optional `touch_stick_aim_base.png`, SPRITES_V10 §1), `player/input/touch_input.gd`, `player/input/touch_state.gd`, `tests/unit/test_touch_input.gd`; Doku der alten Zielhilfe in `docs/MULTIPLAYER.md` und `docs/ROADMAP_CROSSPLAY.md` nachziehen (Multiplayer-Sitzung).
+- **Folgen:** `ui/touch/touch_overlay.gd`, `ui/touch/touch_stick.gd` (neu), `ui/touch/touch_art.gd` (optional `touch_stick_aim_base.png`, SPRITES_V10 §1), `player/input/touch_input.gd`, `player/input/touch_state.gd`, `tests/unit/test_touch_input.gd`; Doku der alten Zielhilfe in `docs/MULTIPLAYER.md` und `docs/ROADMAP.md` nachziehen (Multiplayer-Sitzung).
 - **Ersetzt:** die Touch-Zielhilfe aus MP1/CP0 (Angriffsknopf mit Zielhilfe).
 
 ### D-156 – Store-Builds vorbereitet: Play (AAB), iOS, Steam, Signaturen
@@ -1319,7 +1320,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Neuer Reiter „Touch“ in den Optionen (nur auf Touch-Geräten): Seiten tauschen (aus), Joysticks **fest** (Standard) oder mitwandernd, Größe klein/mittel/groß (×2/×3/×4, Standard mittel), Deckkraft 50/75/100 % (Standard 100 %), Zielhilfe Touch (an). Gespeichert in settings.cfg `[options]`, wirkt sofort.
   - Fester Stick: nimmt Berührungen bis zum 1,5-fachen Ringradius (`TouchStick.FIXED_GRAB_SHARE`), Ausschlag vom festen Mittelpunkt, wandert nicht mit.
   - Anordnung an den echten Bildrändern (aspect „expand“) und in der Safe Area (Android/iOS über `DisplayServer`, Web über CSS `env(safe-area-inset-*)`).
-- **Folgen:** `ui/touch/{touch_overlay,touch_art,touch_stick,touch_pixel_art}.gd`, `player/input/touch_input.gd`, `ui/options/{options_view,game_options}.gd`, `docs/design/sprites/SPRITES_V10.md`, Tests `test_touch_options.gd`, `test_touch_input.gd`.
+- **Folgen:** `ui/touch/{touch_overlay,touch_art,touch_stick,touch_pixel_art}.gd`, `player/input/touch_input.gd`, `ui/options/{options_view,game_options}.gd`, `docs/design/sprites/delivered/SPRITES_V10.md`, Tests `test_touch_options.gd`, `test_touch_input.gd`.
 - **Ersetzt:** mitwandernde Sticks als einzige Form (D-155).
 
 ### D-169 – Handy: Menüs größer, X zum Schließen, keine schwarzen Balken, Bildschirmtastatur im Browser
@@ -1384,7 +1385,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Vergleiche: Among Us (Gefühl), Soul Knight (Genre-Nachbar, Abgrenzung über Minispiele, KI-Bosse, Crossplay mit Browser, Dorf zum Zeigen), Stardew Valley (lebendiges Dorf), Dead Cells/Eastward/Celeste (moderne Pixel-Art).
   - Das Spiel wird laufend erweitert (Minispiele, Bosse, Modi).
 - **OFFEN:** ob KI-Bosse, Käufe und Koop mit Fremden die Freigabe anheben; ob Google ein Spiel mit niedlichem Maskottchen trotz Zielgruppe 13+ als „spricht Kinder an“ einstuft (dann gelten Teile der Familienregeln).
-- **Folgen:** `docs/PRODUKT.md` §2, Website-Texte (`soulwick-platform/apps/web/messages/*`), `docs/STORES.md`, ROADMAP_CROSSPLAY CP0 Frage 6.
+- **Folgen:** `docs/PRODUKT.md` §2, Website-Texte (`soulwick-platform/apps/web/messages/*`), `docs/STORES.md`, ROADMAP CP0 Frage 6.
 - **Ersetzt:** Zielgruppe „ab 6“ aus PRODUKT.md (Projektmitglied 14.10.2026).
 
 ### D-174 – Ton und Aufmachung: atmosphärischer Dungeon, süßes Dorf, moderne Pixel-Art
@@ -1404,8 +1405,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 - **Status:** VERBINDLICH (Projektmitglied 17.10.2026: „Maskottchen kann gerne ein Dochtwesen sein … dein persönlicher Begleiter von Anfang an … wegen Pets“; Huhn als „Side-Maskottchen“) · Name „Wick“ **VORGESCHLAGEN** (Claude)
 - **Beschluss:** Wick, ein kleines Docht-Wesen, ist das Maskottchen und im Spiel der persönliche Begleiter jedes Spielers ab dem ersten Start; Grundlage für Begleiter und Pets. Das Huhn ist Neben-Maskottchen und spielt mit Wick zusammen. Kosmetik gibt es für Spielfigur, Wick und Dorf.
-- **Ergänzung 17.10.2026** (Projektmitglied: „Wick ist ja ein Dochtwesen … ich finde Docht an sich damit zufrieden, ich war nur ein bisschen verwirrt“): Wick bleibt ein Docht-Wesen (kleine lebende Kerze mit Flamme); eine etwas schlankere Kerze ist erlaubt, wenn er so sympathisch bleibt; lieber etwas höher als schmaler, damit der Körper nicht wie ein Quadrat wirkt (Rückmeldung zum Website-Platzhalter mit 10×12-Körper, 17.10.2026). Ein kurz erwogener Umbau zur schwebenden Seele ist verworfen. Briefing: `docs/design/sprites/SPRITES_V12.md`.
-- **OFFEN:** Aussehen im Einzelnen (drei Entwürfe im Konzeptblatt, darunter eine schlankere Kerze, SPRITES_V12 §0), Namenskonflikt mit der Standard-Spielfigur „Wick“ (KONZEPT_BEGLEITER_KOSMETIK §2), Rolle im Spiel (Vorschlag: Wick ist die Quelle des Lichtkreises), ob Pets eigene Fähigkeiten haben (Achtung Pay-to-win, D-176).
+- **Ergänzung 17.10.2026** (Projektmitglied: „Wick ist ja ein Dochtwesen … ich finde Docht an sich damit zufrieden, ich war nur ein bisschen verwirrt“): Wick bleibt ein Docht-Wesen (kleine lebende Kerze mit Flamme); eine etwas schlankere Kerze ist erlaubt, wenn er so sympathisch bleibt; lieber etwas höher als schmaler, damit der Körper nicht wie ein Quadrat wirkt (Rückmeldung zum Website-Platzhalter mit 10×12-Körper, 17.10.2026). Ein kurz erwogener Umbau zur schwebenden Seele ist verworfen. Briefing: `docs/design/sprites/SPRITES_V13.md`.
+- **OFFEN:** Aussehen im Einzelnen (drei Entwürfe im Konzeptblatt, darunter eine schlankere Kerze, SPRITES_V12 §0), Namenskonflikt mit der Standard-Spielfigur „Wick“ (KONZEPT.md §8), Rolle im Spiel (Vorschlag: Wick ist die Quelle des Lichtkreises), ob Pets eigene Fähigkeiten haben (Achtung Pay-to-win, D-176).
 - **Folgen:** `docs/PRODUKT.md` §4, Grafik-Briefing in `docs/design/sprites/`, Konzept für Begleiter und Kosmetik, Website.
 - **Ersetzt:** keine.
 
@@ -1421,7 +1422,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Nicht jetzt: bezahlte Web-App, Windows Store.
 - **Gründe:** Der kostenlose Browser ist das Schaufenster und der schnellste Weg, Freunde reinzuholen; eine Kaufhürde dort widerspricht D-173. Steam verkauft trotzdem (Among Us, Mindustry): native Leistung, Gamepad, offline, keine Werbung, Steam-Funktionen, Unterstützer. Verworfen: alles bezahlt (bremst die Verbreitung), Web-App bezahlt (Hürde, Zahlungsabwicklung im Browser).
 - **OFFEN:** Preise; Zahlungsweg für Kosmetik im Browser; ob Käufe plattformübergreifend am Konto gelten (Store-Regeln von Apple und Google prüfen); Lizenzen, Merch, Plattform-Deals (Geschäftsplanung außerhalb des Repos).
-- **Folgen:** `docs/PRODUKT.md` §6, ROADMAP_CROSSPLAY CP0 Frage 1 und CP6 (Käufe), `docs/STORES.md`, Website.
+- **Folgen:** `docs/PRODUKT.md` §6, ROADMAP CP0 Frage 1 und CP6 (Käufe), `docs/STORES.md`, Website.
 - **Ersetzt:** CP0 Frage 1 „OFFEN“.
 
 ### D-177 – Code offen, Inhalte geschützt
@@ -1458,8 +1459,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - **Social-Media-Links** werden in einer Datei der Website gepflegt; nur ausgefüllte erscheinen (Vorschlag: ins Admin-Panel erst, wenn sie sich oft ändern).
   - **Store-Knöpfe** (Vorschlag Claude, folgt aus den Badge-Regeln von Apple, Google und Valve): Vor dem Release zeigt die Website eigene Pixel-Knöpfe ohne fremde Logos oder Badges, nur mit Plattformnamen („Browser“, „PC · Steam“, „Android“, „iPhone & iPad“) und „zum Release“. Offizielle Badges erst mit echtem Store-Link und `LIVE_FEATURES=true`, unverändert als Link auf die Produktseite (nicht nachzeichnen, umfärben, verzerren oder mit anderen Logos verbinden; App-Store-Badge in der Reihe zuerst, Google-Play-Badge mindestens gleich groß). Store-Links in `apps/web/content/stores.json`, Regeln in `docs/STORES.md` §6.
   - Beispiele für Wunschbosse sind erfunden, solange die Frage nach echten Personen offen ist.
-- **OFFEN:** Kosten der KI-Erzeugung je Boss und wer sie trägt; Moderation (für Jüngere vorgegebene Bausteine statt Freitext); Regeln des Party-Modus; ob echte Personen (z. B. Politiker) als KI-Boss gewünscht werden dürfen (Persönlichkeitsrecht, Store-Regeln für KI-Inhalte über reale Personen) – mit Team und Fachanwalt klären (das Projektmitglied wünscht es sich für Clips; Risiken in `docs/KONZEPT_KI_BOSS.md` §9); ob die Steam-Seite „Demnächst verfügbar“ (mindestens 2 Wochen vor dem Release sichtbar) und Wunschlisten schon zur öffentlichen Phase zählen.
-- **Folgen:** `docs/ROADMAP.md` (Übersicht), `docs/ROADMAP_KI_BOSS.md`, neues Konzept Party-Modus; Ergänzung: `docs/ROADMAP.md` (Release-Tor), `docs/PRODUKT.md` §2 und §5, `docs/KONZEPT_KI_BOSS.md`, `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/LAUNCH.md`, `docs/STORES.md`, ROADMAP_MULTIPLAYER MP10, ROADMAP_CROSSPLAY CP4, Website (`landing.json`: KI-Bosse, Wick, Dorf, „Was kommt“; Datei für Social-Media-Links); Ergänzung Plattformen und Store-Knöpfe: D-148, `docs/PRODUKT.md` §5 und §6, `docs/ROADMAP.md` (Release-Tor), ROADMAP_CROSSPLAY (CP0 Frage 4, CP2, CP4, CP7), `docs/STORES.md`, `docs/LAUNCH.md`, Website (`content/stores.json`, Store-Knöpfe), `soulwick-platform/infra/DOKPLOY.md`.
+- **OFFEN:** Kosten der KI-Erzeugung je Boss und wer sie trägt; Moderation (für Jüngere vorgegebene Bausteine statt Freitext); Regeln des Party-Modus; ob echte Personen (z. B. Politiker) als KI-Boss gewünscht werden dürfen (Persönlichkeitsrecht, Store-Regeln für KI-Inhalte über reale Personen) – mit Team und Fachanwalt klären (das Projektmitglied wünscht es sich für Clips; Risiken in `docs/KONZEPT.md` §9); ob die Steam-Seite „Demnächst verfügbar“ (mindestens 2 Wochen vor dem Release sichtbar) und Wunschlisten schon zur öffentlichen Phase zählen.
+- **Folgen:** `docs/ROADMAP.md` (Übersicht), `docs/ROADMAP.md`, neues Konzept Party-Modus; Ergänzung: `docs/ROADMAP.md` (Release-Tor), `docs/PRODUKT.md` §2 und §5, `docs/KONZEPT.md`, `docs/LAUNCH.md`, `docs/STORES.md`, ROADMAP MP10, ROADMAP CP4, Website (`landing.json`: KI-Bosse, Wick, Dorf, „Was kommt“; Datei für Social-Media-Links); Ergänzung Plattformen und Store-Knöpfe: D-148, `docs/PRODUKT.md` §5 und §6, `docs/ROADMAP.md` (Release-Tor), ROADMAP (CP0 Frage 4, CP2, CP4, CP7), `docs/STORES.md`, `docs/LAUNCH.md`, Website (`content/stores.json`, Store-Knöpfe), `soulwick-platform/infra/DOKPLOY.md`.
 - **Ersetzt:** keine (bestätigt die Phasen 3 und 4, ergänzt Phase 5); die Ergänzung „Plattformen“ ersetzt die Store-Reihenfolge Steam → Android → iOS aus D-119 durch einen gemeinsamen Release.
 
 ### D-180 – Melde-Dialog öffnen: Strg + B, am Gamepad Select + Start
@@ -1474,7 +1475,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 
 - **Status:** VORGESCHLAGEN (Claude; Entscheidung vom Projektmitglied an Claude delegiert, 17.10.2026, Meldung #67215ac5 „Cutted der Eingang“) · Zahl TESTWERT · ergänzt D-172
 - **Beschluss:** Statt einer zweiten Gangkachel eine niedrigere Bogengrafik; die Regel „genau eine Gangkachel“ (M2) bleibt. Ein Rahmen ragt höchstens `DoorStyle.MAX_FRAME_RISE` = 16 Art-px über die Türkachel (höchstens 48 px hoch). Eine gelieferte `<name>_low.png` hat Vorrang; bis dahin nimmt `DoorArt.lower_rows` ganze Zeilen aus dem hohen Bild heraus (zuerst leere oben, dann sich wiederholende in Pfeilern/Ziegeln, Sockel und Bogenkopf bleiben), ohne Skalierung; Glow und Innenschatten werden gleich gekürzt. Briefing SPRITES_V10 §9 (`door_frame_boss_low.png`, `door_frame_<biom>_soft_low.png`, je 64×48).
-- **Folgen:** `dungeon/environment/doors/{door_style,door_art,door_view}.gd`, Tests `test_door_frame_rise.gd`, `test_door_style.gd`, `test_door_gates.gd`, `test_door_node.gd`, `docs/design/sprites/SPRITES_V10.md` §9.
+- **Folgen:** `dungeon/environment/doors/{door_style,door_art,door_view}.gd`, Tests `test_door_frame_rise.gd`, `test_door_style.gd`, `test_door_gates.gd`, `test_door_node.gd`, `docs/design/sprites/delivered/SPRITES_V10.md` §9.
 - **Ersetzt:** 56 px hohe Bögen (Bosstor, weicher V9-Bogen) in voller Höhe.
 
 ### D-182 – Hochkant-Modus: oben Spielbild, unten Handheld-Controller
@@ -1539,8 +1540,8 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - Mausrad-Schritt im Web-Build mit echtem Touchpad prüfen; Frage: Soll die Gildenliste je Gilde „1 Raum offen“ zeigen (mehr API-Abfragen)?
   - Koop-Restrisiko Dash im Dorf: Kopien spielen Tasten nach; an der Grenze der Abklingzeit kann der Host anders entscheiden (bis ~54 px, gleitet zurück). Sauberer: Dash als Ereignis senden (Online-Workflow).
   - Offene Haken: Touch-Angriffsknopf im Dorf (`player/input/touch_input.gd`); „→“ fehlt in Pixelify Sans (`meta/meta_progression.gd`, `describe_level_step`, Vorschlag „»“); `ProfileEditor` hält die übergebene Breite nicht ein (+8 Mockup-px); Knopf-Schrift zentral in `UiKit.get_theme()`; Deko „K“ unter dem Sarkophag (`dungeon/rooms/plans/miniboss/kampfgrube.txt`); feste Wartezeit in `tools/scene_gallery.gd`; Kommentar in `online/net_diagnostics.gd`; eigene Tierlaute; `docs/AUDIO.md` (`villager_huh`, Browser-Loop-Korrektur).
-  - Idee #b2653f02 (Zuhause betreten und einrichten, Pets): Vorschlag in `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, Entscheidung beim Projektmitglied.
-- **Folgen:** `player/{player,weapon_controller}.gd`, `world/village/{village,village_decor,villager}.gd`, `world/village/{village.tscn,village_tileset.tres}` (erzeugt), `tools/{generate_village.py,build_tilesets.gd,generate_audio.py}`, `audio/sfx/villager_huh.wav`, `ui/menus/{village_ui,modal,mobile_ui}.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/options/options_view.gd`, `ui/hud/hud.gd`, `dungeon/environment/spawn/spawn_source.gd`, `components/audio/{music_channel,music_player}.gd`, `ui/dev/{dev_feedback,dev_feedback_store}.gd`, Tests `test_player_village.gd`, `test_music_web_loop.gd`, `test_dev_feedback_web.gd` (neu), `test_village_{affordable,layout,life}.gd`, `test_mobile_ui.gd`, `test_lobby_slots.gd`, `test_online_menu.gd`, `test_guild_rooms.gd`, `test_ux_options.gd`, `test_spawn_source.gd`, `test_hud_compact.gd`; `docs/KONZEPT_BEGLEITER_KOSMETIK.md`, `docs/feedback/FEEDBACK_2026-10-17.md`.
+  - Idee #b2653f02 (Zuhause betreten und einrichten, Pets): Vorschlag in `docs/KONZEPT.md`, Entscheidung beim Projektmitglied.
+- **Folgen:** `player/{player,weapon_controller}.gd`, `world/village/{village,village_decor,villager}.gd`, `world/village/{village.tscn,village_tileset.tres}` (erzeugt), `tools/{generate_village.py,build_tilesets.gd,generate_audio.py}`, `audio/sfx/villager_huh.wav`, `ui/menus/{village_ui,modal,mobile_ui}.gd`, `ui/menus/online/{online_menu,lobby_slot}.gd`, `ui/options/options_view.gd`, `ui/hud/hud.gd`, `dungeon/environment/spawn/spawn_source.gd`, `components/audio/{music_channel,music_player}.gd`, `ui/dev/{dev_feedback,dev_feedback_store}.gd`, Tests `test_player_village.gd`, `test_music_web_loop.gd`, `test_dev_feedback_web.gd` (neu), `test_village_{affordable,layout,life}.gd`, `test_mobile_ui.gd`, `test_lobby_slots.gd`, `test_online_menu.gd`, `test_guild_rooms.gd`, `test_ux_options.gd`, `test_spawn_source.gd`, `test_hud_compact.gd`; `docs/KONZEPT.md`, `docs/feedback/FEEDBACK_2026-10-17.md`.
 - **Ersetzt:** Schwert und 1,5 s Dash im Dorf; Kreis-Hitboxen von Kisten, Fässern und Marktstand; begehbare Beete; Raumcode in Gilden-Räumen (nur noch Rückfall); Zoom-Einrasten am PC.
 
 ### D-186 – Höhe: Plateaus, Klippen, Treppen, Leitern (M3)
@@ -1563,13 +1564,14 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Beschluss:** Soulwick nutzt lokal Block 1 des einheitlichen Port-Block-Schemas des Desktops: Website **3100**, API **3101** (`http://localhost:3101`), Admin **3102**, Relay **3103** (`ws://localhost:3103/v1`), lokale Browser-Version des Spiels **3110** (`docker run --rm -p 3110:80 …`), Postgres **5532**. Produktions- und Test-Server-Adressen sowie Container-Ports in Dokploy (z. B. `EXPOSE 80`, LAUNCH.md §4) bleiben unverändert. Das Plattform-Repo stellt parallel um (Standard-Ports, `.env.example`, CORS für `http://localhost:3110`).
 - **Gründe / verworfene Alternativen:** Feste Blöcke je Projekt vermeiden Kollisionen, wenn mehrere Projekte gleichzeitig laufen; einzelne Ports nach Bedarf zu verschieben wäre wieder uneinheitlich.
 - **Hinweis für Kollegen:** Eigene Einstellungen anpassen: `online.cfg` (`[settings] api_url`/`relay_url`, falls gesetzt), eigene `.env` der Plattform, `adb reverse` (`tcp:3101`, `tcp:3103`), Skripte und Lesezeichen mit den alten Ports.
-- **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP_CROSSPLAY,WEB_BUILD}.md`.
+- **Folgen:** `online/{online_config,api_client}.gd`, `tools/{net_smoke,net_run_smoke}.gd`, `tools/collect_feedback.py`, `tests/unit/test_online_config.gd`, `Dockerfile` (Kommentare), `docs/{MULTIPLAYER,LAUNCH,ROADMAP,WEB_BUILD}.md`.
 - **Ersetzt:** die bisherigen lokalen Ports.
+- **Ergänzung 22.10.2026 (Projektmitglied: „admin und api vom Port tauschen: 3101 soll admin sein“):** Admin **3101**, API **3102** (`http://localhost:3102`); Zweit-Instanzen Admin 3151, API 3152. Website 3100, Relay 3103, Browser-Version 3110 und Postgres 5532 bleiben. Eigene `online.cfg` (`api_url`), `.env` der Plattform und `adb reverse tcp:3102` anpassen.
 
 ### D-188 – Ein Konto, viele Anmeldungen, Welten in der Cloud, Konto-Level
 
 - **Status:** VERBINDLICH (Projektmitglied 18.10.2026, Antworten auf die Fragen des Konzepts; Ausarbeitung Claude) · Zahlen **TESTWERT** · OFFEN nur: Mailversand-Anbieter, Namen der Level-Titel, Kosmetik je Level
-- **Kontext:** Wunsch des Projektmitglieds (18.10.2026): Der Spieler soll im Spiel sehen, wie weit er ist, mit Leveln; nur ein Konto je Mensch; wer auf iOS anfängt und später im Browser oder auf Steam spielt, verknüpft die Plattformen, und die Spielstände sind synchron und auf dem Server. Vorher: Konto mit Identitäten, Verknüpfungscode und Zusammenführen auf dem Server gebaut (D-121, D-122, P-014, P-021, P-026, P-028), im Spiel nur die stille Gast-Anmeldung und das Profil (D-152, P-034); Welten nur lokal, Fortschritt nur je Welt, Cloud-Save (CP5) war ein Vorschlag nach dem Release. Konzept: [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md).
+- **Kontext:** Wunsch des Projektmitglieds (18.10.2026): Der Spieler soll im Spiel sehen, wie weit er ist, mit Leveln; nur ein Konto je Mensch; wer auf iOS anfängt und später im Browser oder auf Steam spielt, verknüpft die Plattformen, und die Spielstände sind synchron und auf dem Server. Vorher: Konto mit Identitäten, Verknüpfungscode und Zusammenführen auf dem Server gebaut (D-121, D-122, P-014, P-021, P-026, P-028), im Spiel nur die stille Gast-Anmeldung und das Profil (D-152, P-034); Welten nur lokal, Fortschritt nur je Welt, Cloud-Save (CP5) war ein Vorschlag nach dem Release. Konzept: [KONZEPT.md](KONZEPT.md).
 - **Beschluss:**
   1. **Anmeldung über Better Auth auch für Spieler:** Benutzername + Passwort, **Magic Link** per E-Mail, Social-Logins **Google, Apple, Discord, Steam** (Steam auch im Browser per Steam OpenID, dieselbe Steam-Identität wie das Ticket in Steam), dazu wie bisher Play Games und Game Center still auf dem Handy. Alles an **einem** Konto verknüpfbar. Gast je Gerät bleibt der stille Einstieg und wird per „Anmeldung hinzufügen“ (mit Nachweis der neuen Identität, nie mit einer nackten ID) hochgestuft; Verknüpfungscode bleibt. Kein automatisches Verknüpfen über gleiche E-Mail. Benutzername ist privat, nicht der Anzeigename. Social-Logins und Magic Link laufen über die Website (Web-Anmeldung aus dem Spiel), Sign in with Apple auf iOS nativ. Mailversand-Anbieter: OFFEN, Vorschlag ein EU-Anbieter mit Auftragsverarbeitung (z. B. Brevo oder Mailjet).
   2. **Sign in with Apple ist auf iOS Pflicht** (App-Store-Regel 4.8; beantwortet CP0 Frage 8); Apple-Tokens werden beim Löschen widerrufen.
@@ -1580,7 +1582,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   7. **Konflikte ohne Dialog, wie große Spiele:** monotoner Fortschritt wird je Feld gemischt (Maximum bzw. Vereinigung: Schmiede-Stufen, Freischaltungen, Gesehenes, Chronik-Zähler, Rekorde, gerettete Dorfbewohner und Hühner; Anlage-Zeit Minimum), alles andere (Gold, Kristalle, Proviant, zweite Startwaffe, Weltname, aktueller Dorf- bzw. Weltzustand wie Deko) vom **zuletzt gespielten** Stand (`last_played`, Zukunftswerte am Server gekappt); XP additiv je Run-ID genau einmal. Der unterlegene Stand bleibt **30 Tage** als Sicherung auf dem Server (TESTWERT) und ist im Konto-Panel wiederherstellbar. Feldtabelle v4/v5: Konzept §4.3; neue Felder bekommen ihre Klasse im einführenden Paket (Standard „zuletzt gespielt“).
   - **Zusammenführen (D-122, ergänzt):** „leeres Konto“ = keine Gilde, keine Runs, 0 XP, keine Cloud-Welt über 5 Minuten Spielzeit (TESTWERT); XP zählen zusammen; Welten gleicher ID nach Regel 7, sonst in freie Plätze (3), überzählige 30 Tage ins Archiv.
 - **Gründe / verworfene Alternativen:** Viele Anmeldearten senken die Hürde je Plattform (Discord für Freundesgruppen, Steam im Browser für PC-Spieler, Apple Pflicht auf iOS); der Gast bleibt, damit der Einstieg in einer Minute (D-173) ohne Eintippen klappt. Mischen statt Fragen wie in großen Spielen: Spieler verstehen einen Konfliktdialog selten, monotone Felder verlieren beim Maximum nichts, und für den Rest gibt es die Sicherung. Bewusst hingenommen: Zähler nehmen bei echtem Parallelspiel nur das größere Gerät, gekaufte Schmiede-Stufen können neben Gold vom anderen Gerät stehen (nur Einzelspieler, selten). Verworfen: Konto ohne E-Mail und Passwort (D-121, zu wenig für Browser und Web), Konfliktdialog, Level aus der Summe der Welt-Statistiken (sänke beim Löschen einer Welt), Level mit Spielwirkung.
-- **Folgen:** Konzept `docs/KONZEPT_KONTO_FORTSCHRITT.md`; Pakete KF0–KF11 in `docs/ROADMAP.md` (Strang K, alle im Release-Tor); `docs/ROADMAP_CROSSPLAY.md` CP0 (Fragen 2 und 8), CP1, CP5; `docs/GLOSSAR.md`, `docs/PRODUKT.md` §8, `docs/MULTIPLAYER.md`. Plattform (Orchestrator trägt ein): Pakete für XP/Level, Cloud-Welten, Better Auth für Spieler und Anmeldeseiten der Website in `soulwick-platform/docs/ROADMAP.md`; P-Einträge für Better Auth für Spieler (Erweiterung P-027), das Zusammenspiel `auth_accounts`/`player_identities`, die Regel „leeres Konto“ (P15) und den Mailversand; Datenschutzerklärung (eRecht24) und Store-Datenschutzangaben. Vorab gebaut: „Schmiede x/20“ in der Weltenliste (`meta/save_slots.gd`, `ui/main_menu/slot_panel.gd`, `test_save_slots.gd`).
+- **Folgen:** Konzept `docs/KONZEPT.md`; Pakete KF0–KF11 in `docs/ROADMAP.md` (Strang K, alle im Release-Tor); `docs/ROADMAP.md` CP0 (Fragen 2 und 8), CP1, CP5; `docs/GLOSSAR.md`, `docs/PRODUKT.md` §8, `docs/MULTIPLAYER.md`. Plattform (Orchestrator trägt ein): Pakete für XP/Level, Cloud-Welten, Better Auth für Spieler und Anmeldeseiten der Website in `soulwick-platform/docs/ROADMAP.md`; P-Einträge für Better Auth für Spieler (Erweiterung P-027), das Zusammenspiel `auth_accounts`/`player_identities`, die Regel „leeres Konto“ (P15) und den Mailversand; Datenschutzerklärung (eRecht24) und Store-Datenschutzangaben. Vorab gebaut: „Schmiede x/20“ in der Weltenliste (`meta/save_slots.gd`, `ui/main_menu/slot_panel.gd`, `test_save_slots.gd`).
 - **Ersetzt:** **D-121** im Punkt „Konto **ohne E-Mail und Passwort**“ (Rest von D-121 – ein Konto mit Identitäten, Verknüpfungscode, Trennen, Löschen – gilt weiter); den CP5-Vorschlag (ein Blob je Konto, Rückfrage bei Konflikt, nach dem Release); CP0 Frage 8 „OFFEN“.
 - **Nachtrag 18.10.2026 – KF1/KF2 gebaut (Claude, TESTWERTE):** Kurve und XP-Regeln einmal in `meta/account_progress.gd` (`static func`), gleich dem Vertrag aus KF3 (`packages/contracts/src/xp.ts`: Koop-Bonus abgerundet, „erster Run des Tages“ und Tagesdeckel nach **UTC-Tag**). Einträge je Run-ID (UUID v4 je Run und Spieler) in `user://progress.cfg` mit den Zahlen des Runs in der Form von `XpEntry`, damit KF4 sie nur senden muss; die lokalen XP sind die Schätzung bis zur Antwort des Servers. Der **Konto-Rekord** startet beim ersten Start mit dem tiefsten Raum aller Welten auf dem Gerät, „Bosse gesamt“ mit ihrer Summe (sonst bekäme ein Altspieler seinen ganzen Rekord als „neuen Rekord“); **XP gibt es nur aus Runs**, nicht rückwirkend aus alten Statistiken. Belohnungs-Level alle 5 bis 50 (Vorschlag §5.5; was es gibt, bleibt OFFEN). `progress.cfg` gehört nicht zur Welt (keine Mischklasse in KF9; XP additiv je Run-ID, Regel 7). Die Fortschritt-Übersicht leitet „Boss besiegt“ je Biom aus Rekord und Boss-Zahl der Welt ab (der Spielstand führt keine Liste).
 
@@ -1595,6 +1597,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - L-Pläne: Höhe in 10 von 13 (alle Modus-L-Pläne, Große Arena, Gewölbe); Säulenwald, Drei Kammern und Brückenarena bleiben ohne Plateau (Pfeiler, Kammern bzw. Kluft sind dort das Thema).
 - **Folgen:** `tools/generate_room_templates.py` (PLATEAU_ITEMS, Regeln), Pläne in `dungeon/rooms/plans/{modes,arena,clear}`, `HeightLayout.get_connector_feet`/`is_inner_surface`, `HeightRules.keep_feet_free`/`is_reached_surface`, `SpawnSourceRules.sort_by_height`, `SpawnSources.sort_by_height`/`is_high`, `EnemyPack.holds_high_ground`, `CollapseRules.height_guard`/`join_kept`, die Modi (Füße frei, Seelen oben), `RoomPlanChecks.height_enemy_problems`, Tests `test_height_modes`, `test_spawn_height`.
 - **Ersetzt:** keine (ergänzt D-186).
+- **Nachtrag 22.10.2026 (Meldung #690502d9, Schleime kamen nicht aufs Podest):** Nahkämpfer, deren Ziel auf einer anderen Ebene steht, laufen direkt über die Treppe aufs Ziel (kein Ring, kein Sprung); Ringplätze und Sprungziele liegen auf der Ebene des Ziels mit `EnemyPack.GOAL_EDGE_MARGIN` = 20 px Abstand zur Kante (TESTWERT); Wegziele im Randstreifen eines Podests rückt `HeightRules.navigation_goal()` um `GOAL_INSET` = 2 Kunst-px ins Podest (TESTWERT). Nahkämpfer unter einer Leiter-Insel stehen dadurch eher als Haufen darunter. Fernkämpfer schießen weiter von unten.
 
 ### D-190 – Einladen per Link (MP2b)
 
@@ -1624,7 +1627,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   - **Hereinholen auf Plateaus:** Ein beim Raumstart hereingeholter Spieler darf auf einer zu Fuß erreichbaren Plateau-Fläche landen, nie auf Klippe, Treppe oder Leiter.
 - **Messung Skalierung (Vorschlag an den Agenten `balance`, Zahlen unverändert):** Bots mit Schwert, 3 Seeds, Räume 1–14 (11 Kampfräume), Skalierung wie beim Host. Ohne die zwei Läufe, in denen ein Bot festhing: Räumzeit 11 Räume 1 Spieler 69 s, 2 Spieler 76 s, 3 Spieler 82 s, 4 Spieler 95 s; Gegner-HP je Spieler 852 / 770 / 706 / 754; Schaden je Spieler 26 / 21 / 5 / 9. Gruppen räumen also etwas langsamer, nehmen aber je Kopf deutlich weniger Schaden (Gegner teilen sich auf). Vorschlag: Gegnerzahl bei 4 Spielern prüfen (×2,8 → ×2,5), HP-Faktoren lassen; vor einer Änderung mit echten Spielern gegenprüfen (die Bots weichen nicht aus und kämpfen nur im Nahkampf).
 - **OFFEN:** Größe des Mitspieler-Lichts ohne Biom-Faktor und ohne „Düsternis“ des Mitspielers (folgt `DarknessVisibility`); eine Giftpfütze trifft nur einen Spieler zugleich; im lokalen Mehrspieler ohne Netz (`mp_local_sim`) gilt die Skalierung D-084 nicht.
-- **Folgen:** `online/{net_details,net_dungeon,net_run}.gd`, `components/visual/mate_light.gd`, `ui/hud/mate_pointers.gd`, `dungeon/dungeon_manager.gd` (Host plant Seitenwege mit dem Gruppenwert), Test `tests/unit/test_net_coop_feel.gd`, `docs/MULTIPLAYER.md`, `docs/ROADMAP_MULTIPLAYER.md`.
+- **Folgen:** `online/{net_details,net_dungeon,net_run}.gd`, `components/visual/mate_light.gd`, `ui/hud/mate_pointers.gd`, `dungeon/dungeon_manager.gd` (Host plant Seitenwege mit dem Gruppenwert), Test `tests/unit/test_net_coop_feel.gd`, `docs/MULTIPLAYER.md`, `docs/ROADMAP.md`.
 - **Ersetzt:** in D-184 den offenen Punkt „Pfeil am Rand“.
 
 ### D-192 – Gamepad-Lücken: Bildschirmtastatur, Blättern, Xbox-Buchstaben
@@ -1641,11 +1644,410 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Folgen:** `ui/widgets/pad_keyboard.gd` (neu), `ui/menus/modal.gd`, `ui/icons/input_glyphs.gd`, `player/input/input_device.gd`, `ui/widgets/key_cap.gd`, `ui/options/controls_info.gd`, `ui/main_menu/{create_slot_panel,slot_panel}.gd`, `ui/menus/profile/profile_editor.gd`, `ui/dev/{dev_feedback_overlay,dev_feedback_texts}.gd`, `ui/boss_intro/boss_intro_view.gd`, `localization/translations.csv`, Test `test_gamepad_gaps.gd`.
 - **Ersetzt:** D-163 OFFEN „Xbox-Buchstaben statt neutraler Positions-Glyphen“ (als Vorschlag).
 
+### D-193 – Eine Roadmap, ein Konzept, ein offenes Grafik-Briefing für die Vollversion
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026: „Verwerfe alle Roadmaps und die Konzepte und mach jetzt alles groß zusammen zu einer Roadmap … Teile die Roadmap in 2, 3, 4 höchstens Bereiche auf“; „schreib mir eine Sprites-Datei“; „Räume gerne auch den Design-Ordner auf“) · **Datum:** 2026-10-22
+- **Kontext:** Die Demo ist durch, jetzt kommt die Vollversion. Der Plan war über fünf Roadmaps (Übersicht, Ausbau, Multiplayer, Crossplay, KI-Boss), sechs Konzepte und drei offene Grafik-Briefings verteilt; Agenten mussten viel lesen, um das Nächste zu finden.
+- **Beschluss:**
+  - **Eine Roadmap** `docs/ROADMAP.md` mit vier Bereichen: A Kern-Umbau, B Online und Release-Technik, C Inhalt und Feinschliff, D zum Schluss (KI-Bosse, Party-Modus). Paket-IDs der alten Roadmaps (MP, CP, KF, KI, WK, LK, PA) bleiben, neue Pakete heißen KE (Kern), CR (Räume), SP (Sprachen), GR (Grafik-Einbau), BA (Balance).
+  - **Ein Konzept** `docs/KONZEPT.md` für alles Ungebaute; die Konzepte Begleiter und Kosmetik, Konto und Fortschritt, KI-Boss und Party-Modus sind darin verdichtet und gelöscht (volle Fassung: `git show 6f6eab3:docs/<Datei>`).
+  - **Gebaute Konzepte werden Regeln:** `KONZEPT_RAEUME_V2.md` → `docs/RAEUME.md` (Abschnittsnummern bleiben), `KONZEPT_SPRACHEN_EINSTELLUNGEN.md` → `docs/SPRACHEN.md`.
+  - **Ein offenes Grafik-Briefing** `docs/design/sprites/SPRITES_V13.md` mit Teil A (Konzeptblätter, Mockups), B (Sprites), C (Nachträge der Agenten, jederzeit) und D (offene Reste aus V5, V8, V9, V10, V12). Gelieferte Briefings liegen als Namensregeln in `docs/design/sprites/delivered/`; V8, V12 und `BRIEFING_RAEUME_V2.md` sind aufgegangen bzw. erledigt und gelöscht.
+  - Verweise in Code-Kommentaren, Agent-Definitionen und im Plattform-Repo zeigen auf die neuen Dateien. Ältere D-Einträge nennen die alten Dateien als Dokumente ihrer Zeit; die Namen wurden auf die neuen Dateien umgestellt, Abschnittsangaben dort sind historisch.
+- **Gründe / verworfene Alternativen:** Ein Agent findet in einer Datei, was dran ist; D-178 (Doku = Absicht, Code = Gebautes) bleibt. Verworfen: alte Roadmaps als Archiv behalten (Git hat die Historie); Paket-IDs neu nummerieren (Code, Plattform-Roadmap und D-Einträge verweisen darauf).
+- **Folgen:** `docs/ROADMAP.md`, `docs/KONZEPT.md`, `docs/RAEUME.md`, `docs/SPRACHEN.md`, `docs/README.md`, `docs/design/**`, `AGENTS.md` (§3, §8), `.claude/agents/*.md`, Kommentare in `dungeon/`, `enemies/`, `ui/`, `world/`, `tests/`, `tools/`; Plattform `AGENTS.md`, `docs/{ROADMAP,PRD,ARCHITECTURE,KONZEPT_ONLINE,DECISIONS}.md`, Kommentare in `packages/contracts`.
+- **Ersetzt:** die Aufteilung in Phasen-Roadmaps aus D-179 (die Reihenfolge der Inhalte steht jetzt in den Bereichen).
+
+### D-194 – Kern-Umbau für die Vollversion: Extraktion, Level mit Talentpunkten, Rang, drei Säulen, Wick erklärt
+
+- **Status:** VERBINDLICH für die Absichten (Projektmitglied 22.10.2026, Zitate unten) · Ausgestaltung **VORGESCHLAGEN** (Claude, `docs/KONZEPT.md`) · alle Zahlen **TESTWERT** · offene Fragen: KONZEPT §12 (Paket KE0)
+- **Kontext:** Aus der Demo gelernt: Die ersten Räume bleiben auch nach vielen Runs leicht, die Schmiede ist schnell leer, Seelenkristalle gibt es zu viele, und niemand erklärt das Spiel. Wunsch des Projektmitglieds: „Das ist jetzt dieser Riesenumbau, sodass das Spiel wirklich Sinn macht.“
+- **Beschluss (Absichten, VERBINDLICH):**
+  1. **Extraktion:** „Das soll auf jeden Fall so sein, dass man extracten kann“ und dabei Gold mitnimmt. Vorschlag: Seelentor 100 %, Tod 25 %, Tiefenbonus, Seelentor spätestens jeden zweiten Zyklus (KONZEPT §2).
+  2. **Schwierigkeit wächst mit dem Spieler:** Der Run wird mit jedem Biom schwerer (wie gebaut), und „je nachdem, wie viel Erfahrung du hast … soll das Game … schon von Anfang an“ schwerer werden. Vorschlag: Gefahrenstufe aus Level (Deckel) und den letzten 5 Runs (Können), wählbar −2/+1, wirkt auf Gegner und Beute (KONZEPT §3).
+  3. **Rang wie Matchmaking**, „Silber, Diamond, Soul Master“, aber „bitte bleib doch bei Leveln“: Level (XP, steigt nur) und Rang (Name der Gefahrenstufe, kann fallen) (KONZEPT §3.1).
+  4. **Level geben Punkte für einen Talentbaum im Zuhause**, mit dem man „immer wieder besser anders skillen“ kann, z. B. Schnelligkeit, schnelle Waffen, Zauber. Das **ersetzt D-188 Punkt 4** („Konto-Level nur Optik“): Das Level wirkt jetzt über den Talentbaum. Zauber sind eine neue Fähigkeitsart nach D-026 (fünf Zauber, ein Platz, zwei mit Schlussstein) (KONZEPT §4, §6).
+  5. **Drei Säulen im Dorf:** Schmiede „nur Waffen und so technische Verbesserungen“ (Gold), Handelsposten für Meta-Vorteile wie „doppeltes Gold, mehr Chancen …, keine Blindness für nächste Runde“ (Kristalle), Zuhause mit Talentbaum, das man „auch später einrichten“ kann (KONZEPT §5). Vitalität und Dash-Training wandern in den Talentbaum, Goldgier wird Proviant, Schärfe entfällt; Migration mit voller Gold-Erstattung.
+  6. **Weniger Seelenkristalle:** „aktuell kriegt man viel zu viele“ (KONZEPT §5.3).
+  7. **Wick ist immer dabei**, fliegt vor und macht Licht (beantwortet D-175 OFFEN „Rolle im Spiel“: Wick ist die Quelle des Lichtkreises, Bild und Logik). Er **erklärt das Dorf** mit einer Kamerafahrt, nachdem er aus der Welt ins UI unten rechts geflogen ist, gibt beim ersten Dungeon einen **Übungsgang** („gezielt springen, gezielt dashen, gezielt angreifen, gezielt den Rechtsklick“) und erklärt **jede neue Raumart beim ersten Mal**, auch im Koop für den Spieler, der sie noch nicht kennt (z. B. Geleit: Weg, Leben, Gefahr) (KONZEPT §7).
+  8. **Pets** kommen dazu (KONZEPT §8).
+  9. **Reihenfolge:** erst dieser Umbau, dann Konto und Login, Sprachen und Räume-Rest, zum Schluss Party-Modus und KI-Bosse („Party-Modus und halt KI-Boss hinten dran“) – siehe D-193.
+- **Vorschlag, braucht die Bestätigung in KE0:** Im Koop bringt jeder seinen Charakter mit (Talente, Schmiede, Proviant), fair über die Gruppen-Gefahrenstufe; das ersetzte den Grundsatz von D-081 „Multiplayer startet ohne eigene Dorf-Boni“. Ob die KI-Bosse damit nach dem Release kommen, ändert D-179 erst nach der Antwort.
+- **Gründe / verworfene Alternativen:** Extraktion macht jede Tür zur Entscheidung (PRD §4.6) und gibt Clips („noch ein Raum …“). Gefahr aus Level **und** Können vermeidet beides: dass Geübte sich langweilen und dass Schwächere nach vielen Runs nicht mehr vorankommen. Verworfen: reine Ranglisten-Wertung ohne Level (Wunsch: Level bleiben), Schwierigkeit nur aus dem Level (würde Schwächere bestrafen), Talente je Welt (Level gilt je Konto).
+- **Folgen:** `docs/KONZEPT.md`, `docs/ROADMAP.md` (Bereich A: KE0–KE10, WK1–WK11), `docs/design/sprites/SPRITES_V13.md`, `docs/GLOSSAR.md`, `docs/PRODUKT.md` §4 und §5, `docs/PRD.md` §3, §4.6, §4.8; Code beim Bau: `meta/`, `enemies/enemy_scaling.gd`, `dungeon/room_sequence.gd`, `economy/`, `autoload/run_manager.gd` (Integrator), `autoload/save_manager.gd` (v5), neu `talents/`, `spells/`, `companions/`, `world/village/home/`, `dungeon/tutorial/`; Plattform: `PlayerSelf` mit `rank` und Konto-Zustand (KF3).
+- **Ersetzt:** D-188 Punkt 4 (Level nur Optik); D-087 Tabelle der Schmiede-Stufen (sobald KE4 gebaut ist); D-161 Eröffnung durch den Chronisten (sobald WK9 gebaut ist); D-175 OFFEN „Rolle im Spiel“.
+- **Ergänzung 22.10.2026 (Antworten auf KE0, Projektmitglied):**
+  1. „KI-Bosse müssen zum Release fertig werden.“ D-179 bleibt; Bereich D steht am Ende der Roadmap, gehört aber ins Release-Tor.
+  2. „Im Quick Game bringt jeder seinen Charakter aus dem Solo-Game mit, und wenn man eine Gilde startet, ist man ja ein Longterm Squad und hat dort eigene Charaktere.“ **Schnelles Spiel = Solo-Charakter** (Talente, Zauber, Schmiede, Proviant); **Gilden-Run = Gilden-Charakter je Spieler und Gilde**, beginnt bei null, eigenes Gilden-Level und eigener Talentbaum, Gilden-Schmiede aus der Gildenkasse für alle Gilden-Charaktere (Ausgestaltung VORGESCHLAGEN, KONZEPT §9, Paket MP8b). **Ersetzt den Grundsatz von D-081** („Multiplayer startet ohne eigene Dorf-Boni“) und beantwortet D-161 OFFEN „was kauft die Gildenkasse“ (Vorschlag: die Gilden-Schmiede).
+  3. „Licht klingt cool“: Ränge Funke, Kerze, Flamme, Laterne, Leuchtfeuer (je I–III), Seelenmeister; Englisch Spark, Candle, Flame, Lantern, Beacon, Soul Master.
+  4. „Der Docht soll einfach Wick heißen“: Das Docht-Wesen heißt Wick (Name aus D-175 jetzt VERBINDLICH). OFFEN bleibt der neue Anzeigename der Standard-Spielfigur, die heute auch „Wick“ (Deutsch „Docht“) heißt (KONZEPT §12 Frage 5).
+
+### D-195 – Seitenansicht 2.0: Sprungprobe und Sturmlauf
+
+- **Status:** in Namen, Arten, Anteil, Umrennen, Kombo und Krone **ERSETZT durch D-216** (26.10.2026) · VERBINDLICH für die Absicht, die Namen, zwei Arten, Anteil, ohne Medaillen und Krone im Koop (Projektmitglied 22.10.2026, Ergänzung unten) · übrige Ausgestaltung **VORGESCHLAGEN** (Claude) · alle Zahlen **TESTWERT**
+- **Kontext:** Die Gang-Segmente in Seitenansicht (D-144) sind kurz und eher gemütlich: eine Besonderheit je Plan, ein Bildschirm hoch, 20–40 s. Wunsch des Projektmitglieds: Die 2D-Abschnitte zwischen den Räumen sollen „als Jump and Run“ mit „schwierigen Jumps“ und „dynamischer“ sein, und dazu eine schnellere Art, „Sonic-artig“, „wo man so durchrusht und Gegner tötet und durchsprintet zum Ziel“.
+- **Beschluss (Absicht, VERBINDLICH):** Die Seitenansicht bekommt zwei Arten von Abschnitten:
+  1. **Sprungprobe** (heutiges Segment, schwerer und lebendiger): echte Sprung-Herausforderungen, die mit der Tiefe schwerer werden.
+  2. **Sturmlauf** (neu): ein langer, schneller Lauf auf Zeit, bei dem man Gegner im Lauf umrennt und zum Ziel sprintet.
+- **Ausgestaltung (VORGESCHLAGEN, TESTWERTE):**
+  - **Schwung für beide Arten:** Wer am Boden ohne Halt in eine Richtung läuft, wird nach 0,6 s schneller, von 1,3× auf 2,0× Bewegungstempo in 1,0 s (im Sturmlauf bis 2,6×). Schwung bleibt im Sprung erhalten (weitere Sprünge mit Anlauf), geht verloren beim Anhalten, an einer Wand oder bei einem Treffer. Keine neue Taste (Touch und Gamepad bleiben gleich).
+  - **Gegner im Lauf:** **Stampfen** (von oben landen) besiegt normale Seiten-Gegner und federt 1,5 Kacheln hoch, in beiden Arten. **Umrennen:** Ab 1,8× Tempo besiegt Berührung normale Seiten-Gegner ohne Schaden für den Spieler; Dash im Sturmlauf ebenso. Ausnahmen für Abwechslung: Stachel-Gegner (nicht stampfbar), Schildträger (nur von oben oder mit Waffe).
+  - **Sprungprobe schwerer:** drei Stufen nach Tiefe (Stufe 1 Raum 1–15, Stufe 2 Raum 16–45, Stufe 3 ab Raum 46 oder ab Gefahrenstufe 6): Stufe 1 wie heute plus ein neues Element, Stufe 2 zwei Elemente und Sprungketten aus Doppel- und Wandsprung, Stufe 3 drei Elemente, schmale Plattformen und zeitkritische Teile. Neue Elemente: bewegte Plattformen (waagerecht, senkrecht; beantwortet D-144 „Offen“), Sprungfeder (4,5 Kacheln), Kippplattform (fällt nach 0,4 s), Säge auf Schiene (1 Herz wie Stacheln), einstürzende Brücke hinter dem Spieler (treibt nach vorn), Dash-Lücke (5 Kacheln, nur mit Schwung oder Dash-Sprung), Wandsprung-Schacht. Pläne dürfen bis 22 Zeilen hoch sein (Kamera scrollt senkrecht). 4 neue Pläne je Biom (8 gespiegelt), bestehende Pläne bekommen eine Stufe.
+  - **Fairness:** Kein blinder Sprung (Kamera schaut in Laufrichtung voraus, das Ziel jedes Sprungs ist im Bild), jedes neue Element erscheint zuerst einzeln in Stufe 1, in langen Plänen eine Laterne als Rücksetzpunkt; Grube kostet weiter 1 Herz (D-144). `SideBot` muss jeden Plan schaffen (Planregel).
+  - **Sturmlauf:** 120–200 Spalten, 11–16 Zeilen, **zwei Wege** wie bei Sonic: oben schnell und schwer (mehr Münzen), unten sicher. Boost-Felder (3,0× für 1 s), Sprungfedern, Schrägen und Rampen (Schwung bleibt), Gegnerketten zum Umrennen, Zielbogen am Ende. Keine Zeitwertung und keine Medaillen (Ergänzung); Belohnung Grundmünzen wie ein Segment, oben mehr Münzen, **Kombo** (Gegner in Folge ohne Tempoverlust) +1 Münze je 5. Gruben 1 Herz wie überall.
+  - **Häufigkeit:** Draufsicht etwa 2/3 des Spiels, Seitenansicht etwa 1/3, davon je die Hälfte Sprungprobe und Sturmlauf (Ergänzung, TESTWERT); der Leiter-Weg bleibt eine Sprungprobe (Truhe). „Seitenwege auslassen“ gilt für beide.
+  - **Koop:** Alle starten gleichzeitig, die Kamera folgt der Gruppe, wer 3 s außerhalb des Bildes ist, wird nachgeholt (wie D-144). Im Sturmlauf bekommt der Erste im Ziel +2 Münzen und eine Krone im Ergebnisbanner (Clip-Moment, D-173); wer zuerst ankommt, entscheidet der Host.
+- **Gründe / verworfene Alternativen:** Schwung macht beide Arten dynamischer, ohne eine Taste dazuzunehmen. Kein Scheitern im Sturmlauf hält den Run am Laufen. Verworfen: Zeitwertung mit Medaillen und Bestzeit (Projektmitglied: „Ohne Medaillen“), Loopings (brauchen Kurven-Physik und viel Grafik, Schrägen und Rampen geben das Gefühl billiger), Sturmlauf als eigener Raum im Fünferzyklus (stört den Zyklus, D-005), Sturz ohne Herz im Sturmlauf (gegen D-144 „soll ruhig Herzen kosten“).
+- **Folgen:** `docs/ROADMAP.md` Strang S (SV0–SV6), `docs/RAEUME.md` §9, `docs/GLOSSAR.md`, `docs/design/sprites/SPRITES_V13.md` (A8, B10); Code beim Bau: `player/player_side_motion.gd`, neu `player/side/`, `dungeon/side/` (neu `elements/`, `rush/`, `enemies/`), `SideRules`, `SideBot`, Tests `test_side_*`.
+- **Ersetzt:** D-144 „Offen: bewegte Plattformen“ (jetzt SV2) und dort „je Plan genau eine Besonderheit“ (gilt nur noch für Stufe 1); D-144 Physik bleibt, Schwung kommt dazu; D-144 und Runde 3 zur Häufigkeit (18 % nach Ruhe-Räumen) gehen in der neuen Anteil-Regel auf.
+- **Ergänzung 22.10.2026 (SV0, Antworten des Projektmitglieds):**
+  1. Namen: „Namen passen“ – **Sprungprobe** und **Sturmlauf** sind VERBINDLICH. **Zwei Arten** bestätigt (Rückfrage „Wie viele Arten?“ → „Zwei Arten“); das ersetzt die frühere Antwort an die Planungs-Sitzung „Eine Art, ein Name“.
+  2. Anteil: „1/2 Top Down, 1/4 Sprung 1/4 Lauf“, dann „Wobei TopDown Ansicht mach zu 2/3“, auf Rückfrage „2/3 Draufsicht“ bestätigt: **Draufsicht etwa 2/3 des Spiels, Seitenansicht etwa 1/3**, davon je die Hälfte Sprungprobe und Sturmlauf (TESTWERT). Die Regel, an welchen Übergängen ein Abschnitt kommt, legt SV3 fest; SV6 misst den Anteil mit dem Bot nach. Lagerfeuer-Abstieg und Leiter-Weg bleiben.
+  3. „Ohne Medaillen“: keine Zeitwertung, keine Medaillen, keine Bestzeit; der Sturmlauf endet am Zielbogen, Belohnung über Münzen auf dem Weg (oben mehr) und Kombo.
+  4. Krone im Koop: „Ja“ – der Erste im Ziel bekommt +2 Münzen und die Krone im Ergebnisbanner.
+- **Nachtrag 23.10.2026 (SV3 gebaut, TESTWERT):** Anteil-Regel in `SideRules`: hinter dem Lagerfeuer immer ein Abschnitt, der Leiter-Weg ist immer eine Sprungprobe; sonst wird ein Weg mit `SHARE_CHANCE` 0,95 ein Abschnitt, in einen Raum mit möglicher Abzweigung nur mit `SHARE_CHANCE_BEFORE_BRANCH` 0,3 (Leiter-Weg hat Vorrang); nie in den Boss oder aus ihm, nie zweimal hintereinander (D-144); Art Sturmlauf mit `RUSH_CHANCE` 0,55. Gemessen ≈ 29–30 % der Stationen (Ziel 1/3, Anteil an der Spielzeit misst SV6). Kombo: +1 Münze je 5 Gegner in Folge (nur Stampfen und Umrennen), endet ohne Schwung. Krone, Kombo und Ergebnis entscheidet der Host (`NetSide.side_rush_*_net`). **Offen:** ob für 1/3 zwei Abschnitte hintereinander erlaubt werden.
+
+### D-196 – KE0-Rest: Spielfigur heißt Flint, Gefahr nur aus dem Rang, Umskillen kostet Kristalle, Pets und Dorftiere, Mailversand
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026, Antworten auf KONZEPT §12 Fragen 5–11) · Zahlen **TESTWERT** · Ausgestaltung der Punkte 4 und 6 **VORGESCHLAGEN** (Claude)
+- **Kontext:** Rest der KE0-Fragen aus D-194; Zitate des Projektmitglieds in Anführungszeichen.
+- **Beschluss:**
+  1. **Spielfigur Flint:** Die Standard-Spielfigur (Code-ID `wick`, bisher Anzeigename „Wick“, Deutsch „Docht“) heißt in beiden Sprachen **Flint** („OOOH ja … Flint. Das ist ja süß. Perfekt.“). **Wick** ist nur noch das fliegende Docht-Wesen, Begleiter und Maskottchen („Und dann soll es halt diese Figur Wick geben, nur eine“). Code-ID `wick` bleibt (Spielstände, Profile); Website und Plattform ziehen mit.
+  2. **Gefahrenstufe nicht wählbar:** „Das soll über den Rang gesteuert werden … die Spieler ranken sich einfach über die Weile ein.“ Allein gilt die eigene Stufe; in der Gruppe (Schnelles Spiel, Gilden-Run) die Gruppen-Stufe aus den Stufen aller Spieler im Raum (gerundeter Mittelwert, TESTWERT); der Host senkt nicht. Am Dungeon-Eingang zeigt Wick Rang und Stufe nur an. **Ersetzt** D-194 Punkt 2 „wählbar −2/+1“.
+  3. **Tod-Auszahlung 25 %**, mit Seelenanker 50 %: bestätigt.
+  4. **Umskillen kostet Seelenkristalle:** „10 % ist gut … dann mach lieber Kristall-Gebühr.“ Punkte setzen ist frei; Zurücknehmen kostet 10 % der zurückgenommenen Punkte in Kristallen, aufgerundet, mindestens 1 (TESTWERT; volles Umskillen mit 49 Punkten = 5 Kristalle), bezahlt aus der gerade gespielten Welt. Gilden-Charakter im Gildenhaus: gleiche Regel (Vorschlag, MP8b).
+  5. **Pets nicht im Dungeon** (zum Release). **Kampf-Pets** sind eine Idee für nach dem Release wie der Party-Modus (KONZEPT §11, BACKLOG).
+  6. **Pets (WK4) und Möbel (WK7) nach dem Release.** Zum Release kommt aber: **mit den Dorftieren interagieren** („man soll schon mit den Dorftieren interagieren können“) – neues Paket WK12 (Huhn, Katze und weitere Tiere reagieren beim Ansprechen, nur Optik).
+  7. **Mailversand für Magic Links** hinter einem Mail-Adapter; Standard **Cloudflare Workers** („wahrscheinlich Cloudflare Workers“), Alternative SMTP mit Nodemailer („sehen wir“). Endgültig und mit Abhängigkeit (AGENTS.md §6.11) im Plattform-Paket KF5.
+  8. **Plattform:** mehr Run-Statistiken online (Wunsch „maybe online mehr Run-Stats“); als Paket in der Plattform-Roadmap, Inhalt VORGESCHLAGEN.
+- **Gründe / verworfene Alternativen:** Gefahr nur aus dem Rang hält Koop fair und einfach (keine Abstimmung am Eingang), und das Gleichgewicht aus D-194 stellt die Stufe ohnehin ein. Kristall-Gebühr statt Gold: keine Kommastellen, und Kristalle bekommen eine zweite Verwendung. Verworfen: Name „Rowan“, Gefahr −2/+1, Umskillen kostenlos.
+- **Folgen:** `docs/KONZEPT.md` §3, §3.2, §6.1, §7.1, §8, §11, §12; `docs/ROADMAP.md` (KE0 erledigt, KE1, KE8, WK12, Wellen); `docs/GLOSSAR.md`; `docs/design/sprites/SPRITES_V13.md` A5; `localization/translations.csv` `CHARACTER_WICK`; Plattform: Website (Flint), Roadmap (KF3b, Run-Statistiken, Mail-Adapter in KF5).
+- **Ersetzt:** D-194 Punkt 2 (wählbar −2/+1); D-194 Ergänzung 4 „OFFEN bleibt der Anzeigename“; KONZEPT §12 Fragen 5–11.
+
+### D-197 – Welle 1 des Kern-Umbaus: Gefahrenstufe, Rang, Talentbaum (Testwerte)
+
+- **Status:** TESTWERT (an Claude delegiert, AGENTS.md §6.2) · gebaut 22.10.2026 (KE1, KE2, KE6), misst KE9
+- **Kontext:** Umsetzung von KONZEPT §3, §4, §6.1 mit D-196; Stellen, an denen das Konzept offen ließ, wie genau.
+- **Beschluss (TESTWERT):**
+  1. **Gefahrenstufe und Rang** genau wie der Plattform-Vertrag `rank.ts` (KF3b): `G_level = floor((L−1)/2)`, `G_können = floor(Median/5)+1` aus den 5 neuesten Runs (gerade Anzahl: Mittelwert der mittleren, abgerundet; unter 3 Runs gilt `G_level`), `G = min`. XP-Bonus `floor((Summe + Koop-Bonus) · 5 · G / 100)` vor dem Deckel je Run, G dafür höchstens 30.
+  2. **Dungeon:** Gegner-HP +6 %, Schaden +4 % je G; Elite-Chance +1,5 Prozentpunkte je G (Deckel 50 %); „ab G 3 Champions im ersten Zyklus“ gebaut als **Elites ab Raum 1** (der Champion in Raum 5 gibt es auf jeder Stufe); ab G 6 je Biom eine Gast-Gegnerart aus dem nächsten Biom mit 12 % Anteil (Dungeon-RNG, unter G 6 keine zusätzliche Ziehung, Seeds bleiben gleich); Gold und Kristalle +5 % je G **einmal auf die Auszahlung**, nicht je Drop (kleine Drops würden wegrunden).
+  3. **Gruppen-Stufe** = gerundeter Mittelwert, x,5 rundet auf; rechnet der Host, reist mit `begin_run`.
+  4. **Talentbaum:** 21 Knoten (16 Talente, 5 Zauber-Knoten) nach KONZEPT §6.1; Werte „n×: +x %“ gelten je Stufe; Ebenen öffnen nach 0/3/7/11 Punkten in den unteren Ebenen desselben Pfads; Zurücknehmen geht nicht, wenn eine höhere Ebene sonst zu wenig Punkte darunter hätte. Glutwelle fester Schaden 3, Radius 2,5 Kacheln. Zweites Herz: allein einmal je Run mit 2 HP und 1,5 s unverwundbar, sobald mehr als ein Spieler im Run ist stattdessen doppelt so schnell wiederbelebt. Schildbrecher zählt gepanzerte Elites, Schildträger-Gegner und Champions, keine Bosse.
+- **Offen (Vorschlag an das Projektmitglied, Wellenbericht 22.10.2026):** Der Baum kostet so nur 41 Punkte statt „rund 60“ (KONZEPT §4); ob die übrigen Zauber Lichtblitz voraussetzen; ob „Rang gesunken“ am Run-Ende erscheint; Liste der Gefahr-Zeichen ab G 9 (BACKLOG).
+- **Folgen:** `meta/danger_rank.gd`, `meta/account_progress.gd`, `meta/account_seen.gd`, `enemies/enemy_scaling.gd`, `dungeon/room_sequence.gd` (Elite-Regeln liegen jetzt dort, `EnemySpawner` verweist nur noch darauf, sonst Ladezyklus mit `enemy_base.tscn`), `economy/`, `online/coop_rules.gd`, `talents/`; Plattform `packages/contracts/src/rank.ts`, `account-state.ts`.
+
+### D-198 – Der Docht-Begleiter heißt Flint, die Spielfigur heißt Wick
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026, auf Nachfrage eindeutig: „Begleiter heißt Flint“, Spielfigur „Wick in beiden Sprachen“)
+- **Kontext:** D-196 Punkt 1 hatte die Frage nach den zwei „Wicks“ andersherum gelesen (Spielfigur Flint, Begleiter Wick). In einer Meldung vom selben Tag nannte das Projektmitglied den Begleiter „Flint (vorher Wick)“; die Nachfrage hat es geklärt.
+- **Beschluss:** Das fliegende Docht-Wesen – Begleiter, Lichtquelle, Erklärer und Maskottchen – heißt **Flint** (Englisch und Deutsch). Die Standard-Spielfigur (Code-ID `wick`, `characters/wick.tres`, `art/characters/wick/`) heißt **Wick** in beiden Sprachen (Deutsch bisher „Docht“). Code und Grafik des Begleiters heißen `flint` (`companions/`, `art/companions/flint/flint_*`, `art/ui/flint_guide/`, `art/ui/mascot/flint_*`, `art/cosmetics/flint_hats/`, `chicken_flint_*`, Texte `FLINT_*`). Der Spielname Soulwick bleibt.
+- **Gründe:** Wunsch des Projektmitglieds; „Flint“ passt zum Funken, der das Licht bringt, und es gibt nur noch einen Namen je Figur.
+- **Folgen:** KONZEPT, ROADMAP, GLOSSAR, PRODUKT, HANDOUT, SPRITES_V13 (und die Kopie für Claude Design in `_inbox/_briefing/`), `localization/translations.csv` (`CHARACTER_WICK` = Wick/Wick), WK1-Code, Website und Store-Texte. Schon gelieferte Grafik mit `wick_*`-Namen für den Begleiter wird beim Übernehmen (GR1) umbenannt.
+- **Ersetzt:** D-196 Punkt 1; den Namen „Wick“ für das Docht-Wesen aus D-175 und D-194 (Ergänzung 4).
+- **Ergänzung 22.10.2026 (Form, Projektmitglied):** Flint ist überall die **höhere, schlanke Kerze** (wie die gelieferten Porträts und die Website), kein breiter Stummel; die 16×16-Spielsprites werden in dieser Form neu geliefert (SPRITES_V13 A1/B1).
+- **Ergänzung 22.10.2026 (Farbe, Projektmitglied):** **Flints Flamme ist orange** (Flammenpalette `#fff3c4` Kern, `#ffd166`, `#ff8a3c`, Glut `#e04e2a`), nicht violett; Lieferungen mit violetter Flamme werden nicht übernommen.
+
+### D-199 – Kontaktschaden der Bosse, Boss-Diener ohne Kill-Belohnung
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026, Anlass Playtest-Meldung #ddb41969 („mitten im Schleim-Boss gestanden, nichts an Schaden, Schild ständig aufgeladen“)
+- **Kontext:** Gegner verletzten nur über angekündigte Angriffe; wer im Boss stand, nahm kaum mehr Schaden als daneben. Gleichzeitig füllten Upgrades „Schild/Heilung bei Tötung“ an den Dienern der Schleimkönigin Schild und HP laufend auf.
+- **Beschluss (TESTWERT):** Jeder Boss hat eine Kontakt-Hitbox in der Größe seines sichtbaren Körpers (`CONTACT_RADIUS_SHARE` 1,0); solange ein Spieler sie berührt, trifft sie alle `CONTACT_INTERVAL` 1,0 s mit neuer Hit-ID für den halben Bosstreffer (`CONTACT_DAMAGE_FACTOR` 0,5, mindestens 0,5) und Rückstoß 140, Tag `contact`; aus im Intro, beim Erscheinen, im Sprung und im Tod; I-Frames und Dash schützen wie immer (D-017, D-020). Nur Bosse, nicht Champions oder normale Gegner. Kills von Boss-Dienern (und ihren Split-Kindern) geben keine On-Kill-Belohnung (Heilung, Schild); Zählung und Statistik bleiben.
+- **Offen (Frage an das Projektmitglied):** Kontaktschaden auch für Champions oder normale Gegner? Diener anderer Beschwörer ebenfalls ohne Belohnung?
+- **Folgen:** `enemies/boss_rules.gd`, `enemies/enemy_base.gd`, `components/combat/damage_result.gd` (`grants_kill_rewards`), `upgrades/effects/upgrade_effects.gd`, `tools/boss_sim.gd` (Prüfung „im Boss stehen“), Test `test_enemy_contact`.
+
+### D-200 – Balance: Gefahrenstufe 0 fordernder (erster Boss, Zyklus 2, zweites Biom, Schild bei Tötung)
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-10-22 / Claude im Auftrag des Projektmitglieds (Balance delegiert; Playtest hat Vorrang vor dem Bot)
+- **Anlass:** Playtest auf neuem Konto (G 0, allein, Schwert): #eafaabbf „ersten Boss KOMPLETT ohne Probleme … nicht mit extrem viel Leben rauskommen“ (HUD nach dem Knochenkönig: volle 3 Herzen **und 16 Schild**), #0d13177c Raum 36 „viel zu leicht zu überleben“. Ursachen in der Messung: Der Knochenkönig (323 HP in Raum 15) fällt mit dem Schwert in 15–18 s; Kampfräume 6–29 kosten den Bot nur 0,3 je Raum, normale Treffer in Raum 6–10 sind wie in Raum 1–5 nur 0,5 (0,65 × 1,12 rundet ab); vor allem füllt „Schild bei Tötung“ den Schild in jedem Raum wieder auf 10 (Bot mit Wahl „tank“: 10 Schild in Raum 14, 16 Leben+Schild vor dem Boss, 9 Schild danach, kein Treffer erreicht vor Raum 45 die Herzen).
+- **Beschluss (Zahlen, alt → neu):**
+  - **Knochenkönig** (`boss_bone_king.tres`): HP 240 → **420** (Raum 15: 565 statt 323), Abklingzeit 1,0 → **0,9 s**. Treffer bleibt 1,5 (Kontakt 1,0); ein Treffer von 2,0 mit Salven zu 12 Pfeilen tötete 11 von 16 Bots mit vollem Leben und ist verworfen.
+  - **Schleimkönigin** (`boss_slime_queen.tres`): HP 340 → **400** (Raum 30: 840 statt 714), Abklingzeit 1,0 → **0,9 s**. Boss-Reihe jetzt 565 / 840 / 754 / 1638 HP; der Schattenlord bleibt schwerer durch Teleport, Fernkampf und Dunkelheit (D-154).
+  - **Normale Gegner** Skelett, Schleim, Bogenschütze, Schatten, Totenbeschwörer, Spalt-Schleim: Schaden 0,65 → **0,7**. Treffer Raum 1–5 bleibt 0,5, Raum **6–10 jetzt 1,0** statt 0,5 (ab Zyklus 2 „mit Aufmerksamkeit“), Raum 11–45 unverändert (1,0 / 1,5), ab Raum 46 wie bisher.
+  - **Gegnerzahl im zweiten Biom** (`RoomSequence.get_enemy_count_range`, Raum 16–29): 4–6 → **6–8** je Raum (eine Welle; kleine Räume teilen den Rest wie bisher in eine Zusatzwelle, D-086). Verworfen: zwei Wellen schon ab Raum 16 (stärker: Schaden je Kampfraum R16–29 0,57–0,70), weil die Wellenzahl auch Modus-Räume (Flamme, Lichtfeuer, Risse) und das Münzgold der Nebenwege verdoppelt; das wäre eine Design-Änderung der Raum-Modi.
+  - **Schild bei Tötung**: 0,5 → **0,25** je Kill (der Übertrag aus D-091 macht daraus 0,5 je zwei Kills), Auflade-Grenze 10 → **6**, +2 je weiterem Stapel, höchstens 20 → **12** (`UpgradeEffects.KILL_SHIELD_CAP*`). Schildverstärkung (+4), Shop-Schild und Softcap bleiben.
+  - Unverändert: G-Faktoren (D-197), Skalierung je Block (D-154), Heilquellen (Brunnen 3, Lager 4, alle 5 Räume 1, Heilung bei Tötung 0,5).
+- **Messung** (`balance_sim.gd`, Bot Reaktion 0,8, sieht keine Dunkelheit; gleiche Seeds vorher/nachher; Schwert „greedy“, wenn nicht anders genannt):
+
+| Messung | vorher | nachher |
+| --- | --- | --- |
+| A Standard realistisch (`hazards=1 falls=1 nav=1 smart=1`, Seeds 401–404, 20 Runs) | Median **23,5** · tot bis Raum 15: 8/20 · Boss 15: 17,7 s, 3,0 Schaden · Leben vor Boss 5,75 | Median **15,5** · 10/20 · 20,7 s, 3,0 · 5,5 |
+| B Befehl aus AGENTS §7 (ohne Flags, 20 Runs) | Median 30,5 · Boss 15: 15,4 s, 1,5 · Leben nach Boss 15: 4,0 | Median 19 · 21,4 s, 3,0 · 2,5 |
+| C Kern (`vt.chance=0 room_timeout=90`, 20 Runs) | Median 35 · Boss 15: 17,2 s, tot 3/19 · Leben nach Boss 15: 4,5 · Schaden je Kampfraum R16–29 0,33 | Median 26,5 · 26,2 s, 3/18 · 3,2 · 0,60 |
+| D Kern, Wahl „tank“ (15 Runs bis Raum 45) | Schild R14 10 · Leben+Schild vor Boss 15: 16 · Schild nach Boss 15: 9,2 · Boss 15 Schaden 3,0 | 7,8 · 13,75 · 3,0 · 4,5 |
+| E nur Boss 15 (`god_until=14`, volles Leben, Zwischenstand mit gleichen Boss-Werten) | Schwert 18,2 s, 1,5 Schaden, 0/16 tot · Bogen 23,9 s · Stab 25,1 s | 22,0 s, 4,8, 5/16 tot · 33,9 s · 39,3 s |
+| Bogen / Stab (A, je 10 Runs) | Median 42,5 / 45 · Boss 15: 35 s / 31 s | 53 / 53 (Streuung, Tod meist am Schattenlord) · 43 s / 42 s |
+| Gold Raum 29 (C) | 63 | 137 (mehr Gegner, ≈ 2 Käufe bei +30 % je Block) |
+
+- **Lesart:** Der Bot stirbt in A und B früh oft an Bogenschützen in Räumen, in denen er 150–240 s festhängt (er klettert nicht auf Plateaus, M3, und spielt keine Raum-Modi); C schneidet das mit `room_timeout=90` und ohne Varianten heraus (neue Option in `balance_sim.gd`). Ein Mensch nimmt mehr Treffer als der Bot, dafür kaum Hänger: Für ihn wirken die Trefferwerte (Raum 6–10 doppelt) und der kleinere Schild stärker als im Bot.
+- **Nach dem nächsten Playtest prüfen:** Ob Raum 16–29 mit 6–8 Gegnern reicht (sonst zwei Wellen ab Raum 16, siehe oben), ob der Knochenkönig mit Bogen/Stab (≈ 40 s) zu zäh ist und ob Spieler mit Schild-Upgrades weiter „mit viel Leben“ aus Boss 15 kommen (dann Schildverstärkung 4 → 3).
+- **Folgen:** `enemies/data/*.tres` (8 Dateien), `upgrades/data/shield_on_kill.tres`, `upgrades/effects/upgrade_effects.gd`, `dungeon/room_sequence.gd`, Text `UPGRADE_SHIELD_ON_KILL_DESC` (en/de), Test `test_room_sequence`, `tools/balance_sim.gd` (Option `room_timeout`).
+- **Ersetzt:** Zahlenwerte aus D-091 (Schild bei Tötung: 0,5 je Kill, Grenze 10/20), D-118 (Gegnerzahl Raum 15–29 und Grundschaden 0,65), D-154 (Schleimkönigin-Tempo).
+
+### D-201 – Eine Perspektiv-Regel für Wände und Plateaus (Playtest 22.10.2026)
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026, Anlass 15 Playtest-Meldungen (u. a. #c1f94cec „Layer-Problem“, #db6117ad „unsichtbare Wand“, #81959d11 „bis zur Hälfte sollte man reinkommen“, #25371167/#276ffad7 „Etage nur halb so hoch, man denkt, man kann aus der Map“)
+- **Beschluss (ergänzt D-142 und D-186):**
+  1. **Der Fuß blockiert:** Vorderseite und Klippe sind fest.
+  2. **Von Norden ein Band tief hinter jede erhöhte Masse:** Fels `RockTerrain.LIP_WALK` 12 → **16** Kunst-px (halbe Kachel); Plateau-Nordkante `HeightField.BAND` = **8** Kunst-px (wer im Band steht, zählt als Boden-Ebene); das Band ist auch von der Seite offen, `RockTerrain.LIP_CAPS = false` (die Kappen waren die „unsichtbare Wand“; hebt den Fix zu #b16194d4 auf).
+  3. **Was hinter der Fußlinie steht, verdeckt die Masse:** Fels-Lippe und Vorderseiten werden y-sortiert, beim Plateau nur der Bandstreifen; die Waffe folgt dem Spieler.
+  4. **Plateau wirkt niedriger als die Wand:** Wo ein Plateau im Norden an Fels stößt, ragt eine halbe Wandvorderseite darüber (`WALL_FACE_SHARE` **0,5**), mit Schatten statt Lichtkante.
+  5. **Planregeln (Generator):** kein freistehender Felsblock direkt neben oder unter einem Plateau; Deko-Gruppen dürfen einen nahen Weg nicht schließen; Geheim-Mauerrisse nie in Plateau, Klippe, Treppe oder Leiter.
+  6. Pendelklinge schwingt bis ± **25°** (`TrialPendulum.SWING_DEGREES`), bis eine breitere Grafik da ist.
+- **Offen:** Bosstor mit oder ohne Tunnel (Meldung #5724ea7c „man sollte Boden sehen“ gegen D-143); Figuren auf einem Plateau verdecken (z-Ebene je Höhe), damit eine Waffe nicht über die Plateau-Fläche ragt (#bbdc6153).
+- **Folgen:** `dungeon/rooms/walls/rock_terrain.gd`, `dungeon/rooms/height/height_field.gd`, `plateau_art.gd`, `dungeon/rooms/room_tiles.gd`, `secrets/`, `trials/trial_pendulum.gd`, `dungeon/environment/doors/`, `tools/generate_room_templates.py` (34 Kampfvorlagen neu), Test `test_room_feedback_1022`. Außerdem behoben: Nischen-Cache zeigte die Biom-Textur des ersten Bioms überall (Schlüssel jetzt die Tilesheet-Textur).
+- **Nachtrag 22.10.2026 (Meldungen #bcff6539, #331603b8, TESTWERT):** Seitengänge: Die ganze Kachelreihe des Gangs zählt als „im Gang“ (Fels liegt über dem Spieler); beim Hinaustreten reicht der Fels noch `DoorView.SIDE_EXIT_REACH` = 22 px in den Raum, damit die Figur an der Wandkante geschnitten wird statt schlagartig nach vorn zu springen.
+- **Nachtrag 22.10.2026 (Meldungen 14:29, TESTWERT):** Steht eine Figur hinter einer Plateau-Nordkante (Wachfläche `HeightField.BEHIND_REACH` 1 Kachel, `BEHIND_NORTH` 0,25 Kachel), deckt die Kopie dieser Kachel die ganze Nordreihe ab, sonst nur das Band – so ragen Schwertspitze und Flints Schatten nicht mehr aufs Plateau. Fels-Lippen über Figuren nutzen einen Atlas ohne eingebackenen Boden (`RockTerrain.lip_texture`). Quellen in der Nordreihe eines Plateaus stehen 8 px südlich der Kachelmitte (`PLATEAU_NORTH_SOURCE_SHIFT`); nichts Festes (Truhe, feste Deko, Ziele) direkt hinter einer Nordkante.
+- **Nachtrag 23.10.2026 (Meldungen 03:11–03:53 und 04:31, TESTWERT):** Obere Kanten: Kollision jeder Fels-Front endet `RockTerrain.FRONT_REACH` 4 Kunst-px über der Fußlinie, an Raum-Nähten gewinnt die offenere; Plateau-Nordkante als zwei Einbahn-Wände (oben 8 px näher an die Kante), Klippen-Front im Bild weiter 16 px (D-205), Kollision 12 px (**Vorschlag**, Rückfrage offen); Seitenwände an versetzten Plateau-Fußkanten (`HeightLayout.foot_sides`). Tunnelfels liegt immer über allen Figuren inkl. Flint (z 1), Nischendunkel gleichmäßig über die ganze Kante, Deckkraft 0,55. Deko-Gruppen: Lücken ab `GROUP_GAP_MIN` 12 Kunst-px bleiben begehbar. Seelentor mit Freiraum (`GATE_CLEARANCE`), Fußschatten und Bodenlicht. Verdeckt gemalte Kachelebenen bauen beim Sichtbarwerden ihre Laufzeitdaten neu (Plateau-Kanten und Prop-Löcher fehlten sonst in der Navigation, Gegner kamen nicht über die Treppe). Prüfungsausgang öffnet nur noch die Tor-Kacheln (vorher malte er den Raum neu und hob die Naht auf: graue Rechtecke, unsichtbare Wände).
+
+### D-202 – Zuhause einrichten (Möbel) zum Release
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026: „Möbel jetzt mit, Pets danach“)
+- **Beschluss:** WK7 (Möbel im Zuhause auf dem Deko-System) kommt ins Release-Tor, gebaut nach WK5 (Dorf-Deko) und KE8 (Zuhause innen). Pets (WK4) bleiben nach dem Release, nie im Dungeon (D-196).
+- **Ersetzt:** D-196 Punkt 6, soweit es die Möbel betrifft.
+- **Folgen:** `docs/ROADMAP.md` (WK7, Release-Tor A), `docs/KONZEPT.md` §8.
+
+### D-203 – Zauber sind eine eigene Fähigkeitsart neben den Upgrades (KE7)
+
+- **Status:** VORGESCHLAGEN (Claude, KE7 gebaut 22.10.2026) · Zahlen TESTWERT · braucht die Bestätigung des Projektmitglieds (D-026, D-194 Punkt 4)
+- **Beschluss (Vorschlag):** Zauber kommen nur aus dem Talentbaum (Pfad der Seele), nie als Run-Upgrade; D-026 („genau 15 Upgrades“) bleibt unberührt. Zauberschaden folgt D-019: allgemeine Upgrades mit Tag `spell`, Schmiede-Bonus und Zauberkraft addieren sich in der Prozentsumme, Ausweichkunst multipliziert. Zaubertreffer sind Sekundärtreffer (D-030: keine Ketten), Kill-Belohnungen ja (D-032). Tasten: Zauber 1 **F** / Gamepad **RB**, Zauber 2 **R** / **LB** (Q ist Waffe wechseln); ohne zweite Taste wirkt ein Knopf den ersten bereiten Zauber; Touch eigener Knopf. Lichtblitz blendet Bosse halb so lang (TESTWERT). Irrlichter: Ziele in 8 Kacheln, höchstens 3 s, 160–340 px/s; Heilfunke heilt keine Spieler am Boden.
+- **Folgen:** `spells/`, `ui/hud/spell_slots_view.gd`, `ui/touch/`, `project.godot` (`cast_spell`, `cast_spell_2`), `player/input/`, `online/net_dungeon.gd`.
+
+### D-204 – Extraktion und neue Schmiede: Testwerte (KE3, KE4)
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026
+- **KE3 Extraktion:** Seelentor am Lagerfeuer und am Platz 4 mit 50 % (`RoomSequence.PORTAL_CHANCE`), Pflicht-Tor, wenn der Zyklus davor keines hatte (das Lagerfeuer-Tor zählt zum Zyklus seines Bosses) – ergibt rechnerisch etwa 2/3 der Zyklen mit Tor; Spezialräume in Abzweigungen haben kein Tor mehr. Tod und Abbruch 25 % (`LOSS_PAYOUT_RATIO`), Seelenanker 50 %. Tiefenbonus +10 % je Fünferblock auf Gold je Gegner und Boss-Kristalle (aufgerundet: Boss 15 → 4, 30 → 5, 60 → 6). Rückkehrstein gesperrt in Boss-, Champion- und Arenakampf. Dialog „Jetzt sichern“ / „Weiter“ (en „Bank now“ / „Go on“), Esc = Weiter.
+- **KE4 Schmiede:** Preise wie KONZEPT §5.1; Stufe III verstärkt das Spezial um +25 %; Arsenal-Waffen in beliebiger Reihenfolge zum festen Preis; Waffe schmieden, Schildplatte und Laterne ab Start offen, Arsenal und Zweiter Startplatz nach dem ersten Boss. **Spielstand v5:** Migration v4 → v5 mit voller Gold-Erstattung für Vitalität, Schärfe, Goldgier, Dash-Training (nach der Kostentabelle des v4-Codes, D-167), Startschild → Schildplatte, Arsenal 1/2 → Bogen (und Stab) frei und **Zweiter Startplatz** (v4 startete mit zwei Waffen), Welt-ID, Felder des Handelspostens, Sicherung `.v4.bak`, Erstattung einmal je Welt. Mischregeln für KF9: Schmiede- und Handelsstufen Maximum, Freischaltungen Vereinigung.
+- **Offen:** Projektmitglied bestätigt „Zweiter Startplatz aus Arsenal 1/2“ und die Freischaltung nach dem ersten Boss.
+- **Folgen:** `dungeon/rooms/special/`, `dungeon/room_sequence.gd`, `economy/economy_config.gd`, `autoload/run_manager.gd`, `ui/menus/dungeon_ui.gd`, `meta/meta_progression.gd`, `meta/meta_unlocks.gd`, `autoload/save_manager.gd`, Tests `test_extraction`, `test_save_v5`, `test_meta_merge`.
+
+### D-205 – Antworten auf Claude Design: Flint-Größe, Rang-Abzeichen, Kamera, Rang-Abstieg, Plattform-Höhe, Zuhause, Dorf-Höhen
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026, über die Sitzung soulwick-8b; Zitate) · Zahlen TESTWERT
+- **Kontext:** Vorschläge von Claude Design in `docs/design/responses/19_antwort_flint_rang.md` und `20_antwort_zuhause_plattformen.md`. `20_antwort_wick.md` (16.10.) ist überholt (Wick statt Flint, automatisch scrollender Sturmlauf, Sturz ½ Herz) und gilt nicht; D-195 gilt.
+- **Beschluss:**
+  1. **Flint-Größe:** „Mach etwa so groß wie ein Pet“: Spielfigur-Frame 16×16, Flint etwa 12 px hoch, Form die höhere schlanke Kerze (D-198 Ergänzung). Porträt 48, Menü 96 und Hero 128 bleiben groß.
+  2. **Rang-Abzeichen:** Mockup A7 Variante 1 (Ring um das Symbol); die gelieferten `art/ui/ranks/*` entsprechen ihr.
+  3. **Kamera:** „gerne näher ran“: Dungeon 1,25 → **1,45**, Dorf 1,0 → **1,15** (`CameraZoom`, entspricht Claude Designs 3,0 → 3,5); Boss, Lagerfeuer und Überblick bleiben 1,0. Hochkant-Handy unverändert (Vorschlag von Claude Design: dort 3,0 mit UI-Skalierung 2).
+  4. **Rang fällt richtig:** „Rang soll auch nach unten, sodass das Quickplay-Matchmaking, also die Gegner, immer fair bleiben.“ Abgelehnt: „nur die Stufenmarke fällt, nie unter die erste Marke eines Rangs“. Der Rang folgt der Gefahrenstufe in beide Richtungen (KONZEPT §3.1, wie gebaut).
+  5. **Plattformen und Emporen in Räumen nur halbe Höhe:** 16 px, Treppe aus zwei Stufen à 8 px, nie an der Außenwand, mindestens 1 Kachel Abstand („habe ich ja auch schon als Feedback gegeben“, Meldungen #25371167, #276ffad7). Paket CR6.
+  6. **Zuhause** beim ersten Betreten „eingerichtet, aber schon voll, aber basic cozy“ (Startmöblierung nach Antwort 20 §1); „später kann man ganz nice Möbelstücke holen, dann müssen ganz viele generiert werden, verschiedene Varianten“ → Möbel-Katalog mit vielen Varianten als eigenes Grafik-Briefing für WK7.
+  7. **Dorf:** „Darf generell etwas Höhen und Tiefen reinbekommen, also kleine Höhenunterschiede, Ebenen, Landschaft“ → Richtung für LK6 (Vorschlag: Marktplatz oben, Häuser eine halbe Stufe tiefer, Treppen `stairs_half`, Dungeon-Eingang am tiefsten Punkt); Mockup kommt von Claude Design.
+- **Folgen:** `components/visual/camera_zoom.gd` (gebaut), KONZEPT §3.1, §6, §8; ROADMAP CR6, KE8, WK7, LK6; SPRITES_V13 Teil C (Plattform-Kanten je Biom, Möbel-Katalog).
+- **Nachtrag 22.10.2026 (CR6 gebaut, TESTWERT):** Plateau-Vorderkante 16 px (`HeightField.PLATFORM_HEIGHT`) in der oberen Hälfte der Klippenreihe, untere Hälfte begehbarer Boden; Treppe zwei Stufen à 8 px; Band hinter der Kante `BAND` = 8 px (halb so tief wie die Masse hoch, wie beim Fels 16 von 32); Planregel `PLATEAU_WALL_GAP` = 1: keine Felskachel unter den acht Nachbarn einer Höhenkachel; die halbe Wand aus D-201 Punkt 4 (`WALL_FACE_SHARE`) entfällt; Gegner nutzen Treppen weiter (D-189). 8 Pläne neu gesetzt, 80 Vorlagen neu erzeugt.
+- **Nachtrag 22.10.2026 (Meldung #c849884e „Er ist mir sehr auf der Pelle“, TESTWERT):** Flint ruht etwa 1 Kachel neben der Figur: seitlich 34 px (`FlintFollow.SIDE_DISTANCE`, vorher 24), 12 px dahinter (`REST_DEPTH`), mindestens 32 px Körperabstand (`REST_MIN_DISTANCE`), nie im Schlag; beim Laufen gleitet er in die alte Laufposition (24 px, bis 1,5 Kacheln voraus); die Flamme bleibt innerhalb von 40 % des Lichtradius.
+
+### D-206 – Bosstor ohne Tunnel, der Gekrönte wehrt sich in der Ecke
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026, Antwort auf Rückfrage zu Meldungen #5724ea7c, #006de12a, #eff1c81c) · Zahlen TESTWERT
+- **Beschluss:**
+  1. **Bosstor ohne Tunnel:** Vor dem Bosstor liegt kein dunkler Tunnel mehr, man sieht den Gang mit Boden dahinter („da müsste Boden sein“). Alle anderen Türen bleiben wie in D-143.
+  2. **Der Gekrönte (Jagd) wehrt sich:** Steht er in der Ecke und ein Spieler direkt neben ihm, schlägt er einmal zurück (kurz angekündigt, wenig Schaden, Rückstoß, Abklingzeit; TESTWERT); sonst flieht er weiter (D-114 Nachtrag).
+  3. **Flint erklärt die Jagd** beim ersten Mal („Fang den Gekrönten“), mit WK11.
+- **Ersetzt:** D-143 für das Bosstor; D-201 „Offen: Bosstor mit oder ohne Tunnel“.
+- **Folgen:** `dungeon/environment/doors/`, `tools/smoke_test.gd` (Tunnel-Prüfung beim Bosstor), `enemies/variants/bounty_flight.gd`, WK11.
+- **Nachtrag 23.10.2026 (#876edf4a „Hier oben mach ruhig zu, schneid beim Torbogen aus“):** Der Deckfels über dem Bosstor-Gang ist wieder geschlossen, die Öffnung des Bogens ausgeschnitten (Boden sichtbar), kein Abdunkeln; `DoorView.get_passage_roof()`, `PassageCover.open_plan` entfällt; smoke_test prüft das Dach. Ersetzt den Nachtrag vom 22.10.2026 („kein Deckfels“).
+
+### D-207 – Seelen sammeln nach Spielerzahl (CR5)
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026, Anlass Playtest „alle 12 wirklich schwer, vor allem alleine“
+- **Beschluss:** Ziel 12 und `CRYSTAL_STEPS` bleiben. Lebensdauer einer Seele allein 8,5 s (vorher 6), ab 2 Spielern 6 s. Zeitlimit = max(45 s, aufgerundete Zeit, bis die letzte Seele vergeht), allein also 48 s. Reihenfolge der festen Plätze als Kette ab dem Eingang: nächster Platz höchstens 6 / 14 / 20 Kacheln (1 / 2 / 3+ Spieler) von der letzten Seele, nähere wahrscheinlicher; sonst der nächstgelegene. Einmal beim Anhängen über den Modus-RNG gezogen, auf Host und Clients gleich.
+- **Messung (Bot, je 24 Läufe):** allein 9,5–9,8 → 11,8 (schwaches Profil 8,5 → 11,8), zu zweit 9,9 → 10,7–10,9 (schwach 8,6 → 9,8).
+- **Offen:** drei Spieler in L-Räumen bleiben sehr schwer (Bot 7 von 12, vermutlich Seelen auf der Empore) → Balance.
+
+### D-208 – Welle 3: Handelsposten, Zuhause, Übungsgang, Sprungprobe (Testwerte und Verhalten)
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026 (KE5, KE8, WK10, SV2, Integration)
+- **Handelsposten (KE5):** Proviant-IDs `gold_rain`, `lucky_amulet`, `clear_sight`, `healing_potion`, `soul_anchor`, `return_stone`, `keen_nose`, Preise nach KONZEPT §5.2; Glück = Gewicht 1,1/1,2/1,3 für seltene Upgrades (bei Glück 0 bleiben die Seeds gleich); Händlerfreund rundet, mindestens 1 Gold; Goldregen in der Gruppe = Mittelwert der Spieler (1 von 4 = +25 %); Klarsicht wirkt gegen Flüche, Dunkel-Fallen und Lichtfeuer-Dunkel, nicht gegen Biom-Dunkelheit; alte Proviant-IDs werden beim Laden abgebildet (potion → healing_potion, upgrade → lucky_amulet, gold → gold_rain), Spielstand bleibt v5; kein Auspacken mit Rückerstattung.
+- **Rückkehrstein:** Taste G, am Gamepad Select 0,5 s halten (Select öffnet die Übersicht jetzt beim Loslassen), Touch-Knopf rechts oben nur solange bereit, Eintrag im Pausemenü mit Bestätigung; der Host entscheidet.
+- **Zuhause (KE8):** Haustür führt in den Innenraum; Talentbaum am Altar, im Koop nur zum Ansehen (auch für den Host); kostenlose Änderungen werden beim Schließen gespeichert, Umskillen mit Kosten fragt „Bezahlen / Verwerfen / Zurück“.
+- **Übungsgang (WK10):** Puppen 3 Treffer, Abgrund 1 Kachel ohne Schaden, Sprungstrecke ohne Grube, +25 XP einmal je Konto (`AccountProgress.add_bonus_xp`, Server mit KF4 als Eintrag `endReason: "tutorial"`); startet nicht in Skript-Läufen außer mit `TutorialRun.force_next` (smoke_test).
+- **Sprungprobe (SV2):** Planwahl nur aktuelle und vorige Stufe; Feder wirft auch beim Absprung (Reichweite 40 px); Elementuhr vom Host jede 1 s; Laterne als Rücksetzpunkt, Elemente nie.
+- **Rückstoß:** `Player.apply_knockback`, Bremsung 1600 px/s², höchstens 420 px/s, der stärkere Stoß gewinnt, stoppt an Abgrund-Kanten und Wänden.
+- **Folgen:** `meta/meta_progression.gd`, `autoload/run_manager.gd`, `autoload/save_manager.gd`, `world/village/home/`, `ui/menus/talent_tree/`, `dungeon/tutorial/`, `dungeon/side/`, `player/player.gd`, `online/` (Proviant, Rückkehrstein, Elementuhr).
+
+### D-209 – Glutgolem: Lava-Bälle gegen Kiten, Stampf-Stun gegen Bedrängen
+
+- **Status:** TESTWERT (an Claude delegiert) · gebaut 22.10.2026, Anlass Meldung #a8a87397 („Der letzte Boss war mit Abstand der leichteste … mit dem Bogen über die Brücken ständig drum herum gelaufen … Er muss stunnen oder Lava-Bälle werfen“)
+- **Beschluss:** Neuer Baustein `BossPressure` (auch für spätere Bosse nutzbar). **Lava-Bälle:** Wurf im Bogen auf den entferntesten Spieler außerhalb von 180 px, mit Vorlauf (0,6); Aufschlagkreis füllt sich 1,0 s (Phase 2 0,85 s, mindestens 0,5 s); Schaden 0,8 × Bosstreffer; Lavapfütze 2,5 s (Phase 2 3,0 s), tickt alle 0,8 s ab 0,35 s; Abstand der Würfe 4,5 s → 2,0 s über 10 s ohne Nahkampf; 3 Bälle (+1 in Phase 2, +1 je Boss-Stufe). **Stampf-Stun:** nur wenn jemand nah ist, Ring-Warnung ~0,55 s, Radius 150 px (Phase 2 ×1,2), Stun 0,4 s (Phase 2 0,5 s, nie mehr), halber Bosstreffer, Rückstoß, Abklingzeit 6 s (Phase 2 ×0,7). Dash weicht beidem aus. Der Host rechnet; Clients sehen Ball und Pfütze über `blast_spawned` (Pfütze dort ohne Schaden).
+- **Messung:** Bogen-Kiting (Bot ohne Ausweichen) Phase 1: 0 → 17 Schaden in 40 s; mit Ausweichen 2–5; Nahkampf unverändert fordernd (≈ 50 in 30 s). balance_sim Bogen gegen den Golem 0 → 5,5–6,5 Schaden, nie tot.
+- **Offen:** Playtest mit dem Bogen in Raum 60 (der Mensch dasht, der Bot nicht).
+- **Folgen:** `enemies/boss_pressure.gd`, `components/combat/lava_pool.gd`, `lob_shell.gd`, `blast.gd`, `enemies/enemy_base.gd`, `boss_ember_golem.tres`, `online/net_enemies.gd`, `tools/boss_sim.gd` (`only=golem`, Kiting-Prüfung), Text `ENEMY_BOSS_EMBER_GOLEM_HINT`.
+
+### D-210 – Balance: mittlerer und später Run fordernder (Raum 16–75), Schleimkönigin springt, Schattenlord weniger zäh
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-10-22 / Claude im Auftrag des Projektmitglieds (Balance delegiert; Playtest hat Vorrang vor dem Bot)
+- **Anlass:** Playtest neues Konto, G 0, Schwert/Bogen, Run bis Raum 63: #69c009b3 „viel zu leicht, ich renne ohne Probleme durch“ (HUD Raum 63: volle 3 Herzen, 18 Schild, 840 Gold, Schwert 40 Schaden · 3,07/s); früher: Schattenlord „viel zu viel Rüstung, nie Leben verloren“. Der Run lief auf Commit 6f6eab3, also ohne D-199/D-200; gemessen ist mit dem heutigen Stand (D-199, D-200, D-209). Ursachen in der Messung: Der Bogen-Bot (kommt dem guten Spieler am nächsten) nimmt in Raum 16–30 nur 0,4 Schaden je Kampfraum und an der Schleimkönigin 0,4 (sie hat außer dem Sprung nur Nahkampf; wer kitet, löst ihren ersten Nahkampfangriff nie aus und damit auch keinen Sprung); Treffer in Raum 41–45 und 61–65 waren durch die Rundung auf 0,5 nicht höher als einen Block davor.
+- **Beschluss (Zahlen, alt → neu):**
+  - **Skalierung je Fünferblock** (`EnemyScaling`, Formel bleibt): HP **1,16 → 1,17** (Raum 15 ×1,37 statt ×1,35, Raum 45 ×3,51 statt ×3,28, Raum 63 ×6,58 statt ×5,94), Schaden **1,12 → 1,13**. Normaler Treffer (Grundschaden 0,7): Raum 1–25 unverändert (0,5 / 1,0), **26–30 1,5** statt 1,0, 31–40 1,5, **41–45 2,0** statt 1,5, 46–50 2,0, **51–55 2,5** statt 2,0, 56–60 2,5, **61–65 3,0** statt 2,5, 66–70 3,5 statt 3,0, 71–75 4,0 statt 3,5.
+  - **Elite-Chance je Block** (`RoomSequence.ELITE_CHANCE_PER_BLOCK`): **0,02 → 0,03** (Raum 6–15 +1–2 Punkte, Raum 31 30 % statt 24 %, Raum 61 48 % statt 36 %, Deckel 50 % ab Raum 66).
+  - **Gegnerzahl ab Raum 30** (`RoomSequence.get_enemy_count_range`): **4–7 → 5–7** je Welle.
+  - **Spalt-Schleim** (`splitter_slime.tres`, erst ab Raum 16): Lauftempo **75 → 95**.
+  - **Schleimkönigin** (`boss_slime_queen.tres`): springt bei **jedem** Angriff (`special_every` **2 → 1**, Beschwörung jeder 3. bleibt), Abklingzeit **0,9 → 1,2 s**, Sprung-Ankündigung **1,0 → 1,2 s**, Sprungkette in Phase 2 **2 → 1** Zusatzsprung, HP **400 → 300**, Schaden **1,4 → 1,2**. Raum 30: 658 HP statt 840, Treffer 2,0 statt 2,5 – kürzer und gefährlicher statt zäher.
+  - **Schattenlord** (`boss_shadow_lord.tres`): HP **230 → 210**, Schaden **0,7 → 0,65** (Raum 45: 737 HP statt 754, Treffer bleibt 1,5; mit 0,7 wäre er durch den neuen Faktor auf 2,0 gesprungen und Stab-Bots starben zu 58–73 %).
+  - Boss-Reihe G 0 danach (HP / Treffer): 575 / 1,5 · 658 / 2,0 · 737 / 1,5 · 1800 / 3,0 · Knochenkönig II (Raum 75) 5296 / 7,0 (vorher 565 / 1,5 · 840 / 2,5 · 754 / 1,5 · 1638 / 2,5 · 4697 / 6,0).
+  - **Verworfen:** Lauftempo je Block 0,03 → 0,04 – der Glutgolem holt den kitenden Bogen dann ein, wirft deshalb seltener Lava-Bälle, und die Kiting-Prüfung aus D-209 (`boss_sim`) wird rot. Schleimkönigin mit Kette 2 und 400 HP: Stab-Bot 47 % Tod, Bogen-Tank 33 % bei 160 s Kampf. Schattenlord-Abklingzeit 1,3 → 1,15 s: Stab-Bot 58–73 % Tod.
+  - **Unverändert:** Heilquellen, Heilung/Schild bei Tötung (D-200), Schildverstärkung, Shop, Gold, G-Faktoren (D-197), Glutgolem (D-209).
+- **Messung** (`balance_sim.gd`, Bot Reaktion 0,8, sieht keine Dunkelheit, `hazards=1 falls=1 nav=1 smart=1 max_rooms=90`, Seeds 401–410 × 2 Runs; vorher = Stand mit D-199/D-200/D-209):
+
+| Messung | vorher | nachher |
+| --- | --- | --- |
+| Bogen (20 Runs): Median · Tode R16–30 / 31–45 / 46–60 / 61+ | 58 · 2 / 5 / 7 / 6 | 47,5 · 4 / 6 / 6 / 4 |
+| Bogen: Schaden je Kampfraum R16–30 / 31–45 / 46–60 / 61–75 | 0,40 / 0,89 / 1,78 / 2,08 | 0,50 / 1,39 / 1,89 / 3,65 |
+| Bogen: Boss 15 / 30 / 45 / 60 / 75 (Tod, Schaden) | 0 %·0,1 / 0 %·0,4 / 7 %·3,8 / 40 %·8,1 / 0 %·3,1 | 0 %·0,2 / 6 %·1,7 / 17 %·3,6 / 56 %·8,0 / 0 %·2,0 |
+| Bogen: HP / Schild / Gold nach Raum 15 · 30 · 45 · 60 | 5,9/1,1/57 · 5,8/2,9/169 · 5,4/2,9/257 · 4,2/0,8/700 | 5,9/0,9/63 · 5,7/2,7/148 · 5,6/3,6/274 · 5,8/1,2/603 |
+| Stab (20 Runs): Median · Boss 30 / 45 / 60 Tod | 45 · 6 % / 43 % / 57 % | 45 · 11 % / 33 % / 67 % |
+| Stab: Schaden je Kampfraum R31–45 / 46–60 / 61–75 | 0,80 / 0,76 / 1,83 | 1,20 / 2,42 / 2,62 |
+| Schwert (20 Runs): Median · Tod bis Raum 15 · Boss 15 Tod | 15 · 12/20 · 33 % | 15 · 11/20 · 31 % |
+| Bogen „tank“ (10 Runs): Median · Boss 30 · Schild nach R30 / R45 | 51,5 · 0 %, 100 s · 8,2 / 3,6 | 41,5 · 11 %, 134 s · 7,6 / 2,8 |
+| Druckprofil (`set.player_hp=999 room_timeout=90`, 6 Runs bis 75), Schaden je Kampfraum R46–60 / 61–75: Bogen · Schwert | 1,63 / 2,17 · 2,65 / 4,99 | 3,20 / 3,16 · 6,44 / 7,15 |
+| Gold beim Tod (Bogen · Stab) | 595 · 463 | 538 · 423 |
+
+- **Lesart:** Raum 1–15 bleibt praktisch gleich (Schwert-Median 15, D-200-Ziel 12–18). Ab dem zweiten Biom kostet jeder Block mehr, Raum 61–75 (Krypta im zweiten Durchlauf) kostet je Kampfraum jetzt so viel wie 46–60 oder mehr; die Runs des guten Bots enden über 30–80 verteilt (Ziel D-089: 40–80). Die Bot-Streuung ist groß (gleiche Seeds schwanken um ±5 Räume im Median), deshalb je 20 Runs.
+- **Nach dem nächsten Playtest prüfen:** Ob Raum 16–30 für einen guten Spieler jetzt Herzen kostet (der Bogen-Bot nimmt dort weiter nur 0,5 je Raum; sonst zwei Wellen ab Raum 16, D-200); ob die springende Königin fair lesbar ist; ob der Glutgolem mit Lava-Bällen plus Faktor 1,13 (Treffer 3,0 statt 2,5) zur Mauer wird (Bot 56–67 % Tod; Gegenmittel Golem-Schaden 0,72 → 0,66 hält 2,5).
+- **Folgen:** `enemies/enemy_scaling.gd`, `dungeon/room_sequence.gd`, `enemies/data/boss_slime_queen.tres`, `boss_shadow_lord.tres`, `splitter_slime.tres`; Tests `test_enemy_scaling`, `test_danger_scaling`, `test_room_sequence`, `test_extensions` (Erwartungswerte).
+- **Ersetzt:** Faktoren 1,16/1,12 aus D-154; Elite-Wachstum 2 %/Block aus D-074; Gegnerzahl ab Raum 30 aus D-154 (Nachtrag); Werte der Schleimkönigin aus D-154/D-200 (Schaden 1,4, HP 400, Tempo 0,9 s) und des Schattenlords.
+
+### D-211 – Flint ersetzt alle Hinweis-Karten; Übungsgang ohne verdeckende Einblendungen
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026: alte Tastenkarten „ganz durch Flint ersetzen“; zum Übungsgang: „Man sieht teilweise das Game nicht, weil oben so Einblendungen sind, vor allem im 2D-Run“; Flint und die Tutorials sollen „wirklich groß aufgezogen“ werden)
+- **Beschluss:** Steuerungs-Karte, Erstmal-Hinweiskarten und Raum-Intro-Karten entfallen. Neues erklärt nur noch Flint in seiner Ecke unten rechts, beim ersten Mal je Konto (`AccountSeen`, `flint_*`), mit Tastensymbolen je Eingabegerät; die Tastenhilfe zum Nachschlagen bleibt im Pausemenü. Im Übungsgang keine großen Einblendungen über dem Spielfeld, vor allem nicht im 2D-Abschnitt; Flint ist der einzige Erklärer. Flint fliegt und wird über Boden-Requisiten, Figuren und Gegnern gezeichnet, nie in der Figur.
+- **Ersetzt:** D-133 (Erklärkarte im Intro-Muster), die Steuerungs-Karte aus Phase 1.
+- **Folgen:** WK9, WK10b, WK11, `ui/hints/`, `ui/menus/dungeon_ui.gd`, `companions/`, `dungeon/tutorial/`, `dungeon/modes/room_intro.gd`.
+- **Nachtrag 22.10.2026 (WK9 gebaut):** Die Eröffnung durch den Chronisten (D-161) ist durch Flints Dorf-Rundgang ersetzt (`VillageTour`, Merker `flint_village_tour`, 8 Stationen mit Kamerafahrt und Ring in Flints Orange); erstes Betreten eines Gebäudes erklärt Flint vor dem Dialog (`flint_village_<id>`); alte Spielstände bekommen den Rundgang einmal, Gebäude-Erklärungen nicht.
+- **Nachtrag 22.10.2026 (gebaut, TESTWERT):** `FlintControls` ersetzt die Steuerungs-Karte: Bewegen/Angreifen/Dash beim Run-Start + 1,5 s, Spezial in Raum 2, Waffe wechseln sobald zwei Waffen da sind, Benutzen bei der ersten Benutzen-Anzeige, Übersicht nach dem ersten Upgrade, Abgrund, Seitenansicht und rissige Wand; Tasten als Symbole des aktiven Geräts in der Blase; nicht bei Touch-Steuerung (offen). Flint zeichnet als eigener Knoten mit `SORT_LIFT` 48 px über Requisiten, Figuren und Gegnern in seiner Nähe; sein Bild hält `PICTURE_GAP` 4 px Abstand zum Bild der Figur und weicht um sie herum statt hindurch. Übungsgang: schmale Leiste oben (348×30 px), im 2D-Abschnitt keine Einblendung; verdeckte Spielfläche oben 46 % → 19 % (Halle), 44 % → 13 % (2D).
+- **Nachtrag 22.10.2026 (WK11 gebaut, TESTWERT):** Beim ersten Mal je Konto und Raumart (`flint_room_<genre>`) neue Intro-Phase `FLINT` mit Kamerafahrt (`MAX_PAN_DISTANCE` 560 px), allein wartet sie auf „Weiter“ (höchstens 120 s); bekannte Raumarten nur Banner und Countdown; im Koop verlängert der Host den Countdown um die geschätzte Dauer (+0,5 s), der Lernende ist geschützt, die anderen sehen „Flint erklärt Mia die Jagd …“. Offen: Koop-Verlängerung bei vier Sätzen 21–26 s – ggf. kürzen.
+
+### D-212 – Der Lichtkreis sitzt beim Spieler, Flint leuchtet mit
+
+- **Status:** VERBINDLICH (Projektmitglied 22.10.2026, Rückfrage nach dem Lichtfeuer-Fehler)
+- **Kontext:** Seit WK1 folgte der Lichtkreis (Bild und Logik) Flints Flamme und lag bis zu einer Kachel neben der Figur. Im Lichtfeuer (Kreis 94 px) landeten Steinwächter neben dem Spieler außerhalb des Kreises und erstarrten nie (smoke_test hing, echter Spielfehler).
+- **Beschluss:** Der Lichtkreis ist – im Bild und für alle Regeln (`LightQuery`) – immer um die Figur zentriert. Flints Flamme gibt zusätzlich einen kleinen warmen Schein (nur Optik, zählt nicht als Licht für Regeln). Flint bleibt die sichtbare Lichtquelle und wirkt die Zauber.
+- **Ersetzt:** den Teil von D-194 Punkt 7 bzw. KONZEPT §7.1 „Bild und Logik des Lichts folgen Wick/Flint“ (WK1).
+- **Nachtrag 22.10.2026 (gebaut, TESTWERT):** `LightQuery.get_player_light_center` = Figur; Flints Schein `FlintGlow` Radius 56, Intensität 0,55, Flackern 0,08, warm, `counts_as_light = false`. Seitenansicht-Kamera: Füße nie tiefer als 75 % der Bildhöhe (`SideCamera.MAX_FEET_SCREEN_SHARE`). Lichtfeuer-Smoke (Seeds 15, 16) wieder grün.
+- **Nachtrag 23.10.2026 (Meldungen #7adeacba, #118a38da, #587a95a9, #8e2a665c, TESTWERT):** Flint folgt locker hinter/neben der Laufrichtung statt vorauszufliegen (`TRAIL_MAX` 28 px, Folge-Rate 3,5/s, ab 64 px Rückstand 9/s, Leine 84 px, Ruheplatz seitlich 40 px, hinten 14 px) und schwebt frei (`FlintRoam`: bis 20 px, Ausflug bis 44 px mit 22 %, Pause 0,9–2,6 s, nur Optik); Wände prüft er per Strahl (10 px Abstand), Abgründe überfliegt er. Sein Schein geht unter Fels über den Figuren aus (Tunnel, Bosstor-Dach) und kommt über 40 px zurück. Porträts: offene Flammenspitze bekommt aus Code eine Kappe, bis die Grafik ersetzt ist. Sprechblase: Text `#2a2638`, „Weiter“ `#5c3a24` auf der hellen Blase.
+
+### D-213 – Balance: von Raum 1 an fordernder (Treffer, Champions, Gegnerzahl, Bosse, Schildverstärkung, Koop)
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-10-23 / Claude im Auftrag des Projektmitglieds (Balance delegiert; Playtest hat Vorrang vor dem Bot)
+- **Anlass:** Playtest 22./23.10.2026: „Insgesamt finde ich das Game zu leicht“, schon früh. #b28a0f5e Raum 15 (Lagerfeuer, Schwert): volle 3 Herzen, 8 Schild; Raum 10 Miniboss „war Two-Hit … man selbst sollte auch mal Damage bekommen“; Koop zu zweit Raum 6 „die Flamme bekommt basically nie Damage … Gegner sollen mehr anrichten“; dazu #0d13177c, #4f6807bc, #69c009b3 (D-210). Messung vorher: Ein Bot mit guter Reaktion nimmt in Raum 1–15 0,01–0,1 Schaden je Kampfraum, am Champion in Raum 5–10 nichts (Kampf 8–14 s), am Knochenkönig 0,1 (Bogen) bzw. 1,9 (Schwert); ein normaler Treffer war in Raum 1–5 0,5 und in Raum 6–25 1,0, ein Champion-Treffer in Raum 5 1,0.
+- **Ziel für Menschen (strenger als D-089):** Ein guter Spieler stirbt typischerweise zwischen Raum 30 und 60. Begründung: Der Mensch spielt besser als der Bogen-Bot mit Reaktion 0,8 (er kam bis Raum 63 „ohne Probleme“), klettert, nutzt Deckung und Talente; der Bot mit Reaktion 0,9–0,95 kommt ihm am nächsten, also soll dieser Bot im Median bei 40–55 enden. Ohne Ausweichen (Bot-Reaktion 0) soll man Raum 15 meist nicht erreichen; Neulinge (Reaktion 0,5) sterben in Raum 1–5 nicht.
+- **Beschluss (Zahlen, alt → neu):**
+  - **Normale Gegner** Skelett, Schleim, Bogenschütze, Schatten, Totenbeschwörer, Spalt-Schleim: Schaden 0,7 → **1,02**; Bomber 1,0 → **1,4**; Golem 1,3 → **1,4**. **Skalierung Schaden je Block** (`EnemyScaling.DAMAGE_FACTOR_PER_BLOCK`) 1,13 → **1,11**. Normaler Treffer jetzt Raum 1–10 **1,0** (vorher 0,5 / 1,0), 11–30 **1,5** (vorher 1,0 bis 25), 31–40 2,0, 41–50 2,5, 51–60 3,0, 61–65 3,5, 71–75 4,5 (ab Raum 41 je +0,5).
+  - **Champions** (`MINIBOSS_HEALTH_FACTOR`/`MINIBOSS_DAMAGE_FACTOR`): HP ×3 → **×6** (Skelett-Champion Raum 5: 102 HP, Schwert ≈ 4 s, Bogen ≈ 10 s), Schaden ×1,5 → **×1,7** (Treffer Raum 5 1,5, Raum 6–15 2,0).
+  - **Bogenschütze:** Abklingzeit 1,8 → **1,4 s**, Pfeiltempo 260 → **300**. **Skelett:** Schildsturm jeder 3. → **2.** Angriff.
+  - **Gegnerzahl je Welle** (`RoomSequence.get_enemy_count_range`): Raum 16–29 6–8 → **7–9**, ab Raum 30 5–7 → **6–8**.
+  - **Bosse:** Knochenkönig Salve 10 → **12** Pfeile (Treffer bleibt 1,5; Salve jeder 2. statt 3. Angriff ist gemessen, aber verworfen: auf Boss-Stufe 2 fällt die Spezial-Abklingzahl dann auf 2 und verdrängt Salve und Spirale, `boss_sim` rot – D-154); Schleimkönigin Schaden 1,2 → **1,4** (Raum 30: 2,5 statt 2,0); Schattenlord 0,65 → **0,8** (Raum 45: 2,0 statt 1,5). Glutgolem unverändert 0,72, durch den flacheren Faktor Raum 60 2,5 statt 3,0 (Gegenmittel aus D-210). Telegrafzeiten unverändert.
+  - **Schildverstärkung** 4 → **3** Schild (Text `UPGRADE_SHIELD_BOOST_DESC` en/de angepasst). Schild bei Tötung, Heilquellen, Shop, Softcap unverändert.
+  - **Stab** Grundschaden 8 → **9**: mit 7–9 Gegnern fiel der langsame Stab sonst als einzige Waffe unter das Ziel (Median 33,5).
+  - **Koop** (`CoopRules`, D-084): Gegnerzahl +0,6 → **+0,7** je weiterem Spieler, HP normaler Gegner +0,2 → **+0,3**, Champions/Bosse +0,7 → **+0,85**. Zu zweit hat ein Raum damit ≈ 2,2× die Gegner-HP (vorher 1,9×) bei doppeltem Schaden der Gruppe, ein Boss 1,85×. Nicht mit dem Bot messbar (er spielt allein).
+  - **Verworfen:** nur HP ×1,25, nur Abklingzeiten −25 %, nur Lauftempo +25 %, nur +1 Gegner je Welle, nur Schaden ×1,5 – jede Einzelmaßnahme änderte den guten Bot in Raum 1–45 kaum (er weicht fast allem aus); Schaden-Grundwert 1,0 bei Faktor 1,10 (Raum 11–15 bliebe 1,0).
+- **Messung** (`balance_sim.gd`, Stand 23.10. vormittags mit Treppen-Wegfindung und Einsturz-Löchern, `hazards=1 falls=1 nav=1 smart=1 vt.skip=collapse max_rooms=90`, Seeds 401–405 × 2 = **10 Runs je Zeile** wegen Rechnerlast; gut = `skill=0.95 reaction=0.15 room_timeout=90`, mittel = 0,9/0,18, Standard = 0,8, ohne Ausweichen = `skill=0`, Neuling = 0,5/0,35; Einsturz ausgelassen, weil der Bot an den neuen Löchern stirbt: im Stand vorher 11 von 20 Bogen-Toden; „nachher“ noch mit Knochenkönig-Salve jeder 2. Angriff, Stab-Zeile mit Stab 9):
+
+| Messung | vorher | nachher |
+| --- | --- | --- |
+| Gut Bogen: Median · Tode R16–30 / 31–60 / 61+ | 66 · 1 / 4 / 4 | 53 · 0 / 9 / 1 (im echten Repo nach dem Schreiben: 55) |
+| Gut Schwert: Median · Tode R16–30 / 31–60 / 61+ | 60 · 0 / 6 / 4 | 66,5 · 0 / 4 / 6 (echtes Repo: 56,5 · 2 / 4 / 4) |
+| Gut Stab: Median | 51,5 | 40,5 (mit Stab 8: 33,5) |
+| Mittel Bogen / Schwert: Median | 58 / 59 | 42,5 / 47 |
+| Standard Bogen / Schwert: Median · Knochenkönig Tod | 32,5 / 15 · 0 % / 50 % | 39 / 15,5 · 0 % / 44 % |
+| Ohne Ausweichen Bogen / Schwert: Median · tot bis Raum 15 | 17 / 14 · 4 / 10 von 10 | 13,5 / 8 · 6 / 10 von 10 |
+| Neuling bis Raum 6: Tode · HP nach Raum 5 (Bogen / Schwert) | 0 · 5,9 / 5,5 | 0 · 5,6 / 3,9 |
+| Champion Raum 5–10 (gut Schwert / ohne Ausweichen Schwert): Schaden | 0,05 / 0,88 | 0,17 / 2,71 (P3-Stand, 3 von 12 tot) |
+| Gut Bogen · Schwert: Boss 15 / 30 / 45 Schaden | 0,1 / 1,1 / 2,5 · 1,9 / 0,7 / 1,5 | 0,3 / 2,4 / 1,9 · 2,3 / 1,5 / 3,6 |
+| Gut Bogen · Schwert: Boss 60 Tod | 29 % · 43 % | 67 % · 14 % (n = 3 / 7) |
+| Gut Bogen: HP / Schild / Gold nach Raum 15 · 30 · 45 | 5,9/0,8/70 · 5,1/1,4/200 · 5,0/3,2/325 | 5,8/0,6/70 · 5,7/2,5/129 · 5,5/2,8/237 |
+| Gut Schwert: HP / Schild / Gold nach Raum 15 · 30 · 45 | 5,7/0,5/67 · 5,8/2,8/187 · 6,0/4,4/298 | 5,2/0,1/67 · 5,9/2,6/132 · 5,6/2,3/295 |
+| Gut: höchster Schild je Run (Mittel) · Gold beim Tod (Bogen / Schwert) | 7,9 / 8,8 · 868 / 852 | 6,8 / 8,1 · 476 / 805 |
+
+- **Lesart:** Der Bot weicht mit Reaktion 0,9–0,95 in Raum 1–30 fast allem aus; dort zeigt er nicht, wie oft ein Mensch getroffen wird, sondern was ein Fehler kostet. Den kostet jetzt jeder Treffer in Raum 1–10 doppelt, in Raum 11–30 1,5-fach, ein Champion-Treffer früh einen ganzen Herz-Anteil von 1,5–2,0; wer nicht ausweicht, kommt kaum noch bis Raum 15 (Schwert nie, Bogen 4 von 10). Die Runs des guten und mittleren Bots enden jetzt meist in Raum 30–60 (Median 42–55, Schwert streut bis 75), der Standard-Bot (0,8) bleibt etwa gleich. Neulinge sterben in Raum 1–5 nicht, verlieren aber merklich (Schwert-Bot 1,6 HP mehr bis Raum 5). Der Rest des „zu leicht“ liegt in Dingen, die der Bot nicht zeigt: Ein kitender Bogen löst den ersten Nahkampfangriff des Knochenkönigs nie aus und damit keine Salve (Schaden 0,3 auch ohne Ausweichen) – das ist keine Zahl, sondern ein Muster (siehe Offen). Die Treppen-Wegfindung und die Einsturz-Löcher (andere Pakete) machen es zusätzlich schwerer und stecken in „nachher“ schon drin (Einsturz ausgenommen).
+- **Nach dem nächsten Playtest prüfen:** Ob Raum 1–15 jetzt Ausweichen verlangt und Neulinge in Raum 1–3 nicht frustriert (sonst Grundschaden 1,02 → 0,74 und nur Raum 11+ härter über die Champions); ob Champions mit HP ×6 zäh statt spannend wirken (Bogen/Stab 15–25 s); ob der Schattenlord mit 2,0 je Treffer jetzt Deckung verlangt; ob Raum 61–75 mit Treffern 3,5–4,5 zur Wand wird (Bot: Knochenkönig II tötet den guten Schwert-Bot 100 %, n = 2–3); ob Koop zu zweit spürbar fordernder ist; ob zwei Schildverstärkungen (6) noch ein Polster sind.
+- **Offen (Vorschlag an das Projektmitglied):** Knochenkönig und Schleimkönigin gegen kitende Fernkämpfer: einen Fernangriff, der nach einigen Sekunden ohne Nahkampf auslöst (wie die Lava-Bälle des Glutgolems, `BossPressure`, D-209) – das ist ein Muster, kein Zahlenwert, gehört zu enemies-dev. „Schild bei Tötung“: Auflade-Grenze 6 → 4 (`UpgradeEffects.KILL_SHIELD_CAP`, nicht in diesem Auftrag) falls der Schild weiter polstert.
+- **Folgen:** `enemies/enemy_scaling.gd`, `enemies/data/` (skeleton, slime, archer, shadow, necromancer, splitter_slime, bomber, golem, boss_bone_king, boss_slime_queen, boss_shadow_lord), `weapons/data/staff.tres`, `upgrades/data/shield_boost.tres`, `localization/translations.csv` (`UPGRADE_SHIELD_BOOST_DESC`), `dungeon/room_sequence.gd`, `online/coop_rules.gd`, `tools/balance_sim.gd` (Optionen `vt.skip`, `set.champ_dmg`); Tests `test_enemy_scaling`, `test_danger_scaling`, `test_room_sequence`, `test_coop_rules`.
+- **Ersetzt:** Faktor 1,13 aus D-210; Grundschaden 0,7 aus D-200; Champion-Faktoren aus D-077/D-074; Gegnerzahl aus D-200/D-210; Werte von Knochenkönig (Salve), Schleimkönigin (Schaden) und Schattenlord (Schaden) aus D-210; Schildverstärkung +4 aus D-074; Koop-Faktoren aus D-084; Stab-Grundschaden 8 (TESTWERT).
+
+### D-214 – Raumarten nach dem Playtest vom 23.10.2026: Stillstand lohnt nicht, Flamme echt bedroht
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-10-23 / Claude im Auftrag des Projektmitglieds (Meldungen; Zahlen delegiert)
+- **Anlass:** #9c8ebbe0 „Man steht hier einfach und wartet, bis alles kaputt ist“; #56d68b40 „Die Flamme bekommt basically nie Damage“; #f5470311 „Hier sind keine Rifts“; #9ea58659 Geleit-Figur läuft durch Tür und Wand; #1a47997f Pendelklinge „man checkt nicht, was das macht“.
+- **Beschluss:**
+  1. **Einsturz:** Bleiben die Füße eines Spielers 2,5 s in 40 px, reißt die 2×2-Platte unter ihm (1 s Warnung, 4 s Abgrund, dann wieder Boden) – auch auf dem Restweg; nie auf Plateau, Treppe, Leiter, Schutzzone (D-189), Props, Quellen; nicht vor 1,5 s und nicht in der letzten Sekunde; beim Überleben schließen sich alle Löcher. Je Spieler, ohne Zufall; der Host entscheidet, Clients bekommen `NetModes.Event.SINKHOLE`.
+  2. **Flamme hüten:** Jeder Schub kommt von zwei Quellen mit mindestens 100° Abstand um die Flamme, weg von den Spielern; `RAID_SHARE` 0,7 → 0,85, `FLAME_HITS` 16 → 10, `PUSH_FACTOR` 0,4 → 0,7, `HEALTH_PER_EXTRA_PLAYER` 0,5 → 0,3. Fernkämpfer mit Ziel Flamme gehen um einen Spieler in der Schusslinie herum (`ShotLine`, `LINE_MARGIN` 6 px, `STEP_ANGLE` 0,5 rad) und schießen nach `COVERED_PATIENCE` 2,5 s trotzdem; wer aktiv in die Linie tritt, blockt. Messung `tests/manual/flame_threat.gd`: untätig 3/3 erloschen, zwei starke Verteidiger niedrigster Stand 91 % → 66 %.
+  3. **Risse schließen:** Die Risse stehen schon beim Intro (still, unverwundbar), Kamera und Flint zeigen auf sie.
+  4. **Geleit:** Die Figur bleibt am Ende ihres Weges jubelnd im Raum stehen (kein Gang mehr ins Tor).
+  5. **Spießrutenlauf:** keine Pendelklinge mehr, dafür eine Gefahr mehr aus Stacheln und Flammen (`EXTRA_HAZARDS` 5).
+- **Offen:** Einsturz-Pläne mit Plateau („Quelle oben“, D-189): oben bricht nie etwas; seit der Treppen-Reparatur kommen Gegner hoch – nach dem nächsten Playtest prüfen.
+- **Folgen:** `dungeon/modes/collapse/`, `dungeon/modes/flame/`, `dungeon/modes/rifts/`, `dungeon/modes/escort/`, `dungeon/rooms/trials/`, `enemies/ai/shot_line.gd`, `enemies/enemy_base.gd`, `online/net_modes.gd`.
+
+### D-215 – Flint im Online-Spiel: im Dorf still, im Dungeon für die ganze Gruppe
+
+- **Status:** VERBINDLICH (Projektmitglied 23.10.2026, Meldungen #ce7cde79 „Im Online-Game soll Flint ausgeschaltet sein“, #2b1a5a87 „Wenn dann sollen alle Spieler die Erklärung bekommen, wenn einer der Mitspieler die Erklärung braucht“, #88465571 „erklärt, während noch nicht mal alle Spieler drin sind“; Auslegung von #ce7cde79 durch Claude: Flint als Begleiter bleibt, nur seine Erklärungen in Lobby und Dorf entfallen – Rückfrage gestellt)
+- **Beschluss (Zahlen TESTWERT):**
+  1. In einer Online-Lobby und im Dorf eines vernetzten Spiels erklärt Flint nichts (`FlintGuide.allowed_now`); laufende Erklärungen brechen ab und bleiben ungesehen, sie kommen beim nächsten Solo-Start.
+  2. Im gemeinsamen Run bekommt jeden Erstes-Mal-Hinweis und jede Raumart-Erklärung die **ganze Gruppe**, sobald ein Spieler sie braucht (`NetGuide`): Der Host startet sie für alle, alle sind gehalten und geschützt, Neulinge blättern, die anderen laufen automatisch mit; Ende mit dem letzten Neuling oder an der Zeitgrenze (Lesezeit × 2 + 4 s, 10–30 s). Koop an einem Rechner: alle lokalen Spieler sehen die Tour.
+  3. Das Raum-Intro wartet im Koop, bis alle lebenden Spieler im Raum sind (höchstens 11 s, der Raumstart beendet das Warten sofort).
+  4. Ein offenes Menü oder ein Dialog sperrt die lokalen Spieler je Spieler (kein Dash im Menü), ohne Pause, 2 Physik-Frames über das Schließen hinaus.
+  5. Koop-Pfeile (Warten, Mitspieler am Rand) in Pixel-Optik aus `teammate_arrow.png`.
+- **Ersetzt:** D-211 Nachtrag WK11 „im Koop verlängert der Host den Countdown, der Lernende ist geschützt, die anderen sehen ‚Flint erklärt Mia …‘“.
+- **Folgen:** `companions/guide/`, `online/net_guide.gd`, `online/net_dungeon.gd`, `dungeon/modes/room_intro.gd`, `player/player.gd`, `ui/hud/pixel_arrow.gd`.
+
+### D-216 – Ein Hindernislauf statt Sprungprobe und Sturmlauf
+
+- **Status:** VERBINDLICH für Name, eine Art, Anteil und Länge (Projektmitglied 26.10.2026) · Ausgestaltung **VORGESCHLAGEN** (Claude) · Zahlen **TESTWERT** · ersetzt D-195 in Namen, Arten, Anteil, Umrennen, Kombo und Krone
+- **Kontext:** Projektmitglied 26.10.2026: „Kannst du Sturmlauf und das [Jump-and-Run] zusammenfassen? Nenn das nicht Sturmlauf … man rennt einfach nur durch und die Entities töten, man überrennt die ja einfach so“; „lass ihn nicht so häufig kommen … 20–30 % random“; „aktuell ist das doch noch nicht so wild … man rennt da einfach nur durch bei dem Sonic-Game“. Rückfragen: Name „Hindernislauf“, Häufigkeit „etwa 25 % zufällig“, Länge „etwa 60 s (45–75 s)“.
+- **Beschluss:**
+  1. **Eine Art:** Die Seitenansicht zwischen zwei Räumen heißt **Hindernislauf** (en „Obstacle Run“). Sprungprobe und Sturmlauf gehen darin auf; die Namen „Sprungprobe“ und „Sturmlauf“ entfallen im Spiel und in der Doku.
+  2. **Kein Umrennen:** Gegner besiegt man in der Seitenansicht nur durch Stampfen (von oben landen) oder die Waffe; Berührung von der Seite kostet Schaden, egal wie schnell, auch im Dash. Schwung bleibt als Bewegungsgefühl (1,3× → 2,0×), ohne höhere Kappe und ohne Boost-Felder.
+  3. **Länge etwa 60 s** (Bot 45–75 s, TESTWERT): ein kleines Level mit Ablauf – Einstieg, schwerer Teil, Laterne als Rücksetzpunkt, Schluss-Sprung – aus den Elementen der Sprungprobe (bewegte und kippende Plattformen, Federn, Sägen, Brücken, Dash-Lücken, Wandsprung) und den guten Teilen des Sturmlaufs (zwei Wege oben schwer/unten sicher, Schrägen, Rampen). Gegner sind Hindernisse zum Überspringen oder Stampfen, keine Ketten zum Umrennen. Stufen 1–3 nach Tiefe und Gefahr bleiben.
+  4. **Häufigkeit etwa 25 % zufällig:** etwa jeder vierte Weg zwischen zwei Räumen; nie in den Boss oder aus ihm, nie zweimal hintereinander, „Seitenwege auslassen“ gilt weiter. Der Abstieg hinter dem Lagerfeuer und der Leiter-Weg (mit Truhe) bleiben Hindernisläufe und zählen in die 25 %.
+  5. **Ende an der Tür** wie bisher die Sprungprobe; Zielbogen, Kombo, Ergebnisbanner und Krone entfallen (Krone im Koop → BACKLOG). Belohnung: Münzen (oberer Weg mehr) und goldene Münze, etwa ein Kampfraum (D-144).
+- **Gründe / verworfene Alternativen:** Umrennen machte den Lauf zum Durchrennen ohne Gefahr; ohne Umrennen braucht es keine eigene Tempo-Art. Fest vor jedem Champion verworfen (Projektmitglied wählte zufällig). Längere Abschnitte bei weniger Häufigkeit halten den Anteil an der Spielzeit etwa gleich.
+- **Folgen:** `dungeon/side/` (eine Art, Pläne 45–75 s, Anteil-Regel), `player/side/` (kein Umrennen), `online/net_side.gd` (Krone/Kombo-Ereignisse entfallen), Texte `RUSH_*` entfallen, neuer Banner-Titel; Paket SV7 in der ROADMAP.
+- **Nachtrag 26.10.2026 (SV7 gebaut, TESTWERT):** Ein Hindernislauf setzt sich aus drei geprüften Stücken zusammen (`ObstacleRunPlans.compose`): Einstieg (Plan Runde 1–3) + Zwei-Wege-Stück (frühere Sturmlauf-Pläne ohne Boost, Ketten zu Einzelgegnern mit ≥ 5 Spalten Abstand) + Laterne + schwerer Teil (Sprungprobe-Plan); 4 Läufe je Biom, Stufe = schwerer Teil. Bot 51,9–68,8 s (`SideRules.RUN_SECONDS_RANGE` 45–75 s, Stücke allein `MAX_PIECE_SECONDS` 40). Anteil: `SHARE_TARGET` 0,25, `SHARE_CHANCE` 0,3 (vorher 0,95), `SHARE_CHANCE_BEFORE_BRANCH` 0,15 (vorher 0,3), `RUSH_CHANCE` entfällt; gemessen 23,2 % der Wege ohne Leiter-Wege (400 Seeds). Belohnung: jede 3. Münze der Stücke bleibt (`RUN_COIN_KEEP_EVERY` 3; 12–13 Münzen je Lauf, unterer Weg etwa 7 + goldene Münze ≈ ein Kampfraum). Schwung-Kappe 2,0× überall, Sprint-Optik ab 1,8×, Kamera-Vorausblick bis 240 px bei 2,0×. **Kein Dash in der Seitenansicht** (Feedback #9aeff0be, #d4f9d57f, Projektmitglied „Maybe ganz raus machen“): Dash-Lücken → Doppelsprung-Lücken (3 Kacheln), `grotto_torrent` und `ember_crucible` Stufe 3 → 2; HUD und Flint nennen dort keinen Dash. Laufregeln: 11–30 Zeilen, 200–320 Spalten, 9–18 Münzen, mindestens 2 Laternen. **Offen:** eigenes Banner „Abstieg“ für den Biomwechsel (heute auch „Hindernislauf“); mehr Lauf-Kombinationen ab Stufe 3 (Krypta, Grotte, Schatten haben dort nur zwei) → SV6.
+- **Nachtrag 26.10.2026 (Projektmitglied, Playtest: „der Abstieg kommt halt echt zu oft“; Rückfrage → „Vor jedem Champion“):** Ersetzt Punkt 4 (etwa 25 % zufällig): Ein Hindernislauf kommt **fest auf dem Weg in jeden Champion-Raum** (Platz 5 im Zyklus), dazu hinter dem Lagerfeuer und auf dem Leiter-Weg; keine zufälligen Wege mehr. Nie in den Boss, nie zweimal hintereinander, „Seitenwege auslassen“ gilt. Gebaut in FS1: Regel ohne Zufall (alle Rechner gleich), `SHARE_CHANCE` und `SHARE_CHANCE_BEFORE_BRANCH` entfallen, `SHARE_TARGET` 0,19 (je Biom 2 Champion-Wege + 1 Lagerfeuer-Weg von 16 = 18,75 %); gemessen 18,8 % ohne Leiter-Wege, smoke_test 47: 10 Läufe auf 46 Wegen = 21,7 %. Leiter-Weg und Champion-Weg kommen sich nie in die Quere (Platz 4 verzweigt nie).
+
+### D-217 – Flint sieht im Spiel aus wie auf der Website
+
+- **Status:** VERBINDLICH (Projektmitglied 26.10.2026) · Umsetzung **VORGESCHLAGEN** (Claude)
+- **Kontext:** Projektmitglied 26.10.2026 mit zwei Bildern: Im Spiel sieht Flint „so richtig vercrackt aus von den Augen“ (gelieferte V13c-Bilder: große dunkle Augen, rissiges Wachs, flache Flamme); „auf der Website sieht die viel süßer aus … vom Glow her, auch die Flamme oben mit den Partikeln … Halte das Game Design dann so durch.“
+- **Beschluss:** Die Website-Figur (`soulwick-platform/apps/web/src/components/wick/wick-figure.tsx`, `wick.css`) ist **die Vorlage für Flint überall**: dunkler Umriss `#1c1a2b`, cremiges Wachs mit hellen Glanzstreifen links und Schatten rechts, kleine schmale Augen hoch oben, rosa Wangen, kleiner Mund, Füßchen, Docht, mehrstufige Flamme (Rand `#ff8a3c`, Mitte `#ffb54a`, Kern `#fff3c4`), die flackert; dazu ein weicher, atmender warmer Lichtschein und kleine Funken, die aus der Flamme aufsteigen. Begleiter, Erklär-Porträt und jede andere Flint-Darstellung im Spiel folgen dieser Vorlage; die V13c-Bilder von Flint werden durch erzeugte Bilder nach der Vorlage ersetzt (Werkzeug, reproduzierbar). Neue Flint-Grafik (Claude Design) hält sich an diese Vorlage.
+- **Gründe:** Ein Maskottchen, ein Gesicht (D-175): Spiel und Website zeigen dieselbe Figur; die Website-Fassung trifft „süß“ (D-174) besser.
+- **Folgen:** `companions/flint/`, `ui/flint_guide/`, `art/companions/flint/`, `art/ui/flint_guide/flint_portrait_*`, neues Werkzeug; Paket LK8 in der ROADMAP; Hinweis in SPRITES_V13.
+- **Nachtrag 26.10.2026 (LK8 gebaut, TESTWERT):** Bilder aus `tools/generate_flint.py`. Porträt = Website-Raster 16×24 ×2 (32×48 im 48er-Rahmen); Begleiter in Pet-Größe (D-205) im selben Stil: Körper 13 px + Flamme 7 px, Frame 32×32, Pivot (16, 30), Blick links. Schein: Radius 22 Kunstpixel, additiv, Atem 2,4 s, Stärke 75–100 %, Größe 94–104 %; `FlintGlow` atmet mit (80–100 %). Funken: 5 × 2,2 s, versetzt 0,45 s, Steighöhe 14 Kunstpixel. Porträt: Schein 18, Funken 12, Ausblendung bei Radius 22. `FlintFollow.BODY_CENTER` −20, `FLINT_PICTURE` (−8, −42, 16, 46). **Offen:** volles Website-Raster auch für den Begleiter statt Pet-Größe; Schein tagsüber im Dorf schwächer.
+
+### D-218 – Nur Pixel-Effekte
+
+- **Status:** VERBINDLICH (Projektmitglied 26.10.2026) · Umsetzung **VORGESCHLAGEN** (Claude)
+- **Kontext:** Playtest 26.10.2026: „diese Animationen, die unter ihm ist, beim Doppelsprung, ist nicht pixelig. Also insgesamt darfst du nur mit diesen Pixel-Effekten arbeiten. Am besten sogar wenn die Monster dich anvisieren, dann ist ja so ein roter Punkt auf dem Boden … mach das am besten auch in pixelig“; „diese Leitlinie, wo man sieht, in welche Richtung das sich bewegt, muss Pixeloptik sein“; Feedback #e5d0f6c6, #6ce10692 „Mach Pixel Grafik“.
+- **Beschluss:** Jeder Effekt, jede Markierung und jede Hilfslinie im Spiel ist Pixel-Art: auf dem Kunstpixel-Raster der Umgebung (Welt: 1 Kunstpixel = 2 px), harte Kanten, keine weichen Kreise, keine glatten Verläufe, keine dünnen geglätteten Linien, kein Anti-Aliasing. Kreise werden als gestufte Pixel-Ringe gezeichnet, Linien als Pixel-Punkte oder -Striche, Schein als wenige harte Stufen. **Ausnahme:** Licht und Dunkelheit aus dem Lichtsystem (D-141, D-174) und Flints weicher Schein (D-217) bleiben weich.
+- **Gründe:** Einheitlicher Look (D-174 moderne Pixel-Art); weiche Formen wirken wie Fremdkörper.
+- **Folgen:** Pakete FS1 und FS2 in der ROADMAP; neue Effekte nur noch so (Regel in `docs/RAEUME.md` bzw. im Kopfkommentar der Zeichen-Hilfe).
+
+### D-219 – Größere Touch-Steuerung
+
+- **Status:** VERBINDLICH für das Ziel (Projektmitglied 26.10.2026) · Größen **TESTWERT**
+- **Kontext:** Playtest 26.10.2026: „Die Joysticks müssen am Handy … generell die Controls … größer sein. Mein Dad kam damit gar nicht zurecht von der Größe, es war viel zu klein. Und selbst für mich war es auch schwer.“
+- **Beschluss:** Sticks und Knöpfe der Touch-Steuerung werden deutlich größer (Richtwert: Daumenfläche mindestens 12 mm, Sticks etwa 1,5× heute) und bleiben in Pixel-Art; dazu eine Option „Größe der Touch-Steuerung“ (klein, mittel, groß; Standard groß). Werte als TESTWERT.
+- **Folgen:** Paket FS3 in der ROADMAP.
+- **Nachtrag 26.10.2026 (FS3 gebaut, TESTWERT):** Größen in Millimetern auf dem echten Bildschirm (`TouchMetrics`: DPI des Systems, im Browser CSS-Pixel, sonst Referenz-Handy 420 dpi); Stufen klein/mittel/groß = 3/4/5 Bildschirm-Pixel je Kunstpixel, Standard **groß** (Stick 300 px ≈ 27 mm, 1,67× des alten Standards – 1,5× geht mit ganzen Kunstpixeln nicht, die größere Stufe gewählt), Trefferfläche je Knopf mindestens 12 mm; Ziel-Knopf 9/11,5/14 mm (Querformat), A/B 10/12/14 mm (Hochformat); passt eine Stufe nicht, eine kleiner. Gespeicherte Werte bleiben (das neue „mittel“ ist schon größer als das alte), die Zeile heißt weiter „Größe“ unter „Touch-Steuerung“ (Claude). Offen: Test am Gerät.
+
+### D-220 – Einstieg für neue Spieler nach dem Neuling-Durchlauf
+
+- **Status:** VERBINDLICH (Projektmitglied 26.10.2026, Rückfragen nach FS4) · Texte und Zeiten **TESTWERT**
+- **Kontext:** Der Neuling-Durchlauf (FS4, `tools/newcomer_sim.gd`) zeigt: Wer ziellos läuft, findet den Dungeon erst nach 4–6 min oder gar nicht; beim ersten Start redet Flint etwa 74 s in den ersten 85 s; nach dem ersten Run ist die Zielzeile leer; Tod und Kristalle erklärt vor dem ersten Run niemand; Flints Hinweise kommen zu spät (FS5).
+- **Beschluss:**
+  1. **Herumirren:** Nach etwa 45 s ohne Annäherung an den Eingang werden Spur und Pfeil stärker (heller, pulsierend); **kein** zusätzlicher Flint-Satz.
+  2. **Rundgang kürzen:** gesperrte Gebäude (Handelsposten, Chronik) erst erklären, wenn sie aufgehen; die Gefahren-Tour am Eingang beim ersten Mal ein Satz; der letzte Satz des Rundgangs nennt Laufen und Benutzen (Tasten).
+  3. **Ziel nach dem ersten Run:** die Zielzeile zeigt das nächste Schmiede-Ziel („Noch einmal hinab · noch 33 Gold bis Schildplatte I“), sobald das Gold reicht „Ab zur Schmiede“; die Zielzeile gilt auch im Zuhause.
+  4. **Erklären:** je ein Satz – am Ende des Übungsgangs, was beim Tod passiert (nur ein Viertel bleibt, am Seelentor sichern), und beim ersten Seelenkristall, wofür er gut ist.
+- **Folgen:** FS5 (Flint, Übungsgang: Punkte 2 Gefahren-Tour, 4), FS6 (Dorf: Punkte 1, 2 Rundgang, 3).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
 
 ```markdown
+- **Nachtrag 22.10.2026 (gebaut, TESTWERT):** Bosstor: kein Deckfels, Gang mit Boden, Fels links/rechts mit runder Kante (`PassageCover.open_plan`), alle anderen Tore weiter Tunnel; smoke_test prüft beides. Gekrönter: wehrt sich nur eingekesselt, Spieler-Füße ≤ 64 px (`DEFENSE_RANGE`), Vorwarnung 0,5 s (roter Kreis), Treffer 1 HP (½ Herz), Rückstoß 240 px/s bzw. 40 px Schub, Abklingzeit 2 s; Dash und I-Frames schützen. Offen: Schub an Abgründen stoppen (Vorschlag ja), allgemeiner Spieler-Rückstoß `Player.apply_knockback` (Integrator).
+
 ### D-051 – [Kurztitel]
 
 - **Status:** VORGESCHLAGEN | VERBINDLICH | ERSETZT

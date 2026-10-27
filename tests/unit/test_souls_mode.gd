@@ -1,7 +1,8 @@
 extends GutTest
-## Minigame "Seelen sammeln" (R4a, KONZEPT_RAEUME_V2 §3.6): 12 souls one after another at fixed
-## places, each for 6 s, 45 s for the round; every soul taken lets the sources spit enemies; soul
-## crystals by count, then the rest of the enemies is beaten. Never costs the run.
+## Minigame "Seelen sammeln" (R4a, RAEUME §3.6): 12 souls one after another at fixed
+## places, each a few seconds, about 45 s for the round; every soul taken lets the sources spit
+## enemies; soul crystals by count, then the rest of the enemies is beaten. Never costs the run.
+## CR5: lifetime, round time and the step to the next soul follow the player count.
 
 const PLAN_ROOM: PackedScene = preload("res://dungeon/rooms/combat/seelen_katakombe_shadow_realm.tscn")
 const PLAIN_ROOM: PackedScene = preload("res://dungeon/rooms/combat/combat_hall.tscn")
@@ -52,6 +53,14 @@ func _room(scene: PackedScene = PLAN_ROOM, room_index := 12) -> RoomController:
 	return room
 
 
+## A session of players (GameMode) for the rooms of this test.
+func _session(players: int) -> void:
+	var owner_node := SessionOwner.new()
+	owner_node.game_mode = GameMode.quick(players)
+	add_child_autofree(owner_node)
+	owner_node.add_to_group(GameMode.OWNER_GROUP)
+
+
 func _attach(room: RoomController, seed_value := 9) -> SoulsMode:
 	var mode := SoulsMode.attach(room, seed_value)
 	assert_not_null(mode, "the souls fit the room")
@@ -70,12 +79,14 @@ func _kill_all(room: RoomController) -> void:
 func test_souls_numbers() -> void:
 	assert_eq(SoulsRules.SOUL_COUNT, 12)
 	assert_eq(SoulsRules.TIME_LIMIT, 45.0)
-	assert_eq(SoulsRules.SOUL_LIFETIME, 6.0)
 	assert_eq(SoulsRules.crystals_for(12), 3)
 	assert_eq(SoulsRules.crystals_for(10), 2)
 	assert_eq(SoulsRules.crystals_for(6), 1)
 	assert_eq(SoulsRules.crystals_for(5), 0, "too few: no bonus")
-	assert_lt(SoulsRules.SPAWN_INTERVAL * (SoulsRules.SOUL_COUNT - 1) + SoulsRules.FIRST_DELAY + SoulsRules.SOUL_LIFETIME, SoulsRules.TIME_LIMIT + 0.5, "the last soul still fits into the time")
+	for players in range(1, GameMode.MAX_PLAYERS + 1):
+		var last := SoulsRules.SPAWN_INTERVAL * (SoulsRules.SOUL_COUNT - 1) + SoulsRules.FIRST_DELAY + SoulsRules.soul_lifetime(players)
+		assert_lte(last, SoulsRules.time_limit(players), "the last soul still fits into the time (%d players)" % players)
+		assert_gte(SoulsRules.time_limit(players), SoulsRules.TIME_LIMIT)
 	assert_true(SoulsRules.should_spawn(1.0, 0.5, 0))
 	assert_false(SoulsRules.should_spawn(1.0, 0.5, 12), "twelve at most")
 	assert_false(SoulsRules.should_spawn(45.0, 0.5, 3), "not after the time")
@@ -84,6 +95,56 @@ func test_souls_numbers() -> void:
 	assert_true(SoulsRules.is_round_over(30.0, 12, 0))
 	assert_false(SoulsRules.is_round_over(30.0, 12, 1))
 	assert_eq(SoulsRules.MIN_ROOM, 11, "Zyklus 3")
+
+
+func test_alone_the_souls_last_longer_and_come_closer() -> void:
+	assert_eq(SoulsRules.soul_lifetime(1), 8.5, "CR5: alone 6 -> 8.5 s")
+	assert_eq(SoulsRules.soul_lifetime(2), 6.0, "a group keeps the old pace")
+	assert_eq(SoulsRules.soul_lifetime(4), SoulsRules.soul_lifetime(2), "more players than listed: the last value")
+	assert_eq(SoulsRules.time_limit(1), 48.0, "the last soul gets its whole time")
+	assert_eq(SoulsRules.time_limit(2), 45.0)
+	assert_lt(SoulsRules.max_step(1), SoulsRules.max_step(2), "alone the next soul is nearer")
+	assert_lte(SoulsRules.max_step(2), SoulsRules.max_step(4))
+	assert_eq(SoulsRules.max_step(9), SoulsRules.max_step(GameMode.MAX_PLAYERS))
+	assert_eq(SoulsRules.crystals_for(12), 3, "CRYSTAL_STEPS unchanged (KE9)")
+
+
+func test_chained_order_keeps_every_step_short() -> void:
+	var places: Array[Vector2i] = []
+	for y in 3:
+		for x in 4:
+			places.append(Vector2i(x * 4, y * 4))
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 5
+	var order := SoulsRules.chained_order(places, Vector2i(0, 12), 6.0, rng)
+	assert_eq(order.size(), places.size())
+	for i in places.size():
+		assert_eq(order.count(i), 1, "every place once")
+	assert_lte(Vector2(places[order[0]] - Vector2i(0, 12)).length(), 6.0, "the first soul near the entrance")
+	var short_steps := 0
+	for i in range(1, order.size()):
+		var step := Vector2(places[order[i]] - places[order[i - 1]]).length()
+		var nearest := INF
+		for j in range(i, order.size()):
+			nearest = minf(nearest, Vector2(places[order[j]] - places[order[i - 1]]).length())
+		assert_true(step <= 6.0 or is_equal_approx(step, nearest), "step %d within 6 tiles or the nearest left" % i)
+		if step <= 6.0:
+			short_steps += 1
+	assert_gte(short_steps, order.size() - 3, "almost every step a short one")
+	var again := RandomNumberGenerator.new()
+	again.seed = 5
+	assert_eq(SoulsRules.chained_order(places, Vector2i(0, 12), 6.0, again), order, "same seed, same order (host and clients)")
+
+
+func test_chained_order_takes_the_nearest_when_none_is_within_the_step() -> void:
+	var places: Array[Vector2i] = [Vector2i(0, 0), Vector2i(20, 0), Vector2i(12, 0)]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 1
+	var order := SoulsRules.chained_order(places, Vector2i(0, 1), 3.0, rng)
+	assert_eq(order, [0, 2, 1] as Array[int], "too far: the nearest place next")
+	assert_eq(SoulsRules._pick_near(places, [0, 1, 2] as Array[int], Vector2i(10, 0), 3.0, 0.99), 2, "only the place within counts")
+	assert_eq(SoulsRules._pick_near(places, [0, 1, 2] as Array[int], Vector2i(10, 0), 30.0, 0.0), 0, "the roll walks from the start of the list")
+	assert_eq(SoulsRules._pick_near(places, [0, 1, 2] as Array[int], Vector2i(10, 0), 30.0, 0.99), 2, "the nearest has the most weight, here the last")
 
 
 func test_fill_spots_keeps_the_plan_and_spreads_the_rest() -> void:
@@ -129,7 +190,7 @@ func test_intro_shows_the_first_souls() -> void:
 	var goal := RoomObjective.of_room(room)
 	assert_eq(goal.mode_id, RoomObjective.SOULS)
 	assert_eq(goal.get_goal(), DungeonTexts.t(&"MODE_SOULS_GOAL", [12]))
-	assert_eq(goal.time_left, SoulsRules.TIME_LIMIT)
+	assert_eq(goal.time_left, SoulsRules.time_limit(1))
 	assert_false(goal.count_down, "the time waits for the intro")
 	var intro := RoomIntro.get_intro(room)
 	assert_eq(intro.focus, room.to_global(RoomTiles.tile_center(mode.spots[0])), "camera on the first soul")
@@ -145,7 +206,8 @@ func test_souls_come_one_after_another_and_fade() -> void:
 	assert_eq(mode.get_visible_wisps().size(), 1)
 	mode.step(SoulsRules.SPAWN_INTERVAL)
 	assert_eq(mode.spawned, 2, "the next after the interval")
-	mode.step(SoulsRules.SOUL_LIFETIME - SoulsRules.SPAWN_INTERVAL + 0.2)
+	assert_eq(mode.get_visible_wisps()[0].lifetime, SoulsRules.soul_lifetime(1), "alone: the long lifetime")
+	mode.step(SoulsRules.soul_lifetime(1) - SoulsRules.SPAWN_INTERVAL + 0.2)
 	assert_eq(mode.lost, 1, "the first faded untaken")
 	assert_eq(RoomObjective.of_room(room).label_text, DungeonTexts.t(&"OBJECTIVE_SOULS", [0, 12]))
 
@@ -201,7 +263,7 @@ func test_too_few_souls_no_bonus_but_the_room_still_opens() -> void:
 	var room := _room()
 	var mode := _attach(room)
 	room.start_encounter()
-	mode.step(SoulsRules.TIME_LIMIT + 1.0)
+	mode.step(mode.get_time_limit() + 1.0)
 	assert_true(mode.is_round_over)
 	assert_eq(mode.crystals, 0)
 	assert_eq(mode.bonus, CombatVariant.Bonus.LOST)
@@ -209,3 +271,43 @@ func test_too_few_souls_no_bonus_but_the_room_still_opens() -> void:
 	_kill_all(room)
 	await wait_process_frames(2)
 	assert_eq(room.state, RoomController.State.CLEARED, "never costs the run")
+
+
+func test_alone_every_step_stays_short_in_the_plan_room() -> void:
+	var room := _room()
+	var mode := _attach(room)
+	assert_eq(mode.get_player_count(), 1)
+	var from := room.tiles.get_entrance_inside_tile()
+	for i in mode.spots.size():
+		var step := Vector2(mode.spots[i] - from).length()
+		var nearest := INF
+		for j in range(i, mode.spots.size()):
+			nearest = minf(nearest, Vector2(mode.spots[j] - from).length())
+		assert_true(step <= SoulsRules.max_step(1) + 0.01 or is_equal_approx(step, nearest),
+				"soul %d: within the step or the nearest left (%.1f tiles)" % [i, step])
+		from = mode.spots[i]
+
+
+func test_a_group_gets_the_old_pace_also_on_its_clients() -> void:
+	_session(2)
+	var room := _room()
+	var mode := _attach(room)
+	assert_eq(mode.get_player_count(), 2)
+	assert_eq(mode.get_soul_lifetime(), 6.0)
+	assert_eq(mode.get_time_limit(), 45.0)
+	room.start_encounter()
+	mode.step(0.5)
+	assert_eq(mode.get_visible_wisps()[0].lifetime, 6.0, "host: the group lifetime")
+	# A network client builds the wisp itself (NetModes): it asks the mode when it enters.
+	var client_wisp := SoulWisp.new()
+	client_wisp.build(mode.spots[1])
+	assert_eq(client_wisp.lifetime, SoulsRules.soul_lifetime(1), "before it enters: the default")
+	mode.add_child(client_wisp)
+	assert_eq(client_wisp.lifetime, 6.0, "client: the mode's lifetime")
+	var same := SoulsMode.attach(_room(), 9)
+	assert_eq(same.spots, mode.spots, "same seed and player count: the same chain on every machine")
+
+
+class SessionOwner:
+	extends Node
+	var game_mode: GameMode = null

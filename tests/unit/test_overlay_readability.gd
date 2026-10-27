@@ -232,9 +232,9 @@ func test_enemy_hint_card_sits_on_the_left_edge() -> void:
 func test_teaching_cards_start_below_the_top_band() -> void:
 	assert_gte(Hud.teaching_card_top(null), UiKit.px(60.0), "a wide banner never reaches the cards")
 	var ui := _ui()
-	ui._queue_room_intro(RoomGenre.ARENA)
+	ui.show_hint("Abgrund", "Mit Dash über Löcher springen.")
 	await wait_process_frames(3)
-	var card := ui.get_room_intro_card()
+	var card := ui._hint_card as Control
 	assert_not_null(card)
 	assert_almost_eq(card.position.y, Hud.teaching_card_top(get_tree()), 1.0)
 

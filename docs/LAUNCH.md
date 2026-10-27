@@ -15,7 +15,7 @@ development-Build (D-157). Den aktuellen Zustand prüft der Smoke-Test (§8), ni
 Schaufenster für alle anderen Plattformen. Keine Werbung im Browser, solange es geht; Käufe später.
 
 **Website vor dem Release (D-179):** `playsoulwick.com` darf schon in Produktion gehen. Sie beschreibt den
-Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Wick als Begleiter, Dorf
+Release-Umfang wie vorhanden: Koop mit Freunden, KI-Bosse („Wünsch dir einen Boss“), Flint als Begleiter, Dorf
 ausbauen und Freunde ins Dorf einladen; unter „Was kommt“ nur Späteres (Party-Modus, neue Minispiele, Bosse
 und Modi). Bis zum Release ist `LIVE_FEATURES=false`: Spielen und Installieren zeigen „zum Release“, keine
 Ranglisten- und Gildenseiten. Store-Knöpfe sind bis dahin eigene Pixel-Knöpfe ohne fremde Logos; offizielle
@@ -25,7 +25,7 @@ Badges erst mit echten Store-Links ([STORES.md](STORES.md) §6). Social-Media-Li
 
 **Release auf allen Versionen (D-179):** Browser, Steam, Android und iOS gehen gemeinsam live. Diese Datei
 deckt Browser-Version, Website und Server ab; Stores, Konten und Signaturen stehen in [STORES.md](STORES.md)
-und [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP7.
+und [ROADMAP.md](ROADMAP.md) CP4/CP7.
 
 ## 1. Vorab entscheiden
 
@@ -61,7 +61,7 @@ und [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP4/CP7.
   Touch-Fehler behoben (`_is_desktop_input()` in `ui/touch/touch_overlay.gd`, ebenso die Konsolenfehler
   in `input_glyphs.gd` und `controls_info.gd`); der Touch-Lauf Pixel 7/iPhone 14 lief danach ohne
   Fehler (WEB_BUILD.md §9, 16.10.2026).
-- [ ] **[C]** **Einladen per Link** (ROADMAP_MULTIPLAYER MP2b) gehört zum Koop und damit zum Release-Tor
+- [ ] **[C]** **Einladen per Link** (ROADMAP MP2b) gehört zum Koop und damit zum Release-Tor
   (D-179, ROADMAP.md); für die Website vor dem Release kein Blocker.
 - [ ] **[C]** Optional: Fenstermodus im Browser nicht anwenden, dann Vollbild beim Start-Tipp auf Android
   (WEB_BUILD.md §11; Ausrichtung nicht festlegen, hochkant geht seit D-182); Link „Impressum · Datenschutz“

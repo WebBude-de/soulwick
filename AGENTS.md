@@ -1,11 +1,11 @@
 # AGENTS.md – So arbeiten wir mit KI-Agenten
 
 > Gilt für **jeden** Agenten und jeden neuen Chat in diesem Repository (Claude Code, Subagenten, andere Werkzeuge). Erst diese Datei lesen, dann die genannten Dokumente. Claude-Code-Besonderheiten: [CLAUDE.md](CLAUDE.md).
-> **Stand:** 17.10.2026
+> **Stand:** 22.10.2026
 
 ## 1. Projekt in Kürze
 
-**Soulwick** (D-094): Pixel-Roguelite in Godot 4.7.2, in das man mit Freunden reinrennt (D-173): endloser Dungeon mit Biomen, Bossen und Minispiel-Räumen, Dorf mit Meta-Progression, Koop, Gilden, Ranglisten; Browser, Steam und Handy. Zielgruppe 12 bis 25, Freundesgruppen; Ton: Dungeon atmosphärisch, Dorf süß, moderne Pixel-Art (D-174); Maskottchen Wick (D-175). Teamprojekt (Idee eines Kollegen), nach außen „Made with ♥ by WebBude“ ([PRODUKT.md](docs/PRODUKT.md)). Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen lassen, am Ende spielbar testen.
+**Soulwick** (D-094): Pixel-Roguelite in Godot 4.7.2, in das man mit Freunden reinrennt (D-173): endloser Dungeon mit Biomen, Bossen und Minispiel-Räumen, Dorf mit Meta-Progression, Koop, Gilden, Ranglisten; Browser, Steam und Handy. Zielgruppe 12 bis 25, Freundesgruppen; Ton: Dungeon atmosphärisch, Dorf süß, moderne Pixel-Art (D-174); Maskottchen Flint (D-175). Teamprojekt (Idee eines Kollegen), nach außen „Made with ♥ by WebBude“ ([PRODUKT.md](docs/PRODUKT.md)). Das Projektmitglied schreibt **Deutsch**, ist neu in Godot und arbeitet am liebsten so: Ziel nennen, Agenten bauen lassen, am Ende spielbar testen.
 
 ## 2. Repositories (D-093)
 
@@ -23,9 +23,9 @@ Beide Repositories liegen **öffentlich** auf GitHub in der Organisation **`WebB
 Inhaltsverzeichnis mit Lesereihenfolge: [docs/README.md](docs/README.md). Kurz:
 
 1. [docs/PRODUKT.md](docs/PRODUKT.md): wofür Soulwick da ist, für wen, Ton, Geschäftsmodell; zuerst lesen, wenn der Kontext fehlt. Begriffe: [docs/GLOSSAR.md](docs/GLOSSAR.md).
-2. [docs/ROADMAP.md](docs/ROADMAP.md): **was jetzt dran ist**, Übersicht über alle Phasen in Reihenfolge (D-179): Phase 2 Räume ([ROADMAP_AUSBAU.md](docs/ROADMAP_AUSBAU.md), für Räume gilt [KONZEPT_RAEUME_V2.md](docs/KONZEPT_RAEUME_V2.md)), Phase 3 Koop ([ROADMAP_MULTIPLAYER.md](docs/ROADMAP_MULTIPLAYER.md)), Phase 4 KI-Bosse ([ROADMAP_KI_BOSS.md](docs/ROADMAP_KI_BOSS.md)), Phase 5 Party-Modus, dazu Crossplay und Stores ([ROADMAP_CROSSPLAY.md](docs/ROADMAP_CROSSPLAY.md)) und die parallelen Stränge Look (LK) und Wick (WK). Jedes Paket mit Koop-Check; das Plattform-Repo darf jederzeit parallel laufen.
+2. [docs/ROADMAP.md](docs/ROADMAP.md): **die einzige Roadmap** der Vollversion (D-193) mit vier Bereichen: A Kern-Umbau (Extraktion, Gefahrenstufe und Rang, Level mit Talentpunkten, Schmiede, Handelsposten, Zuhause, Zauber, Flint), B Online und Release-Technik, C Inhalt und Feinschliff, D KI-Bosse und Party-Modus; vorn steht die **Startaufstellung** (welche Pakete parallel laufen). Was und warum: [docs/KONZEPT.md](docs/KONZEPT.md) (D-194). Regeln für Räume: [docs/RAEUME.md](docs/RAEUME.md), für Texte: [docs/SPRACHEN.md](docs/SPRACHEN.md). Jedes Paket mit Koop-Check; das Plattform-Repo darf jederzeit parallel laufen.
 3. **Doku-Regel (D-178):** Doku beschreibt Absicht, Gründe, Regeln, Begriffe und was kommt; was gebaut ist, steht im Code. Gebautes nicht in Doku nacherzählen, erledigte Pakete auf eine Zeile kürzen, Konzepte nach dem Bau auf Entscheidung und Glossar eindampfen. Jede Klasse sagt im Kopfkommentar, wofür sie da ist.
-4. Fehlende Grafiken: [docs/design/sprites/README.md](docs/design/sprites/README.md) (Stand je Briefing; offen sind vor allem SPRITES_V8, Teile von SPRITES_V9, SPRITES_V12 mit Wick, Huhn und erster Kosmetik sowie die offenen Teile von SPRITES_V10: Eingabe-Symbole, niedrige Torbögen, Hochkant-Controller).
+4. Fehlende Grafiken: **ein offenes Briefing** [docs/design/sprites/SPRITES_V13.md](docs/design/sprites/SPRITES_V13.md) (Teil A Mockups, B Sprites, **C Nachträge der Agenten**, D Reste älterer Briefings); gelieferte Briefings in `docs/design/sprites/delivered/` sind Namensregeln.
 5. Mockups für UI und Stimmung: [docs/design/](docs/design/README.md) – als Inspiration lesen, bevor UI gebaut wird, nicht pixelgenau nachbauen.
 6. Rückmeldungen aus dem Spiel: Dev-Feedback-Modus **F9** (nur Debug-Builds), Anleitung und Auswertung in [docs/feedback/README.md](docs/feedback/README.md).
 
@@ -35,9 +35,10 @@ Jedes Roadmap-Paket ist für **einen Agenten** geschnitten und nennt seine Datei
 
 | Auslöser | Doc |
 | --- | --- |
-| Punkt gebaut und geprüft | in der passenden `ROADMAP_*.md` abhaken mit Datum und Nachweis, das Paket in die Erledigt-Liste (eine Zeile) |
-| Neue Aufgabe beim Bauen | `- [ ]` in die passende `ROADMAP_*.md` (Reihenfolge = Vorrang) |
+| Punkt gebaut und geprüft | in [docs/ROADMAP.md](docs/ROADMAP.md) abhaken mit Datum und Nachweis, das Paket in die Erledigt-Liste (eine Zeile) |
+| Neue Aufgabe beim Bauen | Zeile bzw. `- [ ]` beim passenden Paket in [docs/ROADMAP.md](docs/ROADMAP.md) (Reihenfolge = Vorrang) |
 | Idee „nicht jetzt“ | [docs/BACKLOG.md](docs/BACKLOG.md), eine Zeile, statt sie umzusetzen |
+| Grafik fehlt | sofort eine Zeile in [SPRITES_V13.md](docs/design/sprites/SPRITES_V13.md) Teil C, Platzhalter aus Code, im Bericht „Grafik nötig“ (§8) |
 | Neues Fachwort, UI-Wort, Code-Name | [docs/GLOSSAR.md](docs/GLOSSAR.md), vor dem Code |
 | Entscheidung, Testwert | `docs/DECISIONS.md` mit der nächsten freien D-Nummer (§6.3) |
 | Neue Abhängigkeit, Werkzeugwechsel | `docs/TECHSTACK.md` (warum) und DECISIONS, nur nach Rückfrage (§6.11) |
@@ -72,7 +73,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 3. **D-Nummern:** Vor einem neuen Eintrag die **höchste vorhandene Nummer** in `docs/DECISIONS.md` suchen (`grep -n "^### D-" docs/DECISIONS.md | sort -t- -k2 -n | tail`). Parallele Chats haben schon doppelte Nummern erzeugt (D-121 bis D-129 gehören zum Multiplayer).
 4. **Tests fassen den echten Spielstand nie an:** In jedem Test und Tool `SaveManager.save_path` vorher auf eine Testdatei umbiegen (`before_all`). Echter Stand: `%APPDATA%/Godot/app_userdata/Soulwick/` (ein alter Stand aus `…/Dungeon Roguelite/` wird beim ersten Start einmal kopiert).
 5. **Genau vier Autoloads** (GameManager, RunManager, SaveManager, EventBus, D-044). Hilfen als `static func`/`class_name`, nicht als neuer Autoload.
-6. **Multiplayer-Leitplanken** für neuen Spielcode (D-088, Koop-Check in ROADMAP_AUSBAU): kein neues `get_first_node_in_group(&"player")`, Logik von Effekten trennen, Zufall nur über den Dungeon-RNG, keine neuen globalen Pausen, Zustand je Spieler am Spieler.
+6. **Multiplayer-Leitplanken** für neuen Spielcode (D-088, Koop-Check in ROADMAP): kein neues `get_first_node_in_group(&"player")`, Logik von Effekten trennen, Zufall nur über den Dungeon-RNG, keine neuen globalen Pausen, Zustand je Spieler am Spieler.
 7. **Code Englisch, Doku Deutsch, Texte im Spiel über Übersetzungsschlüssel (en + de, D-111)**, `snake_case` für Dateien und Variablen, `PascalCase` für Klassen. Kommentare wie der umgebende Code.
 8. **Erledigt heißt geprüft:** Roadmap-Punkte nur mit Nachweis abhaken (Tests grün, Datum).
 9. **Prozesse nie per Namen beenden** (`taskkill /IM …`, `pkill`, `killall`, `Stop-Process -Name …`): Das trifft Godot-Fenster, Browser und Server anderer Sitzungen. Nur selbst gestartete Prozesse über ihre PID beenden.
@@ -80,7 +81,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 11. **Keine neue Abhängigkeit ohne Rückfrage** (Godot-Addon, Python- oder Bun-Paket, Docker-Image); Grund in TECHSTACK, Entscheidung in DECISIONS.
 12. **Größeres erst planen:** als Paket in die passende Roadmap schneiden (Dateien, Prüfung, Koop-Check), dann bauen.
 13. **Kein `sudo`** ohne Rückfrage.
-14. **Konventionen:** Commits als Conventional Commits auf Englisch (`feat|fix|refactor|docs|test|chore|perf|build|ci|balance|art(scope): was`, höchstens 72 Zeichen, Body = warum; Details [docs/TECHSTACK.md](docs/TECHSTACK.md) §3). `TODO:` nur mit Ziel (`TODO: → ROADMAP_AUSBAU M3`). Stil: kurze Funktionen, sprechende Namen, keine Vorab-Abstraktion; Fehlermeldungen sagen, was zu tun ist.
+14. **Konventionen:** Commits als Conventional Commits auf Englisch (`feat|fix|refactor|docs|test|chore|perf|build|ci|balance|art(scope): was`, höchstens 72 Zeichen, Body = warum; Details [docs/TECHSTACK.md](docs/TECHSTACK.md) §3). `TODO:` nur mit Ziel (`TODO: → ROADMAP M3`). Stil: kurze Funktionen, sprechende Namen, keine Vorab-Abstraktion; Fehlermeldungen sagen, was zu tun ist.
 
 ## 7. Prüfen
 
@@ -88,6 +89,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 
 | Was | Befehl |
 | --- | --- |
+| Spiel starten (Projektmitglied, mit Fenster und Ton) | `scripts/play` · `--editor` · `--coop` (zwei Instanzen) · `--web` (Browser-Version 3110); in VS Code Strg+Umschalt+B (lokaler Task) |
 | Alle Checks auf einmal | `scripts/check` (Import, alle Dateien laden, GUT; headless) · `scripts/check --quick` ohne GUT (läuft im pre-commit-Hook) |
 | Einmal nach dem Klonen | `git lfs install` und `git config core.hooksPath .githooks` (Hook: Secrets-Sperre und `scripts/check --quick`, enthält die Git-LFS-Hooks) |
 | Alle Dateien laden | `godot --headless --path . -s tools/validate_project.gd` |
@@ -96,8 +98,11 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 | Kämpfe, Waffen, Upgrades | `godot --headless --path . -s tools/combat_sim.gd` |
 | Bosse, Gegner, Elites | `godot --headless --fixed-fps 60 --path . -s tools/boss_sim.gd` |
 | Balance-Bot | `godot --headless --fixed-fps 60 --path . -s tools/balance_sim.gd -- runs=3 policy=sword quiet=1` |
+| Screenshots Übungsgang (WK10) | `SOULWICK_QUIET=1 tools/godot_offscreen.sh --audio-driver Dummy --path . -s tests/manual/tutorial_shots.gd -- <ordner>` (braucht `cage` oder `weston`) |
 | Screenshots (Fenster) | `godot --path . -s tools/screenshots.gd -- <ordner>`; unter Linux nur `tools/godot_offscreen.sh --path . -s tools/screenshots.gd -- <ordner>` (unsichtbarer Bildschirm über `cage` oder `weston`, stumm; nie `kwin_wayland --virtual`, das legt die KWin-Kürzel der Sitzung lahm) |
 | Browser-Version lokal (Port 3110, gegen die lokale Plattform) | `tools/web_local.sh` (baut nur bei geändertem Code neu; `--stop` beendet) |
+| Neuling-Durchlauf (FS4): frischer Test-Spielstand, Rundgang, Dorf, Übungsgang, Räume 1–5, Protokoll als Markdown | `godot --headless --fixed-fps 60 --audio-driver Dummy --path . -s tools/newcomer_sim.gd -- mode=guided read=slow` (`mode=wander seed=<n>`, `read=fast`/`skip`, `out=<ordner>`) |
+| Flint-Bilder neu erzeugen (D-217) | `python tools/generate_flint.py`, danach `godot --headless --path . --import` (`--preview <ordner>` schreibt vergrößerte Kontaktbögen) |
 | Texte (fehlende Übersetzungen) | `python tools/i18n_check.py <ordner>` |
 | Nach neuen Dateien/Grafiken/Texten | `godot --headless --path . --import` |
 | Builds (Windows, Linux, macOS, Android) | `tools/export_build.sh development "" "windows linux macos"`; Releases per Tag `v*` über GitHub Actions ([docs/RELEASE.md](docs/RELEASE.md)); Browser-Version per `Dockerfile` auf Dokploy ([docs/WEB_BUILD.md](docs/WEB_BUILD.md)) |
@@ -110,7 +115,7 @@ Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. check + typecheck + te
 
 ## 8. Grafiken und Audio
 
-- Fehlende Grafiken schreibt der Agent als **Briefing** in `docs/design/sprites/SPRITES_V*.md` (Datei, Größe, Frames, Beschreibung, Ablageort) und trägt es in [docs/design/sprites/README.md](docs/design/sprites/README.md) ein. Das Projektmitglied erstellt sie mit Claude Design und legt sie unter `art/` ab (Website-Grafiken in `soulwick-platform/apps/web/public/`).
+- **Fehlende Grafik melden geht jederzeit:** Merkt ein Agent beim Bauen, dass eine Grafik fehlt oder eine gelieferte nicht passt, trägt er **sofort** eine Zeile in [SPRITES_V13.md](docs/design/sprites/SPRITES_V13.md) Teil C ein (Paket, Datei, Größe und Frames, Beschreibung, Ablageort, Datum) und nennt sie im Bericht unter „Grafik nötig“; er wartet nicht auf das Ende des Pakets. Das Projektmitglied erstellt die Bilder mit Claude Design und legt sie unter `art/` ab (Website-Grafiken in `soulwick-platform/apps/web/public/`). Ist V13 geliefert, kommt `SPRITES_V14.md`.
 - Bis dahin erzeugt der Code **Platzhalter**; echte Dateien mit dem vereinbarten Namen werden automatisch übernommen (z. B. `EnemyArt` lädt nach Namenskonvention).
 - Nach dem Ablegen: `godot --headless --path . --import`. Überschreibt das Projektmitglied `art/` komplett, Mauszeiger neu erzeugen (`python tools/generate_cursors.py`) und veraltete `.import`-/UID-Reste prüfen.
 - Audio wird synthetisch erzeugt: `python tools/generate_audio.py` (Effekte), `python tools/generate_music.py` (Musik, Details in [docs/AUDIO.md](docs/AUDIO.md)). Eigene Dateien gleichen Namens ersetzen die erzeugten.
@@ -124,15 +129,17 @@ Mindestens vor jedem Bericht: validate + GUT (Spiel) bzw. check + typecheck + te
 - Typisierte Arrays in GDScript: keine Lambdas mit `filter` auf `Array[Enemy]`, die ungültige Instanzen enthalten können (Absturz).
 - Tippt man WASD im Editor statt im Spiel, landen Buchstaben im Code („Parser Error“). Erst ins Spielfenster klicken.
 - HitStop ändert `Engine.time_scale`; Freigabe läuft über Tokens, nicht über Timer.
+- **Speicher:** Ein Godot-Lauf braucht ~500 MB. Je Agent höchstens 2 Godot-Prozesse gleichzeitig (Balance-Agent höchstens 4, als Warteschlange, z. B. `xargs -P 4`), nie ganze Batches parallel; vor dem Start `free -g` prüfen (unter 8 GB frei → warten). Am 23.10.2026 haben ~80 parallele `balance_sim`-Läufe den Rechner des Projektmitglieds zum Absturz gebracht. Seitdem ist `godot` auf dem Linux-Rechner (`~/.local/bin/godot`) ein Wrapper: Läufe mit `--headless`, `-s`, `--import` oder `--export-*` warten auf einen von 6 Plätzen und laufen in der Slice `soulwick-agents.slice` (zusammen höchstens 9 GB und 8 Kerne, je Lauf 2 GB, `nice` 10); Editor und normales Spielen laufen unverändert. Godot deshalb immer über `godot` aus dem PATH starten, nie über den Pfad der echten Datei.
 - Headless-Tools ohne Ton bzw. mit Bildraten-Grenze laufen lassen: Godots Audio-Mischthread kann bei sehr hohen FPS freigegebenen Speicher lesen und abstürzen (D-134; `balance_sim.gd` schaltet Ton standardmäßig ab).
 
 ## 10. Auftragsvorlage für einen Fach-Agenten
 
-> Setze in `C:\Users\bmg18\Documents\Workspace\WebBude\WebBude Labs\Soulwick\soulwick` das Paket **[ID]** aus `docs/[ROADMAP-Datei]` um. Lies vorher `AGENTS.md`, die Paketbeschreibung und die genannten D-Einträge in `docs/DECISIONS.md`.
+> Setze im Repo `soulwick` das Paket **[ID]** aus `docs/ROADMAP.md` um. Lies vorher `AGENTS.md`, die Paketzeile, den genannten Abschnitt in `docs/KONZEPT.md` und die genannten D-Einträge in `docs/DECISIONS.md`.
 > **Du darfst nur diese Dateien/Ordner ändern:** [Liste]. Brauchst du etwas in anderen Dateien, baue einen Haken und beschreibe ihn im Bericht.
 > Prüfe am Ende mit [Befehle aus AGENTS.md §7] und hake die erledigten Punkte mit Datum ab. Kein Commit. Prozesse nur über die eigene PID beenden. Ändere keine Entscheidungen; Unklares als Frage in den Bericht.
-> **Bericht:** geänderte/neue Dateien, Prüfergebnisse (Zahlen), Haken für den Integrator, benötigte Grafiken, offene Fragen.
+> Fehlt dir Grafik, trage sie sofort in `docs/design/sprites/SPRITES_V13.md` Teil C ein und baue einen Platzhalter.
+> **Bericht:** geänderte/neue Dateien, Prüfergebnisse (Zahlen), Haken für den Integrator, Grafik nötig (Zeilen in SPRITES_V13 Teil C), offene Fragen.
 
 ## 11. Neuer Chat – Startprompt
 
-> Lies `AGENTS.md`. Stand: siehe `docs/ROADMAP.md` (Phasen nach D-179 und parallele Stränge; Details in den verlinkten Roadmaps). Arbeite als Orchestrator: Nimm die nächsten offenen Pakete nach der Vorrang-Regel, starte sie mit getrennten Besitzlisten parallel, integriere danach, prüfe alles und berichte mir auf Deutsch. Für Räume gilt `docs/KONZEPT_RAEUME_V2.md`, für jedes Paket der Koop-Check.
+> Lies `AGENTS.md`, dann `docs/ROADMAP.md` (eine Roadmap, vier Bereiche, Startaufstellung, Abschnitt „Claude Design“) und `docs/KONZEPT.md`. Arbeite als Orchestrator: Kläre zuerst die offenen KE0-Fragen (KONZEPT §12) mit mir, nimm dann die nächste Welle der Startaufstellung, starte die Pakete mit getrennten Besitzlisten parallel im Hintergrund, integriere danach, prüfe alles und berichte mir auf Deutsch. Sag mir am Anfang und am Ende jeder Welle unter der Überschrift „Jetzt an Claude Design“, welche Abschnitte aus `SPRITES_V13.md` ich abgeben soll (Tabelle „Claude Design“ in der Roadmap und neue Zeilen aus Teil C). Für jedes Paket gilt der Koop-Check; fehlende Grafik geht sofort in SPRITES_V13 Teil C. Kein Commit ohne mein Wort.

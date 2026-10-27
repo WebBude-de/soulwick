@@ -23,7 +23,9 @@ const FLICKER_TIME := 1.0
 
 ## Tile of its place (room-local).
 var tile := Vector2i.ZERO
-var lifetime := SoulsRules.SOUL_LIFETIME
+## Set by SoulsMode (by player count); a wisp built elsewhere (network client) asks its parent mode
+## when it enters.
+var lifetime := SoulsRules.soul_lifetime(1)
 var age := 0.0
 var preview := false
 var taken := false
@@ -113,6 +115,8 @@ func _appear() -> void:
 
 
 func _enter_tree() -> void:
+	if not preview and age <= 0.0 and get_parent().has_method(&"get_soul_lifetime"):
+		lifetime = get_parent().call(&"get_soul_lifetime")
 	if _sprite != null and age <= 0.0:
 		_appear.call_deferred()
 
@@ -128,10 +132,10 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
-## Ring of the time it has left.
+## Pixel ring of the time it has left (D-218).
 func _draw() -> void:
 	if preview or gone or taken:
 		return
 	var share := clampf(get_time_left() / lifetime, 0.0, 1.0)
 	var center := HOVER + Vector2(0, -8)
-	draw_arc(center, RING_RADIUS, -PI * 0.5, -PI * 0.5 + TAU * share, 32, Color(COLOR, 0.65), 2.0, true)
+	PixelDraw.arc(self, center, RING_RADIUS, -PI * 0.5, TAU * share, Color(COLOR, 0.65))

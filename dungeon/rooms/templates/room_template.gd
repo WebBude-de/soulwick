@@ -18,7 +18,7 @@ enum Shape { RECTANGLE, L_SHAPE, CROSS, RING, TWO_CHAMBERS, PILLAR_HALL, CATACOM
 ## south, west or east, exits lead north, east or west (A10, D-117).
 enum DoorSide { NORTH, EAST, SOUTH, WEST }
 
-## Plan modes (KONZEPT_RAEUME_V2 §2). Plain fights draw MODE_CLEAR (normal kind) and MODE_ARENA.
+## Plan modes (RAEUME §2). Plain fights draw MODE_CLEAR (normal kind) and MODE_ARENA.
 const MODE_CLEAR := &"clear"
 const MODE_ARENA := &"arena"
 ## Roles of a plan template (RoomCatalog.load_plans for everything except combat).

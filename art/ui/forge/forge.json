@@ -1,0 +1,117 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "forge_arsenal",
+      "file": "forge_arsenal.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "forge_second_slot",
+      "file": "forge_second_slot.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "forge_smith",
+      "file": "forge_smith.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "forge_shield_plate",
+      "file": "forge_shield_plate.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "forge_lantern",
+      "file": "forge_lantern.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "weapon_level_pips",
+      "file": "weapon_level_pips.png",
+      "frame_size": [
+        30,
+        6
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": "5 × 6×6"
+    },
+    {
+      "name": "masterwork_glint",
+      "file": "masterwork_glint_6f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 6,
+      "fps": 10,
+      "loop": true,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

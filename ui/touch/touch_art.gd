@@ -1,6 +1,6 @@
 class_name TouchArt
 extends RefCounted
-## Sprites of the on-screen touch controls (briefing docs/design/sprites/SPRITES_V10.md §1):
+## Sprites of the on-screen touch controls (briefing docs/design/sprites/delivered/SPRITES_V10.md §1):
 ## res://art/ui/touch/<name>.png replaces the drawn placeholder of the TouchOverlay as soon as the
 ## file exists (like EnemyArt/DoorArt); a missing file keeps the drawn pixel-art placeholder
 ## (TouchPixelArt, same names and sizes). Everything is pixel art drawn at whole screen pixels per
@@ -56,9 +56,11 @@ const ICON_INTERACT: StringName = &"interact"
 const ICON_SWITCH: StringName = &"switch"
 const ICON_PAUSE: StringName = &"pause"
 const ICON_MENU: StringName = &"menu"
+## Cast button (KE7, SPRITES_V13 §B5 icon_spell); the landscape overlay draws the spell's own symbol.
+const ICON_SPELL: StringName = &"spell"
 const ICONS: Array[StringName] = [
 	ICON_ATTACK, ICON_SPECIAL, ICON_DASH, ICON_JUMP, ICON_SIDE_DASH, ICON_INTERACT, ICON_SWITCH,
-	ICON_PAUSE, ICON_MENU,
+	ICON_PAUSE, ICON_MENU, ICON_SPELL,
 ]
 ## WeaponData.WeaponType -> weapon name in file names (icon_attack_<name>, art/ui/icon_<name>).
 const WEAPON_NAMES := {

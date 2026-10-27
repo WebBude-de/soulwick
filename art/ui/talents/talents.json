@@ -1,0 +1,439 @@
+{
+  "notes": [
+    "Pfade 24×24, Knoten 22×22 (Icon mittig darauf), Äste 8×8 senkrecht kachelbar, 16 Talent-Icons 16×16."
+  ],
+  "items": [
+    {
+      "name": "path_wind",
+      "file": "path_wind.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "path_ember",
+      "file": "path_ember.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "path_soul",
+      "file": "path_soul.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        12
+      ],
+      "note": ""
+    },
+    {
+      "name": "node_locked",
+      "file": "node_locked.png",
+      "frame_size": [
+        22,
+        22
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        11,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "node_available",
+      "file": "node_available.png",
+      "frame_size": [
+        22,
+        22
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        11,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "node_taken",
+      "file": "node_taken.png",
+      "frame_size": [
+        22,
+        22
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        11,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "node_capstone",
+      "file": "node_capstone.png",
+      "frame_size": [
+        22,
+        22
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        11,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "node_taken_glow",
+      "file": "node_taken_glow_4f.png",
+      "frame_size": [
+        22,
+        22
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        11,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "branch_wind",
+      "file": "branch_wind.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "branch_ember",
+      "file": "branch_ember.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "branch_soul",
+      "file": "branch_soul.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_light_foot",
+      "file": "talent_light_foot.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_dash_training",
+      "file": "talent_dash_training.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_swift_blade",
+      "file": "talent_swift_blade.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_evasion",
+      "file": "talent_evasion.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_double_dash",
+      "file": "talent_double_dash.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_wind_runner",
+      "file": "talent_wind_runner.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_vitality",
+      "file": "talent_vitality.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_might",
+      "file": "talent_might.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_steadfast",
+      "file": "talent_steadfast.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_shield_breaker",
+      "file": "talent_shield_breaker.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_second_heart",
+      "file": "talent_second_heart.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_ember_heart",
+      "file": "talent_ember_heart.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_spell_power",
+      "file": "talent_spell_power.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_focus",
+      "file": "talent_focus.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_staff_master",
+      "file": "talent_staff_master.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "talent_second_spell_slot",
+      "file": "talent_second_spell_slot.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -2,9 +2,11 @@ extends Node
 ## Owns permanent progress only (permanent gold and crystals, unlocks, village upgrade levels,
 ## pending one-run boosts, statistics, the world's name) plus the global settings. Never stores run
 ## state (D-040).
-## Save format (D-059, extended by D-078, D-087, MM1 and D-152): ConfigFile with [meta] version and
-## sections [progress], [meta_upgrades], [boosts], [stats], [seen], [world] (name), [profile]
-## (created, last_played) and, in migrated files only, [legacy_profile]. Older versions are migrated
+## Save format (D-059, extended by D-078, D-087, MM1, D-152 and KE4): ConfigFile with [meta] version and
+## sections [progress] (also start_weapon/second_weapon), [meta_upgrades] (forge levels, KONZEPT §5.1),
+## [trade_levels] (trading post levels, KE5), [boosts], [stats], [seen], [world] (id, name), [profile]
+## (created, last_played), [migration] (what v5 did, once per world) and, in migrated files only,
+## [legacy_profile]. Older versions are migrated
 ## on load (the untouched file is kept once as *.v<old>.bak before); missing files start fresh, a
 ## broken file (unreadable, newer or invalid) is kept as *.bak and its last good copy is loaded (P1-8,
 ## see below), only without one the game starts fresh.
@@ -39,7 +41,7 @@ signal content_unlocked(id: StringName)
 ## Hook for a notice in the menu ("Spielstand aus der Sicherung geladen").
 signal save_restored(path: String)
 
-const SAVE_VERSION := 4
+const SAVE_VERSION := 5
 const SETTINGS_VERSION := 1
 ## The save file of builds before slots (MM1); imported into a slot, kept as it is.
 const DEFAULT_SAVE_PATH := "user://savegame.cfg"
@@ -52,8 +54,9 @@ const DELETED_SUFFIX := ".deleted"
 const LEGACY_USER_DIR_NAME := "Dungeon Roguelite"
 const DEFAULT_VOLUMES: Dictionary[StringName, float] = {&"Music": 0.8, &"SFX": 1.0}
 ## Seen ids that "everything seen" of old saves does not cover: the boss story (BI2,
-## boss_intro_<boss>) is new and should be shown once also in migrated saves.
-const SEEN_ALL_EXCLUDED_PREFIXES: Array[String] = ["boss_intro_", "room_intro_"]
+## boss_intro_<boss>) is new and should be shown once also in migrated saves; so are Flint's
+## explanations (flint_*, WK8/WK9).
+const SEEN_ALL_EXCLUDED_PREFIXES: Array[String] = ["boss_intro_", "room_intro_", "flint_"]
 ## Suffix of the copy kept before a migration: slot_1.cfg -> slot_1.cfg.v2.bak (written once).
 const MIGRATION_BACKUP_SUFFIX := ".v%d.bak"
 ## Crash-safe writing (P1-8). Preloaded instead of the global class name, so the autoload also
@@ -79,6 +82,35 @@ const V3_ANNOUNCED_IDS: Array[String] = ["unlock_first_run", "unlock_first_cryst
 # --- Migration v3 -> v4 (D-152). Frozen. ---
 ## [profile] keys that named the player in MM1 saves; v4 keeps them in [legacy_profile].
 const V4_LEGACY_PROFILE_KEYS: Array[String] = ["name", "character", "color"]
+# --- Migration v4 -> v5 (KE4, KONZEPT §5.1). Frozen. ---
+## Forge upgrades that left the forge (Vitalität and Dash-Training went to the talent tree, Goldgier
+## becomes Proviant, Schärfe is gone): the gold paid for every level is refunded in full. Costs of
+## the v3/v4 builds per level (D-087 with D-167: Vitalität I and Startschild I cheaper).
+const V5_REFUND_COSTS := {
+	"vitality": [20, 80, 140, 220, 320],
+	"sharpness": [70, 150, 260, 400],
+	"gold_greed": [60, 140, 250],
+	"dash_training": [60, 140, 260],
+}
+## Startschild becomes Schildplatte with the same level (at most 3).
+const V5_SHIELD_KEY := "start_shield"
+const V5_SHIELD_PLATE_KEY := "shield_plate"
+const V5_SHIELD_PLATE_MAX := 3
+## Arsenal level -> start weapons it unlocks (arsenal_<weapon> = 1). Old Arsenal gave a second start
+## weapon, so any level also keeps the second start slot (second_slot = 1, nothing is lost).
+const V5_ARSENAL_KEY := "arsenal"
+const V5_ARSENAL_WEAPONS: Array = [[], ["bow"], ["bow", "staff"]]
+const V5_ARSENAL_PREFIX := "arsenal_"
+const V5_SECOND_SLOT_KEY := "second_slot"
+## Trading post levels (KE5 builds them; v5 only stores them): id -> default level.
+const TRADE_LEVEL_DEFAULTS := {"provision_slot": 0, "luck": 0, "merchant_friend": 0}
+## Start weapon of every world that never picked one (the sword is always unlocked).
+const DEFAULT_START_WEAPON := "sword"
+# --- Proviant ids before KE5 (KONZEPT §5.2). Frozen. ---
+## Packed Proviant of older builds -> the Proviant that replaced it (same or better effect, so nothing
+## is lost): Heiltrank stays, the random upgrade becomes the Glücksamulett (rare upgrade), the
+## Goldbeutel (+25 %) becomes Goldregen (double gold). Mapped on every load (migrate), no version step.
+const LEGACY_BOOST_IDS := {"potion": "healing_potion", "upgrade": "lucky_amulet", "gold": "gold_rain"}
 
 ## The loaded save file. Overridable for tests and tools (they never touch the real save).
 var save_path := DEFAULT_SAVE_PATH
@@ -93,8 +125,18 @@ var _permanent_crystals := 0
 var _unlocked_content: Dictionary[StringName, bool] = {}
 var _meta_levels: Dictionary[StringName, int] = {}
 var _pending_boosts: Array[StringName] = []
-## Second start weapon picked in the forge (Arsenal), empty = default.
+## Start weapons picked in the forge (Arsenal, KE4): the first slot (default the sword) and the
+## second one (needs the second start slot), empty = none.
+var _start_weapon: StringName = &""
 var _second_weapon: StringName = &""
+## Trading post levels ([trade_levels], KE5): id -> level, missing = TRADE_LEVEL_DEFAULTS.
+var _trade_levels: Dictionary[StringName, int] = {}
+## The world's id ([world] id, v5): a UUID v4 given once, the same on every device (cloud worlds,
+## D-188). "" until the first save of a fresh world.
+var _world_id := ""
+## [migration]: what the v4 -> v5 migration did (refunded gold, old levels, new unlocks) and whether
+## the village still has to say so. Kept for good (the refund happens once per world).
+var _migration: Dictionary = {}
 ## Statistics for the chronicle: ints, play_time is a float in seconds.
 var _stats: Dictionary[StringName, Variant] = {}
 ## One-time explanations the player has already seen (D-087), e.g. &"intro_forge".
@@ -226,7 +268,19 @@ func _load_file(path: String) -> Error:
 	for id in unlocked:
 		_unlocked_content[StringName(id)] = true
 	_meta_levels = levels
+	_start_weapon = StringName(str(config.get_value("progress", "start_weapon", DEFAULT_START_WEAPON)))
 	_second_weapon = StringName(str(config.get_value("progress", "second_weapon", "")))
+	# Trading post levels and the migration notes are not worth a full reset: invalid entries are dropped.
+	if config.has_section("trade_levels"):
+		for key in config.get_section_keys("trade_levels"):
+			var trade_level: Variant = config.get_value("trade_levels", key)
+			if typeof(trade_level) == TYPE_INT and trade_level >= 0:
+				_trade_levels[StringName(key)] = trade_level
+	if config.has_section("migration"):
+		for key in config.get_section_keys("migration"):
+			_migration[key] = config.get_value("migration", key)
+	var world_id: Variant = config.get_value("world", "id", "")
+	_world_id = String(world_id) if is_valid_world_id(world_id) else new_world_id()
 	# Boosts and statistics are not worth a full reset: invalid entries are dropped.
 	var boosts: Variant = config.get_value("boosts", "pending", PackedStringArray())
 	if typeof(boosts) == TYPE_PACKED_STRING_ARRAY:
@@ -277,6 +331,13 @@ func _load_file(path: String) -> Error:
 ## v3 -> v4 (D-152): the slot is a world. Name, character and colour of [profile] move to
 ## [legacy_profile] (the player's profile takes them once, PlayerProfile.legacy_suggestion); the world
 ## has no name of its own yet ("Welt <n>"). created/last_played stay in [profile].
+## v4 -> v5 (KE4, KONZEPT §5.1): the new forge. Vitalität, Schärfe, Goldgier and Dash-Training are
+## removed and their gold refunded in full (once per world: [migration] v5_refund_gold is the marker),
+## Startschild becomes Schildplatte with the same level, Arsenal 1 unlocks the bow and Arsenal 2 bow
+## and staff (both keep the second start slot); the world gets its id ([world] id) and the trading
+## post levels ([trade_levels]) with their defaults. [migration] keeps what happened for the village
+## notice (v5_notice_pending). Invalid values are left alone (load_game() rejects them).
+## Every version (KE5): packed Proviant of older builds gets its new id (_map_legacy_boosts).
 static func migrate(config: ConfigFile) -> int:
 	var from_version: int = config.get_value("meta", "version", SAVE_VERSION)
 	if from_version < 2:
@@ -291,8 +352,26 @@ static func migrate(config: ConfigFile) -> int:
 		_migrate_to_v3(config)
 	if from_version < 4:
 		_migrate_to_v4(config)
+	if from_version < 5:
+		_migrate_to_v5(config)
+	_map_legacy_boosts(config)
 	config.set_value("meta", "version", SAVE_VERSION)
 	return from_version
+
+
+## Packed Proviant with an id of older builds (LEGACY_BOOST_IDS) gets the new id, each id once
+## (KE5). Additive like [seen]: it applies to every version, so the save version stays.
+static func _map_legacy_boosts(config: ConfigFile) -> void:
+	var pending: Variant = config.get_value("boosts", "pending", PackedStringArray())
+	if typeof(pending) != TYPE_PACKED_STRING_ARRAY:
+		return
+	var mapped := PackedStringArray()
+	for id in pending:
+		var new_id := String(LEGACY_BOOST_IDS.get(id, id))
+		if not mapped.has(new_id):
+			mapped.append(new_id)
+	if mapped != pending:
+		config.set_value("boosts", "pending", mapped)
 
 
 static func _migrate_to_v3(config: ConfigFile) -> void:
@@ -316,6 +395,97 @@ static func _migrate_to_v4(config: ConfigFile) -> void:
 			if not config.has_section_key("legacy_profile", key):
 				config.set_value("legacy_profile", key, config.get_value("profile", key))
 			config.erase_section_key("profile", key)
+
+
+static func _migrate_to_v5(config: ConfigFile) -> void:
+	var refund := 0
+	var refunded := PackedStringArray()
+	for key: String in V5_REFUND_COSTS:
+		var level: Variant = config.get_value("meta_upgrades", key, 0)
+		if typeof(level) != TYPE_INT or level < 0:
+			continue
+		var paid := refund_for_level(key, level)
+		if paid > 0:
+			refund += paid
+			refunded.append("%s:%d" % [key, mini(level, (V5_REFUND_COSTS[key] as Array).size())])
+		if config.has_section_key("meta_upgrades", key):
+			config.erase_section_key("meta_upgrades", key)
+	var shield_plate := 0
+	var shield: Variant = config.get_value("meta_upgrades", V5_SHIELD_KEY, 0)
+	if typeof(shield) == TYPE_INT and shield >= 0:
+		shield_plate = mini(shield, V5_SHIELD_PLATE_MAX)
+		if config.has_section_key("meta_upgrades", V5_SHIELD_KEY):
+			config.erase_section_key("meta_upgrades", V5_SHIELD_KEY)
+		if shield_plate > 0:
+			config.set_value("meta_upgrades", V5_SHIELD_PLATE_KEY, shield_plate)
+	var weapons := PackedStringArray()
+	var arsenal: Variant = config.get_value("meta_upgrades", V5_ARSENAL_KEY, 0)
+	if typeof(arsenal) == TYPE_INT and arsenal >= 0:
+		weapons.append_array(arsenal_weapons_for_level(arsenal))
+		if config.has_section_key("meta_upgrades", V5_ARSENAL_KEY):
+			config.erase_section_key("meta_upgrades", V5_ARSENAL_KEY)
+		for weapon in weapons:
+			config.set_value("meta_upgrades", V5_ARSENAL_PREFIX + weapon, 1)
+		if not weapons.is_empty():
+			config.set_value("meta_upgrades", V5_SECOND_SLOT_KEY, 1)
+			# v4 started with the first Arsenal weapon when none was picked: keep that.
+			var second: Variant = config.get_value("progress", "second_weapon", "")
+			if typeof(second) != TYPE_STRING or not weapons.has(String(second)):
+				config.set_value("progress", "second_weapon", weapons[0])
+	# The old second weapon stays the second one; the first slot keeps the sword.
+	if not config.has_section_key("progress", "start_weapon"):
+		config.set_value("progress", "start_weapon", DEFAULT_START_WEAPON)
+	if not is_valid_world_id(config.get_value("world", "id", "")):
+		config.set_value("world", "id", new_world_id())
+	for key: String in TRADE_LEVEL_DEFAULTS:
+		if not config.has_section_key("trade_levels", key):
+			config.set_value("trade_levels", key, TRADE_LEVEL_DEFAULTS[key])
+	# Once per world: a marker from an earlier run of this migration (or a merged cloud state) wins.
+	if config.has_section_key("migration", "v5_refund_gold"):
+		return
+	var gold: Variant = config.get_value("progress", "permanent_gold", 0)
+	if refund > 0 and typeof(gold) == TYPE_INT and gold >= 0:
+		config.set_value("progress", "permanent_gold", gold + refund)
+	config.set_value("migration", "v5_refund_gold", refund)
+	config.set_value("migration", "v5_refunded", refunded)
+	config.set_value("migration", "v5_shield_plate", shield_plate)
+	config.set_value("migration", "v5_weapons", weapons)
+	config.set_value("migration", "v5_notice_pending", refund > 0 or shield_plate > 0 or not weapons.is_empty())
+
+
+## Gold paid for the first level levels of an upgrade the v5 forge removed (V5_REFUND_COSTS); 0 for
+## other ids. Levels above the old maximum count as the maximum.
+static func refund_for_level(id: String, level: int) -> int:
+	if level <= 0 or not V5_REFUND_COSTS.has(id):
+		return 0
+	var costs: Array = V5_REFUND_COSTS[id]
+	var total := 0
+	for i in mini(level, costs.size()):
+		total += int(costs[i])
+	return total
+
+
+## Start weapons an old Arsenal level unlocks in v5: 1 = bow, 2 (or more) = bow and staff.
+static func arsenal_weapons_for_level(level: int) -> PackedStringArray:
+	var index := clampi(level, 0, V5_ARSENAL_WEAPONS.size() - 1)
+	return PackedStringArray(V5_ARSENAL_WEAPONS[index])
+
+
+## A UUID v4 for a new world id ([world] id, D-188).
+static func new_world_id() -> String:
+	var bytes := Crypto.new().generate_random_bytes(16)
+	bytes[6] = (bytes[6] & 0x0f) | 0x40
+	bytes[8] = (bytes[8] & 0x3f) | 0x80
+	var hex := bytes.hex_encode()
+	return "%s-%s-%s-%s-%s" % [hex.substr(0, 8), hex.substr(8, 4), hex.substr(12, 4), hex.substr(16, 4), hex.substr(20, 12)]
+
+
+## True for a UUID in the form the platform expects (8-4-4-4-12 hex digits).
+static func is_valid_world_id(value: Variant) -> bool:
+	if typeof(value) != TYPE_STRING:
+		return false
+	var regex := RegEx.create_from_string("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+	return regex.search(String(value)) != null
 
 
 ## Forge level of a v2 save converted to v3 (D-087): ceil(old effect / new step), at most the new
@@ -359,9 +529,16 @@ func save_game() -> Error:
 	for id in _unlocked_content:
 		unlocked.append(String(id))
 	config.set_value("progress", "unlocked", unlocked)
+	config.set_value("progress", "start_weapon", String(_start_weapon) if _start_weapon != &"" else DEFAULT_START_WEAPON)
 	config.set_value("progress", "second_weapon", String(_second_weapon))
 	for id in _meta_levels:
 		config.set_value("meta_upgrades", String(id), _meta_levels[id])
+	for key: String in TRADE_LEVEL_DEFAULTS:
+		config.set_value("trade_levels", key, get_trade_level(StringName(key)))
+	for id in _trade_levels:
+		config.set_value("trade_levels", String(id), _trade_levels[id])
+	for key: String in _migration:
+		config.set_value("migration", key, _migration[key])
 	var boosts := PackedStringArray()
 	for id in _pending_boosts:
 		boosts.append(String(id))
@@ -377,6 +554,9 @@ func save_game() -> Error:
 	_last_played = int(Time.get_unix_time_from_system())
 	if _created_at <= 0:
 		_created_at = _last_played
+	if _world_id.is_empty():
+		_world_id = new_world_id()
+	config.set_value("world", "id", _world_id)
 	config.set_value("world", "name", _world_name)
 	config.set_value("profile", "created", _created_at)
 	config.set_value("profile", "last_played", _last_played)
@@ -462,6 +642,71 @@ func get_second_weapon() -> StringName:
 func set_second_weapon(id: StringName) -> void:
 	_second_weapon = id
 	meta_changed.emit()
+
+
+## First start weapon as stored (MetaProgression checks it against the unlocks); the sword by default.
+func get_start_weapon() -> StringName:
+	return _start_weapon if _start_weapon != &"" else StringName(DEFAULT_START_WEAPON)
+
+
+func set_start_weapon(id: StringName) -> void:
+	_start_weapon = id
+	meta_changed.emit()
+
+
+# --- Trading post levels (KE5; stored since v5) ---
+
+func get_trade_level(id: StringName) -> int:
+	return _trade_levels.get(id, int(TRADE_LEVEL_DEFAULTS.get(String(id), 0)))
+
+
+func set_trade_level(id: StringName, level: int) -> void:
+	_trade_levels[id] = maxi(0, level)
+	meta_changed.emit()
+
+
+# --- World id and the v5 migration notes ---
+
+## The world's id ([world] id, UUID v4, D-188); given with the first save of a fresh world.
+func get_world_id() -> String:
+	if _world_id.is_empty():
+		_world_id = new_world_id()
+	return _world_id
+
+
+## What the v4 -> v5 migration did in this world: {refund_gold (int), refunded (["vitality:2", …]),
+## shield_plate (int), weapons (["bow", …]), notice_pending (bool)}; {} for worlds started in v5.
+func get_v5_report() -> Dictionary:
+	if not _migration.has("v5_refund_gold"):
+		return {}
+	return {
+		"refund_gold": maxi(0, int(_migration.get("v5_refund_gold", 0))),
+		"refunded": _string_list(_migration.get("v5_refunded", PackedStringArray())),
+		"shield_plate": maxi(0, int(_migration.get("v5_shield_plate", 0))),
+		"weapons": _string_list(_migration.get("v5_weapons", PackedStringArray())),
+		"notice_pending": _migration.get("v5_notice_pending", false) == true,
+	}
+
+
+## True while the village has not told the player what the v5 migration did.
+func is_v5_notice_pending() -> bool:
+	return _migration.get("v5_notice_pending", false) == true
+
+
+## The notice was shown (memory only; the caller saves). The report itself stays.
+func clear_v5_notice() -> void:
+	if _migration.has("v5_notice_pending"):
+		_migration["v5_notice_pending"] = false
+
+
+static func _string_list(value: Variant) -> PackedStringArray:
+	if typeof(value) == TYPE_PACKED_STRING_ARRAY:
+		return value
+	var result := PackedStringArray()
+	if typeof(value) == TYPE_ARRAY:
+		for item: Variant in value:
+			result.append(str(item))
+	return result
 
 
 # --- One-run boosts (Proviant) ---
@@ -870,7 +1115,11 @@ func _reset() -> void:
 	_unlocked_content.clear()
 	_meta_levels.clear()
 	_pending_boosts.clear()
+	_start_weapon = &""
 	_second_weapon = &""
+	_trade_levels.clear()
+	_world_id = ""
+	_migration = {}
 	_stats.clear()
 	_seen.clear()
 	_seen_all = false

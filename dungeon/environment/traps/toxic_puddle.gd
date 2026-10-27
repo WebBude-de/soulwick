@@ -133,13 +133,13 @@ static func apply_slow(player: Player, source_id: int, factor: float) -> void:
 func _draw() -> void:
 	if _sprite != null:
 		return
-	# Irregular blob out of a few overlapping circles, slowly breathing.
+	# Irregular blob out of a few overlapping pixel discs, slowly breathing (pixel art, D-218).
 	var wobble := 1.0 + 0.04 * sin(_time * 2.0 + _seed)
-	draw_circle(Vector2.ZERO, RADIUS * wobble, BASE_COLOR)
-	draw_circle(Vector2(RADIUS * 0.45, -RADIUS * 0.2), RADIUS * 0.6 * wobble, BASE_COLOR)
-	draw_circle(Vector2(-RADIUS * 0.5, RADIUS * 0.15), RADIUS * 0.55 * wobble, BASE_COLOR)
-	draw_arc(Vector2.ZERO, RADIUS * wobble, 0.0, TAU, 28, RIM_COLOR, 2.0)
+	PixelDraw.disc(self, Vector2.ZERO, RADIUS * wobble, BASE_COLOR)
+	PixelDraw.disc(self, Vector2(RADIUS * 0.45, -RADIUS * 0.2), RADIUS * 0.6 * wobble, BASE_COLOR)
+	PixelDraw.disc(self, Vector2(-RADIUS * 0.5, RADIUS * 0.15), RADIUS * 0.55 * wobble, BASE_COLOR)
+	PixelDraw.ring(self, Vector2.ZERO, RADIUS * wobble, RIM_COLOR)
 	for i in 4:
 		var phase := fmod(_time * 0.8 + i * 0.27 + _seed, 1.0)
 		var spot := Vector2.from_angle(i * 1.9 + _seed) * RADIUS * (0.2 + 0.15 * i)
-		draw_circle(spot, 2.0 + 4.0 * phase, Color(BUBBLE_COLOR, 1.0 - phase))
+		PixelDraw.disc(self, spot, 2.0 + 4.0 * phase, Color(BUBBLE_COLOR, PixelDraw.stepped(1.0 - phase, 3)))

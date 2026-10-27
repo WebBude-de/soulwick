@@ -8,6 +8,12 @@ extends RefCounted
 ## never opens it; the chest box blocks, so its cell ends a run) - and only talks to the player
 ## through PlayerSideMotion.input_source, the same door a network peer uses. Replans whenever it
 ## lands somewhere unexpected.
+## Jump trial (SV2, D-195): it waits at the edge for a moving platform and jumps on when the jump
+## lands on it, rides it (standing in its middle) until the next jump of the way reaches, walks onto
+## springs and steers to the cell after them, climbs a wall-jump shaft from wall to wall, waits for a saw to pass, and hops over a spike
+## hedgehog and onto a shield bearer like every other enemy (the jump graph's way over them).
+## Slopes (two-way pieces of the obstacle run, D-216): it walks up and down them without a jump
+## (SideLayout.walk_connects). It never dashes: there is no side dash (D-216).
 
 const EDGE_INSET := 14.0
 const ARRIVE_DISTANCE := 8.0
@@ -18,6 +24,20 @@ const DOUBLE_JUMP_AT_SPEED := -120.0
 ## The niche chest counts as visited with the feet this close to its base (px): well inside the
 ## interaction range (player area 44 px + chest area 56 px).
 const CHEST_REACH := 72.0
+## A jump onto a moving platform is aimed at where it is this many seconds later (about the time
+## of a short jump), and the platform must be in reach now and then.
+const MOVER_LEAD := 0.35
+## Faster upwards than any own jump: a spring threw the bot.
+const SPRING_LAUNCH_SPEED := -1000.0
+## In a shaft: the jump is let go near the apex, so the next press is a new one (a wall jump).
+const SHAFT_RELEASE_SPEED := -140.0
+## A shaft climb that takes longer than this is given up and planned again.
+const SHAFT_GIVE_UP := 8.0
+## Saw look-ahead: seconds and step of the samples.
+const SAW_LOOK_AHEAD := 0.9
+const SAW_LOOK_STEP := 0.1
+## How high a jump's way bends up in the middle (px) for the saw look-ahead.
+const SAW_JUMP_ARC := 110.0
 
 var segment: SideSegment = null
 var player: Player = null
@@ -32,6 +52,10 @@ var fetch_golden := true
 var fetch_chest := false
 ## The bot stood next to the chest (fetch_chest).
 var chest_visited := false
+## Wall jumps pressed in shafts, frames spent waiting for a saw or a moving platform (tools).
+var wall_jump_presses := 0
+var saw_wait_frames := 0
+var mover_wait_frames := 0
 
 var _path: Array[Vector2i] = []
 var _current := Vector2i(-1, -1)
@@ -45,6 +69,12 @@ var _need_double := false
 var _golden_launch := Vector2i(-1, -1)
 var _golden_try := false
 var _golden_done := false
+var _spring_next := Vector2i(-1, -1)
+var _ride: SideMover = null
+var _shaft := Rect2i()
+var _shaft_exit := Vector2i(-1, -1)
+var _shaft_time := 0.0
+var _shaft_wall := 1
 
 
 static func drive(owner_segment: SideSegment, driven: Player) -> SideBot:
@@ -67,6 +97,8 @@ func next_input() -> PlayerSideMotion.SideInput:
 	if motion.is_climbing():
 		_climb(input, feet)
 		return _finish(input, false)
+	if _shaft.has_area():
+		return _finish(input, _shaft_step(input, feet))
 	if motion.is_on_floor():
 		if _chest_pending() and _near_chest(feet):
 			chest_visited = true
@@ -77,16 +109,24 @@ func next_input() -> PlayerSideMotion.SideInput:
 			_golden_done = true
 			_current = Vector2i(-1, -1)
 		var cell := SideLayout.cell_at(feet + Vector2(0, -4))
-		if layout.is_standable(cell) and cell != _current:
+		if _is_stand_cell(cell, feet) and cell != _current:
 			_current = cell
 			_replan()
 		_airborne_target = Vector2i(-1, -1)
+		_ride = null
 		_hold_jump = false
 		_need_double = false
 		want_jump = _golden_step(input, feet) if _at_golden_launch() else _ground_step(input, feet)
 	else:
 		want_jump = _air_step(input, feet)
 	return _finish(input, want_jump)
+
+
+## A cell the bot stands in: firm ground, or a moving platform's cell with the platform under it.
+func _is_stand_cell(cell: Vector2i, feet: Vector2) -> bool:
+	if segment.layout.is_standable(cell):
+		return true
+	return segment.layout.mover_stand_cells().has(cell) and segment.mover_under(segment.to_global(feet)) != null
 
 
 func _finish(input: PlayerSideMotion.SideInput, want_jump: bool) -> PlayerSideMotion.SideInput:
@@ -123,6 +163,8 @@ func _replan() -> void:
 		chest_visited = true
 		_path = layout.find_path(_current, layout.door)
 	_target = _path[1] if _path.size() > 1 else _current
+	_spring_next = _path[2] if _path.size() > 2 and layout.is_spring(_target) else Vector2i(-1, -1)
+	_shaft = Rect2i()
 
 
 func _chest_pending() -> bool:
@@ -173,7 +215,39 @@ func _ground_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 			input.axis.x = signf(SideLayout.feet_of(segment.layout.chest).x - feet.x)
 		return false
 	var layout := segment.layout
+	if layout.is_spring(_current):
+		# On a spring it throws the bot anyway: steer to the next cell, no own jump.
+		_airborne_target = _target
+		_need_double = not layout.neighbours(_current, false).has(_target)
+		input.axis.x = signf(SideLayout.feet_of(_target).x - feet.x)
+		return false
 	var target_x := SideLayout.feet_of(_target).x
+	if (layout.is_slope(_current) or layout.is_slope(_target)) and layout.walk_connects(_current, _target):
+		# Onto, along or off a slope: walk on.
+		_update_stuck(feet)
+		if _stuck_time > STUCK_TIME:
+			_stuck_time = 0.0
+			_airborne_target = _target
+			input.axis.x = signf(target_x - feet.x)
+			return true
+		input.axis.x = signf(target_x - feet.x) if absf(target_x - feet.x) > ARRIVE_DISTANCE else 0.0
+		return false
+	var shaft := layout.shaft_climb(_current, _target)
+	if shaft.has_area():
+		_shaft = shaft
+		_shaft_exit = _target
+		_shaft_time = 0.0
+		return _shaft_step(input, feet)
+	var riding := layout.mover_stand_cells()
+	var on_mover := riding.has(_current) and not layout.is_standable(_current)
+	if on_mover and riding.has(_target) and riding[_target] == riding[_current]:
+		# Riding: stay in the middle of the platform until the next jump of the way reaches.
+		var platform := segment.mover_under(segment.to_global(feet))
+		if platform != null:
+			var middle := segment.to_local(platform.top_center_at(platform.clock)).x
+			input.axis.x = signf(middle - feet.x) * 0.5 if absf(middle - feet.x) > ARRIVE_DISTANCE else 0.0
+		mover_wait_frames += 1
+		return false
 	# Ladder between the two cells: walk to it and climb.
 	if _target.x == _current.x and layout.ladders.has(_current.x):
 		var center := SideLayout.cell_center(Vector2i(_current.x, 0)).x
@@ -185,11 +259,19 @@ func _ground_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 	var direction := signi(_target.x - _current.x)
 	var edge_cell := _run_end(_current, _target)
 	_need_double = layout.needs_double_jump(_current, _target)
+	var target_mover: int = riding.get(_target, -1) if not layout.is_standable(_target) and not on_mover else -1
 	var gap := edge_cell.x != _target.x
 	var rising := _target.y < _current.y
-	var needs_jump := rising or (gap and (_target.y == _current.y or absi(_target.x - _current.x) >= 3))
+	var needs_jump := rising or (gap and (_target.y == _current.y or absi(_target.x - _current.x) >= 3)) \
+			or target_mover >= 0
+	if _saw_blocks(feet, SideLayout.feet_of(_target), SAW_JUMP_ARC if needs_jump else 0.0) and _waits_safely():
+		# A saw crosses the way just now: let it pass.
+		saw_wait_frames += 1
+		input.axis.x = 0.0
+		_stuck_time = 0.0
+		return false
 	_update_stuck(feet)
-	if _stuck_time > STUCK_TIME:
+	if _stuck_time > STUCK_TIME and target_mover < 0:
 		_stuck_time = 0.0
 		_airborne_target = _target
 		return true
@@ -197,17 +279,123 @@ func _ground_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 		input.axis.x = signf(target_x - feet.x) if absf(target_x - feet.x) > ARRIVE_DISTANCE else 0.0
 		return false
 	var takeoff := SideLayout.feet_of(edge_cell).x
-	if direction != 0 and gap:
+	if on_mover:
+		# Off a moving platform: from its real edge, wherever it is right now.
+		var platform := segment.mover_under(segment.to_global(feet))
+		if platform != null and direction != 0:
+			var rect := platform.get_top_rect()
+			var edge := rect.end.x if direction > 0 else rect.position.x
+			takeoff = segment.to_local(Vector2(edge, 0)).x - direction * EDGE_INSET
+	elif direction != 0 and gap:
 		takeoff += direction * (SideRules.TILE * 0.5 - EDGE_INSET)
 	elif direction != 0 and edge_cell.x != _current.x:
 		# A step up in the same run: jump from the cell in front of the wall.
 		takeoff = SideLayout.feet_of(edge_cell).x
 	var to_takeoff := takeoff - feet.x
 	if direction == 0 or absf(to_takeoff) <= ARRIVE_DISTANCE or signf(to_takeoff) != float(direction):
+		if target_mover >= 0:
+			var platform := segment.get_movers()[target_mover]
+			if not _mover_in_reach(platform, edge_cell):
+				# Wait at the edge until the platform will be under the jump.
+				mover_wait_frames += 1
+				input.axis.x = 0.0
+				return false
+			_ride = platform
 		input.axis.x = float(direction)
 		_airborne_target = _target
 		return true
 	input.axis.x = signf(to_takeoff)
+	return false
+
+
+## Whether a jump from cell lands on the moving platform: one of its stand cells is a neighbour of
+## cell in the jump graph now and MOVER_LEAD seconds later.
+func _mover_in_reach(platform: SideMover, cell: Vector2i) -> bool:
+	var reach := segment.layout.neighbours(cell, true)
+	var now_ok := false
+	for stand in platform.stand_cells_at(platform.clock):
+		if reach.has(stand):
+			now_ok = true
+	if not now_ok:
+		return false
+	for stand in platform.stand_cells_at(platform.clock + MOVER_LEAD):
+		if reach.has(stand):
+			return true
+	return false
+
+
+## Whether a saw's blade comes near the way from from_feet to to_feet (segment-local; a jump bends
+## up by arc px in the middle) in the next SAW_LOOK_AHEAD seconds, the bot running at its speed.
+func _saw_blocks(from_feet: Vector2, to_feet: Vector2, arc := 0.0) -> bool:
+	var saws := segment.get_saws()
+	if saws.is_empty():
+		return false
+	var speed := maxf(1.0, player.move_speed * player.side_motion.get_speed_factor())
+	var distance := from_feet.distance_to(to_feet)
+	var t := 0.0
+	while t <= SAW_LOOK_AHEAD:
+		var share := minf(1.0, t * speed / maxf(distance, 1.0))
+		var body := from_feet.lerp(to_feet, share) + Vector2(0, -24.0 - arc * sin(PI * share))
+		for saw in saws:
+			if not is_instance_valid(saw):
+				continue
+			var blade := segment.to_local(saw.center_at(saw.clock + t))
+			if blade.distance_to(body) < SideElementRules.SAW_RADIUS + SideElementRules.SAW_BOT_MARGIN:
+				return true
+		t += SAW_LOOK_STEP
+	return false
+
+
+## Waiting is safe on firm ground only (never on a tilting platform, a bridge or a platform).
+func _waits_safely() -> bool:
+	var layout := segment.layout
+	return layout.is_standable(_current) and not layout.is_element_ground(_current + Vector2i.DOWN)
+
+
+## Wall-jump shaft: from the floor jump at a wall, from every wall jump to the other one, let the
+## jump go near the apex so the next press is a new one; once above the exit floor steer onto it
+## (the double jump if it falls short). Returns "press jump".
+func _shaft_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
+	var motion := player.side_motion
+	_shaft_time += 1.0 / Engine.physics_ticks_per_second
+	var exit_feet := SideLayout.feet_of(_shaft_exit)
+	var on_exit := motion.is_on_floor() and SideLayout.cell_at(feet + Vector2(0, -4)) == _shaft_exit
+	if on_exit or _shaft_time > SHAFT_GIVE_UP:
+		_shaft = Rect2i()
+		_current = Vector2i(-1, -1)
+		return false
+	if feet.y <= exit_feet.y + 4.0:
+		# Above the exit floor: over to it.
+		input.axis.x = signf(exit_feet.x - feet.x) if absf(exit_feet.x - feet.x) > ARRIVE_DISTANCE else 0.0
+		if player.velocity.y >= 0.0:
+			_hold_jump = false
+		return false
+	if motion.is_on_floor():
+		if SideLayout.cell_at(feet + Vector2(0, -4)).y < _shaft.end.y - 1:
+			# Landed somewhere else on the way up: plan again from there.
+			_shaft = Rect2i()
+			_current = Vector2i(-1, -1)
+			return false
+		if _jump_was_pressed:
+			# Let go first, so the next jump is a new press.
+			_hold_jump = false
+			return false
+		_shaft_wall = 1 if feet.x < (_shaft.position.x + _shaft.size.x * 0.5) * SideRules.TILE else -1
+		input.axis.x = float(_shaft_wall)
+		return true
+	if player.velocity.y >= SHAFT_RELEASE_SPEED:
+		_hold_jump = false
+	var wall := motion.wall_side
+	if wall != 0 and wall == _shaft_wall and not _jump_was_pressed:
+		# At the wall: jump off it towards the other one.
+		wall_jump_presses += 1
+		_shaft_wall = -wall
+		input.axis.x = float(_shaft_wall)
+		return true
+	input.axis.x = float(_shaft_wall)
+	# Near the top and falling short: the double jump.
+	if player.velocity.y > 0.0 and feet.y - exit_feet.y < SideRules.TILE * 2.0 and motion.air_jumps_left > 0 and not _jump_was_pressed:
+		return true
 	return false
 
 
@@ -219,10 +407,17 @@ func _air_step(input: PlayerSideMotion.SideInput, feet: Vector2) -> bool:
 		var coin := SideLayout.cell_center(segment.layout.golden_coin)
 		input.axis.x = signf(coin.x - feet.x) if absf(coin.x - feet.x) > ARRIVE_DISTANCE else 0.0
 		return _second_jump(motion)
+	if _spring_next.x >= 0 and player.velocity.y < SPRING_LAUNCH_SPEED and _airborne_target != _spring_next:
+		# A spring threw the bot: on to the cell after it.
+		_airborne_target = _spring_next
+		_need_double = not segment.layout.neighbours(_target, false).has(_spring_next)
 	var target := _airborne_target if _airborne_target.x >= 0 else _target
 	if target.x < 0:
 		return false
 	var target_feet := SideLayout.feet_of(target)
+	if _ride != null and is_instance_valid(_ride):
+		# Onto a moving platform: aim at its middle as it moves.
+		target_feet.x = segment.to_local(_ride.top_center_at(_ride.clock)).x
 	var dx := target_feet.x - feet.x
 	input.axis.x = signf(dx) if absf(dx) > ARRIVE_DISTANCE else 0.0
 	if _need_double:

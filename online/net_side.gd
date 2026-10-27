@@ -71,6 +71,9 @@ const GATE_MARGIN := 12.0
 ## TESTWERT: a client's own player, held when it reached the gate or door, is let go again if the
 ## host has not confirmed it as waiting this long after (seconds).
 const WAIT_PREDICT_GRACE := 1.0
+## SV2: the host sends the clock of the moving platforms and saws at the start and this often (s),
+## so a client's elements stay where the host's are. TESTWERT
+const CLOCK_SEND_INTERVAL := 1.0
 
 var net: NetDungeon = null
 var dm: DungeonManager = null
@@ -94,6 +97,8 @@ var moves_sent_own := 0
 var moves_sent_clients := 0
 var double_jumps_sent_own := 0
 var moves_received := 0
+## Client: stomps of the own player the host decided (SV1).
+var own_stomps_applied := 0
 var moves_applied := 0
 var double_jumps_applied := 0
 ## Ledge changes sent (host) or applied (client), collapses among them.
@@ -161,6 +166,11 @@ var _predicted_left := -1.0
 var _predicted_point := ""
 ## Players held on this machine (instance id -> player).
 var _held: Dictionary[int, Player] = {}
+## Host: seconds until the next element clock goes out (0 = with the next physics frame).
+var _clock_left := 0.0
+## Element clocks sent (host) and applied (client), for tools.
+var clocks_sent := 0
+var clocks_applied := 0
 
 
 static func create(owner_net: NetDungeon, dungeon: DungeonManager) -> NetSide:
@@ -281,6 +291,7 @@ func _on_segment_added(segment: SideSegment) -> void:
 	_enemy_interpolator = Interpolator.new()
 	_enemy_interpolator.teleport_distance = ENEMY_SNAP_DISTANCE
 	_door_sent = false
+	_clock_left = 0.0
 	segments_entered += 1
 	var slot := _segment_slot
 	if is_host:
@@ -380,6 +391,8 @@ func _watch_moves(segment: SideSegment) -> void:
 		motion.double_jumped.connect(_on_move_host.bind(PlayerSideMotion.Move.DOUBLE_JUMP, 0.0))
 		motion.wall_jumped.connect(_on_move_host.bind(PlayerSideMotion.Move.WALL_JUMP, 0.0))
 		motion.landed.connect(_on_landed_host)
+		# SV1: stomp (the enemy argument is dropped; the clients only show the bounce).
+		motion.stomped.connect(_on_move_host.bind(PlayerSideMotion.Move.STOMP, 0.0).unbind(1))
 
 
 func _on_landed_host(player: Player, fall_speed: float) -> void:
@@ -419,7 +432,13 @@ func _on_coin_taken_host() -> void:
 
 func _on_enemy_died_host(index: int) -> void:
 	enemy_deaths += 1
-	net.send_to_clients(self, &"side_enemy_died_net", [_segment_slot, index])
+	# SV4: how it went down (popped or a normal death) and which way.
+	var style := 0
+	var direction := 1.0
+	if index >= 0 and index < _enemies.size() and is_instance_valid(_enemies[index]):
+		style = int(_enemies[index].defeat_style)
+		direction = _enemies[index].get_defeat_direction()
+	net.send_to_clients(self, &"side_enemy_died_net", [_segment_slot, index, style, direction])
 
 
 func _on_finished_host(slot: int) -> void:
@@ -449,6 +468,7 @@ func _physics_process(delta: float) -> void:
 		if _snapshot_left <= 0.0 and not _enemies.is_empty():
 			_snapshot_left = 1.0 / ENEMY_SNAPSHOT_RATE
 			_send_enemies()
+		_tick_clock(segment, delta)
 		return
 	_follow_enemies(delta)
 	# The segment's own physics is off here: the ledges only animate (the host decides).
@@ -944,6 +964,29 @@ func side_coin_net(slot: int, local: Vector2) -> void:
 		return
 
 
+## Host (SV2): the element clock of the segment (moving platforms, saws) at the start and about once
+## a second; nothing for a segment without them.
+func _tick_clock(segment: SideSegment, delta: float) -> void:
+	_clock_left -= delta
+	if _clock_left > 0.0 or not segment.is_node_ready():
+		return
+	_clock_left = CLOCK_SEND_INTERVAL
+	if segment.get_movers().is_empty() and segment.get_saws().is_empty():
+		return
+	clocks_sent += 1
+	net.send_to_clients(self, &"side_clock_net", [_segment_slot, segment.get_element_clock()])
+
+
+## The host's element clock of slot: every platform and saw where the host's is.
+@rpc("authority", "call_remote", "reliable")
+func side_clock_net(slot: int, clock: float) -> void:
+	var segment := get_segment()
+	if is_host or _detached or segment == null or slot != _segment_slot:
+		return
+	clocks_applied += 1
+	segment.apply_element_clock(clock)
+
+
 @rpc("authority", "call_remote", "reliable")
 func side_door_net(slot: int) -> void:
 	var segment := get_segment()
@@ -956,13 +999,13 @@ func side_door_net(slot: int) -> void:
 
 
 @rpc("authority", "call_remote", "reliable")
-func side_enemy_died_net(slot: int, index: int) -> void:
+func side_enemy_died_net(slot: int, index: int, style := 0, direction := 1.0) -> void:
 	if is_host or slot != _segment_slot or index < 0 or index >= _enemies.size():
 		return
 	var enemy := _enemies[index]
 	if is_instance_valid(enemy) and not enemy.is_dead():
 		enemy_deaths += 1
-		enemy.health.take_damage(enemy.health.get_health() + 1.0)
+		enemy.apply_remote_defeat(style as SideEnemy.Defeat, direction)
 
 
 @rpc("authority", "call_remote", "unreliable_ordered", 2)
@@ -985,7 +1028,13 @@ func side_enemies_net(slot: int, host_msec: int, positions: PackedVector2Array, 
 ## The own player predicted it already and keeps its own.
 @rpc("authority", "call_remote", "reliable")
 func side_move_net(peer: int, move: int, velocity: Vector2, facing: float, fall_speed: float) -> void:
-	if is_host or _detached or peer == multiplayer.get_unique_id():
+	if is_host or _detached:
+		return
+	if peer == multiplayer.get_unique_id():
+		# SV1: the host decided a stomp of the own player: only the bounce (vertical speed), the
+		# predicted run stays (PlayerSideMotion.apply_remote_move).
+		if move == PlayerSideMotion.Move.STOMP:
+			_apply_own_stomp(velocity)
 		return
 	moves_received += 1
 	var player := net.player_of(peer) if net != null else null
@@ -1001,6 +1050,15 @@ func side_move_net(peer: int, move: int, velocity: Vector2, facing: float, fall_
 	moves_applied += 1
 	if move == PlayerSideMotion.Move.DOUBLE_JUMP:
 		double_jumps_applied += 1
+
+
+func _apply_own_stomp(velocity: Vector2) -> void:
+	var player := net.player_of(multiplayer.get_unique_id()) if net != null else null
+	if player == null or not player.is_side_view() or player.side_motion == null:
+		return
+	# Facing 0: the own player keeps the direction it runs in.
+	player.side_motion.apply_remote_move(PlayerSideMotion.Move.STOMP, velocity, 0.0, 0.0)
+	own_stomps_applied += 1
 
 
 @rpc("authority", "call_remote", "reliable")

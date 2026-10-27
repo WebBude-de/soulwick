@@ -1,18 +1,33 @@
 class_name SidePlayerFx
 extends Node
-## The look of one player's moves in a side segment (M5 round 2), driven only by the signals of
-## PlayerSideMotion (decision and effect stay apart): stretch at the take-off, a salto and a dust
-## ring at the double jump, squash, dust and a landing sound at every landing, a camera kick at hard
-## landings, crumbs and a scrape at a wall slide. Squash and stretch scale the player's body sprite
-## around the feet; everything is put back when the player leaves the segment (detach).
+## The look of one player's moves in a side segment (M5 round 2, livelier with FS1), driven only by
+## the signals of PlayerSideMotion (decision and effect stay apart): a stretch and a pixel puff at
+## the take-off, a salto, a pixel ring and sparks at the double jump, squash, pixel dust and a
+## landing sound at every landing, rock chips and a camera kick at hard landings, crumbs and a
+## scrape at a wall slide. In the air the body follows its vertical speed (long while rising, a
+## little round at the apex, long again while falling); squash and stretch run on a spring, so a
+## landing wobbles back through a short stretch. The shown scale moves in whole art pixels (D-218).
+## Squash and stretch scale the player's body sprite around the feet; everything is put back when
+## the player leaves the segment (detach). Only the look: jump heights and speeds are untouched.
 
-## TESTWERTE (look)
-const TAKE_OFF_STRETCH := Vector2(0.8, 1.22)
-const DOUBLE_JUMP_STRETCH := Vector2(0.86, 1.16)
-const WALL_JUMP_STRETCH := Vector2(0.84, 1.18)
+## TESTWERTE (look, FS1)
+const TAKE_OFF_STRETCH := Vector2(0.74, 1.3)
+const DOUBLE_JUMP_STRETCH := Vector2(0.8, 1.24)
+const WALL_JUMP_STRETCH := Vector2(0.8, 1.24)
 ## Strongest landing squash (x wider, y lower) at a hard landing.
-const MAX_LAND_SQUASH := 0.32
-const SQUASH_RETURN_SPEED := 14.0
+const MAX_LAND_SQUASH := 0.36
+## Body shape in the air: rising at full jump speed, around the apex, falling at full speed.
+const RISE_STRETCH := Vector2(0.9, 1.12)
+const APEX_SQUASH := Vector2(1.05, 0.95)
+const FALL_STRETCH := Vector2(0.93, 1.08)
+## Spring of squash and stretch (1/s²) and its damping (1/s): under-damped, so it wobbles once.
+const SPRING_STIFFNESS := 320.0
+const SPRING_DAMPING := 17.0
+## The shown scale snaps to 1/SCALE_STEPS (32 art px tall body: one art pixel per step).
+const SCALE_STEPS := 32.0
+## A take-off faster than this (px/s sideways) kicks the puff against the run.
+const PUFF_DRIFT_SPEED := 40.0
+const RETURN_TINT := Color(0.8, 0.75, 1.0)
 const SALTO_TIME := 0.32
 ## Camera kick (px down) for a hard landing, scaled up to the maximum fall speed.
 const LAND_KICK := Vector2(8.0, 16.0)
@@ -27,6 +42,7 @@ var _base_scale := Vector2.ONE
 var _base_position := Vector2.ZERO
 var _base_rotation := 0.0
 var _stretch := Vector2.ONE
+var _stretch_speed := Vector2.ZERO
 var _salto_left := 0.0
 var _salto_direction := 1.0
 var _slide_dust_left := 0.0
@@ -80,6 +96,22 @@ func get_stretch() -> Vector2:
 	return _stretch
 
 
+## The scale factor the sprite shows: the stretch in whole art-pixel steps.
+static func shown_stretch(stretch: Vector2) -> Vector2:
+	return (stretch * SCALE_STEPS).round() / SCALE_STEPS
+
+
+## The body shape the spring pulls towards: round on the ground, by the vertical speed in the air.
+static func air_shape(on_floor: bool, vertical_speed: float) -> Vector2:
+	if on_floor:
+		return Vector2.ONE
+	if absf(vertical_speed) < SideRules.APEX_SPEED:
+		return APEX_SQUASH
+	if vertical_speed < 0.0:
+		return Vector2.ONE.lerp(RISE_STRETCH, clampf(-vertical_speed / SideRules.JUMP_VELOCITY, 0.0, 1.0))
+	return Vector2.ONE.lerp(FALL_STRETCH, clampf(vertical_speed / SideRules.MAX_FALL_SPEED, 0.0, 1.0))
+
+
 func is_spinning() -> bool:
 	return _salto_left > 0.0
 
@@ -87,17 +119,24 @@ func is_spinning() -> bool:
 func _process(delta: float) -> void:
 	if not is_instance_valid(player) or not is_instance_valid(_sprite):
 		return
-	_stretch = _stretch.lerp(Vector2.ONE, 1.0 - exp(-SQUASH_RETURN_SPEED * delta))
+	var motion := player.side_motion
+	var target := Vector2.ONE
+	if motion != null and not motion.is_climbing() and not motion.is_wall_sliding:
+		target = air_shape(motion.is_on_floor(), player.velocity.y)
+	# Semi-implicit spring step (stable at any frame rate the game runs at).
+	var step := minf(delta, 1.0 / 30.0)
+	_stretch_speed += ((target - _stretch) * SPRING_STIFFNESS - _stretch_speed * SPRING_DAMPING) * step
+	_stretch += _stretch_speed * step
 	var rotation := 0.0
 	if _salto_left > 0.0:
 		_salto_left = maxf(0.0, _salto_left - delta)
 		var progress := 1.0 - _salto_left / SALTO_TIME
 		rotation = _salto_direction * TAU * ease(progress, -1.6)
 	# Scale around the feet: the feet stay on the ground while the body squashes.
-	_sprite.scale = _base_scale * _stretch
-	_sprite.position = _base_position + Vector2(0.0, Player.FEET_OFFSET.y * (1.0 - _stretch.y))
+	var shown := shown_stretch(_stretch)
+	_sprite.scale = _base_scale * shown
+	_sprite.position = _base_position + Vector2(0.0, Player.FEET_OFFSET.y * (1.0 - shown.y))
 	_sprite.rotation = _base_rotation + rotation
-	var motion := player.side_motion
 	if motion != null and motion.is_wall_sliding:
 		_slide_dust_left -= delta
 		_slide_sound_left -= delta
@@ -114,21 +153,23 @@ func _process(delta: float) -> void:
 
 
 func _on_jumped(_who: Player) -> void:
-	_stretch = TAKE_OFF_STRETCH
-	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.PUFF, 0.4)
+	_kick(TAKE_OFF_STRETCH)
+	var drift := signf(player.velocity.x) if absf(player.velocity.x) > PUFF_DRIFT_SPEED else 0.0
+	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.PUFF, 0.4, drift)
 	Sfx.play_at(segment, SideRules.sound_or(SideRules.SOUND_JUMP, SideRules.SOUND_JUMP_FALLBACK), player.global_position, -10.0)
 
 
 func _on_double_jumped(_who: Player) -> void:
-	_stretch = DOUBLE_JUMP_STRETCH
+	_kick(DOUBLE_JUMP_STRETCH)
 	_salto_left = SALTO_TIME
 	_salto_direction = player.side_motion.facing
 	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.RING, 0.6)
+	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.SPARKS, 0.6)
 	Sfx.play_at(segment, SideRules.sound_or(SideRules.SOUND_DOUBLE_JUMP, SideRules.SOUND_JUMP_FALLBACK), player.global_position, -8.0)
 
 
 func _on_wall_jumped(_who: Player) -> void:
-	_stretch = WALL_JUMP_STRETCH
+	_kick(WALL_JUMP_STRETCH)
 	var away := player.side_motion.facing
 	SideDust.spawn(segment, player.global_position + Vector2(-away * PlayerSideMotion.BODY_SIZE.x * 0.5, 0.0), SideDust.Kind.PUFF, 0.5, away)
 	Sfx.play_at(segment, SideRules.sound_or(SideRules.SOUND_JUMP, SideRules.SOUND_JUMP_FALLBACK), player.global_position, -9.0)
@@ -138,9 +179,11 @@ func _on_landed(_who: Player, fall_speed: float) -> void:
 	var hard := fall_speed >= SideRules.HARD_LANDING_SPEED
 	var strength := clampf((fall_speed - 200.0) / (SideRules.MAX_FALL_SPEED - 200.0), 0.15, 1.0)
 	var squash := MAX_LAND_SQUASH * strength
-	_stretch = Vector2(1.0 + squash, 1.0 - squash)
+	_kick(Vector2(1.0 + squash, 1.0 - squash))
 	_salto_left = 0.0
 	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.CLOUD, strength)
+	if hard:
+		SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.CHIPS, strength)
 	var sound := SideRules.SOUND_LAND_HARD if hard else SideRules.SOUND_LAND
 	Sfx.play_at(segment, SideRules.sound_or(sound, SideRules.SOUND_LAND_FALLBACK), player.get_feet_position(), -6.0 if hard else -12.0)
 	if hard and segment.camera != null:
@@ -149,10 +192,17 @@ func _on_landed(_who: Player, fall_speed: float) -> void:
 
 func _on_fell_into_pit(_who: Player) -> void:
 	_salto_left = 0.0
-	_stretch = Vector2.ONE
+	_kick(Vector2.ONE)
 	Sfx.play_at(segment, ChasmRules.fall_sound(), player.global_position, -4.0)
 
 
 func _on_returned(_who: Player, _damage: float) -> void:
-	_stretch = Vector2(1.2, 0.8)
-	Burst.spawn(segment, player.global_position, Color(0.8, 0.75, 1.0), 10, 110.0, 0.4, 3.0)
+	_kick(Vector2(1.2, 0.8))
+	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.RING, 0.8, 0.0, RETURN_TINT)
+	SideDust.spawn(segment, player.get_feet_position(), SideDust.Kind.CLOUD, 0.5, 0.0, RETURN_TINT)
+
+
+## Sets the body shape at once (a take-off, a landing); the spring takes it back from there.
+func _kick(shape: Vector2) -> void:
+	_stretch = shape
+	_stretch_speed = Vector2.ZERO

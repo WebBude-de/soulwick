@@ -1,0 +1,55 @@
+{
+  "notes": [
+    "Pivot unten Mitte, Unterkante sitzt 2 px tief; keine Schlüsselfarben."
+  ],
+  "items": [
+    {
+      "name": "hat_chicken",
+      "file": "hat_chicken.png",
+      "frame_size": [
+        16,
+        14
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        13
+      ],
+      "note": ""
+    },
+    {
+      "name": "hat_candle_crown",
+      "file": "hat_candle_crown.png",
+      "frame_size": [
+        16,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "hat_flower_wreath",
+      "file": "hat_flower_wreath.png",
+      "frame_size": [
+        16,
+        8
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        7
+      ],
+      "note": ""
+    }
+  ]
+}

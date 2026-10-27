@@ -1,0 +1,57 @@
+{
+  "notes": [
+    "lava_impact_6f 32×32 am Einschlag (Pivot 16,22), 12 fps.",
+    "lava_pool_4f 32×32 Bodenfläche (Schaden), 6 fps Loop, Pivot 16,21.",
+    "stomp_ring_6f 96×96 Schockwelle beim Stampfer, Pivot Mitte, 12 fps; Frames 5-6 lösen sich pixelweise auf."
+  ],
+  "items": [
+    {
+      "name": "lava_impact",
+      "file": "lava_impact_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        16,
+        22
+      ],
+      "note": ""
+    },
+    {
+      "name": "lava_pool",
+      "file": "lava_pool_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        21
+      ],
+      "note": ""
+    },
+    {
+      "name": "stomp_ring",
+      "file": "stomp_ring_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        48,
+        48
+      ],
+      "note": ""
+    }
+  ]
+}

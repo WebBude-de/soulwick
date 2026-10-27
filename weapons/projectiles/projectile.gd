@@ -26,7 +26,8 @@ var fps := 10.0
 var color := Color.WHITE
 ## Light circle in the dungeon darkness (0 = none).
 var light_radius := 0.0
-## Fading trail behind the projectile: number of remembered positions (0 = no trail).
+## Fading pixel trail behind the projectile (PixelTrail, D-218): number of remembered positions
+## (0 = no trail).
 var trail_length := 0
 var trail_width := 4.0
 var trail_color := Color.WHITE
@@ -34,7 +35,7 @@ var trail_color := Color.WHITE
 var _pending_damage: DamageData = null
 var _travelled := 0.0
 var _finished := false
-var _trail: Line2D = null
+var _trail: PixelTrail = null
 
 @onready var _sprite: AnimatedSprite2D = $Sprite
 @onready var _shape: CollisionShape2D = $CollisionShape2D
@@ -136,7 +137,8 @@ func _raycast_wall(from: Vector2, to: Vector2) -> Dictionary:
 func _impact() -> void:
 	if aoe_radius > 0.0 and _template != null:
 		AreaDamage.apply(self, global_position, aoe_radius, collision_mask, _template, knockback_strength)
-		var art_scale := aoe_radius / EXPLOSION_ART_RADIUS
+		# Whole scale (FS2b): the art's pixels stay even; the area hit keeps the exact radius.
+		var art_scale := PixelDraw.whole_scale(aoe_radius / EXPLOSION_ART_RADIUS)
 		SpriteStrip.spawn_effect(get_parent(), global_position, EXPLOSION_TEXTURE, Vector2i(96, 96), 14.0, Vector2(48, 48), Vector2(art_scale, art_scale))
 		LightSource.flash(get_parent(), global_position, aoe_radius * 2.5, 0.4)
 		Burst.spawn(get_parent(), global_position, color, 16, aoe_radius * 3.0, 0.45, 4.0)
@@ -156,20 +158,11 @@ func _finish() -> void:
 
 ## The trail lives in world space (top_level), so its points are global positions.
 func _build_trail() -> void:
-	_trail = Line2D.new()
-	_trail.top_level = true
+	_trail = PixelTrail.new()
 	_trail.width = trail_width
+	_trail.color = trail_color
+	_trail.max_points = trail_length
 	_trail.z_index = -1
-	_trail.begin_cap_mode = Line2D.LINE_CAP_ROUND
-	_trail.end_cap_mode = Line2D.LINE_CAP_ROUND
-	var ramp := Gradient.new()
-	ramp.set_color(0, Color(trail_color, 0.0))
-	ramp.set_color(1, Color(trail_color, 0.75))
-	_trail.gradient = ramp
-	var taper := Curve.new()
-	taper.add_point(Vector2(0.0, 0.2))
-	taper.add_point(Vector2(1.0, 1.0))
-	_trail.width_curve = taper
 	add_child(_trail)
 	# No initial point here: the first physics step adds the real start position.
 
@@ -178,8 +171,6 @@ func _update_trail() -> void:
 	if _trail == null:
 		return
 	_trail.add_point(global_position)
-	while _trail.get_point_count() > trail_length:
-		_trail.remove_point(0)
 
 
 ## Hands the trail to the world so it fades out after the projectile is gone.
@@ -191,6 +182,4 @@ func _release_trail() -> void:
 	_trail = null
 	remove_child(trail)
 	parent.add_child(trail)
-	var tween := trail.create_tween()
-	tween.tween_property(trail, "modulate:a", 0.0, 0.18)
-	tween.tween_callback(trail.queue_free)
+	trail.fade_out(0.18)

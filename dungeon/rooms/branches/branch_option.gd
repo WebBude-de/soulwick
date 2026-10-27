@@ -20,6 +20,14 @@ enum Kind {
 ## Variant id of the elite nest (EliteNestVariant.ID). Kept here, so the branch rules need not load
 ## the variant scripts (CombatVariant and its subclasses load each other).
 const ELITE_NEST_ID := &"elite_nest"
+## Spürnase: what a special room behind a way gives (SpecialTable type -> translation key).
+const SPECIAL_REWARD_KEYS := {
+	0: &"ROOM_SHOP_TITLE",
+	1: &"ROOM_WEAPON_TITLE",
+	2: &"ROOM_FOUNTAIN_TITLE",
+	3: &"ROOM_UPGRADE_ALTAR_TITLE",
+	4: &"BRANCH_REWARD_TRIAL",
+}
 
 var kind := Kind.SAFE
 ## SpecialType of a SPECIAL option, -1 otherwise.
@@ -68,6 +76,30 @@ func is_combat() -> bool:
 ## Combat ways force the variant of the next room: none (safe, ladder), elite nest or the hidden variant.
 func forces_variant() -> bool:
 	return kind != Kind.SPECIAL
+
+
+## Spürnase (KE5, KONZEPT §5.2): what this way gives, in the current language. mode_title: the
+## title of the hidden variant's room mode (the caller resolves it, so this class loads no mode
+## scripts); without one an unknown way says "a mode room with a bonus".
+func reward_text(mode_title := "") -> String:
+	match kind:
+		Kind.ELITE_NEST:
+			return Loc.t(&"BRANCH_REWARD_ELITE")
+		Kind.UNKNOWN:
+			return Loc.t(&"BRANCH_REWARD_MODE", [mode_title]) if not mode_title.is_empty() else Loc.t(&"BRANCH_REWARD_UNKNOWN")
+		Kind.SPECIAL:
+			return Loc.t(SPECIAL_REWARD_KEYS.get(special_type, &"BRANCH_REWARD_UNKNOWN"))
+		Kind.LADDER:
+			return Loc.t(&"BRANCH_REWARD_LADDER")
+	return Loc.t(&"BRANCH_REWARD_SAFE")
+
+
+## The Spürnase line of a branch for player (the local one; optics at this machine): "" without the
+## Proviant, else "Spürnase: <way 1> · <way 2>". texts: reward_text() of every way, door order.
+static func reward_preview(texts: Array[String], player: Node) -> String:
+	if texts.is_empty() or not MetaProgression.player_has_keen_nose(player):
+		return ""
+	return Loc.t(&"BRANCH_NOSE_PREVIEW", [" · ".join(texts)])
 
 
 ## Log name of the way (smoke test); the player only sees the door sign (DoorStyle.BRANCH_SYMBOLS).

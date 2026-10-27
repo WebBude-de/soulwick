@@ -24,9 +24,9 @@ func after_all() -> void:
 
 
 func test_scaling_follows_the_d084_table() -> void:
-	var counts := [1.0, 1.6, 2.2, 2.8]
-	var normal := [1.0, 1.2, 1.4, 1.6]
-	var bosses := [1.0, 1.7, 2.4, 3.1]
+	var counts := [1.0, 1.7, 2.4, 3.1]
+	var normal := [1.0, 1.3, 1.6, 1.9]
+	var bosses := [1.0, 1.85, 2.7, 3.55]
 	for players in range(1, 5):
 		assert_almost_eq(CoopRules.count_factor(players), counts[players - 1], 0.001, "count, %d players" % players)
 		assert_almost_eq(CoopRules.health_factor(players, false), normal[players - 1], 0.001, "normal HP, %d players" % players)
@@ -38,13 +38,13 @@ func test_scale_group_keeps_one_player_and_never_changes_the_original() -> void:
 	assert_null(CoopRules.scale_group(null, 1), "one player: no group")
 	var plain := CoopRules.scale_group(null, 2)
 	assert_not_null(plain)
-	assert_almost_eq(plain.count_factor, 1.6, 0.001)
+	assert_almost_eq(plain.count_factor, 1.7, 0.001)
 	assert_almost_eq(plain.health_factor, 1.0, 0.001, "HP scales per enemy, not through the group")
 	var swarm := EncounterGroup.new()
 	swarm.count_factor = 1.5
 	swarm.tags = [&"swarm"]
 	var scaled := CoopRules.scale_group(swarm, 3)
-	assert_almost_eq(scaled.count_factor, 1.5 * 2.2, 0.001)
+	assert_almost_eq(scaled.count_factor, 1.5 * 2.4, 0.001)
 	assert_eq(scaled.tags, swarm.tags, "theme kept")
 	assert_almost_eq(swarm.count_factor, 1.5, 0.001, "the room's own group stays untouched")
 
@@ -91,8 +91,8 @@ func test_revive_needs_two_seconds_without_a_break() -> void:
 
 func test_payout_is_full_only_through_the_portal() -> void:
 	assert_eq(CoopRules.payout_ratio(RunManager.EndReason.EXIT), 1.0)
-	assert_eq(CoopRules.payout_ratio(RunManager.EndReason.DEATH), 0.5)
-	assert_eq(CoopRules.payout_ratio(RunManager.EndReason.ABORT), 0.5, "host gone counts as abort (D-123)")
+	assert_eq(CoopRules.payout_ratio(RunManager.EndReason.DEATH), RunManager.LOSS_PAYOUT_RATIO, "25 % (KE3)")
+	assert_eq(CoopRules.payout_ratio(RunManager.EndReason.ABORT), RunManager.LOSS_PAYOUT_RATIO, "host gone counts as abort (D-123)")
 
 
 func test_a_downed_player_gets_up_with_two_hp() -> void:
@@ -196,7 +196,7 @@ func test_run_gold_mirrors_the_host() -> void:
 	assert_eq(RunManager.get_current_room(), 4)
 	RunManager.run_gold_changed.disconnect(on_gold)
 	RunManager.end_run(RunManager.EndReason.ABORT)
-	assert_eq(RunManager.get_last_summary().get("payout"), 21, "50 % of the mirrored pot")
+	assert_eq(RunManager.get_last_summary().get("payout"), 11, "25 % of the mirrored pot (KE3), rounded up")
 
 
 func test_shop_offers_travel_as_plain_values() -> void:

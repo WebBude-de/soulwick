@@ -1,6 +1,6 @@
 class_name RoomVeil
 extends Node2D
-## "Nothing pops up" (R5, KONZEPT_RAEUME_V2 §1.2/§4, 05_tueren.md): a room that is prepared but not
+## "Nothing pops up" (R5, RAEUME §1.2/§4, 05_tueren.md): a room that is prepared but not
 ## entered yet lies built and dark behind its door. The veil is a soft dark sheet over the room's
 ## floor and walls (its entrance corridor stays free, so the way to it is visible as soon as the door
 ## opens); it lifts when a player walks into the entrance corridor or when the room activates, and
