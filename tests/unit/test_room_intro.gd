@@ -1,9 +1,10 @@
 extends GutTest
-## The room intro (R3, KONZEPT_RAEUME_V2 §1.3, 07_ui.md): door → camera on the goal → banner →
-## 3-2-1 → go; the first time per save full (input locked per player, camera swing, card), later
-## short (about 2 s); skippable; it holds the fight back (RoomIntro.after_intro) and never locks over
-## a running fight. DungeonUI shows the banner, the countdown and the card; the arena starts its
-## intro on entry. Also the banner queue (stale banners) and world captions near the player.
+## The room intro (R3, RAEUME §1.3, 07_ui.md): door → camera on the goal → banner →
+## 3-2-1 → go; without Flint (a script run, RoomFlint.is_enabled) the first time per save full
+## (input locked per player, camera swing), later short (about 2 s); skippable; it holds the fight
+## back (RoomIntro.after_intro) and never locks over a running fight. DungeonUI shows the banner and
+## the countdown; the arena starts its intro on entry. Also the banner queue (stale banners) and
+## world captions near the player. Flint's tour (WK11): test_room_intro_flint.
 ## Uses a test save, never the real one.
 
 const TEST_SAVE_PATH := "user://test_room_intro.cfg"
@@ -198,7 +199,7 @@ func test_room_freed_mid_intro_lets_go() -> void:
 
 # --- DungeonUI ---
 
-func test_ui_shows_banner_countdown_and_card() -> void:
+func test_ui_shows_banner_and_countdown_without_a_card() -> void:
 	var ui := _ui()
 	var room := _room()
 	var goal := _goal(room)
@@ -206,13 +207,7 @@ func test_ui_shows_banner_countdown_and_card() -> void:
 	await wait_process_frames(1)
 	assert_eq(ui.get_intro(), intro)
 	assert_eq(ui.get_objective_bar().objective, goal, "the task bar comes with the intro")
-	var card := ui.get_room_intro_card()
-	assert_not_null(card, "first time: the explanation card from the start")
-	assert_eq(card.genre, goal.genre)
-	# Recorded when it happens: "go" comes up to 0.3 s before the check below and the card frees
-	# itself 0.4 s after it starts to fade, so reading card._finishing then could hit a freed card.
-	var card_finished := [false]
-	card.finished.connect(func() -> void: card_finished[0] = true)
+	assert_null(ui._hint_card, "no explanation card (D-211: Flint explains in the intro)")
 	await wait_seconds(RoomIntro.DOOR_TIME + 0.1)
 	var banner := ui.get_banner()
 	assert_not_null(banner)
@@ -225,7 +220,6 @@ func test_ui_shows_banner_countdown_and_card() -> void:
 	assert_eq(ui.get_banner(), banner, "the intro banner stays while the intro runs")
 	await wait_seconds(RoomIntro.COUNTDOWN_FROM * RoomIntro.COUNTDOWN_STEP + 0.1)
 	assert_eq(ui.get_countdown().get_text(), "Los!")
-	assert_true(card_finished[0], "the card fades with go")
 	await wait_seconds(DungeonUI.INTRO_BANNER_AFTER + 0.8)
 	assert_ne(ui.get_banner(), banner, "the intro banner is gone after go")
 

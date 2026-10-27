@@ -57,8 +57,9 @@ const INTERACT_BIT := 1 << 4
 const SWITCH_BIT := 1 << 3
 ## Held actions a copy replays: everything but interact and the weapon switch.
 const REPLAY_MASK := ~(INTERACT_BIT | SWITCH_BIT)
-## Active weapon slot + 1 in bits 8..10 of held (0 = unknown, keep the copy's slot).
-const ACTIVE_SLOT_SHIFT := 8
+## Active weapon slot + 1 in bits 9..11 of held (0 = unknown, keep the copy's slot); bits 0..8 are
+## the actions (PlayerInput.ACTIONS, the return stone is bit 8 since KE5).
+const ACTIVE_SLOT_SHIFT := 9
 const ACTIVE_SLOT_MASK := 0b111 << ACTIVE_SLOT_SHIFT
 ## Bits of side (M5).
 const SIDE_ACTIVE := 1

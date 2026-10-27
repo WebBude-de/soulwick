@@ -6,6 +6,8 @@ extends Node2D
 ##   queued (next 3):    thin orange cracks pulse on the field,
 ##   warned (1 s):       the plates crack open (frames 1-4) over a red glow, a red light,
 ##   broken:             plates gone - the abyss tiles (RoomTiles.add_pit_tiles) show through.
+## Sinkholes under players who stand still (CollapseRules.STILL_TIME) look the same on their own
+## tiles: warn_tiles, crumble_tiles, and restore_tiles when the floor closes again.
 ## Look only, no decisions. Sits at the room origin (room-local tile coordinates).
 
 const ART_PATH := "res://art/environment/trials/crumbling_floor_6f.png"
@@ -18,6 +20,8 @@ const GLOW_COLOR := Color(1.0, 0.24, 0.18)
 const PLATE_TINT := Color(1.0, 0.86, 0.82)
 const WARN_TINT := Color(1.0, 0.42, 0.36)
 const LIGHT_RADIUS := 130.0
+## Width of a drawn crack in art pixels (D-218).
+const CRACK_PIXELS := 1
 
 enum State { IDLE, QUEUED, WARNED, BROKEN }
 
@@ -29,6 +33,8 @@ var _texture: Texture2D = null
 var _plates: Dictionary[Vector2i, Sprite2D] = {}
 var _warn_left: Dictionary[int, float] = {}
 var _lights: Dictionary[int, LightSource] = {}
+## Sinkhole tiles cracking open -> seconds of warning left.
+var _sink_warn: Dictionary[Vector2i, float] = {}
 var _time := 0.0
 
 
@@ -97,6 +103,40 @@ func crumble(index: int) -> void:
 	queue_redraw()
 
 
+## A sinkhole cracks open on these tiles: plates breaking over a red glow for CollapseRules.WARN_TIME.
+func warn_tiles(tiles: Array[Vector2i]) -> void:
+	for tile in tiles:
+		_sink_warn[tile] = CollapseRules.WARN_TIME
+		_plate(tile, FRAME_CRACKED)
+	queue_redraw()
+
+
+## The sinkhole gives way: plates go, dust rises (the tiles are pits already).
+func crumble_tiles(tiles: Array[Vector2i]) -> void:
+	for tile in tiles:
+		_sink_warn.erase(tile)
+		var plate: Sprite2D = _plates.get(tile)
+		if plate != null:
+			plate.queue_free()
+			_plates.erase(tile)
+		if is_inside_tree():
+			Burst.spawn(self, to_global(RoomTiles.tile_center(tile)), Color(0.55, 0.5, 0.48), 6, 90.0, 0.55, 3.0)
+	queue_redraw()
+
+
+## The sinkhole closes: the floor is back (RoomTiles repaints it), a little dust settles.
+func restore_tiles(tiles: Array[Vector2i]) -> void:
+	for tile in tiles:
+		_sink_warn.erase(tile)
+		if is_inside_tree():
+			Burst.spawn(self, to_global(RoomTiles.tile_center(tile)), Color(0.62, 0.58, 0.52), 4, 50.0, 0.4, 2.0)
+	queue_redraw()
+
+
+func is_sink_warned(tile: Vector2i) -> bool:
+	return _sink_warn.has(tile)
+
+
 func get_state(index: int) -> State:
 	return states[index] if index >= 0 and index < states.size() else State.IDLE
 
@@ -119,7 +159,16 @@ func _process(delta: float) -> void:
 			if plate.hframes > 1:
 				plate.frame = frame
 			plate.modulate = PLATE_TINT.lerp(WARN_TINT, glow)
-	if not _warn_left.is_empty() or states.has(State.QUEUED):
+	for tile: Vector2i in _sink_warn.keys():
+		_sink_warn[tile] = maxf(0.0, _sink_warn[tile] - delta)
+		var plate: Sprite2D = _plates.get(tile)
+		if plate == null:
+			continue
+		var progress := 1.0 - _sink_warn[tile] / CollapseRules.WARN_TIME
+		if plate.hframes > 1:
+			plate.frame = FRAME_CRACKED + mini(FRAME_BREAKING_LAST - FRAME_CRACKED, floori(progress * (FRAME_BREAKING_LAST - FRAME_CRACKED + 1)))
+		plate.modulate = PLATE_TINT.lerp(WARN_TINT, 0.5 + 0.5 * sin(_time * 14.0))
+	if not _warn_left.is_empty() or not _sink_warn.is_empty() or states.has(State.QUEUED):
 		queue_redraw()
 
 
@@ -127,16 +176,19 @@ func _draw() -> void:
 	for i in states.size():
 		match states[i]:
 			State.QUEUED:
-				var alpha := 0.35 + 0.2 * sin(_time * 3.0 + i)
+				var alpha := 0.35 + 0.2 * PixelDraw.stepped(0.5 + 0.5 * sin(_time * 3.0 + i), 2)
 				for tile: Vector2i in fields[i]:
 					_draw_cracks(tile, Color(CRACK_COLOR, alpha))
 			State.WARNED:
-				var pulse := 0.3 + 0.2 * sin(_time * 14.0)
+				var pulse := 0.1 + 0.4 * PixelDraw.stepped(0.5 + 0.5 * sin(_time * 14.0), 2)
 				for tile: Vector2i in fields[i]:
 					draw_rect(Rect2(RoomTiles.tile_to_local(tile), Vector2.ONE * RoomTiles.TILE_WORLD), Color(GLOW_COLOR, pulse))
+	var sink_pulse := 0.1 + 0.4 * PixelDraw.stepped(0.5 + 0.5 * sin(_time * 14.0), 2)
+	for tile: Vector2i in _sink_warn:
+		draw_rect(Rect2(RoomTiles.tile_to_local(tile), Vector2.ONE * RoomTiles.TILE_WORLD), Color(GLOW_COLOR, sink_pulse))
 
 
-## Two thin zig-zag cracks per tile, the same for a tile every time.
+## Two thin zig-zag pixel cracks per tile (D-218), the same for a tile every time.
 func _draw_cracks(tile: Vector2i, color: Color) -> void:
 	var origin := RoomTiles.tile_to_local(tile)
 	var seed_value := absi(hash(tile))
@@ -148,7 +200,7 @@ func _draw_cracks(tile: Vector2i, color: Color) -> void:
 			var along := 6.0 + step * 13.0
 			var wiggle := 5.0 if step % 2 == 0 else -5.0
 			points.append(origin + (Vector2(along, offset + wiggle) if horizontal else Vector2(offset + wiggle, along)))
-		draw_polyline(points, color, 3.0)
+		PixelDraw.polyline(self, points, color, CRACK_PIXELS)
 
 
 func _plate(tile: Vector2i, frame: int) -> void:

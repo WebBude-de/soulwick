@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://components/health/health_component.gd" id="3_health"]
 [ext_resource type="Script" path="res://components/hurtbox/hurtbox.gd" id="4_hurtbox"]
 [ext_resource type="Script" path="res://components/hitbox/hitbox.gd" id="5_hitbox"]
+[ext_resource type="Script" path="res://components/visual/pixel_line.gd" id="6_line"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 resource_local_to_scene = true
@@ -35,6 +36,7 @@ outline_color = Color(1, 0.2, 0.1, 0.9)
 [node name="TelegraphLine" type="Line2D" parent="."]
 visible = false
 z_index = -1
+script = ExtResource("6_line")
 points = PackedVector2Array(0, 0, 100, 0)
 width = 2.0
 default_color = Color(1, 0.2, 0.1, 0.7)

@@ -1,4 +1,5 @@
 extends SceneTree
+
 ## Automated play-through (headless): village -> dungeon -> N rooms -> death -> village.
 ## Checks M2/M4/M5 acceptance rules at runtime and prints PASS/FAIL lines. After every boss room
 ## it walks through the campfire (D-103) and checks that it does not count as a room. Combat rooms:
@@ -23,13 +24,23 @@ extends SceneTree
 ## Room plans (R1, D-120): every room is checked against the plan rules on entry (RoomPlanChecks:
 ## every floor tile reachable with props and sources blocked, doors free, nothing in the only way,
 ## traps with a reason); combat rooms come from a plan of their biome and scatter nothing at random.
-## Side segments (M5): every way that runs through a segment (after the campfire, the ladder door of
-## a branch, now and then after a rest room) is walked into and played with the autopilot (SideBot):
+## Obstacle runs (M5, D-216): every way that runs through one (after the campfire, the ladder door of
+## a branch, the way into every champion room by the share rule) is walked into and played with the autopilot (SideBot):
 ## its reason fits the room it leaves, never before the boss and never twice in a row, the layout is
 ## of the next room's biome, the chest only on the ladder way (opened, upgrade chosen), the door is
 ## reached in time, coins go to the run gold and the next room starts top-down again. The first
 ## combat branch offers the ladder way for sure (BranchRules.ladder_override) and the test takes it.
-## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms] [seed=<n>]
+## Soul gates (KE3, KONZEPT §2): a gate stands only at place 4 of a cycle and at the campfires, never
+## two cycles in a row without one (checked once DungeonManager tracks the gates, _last_gate_room);
+## the first gate in a special room opens its decision (Jetzt sichern / Weiter, the gold and crystals
+## it would pay) and the test goes on. Death pays RunManager.LOSS_PAYOUT_RATIO (25 %).
+## Practice run (WK10): the first dungeon start shows the practice run before room 1 (forced, the
+## test account may have seen it); the autopilot (TutorialBot) plays its four stations in order and
+## the gate leads into room 1, which waits until then. After the run a second dungeon start skips it
+## with "Kenne ich schon" (no XP) straight into room 1. TutorialRun.begin is idempotent: the hook in
+## DungeonManager._ready starts it, else the test does when the dungeon is ready.
+## Usage: godot --headless --path . -s tools/smoke_test.gd -- [rooms] [seed=<n>] [danger=<G>]
+## danger: danger level of the run (KE2, RunManager.set_danger_level before the dungeon starts).
 ## seed: a fixed dungeon seed (DungeonManager.seed_value); two runs with the same seed print the same
 ## "chain" lines (room, template, doors, mode, side segments), the check for a stable room stream (R5).
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
@@ -44,9 +55,12 @@ const SECRET_CHANCE := 0.45
 ## Test aid (M5): every combat branch shows the ladder way until the test has taken one.
 const LADDER_SHARE_UNTIL_TAKEN := 1.0
 ## Side segment reasons (SideRules.Reason) by name, for the output.
-const SIDE_REASONS := ["NONE", "BIOME_CHANGE", "LADDER_WAY", "AFTER_REST"]
+const SIDE_REASONS := ["NONE", "BIOME_CHANGE", "LADDER_WAY", "AFTER_REST", "SHARE"]
 ## Longest wait for one segment (fades, banner and the way itself), seconds.
 const SIDE_TIMEOUT := 75.0
+## WK10: the practice run and the longest the bot may take for it (s).
+const TUTORIAL_PATH := "res://dungeon/tutorial/tutorial_run.gd"
+const TUTORIAL_TIMEOUT := 150.0
 
 var _failures: Array[String] = []
 var _max_live_rooms := 0
@@ -81,12 +95,24 @@ var _gaps := {}
 var _gate_looks := {}
 ## Dungeon seed from the command line (0 = random, as in the game).
 var _seed := 0
+## Danger level of the run from the command line (KE2; 0 = none).
+var _danger := 0
 ## M5: segments played ("room -> room: reason plan, time, coins"), ladder ways taken, the room the
 ## last segment led into (it is entered by the transit, not by the test's teleport).
 var _segments_played: Array[String] = []
 var _side_reasons := {}
+## D-216: obstacle runs played, the seconds the autopilot spent in them, the rooms played.
+var _side_runs := 0
+var _side_seconds := 0.0
+var _rooms_played := 0
 var _ladder_ways := 0
 var _entered_by_segment := -1
+## KE3: cycle -> true when it had a soul gate (place 4 or the campfire behind its boss), the cycles
+## whose place 4 was played, the gate places seen ("4", "c15") and whether the dialog was checked.
+var _gate_cycles := {}
+var _played_cycles: Array[int] = []
+var _gate_places: Array[String] = []
+var _gate_dialog_checked := false
 
 
 func _init() -> void:
@@ -101,6 +127,8 @@ func _run() -> void:
 	for arg in args:
 		if arg.begins_with("seed="):
 			_seed = int(arg.trim_prefix("seed="))
+		elif arg.begins_with("danger="):
+			_danger = maxi(0, int(arg.trim_prefix("danger=")))
 	if _seed != 0:
 		node_added.connect(_on_node_added)
 	# Buttons are found by their German texts; English is the default language (D-111).
@@ -128,21 +156,26 @@ func _run() -> void:
 	var village_player: Node = controller.get_player()
 	_check(village_player != null, "player spawned in village")
 
+	root.get_node("RunManager").set_danger_level(_danger)
+	_expect_tutorial()
 	controller.enter_dungeon()
 	await _frames(20)
 	_dungeon = controller.get_world()
 	var run_manager := root.get_node("RunManager")
+	_check(run_manager.get_danger_level() == _danger, "run starts with danger level %d" % _danger)
 	_check(_dungeon.get_script().get_global_name() == &"DungeonManager", "dungeon loaded")
 	_check(run_manager.is_run_active(), "run started")
 	var player: Node = controller.get_player()
 	_check(player != village_player, "new player instance for the dungeon (D-041)")
 	# Traps and explosions are real now; the test player must survive the walk-through.
 	player.health.reset(99999.0)
+	await _play_tutorial(player)
 
 	for index in range(1, rooms_to_play + 1):
 		var ok: bool = await _play_room(index, player, run_manager)
 		if not ok:
 			break
+		_rooms_played += 1
 		_check(controller.get_player() == player, "room %d keeps the same player instance" % index)
 
 	_check(_max_live_rooms <= MAX_LIVE_ROOMS_BRANCH, "never more than %d live rooms (max seen: %d)" % [MAX_LIVE_ROOMS_BRANCH, _max_live_rooms])
@@ -152,6 +185,7 @@ func _run() -> void:
 		_check(not _branches_taken.is_empty(), "at least one branch taken (%d)" % _branches_taken.size())
 		_check(not _secrets_opened.is_empty(), "at least one secret niche opened (%d)" % _secrets_opened.size())
 		_check(_ladder_ways >= 1, "at least one ladder way of a branch taken through a side segment (%d)" % _ladder_ways)
+	_check_gate_cycles()
 	var bosses := floori(rooms_to_play / 15.0)
 	_check(_campfires_seen == bosses, "one campfire after each of the %d boss rooms (seen: %d)" % [bosses, _campfires_seen])
 	_check(_side_reasons.get("BIOME_CHANGE", 0) == bosses, "a side segment behind each of the %d campfires (%d)" % [bosses, _side_reasons.get("BIOME_CHANGE", 0)])
@@ -164,9 +198,13 @@ func _run() -> void:
 	await _frames(150)
 	_check(not run_manager.is_run_active(), "run ended after death")
 	var summary: Dictionary = run_manager.get_last_summary()
-	var expected := permanent_before + ceili(summary.get("remaining_gold", -1) * 0.5)
-	_check(summary.get("payout", -1) == ceili(summary.get("remaining_gold", -1) * 0.5), "summary payout is 50 %")
-	_check(save_manager.get_permanent_gold() == expected, "50 %% payout credited once (%d == %d)" % [save_manager.get_permanent_gold(), expected])
+	# Loss payout (KE3: 25 %), then the danger loot bonus of the run once on top (KE2, D-197).
+	var loss_ratio: float = run_manager.get_script().get_script_constant_map()["LOSS_PAYOUT_RATIO"]
+	_check(is_equal_approx(loss_ratio, 0.25), "death and abort pay 25 %% (KE3, %.2f)" % loss_ratio)
+	var loss_payout: int = _economy().apply_danger_loot(ceili(summary.get("remaining_gold", -1) * loss_ratio), run_manager.get_danger_level())
+	var expected := permanent_before + loss_payout
+	_check(summary.get("payout", -1) == loss_payout, "summary payout is 25 % plus danger bonus")
+	_check(save_manager.get_permanent_gold() == expected, "25 %% payout credited once (%d == %d)" % [save_manager.get_permanent_gold(), expected])
 	await _press_modal_button("Zurück ins Dorf")
 	await _frames(20)
 	_check(controller.get_world().get_script().get_global_name() == &"Village", "back in the village after the run")
@@ -174,6 +212,7 @@ func _run() -> void:
 
 	var reloaded := ConfigFile.new()
 	_check(reloaded.load(SAVE_PATH) == OK and reloaded.get_value("progress", "permanent_gold", -1) == expected, "permanent gold persisted to disk")
+	await _skip_tutorial(controller)
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
 
 	print("modals seen: ", ", ".join(_modal_log))
@@ -245,8 +284,11 @@ func _play_room(index: int, player: Node, run_manager: Node) -> bool:
 		if next_room != null:
 			_check_dark_way(index, room, next_room, maxi(0, room.get_chosen_branch()))
 
+	_note_gate(index, room, type_name)
 	if type_name == "SPECIAL":
 		print("room %d: special %s, portal=%s" % [index, room.special_type, room.has_portal])
+		if room.has_portal and not _gate_dialog_checked:
+			await _check_gate_dialog(index, room, player, run_manager)
 		await _use_special(room, player)
 	else:
 		# Intro pattern (R3): a player would skip it with E; the fight starts on release.
@@ -381,9 +423,14 @@ func _check_transition(index: int, room: Node) -> void:
 	_gate_looks[look] = _gate_looks.get(look, 0) + 1
 	if not gate.is_side_door() and not style.is_boss():
 		_check(style.is_gate(), "room %d: the exit of %s is a gate" % [index, previous.name])
-	# The passage runs under the rock (PassageCover): every tile from the gate to the next floor.
-	_check(gate.view.get_passage_rects().size() == between + 1, "room %d: the passage under the rock is %d tiles long (%d)" % [index, between + 1, gate.view.get_passage_rects().size()])
-	_check(gate.view.get_lintel().size() >= 3 * between, "room %d: rock over the passage (%d pieces)" % [index, gate.view.get_lintel().size()])
+	# The passage runs under the rock (PassageCover): every tile from the gate to the next floor. Not
+	# before the boss (D-206): there the passage is floor, open to the eye.
+	_check(gate.view.get_passage_rects().size() == between + 1, "room %d: the passage behind the gate is %d tiles long (%d)" % [index, between + 1, gate.view.get_passage_rects().size()])
+	if style.is_boss():
+		_check_open_passage(index, gate, [previous, room], gate_tile, direction, between)
+	else:
+		_check(gate.view.is_tunnel(), "room %d: the passage is a tunnel" % index)
+		_check(gate.view.get_lintel().size() >= 3 * between, "room %d: rock over the passage (%d pieces)" % [index, gate.view.get_lintel().size()])
 	var entrance: Node = door_script.entrance_of(room)
 	_check(entrance != null and entrance.is_open, "room %d: the entrance is open behind the player" % index)
 	if entrance != null:
@@ -418,6 +465,33 @@ func _check_transition(index: int, room: Node) -> void:
 
 
 ## Tile layers that collide at the centre of a world tile (WORLD layer).
+## D-206: the passage behind the boss gate is no tunnel - a roof over it (#876edf4a), nobody hidden in it, every
+## tile of it floor painted by one of the two rooms with no rock drawn on it, and the rock on both
+## sides drawn with its edges along the way.
+func _check_open_passage(index: int, gate: Node, rooms: Array, gate_tile: Vector2i, direction: Vector2i, between: int) -> void:
+	var view: Node = gate.view
+	_check(not view.is_tunnel(), "room %d: the boss gate's passage is no tunnel" % index)
+	# #876edf4a: a roof over the passage, one piece per passage tile, the arch's opening cut out.
+	_check(view.get_passage_roof().size() == between, "room %d: a roof over the boss gate's passage (%d of %d pieces)" % [index, view.get_passage_roof().size(), between])
+	_check(view.get_passage_walls().size() == 2 * between, "room %d: rock beside the boss gate's passage (%d pieces)" % [index, view.get_passage_walls().size()])
+	var door_view_script: GDScript = load("res://dungeon/environment/doors/door_view.gd")
+	for step in range(1, between + 1):
+		var tile: Vector2i = gate_tile + direction * step
+		var floor_seen := false
+		var rock_on_it := false
+		for owner_room: Node in rooms:
+			var tiles: Node = owner_room.get_node("Tiles")
+			var local: Vector2i = tile - _dungeon.get_room_origin(owner_room)
+			if tiles.get_floor_mask().has(local) and tiles.get_cell_source_id(local) >= 0:
+				floor_seen = true
+			var rock: TileMapLayer = tiles.get_rock_layer()
+			if rock != null and rock.get_cell_source_id(local) >= 0:
+				rock_on_it = true
+		_check(floor_seen and not rock_on_it, "room %d: floor, no rock, on tile %s before the boss gate" % [index, tile])
+		var centre := (Vector2(tile) + Vector2(0.5, 0.5)) * 64.0
+		_check(not door_view_script.is_in_tunnel(self, centre), "room %d: nobody is hidden on tile %s before the boss gate" % [index, tile])
+
+
 func _tile_bodies(space: PhysicsDirectSpaceState2D, tile: Vector2i) -> Array:
 	var query := PhysicsPointQueryParameters2D.new()
 	query.position = (Vector2(tile) + Vector2(0.5, 0.5)) * 64.0
@@ -622,6 +696,9 @@ func _play_campfire(boss_index: int, player: Node, run_manager: Node) -> bool:
 	_check(_dungeon.get_rooms_until_heal() == heal_steps_before, "campfire %d leaves the heal countdown alone" % boss_index)
 	_check(_find_modal(root) == null, "campfire %d: no dialog left open" % boss_index)
 	print("campfire after room %d: portal=%s, next biome %s" % [boss_index, campfire.has_portal, campfire.get_next_biome().display_name])
+	if campfire.has_portal:
+		_gate_cycles[_cycle_of(boss_index)] = true
+		_gate_places.append("c%d" % boss_index)
 	# M5: the way down into the next biome runs through a side segment.
 	_check(campfire.get_node_or_null("SideGate") != null, "campfire %d: the way into the next biome is a side segment" % boss_index)
 	await _play_side_way(boss_index, campfire, player)
@@ -643,15 +720,17 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 	if next == null:
 		return
 	_check(next.room_type != 4, "%s: never a side segment before the boss" % label)
-	var expected := "AFTER_REST"
+	# Share rule (D-216): every way that is no campfire's and no ladder way leads into a champion room.
+	var expected := "SHARE"
 	if room.is_campfire():
 		expected = "BIOME_CHANGE"
 	elif room.get_chosen_option() != null and room.get_chosen_option().is_ladder():
 		expected = "LADDER_WAY"
 	_check(reason == expected, "%s: segment reason %s (expected %s)" % [label, reason, expected])
-	if expected == "AFTER_REST":
-		_check(room.room_type == 2 and room.special_type != load("res://dungeon/room_sequence.gd").SpecialType.TRIAL, "%s: a surprise segment only after a rest room" % label)
+	if expected == "SHARE":
+		_check(room.room_type != 4, "%s: never a section out of the boss room" % label)
 	var layout: Object = gate.layout
+	_check(layout.is_obstacle_run(), "%s: every section is an obstacle run (D-216)" % label)
 	var biome: StringName = load("res://dungeon/rooms/room_catalog.gd").biome_id_for_room(next.room_index)
 	_check(layout.biome_id == biome, "%s: segment of the next room's biome %s (%s)" % [label, biome, layout.biome_id])
 	_check(layout.chest_enabled == (reason == "LADDER_WAY"), "%s: chest only on the ladder way (%s)" % [label, layout.chest_enabled])
@@ -679,7 +758,9 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 			_check(chest.is_open, "%s: the chest of the ladder way opened" % label)
 	var bot: RefCounted = load("res://dungeon/side/side_bot.gd").drive(segment, player)
 	var frames := 0
-	var limit := int(SIDE_TIMEOUT * Engine.physics_ticks_per_second)
+	# D-216: about a minute (SideRules.max_seconds_for).
+	var max_seconds: float = load("res://dungeon/side/side_rules.gd").max_seconds_for(layout)
+	var limit := int(maxf(SIDE_TIMEOUT, max_seconds + 30.0) * Engine.physics_ticks_per_second)
 	var falls := 0
 	var segment_frames := -1
 	while is_instance_valid(transit) and frames < limit:
@@ -692,7 +773,7 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 	bot = null
 	var seconds := segment_frames / float(Engine.physics_ticks_per_second)
 	_check(segment_frames >= 0, "%s: the autopilot reached the door (%.1f s)" % [label, frames / float(Engine.physics_ticks_per_second)])
-	_check(segment_frames < 0 or seconds <= load("res://dungeon/side/side_rules.gd").MAX_SEGMENT_SECONDS, "%s: the segment takes at most %d s (%.1f s)" % [label, load("res://dungeon/side/side_rules.gd").MAX_SEGMENT_SECONDS, seconds])
+	_check(segment_frames < 0 or seconds <= max_seconds, "%s: the segment takes at most %d s (%.1f s)" % [label, max_seconds, seconds])
 	_check(not is_instance_valid(transit), "%s: the transit ended" % label)
 	await _frames(10)
 	_check(not player.is_side_view(), "%s: top-down again after the segment" % label)
@@ -700,6 +781,8 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 	_check(run_manager.get_run_gold() >= gold_before, "%s: coins went to the run gold (%d -> %d)" % [label, gold_before, run_manager.get_run_gold()])
 	_check(root.get_viewport().get_camera_2d() == player.get_node("Camera2D"), "%s: the room camera is current again" % label)
 	_side_reasons[reason] = _side_reasons.get(reason, 0) + 1
+	_side_runs += 1
+	_side_seconds += maxf(0.0, seconds)
 	_segments_played.append("%s %s %s %.1f s, gold +%d, %d pit falls" % [label, reason, layout.plan_id, seconds, run_manager.get_run_gold() - gold_before, falls])
 	_entered_by_segment = next.room_index
 
@@ -768,6 +851,13 @@ func _print_kind_distribution() -> void:
 	print("transitions: %d, corridor tiles behind the gate: %s, gates: %s" % [_transitions, _format_counts(_gaps), _format_counts(_gate_looks)])
 	print("secret niches opened: %s" % ", ".join(_secrets_opened))
 	print("side segments played (%s): %s" % [_format_counts(_side_reasons), "; ".join(_segments_played)])
+	# D-216: share of the ways between two rooms that ran through an obstacle run (ladder ways and
+	# the campfire's way included); the time share is measured by SV6 (balance_sim).
+	var ways := maxi(1, _rooms_played - 1)
+	var share_target: float = load("res://dungeon/side/side_rules.gd").SHARE_TARGET
+	print("side view share: %d obstacle runs on %d ways (%d rooms) = %.1f %% (target %.1f %%), %.0f s in runs (autopilot), mean %.1f s" % [
+			_side_runs, ways, _rooms_played, 100.0 * _side_runs / ways, 100.0 * share_target, _side_seconds,
+			_side_seconds / maxf(1.0, _side_runs)])
 
 
 ## Rooms with pits (A4): exit and markers reachable on foot (enemies do not dash), no enemy spawned
@@ -958,7 +1048,8 @@ func _resolve_modals() -> void:
 		for button in buttons:
 			labels.append(button.text)
 		_modal_log.append("[" + "|".join(labels) + "]")
-		var preferred := ["Wählen", "Schließen", "Weiterspielen", "Abbrechen", "Zurück ins Dorf"]
+		# "Weiter": a soul gate decision goes on (never "Jetzt sichern", that would end the run).
+		var preferred := ["Wählen", "Schließen", "Weiterspielen", "Weiter", "Abbrechen", "Zurück ins Dorf"]
 		var pressed := false
 		for wanted in preferred:
 			for button in buttons:
@@ -1015,6 +1106,182 @@ func _expected_type(index: int) -> String:
 	return "COMBAT"
 
 
+# --- Soul gates (KE3) ---
+
+## Gate rule per room: only place 4 of a cycle may have one (the campfire is checked on its own);
+## a special room records whether its cycle got one. Strict only once the manager tracks the gates.
+func _note_gate(index: int, room: Node, type_name: String) -> void:
+	var at_place_four := (index - 1) % 5 + 1 == 4
+	if at_place_four:
+		_played_cycles.append(_cycle_of(index))
+	if room.has_portal:
+		_gate_cycles[_cycle_of(index)] = true
+		_gate_places.append(str(index))
+	if _gates_tracked():
+		_check(not room.has_portal or (at_place_four and type_name == "SPECIAL"), "room %d: a soul gate only at place 4 (%s)" % [index, type_name])
+
+
+## Never two cycles in a row without a gate (place 4 or campfire), over the cycles whose place 4 the
+## test played; the gate places are printed for the seed comparison.
+func _check_gate_cycles() -> void:
+	print("soul gates: ", ", ".join(_gate_places) if not _gate_places.is_empty() else "none")
+	if not _gates_tracked():
+		print("NOTE soul gate tracking not wired in DungeonManager (KE3 hook): guarantee not checked")
+		return
+	for cycle in _played_cycles:
+		if cycle >= 2 and _played_cycles.has(cycle - 1):
+			_check(_gate_cycles.get(cycle, false) or _gate_cycles.get(cycle - 1, false), "cycles %d and %d: at least one soul gate" % [cycle - 1, cycle])
+	if not _played_cycles.is_empty():
+		_check(_gate_dialog_checked, "the soul gate decision was opened once")
+
+
+## The decision at the first gate in a special room: both choices with the amounts the gate pays now
+## (100 % plus the danger bonus) and the depth bonus; "Weiter" keeps the run going.
+func _check_gate_dialog(index: int, room: Node, player: Node, run_manager: Node) -> void:
+	_gate_dialog_checked = true
+	var gate: Node = load("res://dungeon/rooms/special/exit_portal.gd").find_in(room)
+	_check(gate != null, "room %d: the soul gate stands in the room" % index)
+	if gate == null:
+		return
+	await _frames(4)
+	var interactable: Node = null
+	for child in gate.get_children():
+		if child.get_script() != null and child.get_script().get_global_name() == &"Interactable":
+			interactable = child
+	_check(interactable != null and interactable.enabled, "room %d: the soul gate can be used" % index)
+	if interactable == null:
+		return
+	var danger: int = run_manager.get_danger_level()
+	var gold: int = _economy().apply_danger_loot(run_manager.get_run_gold(), danger)
+	var crystals: int = _economy().apply_danger_loot(run_manager.get_run_crystals(), danger)
+	interactable.interact(player)
+	var modal: Node = null
+	for attempt in 40:
+		await _frames(3)
+		modal = _find_modal(root)
+		if modal != null:
+			break
+	_check(modal != null, "room %d: the soul gate opens its decision" % index)
+	if modal == null:
+		return
+	var texts: Array[String] = []
+	for label in modal.find_children("*", "Label", true, false):
+		texts.append(label.text)
+	var all_text := " | ".join(texts)
+	var labels: Array[String] = []
+	for button in _buttons(modal):
+		labels.append(button.text)
+	_check(labels.has("Jetzt sichern") and labels.has("Weiter"), "room %d: gate offers 'Jetzt sichern' and 'Weiter' (%s)" % [index, labels])
+	_check(all_text.contains("%d Gold · %d Kristalle" % [gold, crystals]), "room %d: gate shows the payout %d Gold · %d Kristalle" % [index, gold, crystals])
+	_check(all_text.contains("Tiefenbonus +") and all_text.contains("frühestens in"), "room %d: gate shows depth bonus and the next gate" % index)
+	_modal_log.append("[gate|%s]" % "|".join(labels))
+	await _press_modal_button("Weiter")
+	await _frames(6)
+	_check(run_manager.is_run_active(), "room %d: 'Weiter' keeps the run going" % index)
+	_check(_find_modal(root) == null, "room %d: no dialog left after the gate" % index)
+
+
+func _cycle_of(room_index: int) -> int:
+	return floori((room_index - 1) / 5.0) + 1
+
+
+## The manager tracks the last gate (KE3 hook wired by the integrator).
+func _gates_tracked() -> bool:
+	return _dungeon != null and "_last_gate_room" in _dungeon
+
+
+# --- Practice run (WK10) ---
+
+## The next dungeon start shows the practice run: forced (the test account may have seen it) and
+## started when the dungeon is ready unless the DungeonManager hook did it already.
+func _expect_tutorial() -> void:
+	load(TUTORIAL_PATH).force_next = true
+	if not node_added.is_connected(_on_dungeon_for_tutorial):
+		node_added.connect(_on_dungeon_for_tutorial)
+
+
+func _on_dungeon_for_tutorial(node: Node) -> void:
+	if node.get_script() == null or not node.get_script().resource_path.ends_with("dungeon_manager.gd"):
+		return
+	node_added.disconnect(_on_dungeon_for_tutorial)
+	node.ready.connect(func() -> void: load(TUTORIAL_PATH).begin(node), CONNECT_ONE_SHOT)
+
+
+## The bot plays the practice run: four stations in order, the gate, room 1 starts only then.
+func _play_tutorial(player: Node) -> void:
+	var run: Node = load(TUTORIAL_PATH).of(_dungeon)
+	_check(run != null, "practice run (WK10) before room 1")
+	if run == null:
+		return
+	await _frames(3)
+	_check(run.player == player, "practice run: takes the player")
+	var start: Vector2 = run.area.get_start_feet()
+	_check(player.get_feet_position().distance_to(start) < 64.0, "practice run: the player starts in the hall")
+	var first: Node = _dungeon.get_room(1)
+	_check(first != null and not first.is_encounter_started() and _dungeon.get_active_slot() < 1,
+			"practice run: room 1 waits (prepared %s, active slot %d, state %s)" % [first != null, _dungeon.get_active_slot(), first.state if first != null else -1])
+	var ended: Array = []
+	var stations: Array = []
+	run.finished.connect(func(completed: bool, xp: int) -> void: ended.append([completed, xp]))
+	run.station_completed.connect(func(station: int) -> void: stations.append(station))
+	var bot: Node = load("res://dungeon/tutorial/tutorial_bot.gd").drive(run)
+	var stage := ""
+	var stats := ""
+	var frames := 0
+	var falls_before: int = player.fall.falls
+	while ended.is_empty() and frames < int(TUTORIAL_TIMEOUT * 60.0):
+		if is_instance_valid(bot):
+			stage = bot.stage
+			stats = "dashes %d, falls %d, blocked hits %d, special held %d frames" % [bot.dashes, player.fall.falls - falls_before, run.blocked_hits, bot.special_frames]
+		await physics_frame
+		frames += 1
+	var seconds := frames / 60.0
+	_check(not ended.is_empty() and ended[0][0], "practice run: played through in %.1f s (last stage: %s)" % [seconds, stage])
+	_check(stations == [0, 1, 2, 3], "practice run: the four stations in order (%s)" % [stations])
+	await _frames(4)
+	_check(_dungeon.get_active_room_index() == 1, "practice run: the gate leads into room 1")
+	_check(first != null and is_instance_valid(first) and first.is_encounter_started(), "practice run: room 1 starts after it")
+	_check(not player.is_input_locked(), "practice run: the player is free in room 1")
+	_check(not player.is_side_view(), "practice run: top-down again in room 1")
+	_check(load(TUTORIAL_PATH).of(_dungeon) == null, "practice run: the hall is gone")
+	print("practice run: %s, %.1f s, XP %s, %s" % ["done" if not ended.is_empty() and ended[0][0] else "NOT done", seconds, ended[0][1] if not ended.is_empty() else "-", stats])
+
+
+## A second dungeon start: "Kenne ich schon" at the start skips the practice run (no XP) into room 1.
+func _skip_tutorial(controller: Node) -> void:
+	_expect_tutorial()
+	controller.enter_dungeon()
+	await _frames(20)
+	_dungeon = controller.get_world()
+	var player: Node = controller.get_player()
+	var run: Node = load(TUTORIAL_PATH).of(_dungeon)
+	_check(run != null, "practice run: offered on the next start too (forced)")
+	if run == null:
+		return
+	await _frames(3)
+	var guide: Node = player.get_node_or_null("FlintGuide")
+	if guide != null and guide.is_running():
+		guide.skip()
+	await _frames(40)
+	var ended: Array = []
+	run.finished.connect(func(completed: bool, xp: int) -> void: ended.append([completed, xp]))
+	var input: Object = load("res://player/input/remote_input.gd").new()
+	var old_input: Object = player.input
+	player.input = input
+	player.global_position = run.area.shortcut.global_position + Vector2(24, 0) - Vector2(0, 16)
+	await _frames(3)
+	input.tap(&"interact")
+	for i in 120:
+		if not ended.is_empty():
+			break
+		await physics_frame
+	player.input = old_input
+	_check(ended == [[false, 0]], "practice run: 'Kenne ich schon' skips it without XP (%s)" % [ended])
+	await _frames(6)
+	_check(_dungeon.get_active_room_index() == 1, "practice run: skipping leads into room 1")
+	_check(load("res://meta/account_seen.gd").has_seen(&"flint_tutorial"), "practice run: seen for the account")
+
+
 ## A fixed seed for the dungeon of this run (seed=<n>).
 func _on_node_added(node: Node) -> void:
 	if node.get_script() != null and node.get_script().resource_path.ends_with("dungeon_manager.gd"):
@@ -1043,3 +1310,9 @@ func _check(condition: bool, message: String) -> void:
 func _fail(message: String) -> void:
 	print("FAIL ", message)
 	_failures.append(message)
+
+
+## EconomySystem loaded at run time: it names the RunManager autoload, which a -s script does not know
+## at compile time (a preload would fail and leave a broken cached script for the whole run).
+func _economy() -> GDScript:
+	return load("res://economy/economy_system.gd")

@@ -12,11 +12,13 @@ const EXPLOSION_KNOCKBACK := 120.0
 ## Explosion art: the 45 px AOE radius matches the 96 px frame at scale 1.
 const EXPLOSION_ART_RADIUS := 45.0
 const MAX_REMEMBERED_HIT_IDS := 512
-## TESTWERT (D-091): "Schild bei Tötung" only fills the shield up to this value,
+## TESTWERT (D-091, D-200): "Schild bei Tötung" only fills the shield up to this value,
 ## +KILL_SHIELD_CAP_PER_STACK per further stack, at most KILL_SHIELD_CAP_MAX.
-const KILL_SHIELD_CAP := 10.0
+## D-200: 10 -> 6 and max 20 -> 12 (playtest: 16 shield and full hearts after the first boss; the
+## kills of every room refilled the cap, so no hit before room 45 reached the hearts).
+const KILL_SHIELD_CAP := 6.0
 const KILL_SHIELD_CAP_PER_STACK := 2.0
-const KILL_SHIELD_CAP_MAX := 20.0
+const KILL_SHIELD_CAP_MAX := 12.0
 
 @export var upgrade_manager: UpgradeManager
 
@@ -43,7 +45,8 @@ func _physics_process(_delta: float) -> void:
 func _on_enemy_damaged(enemy: Node2D, result: DamageResult, damage: DamageData) -> void:
 	if only_own_hits and (player == null or damage.source != player):
 		return
-	if result.killed:
+	# Boss minions give no on-kill rewards (D-199), else killing adds refills shield and health mid-fight.
+	if result.killed and result.grants_kill_rewards:
 		_grant_kill_rewards()
 	if damage.origin != DamageData.Origin.PRIMARY or upgrade_manager == null:
 		return

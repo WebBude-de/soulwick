@@ -2,6 +2,7 @@
 # Kopfstein-Trittpfad als Geleitweg in einer S-Kurve, Pfuetzen als Quellen am Weg, Eingang unten
 # links, Ausgang oben rechts. M3b (Makeover 3 §4/§8): der Weg laeuft unter einer Empore an der
 # Nordwand hindurch (Treppe), oben eine Quelle - Bogenschuetzen schiessen von oben auf den Geleiteten.
+# CR6 (D-205): die Empore steht frei vor der Nordwand, ringsum eine Kachel Boden (halbe Hoehe).
 role: combat
 mode: escort
 biomes: all
@@ -11,12 +12,12 @@ size: 23x13
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxx######T###N##xxxx
-xxxxxx^^^p^..,,..:.xxxx
+xxxxx........#,..:.xxxx
 xxx.w.^^^^^..wwww..,xxx
-xx..w.^^&^^.,..ww.p..xx
-xx....,,,,,,,,.......xx
-xx.ww..p...,,,...ww..xx
-xxx.ww.....,,,..www.xxx
+xx..w.^^^p^.,..ww.p..xx
+xx....^^&^^,,,.......xx
+xx.ww,,,,,,,,,...ww..xx
+xxx.wwp....,,,..www.xxx
 xxxx1.....,,..p..w.xxxx
 xxxxx.@...,,..#..xxxxxx
 xxxxxxxSxxxxxxxxxxxxxxx
@@ -25,9 +26,9 @@ xxxxxxxxxxxxxxxxxxxxxxx
 .......................
 .......................
 .......................
+.......................
+.......................
 .........^.............
-.......................
-.......................
 .......................
 .......................
 .......................

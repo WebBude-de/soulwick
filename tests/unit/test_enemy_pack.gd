@@ -1,5 +1,5 @@
 extends GutTest
-## Group tactics (KONZEPT_RAEUME_V2 §6): rules of EnemyTactics and the slime packs of EnemyPack
+## Group tactics (RAEUME §6): rules of EnemyTactics and the slime packs of EnemyPack
 ## (packs of 3-5, hops in turn, landing marker, no damage in the air, never on a player, coop
 ## packs per target, bosses and champions stay out).
 

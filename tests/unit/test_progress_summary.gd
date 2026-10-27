@@ -70,24 +70,24 @@ func _kinds(summary: Dictionary) -> Array:
 func test_fresh_world_aims_at_the_first_run() -> void:
 	var summary := ProgressSummary.build(_world())
 	assert_eq(summary["forge_level"], 0)
-	assert_eq(summary["forge_max"], 20, "D-087: 20 forge levels")
+	assert_eq(summary["forge_max"], 36, "KONZEPT §5.1: 36 forge levels (KE4)")
 	assert_eq(_kinds(summary), [ProgressSummary.GOAL_UNLOCK, ProgressSummary.GOAL_FORGE_SAVE], "the unlock is the dungeon goal")
 	assert_eq(summary["goals"][0]["event"], MetaUnlocks.EVENT_FIRST_RUN)
 	assert_eq(ProgressSummary.next_goal_text(summary), "Nächstes Ziel: Beende deinen ersten Run – öffnet: Chronik")
 	assert_eq(summary["next_boss"]["room"], 15)
 	var save: Dictionary = summary["goals"][1]
-	assert_eq(save["id"], MetaProgression.VITALITY, "the cheapest open step (D-167: Vitalität I for 20)")
-	assert_eq(ProgressSummary.goal_text(save), "Noch 20 Gold bis Vitalität I")
+	assert_eq(save["id"], MetaProgression.SHIELD_PLATE, "the cheapest open step (Schildplatte I for 40)")
+	assert_eq(ProgressSummary.goal_text(save), "Noch 40 Gold bis Schildplatte I")
 	for biome: Dictionary in summary["biomes"]:
 		assert_false(biome["reached"], "no biome reached before the first run")
 
 
 func test_affordable_forge_step_comes_first() -> void:
 	var events: Array[StringName] = [MetaUnlocks.EVENT_FIRST_RUN]
-	var summary := ProgressSummary.build(_world({}, events, 6, 0, 25))
+	var summary := ProgressSummary.build(_world({}, events, 6, 0, 45))
 	var first: Dictionary = summary["goals"][0]
 	assert_eq(first["kind"], ProgressSummary.GOAL_FORGE_BUY)
-	assert_eq(ProgressSummary.goal_text(first), "Kauf Vitalität I in der Schmiede (20 Gold)")
+	assert_eq(ProgressSummary.goal_text(first), "Kauf Schildplatte I in der Schmiede (40 Gold)")
 	assert_eq(summary["goals"][1]["event"], MetaUnlocks.EVENT_FIRST_CRYSTAL, "then the next unlock")
 	assert_false(_kinds(summary).has(ProgressSummary.GOAL_FORGE_SAVE), "no 'save gold' when it is affordable")
 
@@ -97,7 +97,7 @@ func test_first_boss_is_the_unlock_goal() -> void:
 	var summary := ProgressSummary.build(_world({}, events, 12))
 	assert_eq(_kinds(summary), [ProgressSummary.GOAL_UNLOCK, ProgressSummary.GOAL_FORGE_SAVE])
 	assert_eq(ProgressSummary.goal_text(summary["goals"][0]),
-			"Besiege deinen ersten Boss (Raum 15) – öffnet: Schmiede: Goldgier, Dash-Training und Arsenal")
+			"Besiege deinen ersten Boss (Raum 15) – öffnet: Schmiede: Arsenal und Zweiter Startplatz")
 
 
 func test_bosses_per_biome_follow_the_record() -> void:
@@ -122,16 +122,20 @@ func test_bosses_per_biome_follow_the_record() -> void:
 
 
 func test_forge_step_skips_locked_and_maxed_upgrades() -> void:
-	var levels := {MetaProgression.VITALITY: 5, MetaProgression.START_SHIELD: 3, MetaProgression.SHARPNESS: 4}
+	var levels := {MetaProgression.SHIELD_PLATE: 3, MetaProgression.LANTERN: 3}
+	for id in MetaProgression.WEAPON_UPGRADES:
+		levels[id] = 5
 	var events: Array[StringName] = [MetaUnlocks.EVENT_FIRST_RUN]
 	assert_eq(ProgressSummary.forge_step(levels, events, 999), {}, "the rest is locked until the first boss")
 	events.append(MetaUnlocks.EVENT_FIRST_BOSS)
 	var step := ProgressSummary.forge_step(levels, events, 100)
-	assert_eq(step["id"], MetaProgression.GOLD_GREED, "60 gold: the first of the cheapest in forge order")
+	assert_eq(step["id"], MetaProgression.ARSENAL_BOW, "80 gold: the cheapest Arsenal entry")
 	assert_eq(step["level"], 1)
 	assert_eq(step["missing"], 0)
-	assert_eq(ProgressSummary.forge_level(levels), 12)
-	assert_eq(ProgressSummary.forge_level({MetaProgression.VITALITY: 99}), 5, "at most the maximum")
+	assert_eq(ProgressSummary.goal_text({"kind": ProgressSummary.GOAL_FORGE_BUY, "id": step["id"], "level": 1, "cost": 80}),
+		"Kauf Arsenal: Bogen in der Schmiede (80 Gold)", "one level: no number")
+	assert_eq(ProgressSummary.forge_level(levels), 31)
+	assert_eq(ProgressSummary.forge_level({MetaProgression.SHIELD_PLATE: 99}), 3, "at most the maximum")
 
 
 func test_reward_goal_comes_from_the_account() -> void:
@@ -157,7 +161,7 @@ func test_old_v2_save_is_read_without_loading_it() -> void:
 	var world := ProgressSummary.world_from_file(path)
 	assert_true(world["exists"])
 	assert_eq(world["events"], MetaUnlocks.EVENTS, "D-087: old saves count as everything unlocked")
-	assert_eq(world["gold"], 54)
+	assert_eq(world["gold"], 54 + 570, "migrated in memory: the v5 refund (KE4)")
 	assert_eq(int(world["stats"][StatsTracker.DEEPEST_ROOM]), 45)
 	var summary := ProgressSummary.build(world)
 	assert_eq(summary["forge_level"], SaveSlots.forge_progress(_migrated(path)), "same count as the world list")
@@ -177,7 +181,7 @@ func test_missing_or_broken_file_is_an_empty_world() -> void:
 
 func test_snapshot_of_the_loaded_save_matches_the_file() -> void:
 	SaveManager.create_slot(1, "Nebeltal")
-	SaveManager.set_meta_level(MetaProgression.VITALITY, 2)
+	SaveManager.set_meta_level(MetaProgression.SMITH_SWORD, 2)
 	SaveManager.add_permanent_gold(33)
 	SaveManager.record_stat_max(StatsTracker.DEEPEST_ROOM, 17)
 	SaveManager.add_stat(StatsTracker.BOSSES, 1)

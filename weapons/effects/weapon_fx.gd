@@ -5,7 +5,8 @@ extends Node2D
 ## and deals damage, this node never touches gameplay (D-088). A remote player's controller that
 ## replays the same signals gets the same effects.
 ## Art: art/effects/*_v3 (see art/effects/effects_v3.json, SPRITES_V3 §1). Every ground effect is
-## scaled so its outermost ring matches the real hit radius, including the AOE upgrade bonus.
+## scaled towards the real hit radius (including the AOE upgrade bonus), rounded to a whole scale so
+## the art's pixels stay even (FS2b, D-218); a thin pixel ring (PixelRingWave) shows the exact hit area.
 
 const SPARK_TEXTURE: Texture2D = preload("res://art/effects/hit_spark_3f.png")
 const MUZZLE_PUFF_TEXTURE: Texture2D = preload("res://art/effects/muzzle_puff_3f.png")
@@ -74,9 +75,10 @@ static func get_area_art(kind: StringName) -> Dictionary:
 	return {}
 
 
-## Uniform sprite scale that puts the outermost ring of the art onto the hit radius.
+## Uniform sprite scale that brings the outermost ring of the art closest to the hit radius in
+## whole steps (PixelDraw.whole_scale: nearest whole number, at least 1).
 static func art_scale(hit_radius: float, art_radius: float) -> float:
-	return hit_radius / art_radius if art_radius > 0.0 else 1.0
+	return PixelDraw.whole_scale(hit_radius / art_radius) if art_radius > 0.0 else 1.0
 
 
 func _effect_parent() -> Node:
@@ -156,13 +158,15 @@ func _on_area_resolved(kind: StringName, center: Vector2, radius: float, color: 
 		sprite.z_index = GROUND_Z
 	match kind:
 		&"nova":
+			# The art is a whole scale; the thin ring shows the exact hit area.
+			PixelRingWave.spawn(parent, center, radius, Color(color, AREA_OUTLINE_ALPHA), 0.3, AREA_OUTLINE_WIDTH, 0.3)
 			Burst.spawn(parent, center, color, 28, radius * 3.0, 0.5, 4.0)
 			LightSource.flash(parent, center, radius * 2.2, 0.4)
 			Sfx.play_at(self, &"explosion", center, -2.0)
 			CameraShake.shake(self, 6.0)
 		_:
 			# The hammer art is flattened (3/4 view); the thin circle shows the real hit area.
-			RingWave.spawn(parent, center, radius, Color(color, AREA_OUTLINE_ALPHA), 0.3, AREA_OUTLINE_WIDTH, 0.3)
+			PixelRingWave.spawn(parent, center, radius, Color(color, AREA_OUTLINE_ALPHA), 0.3, AREA_OUTLINE_WIDTH, 0.3)
 			Burst.spawn(parent, center, SLAM_DUST_COLOR, 18, radius * 2.5, 0.4, 4.0)
 			LightSource.flash(parent, center, radius * 1.4, 0.2)
 			Sfx.play_at(self, &"slam", center)
@@ -178,7 +182,7 @@ static func _fade_out(item: CanvasItem, duration: float) -> void:
 
 
 ## nova_ring_6f.png fades its last two frames by filling the whole disc with translucent pure black
-## (an export artefact, reported to art in ROADMAP_AUSBAU C2). Effects have no outlines, so
+## (an export artefact, reported to art in ROADMAP C2). Effects have no outlines, so
 ## translucent pure-black pixels are never intended and are dropped. A corrected PNG passes through
 ## unchanged. Not cached statically on purpose: a static ImageTexture outlives the RenderingServer at exit.
 static func without_black_haze(texture: Texture2D) -> Texture2D:

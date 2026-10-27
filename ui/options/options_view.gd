@@ -11,7 +11,8 @@ extends VBoxContainer
 ## "Zurücksetzen" (all options and volumes, after a confirmation) sits next to "Zurück".
 ## The view keeps one size whatever tab or row is shown (_fix_layout): every page gets the size of
 ## the largest one, captions the width of the longest "> caption", the key line the height of its
-## longest text. Measured again after a language change.
+## longest text. Measured again after a language change. Wrapping labels count at the view's width
+## (_wrap_labels_to). In a host that scrolls, ↑/↓ keep the selected row in view.
 ##
 ## Keys: ↑/↓ row (the tab strip and the reset button are rows too), ←/→ change (on the tab row:
 ## switch tab), Enter toggles / next tab / reset, Q/E (gamepad LB/RB) switch tabs anywhere. Esc is NOT used here
@@ -183,6 +184,7 @@ func handle_input(event: InputEvent) -> bool:
 		var rows: Array = TAB_ROWS[_tab]
 		var index := rows.find(_row)
 		_set_row(rows[posmod(index + (-1 if MenuInput.is_up(event) else 1), rows.size())] as Row)
+		_scroll_to_row.call_deferred()
 		UiSound.hover(self)
 		return true
 	if MenuInput.is_left(event) or MenuInput.is_right(event):
@@ -254,6 +256,35 @@ func select_row(row: Row) -> void:
 				_show_tab(tab)
 			break
 	_set_row(row)
+
+
+## The control of a row (its line, the tab strip or the buttons), null before the view is built.
+func get_row_control(row: Row) -> Control:
+	if row == Row.TABS:
+		return _tab_buttons[0].get_parent() as Control if not _tab_buttons.is_empty() else null
+	if row == Row.RESET:
+		return _actions
+	var caption := _captions.get(row) as Label
+	return caption.get_parent() as Control if caption != null else null
+
+
+## Keys and gamepad: the selected row is scrolled into view when the host scrolls (a short screen,
+## a phone). Mouse hover does not scroll.
+func _scroll_to_row() -> void:
+	var control := get_row_control(_row)
+	if control == null or not control.is_visible_in_tree():
+		return
+	var node := get_parent()
+	while node != null and not node is ScrollContainer:
+		node = node.get_parent()
+	if node == null:
+		return
+	var scroll := node as ScrollContainer
+	if _row == Row.TABS:
+		# The tab strip is the first row: show the header above it too.
+		scroll.scroll_vertical = 0
+	else:
+		scroll.ensure_control_visible(control)
 
 
 func get_volume_slider(bus: StringName) -> HSlider:
@@ -409,6 +440,7 @@ func _fix_layout() -> void:
 	for key in _captions:
 		(_captions[key] as Label).custom_minimum_size.x = ceilf(caption_width)
 	_pages_host.custom_minimum_size = Vector2.ZERO
+	_wrap_labels_to(_content_width())
 	var page_size := Vector2.ZERO
 	for i in _pages.size():
 		if is_tab_available(i as Tab):
@@ -421,6 +453,29 @@ func _fix_layout() -> void:
 			height = maxf(height, _text_height(_footer, tr(key), width))
 		# On the line, not the label: the gamepad line (pictures) takes the same height.
 		_footer_line.custom_minimum_size.y = ceilf(height)
+
+
+## Width the pages get at least: the widest page or the header/buttons, whichever is wider.
+func _content_width() -> float:
+	var width := get_combined_minimum_size().x
+	for i in _pages.size():
+		if is_tab_available(i as Tab):
+			width = maxf(width, _pages[i].get_combined_minimum_size().x)
+	return width
+
+
+## Wrapping labels (page notes, the key line) are measured at width instead of their current one:
+## before the first layout, and on hidden pages, a label is ~1 px wide, wraps after every letter
+## and asks for a screen of height. The pages were measured that tall, so the options stood out of
+## the main menu and the pause dialog scrolled through empty space (report 22.10.2026). Labels
+## already laid out wider keep their width (the container sets it again anyway).
+func _wrap_labels_to(width: float) -> void:
+	for node in find_children("*", "Label", true, false):
+		var label := node as Label
+		if label.autowrap_mode != TextServer.AUTOWRAP_OFF and label.size.x < width:
+			label.size.x = width
+			# Resizing does not refresh the cached minimum size of the label and its parents.
+			label.update_minimum_size()
 
 
 static func _text_width(label: Label, text: String) -> float:

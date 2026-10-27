@@ -5,7 +5,7 @@ extends GutTest
 ## the host starts a run: the invite waits (room_started) and gets in by itself once the host ends
 ## it; a link to a closed room says "abgelaufen". Skipped (pending) unless the environment names the
 ## services, e.g. in Bash:
-##   SOULWICK_TEST_API=http://localhost:3101 SOULWICK_TEST_RELAY=ws://localhost:3103/v1 \
+##   SOULWICK_TEST_API=http://localhost:3102 SOULWICK_TEST_RELAY=ws://localhost:3103/v1 \
 ##   SOULWICK_TEST_DEV_KEY=<DEV_AUTH_KEY> godot --headless --audio-driver Dummy --path . \
 ##   -s addons/gut/gut_cmdln.gd -gselect=test_invite_e2e -gexit
 ## Own online files (two test accounts), never the real online.cfg or a save slot.

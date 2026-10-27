@@ -1,6 +1,6 @@
 class_name ProgressSummary
 extends RefCounted
-## "Dein Fortschritt" at a glance (D-188, KF1): what a world has reached (forge levels x/20,
+## "Dein Fortschritt" at a glance (D-188, KF1): what a world has reached (forge levels x/36,
 ## record, bosses per biome, unlocks) and the next goals (the cheapest forge step, the next unlock or
 ## boss, the next level reward of the account). Read only: a world comes from the loaded save
 ## (world_from_save) or from a slot file without loading it (world_from_file, migrated in memory);
@@ -234,9 +234,9 @@ static func boss_name(biome: int) -> String:
 	return Loc.t(BOSS_NAME_KEYS[clampi(biome, 0, BOSS_NAME_KEYS.size() - 1)])
 
 
-## "Vitalität II".
+## "Schildplatte II", "Schwert schmieden III", "Arsenal: Bogen" (one level: no number).
 static func forge_step_name(goal: Dictionary) -> String:
-	return "%s %s" % [MetaProgression.get_upgrade_name(goal["id"]), RunRecap.roman(int(goal["level"]))]
+	return MetaProgression.get_step_name(StringName(goal["id"]), int(goal["level"]))
 
 
 ## One line of a goal ("Kaufe Vitalität II in der Schmiede (80 Gold)").
@@ -265,7 +265,7 @@ static func next_goal_text(summary: Dictionary) -> String:
 	return Loc.t(&"PROGRESS_NEXT_GOAL", [goal_text(list[0])]) if not list.is_empty() else ""
 
 
-## "Schmiede 7/20".
+## "Schmiede 7/36".
 static func forge_text(summary: Dictionary) -> String:
 	return Loc.t(&"PROGRESS_FORGE_SHORT", [int(summary["forge_level"]), int(summary["forge_max"])])
 

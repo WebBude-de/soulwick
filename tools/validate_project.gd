@@ -45,6 +45,9 @@ func _collect(dir_path: String, out: Array[String]) -> void:
 	var dir := DirAccess.open(dir_path)
 	if dir == null:
 		return
+	# Folders with a .gdignore (e.g. _inbox/ with Claude Design deliveries) are not part of the project.
+	if dir.file_exists(".gdignore"):
+		return
 	for sub in dir.get_directories():
 		# Hidden folders (.godot, .userdata for isolated test runs) are never project files.
 		if sub.begins_with("."):

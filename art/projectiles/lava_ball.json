@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "16×16, 8 fps, zur Flugrichtung drehen; harte Pixel, kein Glow."
+  ],
+  "items": [
+    {
+      "name": "lava_ball",
+      "file": "lava_ball_4f.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

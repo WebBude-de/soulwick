@@ -1,5 +1,5 @@
 extends SceneTree
-## Local multi-player run without network (MP1, ROADMAP_MULTIPLAYER): a quick game (GameMode QUICK)
+## Local multi-player run without network (MP1, ROADMAP): a quick game (GameMode QUICK)
 ## with N players at one machine. Player 0 is the local player (keyboard/mouse input, camera, HUD);
 ## the others are dummies driven by RemoteInput bots that walk to the nearest enemy, aim at it,
 ## attack and now and then use their special. The group walks through rooms 1..R (teleport like

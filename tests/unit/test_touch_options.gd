@@ -1,6 +1,7 @@
 extends GutTest
 ## Touch options and pixel-art look (Projektmitglied 17.10.2026): fixed sticks (default) or floating
-## ones, swapped sides, three sizes, opacity, touch aim assist (GameOptions, settings.cfg), the
+## ones, swapped sides, three sizes in millimetres on the real screen (D-219, default large;
+## TouchMetrics), opacity, touch aim assist (GameOptions, settings.cfg), the
 ## "Touch" tab of the OptionsView, the drawn pixel-art placeholders (TouchPixelArt via TouchArt) and
 ## the safe area. Runs in a test folder (SaveManager.set_storage_root), never on the real settings.
 
@@ -10,6 +11,11 @@ const SCREEN := Rect2(0, 0, 1280, 720)
 const SCREENS: Array[Rect2] = [
 	Rect2(0, 0, 1280, 720), Rect2(0, 0, 1560, 720), Rect2(0, 0, 1600, 720), Rect2(0, 0, 1280, 960),
 ]
+## Millimetres per viewport pixel: typical phone (720 view px ≈ 65 mm), a small phone (50 mm), a
+## 10" tablet (135 mm), 0 = from the device (the reference phone on a desktop).
+const MM_PER_PX: Array[float] = [65.3 / 720.0, 50.0 / 720.0, 135.0 / 720.0, 0.0]
+const PortraitLayout := preload("res://ui/touch/portrait_layout.gd")
+const PortraitPad := preload("res://ui/touch/portrait_pad.gd")
 
 var _old_save_path: String
 var _old_saves_dir: String
@@ -82,12 +88,12 @@ func _button(overlay: TouchOverlay, action: StringName) -> Dictionary:
 
 # --- Options ---
 
-func test_defaults_are_fixed_sticks_medium_full_opacity_and_aim_assist_on() -> void:
+func test_defaults_are_fixed_sticks_large_full_opacity_and_aim_assist_on() -> void:
 	SaveManager.load_settings()
 	assert_false(GameOptions.is_touch_swap_sides())
 	assert_eq(GameOptions.get_touch_stick_mode(), GameOptions.TOUCH_FIXED, "fixed sticks by default")
 	assert_false(GameOptions.are_touch_sticks_floating())
-	assert_eq(GameOptions.get_touch_size(), 1)
+	assert_eq(GameOptions.get_touch_size(), 2, "large by default (D-219)")
 	assert_eq(GameOptions.get_touch_opacity(), 1.0)
 	assert_true(GameOptions.is_touch_aim_assist_enabled())
 	assert_true(TouchInput.aim_assist_enabled())
@@ -110,7 +116,7 @@ func test_options_are_stored_clamped_and_reset() -> void:
 	GameOptions.reset_to_defaults()
 	assert_false(GameOptions.is_touch_swap_sides())
 	assert_false(GameOptions.are_touch_sticks_floating())
-	assert_eq(GameOptions.get_touch_size(), 1)
+	assert_eq(GameOptions.get_touch_size(), 2)
 	assert_true(GameOptions.is_touch_aim_assist_enabled())
 
 
@@ -120,14 +126,17 @@ func test_overlay_follows_the_stored_options_at_once() -> void:
 	add_child_autofree(overlay)
 	await wait_process_frames(1)
 	var left_rest := overlay.get_stick_rest()
+	overlay.layout(SCREEN)
+	var large_pixel := overlay.get_pixel()
 	GameOptions.set_touch_swap_sides(true)
 	GameOptions.set_touch_opacity(0.75)
-	GameOptions.set_touch_size(2)
+	GameOptions.set_touch_size(0)
 	await wait_process_frames(2)
 	assert_true(overlay.swap_sides)
 	assert_gt(overlay.get_stick_rest().x, left_rest.x, "the move stick went to the right")
 	assert_almost_eq(overlay._view.modulate.a, 0.75, 0.001, "opacity of the whole overlay")
-	assert_eq(overlay.get_pixel(), TouchArt.PIXEL + 1, "large: one screen pixel more per art pixel")
+	overlay.layout(SCREEN)
+	assert_lt(overlay.get_pixel(), large_pixel, "small: fewer screen pixels per art pixel than large")
 
 
 # --- Fixed and floating sticks ---
@@ -203,17 +212,19 @@ func test_swapped_sides_mirror_the_layout() -> void:
 	assert_true(floating.is_aim_held(), "floating: the left zone starts the aim stick")
 
 
-func test_every_size_side_and_format_fits_without_overlaps() -> void:
+func test_every_size_side_screen_and_format_fits_without_overlaps() -> void:
 	var state := _state()
 	var overlay := _overlay(state)
-	for screen in SCREENS:
-		for step in 3:
-			for swap in [false, true]:
-				overlay.set_options(swap, false, step, 1.0)
-				for side in [false, true]:
-					state.side_view = side
-					overlay.layout(screen)
-					_assert_layout(overlay, screen, "%s size %d swap %s side %s" % [screen.size, step, swap, side])
+	for mm in MM_PER_PX:
+		overlay.mm_per_px = mm
+		for screen in SCREENS:
+			for step in 3:
+				for swap in [false, true]:
+					overlay.set_options(swap, false, step, 1.0)
+					for side in [false, true]:
+						state.side_view = side
+						overlay.layout(screen)
+						_assert_layout(overlay, screen, "%s mm/px %.3f size %d swap %s side %s" % [screen.size, mm, step, swap, side])
 	state.side_view = false
 
 
@@ -226,10 +237,14 @@ func _assert_layout(overlay: TouchOverlay, screen: Rect2, label: String) -> void
 	for button in overlay.buttons:
 		circles.append({"name": str(button.action), "center": button.center, "radius": button.radius})
 	var inner := screen.grow(-2.0)
+	var hud := Rect2(screen.position.x, screen.end.y - TouchOverlay.HUD_CLEAR.y, TouchOverlay.HUD_CLEAR.x, TouchOverlay.HUD_CLEAR.y)
 	for circle in circles:
 		var corner := Vector2(circle.radius, circle.radius)
 		assert_true(inner.has_point(circle.center + corner) and inner.has_point(circle.center - corner),
 				"%s on screen (%s)" % [circle.name, label])
+		var center: Vector2 = circle.center
+		assert_true(center.clamp(hud.position, hud.end).distance_to(center) >= float(circle.radius) - 0.01,
+				"%s clear of the HUD's weapon block (%s)" % [circle.name, label])
 	for i in circles.size():
 		for j in range(i + 1, circles.size()):
 			var gap := (circles[i].center as Vector2).distance_to(circles[j].center) - float(circles[i].radius) - float(circles[j].radius)
@@ -239,15 +254,91 @@ func _assert_layout(overlay: TouchOverlay, screen: Rect2, label: String) -> void
 func test_sizes_scale_touch_areas_and_art_together() -> void:
 	var state := _state()
 	var overlay := _overlay(state)
+	var phone := MM_PER_PX[0]
+	overlay.mm_per_px = phone
+	var last := 0
 	for step in 3:
 		overlay.set_options(false, false, step, 1.0)
+		overlay.layout(Rect2(0, 0, 1600, 720))
 		var pixel := overlay.get_pixel()
-		assert_eq(pixel, TouchArt.PIXEL - 1 + step)
-		assert_almost_eq(float(TouchArt.STICK_BASE_ART_SIZE * pixel) * 0.5, overlay.get_stick_radius() + float(pixel), float(pixel) * 2.0,
+		assert_gt(pixel, last, "every step is bigger on a phone")
+		last = pixel
+		assert_almost_eq(float(TouchArt.STICK_BASE_ART_SIZE * pixel) * 0.5, overlay.get_stick_radius(), float(pixel) * 2.0,
 				"the drawn stick matches its reach")
-		var dash := _button(overlay, PlayerInput.DASH)
-		assert_almost_eq(TouchArt.frame_screen_size(TouchArt.Size.NORMAL, pixel) * 0.5, float(dash.radius), 4.0)
+		for button in overlay.buttons:
+			var radius := float(button.radius)
+			assert_true(radius >= TouchArt.frame_screen_size(button.size, pixel) * 0.5, "%s: touch area covers the picture" % button.action)
+			assert_true(radius * 2.0 * phone >= TouchOverlay.MIN_TOUCH_MM - 0.01, "%s: at least 12 mm to touch" % button.action)
 		assert_gt(TouchArt.icon_pixel(TouchArt.Size.SMALL, pixel), 0)
+
+
+func test_large_is_thumb_sized_in_millimetres_on_a_phone() -> void:
+	var phone := MM_PER_PX[0]
+	assert_eq(TouchOverlay.wanted_pixel(0, phone), 3, "small: the old medium")
+	assert_eq(TouchOverlay.wanted_pixel(1, phone), 4)
+	assert_eq(TouchOverlay.wanted_pixel(2, phone), 5)
+	var overlay := _overlay(_state())
+	overlay.mm_per_px = phone
+	overlay.set_options(false, false, 2, 1.0)
+	overlay.layout(Rect2(0, 0, 1600, 720))
+	var dash := _button(overlay, PlayerInput.DASH)
+	assert_gt(TouchArt.frame_screen_size(TouchArt.Size.NORMAL, overlay.get_pixel()) * phone, 12.0, "a normal button is wider than 12 mm")
+	assert_gt(float(dash.radius) * 2.0 * phone, 12.0)
+	assert_gt(overlay.get_stick_radius(), 90.0 * 1.4, "sticks about 1.5x the old medium (90 px reach)")
+	# Never smaller than before D-219, also on a tablet; a small phone gets more pixels.
+	var tablet := MM_PER_PX[2]
+	for step in 3:
+		assert_eq(TouchOverlay.wanted_pixel(step, tablet), TouchOverlay.MIN_PIXELS[step])
+	assert_gt(TouchOverlay.wanted_pixel(2, MM_PER_PX[1]), TouchOverlay.wanted_pixel(2, phone))
+
+
+func test_too_big_steps_down_until_it_fits() -> void:
+	var rect := Rect2(0, 0, 1280, 720)
+	var small_phone := 50.0 / 720.0
+	var size := TouchOverlay.fitted_size(rect, 2, small_phone, false)
+	assert_lt(int(size.x), TouchOverlay.wanted_pixel(2, small_phone), "the wanted size does not fit")
+	assert_true(TouchOverlay.fits(rect, int(size.x), small_phone, false, size.y))
+	assert_lt(size.y, TouchOverlay.MIN_TOUCH_MM, "a 50 mm screen: smaller touch areas, still no overlaps")
+	var phone := MM_PER_PX[0]
+	assert_eq(TouchOverlay.fitted_size(rect, 2, phone, false).y, TouchOverlay.MIN_TOUCH_MM, "a typical phone keeps 12 mm")
+
+
+func test_metrics_fall_back_to_a_typical_phone() -> void:
+	assert_almost_eq(TouchMetrics.reference_short_mm(), 65.3, 0.1)
+	assert_eq(TouchMetrics.device_short_mm(Vector2(1280, 720)), 0.0, "desktop: unknown")
+	assert_almost_eq(TouchMetrics.mm_per_view_px(Vector2(1600, 720), Vector2(3200, 1440)), 65.3 / 720.0, 0.001)
+	assert_almost_eq(TouchMetrics.mm_per_window_px(Vector2(1080, 2400)), 25.4 / 420.0, 0.0001)
+	assert_eq(TouchMetrics.short_mm_or_zero(12.0), 0.0, "nonsense ignored")
+	assert_eq(TouchMetrics.short_mm_or_zero(70.0), 70.0)
+	assert_almost_eq(TouchMetrics.px(12.0, 0.1), 120.0, 0.001)
+
+
+# --- Portrait (D-219: sizes in mm too) ---
+
+func test_portrait_sizes_grow_in_millimetres_and_stay_in_the_field() -> void:
+	var mm := 25.4 / 420.0
+	assert_eq(PortraitPad.art_pixel(1080.0, 0, mm), 6)
+	assert_eq(PortraitPad.art_pixel(1080.0, 1, mm), 7)
+	assert_eq(PortraitPad.art_pixel(1080.0, 2, mm), 8, "large: A/B about 13.5 mm")
+	for step in 3:
+		assert_true(PortraitPad.art_pixel(1080.0, step, mm) >= floori(1080.0 / PortraitPad.ART_COLUMNS[step]), "never smaller than before")
+	assert_eq(PortraitPad.art_pixel(1080.0, 2, 0.02), floori(1080.0 / PortraitPad.WIDTH_PER_PIXEL), "capped by the width")
+	var frame := PortraitLayout.compute(Vector2(1080, 1400))
+	var field := frame.pad_bottom() - frame.pad_top()
+	assert_true(PortraitPad.fitted_pixel(frame, 2, mm) * PortraitPad.FIELD_ART_ROWS <= field, "short field: fewer pixels")
+
+
+func test_portrait_small_buttons_take_a_12_mm_finger() -> void:
+	var pad = PortraitPad.new(_state())
+	add_child_autofree(pad)
+	pad.follow_options = false
+	pad.mm_per_px = 25.4 / 420.0
+	pad.set_options(false, 0)
+	pad.set_frame(PortraitLayout.compute(Vector2(1080, 2400)))
+	var center: Vector2 = pad.button_center(PortraitPad.X)
+	var reach := TouchMetrics.px(PortraitPad.MIN_TOUCH_MM, pad.mm_per_px) * 0.5 - 2.0
+	var hit: Dictionary = pad.button_at(center + Vector2(0, -reach))
+	assert_eq(hit.get("id", &""), PortraitPad.X, "6 mm above the centre still presses X")
 
 
 func test_safe_area_keeps_the_controls_off_a_notch() -> void:
@@ -343,8 +434,9 @@ func test_touch_tab_only_on_touch_devices_and_rows_store_at_once() -> void:
 	view.change(1)
 	assert_true(GameOptions.is_touch_swap_sides())
 	view.select_row(OptionsView.Row.TOUCH_SIZE)
-	view.change(1)
-	assert_eq(GameOptions.get_touch_size(), 2)
+	assert_eq(GameOptions.get_touch_size(), 2, "large by default (D-219)")
+	view.change(-1)
+	assert_eq(GameOptions.get_touch_size(), 1, "← picks Mittel")
 	view.select_row(OptionsView.Row.TOUCH_OPACITY)
 	view.change(-1)
 	assert_eq(GameOptions.get_touch_opacity(), 0.75)

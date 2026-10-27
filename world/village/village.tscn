@@ -39,6 +39,18 @@
 [ext_resource type="Script" path="res://world/village/village_prop.gd" id="37_res"]
 [ext_resource type="Script" path="res://world/village/villager.gd" id="38_res"]
 
+[sub_resource type="RectangleShape2D" id="Rect_bounds_left"]
+size = Vector2(170, 1536)
+
+[sub_resource type="RectangleShape2D" id="Rect_bounds_right"]
+size = Vector2(170, 1536)
+
+[sub_resource type="RectangleShape2D" id="Rect_bounds_top"]
+size = Vector2(2304, 172)
+
+[sub_resource type="RectangleShape2D" id="Rect_bounds_bottom"]
+size = Vector2(2304, 168)
+
 [sub_resource type="RectangleShape2D" id="Rect_entrance"]
 size = Vector2(176, 56)
 
@@ -168,6 +180,25 @@ script = ExtResource("9_res")
 
 [node name="Evening" type="Node" parent="."]
 script = ExtResource("10_res")
+
+[node name="Bounds" type="StaticBody2D" parent="."]
+collision_mask = 0
+
+[node name="Left" type="CollisionShape2D" parent="Bounds"]
+position = Vector2(-43, 640)
+shape = SubResource("Rect_bounds_left")
+
+[node name="Right" type="CollisionShape2D" parent="Bounds"]
+position = Vector2(2091, 640)
+shape = SubResource("Rect_bounds_right")
+
+[node name="Top" type="CollisionShape2D" parent="Bounds"]
+position = Vector2(1024, -42)
+shape = SubResource("Rect_bounds_top")
+
+[node name="Bottom" type="CollisionShape2D" parent="Bounds"]
+position = Vector2(1024, 1324)
+shape = SubResource("Rect_bounds_bottom")
 
 [node name="DungeonEntrance" type="StaticBody2D" parent="Buildings"]
 position = Vector2(1472, 256)
@@ -316,7 +347,7 @@ offset = Vector2(-12, 0)
 [node name="Door" type="Area2D" parent="Buildings/Home"]
 position = Vector2(0, 22)
 script = ExtResource("4_interactable")
-prompt = "Umkleiden"
+prompt = "Eintreten"
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Buildings/Home/Door"]
 shape = SubResource("Circle_door")
@@ -1645,6 +1676,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 
 [node name="Chicken2" type="Node2D" parent="Villagers"]
 position = Vector2(358.4, 896)
@@ -1656,6 +1688,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 
 [node name="Cat" type="Node2D" parent="Villagers"]
 position = Vector2(614.4, 1171.2)
@@ -1667,6 +1700,19 @@ pause_max = 5.0
 art_name = "cat"
 optional = true
 dodge_sound = &""
+animal = &"cat"
+
+[node name="Dog" type="Node2D" parent="Villagers"]
+position = Vector2(1702.4, 1196.8)
+script = ExtResource("38_res")
+route = PackedVector2Array(1702.4, 1196.8, 1868.8, 1196.8)
+loop = false
+speed = 26
+pause_max = 5.0
+art_name = "dog"
+optional = true
+dodge_sound = &""
+animal = &"dog"
 
 [node name="RescuedChicken1" type="Node2D" parent="Villagers"]
 position = Vector2(230.4, 857.6)
@@ -1678,6 +1724,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 metadata/rescued_chicken_slot = 0
 
 [node name="RescuedChicken2" type="Node2D" parent="Villagers"]
@@ -1690,6 +1737,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 metadata/rescued_chicken_slot = 1
 
 [node name="RescuedChicken3" type="Node2D" parent="Villagers"]
@@ -1702,6 +1750,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 metadata/rescued_chicken_slot = 2
 
 [node name="RescuedChicken4" type="Node2D" parent="Villagers"]
@@ -1714,6 +1763,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 metadata/rescued_chicken_slot = 3
 
 [node name="PlayerSpawn" type="Marker2D" parent="."]

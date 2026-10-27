@@ -1,6 +1,6 @@
 class_name IngredientArt
 extends RefCounted
-## Art of the room ingredients (docs/design/sprites/SPRITES_V5.md §1, art/environment/rooms/). A delivered file
+## Art of the room ingredients (docs/design/sprites/delivered/SPRITES_V5.md §1, art/environment/rooms/). A delivered file
 ## with the agreed name is used as it is; until then a small pixel placeholder of the same size is
 ## drawn here, so the ingredients work and the art drops in without code changes
 ## (after `godot --headless --path . --import`).

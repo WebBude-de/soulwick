@@ -4,7 +4,8 @@ extends CanvasLayer
 ## never computes gameplay state.
 ## Dungeon: hearts in quarter steps + shield + run gold (top left), room, biome progress and rooms to
 ## the boss (top right; P1-6: "Zyklus" read like New Game+), weapon slots with effective values,
-## special and dash cooldown (bottom left).
+## special and dash cooldown, the spell slots with their cooldown clocks (KE7, SpellSlotsView)
+## (bottom left).
 ## Village: village gold + soul crystals (top right) and chronicle values (bottom left).
 ## All measurements are mockup pixels (480×270) converted with UiKit.px / UiKit.art_px.
 ## R8: values that change hop once (hearts, shield, gold, crystals); the weapon block sits in one
@@ -46,8 +47,8 @@ const HEART_SIZE := 16.0 * HUD_PIXEL
 const ICON_SIZE := 16.0 * HUD_PIXEL
 ## Translation keys (D-111): the hint label gets the key as text, Godot translates it live.
 const CONTROLS_HINT: StringName = &"HUD_CONTROLS_HINT"
-## After the first-run controls card (ControlsHint) the key line shrinks to this (UX1); all keys are
-## in Esc → Optionen → Steuerung.
+## Once the first run taught the keys (Flint, FlintControls; flag ControlsHint.SEEN_ID) the key line
+## shrinks to this (UX1); all keys are in Esc → Optionen → Steuerung.
 const CONTROLS_HINT_SHORT: StringName = &"HUD_CONTROLS_HINT_SHORT"
 ## Room type -> key HUD_ROOM_TYPE_<RoomSequence.RoomType name>; unknown types fall back to
 ## RoomSequence.get_type_name() (German).
@@ -141,6 +142,8 @@ var _room_detail: Label
 var _biome_progress: BiomeProgressScript
 var _weapon_root: Control
 var _weapon_panels: Array[PanelContainer] = []
+## Spell slots right of the weapon slots (KE7).
+var _spell_slots: SpellSlotsView
 ## Special cooldown bar per weapon slot (null for empty slots).
 var _special_bars: Array[ProgressBar] = [null, null]
 var _weapon_name: Label
@@ -160,10 +163,11 @@ var _hint_row: HFlowContainer
 var _hint_full := false
 ## The key line was built for the dungeon (with weapon keys) or the village (without).
 var _hint_armed := false
+## The player runs through a side-view section: no dash there (D-216, feedback #9aeff0be), so the key
+## line and the weapon block leave it out.
+var _side_view := false
 ## Touch controls in use (TouchState): no keyboard hints, the weapon keys show the touch buttons.
 var _touch := false
-## The first-run controls card (ControlsHint.GROUP) is open: it shows the keys, the line hides.
-var _controls_card_open := false
 var _currency_frame: PanelContainer
 var _village_gold: Label
 var _village_crystals: Label
@@ -212,6 +216,7 @@ func bind_player(player: Player) -> void:
 	player.shield.shield_changed.connect(_on_shield_changed)
 	player.weapon_controller.weapon_changed.connect(_on_weapons_changed.unbind(2))
 	player.weapon_controller.active_slot_changed.connect(_on_weapons_changed.unbind(1))
+	_spell_slots.bind_player(player)
 	_on_health_changed(player.health.get_health(), player.health.get_max_health())
 	_on_shield_changed(player.shield.get_shield())
 	_on_weapons_changed()
@@ -250,10 +255,13 @@ func _refresh_hint() -> void:
 	_build_hint_entries()
 
 
-## Entries of the key line: full or short; without a weapon (village) no attack, special or switch.
-static func hint_entries(full: bool, armed: bool) -> Array[Array]:
+## Entries of the key line: full or short; without a weapon (village) no attack, special or switch;
+## in side view no dash.
+static func hint_entries(full: bool, armed: bool, side_view := false) -> Array[Array]:
 	var entries: Array[Array] = []
 	for entry: Array in (HINT_ENTRIES_FULL if full else HINT_ENTRIES_SHORT):
+		if side_view and entry[0] == ControlsInfo.DASH:
+			continue
 		if armed or not UNARMED_HIDDEN_HINTS.has(entry[0]):
 			entries.append(entry)
 	return entries
@@ -265,7 +273,7 @@ func _build_hint_entries() -> void:
 		_hint_row.remove_child(child)
 		child.queue_free()
 	_hint_armed = _dungeon_mode
-	for entry: Array in hint_entries(_hint_full, _hint_armed):
+	for entry: Array in hint_entries(_hint_full, _hint_armed, _side_view):
 		var pair := UiKit.hbox(int(UiKit.px(KEY_PAIR_GAP)))
 		pair.add_child(KeyCap.row_for_control(entry[0], HUD_PIXEL))
 		var caption := UiKit.text_label(Loc.t(StringName(HINT_KEY_PREFIX + String(entry[1]))), UiKit.SIZE_EYEBROW, UiKit.COLOR_MUTED)
@@ -300,21 +308,8 @@ func is_touch_mode() -> bool:
 	return _touch
 
 
-## The first-run controls card shows the keys itself (P1-4): the key line waits until it is gone.
-func _check_controls_card() -> void:
-	var open := _dungeon_mode and get_tree().get_first_node_in_group(ControlsHint.GROUP) != null
-	if open == _controls_card_open:
-		return
-	_controls_card_open = open
-	_update_hint_visibility()
-
-
-func is_controls_card_open() -> bool:
-	return _controls_card_open
-
-
 func _update_hint_visibility() -> void:
-	_hint_row.visible = not _touch and not _controls_card_open
+	_hint_row.visible = not _touch
 
 
 ## Player this HUD shows (the local one, bound by the world); null without one. For overlays of the
@@ -344,7 +339,6 @@ func set_room_mode(mode_name: String) -> void:
 
 func _process(delta: float) -> void:
 	_check_touch()
-	_check_controls_card()
 	if not _dungeon_mode:
 		_chronicle_timer -= delta
 		if _chronicle_timer <= 0.0:
@@ -353,6 +347,10 @@ func _process(delta: float) -> void:
 		_dodge_top_center()
 	if _player == null or not is_instance_valid(_player):
 		return
+	if PlayerSideMotion.has_dash(_player) == _side_view:
+		_side_view = not _side_view
+		_build_hint_entries()
+		_refresh_weapon_text(_player.weapon_controller, _player.weapon_controller.get_active_slot())
 	_dash_bar.value = 1.0 - _player.get_dash_cooldown_left() / maxf(0.01, _player.dash_cooldown)
 	_update_special_bars()
 
@@ -436,6 +434,9 @@ func _build_weapons(root: Control) -> void:
 		slot_frame.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		row.add_child(slot_frame)
 		_weapon_panels.append(slot_frame)
+	# KE7: spell slots with their cooldown clocks next to the weapons (hidden without spells).
+	_spell_slots = SpellSlotsView.new()
+	row.add_child(_spell_slots)
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.custom_minimum_size.x = UiKit.px(2)
@@ -711,7 +712,7 @@ func get_status_bottom() -> float:
 	return _status_frame.get_global_rect().end.y
 
 
-## Top of the teaching cards on the left edge (ControlsHint, RoomIntroCard, enemy hints; online test
+## Top of the teaching cards on the left edge (RoomIntroCard, enemy hints; online test
 ## 16.10.2026): in the upper left, away from the player in the middle - below the top band of the
 ## banners (TEACHING_CARD_TOP) and below the HUD's status frame when that reaches further down.
 static func teaching_card_top(tree: SceneTree) -> float:
@@ -801,9 +802,12 @@ func _refresh_weapon_text(controller: WeaponController, active_slot: int) -> voi
 		var special := _add_key(ControlsInfo.SPECIAL, DataTexts.weapon_special_name(weapon))
 		_special_key_bar = _cooldown_bar(UiKit.COLOR_GOLD, SPECIAL_BAR_WIDTH)
 		special.add_child(_special_key_bar)
-	hints.append(Loc.t(&"HUD_KEY_DASH"))
+	if not _side_view:
+		hints.append(Loc.t(&"HUD_KEY_DASH"))
 	var dash := _add_key(ControlsInfo.DASH, Loc.t(&"HUD_DASH"))
 	dash.add_child(_dash_bar)
+	# Kept hidden in side view, so the bar stays in the tree.
+	dash.visible = not _side_view
 	_weapon_hint.text = " · ".join(hints)
 
 

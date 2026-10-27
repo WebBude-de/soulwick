@@ -1,17 +1,21 @@
 extends SceneTree
 ## Headless check of bosses, new enemy types, champions, boss phase two and elites with real AI
 ## against a sturdy player.
-## Usage: godot --headless --fixed-fps 60 --path . -s tools/boss_sim.gd
+## Usage: godot --headless --fixed-fps 60 --path . -s tools/boss_sim.gd -- [seed=<n>] [danger=<G>] [only=golem]
+## only=golem: just the ember golem checks (bow kiting, melee), for quick measurements.
+## danger: danger level of the run (KE2, RunManager.set_danger_level before the run starts); every
+## case prints its HP and its rounded hit, and the HP must carry the factor 1 + 0.06 G.
 ## Case keys: data, room, expect (abilities that must be seen), optional forbid, champion (bool),
 ## tier (boss tier), phase2 (push below half health after a moment), kill_after (frames).
 ## Abilities come from Enemy.ability_used plus player effects (stun, blind) and summons.
 
 const CASES := [
-	# Bosses, phase one.
+	# Bosses, phase one. The ember golem's lava balls only fly at a player who keeps away: see
+	# _check_bow_kiting.
 	{"data": "res://enemies/data/boss_bone_king.tres", "room": 15, "expect": ["stun", "volley"]},
 	{"data": "res://enemies/data/boss_slime_queen.tres", "room": 30, "expect": ["summon", "slam"]},
 	{"data": "res://enemies/data/boss_shadow_lord.tres", "room": 45, "expect": ["blind", "teleport"]},
-	{"data": "res://enemies/data/boss_ember_golem.tres", "room": 60, "expect": ["slam", "summon", "volley"]},
+	{"data": "res://enemies/data/boss_ember_golem.tres", "room": 60, "expect": ["slam", "summon", "volley", "stomp"]},
 	# Bosses, phase two: roar (invulnerable), then the new pattern.
 	{"data": "res://enemies/data/boss_bone_king.tres", "room": 15, "phase2": true, "expect": ["roar", "roar_invulnerable", "chain", "spiral", "summon"]},
 	{"data": "res://enemies/data/boss_slime_queen.tres", "room": 30, "phase2": true, "expect": ["roar", "roar_invulnerable", "chain", "landing_ring"]},
@@ -45,18 +49,26 @@ var _failures: Array[String] = []
 ## same seed (`-- seed=N`; 0 or missing = a random one, printed at the start).
 var _dungeon_seed := 0
 var _seed_pending := true
+## Danger level G of the run (KE2; 0 = none, as before).
+var _danger := 0
+## Name of a check group to run alone ("golem"), empty = everything.
+var _only := ""
 
 
 func _init() -> void:
 	for arg in OS.get_cmdline_user_args():
 		if arg.begins_with("seed="):
 			_dungeon_seed = int(arg.substr(5))
+		elif arg.begins_with("danger="):
+			_danger = maxi(0, int(arg.substr(7)))
+		elif arg.begins_with("only="):
+			_only = arg.substr(5)
 	if _dungeon_seed == 0:
 		randomize()
 		_dungeon_seed = 1 + randi() % 1000000
 	# The global RNG too (elite traits of champions): one seed repeats the whole run.
 	seed(_dungeon_seed)
-	print("Boss sim dungeon seed %d (repeat with -- seed=%d)" % [_dungeon_seed, _dungeon_seed])
+	print("Boss sim dungeon seed %d (repeat with -- seed=%d), danger %d" % [_dungeon_seed, _dungeon_seed, _danger])
 	node_added.connect(_on_node_added)
 	process_frame.connect(_run, CONNECT_ONE_SHOT)
 
@@ -78,8 +90,10 @@ func _run() -> void:
 	change_scene_to_file("res://scenes/game.tscn")
 	await _frames(20)
 	var controller := current_scene.get_node("WorldController")
+	root.get_node("RunManager").set_danger_level(_danger)
 	controller.enter_dungeon()
 	await _frames(30)
+	_check(root.get_node("RunManager").get_danger_level() == _danger, "run starts with danger level %d" % _danger)
 	var dungeon: Node = controller.get_world()
 	var player: Node = controller.get_player()
 	var room: Node = dungeon.get_room(1)
@@ -93,15 +107,28 @@ func _run() -> void:
 	# Bare floor: room 1 is a random template (A3); its inner walls, pillars and cover must not
 	# decide whether a boss finds room for a pattern or a test setup is reachable at all.
 	await _clear_floor(room)
+	if _only == "golem":
+		await _clear_height(room)
+		await _check_bow_kiting(dungeon, room, player)
+		await _check_melee_golem(room, player)
+		_finish()
+		return
 	for case in CASES:
 		await _run_case(case, room, player)
+	await _check_stand_inside_boss(room, player)
 
+	# The pathfinding checks below put player and enemies around the floor centre, which a plateau
+	# may cover (M3; kreuzgang_mirror_crypt with seed 860969: player inside the cliff, the test wall
+	# over the stairs). Melee enemies on plateaus have their own test (test_enemy_nav_height).
+	await _clear_height(room)
 	await _check_obstacle_avoidance(room, player)
 	await _check_u_wall(room, player)
 	await _check_slime_pack(room, player)
 	await _check_flanking(room, player)
 	await _check_spawn_sources(room, player)
 	await _check_pillar_circle(dungeon, room, player)
+	await _check_bow_kiting(dungeon, room, player)
+	await _check_melee_golem(room, player)
 
 	# Elites: every kind spawns, glows, shows its badge and the volatile one explodes on death.
 	for kind in [1, 2, 3]:
@@ -118,6 +145,10 @@ func _run() -> void:
 		if kind == 3:
 			_check(player.health.get_health() < hp_before or player.hurtbox.is_invulnerable(), "volatile elite exploded next to the player")
 
+	_finish()
+
+
+func _finish() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path("user://boss_sim_save.cfg"))
 	if _failures.is_empty():
 		print("BOSS SIM PASSED")
@@ -152,6 +183,7 @@ func _run_case(case: Dictionary, room: Node, player: Node) -> void:
 	var on_blind := func(_d) -> void: seen["blind"] = true
 	player.blinded.connect(on_blind)
 	room.enemy_container.add_child(enemy)
+	_report_scaling(label, enemy, data, case["room"], champion)
 	var expected: Array = case["expect"]
 	for i in CASE_FRAMES:
 		await physics_frame
@@ -216,6 +248,71 @@ func _clear_floor(room: Node) -> void:
 			prop.queue_free()
 	await _frames(5)
 	# The room's own navigation map follows the repaint only after its next sync.
+	await _navigation_synced(tiles, iteration)
+
+
+## Playtest #ddb41969: the player stands 10 s in the slime queen and swings the sword. Contact damage
+## must hurt again and again, and kills of her minions must pay no ON_KILL rewards (BossRules).
+func _check_stand_inside_boss(room: Node, player: Node) -> void:
+	player.health.reset(99999.0)
+	player.shield.set_current(0.0)
+	player.global_position = room.to_global(room.get_node("Tiles").get_floor_rect().get_center() + Vector2(0, 60))
+	var boss := _spawn(load("res://enemies/data/boss_slime_queen.tres"), room, player, 30)
+	boss.position = room.to_local(player.global_position) + Vector2(0, -60)
+	room.enemy_container.add_child(boss)
+	var taken := {"damage": 0.0, "contact": 0, "minion_kills": 0, "rewarded_minion_kills": 0}
+	var on_hit := func(result, damage) -> void:
+		taken["damage"] += result.shield_damage + result.health_damage
+		if damage.tags.has(&"contact"):
+			taken["contact"] += 1
+	var on_enemy := func(enemy, result, _damage) -> void:
+		if result.killed and enemy != boss:
+			taken["minion_kills"] += 1
+			if result.grants_kill_rewards:
+				taken["rewarded_minion_kills"] += 1
+	player.hurtbox.hit_received.connect(on_hit)
+	root.get_node("EventBus").enemy_damaged.connect(on_enemy)
+	var weapons: Node = player.weapon_controller
+	var health_before: float = player.health.get_health()
+	for i in 60 * 10:
+		await physics_frame
+		if not is_instance_valid(boss) or boss.is_dead():
+			break
+		# Walks into the boss (contact pushes out) and swings at it.
+		var to_boss: Vector2 = boss.global_position - player.global_position
+		player.velocity = to_boss.normalized() * 180.0 if to_boss.length() > 4.0 else Vector2.ZERO
+		player.move_and_slide()
+		weapons.aim_direction = to_boss.normalized() if to_boss.length() > 0.5 else Vector2.UP
+		weapons.request_attack()
+	player.hurtbox.hit_received.disconnect(on_hit)
+	root.get_node("EventBus").enemy_damaged.disconnect(on_enemy)
+	print("Inside the slime queen 10 s: damage %.1f, contact hits %d, health %.1f -> %.1f, minion kills %d (rewarded %d)" % [
+		taken["damage"], taken["contact"], health_before, player.health.get_health(), taken["minion_kills"], taken["rewarded_minion_kills"]])
+	_check(taken["contact"] >= 5, "standing inside the slime queen hurts by contact again and again (%d hits)" % taken["contact"])
+	_check(taken["damage"] >= 10.0, "10 s inside the slime queen cost at least 10 (%.1f)" % taken["damage"])
+	_check(taken["rewarded_minion_kills"] == 0, "kills of the queen's minions pay no ON_KILL rewards")
+	if is_instance_valid(boss) and not boss.is_dead():
+		boss.health.take_damage(INF)
+	await _frames(30)
+	for child in room.enemy_container.get_children():
+		if child.has_method("is_dead") and not child.is_dead():
+			child.health.take_damage(INF)
+	await _frames(120)
+
+
+## Flat floor without plateaus, stairs and ladders (M3), after the boss cases (they keep the room's
+## height as before).
+func _clear_height(room: Node) -> void:
+	var tiles: Node = room.get_node("Tiles")
+	if not tiles.has_height():
+		return
+	var no_tiles: Array[Vector2i] = []
+	tiles.plateau_tiles = no_tiles
+	tiles.stair_tiles = no_tiles.duplicate()
+	tiles.ladder_tiles = no_tiles.duplicate()
+	var iteration := _navigation_iteration(tiles)
+	tiles.paint()
+	await _frames(5)
 	await _navigation_synced(tiles, iteration)
 
 
@@ -337,7 +434,7 @@ func _check_u_wall(room: Node, player: Node) -> void:
 	await _navigation_synced(tiles, iteration)
 
 
-## Slime pack (KONZEPT_RAEUME_V2 §6): four slimes in room 10 form one pack, hop one after another
+## Slime pack (RAEUME §6): four slimes in room 10 form one pack, hop one after another
 ## with a landing marker, never land on the player, deal no damage in the air and end up on
 ## several sides of the player.
 func _check_slime_pack(room: Node, player: Node) -> void:
@@ -552,6 +649,277 @@ func _check_pillar_circle(dungeon: Node, room1: Node, player: Node) -> void:
 	player.global_position = room1.to_global(room1.get_node("Tiles").get_floor_rect().get_center())
 	room.queue_free()
 	await _frames(10)
+
+
+## Playtest #a8a87397 (room 60, lavagraben): with the bow the player ran around the lava trench over
+## both bridges, never came near the ember golem and took nothing. A bot does the same: it walks
+## the loop over the bridges, turns when the golem comes close ahead of it, shoots arrows at it and
+## never dodges. Phase one and phase two must now cost it measurable damage (lava balls). A second
+## bot also steps out of the landing circles and around burning pools: the lava must then cost it
+## clearly less (the warnings are readable), even if the golem catches up meanwhile.
+const KITE_ROOM := "res://dungeon/rooms/boss/lavagraben.tscn"
+## Loop around the middle of the trench (room pixels): north lane, east bridge, south lane, west bridge.
+const KITE_LOOP: Array[Vector2] = [Vector2(384, 160), Vector2(960, 160), Vector2(960, 480), Vector2(384, 480)]
+const KITE_SECONDS := 40
+## Turn when the golem is this close and ahead (px), at most once per KITE_TURN_PAUSE seconds.
+const KITE_TURN_DISTANCE := 240.0
+const KITE_TURN_PAUSE := 1.0
+## Damage a never-dodging kiter must at least take in KITE_SECONDS (phase one, phase two). TESTWERT
+const KITE_MIN_DAMAGE := [4.0, 6.0]
+## The dodging bot takes at most this share of the lava damage the never-dodging one took.
+const KITE_DODGE_SHARE := 0.5
+## Keeps this far outside a landing circle or pool (px).
+const KITE_DODGE_MARGIN := 22.0
+## A sword bot that stands at the golem and swings: damage in MELEE_SECONDS must stay below this
+## (phase one, phase two), stuns never longer than MELEE_MAX_STUN. TESTWERT
+const MELEE_SECONDS := 30
+const MELEE_MAX_DAMAGE := [65.0, 80.0]
+const MELEE_MAX_STUN := 0.5
+
+
+func _check_bow_kiting(dungeon: Node, room1: Node, player: Node) -> void:
+	var boss_type: int = load("res://dungeon/room_sequence.gd").RoomType.BOSS
+	var room: Node = load(KITE_ROOM).instantiate()
+	room.setup(60, boss_type, -1, false, room1.context)
+	room.position = Vector2(0, -60000)
+	dungeon.room_container.add_child(room)
+	await _navigation_synced(room.get_node("Tiles"), 0)
+	await _frames(30)
+	var weapons: Node = player.weapon_controller
+	var old_weapon: Resource = weapons.get_weapon(0)
+	weapons.equip_weapon(load("res://weapons/data/bow.tres"), 0)
+	weapons.set_active_slot(0)
+	for phase in [1, 2]:
+		var plain := await _kite_fight(room, player, phase, false)
+		var dodging := await _kite_fight(room, player, phase, true)
+		for stats: Dictionary in [plain, dodging]:
+			print("Bow kiting vs ember golem%s, phase %d, %d s: damage %.1f in %d hits %s, stuns %d, near %.0f %% of the time, closest %.0f px" % [
+				" (dodging)" if stats == dodging else "", phase, KITE_SECONDS, stats["damage"], stats["hits"], stats["kinds"], stats["stuns"],
+				stats["near_share"] * 100.0, stats["closest"]])
+		var damage: float = plain["damage"]
+		_check(plain["near_share"] <= 0.25, "the bow bot really kites the golem (phase %d)" % phase)
+		_check(damage >= KITE_MIN_DAMAGE[phase - 1], "kiting the ember golem with the bow costs at least %.0f (phase %d: %.1f)" % [KITE_MIN_DAMAGE[phase - 1], phase, damage])
+		var lava: float = _lava_damage(plain)
+		var dodged: float = _lava_damage(dodging)
+		_check(lava > 0.0 and dodged <= lava * KITE_DODGE_SHARE, "the lava circles can be read: stepping out of them pays (phase %d: lava %.1f against %.1f)" % [phase, dodged, lava])
+	if old_weapon != null:
+		weapons.equip_weapon(old_weapon, 0)
+	player.global_position = room1.to_global(room1.get_node("Tiles").get_floor_rect().get_center())
+	room.queue_free()
+	await _frames(10)
+
+
+## One kiting fight against a fresh golem; phase 2 pushes it below half health first. The golem is
+## kept in its phase (health refilled), the player alive; returns what the player took.
+func _kite_fight(room: Node, player: Node, phase: int, dodge: bool) -> Dictionary:
+	player.health.reset(99999.0)
+	player.shield.set_current(0.0)
+	player.global_position = room.to_global(Vector2(672, 480))
+	var boss := _spawn(load("res://enemies/data/boss_ember_golem.tres"), room, player, 60)
+	boss.position = Vector2(672, 96)
+	boss.arena = room.get_arena()
+	room.enemy_container.add_child(boss)
+	var stats := _watch_player_hits(player)
+	var weapons: Node = player.weapon_controller
+	var index := 0
+	var direction := 1
+	var turn_pause := 0.0
+	var near_frames := 0
+	var counted := 0
+	for i in 60 * KITE_SECONDS:
+		await physics_frame
+		if not is_instance_valid(boss) or boss.is_dead():
+			break
+		if phase == 2 and i == 30:
+			boss.health.take_damage(boss.health.get_max_health() * 0.55)
+		var hp: float = boss.health.get_health()
+		var max_hp: float = boss.health.get_max_health()
+		if phase == 1 and hp < max_hp * 0.6:
+			boss.health.set_current(max_hp)
+		elif phase == 2 and i > 30 and hp < max_hp * 0.15:
+			boss.health.set_current(max_hp * 0.4)
+		if player.health.get_health() < 1000.0:
+			player.health.reset(99999.0)
+		var to_boss: Vector2 = boss.global_position - player.global_position
+		if i > 60:
+			counted += 1
+			stats["closest"] = minf(stats["closest"], to_boss.length())
+			if to_boss.length() < 180.0:
+				near_frames += 1
+		turn_pause -= 1.0 / 60.0
+		var goal: Vector2 = room.to_global(KITE_LOOP[index])
+		if player.global_position.distance_to(goal) < 16.0:
+			index = posmod(index + direction, KITE_LOOP.size())
+			goal = room.to_global(KITE_LOOP[index])
+		var walk: Vector2 = (goal - player.global_position).normalized()
+		if turn_pause <= 0.0 and to_boss.length() < KITE_TURN_DISTANCE and walk.dot(to_boss.normalized()) > 0.3:
+			direction = -direction
+			index = posmod(index + direction, KITE_LOOP.size())
+			turn_pause = KITE_TURN_PAUSE
+			walk = (room.to_global(KITE_LOOP[index]) - player.global_position).normalized()
+		if dodge:
+			walk = _dodge_lava(room, player, walk)
+		if not player.is_stunned() and not player.is_falling() and walk != Vector2.ZERO:
+			player.velocity = walk * player.move_speed
+			player.move_and_slide()
+		weapons.aim_direction = to_boss.normalized()
+		weapons.request_attack()
+	stats["near_share"] = float(near_frames) / maxf(1.0, float(counted))
+	_unwatch_player_hits(player, stats)
+	if is_instance_valid(boss) and not boss.is_dead():
+		boss.health.take_damage(INF)
+	await _frames(30)
+	for child in room.enemy_container.get_children():
+		if child.has_method("is_dead") and not child.is_dead():
+			child.health.take_damage(INF)
+	await _frames(120)
+	return stats
+
+
+func _lava_damage(stats: Dictionary) -> float:
+	return float(stats["kinds"].get("lava", 0.0)) + float(stats["kinds"].get("lava_pool", 0.0))
+
+
+## Like a player who reads the warnings: of 16 directions and standing still, the step that keeps
+## out of landing circles and burning pools (and off the lava trench) and is closest to the way on.
+func _dodge_lava(room: Node, player: Node, walk: Vector2) -> Vector2:
+	var zones: Array = []
+	for child in room.enemy_container.get_children():
+		var lobbed: bool = child.has_method("is_lobbed") and child.is_lobbed()
+		if lobbed or child.has_method("is_burning"):
+			zones.append([child.global_position, child.radius + KITE_DODGE_MARGIN])
+	if zones.is_empty():
+		return walk
+	var here: Vector2 = player.global_position
+	var best := walk
+	var best_score := INF
+	for k in 17:
+		var direction := Vector2.ZERO if k == 16 else Vector2.from_angle(TAU * k / 16.0)
+		var spot: Vector2 = here + direction * player.move_speed * 0.3
+		if direction != Vector2.ZERO and not _kite_walkable(room, spot):
+			continue
+		var danger := 0.0
+		for zone: Array in zones:
+			var distance: float = spot.distance_to(zone[0])
+			if distance < zone[1]:
+				danger += 1.0 + (zone[1] - distance) / zone[1]
+		var score := danger * 10.0 - direction.dot(walk)
+		if score < best_score:
+			best_score = score
+			best = direction
+	return best
+
+
+## Inside the room and not over the lava trench (bridges are fine).
+func _kite_walkable(room: Node, spot: Vector2) -> bool:
+	if not room.get_arena().grow(-24.0).has_point(spot):
+		return false
+	var tiles: Node = room.get_node("Tiles")
+	var cell := Vector2i((room.to_local(spot) / 64.0).floor())
+	for bridge: Rect2i in tiles.bridge_rects:
+		if bridge.has_point(cell):
+			return true
+	for pit: Rect2i in tiles.pit_rects:
+		if pit.grow(1).has_point(cell):
+			return false
+	return true
+
+
+## Melee stays fair: a sword bot at the golem's side swings and never dodges; the stomp may stun it
+## briefly, never for long, and the damage stays in a bound.
+func _check_melee_golem(room: Node, player: Node) -> void:
+	for phase in [1, 2]:
+		player.health.reset(99999.0)
+		player.shield.set_current(0.0)
+		var center: Vector2 = room.to_global(room.get_node("Tiles").get_floor_rect().get_center())
+		player.global_position = center + Vector2(0, 80)
+		var boss := _spawn(load("res://enemies/data/boss_ember_golem.tres"), room, player, 60)
+		boss.position = room.to_local(center + Vector2(0, -60))
+		room.enemy_container.add_child(boss)
+		var stats := _watch_player_hits(player)
+		var weapons: Node = player.weapon_controller
+		var seen := {}
+		boss.ability_used.connect(func(_e, ability: StringName) -> void: seen[String(ability)] = true)
+		for i in 60 * MELEE_SECONDS:
+			await physics_frame
+			if not is_instance_valid(boss) or boss.is_dead():
+				break
+			if phase == 2 and i == 30:
+				boss.health.take_damage(boss.health.get_max_health() * 0.55)
+			var hp: float = boss.health.get_health()
+			var max_hp: float = boss.health.get_max_health()
+			if phase == 1 and hp < max_hp * 0.6:
+				boss.health.set_current(max_hp)
+			elif phase == 2 and i > 30 and hp < max_hp * 0.15:
+				boss.health.set_current(max_hp * 0.4)
+			if player.health.get_health() < 1000.0:
+				player.health.reset(99999.0)
+			var to_boss: Vector2 = boss.global_position - player.global_position
+			if not player.is_stunned() and to_boss.length() > 70.0:
+				player.velocity = to_boss.normalized() * player.move_speed
+				player.move_and_slide()
+			weapons.aim_direction = to_boss.normalized() if to_boss.length() > 0.5 else Vector2.UP
+			weapons.request_attack()
+		_unwatch_player_hits(player, stats)
+		print("Sword at the ember golem, phase %d, %d s: damage %.1f in %d hits %s, stuns %d (longest %.2f s), abilities %s" % [
+			phase, MELEE_SECONDS, stats["damage"], stats["hits"], stats["kinds"], stats["stuns"], stats["max_stun"], seen.keys()])
+		_check(stats["damage"] <= MELEE_MAX_DAMAGE[phase - 1], "melee at the ember golem stays fair (phase %d: %.1f <= %.0f)" % [phase, stats["damage"], MELEE_MAX_DAMAGE[phase - 1]])
+		_check(stats["max_stun"] <= MELEE_MAX_STUN + 0.001, "the golem never stuns longer than %.1f s (phase %d)" % [MELEE_MAX_STUN, phase])
+		if is_instance_valid(boss) and not boss.is_dead():
+			boss.health.take_damage(INF)
+		await _frames(30)
+		for child in room.enemy_container.get_children():
+			if child.has_method("is_dead") and not child.is_dead():
+				child.health.take_damage(INF)
+		await _frames(120)
+
+
+## Counts what hits the player: damage, hits by kind (tags), stuns.
+func _watch_player_hits(player: Node) -> Dictionary:
+	var stats := {"damage": 0.0, "hits": 0, "kinds": {}, "stuns": 0, "max_stun": 0.0, "closest": INF}
+	var on_hit := func(result, damage) -> void:
+		var amount: float = result.shield_damage + result.health_damage
+		if amount <= 0.0:
+			return
+		stats["damage"] += amount
+		stats["hits"] += 1
+		var kind := "hit"
+		for tag in [&"lava", &"stomp", &"contact", &"projectile", &"explosion", &"trap"]:
+			if damage.tags.has(tag):
+				kind = String(tag)
+				break
+		if kind == "lava" and damage.tags.has(&"trap"):
+			kind = "lava_pool"
+		stats["kinds"][kind] = stats["kinds"].get(kind, 0.0) + amount
+	var on_stun := func(duration: float) -> void:
+		stats["stuns"] += 1
+		stats["max_stun"] = maxf(stats["max_stun"], duration)
+	player.hurtbox.hit_received.connect(on_hit)
+	player.stunned.connect(on_stun)
+	stats["_on_hit"] = on_hit
+	stats["_on_stun"] = on_stun
+	return stats
+
+
+func _unwatch_player_hits(player: Node, stats: Dictionary) -> void:
+	player.hurtbox.hit_received.disconnect(stats["_on_hit"])
+	player.stunned.disconnect(stats["_on_stun"])
+	stats.erase("_on_hit")
+	stats.erase("_on_stun")
+
+
+## KE2: prints the case's HP and rounded hit and checks the danger factor on the HP (the boss tier
+## and the champion factor stay in both sides of the comparison).
+func _report_scaling(label: String, enemy: Node, data: Resource, room_index: int, champion: bool) -> void:
+	var scaling: GDScript = load("res://enemies/enemy_scaling.gd")
+	var processor: GDScript = load("res://components/combat/damage_processor.gd")
+	var hp: float = enemy.health.get_max_health()
+	var hit: float = processor.round_damage(data.damage * scaling.damage_multiplier(room_index, champion, _danger)) if data.damage > 0.0 else 0.0
+	print("%s: G %d, HP %.0f, hit %.1f" % [label, _danger, hp, hit])
+	var plain: float = scaling.health_multiplier(room_index, champion, 0)
+	var with_danger: float = scaling.health_multiplier(room_index, champion, _danger)
+	_check(is_equal_approx(with_danger / plain, 1.0 + 0.06 * _danger), "%s: HP factor of danger %d" % [label, _danger])
+	_check(is_equal_approx(enemy._health_multiplier, with_danger), "%s: enemy uses the run's danger level" % label)
 
 
 func _spawn(data: Resource, room: Node, player: Node, room_index: int, champion := false) -> Node:

@@ -212,7 +212,7 @@ func test_centred_lets_go_of_dead_zone_and_lead() -> void:
 # --- CameraZoom ---
 
 func test_zoom_per_room_type() -> void:
-	assert_eq(CameraZoom.DUNGEON, 1.25, "TESTWERT M4")
+	assert_eq(CameraZoom.DUNGEON, 1.45, "TESTWERT D-205")
 	assert_eq(CameraZoom.for_room_type(RoomSequence.RoomType.COMBAT), CameraZoom.DUNGEON)
 	assert_eq(CameraZoom.for_room_type(RoomSequence.RoomType.SPECIAL), CameraZoom.DUNGEON)
 	assert_eq(CameraZoom.for_room_type(RoomSequence.RoomType.BOSS), 1.0, "boss rooms 1.0")
@@ -239,8 +239,9 @@ func test_pull_out_and_back() -> void:
 		var value := zoom.step(STEP)
 		biggest_step = maxf(biggest_step, absf(value - previous))
 		previous = value
-	assert_almost_eq(zoom.value, CameraZoom.DUNGEON, 0.001, "back to 1.25×")
-	assert_lt(biggest_step, 0.02, "soft, never a jump")
+	assert_almost_eq(zoom.value, CameraZoom.DUNGEON, 0.001, "back to the dungeon zoom")
+	# At most 8 % of the way per frame step (was 0.02 for the old 1.0 -> 1.25 range).
+	assert_lt(biggest_step, 0.08 * (CameraZoom.DUNGEON - CameraZoom.OVERVIEW), "soft, never a jump")
 
 
 func test_pull_out_waits_for_hold_but_not_forever() -> void:
@@ -423,5 +424,5 @@ func test_hud_is_not_scaled() -> void:
 	var rig := _rig(world)
 	var layer: CanvasLayer = add_child_autofree(CanvasLayer.new())
 	_run(rig, 0.1)
-	assert_eq(rig.zoom.x, CameraZoom.DUNGEON)
+	assert_almost_eq(rig.zoom.x, CameraZoom.DUNGEON, 0.0001)
 	assert_eq(layer.get_final_transform().get_scale(), Vector2.ONE, "CanvasLayers ignore the camera zoom")

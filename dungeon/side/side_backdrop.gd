@@ -10,6 +10,8 @@ extends Node2D
 ## forge: chains with hanging cages and the glow of distant furnaces), and a coloured mist rising
 ## from below. Delivered art art/environment/side/mid_<biome>_parallax.png (SPRITES_V10 §6, 480×270,
 ## transparent) replaces the drawn middle layer.
+## Everything drawn here is pixel art (D-218, SidePixels): silhouettes filled on the art-pixel grid,
+## glows and the mist in a few hard steps.
 
 const ART_PATH := "res://art/environment/side/bg_%s_parallax.png"
 const WALL_COLORS: Dictionary[StringName, Color] = {
@@ -41,6 +43,8 @@ const GLOW_COLORS: Dictionary[StringName, Color] = {
 const MIST_HEIGHT := 260.0
 const MIST_ALPHA := 0.32
 const MID_SPACING := 520.0
+## Hard bands of the mist (TESTWERT).
+const MIST_BANDS := 4
 
 var biome_id: StringName = &"crypt"
 var world_size := Vector2(3200, 704)
@@ -83,16 +87,16 @@ func _draw() -> void:
 	if ResourceLoader.exists(ART_PATH % biome_id):
 		return
 	var wall := _wall_color()
-	draw_rect(Rect2(-Vector2.ONE * MARGIN, world_size + Vector2.ONE * MARGIN * 2.0), wall)
+	SidePixels.rect(self, Rect2(-Vector2.ONE * MARGIN, world_size + Vector2.ONE * MARGIN * 2.0), wall)
 	var line := wall * Color(LINE_SHADE, LINE_SHADE, LINE_SHADE)
 	var rows := ceili(world_size.y / COURSE_HEIGHT)
 	for row in rows:
 		var y := row * COURSE_HEIGHT
-		draw_line(Vector2(0, y), Vector2(world_size.x, y), line, 2.0)
+		SidePixels.rect(self, Rect2(0, y, world_size.x, SidePixels.PIXEL), line)
 		var shift := STONE_WIDTH * 0.5 if row % 2 == 1 else 0.0
 		var x := shift
 		while x < world_size.x:
-			draw_line(Vector2(x, y), Vector2(x, y + COURSE_HEIGHT), line, 2.0)
+			SidePixels.rect(self, Rect2(x, y, SidePixels.PIXEL, COURSE_HEIGHT), line)
 			x += STONE_WIDTH
 
 
@@ -156,13 +160,13 @@ class _Pillars:
 		var index := 0
 		while x < world_size.x * 0.75 + 600.0:
 			var width := PILLAR_WIDTH * (0.8 + 0.4 * float(index % 3) / 2.0)
-			draw_rect(Rect2(x, -MARGIN, width, world_size.y + MARGIN * 2.0), color)
-			draw_rect(Rect2(x - 10.0, world_size.y * 0.2, width + 20.0, 24.0), color.darkened(0.15))
+			SidePixels.rect(self, Rect2(x, -MARGIN, width, world_size.y + MARGIN * 2.0), color)
+			SidePixels.rect(self, Rect2(x - 10.0, world_size.y * 0.2, width + 20.0, 24.0), color.darkened(0.15))
 			x += PILLAR_SPACING + 60.0 * float(index % 2)
 			index += 1
 
 
-## Coloured mist rising from below the segment (the pits fall into it).
+## Coloured mist rising from below the segment (the pits fall into it), in hard bands.
 class _Mist:
 	extends Node2D
 	var color := Color.WHITE
@@ -173,9 +177,8 @@ class _Mist:
 		var top := world_size.y - SideBackdrop.MIST_HEIGHT
 		var clear := Color(color, 0.0)
 		var thick := Color(color.darkened(0.4), SideBackdrop.MIST_ALPHA)
-		draw_polygon(PackedVector2Array([Vector2(-SideBackdrop.MARGIN, top), Vector2(world_size.x + SideBackdrop.MARGIN, top),
-				Vector2(world_size.x + SideBackdrop.MARGIN, bottom), Vector2(-SideBackdrop.MARGIN, bottom)]),
-				PackedColorArray([clear, clear, thick, thick]))
+		SidePixels.bands(self, Rect2(-SideBackdrop.MARGIN, top, world_size.x + SideBackdrop.MARGIN * 2.0, bottom - top),
+				clear, thick, SideBackdrop.MIST_BANDS)
 
 
 ## Drawn middle layer: the biome's silhouettes every MID_SPACING px, a little lighter than the back
@@ -208,20 +211,20 @@ class _Middle:
 		# An arch on two pillars, a chain in it, a niche with a candle beside it.
 		var width := 180.0
 		var top := h * 0.28
-		draw_rect(Rect2(x, top, 34, h - top + 200), color)
-		draw_rect(Rect2(x + width - 34, top, 34, h - top + 200), color)
+		SidePixels.rect(self, Rect2(x, top, 34, h - top + 200), color)
+		SidePixels.rect(self, Rect2(x + width - 34, top, 34, h - top + 200), color)
 		var arch := PackedVector2Array()
 		for i in 17:
 			var angle := PI + PI * i / 16.0
 			arch.append(Vector2(x + width * 0.5 + cos(angle) * (width * 0.5 - 17.0), top + sin(angle) * 60.0))
-		draw_polyline(arch, color, 34.0)
-		draw_rect(Rect2(x - 6, top - 8, 46, 14), color.lightened(0.04))
-		draw_rect(Rect2(x + width - 40, top - 8, 46, 14), color.lightened(0.04))
+		SidePixels.polyline(self, arch, color, 17)
+		SidePixels.rect(self, Rect2(x - 6, top - 8, 46, 14), color.lightened(0.04))
+		SidePixels.rect(self, Rect2(x + width - 40, top - 8, 46, 14), color.lightened(0.04))
 		var chain_x := x + width * 0.5
 		for link in 5 + index % 3:
-			draw_rect(Rect2(chain_x - 3, top - 50 + link * 16, 6, 11), color.lightened(0.06), false, 2.0)
+			SidePixels.frame(self, Rect2(chain_x - 3, top - 50 + link * 16, 6, 12), color.lightened(0.06))
 		var niche := Vector2(x + width + 110, h * 0.45)
-		draw_rect(Rect2(niche.x - 18, niche.y - 30, 36, 44), color.darkened(0.35))
+		SidePixels.rect(self, Rect2(niche.x - 18, niche.y - 30, 36, 44), color.darkened(0.35))
 		_glow_at(niche + Vector2(0, 6), 5.0)
 
 	func _grotto(x: float, h: float, index: int) -> void:
@@ -233,17 +236,17 @@ class _Middle:
 			for i in 9:
 				var t := i / 8.0
 				points.append(Vector2(x0 + sin(t * 4.0 + strand + index) * 10.0 * t, -60.0 + (length + 60.0) * t))
-			draw_polyline(points, color, 7.0 - strand)
+			SidePixels.polyline(self, points, color, maxi(1, ceili((7.0 - strand) / SidePixels.PIXEL)))
 		var base := Vector2(x + 230, h + 40)
-		draw_colored_polygon(PackedVector2Array([base + Vector2(-60, 0), base + Vector2(60, 0), base + Vector2(8, -h * 0.42), base + Vector2(-6, -h * 0.44)]), color)
+		SidePixels.polygon(self, PackedVector2Array([base + Vector2(-60, 0), base + Vector2(60, 0), base + Vector2(8, -h * 0.42), base + Vector2(-6, -h * 0.44)]), color)
 		var stem := Vector2(x + 380, h + 20)
 		var cap_y := h * (0.5 + 0.06 * (index % 2))
-		draw_rect(Rect2(stem.x - 12, cap_y, 24, stem.y - cap_y), color)
+		SidePixels.rect(self, Rect2(stem.x - 12, cap_y, 24, stem.y - cap_y), color)
 		var cap := PackedVector2Array()
 		for i in 13:
 			var angle := PI + PI * i / 12.0
 			cap.append(Vector2(stem.x + cos(angle) * 70.0, cap_y + sin(angle) * 34.0))
-		draw_colored_polygon(cap, color.lightened(0.03))
+		SidePixels.polygon(self, cap, color.lightened(0.03))
 		for dot in 4:
 			_glow_at(Vector2(stem.x - 40 + dot * 26, cap_y - 12 - (dot % 2) * 10), 3.0)
 
@@ -252,36 +255,35 @@ class _Middle:
 		for shard in 3:
 			var center := Vector2(x + shard * 110.0, h * (0.25 + 0.18 * ((shard + index) % 3)))
 			var size := 26.0 + 16.0 * ((shard + index) % 2)
-			draw_colored_polygon(PackedVector2Array([center + Vector2(0, -size * 1.6), center + Vector2(size, 0),
+			SidePixels.polygon(self, PackedVector2Array([center + Vector2(0, -size * 1.6), center + Vector2(size, 0),
 					center + Vector2(size * 0.3, size * 1.3), center + Vector2(-size * 0.8, size * 0.2)]), color)
 			if shard == 1:
 				_glow_at(center, 4.0)
-				draw_line(center + Vector2(-6, -8), center + Vector2(6, 8), Color(glow, 0.55), 2.0)
-				draw_line(center + Vector2(6, -8), center + Vector2(-6, 8), Color(glow, 0.55), 2.0)
-		draw_colored_polygon(PackedVector2Array([Vector2(x + 300, h + 60), Vector2(x + 360, h * 0.35), Vector2(x + 420, h + 60)]), color)
+				SidePixels.line(self, center + Vector2(-6, -8), center + Vector2(6, 8), Color(glow, 0.55))
+				SidePixels.line(self, center + Vector2(6, -8), center + Vector2(-6, 8), Color(glow, 0.55))
+		SidePixels.polygon(self, PackedVector2Array([Vector2(x + 300, h + 60), Vector2(x + 360, h * 0.35), Vector2(x + 420, h + 60)]), color)
 
 	func _ember(x: float, h: float, index: int) -> void:
 		# Two chains with a hanging cage, a furnace mouth glowing low on the wall, a pipe.
 		var cage := Vector2(x + 90, h * (0.3 + 0.05 * (index % 2)))
 		for side in [-1.0, 1.0]:
-			draw_line(Vector2(cage.x + side * 20, -40), Vector2(cage.x + side * 10, cage.y - 30), color.lightened(0.05), 4.0)
-		draw_rect(Rect2(cage.x - 22, cage.y - 30, 44, 54), color, false, 5.0)
+			SidePixels.line(self, Vector2(cage.x + side * 20, -40), Vector2(cage.x + side * 10, cage.y - 30), color.lightened(0.05), 2)
+		SidePixels.frame(self, Rect2(cage.x - 22, cage.y - 30, 44, 54), color, 2)
 		for bar in 3:
-			draw_line(Vector2(cage.x - 11 + bar * 11, cage.y - 30), Vector2(cage.x - 11 + bar * 11, cage.y + 24), color, 3.0)
+			SidePixels.rect(self, Rect2(cage.x - 12 + bar * 11, cage.y - 30, 2 * SidePixels.PIXEL, 54), color)
 		var furnace := Vector2(x + 300, h * 0.72)
-		draw_rect(Rect2(furnace.x - 70, furnace.y - 60, 140, h - furnace.y + 260), color)
+		SidePixels.rect(self, Rect2(furnace.x - 70, furnace.y - 60, 140, h - furnace.y + 260), color)
 		var mouth := PackedVector2Array()
 		for i in 13:
 			var angle := PI + PI * i / 12.0
 			mouth.append(Vector2(furnace.x + cos(angle) * 34.0, furnace.y + sin(angle) * 30.0))
 		mouth.append(Vector2(furnace.x + 34, furnace.y + 24))
 		mouth.append(Vector2(furnace.x - 34, furnace.y + 24))
-		draw_colored_polygon(mouth, Color(glow, 0.35))
+		SidePixels.polygon(self, mouth, Color(glow, 0.35))
 		_glow_at(furnace + Vector2(0, 6), 10.0)
-		draw_rect(Rect2(x + 420, -40, 20, h * 0.55), color.lightened(0.03))
+		SidePixels.rect(self, Rect2(x + 420, -40, 20, h * 0.55), color.lightened(0.03))
 
-	## A small light point with a soft halo.
+	## A small light point with a halo of three hard steps and a bright core.
 	func _glow_at(at: Vector2, radius: float) -> void:
-		for ring in 4:
-			draw_circle(at, radius * (4.0 - ring), Color(glow, 0.05 + 0.05 * ring))
-		draw_circle(at, radius * 0.6, Color(glow.lightened(0.4), 0.9))
+		SidePixels.glow(self, at, radius * 4.0, Color(glow, 0.1), 3)
+		SidePixels.disc(self, at, maxf(SidePixels.PIXEL, radius * 0.6), Color(glow.lightened(0.4), 0.9))

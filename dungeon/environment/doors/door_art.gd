@@ -1,7 +1,7 @@
 class_name DoorArt
 extends RefCounted
-## Door textures (ROADMAP_AUSBAU D1). Delivered files from art/environment/doors/ (names in
-## docs/design/sprites/SPRITES_V4.md §4, built by DoorStyle) win automatically; while a file is missing, a
+## Door textures (ROADMAP D1). Delivered files from art/environment/doors/ (names in
+## docs/design/sprites/delivered/SPRITES_V4.md §4, built by DoorStyle) win automatically; while a file is missing, a
 ## placeholder is painted here pixel by pixel in the HANDOUT palette. Everything is cached.
 ## Visual only: randomness here is a fixed hash, so every door of a style looks the same.
 ## Gates (M2, gates.json) are one neutral strip per kind (slab, bars), tinted by DoorView; the
@@ -154,6 +154,8 @@ static func get_frame(style: DoorStyle) -> Texture2D:
 		if image.is_compressed():
 			image.decompress()
 		image.convert(Image.FORMAT_RGBA8)
+		if file != null and style.is_boss():
+			close_cut_top(image)
 		var rows: Array[int] = []
 		if style.rise_cut > 0:
 			rows = lower_rows(image, style.rise_cut)
@@ -164,6 +166,23 @@ static func get_frame(style: DoorStyle) -> Texture2D:
 		if shared != "":
 			_cache[shared] = [_cache[key], image, rows]
 	return _cache[key]
+
+
+## The delivered boss arch ends in the stone of its top (door_frame_boss: no outline above the arch,
+## bug report 22.10.2026 #5724ea7c "Torrahmen abgeschnitten", SPRITES_V13 C) and stands free (no rock
+## over the boss passage): its top row gets the outline, so the arch reads closed. The other arches
+## run on under the crown and stay as they are, so do pictures with an opaque top-left corner (the
+## old rock-block mouths). Returns the number of pixels changed.
+static func close_cut_top(image: Image) -> int:
+	if image == null or image.get_height() < 2 or image.get_pixel(0, 0).a > 0.5:
+		return 0
+	var changed := 0
+	for x in image.get_width():
+		var pixel := image.get_pixel(x, 0)
+		if pixel.a > 0.5 and pixel.v > OUTLINE.v + 0.08:
+			image.set_pixel(x, 0, Color(OUTLINE, pixel.a))
+			changed += 1
+	return changed
 
 
 ## Rows of the tall picture taken out of this style's frame (DoorStyle.rise_cut), ascending; empty
@@ -374,17 +393,18 @@ static func side_mouth_image() -> Image:
 
 ## The notch of a side gate (G2, playtest 15.10.2026, notes 5.3 and 18): the dark of the tunnel over
 ## its floor, drawn for an east wall (the room on the left, the passage running on to the right): clear
-## at the mouth, from NOTCH_FADE_FROM of its depth darkening to NOTCH_ALPHA_DEEP at the back. TESTWERTE
+## at the mouth, from NOTCH_FADE_FROM of its depth darkening to NOTCH_ALPHA_DEEP at the back.
+## Bug report 23.10.2026 #c17c0ed8 ("Der Schatten sieht hier hässlich aus. Zieh ihn durch. Nicht zu
+## dunkel"): the same strength along the whole edge, from the top of the notch's front (NOTCH_RISE =
+## its whole row) down to the notch's foot, and lighter at the back (0.96 before). TESTWERTE
 const NOTCH_FADE_FROM := 0.12
-const NOTCH_FADE_TO := 0.85
-const NOTCH_ALPHA_DEEP := 0.96
-## Bug report 17.10.2026 (#e1279990, "Schatten cutted": the dark ended in a hard line across a player
-## in the notch, at the foot of its front): the picture reaches NOTCH_RISE rows up over the front and
-## fades in there from nothing; towards the notch's foot it fades to NOTCH_EDGE_SHARE. 32 x (32 +
-## NOTCH_RISE), the door tile from row NOTCH_RISE. TESTWERTE
-const NOTCH_RISE := 16
-const NOTCH_FADE_BOTTOM := 6
-const NOTCH_EDGE_SHARE := 0.35
+const NOTCH_FADE_TO := 0.9
+const NOTCH_ALPHA_DEEP := 0.55
+## Rows the picture reaches up over the front above the door tile: 32 x (32 + NOTCH_RISE), the door
+## tile from row NOTCH_RISE. Only the last NOTCH_FADE_ENDS rows at its top and its foot fade (no hard
+## line across a player, #e1279990 "Schatten cutted"). TESTWERTE
+const NOTCH_RISE := 32
+const NOTCH_FADE_ENDS := 3
 
 
 static func side_notch_image() -> Image:
@@ -395,10 +415,8 @@ static func side_notch_image() -> Image:
 		var u := clampf((t - NOTCH_FADE_FROM) / (NOTCH_FADE_TO - NOTCH_FADE_FROM), 0.0, 1.0)
 		var a := NOTCH_ALPHA_DEEP * u * u * (3.0 - 2.0 * u)
 		for y in height:
-			var top := clampf((float(y) + 0.5) / float(NOTCH_RISE + 4), 0.0, 1.0)
-			var bottom := clampf((float(height) - 0.5 - float(y)) / float(NOTCH_FADE_BOTTOM), 0.0, 1.0)
-			var edge := minf(top * top * (3.0 - 2.0 * top), lerpf(NOTCH_EDGE_SHARE, 1.0, bottom))
-			image.set_pixel(x, y, Color(TUNNEL_COLOR, a * edge))
+			var ends := minf(float(y) + 0.5, float(height) - 0.5 - float(y)) / float(NOTCH_FADE_ENDS)
+			image.set_pixel(x, y, Color(TUNNEL_COLOR, a * clampf(ends, 0.0, 1.0)))
 	return image
 
 

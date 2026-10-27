@@ -4,6 +4,8 @@ extends Control
 ## overview and run end. Draws art/ui/level_badge.png when it exists (SPRITES briefing: 16×16, the
 ## number is drawn on top), else a pixel placeholder: a chamfered gold frame on dark violet.
 ## Every fifth level (a reward level, AccountProgress.REWARD_EVERY) gets a brighter frame.
+## KE1: free talent points (KONZEPT §4) light a small spark at the top right (show_points), drawn
+## from code over the art too, until art/ui/icon_talent_point.png exists (SPRITES_V13 §B3).
 
 const TEXTURE_PATH := "res://art/ui/level_badge.png"
 ## Badge size in mockup pixels (art pixels of the placeholder).
@@ -13,6 +15,8 @@ const FRAME := UiKit.COLOR_GOLD
 const FRAME_REWARD := Color("#fff1a8")
 ## Chamfer of the placeholder per art row from the top (mirrored at the bottom).
 const CHAMFER: Array[int] = [3, 2, 1]
+const POINT_ICON_PATH := "res://art/ui/icon_talent_point.png"
+const POINT_COLOR := Color("#ffe6a3")
 
 var level := 1:
 	set(value):
@@ -20,6 +24,12 @@ var level := 1:
 		if _number != null:
 			_number.text = str(level)
 			_fit_number()
+		queue_redraw()
+
+## True: a spark at the top right says "talent points free".
+var show_points := false:
+	set(value):
+		show_points = value
 		queue_redraw()
 
 var _number: Label = null
@@ -69,6 +79,7 @@ func _draw() -> void:
 	var origin := ((size - Vector2.ONE * side) * 0.5).floor()
 	if _texture != null:
 		draw_texture_rect(_texture, Rect2(origin, Vector2.ONE * side), false)
+		_draw_point(origin, side)
 		return
 	var cells := 16
 	var unit := floorf(side / cells)
@@ -93,6 +104,23 @@ func _draw() -> void:
 			if y > 1 and y < cells - 2:
 				# A lighter first row inside: a little shine under the top of the frame.
 				_row(origin, unit, y, ring_from + 1, ring_to - 1, FILL if y > 2 else FILL.lightened(0.15))
+	_draw_point(origin, side)
+
+
+## The "points free" spark: the delivered icon or a small light diamond at the top right corner.
+func _draw_point(origin: Vector2, side: float) -> void:
+	if not show_points:
+		return
+	var point_size := maxf(2.0, floorf(side * 0.4))
+	var rect := Rect2(origin + Vector2(side - point_size * 0.75, -point_size * 0.25), Vector2.ONE * point_size)
+	if ResourceLoader.exists(POINT_ICON_PATH):
+		draw_texture_rect(load(POINT_ICON_PATH) as Texture2D, rect, false)
+		return
+	# A pixel diamond (D-218): shadow outline and a light core on the UI art-pixel grid.
+	var pixel := float(UiKit.ART_SCALE)
+	var outer := maxi(1, floori(point_size * 0.5 / pixel))
+	PixelDraw.diamond(self, rect.get_center(), outer, UiKit.COLOR_SHADOW, pixel)
+	PixelDraw.diamond(self, rect.get_center(), roundi(outer * 0.6), POINT_COLOR, pixel)
 
 
 func _row(origin: Vector2, unit: float, y: int, from: int, to: int, color: Color) -> void:

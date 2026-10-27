@@ -1,5 +1,5 @@
 extends GutTest
-## Room goals and the task bar (R3, KONZEPT_RAEUME_V2 §1.4, 07_ui.md): RoomObjective holds mode,
+## Room goals and the task bar (R3, RAEUME §1.4, 07_ui.md): RoomObjective holds mode,
 ## texts, progress, time and danger; ArenaObjective follows an arena room ("Welle 1/2 · 3 Gegner",
 ## wave_cleared between waves); ObjectiveBar shows it at the top centre, pulses red in danger and
 ## gives way to the boss bar. Uses a test save, never the real one.

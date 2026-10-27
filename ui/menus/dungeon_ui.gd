@@ -1,20 +1,21 @@
 class_name DungeonUI
 extends CanvasLayer
-## Dungeon dialogs: upgrade choice, shop, weapon slot replacement, confirmations, the campfire rest
-## and the Tab overview. Every dialog pauses the simulation while open (D-043) and shows effective
+## Dungeon dialogs: upgrade choice, shop, weapon slot replacement, confirmations, the campfire rest,
+## the soul gate decision (KE3) and the Tab overview. Every dialog pauses the simulation while open (D-043) and shows effective
 ## values from the same getters the attacks use (D-034).
 ## All dialogs share one menu kit (UX2, UiDialog): framed panel on the dimmed scene, eyebrow, title,
 ## subtitle, cards or option buttons with key caps, the key bar inside the panel and the same sounds.
 ## Cards never turn half transparent: a card that cannot be taken keeps its look and gets a badge
 ## (too little gold with a lock and a red price, sold, at the limit); a click answers with the error
 ## sound and a shake.
-## Also non-blocking feedback: banners (queued, one at a time), room genre banners and first-time
-## explanations (D-110, RoomGenre), the boss bar (name + tier, phase, badges, portrait),
-## first-encounter hint cards for new enemy types, elite kinds and champions (EnemyHints) and the
-## first-run controls card (ControlsHint, once per save, UX1). Only one teaching card is on screen at
-## a time: the controls card steps aside while an enemy or room card shows.
-## Room modes (R3, KONZEPT_RAEUME_V2 §1.3/§1.4): the intro of a room (RoomIntro: goal banner, 3-2-1,
-## first-time card, sounds) and the task bar at the top centre (ObjectiveBar for the room's
+## Also non-blocking feedback: banners (queued, one at a time), room genre banners (D-110, RoomGenre;
+## Flint explains a new room type, RoomFlint, D-211), the boss bar (name + tier, phase, badges, portrait),
+## first-encounter hint cards for new enemy types, elite kinds and champions (EnemyHints). Only one
+## teaching card is on screen at a time. The first-run keys, room types, cracked walls and chasms are
+## no card any more: Flint says them (FlintControls, started here; show_flint_hint for single
+## first-time moments).
+## Room modes (R3, RAEUME §1.3/§1.4): the intro of a room (RoomIntro: goal banner, 3-2-1,
+## Flint's tour, sounds) and the task bar at the top centre (ObjectiveBar for the room's
 ## RoomObjective; the boss bar replaces it). Both are found through node_added, so a mode only adds
 ## its RoomObjective / RoomIntro under its room. The arena is started here (show_room_genre).
 ## Banners (07_ui.md): dark plaque with a stripe in the mode colour; banners and world captions
@@ -44,10 +45,22 @@ extends CanvasLayer
 ## A dialog of open_dialog is on screen now (at once or after waiting in the queue). NetDungeon
 ## tells the host when a client's timed upgrade choice really appeared.
 signal dialog_shown(modal: Modal)
+## KE3 (D-126): a local player at the soul gate - phase SOUL_GATE_OPEN (the dialog shows),
+## SOUL_GATE_SECURED or SOUL_GATE_ONWARD (the choice). Hook for NetDungeon: send it to the others,
+## who call show_soul_gate_notice() with the player's name; the run end itself goes over end_run.
+signal soul_gate_used(player: Player, phase: StringName)
 
 ## Meta of a modal naming the dialog (dialog_shown listeners, e.g. a first-time hint on the upgrade
 ## choice): modal.get_meta(DIALOG_KIND, &"") == DIALOG_UPGRADE_CHOICE.
 const DIALOG_KIND: StringName = &"dialog_kind"
+const SOUL_GATE_OPEN: StringName = &"open"
+const SOUL_GATE_SECURED: StringName = &"secured"
+const SOUL_GATE_ONWARD: StringName = &"onward"
+## How long the others see "<Name> steht am Seelentor …" (renewed while the dialog stays open).
+const SOUL_GATE_NOTICE_TIME := 4.0
+## Icons of the gate dialog (SPRITES_V13 §B4); without them the cards show text only.
+const SOUL_GATE_SECURE_ICON := "res://art/ui/icon_secure.png"
+const SOUL_GATE_DEPTH_ICON := "res://art/ui/icon_depth_bonus.png"
 const DIALOG_UPGRADE_CHOICE: StringName = &"upgrade_choice"
 
 ## Overlays fade while a body is under them, big banners shrink during a fight (no class_name: no
@@ -180,8 +193,12 @@ var context: DungeonContext = null
 var auto_enemy_hints := true
 ## Overlays fade while an enemy or a player is under them (tests may switch it off).
 var dodge_overlays := true
-## Show the first-run controls card (once per save); tests and tools may switch it off.
-var show_controls_hint := true
+## Flint says the first-run keys (FlintControls); tests, tools and the practice run switch it off.
+var show_controls_hint := true:
+	set(value):
+		show_controls_hint = value
+		if _controls_hint != null and is_instance_valid(_controls_hint):
+			_controls_hint.enabled = value
 
 var _overview: Modal = null
 var _banner_root: Control = null
@@ -227,11 +244,10 @@ var _last_hit_by: Dictionary[int, String] = {}
 var _downed_root: Control = null
 var _downed_panel: DownedPanel = null
 var _downed_markers: DownedMarkers = null
-## Teaching cards waiting: {"kind": &"enemy", "title", "text", "badge"} or {"kind": &"room", "genre"}.
+## Teaching cards waiting: {"kind": &"enemy", "title", "text", "badge"} (room types: Flint, D-211).
 var _hint_queue: Array[Dictionary] = []
 var _hint_card: Control = null
-var _hint_entry: Dictionary = {}
-var _controls_hint: ControlsHint = null
+var _controls_hint: FlintControls = null
 ## Rooms whose genre was announced (instance id -> genre), so a room is named once.
 var _announced_rooms: Dictionary[int, StringName] = {}
 ## Gap between two queued dialogs (DIALOG_GAP; tests may shorten it).
@@ -342,21 +358,29 @@ func _player_positions() -> Array[Vector2]:
 	return positions
 
 
-## Shows the first-run controls card if this save has not seen it yet. Returns the card or null.
-func start_controls_hint() -> ControlsHint:
-	if not show_controls_hint or _controls_hint != null or not ControlsHint.should_show():
+## Lets Flint say the first-run keys (FlintControls, once per account each). Returns the coach, or
+## null while switched off (show_controls_hint) or when it runs already.
+func start_controls_hint() -> FlintControls:
+	if not show_controls_hint or get_controls_hint() != null:
 		return null
-	_controls_hint = ControlsHint.new()
-	_controls_hint.finished.connect(func() -> void: _controls_hint = null)
-	_hint_root.add_child(_controls_hint)
-	if _hint_card != null:
-		# A teaching card is up already: the controls card waits behind it.
-		_set_controls_hint_waiting(true)
+	_controls_hint = FlintControls.new()
+	add_child(_controls_hint)
 	return _controls_hint
 
 
-func get_controls_hint() -> ControlsHint:
+func get_controls_hint() -> FlintControls:
 	return _controls_hint if is_instance_valid(_controls_hint) else null
+
+
+## Hook for single first-time moments with keys (DungeonManager: small holes FlintControls.CHASM,
+## the first cracked wall FlintControls.SECRET_WALL): Flint says the hint to every local player who
+## has not heard it. True if anybody gets it.
+func show_flint_hint(id: StringName) -> bool:
+	var told := false
+	for player in _watched():
+		if player != null and is_instance_valid(player) and player.is_local and FlintControls.explain_first(player, id):
+			told = true
+	return told
 
 
 # --- Banners ---
@@ -996,7 +1020,8 @@ func _update_dodge(delta: float) -> void:
 # --- Room genres (D-110) ---
 
 ## Hook for DungeonManager._announce_room: banner with name and symbol for rooms with gameplay of
-## their own; the first time per save also the explanation card. Normal combat rooms stay unnamed.
+## their own; the first time per account Flint explains the room type (RoomFlint, D-211). Normal
+## combat rooms stay unnamed.
 ## An arena starts its intro here (R3: door shuts, camera on the gates, "Überlebe N Wellen", 3-2-1,
 ## task bar). Returns the genre (RoomGenre.NONE = nothing shown). A room is announced once.
 ## A special room builds its content (pact altar or not, kind of trial) only in activate(), right
@@ -1028,14 +1053,16 @@ func _announce_room_genre(room: RoomController) -> StringName:
 		return genre
 	_announced_rooms[room.get_instance_id()] = genre
 	if RoomIntro.get_intro(room) != null or RoomObjective.of_room(room) != null:
-		# The mode introduces itself (goal banner, card, task bar).
+		# The mode introduces itself (goal banner, Flint, task bar).
 		return genre
 	show_genre(genre, room)
 	return genre
 
 
-## Banner (and, first time per save, the explanation) of a genre. room fills in the room number and
-## details such as the next biome; without it the current room number is used.
+## Banner of a genre, and Flint's explanation for every local player who does not know the room type
+## yet (D-211, RoomFlint: the first time per account; a save that saw the old card still gets him
+## once). room fills in the room number and details such as the next biome; without it the current
+## room number is used.
 func show_genre(genre: StringName, room: RoomController = null) -> void:
 	if not RoomGenre.has_genre(genre):
 		return
@@ -1047,8 +1074,20 @@ func show_genre(genre: StringName, room: RoomController = null) -> void:
 		"eyebrow": RoomGenre.get_eyebrow(genre, index),
 		"color": RoomGenre.get_color(genre),
 	})
-	if RoomGenre.should_explain(genre):
-		_queue_room_intro(genre)
+	_explain_genre(genre, room)
+
+
+## Flint explains genre to this machine's players (each machine for its own, D-088); the save keeps
+## its old "explained" flag (ChasmRules asks it) once he did.
+func _explain_genre(genre: StringName, room: RoomController = null) -> bool:
+	var told := false
+	for player in RoomFlint.local_players(get_tree()):
+		var at: Node2D = room if room != null and is_instance_valid(room) else RoomFlint.active_room_of(player)
+		if RoomFlint.explain_room(player, genre, at):
+			told = true
+	if told:
+		RoomGenre.mark_explained(genre)
+	return told
 
 
 ## The arena of room (R3): goal in the task bar and the intro (RoomIntro: door, camera on the
@@ -1107,30 +1146,9 @@ func on_arena_started(room: RoomController, _ambush := false) -> void:
 	show_genre(RoomGenre.ARENA, room)
 
 
-## The explanation card on screen (null if none), for tests and tools.
-func get_room_intro_card() -> RoomIntroCard:
-	return _hint_card as RoomIntroCard if is_instance_valid(_hint_card) else null
-
-
 func _watch_arena(room: RoomController) -> void:
 	if not room.arena_started.is_connected(on_arena_started):
 		room.arena_started.connect(on_arena_started)
-
-
-## urgent: the card of a starting intro; an enemy card on screen steps back and comes after it.
-func _queue_room_intro(genre: StringName, urgent := false) -> void:
-	for entry in _hint_queue:
-		if entry.get("genre", RoomGenre.NONE) == genre:
-			return
-	if urgent and _hint_card != null and is_instance_valid(_hint_card) and not _hint_card is RoomIntroCard:
-		var waiting := _hint_entry
-		_hint_card.queue_free()
-		_hint_card = null
-		_hint_queue.push_front(waiting)
-	# Explanations of the room go before enemy cards that are still waiting.
-	_hint_queue.push_front({"kind": &"room", "genre": genre})
-	if _hint_card == null:
-		_show_next_hint()
 
 
 # --- Room intro and task bar (R3) ---
@@ -1186,10 +1204,8 @@ func _bind_intro(intro: RoomIntro) -> void:
 	intro.finished.connect(_on_intro_finished.bind(intro))
 	var objective := intro.objective
 	if objective != null and is_instance_valid(objective):
+		# Flint's tour of a new room type is the intro's own (RoomIntro, Phase.FLINT).
 		_bind_objective(objective)
-		if intro.full and RoomGenre.should_explain(objective.genre):
-			# First time: the card from the start, it fades with "go".
-			_queue_room_intro(objective.genre, true)
 	_on_intro_phase(intro.phase, intro)
 
 
@@ -1223,11 +1239,6 @@ func _on_intro_tick(number: int, intro: RoomIntro) -> void:
 	_countdown.top_px = get_top_band_bottom()
 	_countdown.show_number(number, color)
 	Sfx.play_ui(self, &"countdown_go" if number <= 0 else &"countdown_tick")
-	if number <= 0:
-		# The explanation card of this intro fades with "go".
-		var card := get_room_intro_card()
-		if card != null and is_instance_valid(intro.objective) and card.genre == intro.objective.genre:
-			card.finish()
 
 
 func _on_intro_finished(_skipped: bool, intro: RoomIntro) -> void:
@@ -1251,7 +1262,7 @@ func _on_wave_cleared(next_wave: int, total: int, arena: ArenaObjective) -> void
 	Sfx.play_ui(self, &"wave_gong")
 
 
-# --- Teaching cards (enemy hints, room explanations) ---
+# --- Teaching cards (enemy hints) ---
 
 ## Queues the hint cards for everything new about this enemy (type, elite kind, champion).
 func notice_enemy(enemy: Enemy) -> void:
@@ -1265,7 +1276,7 @@ func notice_enemy(enemy: Enemy) -> void:
 		_queue_hint_once(entry)
 
 
-## Short card in the upper left (where the room cards sit): badge, name and one sentence.
+## Short card in the upper left: badge, name and one sentence.
 ## Auto-hides, never pauses the game.
 func show_hint(title: String, text: String, badge := &"") -> void:
 	_hint_queue.append({"kind": &"enemy", "title": title, "text": text, "badge": badge})
@@ -1295,29 +1306,12 @@ func _on_node_added(node: Node) -> void:
 		WorldCaption.adopt(node)
 
 
-## Next teaching card, one at a time. The controls card waits hidden while it shows.
+## Next teaching card, one at a time.
 func _show_next_hint() -> void:
 	_hint_card = null
-	_hint_entry = {}
 	if _hint_queue.is_empty():
-		_set_controls_hint_waiting(false)
 		return
 	var hint: Dictionary = _hint_queue.pop_front()
-	if hint.get("kind", &"enemy") == &"room":
-		var genre: StringName = hint["genre"]
-		if not RoomGenre.should_explain(genre):
-			_show_next_hint()
-			return
-		RoomGenre.mark_explained(genre)
-		_set_controls_hint_waiting(true)
-		var intro := RoomIntroCard.create(genre)
-		intro.finished.connect(_show_next_hint)
-		intro.set_meta(&"shown_ms", Time.get_ticks_msec())
-		_hint_root.add_child(intro)
-		_hint_card = intro
-		_hint_entry = hint
-		return
-	_set_controls_hint_waiting(true)
 	var badge: StringName = hint["badge"]
 	var color: Color = EnemyBadges.COLORS.get(badge, UiKit.ACCENT_COLOR)
 	var card := UiKit.panel(&"dark")
@@ -1339,7 +1333,6 @@ func _show_next_hint() -> void:
 	card.position = Vector2(UiKit.px(HINT_EDGE_MARGIN), ControlsHint.card_top(card, own.y))
 	card.modulate.a = 0.0
 	_hint_card = card
-	_hint_entry = hint
 	card.set_meta(&"shown_ms", Time.get_ticks_msec())
 	var tween := card.create_tween()
 	card.set_meta(&"tween", tween)
@@ -1350,17 +1343,12 @@ func _show_next_hint() -> void:
 	tween.tween_callback(_show_next_hint)
 
 
-## Next room: a teaching card that was readable for HINT_ROOM_CHANGE_MIN goes. The controls card is
-## not one of them: it runs on through rooms 2-3 until its keys were used and ends by room 4 at the
-## latest (ControlsHint, P1-4).
+## Next room: a teaching card that was readable for HINT_ROOM_CHANGE_MIN goes.
 func _on_room_entered_cards(_room_index: int) -> void:
 	var card := _hint_card as Control
 	if card == null or not is_instance_valid(card) or card.is_queued_for_deletion():
 		return
 	if Time.get_ticks_msec() - int(card.get_meta(&"shown_ms", 0)) < int(HINT_ROOM_CHANGE_MIN * 1000.0):
-		return
-	if card is RoomIntroCard:
-		(card as RoomIntroCard).finish()
 		return
 	var running := card.get_meta(&"tween", null) as Tween
 	if running != null and running.is_valid():
@@ -1369,16 +1357,6 @@ func _on_room_entered_cards(_room_index: int) -> void:
 	fade.tween_property(card, "modulate:a", 0.0, 0.3)
 	fade.tween_callback(card.queue_free)
 	fade.tween_callback(_show_next_hint)
-
-
-## The controls card steps aside (hidden, its timer and key tracking frozen) while another teaching
-## card shows, and comes back where it was afterwards.
-func _set_controls_hint_waiting(waiting: bool) -> void:
-	var controls := get_controls_hint()
-	if controls == null:
-		return
-	controls.visible = not waiting
-	controls.process_mode = Node.PROCESS_MODE_DISABLED if waiting else Node.PROCESS_MODE_PAUSABLE
 
 
 # --- Boss bar ---
@@ -1777,10 +1755,8 @@ func choose_upgrade(offer: Array[UpgradeData], title: String, stack_gain := 1, t
 		[_t(&"MENU_KEY_ARROWS"), _t(&"MENU_HINT_MOVE")],
 		[_t(&"MENU_KEY_ENTER"), _t(&"MENU_HINT_CONFIRM")],
 	]
-	# P1-4: the first upgrade choice of a save names the overview key (Tab; gamepad: Back).
-	var overview_tip := ControlsHint.take_overview_key_hint()
-	if not overview_tip.is_empty():
-		keys.append(overview_tip)
+	# The overview key (P1-4) is no tip in this dialog any more: Flint names it after the first
+	# upgrade (FlintControls.OVERVIEW).
 	modal.set_key_hints(keys)
 	# Hook (P1-4, ui/hints): dialog_shown carries this modal; the meta tells it is the upgrade choice.
 	modal.set_meta(DIALOG_KIND, DIALOG_UPGRADE_CHOICE)
@@ -1966,7 +1942,7 @@ func get_offer_state(offer: ShopOffer, player: Player) -> StringName:
 	var slot := _preview_slot(offer, player)
 	if context != null and not context.economy.can_deliver(offer, player, context.upgrade_manager, slot):
 		return &"unavailable"
-	if RunManager.get_run_gold() < offer.price:
+	if RunManager.get_run_gold() < EconomySystem.price_for(offer, player):
 		return &"too_expensive"
 	if offer.kind == ShopOffer.Kind.WEAPON and player.weapon_controller.find_free_slot() < 0:
 		return &"replace"
@@ -2007,7 +1983,7 @@ func _shop_card(offer: ShopOffer, index: int, player: Player, modal: Modal) -> U
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(title)
 	if state != &"sold":
-		top.add_child(_shop_price(offer, state))
+		top.add_child(_shop_price(offer, state, player))
 	var footer := UiKit.hbox(int(UiKit.px(3)))
 	footer.name = "State"
 	text.add_child(footer)
@@ -2023,7 +1999,7 @@ func _shop_card(offer: ShopOffer, index: int, player: Player, modal: Modal) -> U
 
 ## Price: gold, red with a lock when there is too little gold, muted when the offer cannot be bought
 ## anyway.
-func _shop_price(offer: ShopOffer, state: StringName) -> Control:
+func _shop_price(offer: ShopOffer, state: StringName, player: Player = null) -> Control:
 	var price_color := UiKit.COLOR_GOLD
 	match state:
 		&"too_expensive":
@@ -2040,7 +2016,8 @@ func _shop_price(offer: ShopOffer, state: StringName) -> Control:
 		lock.name = "Lock"
 		lock.modulate = UiKit.COLOR_DANGER_SOFT
 		holder.add_child(lock)
-	var price := UiKit.icon_value(UiKit.GOLD_ICON, str(offer.price), price_color, UiKit.SIZE_KEY_HINT, 8.0)
+	# Händlerfreund (KE5): the buyer's own price.
+	var price := UiKit.icon_value(UiKit.GOLD_ICON, str(EconomySystem.price_for(offer, player)), price_color, UiKit.SIZE_KEY_HINT, 8.0)
 	price.name = "Price"
 	price.alignment = BoxContainer.ALIGNMENT_END
 	holder.add_child(price)
@@ -2330,6 +2307,42 @@ func _option_card(option: Dictionary, index: int, on_pick: Callable) -> UiCard:
 		sub_label.name = "Sub"
 		box.add_child(sub_label)
 	return card
+
+
+# --- Soul gate (KE3, KONZEPT §2) ---
+
+## The moment at the soul gate: "Jetzt sichern" (gold and crystals the gate pays now) against
+## "Weiter" (depth bonus of the next block, rooms to the next gate at the earliest). true = secure
+## (the caller ends the run), false = go on; Esc goes on. Pauses like the other decisions (D-043).
+## player: who stands at the gate (soul_gate_used); the others only get a notice (D-126).
+func choose_soul_gate(player: Player, gold: int, crystals: int, bonus_percent: int, rooms_to_next: int) -> bool:
+	soul_gate_used.emit(player, SOUL_GATE_OPEN)
+	var onward_key := &"GATE_ONWARD_SUB_ONE" if rooms_to_next == 1 else &"GATE_ONWARD_SUB"
+	var options: Array = [
+		{"text": Loc.t(&"GATE_SECURE"), "sub": Loc.t(&"GATE_SECURE_SUB", [gold, crystals]), "color": UiKit.COLOR_GOLD},
+		{"text": Loc.t(&"GATE_ONWARD"), "sub": Loc.t(onward_key, [bonus_percent, rooms_to_next]), "color": UiKit.COLOR_MAGIC},
+	]
+	var icons := [SOUL_GATE_SECURE_ICON, SOUL_GATE_DEPTH_ICON]
+	for i in options.size():
+		if ResourceLoader.exists(icons[i]):
+			options[i]["icon"] = load(icons[i])
+	var footnote := Loc.t(&"GATE_FOOTNOTE", [roundi(RunManager.LOSS_PAYOUT_RATIO * 100.0)])
+	var choice := await choose_option(Loc.t(&"GATE_TITLE"), Loc.t(&"GATE_TEXT"), [], options, true, footnote)
+	var secured := choice == 0
+	soul_gate_used.emit(player, SOUL_GATE_SECURED if secured else SOUL_GATE_ONWARD)
+	return secured
+
+
+## What the others see while a teammate stands at the soul gate (D-126): a short status line,
+## "<Name> steht am Seelentor …", "<Name> geht weiter" or "<Name> sichert die Beute".
+func show_soul_gate_notice(player_name: String, phase: StringName) -> void:
+	match phase:
+		SOUL_GATE_OPEN:
+			show_status_line(Loc.t(&"GATE_NOTICE_OPEN", [player_name]), SOUL_GATE_NOTICE_TIME, UiKit.COLOR_CRYSTAL)
+		SOUL_GATE_SECURED:
+			show_status_line(Loc.t(&"GATE_NOTICE_SECURED", [player_name]), SOUL_GATE_NOTICE_TIME, UiKit.COLOR_GOLD)
+		SOUL_GATE_ONWARD:
+			show_status_line(Loc.t(&"GATE_NOTICE_ONWARD", [player_name]), SOUL_GATE_NOTICE_TIME / 2.0, UiKit.COLOR_CRYSTAL)
 
 
 # --- Campfire (A6, D-103) ---

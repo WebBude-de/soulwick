@@ -94,11 +94,11 @@ func test_shop_has_at_most_six_valid_offers() -> void:
 	assert_eq(upgrades.size(), 1, "only one upgrade is available in this pool, no filler")
 
 
-func test_gold_drop_stays_flat_and_price_grows_per_block() -> void:
-	# D-091: income grows through enemy count and waves, so single drops no longer grow.
+func test_gold_drop_and_price_grow_per_block() -> void:
+	# KE3 (KONZEPT §2): the depth bonus is back, +10 % gold per enemy per five-room block.
 	var slime: EnemyData = load("res://enemies/data/slime.tres")
 	var factor := _economy.config.gold_drop_factor
 	assert_eq(_economy.get_gold_drop(slime, 1, false), maxi(1, roundi(slime.gold_drop * factor)))
-	assert_eq(_economy.get_gold_drop(slime, 26, false), _economy.get_gold_drop(slime, 1, false))
+	assert_eq(_economy.get_gold_drop(slime, 26, false), maxi(1, roundi(slime.gold_drop * factor * 1.5)), "block 5: +50 %")
 	assert_eq(_economy.get_gold_drop(slime, 5, true), roundi(slime.gold_drop * factor * _economy.config.miniboss_gold_multiplier), "champions drop more")
 	assert_gt(_economy.get_price(ShopOffer.Kind.UPGRADE, 30), _economy.get_price(ShopOffer.Kind.UPGRADE, 1))

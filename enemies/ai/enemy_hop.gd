@@ -1,6 +1,6 @@
 class_name EnemyHop
 extends RefCounted
-## One hop of a pack slime (KONZEPT_RAEUME_V2 §6): crouch with a landing marker (HOP_WINDUP), then
+## One hop of a pack slime (RAEUME §6): crouch with a landing marker (HOP_WINDUP), then
 ## a short flight (HOP_AIR) in which the slime neither collides nor deals damage. The landing was
 ## checked against walls and abysses when the hop began and is checked against the players again
 ## when it lands: never on top of a player. State and physics checks only; the enemy shows it.

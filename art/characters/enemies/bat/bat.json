@@ -1,0 +1,41 @@
+{
+  "name": "bat",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Fledermaus im Sprungbogen (fliegt)",
+    "Seitenansicht-Gegner (SV4); idle = walk."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "bat_idle_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "bat_walk_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "death",
+      "file": "bat_death_5f.png",
+      "frames": 5,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

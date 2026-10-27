@@ -31,7 +31,9 @@ static func process_hit(damage: DamageData, health: HealthComponent, shield: Shi
 		result.blocked = true
 		return result
 
-	result.amount = round_damage(damage.amount)
+	# Talents of the attacker against this target (Schildbrecher, KE6): one factor, rounded once.
+	var source: Node = damage.source if is_instance_valid(damage.source) else null
+	result.amount = round_damage(damage.amount * TalentEffects.target_multiplier(source, health.get_parent()))
 	if result.amount <= 0.0:
 		return result
 

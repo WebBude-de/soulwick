@@ -65,7 +65,9 @@ func test_lips_collide_lower_and_hide_who_stands_behind() -> void:
 	assert_eq(node.get_parent(), room, "the lips sort with the room's characters")
 	assert_true(node.y_sort_enabled)
 	assert_gt(node.get_child_count(), 5)
-	assert_lte(node.get_child_count(), lips, "a sprite per lip (none next to doors)")
+	# Bug report 22.10.2026 (#c1f94cec): fronts with floor beside them sort at their foot too.
+	var fronts := tiles.sorted_front_lips(mask).size()
+	assert_lte(node.get_child_count(), lips + fronts, "a sprite per lip and per front beside floor (none next to doors)")
 	for sprite: Sprite2D in node.get_children():
 		# Drawn where the rock is, sorted further down (at its block's foot line).
 		var drawn := sprite.position.y + sprite.offset.y * sprite.scale.y
@@ -92,10 +94,11 @@ func test_lips_and_puddles_follow_the_biome_tileset() -> void:
 	_assert_biome_pictures(tiles)
 
 
-## Every lip sprite shows the rock of the tiles' current tileset, every puddle its biome's water.
+## Every lip sprite shows the rock of the tiles' current tileset (its floorless copy), every puddle
+## its biome's water.
 func _assert_biome_pictures(tiles: RoomTiles) -> void:
 	var biome := WallAutotile.biome_of(tiles.tile_set)
-	var rock := (tiles.tile_set.get_source(RockTerrain.rock_source(RockTerrain.Look.CAVE)) as TileSetAtlasSource).texture
+	var rock := RockTerrain.lip_texture(tiles.tile_set, RockTerrain.Look.CAVE)
 	var node := tiles.get_lips()
 	assert_not_null(node)
 	if node == null:

@@ -1,6 +1,6 @@
 class_name RelicAltar
 extends Node2D
-## The empty altar of "Reliquie holen" next to the entrance (KONZEPT_RAEUME_V2 §3.5, design answer:
+## The empty altar of "Reliquie holen" next to the entrance (RAEUME §3.5, design answer:
 ## "Altar hat eine leere, dunkle Mulde, die beim Ablegen aufleuchtet"). Pure look: the relic lays
 ## itself on (Relic.place) and the altar shows it in its hollow and lights up gold.
 ## Art: relic_altar.png 32x32, pivot (16, 28); the relic is drawn in at (16, 14) (objectives.json).

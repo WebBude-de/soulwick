@@ -1,5 +1,7 @@
 # Rast am Feuer (Makeover 3 §13): ovale Kammer zwischen zwei Biomen, das Feuer J leicht aussermittig,
 # Staemme und Schlafmatte (CampfireContent), das Portal O in einer Bucht rechts.
+# Meldung 23.10.2026 #b28a0f5e: das Seelentor steht eine Kachel von der Wand ab (Boden rundum und
+# zwei Reihen darueber), nicht mehr in der Ecke, wo es ueber die Felskante ragte.
 role: campfire
 mode: campfire
 biomes: crypt
@@ -11,9 +13,9 @@ xxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxx
 xxx#T###N###T#xxx
 xxxx.........xxxx
-xxx..l....l..Oxxx
+xxx..l....l...xxx
 xx.z.....J....xxx
-xx........l...xxx
+xx........l.O.xxx
 xxx..b.......xxxx
 xxxxx..@....xxxxx
 xxxxxxxxSxxxxxxxx

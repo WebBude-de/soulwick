@@ -91,6 +91,40 @@ enum Special { NONE, SHIELD_CHARGE, LEAP_SLAM, TELEPORT, SELF_DESTRUCT, ERUPTION
 ## Subtitle of the phase-two banner.
 @export var enrage_text := ""
 
+@export_group("Lava balls (against kiting, BossPressure)")
+## Seconds between lobbed lava balls right after the players left the boss's melee reach
+## (BossPressure.NEAR_DISTANCE); 0 = no lava balls ...
+@export var lob_interval := 0.0
+## ... shrinking to this while nobody came near for lob_ramp_time seconds.
+@export var lob_interval_min := 2.0
+@export var lob_ramp_time := 10.0
+## Balls per throw (more with the boss tier and in phase two).
+@export var lob_count := 3
+@export var enrage_lob_count := 2
+## Wind-up before the throw; the landing circles then warn for lob_flight_time seconds.
+@export var lob_windup := 0.5
+@export var lob_flight_time := 1.0
+## Impact circle radius and distance of the extra balls from the first one.
+@export var lob_radius := 44.0
+@export var lob_spread := 85.0
+## Share of the boss hit per ball.
+@export var lob_damage_factor := 0.8
+## Seconds the lava pool burns after the impact (phase one, phase two); 0 = no pool.
+@export var lob_pool_time := 2.5
+@export var enrage_lob_pool_time := 3.5
+
+@export_group("Stomp (against crowding, BossPressure)")
+## Radius of the stunning ground wave around the boss; 0 = no stomp. Only used while a player
+## stands inside it.
+@export var stomp_radius := 0.0
+@export var stomp_cooldown := 6.0
+@export var stomp_telegraph_time := 0.7
+## Share of the boss hit.
+@export var stomp_damage_factor := 0.5
+## Stun of the stomp in phase one and two (never above BossPressure.MAX_STUN).
+@export var stomp_stun := 0.4
+@export var enrage_stomp_stun := 0.5
+
 @export_group("On death")
 ## Enemies that spawn when this one dies (splitting slime).
 @export var death_spawn: EnemyData

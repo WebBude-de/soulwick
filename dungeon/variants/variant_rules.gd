@@ -1,7 +1,7 @@
 class_name VariantRules
 extends RefCounted
 ## Shared rules of the room modes (D-109, D-120): the bonus chest and the crypt's gravedigger trait
-## (KONZEPT_RAEUME_V2 §2: "Totengräber wird Gegner-Eigenschaft der Krypta"). The minigames keep their
+## (RAEUME §2: "Totengräber wird Gegner-Eigenschaft der Krypta"). The minigames keep their
 ## own numbers next to their scripts (FlameRules, RelicRules, RiftRules, HuntRules, LightfireRules).
 ## No nodes, unit-testable. Co-op values are parameters prepared for MP5 (D-109); with one player every
 ## factor is neutral.

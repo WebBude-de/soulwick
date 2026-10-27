@@ -22,6 +22,43 @@ const SPIRAL_WAVE_INTERVAL := 0.18
 const MAX_MINIONS := 6
 const ROMAN := ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"]
 
+## Contact damage of bosses (TESTWERTE, playtest #ddb41969 "stood inside the slime queen and took
+## nothing"): a player whose hurtbox touches the boss body is hurt every CONTACT_INTERVAL seconds by
+## CONTACT_DAMAGE_FACTOR of the boss hit (at least the 0.5 step) and pushed out a little. Each tick
+## is its own attack instance (D-020); hit I-frames (D-017) still block in between.
+const CONTACT_INTERVAL := 1.0
+const CONTACT_DAMAGE_FACTOR := 0.5
+const CONTACT_KNOCKBACK := 140.0
+## Share of the visual body radius (the enemy hurtbox) that counts as contact. 1.0: whoever presses
+## against the body from any side touches it (the body collision sits at the feet, so a player north
+## of the boss stands visually inside its sprite, one south of it only at its rim).
+const CONTACT_RADIUS_SHARE := 1.0
+## Kills of boss minions (summons and their split children) pay no ON_KILL rewards (heal, shield):
+## an endless stream of minions refilled the shield faster than the boss could hit (TESTWERT).
+const BOSS_MINIONS_GRANT_KILL_REWARDS := false
+
+
+## Bosses hurt on contact; normal enemies, elites and champions do not (yet).
+static func has_contact_damage(enemy_data: EnemyData) -> bool:
+	return enemy_data != null and enemy_data.is_boss and enemy_data.damage > 0.0
+
+
+## Damage of one contact tick from the scaled boss hit; never below the smallest step (0.5).
+static func contact_damage(boss_hit: float) -> float:
+	if boss_hit <= 0.0:
+		return 0.0
+	return maxf(DamageProcessor.MIN_DAMAGE, boss_hit * CONTACT_DAMAGE_FACTOR)
+
+
+## Whether kills of a minion summoned by summoner_data pay ON_KILL rewards; parent_grants passes the
+## rule on from a summoner that is itself a minion (split children of a boss minion).
+static func minion_grants_kill_rewards(summoner_data: EnemyData, parent_grants: bool) -> bool:
+	if not parent_grants:
+		return false
+	if summoner_data != null and summoner_data.is_boss:
+		return BOSS_MINIONS_GRANT_KILL_REWARDS
+	return true
+
 
 ## True when the fight should switch to phase two.
 static func should_enrage(current: float, maximum: float, phase: int) -> bool:

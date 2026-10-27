@@ -1,6 +1,6 @@
 class_name VillagePlaceholders
 extends RefCounted
-## Drawn stand-ins for the R7 village art that is still open (docs/design/sprites/SPRITES_V8.md §2) and for the
+## Drawn stand-ins for the R7 village art that is still open (docs/design/sprites/SPRITES_V13.md §2) and for the
 ## new ground tiles: the ruin of the dungeon entrance (built from the old entrance, the chains and
 ## broken stone walls), the soul flame bowl (the brazier with a violet soul flame), two ravens, the
 ## chronicle's board and an atlas with plaza cobbles, the ridge (cliff face), stairs and stone slabs.

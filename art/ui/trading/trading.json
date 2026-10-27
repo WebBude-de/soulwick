@@ -1,0 +1,165 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "boost_gold_rain",
+      "file": "boost_gold_rain.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_lucky_amulet",
+      "file": "boost_lucky_amulet.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_clear_sight",
+      "file": "boost_clear_sight.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_healing_potion",
+      "file": "boost_healing_potion.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_soul_anchor",
+      "file": "boost_soul_anchor.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_return_stone",
+      "file": "boost_return_stone.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "boost_keen_nose",
+      "file": "boost_keen_nose.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "trade_slot",
+      "file": "trade_slot.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "trade_luck",
+      "file": "trade_luck.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "trade_merchant_friend",
+      "file": "trade_merchant_friend.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

@@ -14,7 +14,7 @@ floor_seed = 858
 wall_rects = Array[Rect2i]([Rect2i(3, 2, 2, 2), Rect2i(12, 2, 2, 2), Rect2i(3, 6, 2, 2), Rect2i(12, 6, 2, 2)])
 door_slots = Array[Vector2i]([Vector2i(2, 8), Vector2i(0, 8)])
 front_fixtures = Array[Vector2i]([Vector2i(2, -1), Vector2i(6, -1), Vector2i(10, -1), Vector2i(14, -1)])
-overlay_cells = Array[Vector3i]([Vector3i(0, 0, 10), Vector3i(0, 7, 9), Vector3i(0, 8, 1), Vector3i(0, 9, 10), Vector3i(1, 7, 10), Vector3i(1, 9, 8), Vector3i(2, 1, 9), Vector3i(2, 2, 13), Vector3i(2, 7, 10), Vector3i(4, 4, 0), Vector3i(4, 5, 10), Vector3i(4, 9, 9), Vector3i(5, 1, 10), Vector3i(5, 4, 9), Vector3i(5, 5, 2), Vector3i(5, 6, 9), Vector3i(5, 7, 1), Vector3i(5, 9, 2), Vector3i(7, 4, 9), Vector3i(8, 3, 4), Vector3i(9, 4, 12), Vector3i(11, 1, 10), Vector3i(11, 2, 10), Vector3i(11, 3, 9), Vector3i(12, 1, 1), Vector3i(12, 8, 4), Vector3i(13, 1, 1), Vector3i(13, 5, 10), Vector3i(14, 0, 10), Vector3i(14, 1, 5), Vector3i(14, 4, 4), Vector3i(14, 7, 2), Vector3i(14, 9, 8), Vector3i(16, 4, 1), Vector3i(16, 6, 4), Vector3i(16, 7, 10), Vector3i(16, 9, 8)])
+overlay_cells = Array[Vector3i]([Vector3i(0, 0, 10), Vector3i(0, 5, 9), Vector3i(0, 7, 1), Vector3i(0, 8, 10), Vector3i(1, 7, 9), Vector3i(2, 1, 9), Vector3i(2, 2, 13), Vector3i(2, 5, 10), Vector3i(2, 6, 5), Vector3i(3, 1, 12), Vector3i(3, 4, 13), Vector3i(3, 8, 13), Vector3i(4, 1, 2), Vector3i(4, 4, 4), Vector3i(4, 5, 9), Vector3i(4, 8, 2), Vector3i(4, 9, 9), Vector3i(5, 1, 1), Vector3i(5, 3, 2), Vector3i(5, 6, 10), Vector3i(7, 3, 4), Vector3i(8, 3, 12), Vector3i(9, 3, 13), Vector3i(9, 5, 2), Vector3i(10, 1, 1), Vector3i(10, 8, 2), Vector3i(11, 1, 1), Vector3i(11, 4, 4), Vector3i(11, 7, 1), Vector3i(12, 1, 10), Vector3i(12, 8, 10), Vector3i(12, 9, 5), Vector3i(13, 4, 4), Vector3i(13, 9, 2), Vector3i(14, 1, 8), Vector3i(14, 3, 9), Vector3i(14, 4, 2), Vector3i(15, 0, 1), Vector3i(15, 9, 12), Vector3i(16, 0, 10), Vector3i(16, 6, 13), Vector3i(16, 9, 10)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(96, 96)
@@ -35,7 +35,7 @@ position = Vector2(544, 160)
 position = Vector2(544, 352)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(800, 96)
+position = Vector2(672, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(544, 608)
@@ -103,6 +103,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(10, 0), Vector2i(11, 0), Vector2i(12, 0)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(8, 60)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -123,9 +124,9 @@ solid_span = Vector2(-84, 86)
 biome = &"slime_grotto"
 
 [node name="Group4" type="Node2D" parent="Props"]
-position = Vector2(96, 440)
+position = Vector2(64, 440)
 script = ExtResource("3_deco")
-item = &"group_large_2"
-blocked_tiles = Array[Vector2i]([Vector2i(0, 6), Vector2i(1, 6), Vector2i(2, 6)])
-solid_span = Vector2(-84, 86)
+item = &"group_3"
+blocked_tiles = Array[Vector2i]([Vector2i(0, 6), Vector2i(1, 6)])
+solid_span = Vector2(-48, 50)
 biome = &"slime_grotto"

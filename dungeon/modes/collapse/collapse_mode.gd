@@ -1,12 +1,15 @@
 class_name CollapseMode
 extends CombatVariant
-## Minigame "Einsturz" (KONZEPT_RAEUME_V2 §3.10, design answer 01_raumarten.md, R4a): banner "Der
+## Minigame "Einsturz" (RAEUME §3.10, design answer 01_raumarten.md, R4a): banner "Der
 ## Boden bricht – überlebe 30 s"; the floor breaks in fields of 2×2 tiles in a fixed order from the
 ## outside in (CollapseRules): the next three carry faint cracks, a field about to go cracks open over
 ## a red glow for 1 s, then it is abyss (RoomTiles.add_pit_tiles). Enemies on it fall (a kill), so do
 ## props and spawn sources; champions and golems that never fall are pushed onto solid floor.
 ## Players fall like on any abyss (PlayerFall, D-115: a whole heart); they land on the way that stays,
 ## next to where they fell (PlayerFall.set_landing), never on floor that is about to break.
+## Standing still does not pay (playtest 23.10.2026 #9c8ebbe0): whoever stays on one spot for
+## CollapseRules.STILL_TIME gets a sinkhole under his feet (1 s warning, then abyss for SINK_TIME,
+## then the floor closes again) - on the way that stays too, so nobody waits out the 30 s on it.
 ##   After 30 s: only the way from the entrance to the exit stands, the bonus chest waits at its end;
 ##   the rest of the enemies is beaten as usual. Never costs the run (only the falls cost hearts).
 ## The room stays shut while the floor breaks (holds_completion). Task bar: time, the rooms thirds
@@ -17,8 +20,12 @@ extends CombatVariant
 signal field_warned(mode: CollapseMode, index: int)
 signal field_broken(mode: CollapseMode, index: int, tiles: Array[Vector2i])
 signal survived(mode: CollapseMode)
+## A sinkhole under a player who stood still: warned (cracks), opened (abyss), closed (floor again).
+## Co-op hook: the host's decisions; a client applies them with apply_sinkhole().
+signal sinkhole_changed(mode: CollapseMode, tiles: Array[Vector2i], phase: SinkPhase)
 
 enum FieldState { STANDING, WARNED, BROKEN }
+enum SinkPhase { WARNED, OPENED, CLOSED }
 
 var objective: RoomObjective = null
 var view: CollapseView = null
@@ -35,8 +42,19 @@ var broken_count := 0
 var is_survived := false
 var pushes_sent := 0
 
+## Running sinkholes: {"tiles": Array[Vector2i], "warn_left": float, "open_left": float}.
+var sinkholes: Array[Dictionary] = []
+## Sinkholes opened so far (tests, tools).
+var sinkholes_opened := 0
+
 var _since_push := CollapseRules.PUSH_INTERVAL
 var _marked: Array[Vector2i] = []
+## Floor around a plateau, its stairs and ladders (D-189): never sinks.
+var _height_guard: Dictionary[Vector2i, bool] = {}
+## Per player (instance id) of this room's clock: where his feet came to rest (room-local px) and
+## for how long they stayed there. Room bookkeeping of the rule, read from every living player.
+var _rest_anchor: Dictionary[int, Vector2] = {}
+var _rest_time: Dictionary[int, float] = {}
 ## Players whose falls land on the way while the floor breaks (connected once each).
 var _watched: Array[Player] = []
 
@@ -155,6 +173,14 @@ func begin_intro() -> void:
 	RoomIntro.start(room, objective, focus)
 
 
+## Flint's first-time tour (WK11): the first field to break, the red warning, the way that stays,
+## and that standing still does not pay (sinkholes).
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var first := room.to_global(CollapseRules.field_center(fields[0])) if not fields.is_empty() else Vector2.INF
+	var exit_point := room.to_global(RoomTiles.tile_center(room.tiles.get_exit_inside_tile()))
+	return RoomFlint.steps(RoomObjective.COLLAPSE, [first, Vector2.INF, exit_point], {2: [roundi(CollapseRules.DURATION)]})
+
+
 ## Indices of the next LOOKAHEAD fields that still stand (warned ones included).
 func get_next_fields() -> Array[int]:
 	var next: Array[int] = []
@@ -170,12 +196,20 @@ func get_time_left() -> float:
 	return maxf(0.0, CollapseRules.DURATION - clock)
 
 
-## Is the room-local tile part of a field that is about to break?
+## Is the room-local tile part of a field or a sinkhole that is about to break?
 func is_warned_tile(tile: Vector2i) -> bool:
 	for i in fields.size():
 		if field_states[i] == FieldState.WARNED and (fields[i] as Array).has(tile):
 			return true
+	for hole in sinkholes:
+		if hole["warn_left"] > 0.0 and (hole["tiles"] as Array).has(tile):
+			return true
 	return false
+
+
+## Seconds a player has stood still (0 if he moved or is not watched yet).
+func get_rest_time(player: Player) -> float:
+	return _rest_time.get(player.get_instance_id(), 0.0) if player != null else 0.0
 
 
 ## Pushes out of floor sources still standing, away from every player. Returns the enemies.
@@ -221,6 +255,9 @@ func send_push() -> Array[Enemy]:
 func _advance(delta: float) -> void:
 	clock += delta
 	_since_push += delta
+	# Running sinkholes first: a new one starts its warning in the next step, not this one.
+	_advance_sinkholes(delta)
+	_watch_resting_players(delta)
 	for i in fields.size():
 		if field_states[i] == FieldState.STANDING and CollapseRules.should_warn(clock, break_at[i]):
 			_warn(i)
@@ -265,6 +302,9 @@ func _survive() -> void:
 	for i in fields.size():
 		if field_states[i] != FieldState.BROKEN:
 			_break(i)
+	# Sinkholes close at once: the whole way stands at the end.
+	for hole in sinkholes.duplicate():
+		_close_sinkhole(hole)
 	set_bonus(true)
 	survived.emit(self)
 	if objective != null:
@@ -273,6 +313,130 @@ func _survive() -> void:
 	show_banner(DungeonTexts.t(&"MODE_COLLAPSE_DONE_TITLE"), DungeonTexts.t(&"MODE_COLLAPSE_DONE_SUB"), BONUS_COLOR)
 	spawn_bonus_chests(RoomTiles.tile_center(_chest_tile()))
 	room.check_completion()
+
+
+## Players who stand still: a sinkhole under the feet of everyone who rested STILL_TIME on one spot.
+func _watch_resting_players(delta: float) -> void:
+	var room_rect := Rect2(Vector2.ZERO, Vector2(room.tiles.room_size) * RoomTiles.TILE_WORLD)
+	var seen: Dictionary[int, bool] = {}
+	for player in get_players():
+		var id := player.get_instance_id()
+		seen[id] = true
+		var feet := room.to_local(player.get_feet_position())
+		if (player.fall != null and player.fall.is_falling()) or not room_rect.has_point(feet):
+			_rest_anchor.erase(id)
+			_rest_time.erase(id)
+			continue
+		if not _rest_anchor.has(id) or not CollapseRules.is_resting(_rest_anchor[id], feet):
+			_rest_anchor[id] = feet
+			_rest_time[id] = 0.0
+			continue
+		_rest_time[id] += delta
+		if CollapseRules.is_still_too_long(_rest_time[id]) and CollapseRules.may_sink(clock):
+			_rest_time[id] = 0.0
+			_open_sinkhole_at(feet)
+	for id: int in _rest_anchor.keys():
+		if not seen.has(id):
+			_rest_anchor.erase(id)
+			_rest_time.erase(id)
+
+
+## A sinkhole under feet (room-local): floor still standing, no prop, no source, not beside a
+## plateau, not already sinking. Returns its tiles (empty if nothing may sink there).
+func _open_sinkhole_at(feet: Vector2) -> Array[Vector2i]:
+	var open: Dictionary[Vector2i, bool] = {}
+	var center := RoomTiles.local_to_tile(feet)
+	var sinking: Dictionary[Vector2i, bool] = {}
+	for hole in sinkholes:
+		for tile: Vector2i in hole["tiles"]:
+			sinking[tile] = true
+	var source_tiles: Dictionary[Vector2i, bool] = {}
+	var sources := SpawnSources.of(room)
+	if sources != null:
+		for source in sources.get_sources():
+			if is_instance_valid(source):
+				source_tiles[RoomTiles.local_to_tile(source.spot)] = true
+	var floor_tiles := _floor_tiles()
+	var height: Dictionary[Vector2i, bool] = {}
+	if room.tiles.has_height():
+		height = room.tiles.get_height_layout().get_height_tiles()
+	for dy in range(-1, 2):
+		for dx in range(-1, 2):
+			var tile := center + Vector2i(dx, dy)
+			if floor_tiles.has(tile) and not room.tiles.is_pit(tile) and not room.tiles.is_navigation_blocked(tile) \
+					and not height.has(tile) and not _height_guard.has(tile) and not source_tiles.has(tile) \
+					and not sinking.has(tile) and not is_warned_tile(tile):
+				open[tile] = true
+	var tiles := CollapseRules.sinkhole_tiles(feet, open)
+	if tiles.is_empty():
+		return tiles
+	sinkholes.append({"tiles": tiles, "warn_left": CollapseRules.WARN_TIME, "open_left": 0.0})
+	apply_sinkhole(tiles, SinkPhase.WARNED)
+	sinkhole_changed.emit(self, tiles, SinkPhase.WARNED)
+	return tiles
+
+
+func _advance_sinkholes(delta: float) -> void:
+	for hole in sinkholes.duplicate():
+		if hole["warn_left"] > 0.0:
+			hole["warn_left"] -= delta
+			if hole["warn_left"] <= 0.0:
+				hole["warn_left"] = 0.0
+				hole["open_left"] = CollapseRules.SINK_TIME
+				sinkholes_opened += 1
+				var tiles: Array[Vector2i] = []
+				tiles.assign(hole["tiles"])
+				apply_sinkhole(tiles, SinkPhase.OPENED)
+				_drop_enemies_on(tiles)
+				sinkhole_changed.emit(self, tiles, SinkPhase.OPENED)
+			continue
+		hole["open_left"] -= delta
+		if hole["open_left"] <= 0.0:
+			_close_sinkhole(hole)
+
+
+## The floor of a sinkhole closes again, except where a field broke for good in the meantime.
+func _close_sinkhole(hole: Dictionary) -> void:
+	sinkholes.erase(hole)
+	var tiles: Array[Vector2i] = []
+	tiles.assign(hole["tiles"])
+	apply_sinkhole(tiles, SinkPhase.CLOSED)
+	sinkhole_changed.emit(self, tiles, SinkPhase.CLOSED)
+
+
+## Look and floor of a sinkhole phase (the host's decision; a client calls it from the host's event).
+func apply_sinkhole(tiles: Array[Vector2i], phase: SinkPhase) -> void:
+	match phase:
+		SinkPhase.WARNED:
+			view.warn_tiles(tiles)
+			if is_inside_tree():
+				Sfx.play_at(self, &"collapse_crack", room.to_global(CollapseRules.field_center(tiles)), -6.0)
+		SinkPhase.OPENED:
+			room.tiles.add_pit_tiles(tiles)
+			view.crumble_tiles(tiles)
+			if is_inside_tree():
+				Sfx.play_at(self, &"collapse_fall", room.to_global(CollapseRules.field_center(tiles)), -6.0)
+		SinkPhase.CLOSED:
+			var closing: Array[Vector2i] = []
+			for tile in tiles:
+				if not _is_broken_for_good(tile):
+					closing.append(tile)
+			room.tiles.remove_pit_tiles(closing)
+			view.restore_tiles(closing)
+
+
+func _is_broken_for_good(tile: Vector2i) -> bool:
+	for i in fields.size():
+		if field_states[i] == FieldState.BROKEN and (fields[i] as Array).has(tile):
+			return true
+	return false
+
+
+## Enemies on the tiles fall (or step aside), like on a broken field.
+func _drop_enemies_on(tiles: Array[Vector2i]) -> void:
+	for enemy in get_living_enemies():
+		if tiles.has(_enemy_tile(enemy)):
+			_drop_enemy(enemy)
 
 
 ## Everything standing on the broken tiles goes down with them: enemies fall (champions and golems,
@@ -441,8 +605,10 @@ func _plan_way() -> void:
 			if floor_tiles.has(tile):
 				kept[tile] = true
 	# Height (M3b): the floor around a plateau never breaks and stays joined to the way.
+	_height_guard.clear()
 	if room.tiles.has_height():
-		kept.merge(CollapseRules.height_guard(room.tiles.get_height_layout().get_height_tiles(), floor_tiles))
+		_height_guard = CollapseRules.height_guard(room.tiles.get_height_layout().get_height_tiles(), floor_tiles)
+		kept.merge(_height_guard)
 		CollapseRules.join_kept(kept, walkable, start)
 	# Chests of the plan stay reachable.
 	var props := room.get_node_or_null("Props")

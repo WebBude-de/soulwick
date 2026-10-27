@@ -1,6 +1,6 @@
 class_name SummoningRift
 extends Enemy
-## Rift of "Risse schließen" (KONZEPT_RAEUME_V2 §3.7; before the variant "Beschwörungsrisse"): stands
+## Rift of "Risse schließen" (RAEUME §3.7; before the variant "Beschwörungsrisse"): stands
 ## still, has health and a bar. In a plan room it sits in a wall rift of the room's sources and the
 ## mode sends the enemies through that source (pulse() shows the summon); elsewhere it calls one enemy
 ## every RiftRules.PUSH_INTERVAL seconds itself while the room allows it (fewer than

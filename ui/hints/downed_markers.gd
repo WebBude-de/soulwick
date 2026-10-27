@@ -1,16 +1,18 @@
 extends Control
 ## Where the downed teammates are (D-084; feedback 16.10.2026): over a downed mate on screen a
 ## pulsing chevron (with a ring that fills while somebody helps), at the screen edge an arrow
-## towards a mate off screen. Drawn, no sprites; look only. DungeonUI feeds it every frame with
+## towards a mate off screen. Pixel art (D-218): chevron and ring drawn with PixelDraw, the arrow is
+## PixelArrow; look only. DungeonUI feeds it every frame with
 ## set_targets() from the players it watches. No class_name (preloaded).
 
 const COLOR := Color("#ff7366")
 const COLOR_HELP := Color("#5fcd62")
 const COLOR_SHADOW := Color("#1c1a2b")
-## Sizes in mockup px: chevron, its height over the body centre, edge arrow, edge margin, ring.
+## Sizes in mockup px: chevron, its height over the body centre, edge margin, ring.
+## Chevron and ring are drawn in UI art pixels (UiKit.ART_SCALE screen px each, D-218), the edge
+## arrow is the PixelArrow picture.
 const CHEVRON := 6.0
 const CHEVRON_LIFT := 34.0
-const ARROW := 8.0
 const EDGE_MARGIN := 16.0
 const RING := 7.0
 ## Pulse of the chevron (per second) and how far it bobs (mockup px).
@@ -70,7 +72,8 @@ func edge_point(point: Vector2) -> Vector2:
 
 
 func _draw() -> void:
-	var pulse := 0.5 + 0.5 * sin(_time * PULSE_SPEED)
+	# Pulses in two hard steps (pixel art, D-218).
+	var pulse := 1.0 if sin(_time * PULSE_SPEED) >= 0.0 else 0.0
 	for target in _targets:
 		var point: Vector2 = target.get("point", Vector2.ZERO)
 		var share: float = target.get("share", 0.0)
@@ -82,34 +85,30 @@ func _draw() -> void:
 			_draw_edge_arrow(edge_point(point), (point - get_view().get_center()).angle(), share, pulse)
 
 
-## Downward chevron with its tip at tip; a ring around it fills with the revive progress.
+## Downward pixel chevron with its tip at tip; a pixel ring above it fills with the revive progress.
 func _draw_chevron(tip: Vector2, share: float, pulse: float) -> void:
-	var size := UiKit.px(CHEVRON)
-	var outline := PackedVector2Array([tip + Vector2(0, 2), tip + Vector2(-size - 2, -size - 1), tip + Vector2(size + 2, -size - 1)])
-	draw_colored_polygon(outline, COLOR_SHADOW)
-	draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-size, -size), tip + Vector2(size, -size)]), Color(COLOR, 0.75 + 0.25 * pulse))
+	var a := float(UiKit.ART_SCALE)
+	var at := PixelDraw.snap(tip, a)
+	var outline := PackedVector2Array([at + Vector2(0, 1.5 * a), at + Vector2(-(CHEVRON + 1.5) * a, -(CHEVRON + 1.0) * a), at + Vector2((CHEVRON + 1.5) * a, -(CHEVRON + 1.0) * a)])
+	PixelDraw.polygon(self, outline, COLOR_SHADOW, a)
+	var fill := PackedVector2Array([at, at + Vector2(-CHEVRON * a, -CHEVRON * a), at + Vector2(CHEVRON * a, -CHEVRON * a)])
+	PixelDraw.polygon(self, fill, Color(COLOR, 0.75 + 0.25 * pulse), a)
 	if share > 0.0:
-		_draw_ring(tip + Vector2(0.0, -size - UiKit.px(RING) - 2.0), share)
+		_draw_ring(at + Vector2(0.0, -(CHEVRON + RING + 2.0) * a), share)
 
 
-## Arrow at point on the screen edge, pointing along angle.
+## The pixel arrow (PixelArrow, like the arrows to mates off screen) at point on the screen edge,
+## pointing along angle, in the downed colour; its outline is the shadow.
 func _draw_edge_arrow(point: Vector2, angle: float, share: float, pulse: float) -> void:
-	var size := UiKit.px(ARROW) * (1.0 + 0.12 * pulse)
-	var forward := Vector2.from_angle(angle)
-	var side := forward.orthogonal()
-	var tip := point + forward * size
-	var shape := PackedVector2Array([tip, point - forward * size * 0.6 + side * size * 0.8,
-			point - forward * size * 0.2, point - forward * size * 0.6 - side * size * 0.8])
-	var shadow := PackedVector2Array()
-	for p in shape:
-		shadow.append(p + Vector2(2, 2))
-	draw_colored_polygon(shadow, COLOR_SHADOW)
-	draw_colored_polygon(shape, COLOR)
+	var size := PixelArrow.screen_size()
+	draw_texture_rect(PixelArrow.texture_for(angle), Rect2((point - size * 0.5).round(), size), false, Color(COLOR, 0.8 + 0.2 * pulse))
 	if share > 0.0:
-		_draw_ring(point - forward * size * 1.6, share)
+		var back := size.x * 0.5 + (RING + 1.0) * UiKit.ART_SCALE
+		_draw_ring(point - Vector2.from_angle(angle) * back, share)
 
 
+## Pixel ring: dark track, green part for the revive progress (from the top, clockwise).
 func _draw_ring(centre: Vector2, share: float) -> void:
-	var radius := UiKit.px(RING)
-	draw_arc(centre, radius, 0.0, TAU, 24, Color(COLOR_SHADOW, 0.85), 3.0)
-	draw_arc(centre, radius, -PI * 0.5, -PI * 0.5 + TAU * clampf(share, 0.0, 1.0), 24, COLOR_HELP, 3.0)
+	var a := float(UiKit.ART_SCALE)
+	PixelDraw.ring(self, centre, RING * a, Color(COLOR_SHADOW, 0.85), 1, a)
+	PixelDraw.arc(self, centre, RING * a, -PI * 0.5, TAU * clampf(share, 0.0, 1.0), COLOR_HELP, 1, a)

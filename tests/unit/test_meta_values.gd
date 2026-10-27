@@ -1,6 +1,6 @@
 extends GutTest
-## Forge values per level (D-087: "Max-HP 6 → 7" instead of "+1 je Stufe") and the run-start banner
-## that sums up all village bonuses. Uses a test save file only.
+## Forge values per level (D-087, KE4: "Schaden 15 → 16,2" instead of "+8 % je Stufe") and the
+## run-start banner that sums up all village bonuses. Uses a test save file only.
 
 const TEST_PATH := "user://test_meta_values.cfg"
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
@@ -38,8 +38,17 @@ func after_all() -> void:
 func test_base_values_match_player_defaults() -> void:
 	var player: Player = PLAYER_SCENE.instantiate()
 	add_child_autofree(player)
-	assert_almost_eq(player.health.get_max_health(), MetaProgression.BASE_MAX_HEALTH, 0.001, "forge shows the real base max HP")
-	assert_almost_eq(player.dash_cooldown, MetaProgression.BASE_DASH_COOLDOWN, 0.001, "forge shows the real dash cooldown")
+	assert_almost_eq(player.health.get_max_health(), MetaProgression.BASE_MAX_HEALTH, 0.001)
+	assert_almost_eq(player.dash_cooldown, MetaProgression.BASE_DASH_COOLDOWN, 0.001)
+
+
+func test_weapon_values_use_the_real_base_damage() -> void:
+	for weapon in MetaProgression.WEAPON_ORDER:
+		var data := load(MetaProgression.WEAPON_PATHS[weapon]) as WeaponData
+		assert_eq(data.id, weapon, "WEAPON_PATHS and WeaponData.id agree")
+		for level in MetaProgression.get_max_level(MetaProgression.smith_id(weapon)) + 1:
+			assert_almost_eq(MetaProgression.get_value_at_level(MetaProgression.smith_id(weapon), level),
+				data.base_damage * (1.0 + 0.08 * level), 0.001, "%s level %d" % [weapon, level])
 
 
 func test_value_matches_effect_getters_at_every_level() -> void:
@@ -48,30 +57,28 @@ func test_value_matches_effect_getters_at_every_level() -> void:
 			SaveManager.set_meta_level(id, level)
 			var value := MetaProgression.get_value_at_level(id, level)
 			match id:
-				MetaProgression.VITALITY:
-					assert_almost_eq(value, MetaProgression.BASE_MAX_HEALTH + MetaProgression.get_bonus_max_health(), 0.001)
-				MetaProgression.START_SHIELD:
+				MetaProgression.SHIELD_PLATE:
 					assert_almost_eq(value, MetaProgression.get_start_shield(), 0.001)
-				MetaProgression.SHARPNESS:
-					assert_almost_eq(value, MetaProgression.get_damage_bonus(), 0.001)
-				MetaProgression.GOLD_GREED:
-					assert_almost_eq(value, MetaProgression.get_gold_multiplier() - 1.0, 0.001)
-				MetaProgression.DASH_TRAINING:
-					assert_almost_eq(value, maxf(MetaProgression.MIN_DASH_COOLDOWN,
-						MetaProgression.BASE_DASH_COOLDOWN - MetaProgression.get_dash_cooldown_reduction()), 0.001)
-				MetaProgression.ARSENAL:
-					assert_eq(int(value), level)
+				MetaProgression.LANTERN:
+					assert_almost_eq(value, MetaProgression.get_light_radius_factor() - 1.0, 0.001)
+				MetaProgression.SECOND_SLOT:
+					assert_eq(MetaProgression.has_second_slot(), level >= 1)
+			if MetaProgression.get_kind(id) == MetaProgression.KIND_WEAPON:
+				var weapon := MetaProgression.get_upgrade_weapon(id)
+				assert_almost_eq(value, MetaProgression.get_weapon_base_damage(weapon) * MetaProgression.weapon_damage_factor(weapon), 0.001)
+			elif MetaProgression.get_kind(id) == MetaProgression.KIND_ARSENAL:
+				assert_eq(MetaProgression.is_weapon_unlocked(MetaProgression.get_upgrade_weapon(id)), level >= 1)
 			SaveManager.set_meta_level(id, 0)
 
 
 func test_value_texts_per_level() -> void:
 	var expected := {
-		MetaProgression.VITALITY: ["6", "7", "8", "9", "10", "11"],
-		MetaProgression.START_SHIELD: ["0", "3", "6", "9"],
-		MetaProgression.SHARPNESS: ["+0 %", "+10 %", "+20 %", "+30 %", "+40 %"],
-		MetaProgression.GOLD_GREED: ["+0 %", "+15 %", "+30 %", "+45 %"],
-		MetaProgression.DASH_TRAINING: ["1,5 s", "1,35 s", "1,2 s", "1,05 s"],
-		MetaProgression.ARSENAL: ["keine", "Bogen", "Bogen oder Stab"],
+		MetaProgression.SMITH_SWORD: ["15", "16,2", "17,4", "18,6", "19,8", "21"],
+		MetaProgression.SMITH_BOW: ["8", "8,6", "9,3", "9,9", "10,6", "11,2"],
+		MetaProgression.SHIELD_PLATE: ["0", "3", "6", "9"],
+		MetaProgression.LANTERN: ["+0 %", "+10 %", "+20 %", "+30 %"],
+		MetaProgression.SECOND_SLOT: ["1", "2"],
+		MetaProgression.ARSENAL_BOW: ["gesperrt", "frei"],
 	}
 	for id in expected:
 		var texts: Array = expected[id]
@@ -81,29 +88,30 @@ func test_value_texts_per_level() -> void:
 
 
 func test_level_step_shows_current_and_next_value() -> void:
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.VITALITY, 0), "Max-HP 6 → 7")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.SHARPNESS, 1), "Schaden +10 % → +20 %")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.START_SHIELD, 2), "Schild 6 → 9")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.GOLD_GREED, 0), "Gold +0 % → +15 %")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.DASH_TRAINING, 1), "Dash-Abklingzeit 1,35 s → 1,2 s")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL, 0), "Zweite Startwaffe: keine → Bogen")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL, 1), "Zweite Startwaffe: Bogen → Bogen oder Stab")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 0), "Schaden 15 → 16,2")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 2), "Schaden 17,4 → 18,6 · Spezial +25 %", "III: the special")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 4), "Schaden 19,8 → 21 · Meisterstück", "V: masterwork")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SHIELD_PLATE, 2), "Schild 6 → 9")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.LANTERN, 0), "Lichtradius +0 % → +10 %")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SECOND_SLOT, 0), "Startwaffen 1 → 2")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL_STAFF, 0), "Startwaffe: gesperrt → frei")
 
 
 func test_level_step_at_max_has_no_arrow() -> void:
 	for id in MetaProgression.UPGRADE_ORDER:
 		var text := MetaProgression.describe_level_step(id, MetaProgression.get_max_level(id))
 		assert_false(text.contains("→"), "%s at max: %s" % [id, text])
-		assert_true(text.ends_with("(max.)"), text)
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.VITALITY, 5), "Max-HP 11 (max.)")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.SHARPNESS, 4), "Schaden +40 % (max.)")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.START_SHIELD, 3), "Schild 9 (max.)")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.GOLD_GREED, 3), "Gold +45 % (max.)")
+		if MetaProgression.get_max_level(id) > 1:
+			assert_true(text.ends_with("(max.)"), text)
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 5), "Schaden 21 (max.)")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SHIELD_PLATE, 3), "Schild 9 (max.)")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.LANTERN, 3), "Lichtradius +30 % (max.)")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL_BOW, 1), "Startwaffe: frei", "unlocks have no (max.)")
 
 
 func test_describe_next_level_uses_saved_level() -> void:
-	SaveManager.set_meta_level(MetaProgression.VITALITY, 2)
-	assert_eq(MetaProgression.describe_next_level(MetaProgression.VITALITY), "Max-HP 8 → 9")
+	SaveManager.set_meta_level(MetaProgression.SHIELD_PLATE, 2)
+	assert_eq(MetaProgression.describe_next_level(MetaProgression.SHIELD_PLATE), "Schild 6 → 9")
 	assert_eq(MetaProgression.describe_level_step(&"unknown", 1), "")
 
 
@@ -115,11 +123,17 @@ func test_format_number_uses_german_decimals() -> void:
 	assert_eq(MetaProgression.format_number(10.0), "10")
 
 
-func test_every_upgrade_has_summary_and_stat_label() -> void:
+func test_every_upgrade_has_texts() -> void:
 	for id in MetaProgression.UPGRADE_ORDER:
-		var info: Dictionary = MetaProgression.UPGRADES[id]
-		assert_false(String(info.get("summary", "")).is_empty(), String(id))
-		assert_false(String(info.get("stat", "")).is_empty(), String(id))
+		for text in [MetaProgression.get_upgrade_name(id), MetaProgression.get_upgrade_summary(id),
+				MetaProgression.get_upgrade_effect(id), MetaProgression.get_upgrade_stat(id), MetaProgression.get_upgrade_group(id)]:
+			assert_false(text.is_empty(), String(id))
+			assert_false(text.begins_with("FORGE_"), "%s translated: %s" % [id, text])
+	assert_eq(MetaProgression.get_upgrade_name(MetaProgression.SMITH_DAGGER), "Dolche schmieden")
+	assert_eq(MetaProgression.get_upgrade_name(MetaProgression.ARSENAL_HAMMER), "Arsenal: Hammer")
+	assert_eq(MetaProgression.get_upgrade_effect(MetaProgression.ARSENAL_BOW), "Bogen als Startwaffe wählbar")
+	assert_eq(MetaProgression.get_step_name(MetaProgression.SMITH_SWORD, 3), "Schwert schmieden III")
+	assert_eq(MetaProgression.get_step_name(MetaProgression.ARSENAL_BOW, 1), "Arsenal: Bogen", "one level: no number")
 
 
 # --- Run-start banner ---
@@ -131,28 +145,26 @@ func test_no_bonus_means_no_banner() -> void:
 
 
 func test_forge_bonus_parts_for_levels() -> void:
-	var levels := {
-		MetaProgression.VITALITY: 2, MetaProgression.START_SHIELD: 1, MetaProgression.SHARPNESS: 4,
-		MetaProgression.GOLD_GREED: 1, MetaProgression.DASH_TRAINING: 2, MetaProgression.ARSENAL: 1,
-	}
-	var parts := MetaProgression.describe_forge_bonuses(levels, MetaProgression.WEAPON_BOW)
-	assert_eq(parts, ["+2 Max-HP", "+3 Schild", "+40 % Schaden", "+15 % Gold", "−0,3 s Dash", "Bogen"] as Array[String])
+	var levels := {MetaProgression.SMITH_BOW: 2, MetaProgression.SHIELD_PLATE: 1, MetaProgression.LANTERN: 2}
+	var parts := MetaProgression.describe_forge_bonuses(levels, [MetaProgression.WEAPON_BOW, MetaProgression.WEAPON_STAFF])
+	assert_eq(parts, ["Bogen II + Stab", "+3 Schild", "+20 % Licht"] as Array[String])
 
 
 func test_forge_bonus_parts_skip_level_zero_and_clamp() -> void:
-	var parts := MetaProgression.describe_forge_bonuses({MetaProgression.SHARPNESS: 99}, &"")
-	assert_eq(parts, ["+40 % Schaden"] as Array[String], "clamped to max level, nothing else listed")
-	assert_true(MetaProgression.describe_forge_bonuses({MetaProgression.ARSENAL: 1}, &"").is_empty(), "no weapon without a choice")
+	var parts := MetaProgression.describe_forge_bonuses({MetaProgression.SHIELD_PLATE: 99}, [MetaProgression.WEAPON_SWORD])
+	assert_eq(parts, ["+9 Schild"] as Array[String], "clamped to max level, the plain sword is not listed")
+	assert_eq(MetaProgression.describe_forge_bonuses({MetaProgression.SMITH_SWORD: 1}, [MetaProgression.WEAPON_SWORD]),
+		["Schwert I"] as Array[String], "a smithed sword is")
 
 
 func test_banner_sums_forge_and_proviant() -> void:
-	SaveManager.set_meta_level(MetaProgression.VITALITY, 2)
-	SaveManager.set_meta_level(MetaProgression.SHARPNESS, 2)
-	SaveManager.set_meta_level(MetaProgression.ARSENAL, 1)
+	SaveManager.set_meta_level(MetaProgression.SHIELD_PLATE, 2)
+	SaveManager.set_meta_level(MetaProgression.ARSENAL_BOW, 1)
+	SaveManager.set_meta_level(MetaProgression.SECOND_SLOT, 1)
 	SaveManager.set_second_weapon(MetaProgression.WEAPON_BOW)
 	var applied: Array[String] = ["Heiltrank: +2 Max-HP"]
-	assert_eq(MetaProgression.get_run_start_summary(applied), "+2 Max-HP · +20 % Schaden · Bogen · Heiltrank: +2 Max-HP")
-	assert_eq(MetaProgression.get_run_start_banner_line(applied), "Aus dem Dorf: +2 Max-HP, +20 % Schaden, Bogen, Heiltrank: +2 Max-HP")
+	assert_eq(MetaProgression.get_run_start_summary(applied), "Schwert + Bogen · +6 Schild · Heiltrank: +2 Max-HP")
+	assert_eq(MetaProgression.get_run_start_banner_line(applied), "Aus dem Dorf: Schwert + Bogen, +6 Schild, Heiltrank: +2 Max-HP")
 
 
 func test_banner_with_proviant_only() -> void:
@@ -162,12 +174,12 @@ func test_banner_with_proviant_only() -> void:
 
 
 func test_banner_matches_applied_run() -> void:
-	SaveManager.set_meta_level(MetaProgression.VITALITY, 1)
-	SaveManager.add_pending_boost(MetaProgression.BOOST_POTION)
+	SaveManager.set_meta_level(MetaProgression.SHIELD_PLATE, 1)
+	SaveManager.add_pending_boost(MetaProgression.BOOST_HEALING_POTION)
 	RunManager.start_run()
 	var player: Player = PLAYER_SCENE.instantiate()
 	add_child_autofree(player)
 	var applied := MetaProgression.apply_to_run(player, null)
-	assert_eq(MetaProgression.get_run_start_summary(applied), "+1 Max-HP · Heiltrank: +2 Max-HP")
-	assert_almost_eq(player.health.get_max_health(), MetaProgression.BASE_MAX_HEALTH + 3.0, 0.001)
+	assert_eq(MetaProgression.get_run_start_summary(applied), "+3 Schild · Heiltrank: +2 Max-HP")
+	assert_almost_eq(player.health.get_max_health(), MetaProgression.BASE_MAX_HEALTH + 2.0, 0.001)
 	RunManager.end_run(RunManager.EndReason.ABORT)

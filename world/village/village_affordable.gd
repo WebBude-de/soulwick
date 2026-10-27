@@ -1,7 +1,8 @@
 extends RefCounted
 ## P1-3 "Was kann ich mir leisten?": decides what the village marks as affordable right now.
 ## - Schmiede: an open forge upgrade whose next level the permanent gold pays (MetaProgression.can_buy).
-## - Handelsposten: a Proviant that is not packed yet and the crystals pay (can_buy_boost), only
+## - Handelsposten: a Proviant that is not packed yet and the crystals pay (can_buy_boost) or the
+##   next trade level (can_buy_trade, KE5), only
 ##   while the building is open (MetaUnlocks, D-087).
 ## The "!" over a building (Village) shows while something there is affordable; after a visit it
 ## stays away until the building's currency changes (gold for the forge, crystals for the trader).
@@ -21,7 +22,7 @@ static var _visits: Dictionary = {}
 
 
 ## The things in a building that are affordable right now (forge: upgrade ids in forge order,
-## trader: boost ids); empty for other or locked buildings.
+## trader: boost ids, then trade level ids); empty for other or locked buildings.
 static func affordable_items(building_id: StringName) -> Array[StringName]:
 	var result: Array[StringName] = []
 	if not BUILDINGS.has(building_id) or not MetaUnlocks.is_building_open(building_id):
@@ -33,6 +34,10 @@ static func affordable_items(building_id: StringName) -> Array[StringName]:
 	else:
 		for id in MetaProgression.BOOST_ORDER:
 			if MetaProgression.can_buy_boost(id):
+				result.append(id)
+		# KE5: the trade levels (Proviant-Platz, Glück, Händlerfreund) count too.
+		for id in MetaProgression.TRADE_ORDER:
+			if MetaProgression.can_buy_trade(id):
 				result.append(id)
 	return result
 

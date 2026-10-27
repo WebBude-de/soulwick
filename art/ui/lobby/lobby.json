@@ -1,0 +1,87 @@
+{
+  "notes": [
+    "9-Slice Rand 6 px, Mindestgröße 24×24, Mitte einfarbig."
+  ],
+  "items": [
+    {
+      "name": "slot_normal",
+      "file": "slot_normal.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "slot_own",
+      "file": "slot_own.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "slot_host",
+      "file": "slot_host.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "slot_empty",
+      "file": "slot_empty.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "ready",
+      "file": "ready.png",
+      "frame_size": [
+        7,
+        7
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        3,
+        3
+      ],
+      "note": ""
+    }
+  ]
+}

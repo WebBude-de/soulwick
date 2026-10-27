@@ -15,7 +15,7 @@ const PLATE_COLOR := Color(0.18, 0.16, 0.22)
 const HOLE_COLOR := Color(0.07, 0.06, 0.09)
 const SPIKE_COLOR := Color(0.82, 0.82, 0.9)
 const WARN_COLOR := Color(1.0, 0.3, 0.2, 0.35)
-## Frames: retracted / warning / extended (docs/design/sprites/SPRITES_V2.md §2). Replaces the drawing if present.
+## Frames: retracted / warning / extended (docs/design/sprites/delivered/SPRITES_V2.md §2). Replaces the drawing if present.
 const ART_PATH := "res://art/environment/props/spike_trap_3f.png"
 
 var _phase := Phase.IDLE
@@ -80,19 +80,20 @@ func _draw() -> void:
 		_sprite.frame = _phase
 		_sprite.modulate = Color(1.5, 0.85, 0.75) if _phase == Phase.WARN else Color.WHITE
 		return
+	# Pixel art (D-218): holes and spikes from whole art pixels.
 	var half := SIZE * 0.5
-	draw_rect(Rect2(-half, -half, SIZE, SIZE), PLATE_COLOR)
+	PixelDraw.rect(self, Rect2(-half, -half, SIZE, SIZE), PLATE_COLOR)
 	if _phase == Phase.WARN:
-		draw_rect(Rect2(-half, -half, SIZE, SIZE), WARN_COLOR)
+		PixelDraw.rect(self, Rect2(-half, -half, SIZE, SIZE), WARN_COLOR)
 	var step := SIZE / 3.0
 	for gx in 3:
 		for gy in 3:
 			var center := Vector2(-half + step * (gx + 0.5), -half + step * (gy + 0.5))
-			draw_circle(center, 3.0, HOLE_COLOR)
+			PixelDraw.disc(self, center, 3.0, HOLE_COLOR)
 			var height := 0.0
 			if _phase == Phase.WARN:
 				height = 3.0
 			elif _phase == Phase.ACTIVE:
 				height = 11.0
 			if height > 0.0:
-				draw_colored_polygon(PackedVector2Array([center + Vector2(-3.5, 2), center + Vector2(3.5, 2), center + Vector2(0, -height)]), SPIKE_COLOR)
+				PixelDraw.polygon(self, PackedVector2Array([center + Vector2(-4, 2), center + Vector2(4, 2), center + Vector2(0, -height)]), SPIKE_COLOR)

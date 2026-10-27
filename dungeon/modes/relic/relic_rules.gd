@@ -1,6 +1,6 @@
 class_name RelicRules
 extends RefCounted
-## Rules and numbers of "Reliquie holen" (KONZEPT_RAEUME_V2 §3.5, R4b; the carrying of the lantern
+## Rules and numbers of "Reliquie holen" (RAEUME §3.5, R4b; the carrying of the lantern
 ## bearer, D-116, lives on in LanternCarry). No nodes, unit-testable; RelicMode, Relic and
 ## LanternCarry only apply them.
 

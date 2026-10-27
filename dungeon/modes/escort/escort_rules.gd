@@ -1,13 +1,13 @@
 class_name EscortRules
 extends RefCounted
-## Rules of the escort mode "Geleit" (KONZEPT_RAEUME_V2 §3.3, design answer 01_raumarten.md, R4a):
+## Rules of the escort mode "Geleit" (RAEUME §3.3, design answer 01_raumarten.md, R4a):
 ## the numbers (TESTWERTE) and the pure decisions - the path the lost villager walks, when he stops,
 ## how fast he goes, how many hearts he has. No nodes, no effects: EscortMode applies them.
 
 const ID: StringName = &"escort"
 ## Plan mode of the templates made for it (RoomTemplate.mode, plan header "mode: escort").
 const PLAN_MODE: StringName = &"escort"
-## First room the mode may appear in (Zyklus 2, KONZEPT_RAEUME_V2 §2). TESTWERT
+## First room the mode may appear in (Zyklus 2, RAEUME §2). TESTWERT
 const MIN_ROOM := 6
 ## Share among the minigames of a draw (R4b mode table). TESTWERT
 const WEIGHT := 1.0

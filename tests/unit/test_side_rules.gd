@@ -1,49 +1,35 @@
 extends GutTest
 ## Where side segments sit and what they give (M5): after the campfire, the ladder way of a branch,
-## 10 % after a rest room; never before the boss, never twice in a row, never when switched off;
+## the way into every champion room (D-216, Nachtrag 26.10.2026); never into or out of the boss room,
+## never twice in a row, never when switched off;
 ## a segment pays about a combat room (coins × wave count, golden coin = 2 coins, no crystals, the
 ## chest only on the ladder way), a pit costs what an abyss costs; the jump hint on the first three
 ## segments; the physics numbers (2.5-tile jump, double jump, apex hang); the plan choice.
 
 
 func test_campfire_and_ladder_way_lead_into_a_segment() -> void:
-	assert_eq(SideRules.roll_reason(true, false, false, false, false, false, null), SideRules.Reason.BIOME_CHANGE)
-	assert_eq(SideRules.roll_reason(false, true, false, false, false, false, null), SideRules.Reason.LADDER_WAY)
-	assert_eq(SideRules.roll_reason(false, false, false, false, false, false, null), SideRules.Reason.NONE)
+	assert_eq(SideRules.roll_reason(true, false, false, false, false, false), SideRules.Reason.BIOME_CHANGE)
+	assert_eq(SideRules.roll_reason(false, true, false, false, false, false), SideRules.Reason.LADDER_WAY)
+	assert_eq(SideRules.roll_reason(false, false, false, false, false, false), SideRules.Reason.NONE)
 
 
 func test_never_before_the_boss_never_twice_never_when_skipped() -> void:
-	var rng := RandomNumberGenerator.new()
-	assert_eq(SideRules.roll_reason(true, true, true, true, false, false, rng), SideRules.Reason.NONE, "boss next")
-	assert_eq(SideRules.roll_reason(true, true, true, false, true, false, rng), SideRules.Reason.NONE, "segment before")
-	assert_eq(SideRules.roll_reason(true, true, true, false, false, true, rng), SideRules.Reason.NONE, "switched off")
+	assert_eq(SideRules.roll_reason(true, true, true, true, false, false), SideRules.Reason.NONE, "boss next")
+	assert_eq(SideRules.roll_reason(true, true, true, false, true, false), SideRules.Reason.NONE, "segment before")
+	assert_eq(SideRules.roll_reason(true, true, true, false, false, true), SideRules.Reason.NONE, "switched off")
 	assert_false(SideRules.allows_ladder_way(true, false, false))
 	assert_false(SideRules.allows_ladder_way(false, true, false))
 	assert_false(SideRules.allows_ladder_way(false, false, true))
 	assert_true(SideRules.allows_ladder_way(false, false, false))
 
 
-func test_after_a_rest_room_about_one_in_six() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 77
-	var hits := 0
-	for i in 2000:
-		if SideRules.roll_reason(false, false, true, false, false, false, rng) == SideRules.Reason.AFTER_REST:
-			hits += 1
-	assert_between(hits, 300, 420, "about 18 %% (%d of 2000, round 3: a little more often)" % hits)
-	assert_almost_eq(SideRules.AFTER_REST_CHANCE, 0.18, 0.001)
-
-
-func test_only_the_rest_case_draws() -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
-	var state := rng.state
-	SideRules.roll_reason(true, false, false, false, false, false, rng)
-	SideRules.roll_reason(false, true, false, false, false, false, rng)
-	SideRules.roll_reason(false, false, false, false, false, false, rng)
-	assert_eq(rng.state, state, "no draw without a rest room")
-	SideRules.roll_reason(false, false, true, false, false, false, rng)
-	assert_ne(rng.state, state, "one draw after a rest room")
+func test_the_way_into_a_champion_room_is_a_run_and_nothing_else_draws() -> void:
+	assert_eq(SideRules.roll_reason(false, false, false, false, false, false, true), SideRules.Reason.SHARE, "into the champion")
+	assert_eq(SideRules.roll_reason(false, false, false, false, false, false, false), SideRules.Reason.NONE, "no random ways")
+	assert_eq(SideRules.roll_reason(false, false, false, false, true, false, true), SideRules.Reason.NONE, "never twice in a row")
+	assert_eq(SideRules.roll_reason(false, false, false, false, false, true, true), SideRules.Reason.NONE, "switched off")
+	assert_eq(SideRules.roll_reason(false, false, true, false, false, false, true), SideRules.Reason.NONE, "never out of the boss room")
+	assert_eq(SideRules.roll_reason(false, true, false, false, false, false, true), SideRules.Reason.LADDER_WAY, "the ladder way keeps its chest")
 
 
 func test_coins_scale_like_combat_room_gold() -> void:
@@ -116,10 +102,13 @@ func test_pick_draws_one_of_twelve_layouts_of_the_biome() -> void:
 		var layout := SidePlans.pick(&"shadow_realm", rng)
 		assert_eq(layout.biome_id, &"shadow_realm")
 		assert_true(SidePlans.ids_for(&"shadow_realm").has(layout.plan_id))
+		assert_gte(layout.tier, SideRules.MAX_TIER - 1, "SV2: only the current and the previous tier")
 		seen["%s_%s" % [layout.plan_id, layout.is_mirrored]] = true
 		if layout.turrets_enabled:
 			turrets += 1
-	assert_eq(seen.size(), 12, "six plans, each plain and mirrored")
+	# SV2: the plans of the last two tiers, each plain and mirrored.
+	var pool := SidePlans.ids_for(&"shadow_realm", SideRules.MAX_TIER, SidePlans.pick_min_tier(SideRules.MAX_TIER))
+	assert_eq(seen.size(), pool.size() * 2, "every plan of the pool, each plain and mirrored")
 	assert_between(turrets, 150, 250, "turrets in about half of the segments (%d of 400)" % turrets)
 	assert_true(SidePlans.build(&"crypt_steps").turrets_enabled, "tools and tests build with turrets")
 	assert_true(SidePlans.build(&"crypt_steps", true).turrets_enabled, "mirroring keeps the flag")
@@ -134,9 +123,8 @@ func test_texts_exist_in_both_tables() -> void:
 	for key in [&"SIDE_DESCENT_TITLE", &"SIDE_DESCENT_SUB", &"SIDE_HINT_JUMP", &"SIDE_GOLDEN_COIN_TITLE",
 			&"SIDE_GOLDEN_COIN_SUB", &"SIDE_WAY_NAME", &"SIDE_OPTION_SKIP", &"SIDE_OPTION_SKIP_NOTE"]:
 		assert_true(DungeonTexts.has_text(key), "%s in DungeonTexts" % key)
-	for key in [&"SIDE_GOLDEN_COIN_GOLD", &"SIDE_HINT_MOVES"]:
+	for key in [&"SIDE_GOLDEN_COIN_GOLD"]:
 		assert_true(Loc.has_key(key, &"en") and Loc.has_key(key, &"de"), "%s in the CSV (en + de)" % key)
-	assert_true(SideTransit.jump_hint_text().length() > 10, "the hint names jump, double jump and dash")
 	var csv := FileAccess.get_file_as_string("res://localization/translations.csv")
 	assert_true(csv.contains("SIDE_DESCENT_TITLE,\"Descent\",\"Abstieg\""), "English and German in the CSV")
-	assert_eq(DungeonTexts.t(&"SIDE_HINT_JUMP", ["Leertaste", "Umschalt"]).count("Leertaste"), 1)
+	assert_eq(DungeonTexts.t(&"SIDE_HINT_JUMP", ["Leertaste"]).count("Leertaste"), 1)

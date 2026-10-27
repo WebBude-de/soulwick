@@ -1,6 +1,6 @@
 class_name LightfireMode
 extends RoomMode
-## Minigame "Lichtfeuer" (KONZEPT_RAEUME_V2 §3.9, design answer 01_raumarten.md, R4b; replaces the
+## Minigame "Lichtfeuer" (RAEUME §3.9, design answer 01_raumarten.md, R4b; replaces the
 ## torch room and the stone guardian variant of D-116): "Entzünde alle Feuer – im Dunkeln sind die
 ## Wächter unbesiegbar."
 ##   Intro:  camera on the cold torch stands (plan markers torch_stand_unlit), banner "Entzünde alle
@@ -80,6 +80,12 @@ func get_focus() -> Vector2:
 			sum += torch.global_position
 			count += 1
 	return sum / count if count > 0 else Vector2.INF
+
+
+## Flint's first-time tour (WK11): the cold stands, a stone guardian, then "lure them into the light".
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var guardian := room.to_global(RoomTiles.tile_center(_guardian_tiles[0])) if not _guardian_tiles.is_empty() and room != null else Vector2.INF
+	return RoomFlint.steps(RoomObjective.LIGHTFIRE, [get_focus(), guardian])
 
 
 func _setup_objective(goal: RoomObjective) -> void:
@@ -217,6 +223,10 @@ func _apply_vision() -> void:
 	var overlay := get_vision_overlay()
 	if overlay != null:
 		var factor := LightfireRules.vision_factor(get_lit_count(), get_fire_count())
+		# Klarsicht (KE5 Proviant): the local player sees through the fires' darkness (the room's
+		# biome darkness stays); optics at this machine.
+		if MetaProgression.player_blind_immune(overlay.get_bound_player()):
+			factor = 1.0
 		overlay.set_vision(DungeonManager.DUNGEON_DARKNESS, _vision_radius * factor)
 
 

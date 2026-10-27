@@ -116,6 +116,7 @@ item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(1, 6), Vector2i(2, 6)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -133,6 +134,7 @@ script = ExtResource("2_deco")
 item = &"group_1"
 blocked_tiles = Array[Vector2i]([Vector2i(11, 7), Vector2i(12, 7)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Group4" type="Node2D" parent="Props"]

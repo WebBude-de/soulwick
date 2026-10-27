@@ -72,6 +72,8 @@ const MENU_POSITION := Vector2(24, 88)
 const MENU_WIDTH := 140.0
 ## Darkened left edge: rgba(21,19,31, 0.88 -> 0.6 -> 0) over x 0..250.
 const SHADE_WIDTH := 250.0
+## Bands of the shade behind the menu (D-218).
+const SHADE_STEPS := 6
 const CORNER_MARGIN := 8.0
 ## Sub panels live in this area right of the menu list (x from, x to).
 const PANEL_AREA := Vector2(176, 472)
@@ -464,8 +466,9 @@ func _open_panel(panel: MenuPanel) -> void:
 	Sfx.play_ui(self, &"ui_open")
 
 
-## Centred in the area right of the menu list (to the right edge of the screen); on phones alone in
-## the middle of the safe area at the zoom whose width fits, scrolling when too tall.
+## Centred in the area right of the menu list (to the right edge of the screen), at most the screen
+## high (scrolling inside); on phones alone in the middle of the safe area at the zoom whose width
+## fits, scrolling when too tall.
 func _place_panel(panel: MenuPanel) -> void:
 	if panel == null or panel != _panel or not is_inside_tree():
 		return
@@ -484,6 +487,10 @@ func _place_panel(panel: MenuPanel) -> void:
 		panel.set_max_height(floorf(area.size.y / zoom))
 		if _close_button != null:
 			close_size = maxf(UiKit.px(Modal.CLOSE_SIZE), MobileUi.min_touch_height(viewport, zoom))
+	else:
+		# PC: at most the screen height with the corner margin, the rest scrolls (report 22.10.2026:
+		# a too tall panel stood out of the screen at the top and the bottom).
+		panel.set_max_height(floorf(area.size.y - 2.0 * UiKit.px(CORNER_MARGIN)))
 	MobileUi.place_stage(_panel_area, area, zoom, full)
 	_stage.visible = not _compact
 	var stage_size := _panel_area.size
@@ -493,7 +500,7 @@ func _place_panel(panel: MenuPanel) -> void:
 	var area_right := stage_size.x if _compact else maxf(stage_size.x - UiKit.px(CORNER_MARGIN), area_left + panel_size.x)
 	panel.position = Vector2(
 		floorf(area_left + (area_right - area_left - panel_size.x) * 0.5),
-		floorf((stage_size.y - panel_size.y) * 0.5))
+		maxf(0.0, floorf((stage_size.y - panel_size.y) * 0.5)))
 	if not _compact:
 		# A panel wider than the area keeps its right edge on screen (16:9: the world list was cut).
 		panel.position.x = maxf(0.0, minf(panel.position.x, stage_size.x - UiKit.px(CORNER_MARGIN) - panel_size.x))
@@ -614,12 +621,10 @@ func _build_shade() -> TextureRect:
 	gradient.set_color(0, Color(UiKit.COLOR_BG, 0.88))
 	gradient.set_color(1, Color(UiKit.COLOR_BG, 0.0))
 	gradient.add_point(0.6, Color(UiKit.COLOR_BG, 0.6))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.width = 256
-	texture.height = 4
+	# Hard bands instead of a smooth gradient (D-218).
 	var shade := TextureRect.new()
-	shade.texture = texture
+	shade.texture = PixelDraw.stepped_ramp_texture(gradient, SHADE_STEPS)
+	shade.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	shade.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	shade.stretch_mode = TextureRect.STRETCH_SCALE
 	shade.mouse_filter = Control.MOUSE_FILTER_IGNORE

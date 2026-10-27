@@ -8,7 +8,7 @@ Chiptune-Wurzeln, aber modern produziert (Bässe, Hall, gemischte Instrumente), 
 
 ## Erzeugen
 
-- Effekte: `python tools/generate_audio.py`; Musik und Geräuschkulissen: `python tools/generate_music.py` (`--list` zeigt Tempo und Tonart, `--measure` Länge, Pegel und Loop-Naht; ein Wort als Argument erzeugt nur passende Stücke, z. B. `crypt`).
+- Effekte: `python tools/generate_audio.py` (`side` bzw. `village` als Argument erzeugt nur diesen Block, z. B. Boost-Feld bzw. Dorftiere; neue Klänge kommen ans Ende ihres Blocks, damit alle älteren bytegleich bleiben); Musik und Geräuschkulissen: `python tools/generate_music.py` (`--list` zeigt Tempo und Tonart, `--measure` Länge, Pegel und Loop-Naht; ein Wort als Argument erzeugt nur passende Stücke, z. B. `crypt`).
 - Danach `godot --headless --audio-driver Dummy --path . --import`.
 - Ton liegt in Git LFS (`.gitattributes`).
 

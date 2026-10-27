@@ -1,6 +1,6 @@
 class_name LanternCarry
 extends Node
-## "This player carries something with both hands" - the relic of "Reliquie holen" (KONZEPT_RAEUME_V2
+## "This player carries something with both hands" - the relic of "Reliquie holen" (RAEUME
 ## §3.5; before the soul lantern, A9) - state per player at the player (D-088): a child node of the
 ## Player named NODE_NAME while it carries. The carrier walks slower (RelicRules.CARRY_SPEED_FACTOR),
 ## cannot attack, but may dash. The name stays: player.gd and weapon_controller.gd ask it.

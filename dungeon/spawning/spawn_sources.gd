@@ -1,6 +1,6 @@
 class_name SpawnSources
 extends Node2D
-## Every enemy source of one room and the way enemies come out of them (R2, KONZEPT_RAEUME_V2 §5).
+## Every enemy source of one room and the way enemies come out of them (R2, RAEUME §5).
 ## Enemies no longer stand there suddenly: each push picks a few sources, mostly behind or beside
 ## the players and never close to any of them (SpawnSourceRules, own RNG from the dungeon seed);
 ## each source warns for 1 s with light and sound, then its enemies come out one after another,

@@ -1,7 +1,7 @@
 extends GutTest
-## Village unlocks (D-087): a fresh save starts with forge (Vitalität, Startschild, Schärfe), guild,
-## home and dungeon; Chronik opens after the first run, Handelsposten with the first crystal, Goldgier,
-## Dash-Training and Arsenal after the first boss. Events persist, are recorded by StatsTracker and
+## Village unlocks (D-087, KE4): a fresh save starts with forge (Waffe schmieden, Schildplatte,
+## Laterne), guild, home and dungeon; Chronik opens after the first run, Handelsposten with the first
+## crystal, Arsenal and the second start slot after the first boss. Events persist, are recorded by StatsTracker and
 ## are announced exactly once. Uses a test save file only.
 
 const TEST_PATH := "user://test_meta_unlocks.cfg"
@@ -57,8 +57,9 @@ func test_fresh_save_starts_with_the_d087_set() -> void:
 		assert_true(MetaUnlocks.is_building_open(id), "%s open from the start" % id)
 	for id in [VillageBuildings.CHRONICLE, VillageBuildings.TRADER]:
 		assert_false(MetaUnlocks.is_building_open(id), "%s locked" % id)
-	assert_eq(MetaUnlocks.get_open_upgrades(), [MetaProgression.VITALITY, MetaProgression.START_SHIELD,
-		MetaProgression.SHARPNESS] as Array[StringName])
+	var expected: Array[StringName] = MetaProgression.WEAPON_UPGRADES.duplicate()
+	expected.append_array([MetaProgression.SHIELD_PLATE, MetaProgression.LANTERN])
+	assert_eq(MetaUnlocks.get_open_upgrades(), expected)
 	assert_eq(MetaUnlocks.get_locked_upgrade_events(), [MetaUnlocks.EVENT_FIRST_BOSS] as Array[StringName])
 
 
@@ -85,10 +86,10 @@ func test_each_event_opens_exactly_its_part() -> void:
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
 	assert_true(MetaUnlocks.is_building_open(VillageBuildings.CHRONICLE))
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.TRADER))
-	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL))
+	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL_BOW))
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
 	assert_true(MetaUnlocks.is_building_open(VillageBuildings.TRADER))
-	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.GOLD_GREED))
+	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.SECOND_SLOT))
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_BOSS)
 	for id in MetaProgression.UPGRADE_ORDER:
 		assert_true(MetaUnlocks.is_upgrade_open(id), String(id))
@@ -174,7 +175,7 @@ func test_announcement_once_per_event() -> void:
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_BOSS)
 	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
 	var lines := MetaUnlocks.take_announcements()
-	assert_eq(lines, ["Chronik", "Schmiede: Goldgier, Dash-Training und Arsenal"] as Array[String])
+	assert_eq(lines, ["Chronik", "Schmiede: Arsenal und Zweiter Startplatz"] as Array[String])
 	assert_true(MetaUnlocks.take_announcements().is_empty(), "only once")
 	assert_eq(SaveManager.save_game(), OK)
 	assert_eq(SaveManager.load_game(), OK)

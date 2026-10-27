@@ -9,6 +9,9 @@ extends Node
 ## (AccountProgress.record_run with this run's id, rooms, champions, bosses, record, portal, daily
 ## bonus, +20 % with 2–4 players); create_xp_view() builds the "+XP" block of the run end dialog
 ## (XpGainView). Each client counts only its own player, the host never counts for others.
+## KE1: the run's danger level (RunManager.get_danger_level: own level solo, the host's group level
+## in co-op) goes into the XP (+5 % per level) and the entry; the rank before and after the run gives
+## "Rang gestiegen: Kerze II" (rank_change_text, shown by XpGainView).
 ##
 ## Multiplayer later: one recap per local view; kills are counted for the whole group today.
 
@@ -121,6 +124,7 @@ func award_xp() -> Dictionary:
 		"end_reason": xp_end_reason(int(summary.get("reason", -1))),
 		"players": GameMode.of(self).get_player_count(),
 		"duration": roundi(play_time),
+		"danger": RunManager.get_danger_level(),
 	}
 	_xp_result = AccountProgress.current().record_run(run_id, run)
 	return _xp_result
@@ -149,6 +153,15 @@ func create_xp_view() -> XpGainView:
 	return XpGainView.create(result)
 
 
+## "Rang gestiegen: Kerze II" when the own danger level rose, "Rang gesunken: Funke III" when it fell,
+## "" when it stayed (ranks can fall like matchmaking, KONZEPT §3.1).
+static func rank_change_text(danger_before: int, danger_after: int) -> String:
+	if danger_after == danger_before:
+		return ""
+	var key := &"RANK_UP" if danger_after > danger_before else &"RANK_DOWN"
+	return Loc.t(key, [DangerRank.rank_text(danger_after)])
+
+
 ## Name of what dealt damage: the enemy (with elite prefix) or the trap kind (current language).
 static func describe_hit(damage: DamageData) -> String:
 	if damage == null:
@@ -171,7 +184,7 @@ static func is_new_record(room: int, record_before: int) -> bool:
 
 
 ## The cheapest forge step for the run end (P1-3, rules of MetaProgression and MetaUnlocks, read
-## only): {"id", "level" (the level it would buy), "cost", "missing" (gold still missing, 0 =
+## only): {"id", "level" (the level it would buy), "name" (MetaProgression.get_step_name), "cost", "missing" (gold still missing, 0 =
 ## affordable now)}; ties keep the forge order. {} when every open upgrade is at its limit.
 ## gold: village gold to compare with (-1 = the save's permanent gold). Same rule as the village's
 ## "!" over the forge (world/village/village_affordable.gd): open forge, open upgrade, next cost.
@@ -186,7 +199,8 @@ static func next_forge_step(gold := -1) -> Dictionary:
 		if cost < 0:
 			continue
 		if best.is_empty() or cost < int(best["cost"]):
-			best = {"id": id, "level": MetaProgression.get_level(id) + 1, "cost": cost, "missing": maxi(0, cost - gold)}
+			var level := MetaProgression.get_level(id) + 1
+			best = {"id": id, "level": level, "name": MetaProgression.get_step_name(id, level), "cost": cost, "missing": maxi(0, cost - gold)}
 	return best
 
 

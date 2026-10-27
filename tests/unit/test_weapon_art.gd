@@ -1,6 +1,7 @@
 extends GutTest
-## Weapon art (SPRITES_V3 §1, ROADMAP_AUSBAU C2): every weapon uses its own sprite, icon and
-## projectile art, and the special effects (WeaponFx) are scaled to the real hit radius.
+## Weapon art (SPRITES_V3 §1, ROADMAP C2): every weapon uses its own sprite, icon and
+## projectile art, and the special effects (WeaponFx) are scaled towards the real hit radius in whole
+## steps (FS2b).
 
 const CONTROLLER_SCENE: PackedScene = preload("res://player/weapon_controller.tscn")
 const WEAPON_DIR := "res://weapons/data/"
@@ -100,7 +101,12 @@ func test_area_art_scales_onto_the_hit_radius() -> void:
 		var art_radius: float = art["art_radius"]
 		assert_lt(art_radius, frame.x * 0.5 + 0.01, "%s ring fits into the frame" % kind)
 		for hit_radius in [40.0, 55.0, 108.0]:
-			assert_almost_eq(art_radius * WeaponFx.art_scale(hit_radius, art_radius), hit_radius, 0.001)
+			var art_scale := WeaponFx.art_scale(hit_radius, art_radius)
+			assert_eq(art_scale, roundf(art_scale), "%s: a whole scale keeps the pixels even (FS2b)" % kind)
+			assert_gte(art_scale, 1.0)
+			# The nearest whole scale: the drawn ring is at most half an art radius off the hit radius.
+			if hit_radius >= art_radius:
+				assert_lte(absf(art_radius * art_scale - hit_radius), art_radius * 0.5 + 0.001, "%s near %s" % [kind, hit_radius])
 
 
 func test_area_hits_report_their_real_radius() -> void:
@@ -152,7 +158,7 @@ func test_spin_art_matches_the_spin_hitbox() -> void:
 	var spin := fx.get_child(fx.get_child_count() - 1) as AnimatedSprite2D
 	assert_not_null(spin, "spin art follows the player")
 	var radius := sword.attack_range * WeaponController.SPIN_RANGE_MULTIPLIER
-	assert_almost_eq(spin.scale.x, radius / WeaponFx.SPIN_ART_RADIUS, 0.001)
+	assert_almost_eq(spin.scale.x, PixelDraw.whole_scale(radius / WeaponFx.SPIN_ART_RADIUS), 0.001)
 	controller.cancel_attack()
 	assert_true(spin.is_queued_for_deletion(), "dash/cancel removes the spin art")
 

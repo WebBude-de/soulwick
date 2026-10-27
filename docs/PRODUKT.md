@@ -1,6 +1,6 @@
 # Soulwick – Produktüberblick
 
-> **Stand:** 17.10.2026 · **Gilt für beide Repositories:** `soulwick` (Spiel) und `soulwick-platform` (Online-Teil).
+> **Stand:** 22.10.2026 · **Gilt für beide Repositories:** `soulwick` (Spiel) und `soulwick-platform` (Online-Teil).
 > **Zweck:** Was Soulwick sein soll, für wen und warum, an **einer** Stelle. Was schon gebaut ist, steht im Code, nicht hier (D-178). Begriffe: [GLOSSAR.md](GLOSSAR.md). Entscheidungen: [DECISIONS.md](DECISIONS.md). Was als Nächstes kommt: [ROADMAP.md](ROADMAP.md).
 > **Leseregel:** `OFFEN` = noch nicht entschieden; nichts in dieser Datei legt eine offene Frage fest.
 
@@ -46,36 +46,41 @@ Ein Pixel-Roguelite, in das man mit Freunden reinrennt: Top-down, direkte Action
 
 ## 4. Maskottchen (D-175)
 
-- **Wick**, ein kleines Docht-Wesen (eine lebende Kerze mit Flamme), ist das Gesicht von Soulwick (wie die Crewmates bei Among Us). Im Spiel ist Wick dein **persönlicher Begleiter von Anfang an**, Grundlage für Begleiter und Pets; er gehört zum Release-Umfang (§5).
-- **Das Huhn** ist Neben-Maskottchen (wie das Schwein bei Minecraft) und taucht immer wieder mit Wick auf.
-- Kosmetik gibt es für Spielfigur, Wick und Dorf.
-- OFFEN: Name endgültig, Aussehen im Einzelnen (Briefing für Claude Design; eine etwas schlankere Kerze ist erlaubt, wenn Wick so sympathisch bleibt, lieber etwas höher als schmaler, damit er nicht wie ein Quadrat wirkt), was Wick spielerisch tut (Vorschlag: Wick ist die Quelle deines Lichtkreises).
+- **Flint**, ein kleines Docht-Wesen (eine lebende Kerze mit Flamme), ist das Gesicht von Soulwick (wie die Crewmates bei Among Us). Im Spiel ist Flint dein **persönlicher Begleiter von Anfang an**, Grundlage für Begleiter und Pets; er gehört zum Release-Umfang (§5).
+- **Das Huhn** ist Neben-Maskottchen (wie das Schwein bei Minecraft) und taucht immer wieder mit Flint auf.
+- Kosmetik gibt es für Spielfigur, Flint und Dorf.
+- **Rolle (D-194):** Flint ist immer dabei, fliegt ein Stück voraus und ist die Quelle deines Lichtkreises; er erklärt Dorf, Steuerung (Übungsgang) und jede neue Raumart beim ersten Mal und wirkt deine Zauber sichtbar.
+- **Name:** Flint (VERBINDLICH, D-198; vorher „Wick“). Die Standard-Spielfigur heißt Wick. OFFEN: endgültiges Aussehen (Konzeptblatt, SPRITES_V13 A1).
 
 ## 5. Spielidee
 
+**Kernschleife der Vollversion (D-194):** Rein, plündern, raus – jeder Run ist eine Wette, du wirst mit jedem Level stärker und die Welt mit dir, Flint zeigt dir alles ([KONZEPT.md](KONZEPT.md)).
+
 1. **Endloser Abstieg:** Räume im Fünferzyklus, alle 15 Räume ein Boss, dann Lagerfeuer und neues Biom, der Dungeon endet nie (D-073). Jeder Raum hat eine Aufgabe: Kampf, Arena oder Minispiel (D-120).
 2. **Direkte Steuerung:** präzise, sofort verständlich; Maus und Tastatur, Touch (D-168), Gamepad.
-3. **Run-Entscheidungen:** Waffen, Upgrades, Spezialräume, Abzweigungen; Gold ist eine Entscheidung (Portal 100 %, Tod 50 %).
+3. **Run-Entscheidungen und Extraktion:** Waffen, Upgrades, Spezialräume, Abzweigungen; jedes Seelentor fragt „jetzt sichern oder weiter?“ – durchs Tor nimmst du alles mit, beim Tod nur einen Rest (Vorschlag 25 %).
 4. **Dorf:** ausbauen (Meta-Progression), verschönern (Kosmetik und Deko) und Freunde einladen: gemeinsam im Koop oder als Besuch, auch wenn du nicht da bist (Dorf besuchen).
+   Drei Säulen: **Schmiede** (Gold → Waffen und Ausrüstung), **Handelsposten** (Seelenkristalle → Glück und Meta-Vorteile für den nächsten Run), **Zuhause** (Level → Talentbaum mit Tempo, Kraft und Zaubern; später einrichten, Pets).
 5. **Zusammen:** Koop für 2 bis 4 Spieler, Einladen per Link oder Raumcode über den eigenen Relay (D-119), Gilden, Ranglisten.
+6. **Level und Rang:** XP aus jedem Run heben das Konto-Level (je Level ein Talentpunkt); die **Gefahrenstufe** jedes neuen Runs wächst mit Level und Können, ihr Name ist dein **Rang** (vom Funken bis zum Seelenmeister) – so bleibt es spannend, ob man neu ist oder sich reinsweatet.
 
 **Modi:**
 
 | Modus | Wann |
 | --- | --- |
 | Abstieg (endlos, allein oder im Koop mit Freunden) | Kern, zum Release |
-| KI-Bosse („Wünsch dir einen Boss“, der Traumweber baut ihn: [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md)) | zum Release (D-179); stärkster Clip-Moment |
+| KI-Bosse („Wünsch dir einen Boss“, der Traumweber baut ihn: [KONZEPT.md](KONZEPT.md)) | zum Release (D-179); stärkster Clip-Moment |
 | Party-Modus (nur Minispiele, Spieler gegeneinander, gleiche Grafik) | nach dem Release (D-179) |
 
 **Release-Umfang (D-179):**
 
 | Zum Release im Spiel | Nach dem Release („Was kommt“) |
 | --- | --- |
-| Koop mit Freunden (Einladen per Link, Gilden, Ranglisten), KI-Bosse, Wick als Begleiter, Dorf ausbauen und verschönern sowie Outfits zum Freispielen (Lesart, D-179), Freunde ins Dorf einladen (Dorf besuchen); spielbar im Browser, auf Steam, Android und iOS (§6) | Party-Modus, laufend neue Minispiele, Bosse und Modi |
+| Koop mit Freunden (Einladen per Link, Gilden, Ranglisten), KI-Bosse, Flint als Begleiter, Dorf ausbauen und verschönern sowie Outfits zum Freispielen (Lesart, D-179), Freunde ins Dorf einladen (Dorf besuchen); spielbar im Browser, auf Steam, Android und iOS (§6) | Party-Modus, laufend neue Minispiele, Bosse und Modi |
 
 - **Release** auf allen Versionen gleichzeitig: Browser, Steam, Android und iOS (D-179; ersetzt die Reihenfolge Steam → Android → iOS aus D-119), erst wenn das Release-Tor in [ROADMAP.md](ROADMAP.md) erfüllt ist.
 - **Öffentlich erst ab Release:** Die Social-Media-Phase beginnt mit dem Release (D-179; ob die Steam-Seite „Demnächst verfügbar“ schon dazu zählt, ist OFFEN). Die Website darf vorher online sein; sie beschreibt den Release-Umfang wie vorhanden und schaltet nur Live-Funktionen ab (Spielen und Installieren zeigen „zum Release“, keine Ranglisten- und Gildenseiten). Social-Media-Links erscheinen nur, wenn es den Kanal gibt. Store-Knöpfe sind vor dem Release eigene Pixel-Knöpfe ohne fremde Logos; offizielle Badges kommen erst mit echten Store-Links (D-179, [STORES.md](STORES.md) §6).
-- **Echte Personen als KI-Boss:** OFFEN (D-179, Team und Fachanwalt; Risiken in [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) §9); bis dahin sind alle Beispiele für Wunschbosse in Doku, Website und Store erfunden.
+- **Echte Personen als KI-Boss:** OFFEN (D-179, Team und Fachanwalt; Risiken in [KONZEPT.md](KONZEPT.md) §11); bis dahin sind alle Beispiele für Wunschbosse in Doku, Website und Store erfunden.
 
 ## 6. Plattformen und Geschäftsmodell (D-176)
 
@@ -95,7 +100,7 @@ Zum Release ist Soulwick auf allen Versionen spielbar – Browser, Steam, Androi
 
 ## 7. Open Source (D-177)
 
-- **Code** beider Repositories ist öffentlich unter **GPL-3.0**. **Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Wick, Huhn)** sind davon ausgenommen: alle Rechte vorbehalten ([LICENSE-ASSETS.md](../LICENSE-ASSETS.md)).
+- **Code** beider Repositories ist öffentlich unter **GPL-3.0**. **Grafik, Musik, Klang, Logo, der Name „Soulwick“ und die Figuren (Flint, Huhn)** sind davon ausgenommen: alle Rechte vorbehalten ([LICENSE-ASSETS.md](../LICENSE-ASSETS.md)).
 - **Offizielle Server** sind für alle offen, weil Browser und Handy kostenlos sind. Geschützt wird nicht der Zugang, sondern das Gekaufte: Kosmetik und Werbefreiheit liegen am Konto auf dem Server und werden über die Quittungen der Stores bzw. das Steam-Ticket geprüft (Steam Web API). Ein selbst gebautes Spiel kann lokal alles freischalten, online aber nichts Gekauftes vortäuschen.
 - Missbrauch online behandeln Plausibilitätsprüfung, Sperren und Moderation wie bei allen Spielern.
 

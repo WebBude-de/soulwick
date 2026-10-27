@@ -7,7 +7,7 @@ so the node origin sits on the door and y-sorting against the player is correct.
 a solid footprint over the walls and most of the roof and an Interactable at its door that opens
 the building's dialog (D-078). Enterable buildings get a wooden sign above the door (art/ui/sign_*.png,
 24x16, pivot top centre, SPRITES_V3 section 4) so their purpose is visible from outside (D-087).
-The player's home (MM1) opens the wardrobe ("Umkleiden").
+The player's home (MM1, KE8) leads into the home interior ("Eintreten").
 
 B3 (Dorf beleben): neighbour houses (house_1..3, no door), barrels, crates, garden fences, chimney
 smoke, villagers walking routes on the paths, pollen/fireflies. Props whose art may be missing are
@@ -27,6 +27,14 @@ Reports 17.10.2026 (hitboxes like the hay bales: the visible width minus a littl
 the art): flower beds are solid (#5a560cd1), crates, barrels and the market stall have a box instead
 of a small circle (#0a088654, #90544fa9), the flat rubble lies under characters, weapons and shadows
 (#d83bda23), animals dodge the player without the villagers' sound (#ec4f0b9f).
+
+Reports 23.10.2026 (#0ef74410, #7539cc72 "Hier kann man die Map verlassen"): the fence tiles alone
+left a gap in every corner (vertical and horizontal bar do not meet), so the village gets a closed
+ring of walls (Bounds) from outside the map up to the inner side of the fence line.
+
+WK12 (D-196, Dorftiere zum Anfassen): every animal has a kind (animal = chicken, cat, dog) and reacts
+when spoken to (world/village/village_animal.gd). The dog lies in wait for its art: without
+art/characters/npcs/dog_idle_<n>f.png it frees itself like the other optional animals.
 """
 from pathlib import Path
 
@@ -77,12 +85,19 @@ STAIRS = [(22, 6, 2, 1)]
 SLABS = [(22, 4, 2, 2)]
 ENTRANCE = (23, 4)
 SPAWN = (16.0, 17.8)
+# Border ring (world px): the fence bars of the tileset (village_tileset.tres, 2x) end this far inside
+# the map edge: vertical bar x 22..42, top bar y 24..44, bottom bar 40..20 above the edge. The walls
+# reach WALL_OUTSIDE beyond the map, so nothing slips around a corner.
+WALL_INNER_SIDE = 42
+WALL_INNER_TOP = 44
+WALL_INNER_BOTTOM = 40
+WALL_OUTSIDE = 128
 
 # node name, sprite, tile position of the door pivot, caption, prompt, building id, door sign
 BUILDINGS = [
     ("Forge", "forge", (8.6, 10), "Schmiede", "Schmiede betreten", "forge", "sign_forge"),
     ("Chronicle", "chronicle_hall", (14.6, 9), "Chronik", "Chronik betreten", "chronicle", "sign_chronicle"),
-    ("Home", "home", (11.2, 17), "Zuhause", "Umkleiden", "home", "sign_home"),
+    ("Home", "home", (11.2, 17), "Zuhause", "Eintreten", "home", "sign_home"),
     ("TradingPost", "trading_post", (23.6, 15), "Handelsposten", "Handelsposten betreten", "trader", "sign_trading"),
     ("Guild", "guild_hall", (28.4, 15), "Gilde", "Gilde betreten", "guild", "sign_guild"),
 ]
@@ -194,11 +209,13 @@ RESCUED = [
     (True, 16, [(15.0, 11.0), (17.8, 11.0), (17.8, 13.2), (15.2, 13.4)]),
 ]
 # Animals keep to their territory (06_dorf.md): only with art (or the chicken placeholder).
-# name, art, loop, speed, route
+# name, art (= animal kind of VillageAnimal), loop, speed, route
 ANIMALS = [
     ("Chicken1", "chicken", True, 18, [(2.8, 13.0), (4.2, 12.9), (5.8, 13.3), (4.0, 14.0)]),
     ("Chicken2", "chicken", True, 16, [(5.6, 14.0), (3.4, 14.1), (2.9, 13.2)]),
     ("Cat", "cat", False, 22, [(9.6, 18.3), (13.2, 18.4)]),
+    # WK12: the dog trots along the south fence by the field (shows once its art exists).
+    ("Dog", "dog", False, 26, [(26.6, 18.7), (29.2, 18.7)]),
 ]
 # Rescued chickens: two more in the yard, two in the garden and at the pond. loop, speed, route
 RESCUED_CHICKENS = [
@@ -274,6 +291,28 @@ def main():
 
     def rect_shape(sid, w, h):
         subs.append(f'[sub_resource type="RectangleShape2D" id="{sid}"]\nsize = {vec(w, h)}\n')
+
+    def bounds():
+        """Closed ring of walls around the map (#0ef74410): left, right, top, bottom, overlapping."""
+        width, height = MAP_SIZE[0] * T, MAP_SIZE[1] * T
+        out = WALL_OUTSIDE
+        walls = [
+            ("Left", -out, -out, WALL_INNER_SIDE + out, height + 2 * out),
+            ("Right", width - WALL_INNER_SIDE, -out, WALL_INNER_SIDE + out, height + 2 * out),
+            ("Top", -out, -out, width + 2 * out, WALL_INNER_TOP + out),
+            ("Bottom", -out, height - WALL_INNER_BOTTOM, width + 2 * out, WALL_INNER_BOTTOM + out),
+        ]
+        text = '''[node name="Bounds" type="StaticBody2D" parent="."]
+collision_mask = 0
+'''
+        for name, x, y, w, h in walls:
+            rect_shape(f"Rect_bounds_{name.lower()}", w, h)
+            text += f'''
+[node name="{name}" type="CollisionShape2D" parent="Bounds"]
+position = {vec(x + w / 2, y + h / 2)}
+shape = SubResource("Rect_bounds_{name.lower()}")
+'''
+        return text
 
     def circle_shape(sid, r):
         subs.append(f'[sub_resource type="CircleShape2D" id="{sid}"]\nradius = {r:g}\n')
@@ -357,6 +396,7 @@ script = ExtResource("{ambience_script}")
 [node name="Evening" type="Node" parent="."]
 script = ExtResource("{evening_script}")
 ''')
+    nodes.append(bounds())
 
     # Dungeon entrance: the ruin on the terrace (VillageEntrance builds sprite, torches and ravens).
     rect_shape("Rect_entrance", 176, 56)
@@ -561,6 +601,7 @@ pause_max = 5.0
 art_name = "{art}"
 optional = true
 dodge_sound = &""
+animal = &"{art}"
 ''')
     for i, (loop, speed, points) in enumerate(RESCUED_CHICKENS):
         nodes.append(f'''[node name="RescuedChicken{i + 1}" type="Node2D" parent="Villagers"]
@@ -573,6 +614,7 @@ pause_max = 5.0
 art_name = "chicken"
 optional = true
 dodge_sound = &""
+animal = &"chicken"
 metadata/rescued_chicken_slot = {i}
 ''')
 

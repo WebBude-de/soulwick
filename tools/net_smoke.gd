@@ -1,5 +1,5 @@
 extends SceneTree
-## Two-instance network test of MP2 (ROADMAP_MULTIPLAYER): a headless host and a headless client
+## Two-instance network test of MP2 (ROADMAP): a headless host and a headless client
 ## (second Godot process, started by the host) against a running soulwick-api and soulwick-relay.
 ## Both log in with the dev login, the host creates a quick room, the client joins by its code;
 ## checked on the way (PASS/FAIL lines, exit code 1 on any failure):
@@ -11,7 +11,7 @@ extends SceneTree
 ## - the client leaves cleanly (host: back to one player) and joins again;
 ## - the host leaves: the room closes for the client (host_left, D-123), both are solo again.
 ## Usage (API and relay running, see docs/MULTIPLAYER.md §3b):
-##   godot --headless --path . -s tools/net_smoke.gd -- api=http://localhost:3101 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
+##   godot --headless --path . -s tools/net_smoke.gd -- api=http://localhost:3102 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
 ## The dev key can also come from the environment (SOULWICK_DEV_KEY). spawn_client=0 starts no
 ## client (start it yourself with role=client run=<id>). Real time, no --fixed-fps.
 ## load=<enemies> (network load, online test 16.10.2026): instead of the village checks the host
@@ -29,7 +29,7 @@ extends SceneTree
 ## started with --sim-latency=<ms> adds latency.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
-const DEFAULT_API := "http://localhost:3101"
+const DEFAULT_API := "http://localhost:3102"
 const DEFAULT_RELAY := "ws://localhost:3103/v1"
 const HOST_INSTANCE := 11
 const CLIENT_INSTANCE := 12

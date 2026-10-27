@@ -1,8 +1,11 @@
 class_name RiftsMode
 extends RoomMode
-## Minigame "Risse schließen" (KONZEPT_RAEUME_V2 §3.7, design answer 01_raumarten.md, R4b; replaces
+## Minigame "Risse schließen" (RAEUME §3.7, design answer 01_raumarten.md, R4b; replaces
 ## the summoning rifts of D-114): "Zerstöre die Risse, aus denen Gegner kommen."
-##   Intro:  camera on the rifts in the walls (the plan's wall rifts, '!'), banner "Schließe die Risse".
+##   Intro:  the rifts already stand in the walls (the plan's wall rifts, '!'), still and
+##           invulnerable like guards (Enemy.begin_intro); camera and Flint on them, banner
+##           "Schließe die Risse" (playtest 23.10.2026 #f5470311: they only appeared with the fight,
+##           so the intro showed bare walls).
 ##   Fight:  every rift has health and a bar (SummoningRift) and sends one enemy every
 ##           RiftRules.PUSH_INTERVAL seconds through its wall rift (the room's SpawnSource: warning,
 ##           the enemy steps out of the wall) while fewer than RiftRules.MAX_ALIVE enemies live.
@@ -35,6 +38,8 @@ var _wall_tiles: Array[Vector2i] = []
 var _free_tiles: Array[Vector2i] = []
 ## Rift -> its wall source (plan rifts only).
 var _rift_sources: Dictionary[SummoningRift, SpawnSource] = {}
+## Rift -> the floor tile it was placed on.
+var _rift_tiles: Dictionary[SummoningRift, Vector2i] = {}
 ## Rift -> seconds until its next push.
 var _push_in: Dictionary[SummoningRift, float] = {}
 var _closed := 0
@@ -50,29 +55,49 @@ func _on_attach() -> void:
 	# Height (M3b): nothing of the mode stands at the foot of stairs or a ladder.
 	HeightRules.keep_feet_free(room.tiles, _free)
 	_wall_tiles = _plan_rift_tiles()
-	if not _wall_tiles.is_empty():
-		return
-	var count := RiftRules.rift_count(_rng.randf(), 1)
-	_free_tiles = VariantSpots.pick_spread(_candidates(), count, RiftRules.MIN_TILE_DISTANCE, _rng)
-	if _free_tiles.size() < RiftRules.COUNT.x:
-		# Few wall spots close together (small or odd shapes): closer rifts rather than one.
-		_free_tiles = VariantSpots.pick_spread(_candidates(), count, RiftRules.MIN_TILE_DISTANCE * 0.5, _rng)
+	if _wall_tiles.is_empty():
+		var count := RiftRules.rift_count(_rng.randf(), 1)
+		_free_tiles = VariantSpots.pick_spread(_candidates(), count, RiftRules.MIN_TILE_DISTANCE, _rng)
+		if _free_tiles.size() < RiftRules.COUNT.x:
+			# Few wall spots close together (small or odd shapes): closer rifts rather than one.
+			_free_tiles = VariantSpots.pick_spread(_candidates(), count, RiftRules.MIN_TILE_DISTANCE * 0.5, _rng)
+	# Built right away: the rifts already show through the open door and in the intro; they wait
+	# still and invulnerable until the fight starts (_on_fight_started wakes them).
+	for tile in _wall_tiles:
+		_place_rift(tile, true)
+	for tile in _free_tiles:
+		_place_rift(tile, false)
+	# The room's sources are built deferred (SpawnSources.setup): the wall rifts take theirs after.
+	_bind_wall_sources.call_deferred()
 
 
 func _shape_group(group: EncounterGroup) -> EncounterGroup:
 	return VariantEncounterGroup.wrap(group, self, RiftRules.FIRST_WAVE_FACTOR)
 
 
+## The intro camera: on the first rift (the middle of all rifts may be bare floor between them).
 func get_focus() -> Vector2:
+	var points := get_rift_points()
+	return points[0] if not points.is_empty() else Vector2.INF
+
+
+## Global points of the rifts (their art in the wall), in the order they were placed.
+func get_rift_points() -> Array[Vector2]:
 	var points: Array[Vector2] = []
-	for tile in (_wall_tiles if not _wall_tiles.is_empty() else _free_tiles):
-		points.append(room.to_global(RoomTiles.tile_center(tile)))
-	if points.is_empty():
-		return Vector2.INF
-	var sum := Vector2.ZERO
-	for point in points:
-		sum += point
-	return sum / points.size()
+	for rift in get_open_rifts():
+		if rift.is_inside_tree():
+			points.append(rift.global_position + Vector2(0, -WALL_RIFT_LIFT if rift.in_wall else 0.0))
+	if points.is_empty() and room != null:
+		for tile in (_wall_tiles if not _wall_tiles.is_empty() else _free_tiles):
+			points.append(room.to_global(RoomTiles.tile_center(tile)))
+	return points
+
+
+## Flint's first-time tour (WK11): a rift in the wall, another one to hit, then what is left.
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var points := get_rift_points()
+	var second := points[1] if points.size() > 1 else Vector2.INF
+	return RoomFlint.steps(RoomObjective.RIFTS, [get_focus(), second])
 
 
 func _setup_objective(goal: RoomObjective) -> void:
@@ -83,11 +108,7 @@ func _setup_objective(goal: RoomObjective) -> void:
 
 
 func _on_fight_started() -> void:
-	var index := 0
-	for tile in _wall_tiles:
-		_open_rift(tile, true, RiftRules.FIRST_DELAY + RiftRules.STAGGER * index)
-		index += 1
-	# Co-op: extra rifts for more players (D-109), at free wall tiles.
+	# Co-op: extra rifts for more players (D-109), at free wall tiles; they tear open now.
 	var extra := RiftRules.extra_rifts(get_player_count())
 	if extra > 0:
 		var taken: Array[Vector2i] = _wall_tiles.duplicate()
@@ -96,12 +117,16 @@ func _on_fight_started() -> void:
 		for tile in _candidates():
 			if VariantSpots.is_clear_of(tile, taken, RiftRules.MIN_TILE_DISTANCE):
 				pool.append(tile)
-		_free_tiles.append_array(VariantSpots.pick_spread(pool, extra, RiftRules.MIN_TILE_DISTANCE, _rng))
-	for tile in _free_tiles:
-		_open_rift(tile, false, RiftRules.FIRST_DELAY + RiftRules.STAGGER * index)
+		for tile in VariantSpots.pick_spread(pool, extra, RiftRules.MIN_TILE_DISTANCE, _rng):
+			_free_tiles.append(tile)
+			_place_rift(tile, false)
+	_bind_wall_sources()
+	var index := 0
+	for rift in get_open_rifts():
+		_open_rift(rift, RiftRules.FIRST_DELAY + RiftRules.STAGGER * index)
 		index += 1
 	_total_health = 0.0
-	for rift in rifts:
+	for rift in get_open_rifts():
 		_total_health += rift.health.get_max_health()
 	_refresh_bar()
 
@@ -179,7 +204,8 @@ func _push_from(rift: SummoningRift) -> Array[Enemy]:
 	return enemies
 
 
-func _open_rift(tile: Vector2i, in_wall: bool, first_delay: float) -> SummoningRift:
+## A rift on tile, in the room but still and invulnerable (not yet tracked by the room).
+func _place_rift(tile: Vector2i, in_wall: bool) -> SummoningRift:
 	var rift := (load(RIFT_SCENE_PATH) as PackedScene).instantiate() as SummoningRift
 	rift.data = load(RIFT_DATA_PATH) as EnemyData
 	rift.name = "SummoningRift%d" % rifts.size()
@@ -190,16 +216,32 @@ func _open_rift(tile: Vector2i, in_wall: bool, first_delay: float) -> SummoningR
 	var biome := room.spawner.get_biome(room.room_index)
 	rift.rift_color = BIOME_COLORS.get(biome.id if biome != null else &"", Color.WHITE)
 	room.enemy_container.add_child(rift)
-	track_enemy(rift)
+	rift.begin_intro(GUARD_HOLD_TIME)
 	rift.died.connect(_on_rift_closed)
 	rift.health.health_changed.connect(_on_rift_health_changed)
 	rifts.append(rift)
-	var source := _wall_source_at(tile) if in_wall else null
-	if source != null:
-		# The mode sends its enemies through the wall rift; the rift itself only shows it. No second
-		# hole beside the rift: the wall stays whole and closes with the rift (playtest 15.10.2026).
-		source.hide_opening()
-		_rift_sources[rift] = source
+	_rift_tiles[rift] = tile
+	return rift
+
+
+## The wall rifts take their wall sources (built deferred by SpawnSources): the mode sends its
+## enemies through them, the rift itself only shows it. No second hole beside the rift: the wall
+## stays whole and closes with the rift (playtest 15.10.2026). Runs again at the fight start.
+func _bind_wall_sources() -> void:
+	for rift in get_open_rifts():
+		if not rift.in_wall or _rift_sources.has(rift):
+			continue
+		var source := _wall_source_at(_rift_tiles.get(rift, VariantSpots.INVALID))
+		if source != null:
+			source.hide_opening()
+			_rift_sources[rift] = source
+
+
+## The fight starts: the rift wakes (hurtable, tracked by the room) and starts sending enemies.
+func _open_rift(rift: SummoningRift, first_delay: float) -> void:
+	_wake(rift)
+	track_enemy(rift)
+	if _rift_sources.has(rift):
 		_push_in[rift] = first_delay
 	else:
 		rift.may_summon = _may_summon
@@ -208,7 +250,6 @@ func _open_rift(tile: Vector2i, in_wall: bool, first_delay: float) -> SummoningR
 	if is_inside_tree():
 		Burst.spawn(room.enemy_container, rift.global_position + Vector2(0, -40), rift.rift_color, 18, 150.0)
 		Sfx.play_at(self, &"rift_open", rift.global_position, -6.0)
-	return rift
 
 
 func _may_summon(_rift: SummoningRift) -> bool:
@@ -252,7 +293,8 @@ func _on_room_done() -> void:
 
 
 func _refresh_bar() -> void:
-	if objective == null or objective.is_finished() or rifts.is_empty():
+	# Before the fight (no health total yet) the label from _setup_objective stays.
+	if objective == null or objective.is_finished() or rifts.is_empty() or _total_health <= 0.0:
 		return
 	var left := 0.0
 	for rift in get_open_rifts():

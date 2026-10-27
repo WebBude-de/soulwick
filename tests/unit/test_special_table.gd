@@ -1,5 +1,5 @@
 extends GutTest
-## Weighted special room draw (D-102, ROADMAP_AUSBAU A8): weights from special_table.tres, no type
+## Weighted special room draw (D-102, ROADMAP A8): weights from special_table.tres, no type
 ## twice in a row, the pact share of the extra-upgrade rooms and the kind of trial.
 
 const DRAWS := 20000

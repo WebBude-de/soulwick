@@ -180,11 +180,13 @@ func test_the_side_view_reads_the_players_input_object() -> void:
 	assert_true(player.side_motion.is_on_floor(), "landed again")
 	var x := player.global_position.x
 	input.set_move(Vector2.RIGHT)
+	_run(player, 12)
+	assert_gt(player.global_position.x, x + 30.0, "the stick came through RemoteInput")
+	input.set_move(Vector2.ZERO)
+	_run(player, 30)
 	input.tap(PlayerInput.SIDE_DASH)
 	_run(player, 2)
-	assert_true(player.is_dashing(), "the side dash came through RemoteInput")
-	_run(player, 10)
-	assert_gt(player.global_position.x, x + 60.0, "dashed to the right")
+	assert_false(player.is_dashing(), "no side dash any more (D-216)")
 
 
 func test_the_side_state_travels_as_bits() -> void:

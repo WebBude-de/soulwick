@@ -1,5 +1,5 @@
 extends GutTest
-## Trial room floor plan and courses (D-112, ROADMAP_AUSBAU A8): the exit is always
+## Trial room floor plan and courses (D-112, ROADMAP A8): the exit is always
 ## reachable without touching the parcours, the parcours and its chest are reachable, hazards only
 ## stand in the parcours, every kind of hazard appears, beats leave gaps, torches light the way.
 
@@ -98,7 +98,7 @@ func test_shortcut_gate_opens_the_way_back() -> void:
 	var tiles := room.tiles
 	for y in range(TrialLayout.GATE.position.y, TrialLayout.GATE.end.y):
 		assert_false(tiles.is_walkable(Vector2i(TrialLayout.GATE.position.x, y)))
-	tiles.wall_rects = TrialLayout.get_wall_rects(true)
+	tiles.open_wall_tiles(TrialLayout.get_gate_tiles())
 	var safe := TrialLayout.get_safe_tiles(tiles)
 	for y in range(TrialLayout.GATE.position.y, TrialLayout.GATE.end.y):
 		assert_true(safe.has(Vector2i(TrialLayout.GATE.position.x, y)), "gate tile is safe floor now")
@@ -134,6 +134,8 @@ func test_gauntlet_hazards_stay_in_the_lanes_and_every_kind_appears() -> void:
 			assert_true(course.placed_kinds.has(kind), "seed %d: kind %d appears" % [seed_value, kind])
 		assert_between(course.hazards.size(), 6, 14)
 		for hazard in course.hazards:
+			# Bug report 23.10.2026 #1a47997f: no pendulum blade in the gauntlet.
+			assert_false(hazard is TrialPendulum, "seed %d: no pendulum" % seed_value)
 			var tile := RoomTiles.local_to_tile(hazard.hit_rect.get_center())
 			assert_true(TrialLayout.is_parcours_tile(tile), "hazard in the parcours")
 			assert_false(TrialLayout.START.has_point(tile), "start stays free")

@@ -134,10 +134,11 @@ func test_old_save_is_copied_unchanged_into_slot_1() -> void:
 	assert_eq(_read(SaveManager.slot_path(1)), REAL_V2_SAVE, "byte for byte")
 	assert_eq(_read(SaveManager.legacy_save_path), REAL_V2_SAVE, "old file stays as it is")
 	assert_eq(SaveManager.get_active_slot(), 1)
-	assert_eq(SaveManager.get_permanent_gold(), 54)
+	# v5 (KE4) refunds Vitalität 3, Schärfe 1 (v3), Dash-Training 2 and Goldgier 1 (v3): 240 + 70 + 200 + 60.
+	assert_eq(SaveManager.get_permanent_gold(), 54 + 570)
 	assert_eq(SaveManager.get_permanent_crystals(), 6)
-	assert_eq(SaveManager.get_meta_level(MetaProgression.VITALITY), 3)
-	assert_eq(SaveManager.get_second_weapon(), MetaProgression.WEAPON_BOW)
+	assert_eq(SaveManager.get_meta_level(MetaProgression.SHIELD_PLATE), 2)
+	assert_eq(MetaProgression.get_second_weapon(), MetaProgression.WEAPON_BOW)
 	assert_eq(SaveManager.get_stat(StatsTracker.DEEPEST_ROOM), 45)
 	assert_true(SaveManager.is_unlocked(&"hint_boss_shadow_lord"))
 	assert_true(SaveManager.has_seen(&"intro_forge"), "old save: everything seen (D-087)")
@@ -179,7 +180,7 @@ func test_import_takes_the_first_free_slot() -> void:
 	_install_legacy()
 	assert_eq(SaveManager.import_legacy_save_into_slot(), 2, "slot 1 is not overwritten")
 	assert_eq(SaveManager.get_slot_summary(1)["name"], "Neu")
-	assert_eq(SaveManager.get_slot_summary(2)["gold"], 54)
+	assert_eq(SaveManager.get_slot_summary(2)["gold"], 54 + 570, "with the v5 refund loading will give")
 
 
 func test_import_waits_when_all_slots_are_used() -> void:
@@ -203,14 +204,16 @@ func test_new_slot_starts_fresh_with_village_explanations() -> void:
 	assert_eq(SaveManager.create_slot(2, "Lena", CharacterCatalog.DEFAULT_ID, Color("#e0463a")), OK)
 	assert_eq(SaveManager.get_active_slot(), 2)
 	assert_eq(SaveManager.get_permanent_gold(), 0)
-	assert_eq(SaveManager.get_meta_level(MetaProgression.VITALITY), 0)
+	for id in MetaProgression.UPGRADE_ORDER:
+		assert_eq(SaveManager.get_meta_level(id), 0, String(id))
 	assert_eq(SaveManager.get_stat(StatsTracker.RUNS), 0)
 	assert_false(SaveManager.has_seen(&"intro_forge"))
 	for id in VillageBuildings.ORDER:
 		assert_true(VillageBuildings.needs_intro(id), "new slot explains %s (D-087)" % id)
 	assert_eq(SaveManager.load_game(), OK)
 	assert_false(SaveManager.has_seen(&"intro_guild"), "also after reloading")
-	assert_eq(SaveManager.get_slot_summary(1)["gold"], 54, "the old save is untouched")
+	assert_eq(SaveManager.get_slot_summary(1)["gold"], 54 + 570, "the old save is untouched (its summary shows the refund)")
+	assert_eq(SaveManager.get_slot_summary(1)["version"], 2, "still the v2 file")
 
 
 func test_world_name_is_saved_in_the_slot() -> void:
@@ -334,9 +337,13 @@ func test_summary_of_old_and_broken_slots() -> void:
 	assert_almost_eq(float(summary["play_time"]), 4133.24, 0.01)
 	assert_gt(int(summary["last_played"]), 0, "file time for saves without timestamp")
 	assert_true(summary["all_seen"])
-	# Forge levels as migrated to v3 (D-087): 3 + 2 + 1 + 1 + 2 + 1 of 20 (D-188 world card).
-	assert_eq(summary["forge_level"], 10)
-	assert_eq(summary["forge_max"], 20)
+	# Forge levels as migrated to v5 (KE4): Schildplatte 2 + Arsenal: Bogen + second slot of 36
+	# (D-188 world card); the refunded upgrades count no more.
+	assert_eq(summary["forge_level"], 4)
+	assert_eq(summary["forge_max"], 36)
+	assert_eq(summary["gold"], 54 + 570, "the gold loading will give (v5 refund), the file stays as it is")
+	assert_eq(summary["version"], 2, "the stored version")
+	assert_eq(summary["world_id"], "", "a v2 file has no world id yet")
 	_write(SaveManager.slot_path(2), "this is [not a config")
 	assert_true(SaveManager.get_slot_summary(2)["broken"])
 	assert_false(SaveManager.get_slot_summary(3)["exists"])
@@ -429,17 +436,14 @@ func test_legacy_import_is_migrated_with_its_forge_levels() -> void:
 	assert_eq(_read(SaveManager.legacy_save_path), original, "the old file stays as it is")
 	assert_eq(_read(SaveManager.slot_path(1)), original, "the slot copy is only changed by the next save")
 	assert_eq(_read(SaveManager.slot_path(1) + ".v2.bak"), original)
-	var expected := {
-		MetaProgression.VITALITY: 3, MetaProgression.START_SHIELD: 2, MetaProgression.SHARPNESS: 1,
-		MetaProgression.DASH_TRAINING: 2, MetaProgression.GOLD_GREED: 1, MetaProgression.ARSENAL: 1,
-	}
-	for id in expected:
-		assert_eq(SaveManager.get_meta_level(id), expected[id], String(id))
-	assert_eq(SaveManager.get_permanent_gold(), 54)
-	assert_eq(SaveManager.get_second_weapon(), MetaProgression.WEAPON_BOW)
+	var expected := {MetaProgression.SHIELD_PLATE: 2, MetaProgression.ARSENAL_BOW: 1, MetaProgression.SECOND_SLOT: 1}
+	for id in MetaProgression.UPGRADE_ORDER:
+		assert_eq(SaveManager.get_meta_level(id), expected.get(id, 0), String(id))
+	assert_eq(SaveManager.get_permanent_gold(), 54 + 570, "v3 levels of the removed upgrades refunded (KE4)")
+	assert_eq(MetaProgression.get_start_weapons(), [MetaProgression.WEAPON_SWORD, MetaProgression.WEAPON_BOW] as Array[StringName])
 	assert_true(SaveManager.has_seen(&"intro_forge"), "all seen (no ids, all=true)")
 	assert_false(SaveManager.has_seen(&"boss_intro_bone_king"), "boss story still excluded (BI2)")
-	assert_true(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL))
+	assert_true(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL_STAFF))
 	assert_almost_eq(SaveManager.get_volume(&"Music"), 0.45, 0.0001)
 
 
@@ -449,8 +453,10 @@ func test_every_slot_is_migrated_when_loaded() -> void:
 	SaveManager.set_storage_root(ROOT)
 	for slot in range(1, SaveSlots.SLOT_COUNT + 1):
 		assert_eq(SaveManager.load_slot(slot), OK)
-		assert_eq(SaveManager.get_meta_level(MetaProgression.SHARPNESS), slot, "slot %d: %d x 5 %% -> %d x 10 %%" % [slot, slot * 2, slot])
-		assert_eq(SaveManager.get_permanent_gold(), slot * 10)
+		# v3: slot * 2 x 5 % -> slot x 10 %; v5 refunds that Schärfe level.
+		assert_eq(SaveManager.get_permanent_gold(), slot * 10 + SaveManager.refund_for_level("sharpness", slot),
+			"slot %d: Schärfe %d (v3) refunded" % [slot, slot])
+		assert_eq(SaveManager.get_meta_level(&"sharpness"), 0)
 		assert_eq(SaveManager.get_legacy_profile().get("name"), "S%d" % slot, "old name kept for the profile")
 		assert_eq(SaveManager.get_world_display_name(), "Welt %d" % slot)
 		assert_true(FileAccess.file_exists(SaveManager.slot_path(slot) + ".v2.bak"), "slot %d backed up" % slot)
@@ -464,14 +470,21 @@ func test_new_slot_is_current_and_starts_locked() -> void:
 	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.CHRONICLE))
 	assert_false(MetaUnlocks.is_building_open(VillageBuildings.TRADER))
-	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL))
+	assert_false(MetaUnlocks.is_upgrade_open(MetaProgression.ARSENAL_BOW))
 	assert_false(FileAccess.file_exists(SaveManager.slot_path(1) + ".v2.bak"), "nothing to migrate")
+	assert_true(SaveManager.is_valid_world_id(config.get_value("world", "id", "")), "a new world gets its id")
+	assert_eq(SaveManager.get_slot_summary(1)["world_id"], SaveManager.get_world_id())
 
 
 func test_summary_counts_forge_levels_capped_and_known_only() -> void:
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(SaveManager.saves_dir))
-	_write(SaveManager.slot_path(2), "[meta]\nversion=4\n[meta_upgrades]\nvitality=9\nsharpness=2\nunknown_upgrade=4\n")
+	_write(SaveManager.slot_path(2), "[meta]\nversion=5\n[meta_upgrades]\nshield_plate=9\nweapon_bow=2\nunknown_upgrade=4\n")
 	var summary := SaveManager.get_slot_summary(2)
-	assert_eq(summary["forge_level"], 7, "vitality capped at 5, unknown upgrades ignored")
+	assert_eq(summary["forge_level"], 5, "Schildplatte capped at 3, unknown upgrades ignored")
+	_write(SaveManager.slot_path(1), "[meta]\nversion=4\n[meta_upgrades]\nvitality=9\nstart_shield=2\narsenal=2\n")
+	assert_eq(SaveManager.get_slot_summary(1)["forge_level"], 5, "v4 counts as migrated: Schildplatte 2, bow, staff, second slot")
+	var config := ConfigFile.new()
+	assert_eq(config.load(SaveManager.slot_path(1)), OK)
+	assert_eq(config.get_value("meta_upgrades", "vitality"), 9, "the summary never changes the file")
 	assert_eq(summary["forge_max"], SaveSlots.forge_max_level())
 	assert_eq(SaveManager.get_slot_summary(3)["forge_level"], 0, "no file, no forge levels")

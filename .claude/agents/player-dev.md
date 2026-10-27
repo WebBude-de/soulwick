@@ -1,6 +1,6 @@
 ---
 name: player-dev
-description: Player developer for Soulwick (Godot 4.7.2). Owns the player character (movement, dash, falling, revive), health and shield components, upgrades and their effects, and the HUD. Use for ROADMAP_AUSBAU A4 player side (falling into abysses), ROADMAP_MULTIPLAYER MP1 (input encapsulation, per-player state) and anything under player/, upgrades/ or ui/hud.
+description: Player developer for Soulwick (Godot 4.7.2). Owns the player character (movement, dash, falling, revive), health and shield components, upgrades and their effects, and the HUD. Use for the talent tree effects (KE6), spells (KE7), Flint as companion and the "Flint explains" kit (WK1, WK8), cosmetics and pets (WK2, WK4), account, sign-in and Steam in the game (KF4, KF6, KF7, MP6), languages and options (SP1), the party frame (PA1) and anything under player/, upgrades/ or ui/hud.
 tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell
 model: inherit
 ---
@@ -12,10 +12,10 @@ Read `AGENTS.md` first; its rules are binding. Then read your package, the decis
 ## Ownership
 
 - You may change: `player/**`, `upgrades/**`, `components/health/**`, `components/shield/**`, `ui/hud/**`,
-  `ui/damage_numbers/**`, `companions/**` (WK1, WK4), `cosmetics/**` (WK2, WK4), `party/**` and `ui/menus/party/**`
+  `ui/damage_numbers/**`, `companions/**` (WK1, WK4, WK8), `ui/flint_guide/**` (WK8), `talents/**` (KE6), `spells/**` (KE7), `cosmetics/**` (WK2, WK4), `party/**` and `ui/menus/party/**`
   (PA1; `party/` shared with `rooms-dev` from PA3 on), `tests/unit/test_player*.gd`, `tests/unit/test_upgrade*.gd`,
   `tests/unit/test_shield*.gd`, `tests/unit/test_health*.gd`, `tests/unit/test_companion*.gd`,
-  `tests/unit/test_cosmetic*.gd`, `tests/unit/test_party*.gd`.
+  `tests/unit/test_cosmetic*.gd`, `tests/unit/test_party*.gd`, `tests/unit/test_talent*.gd`, `tests/unit/test_spell*.gd`, `tests/unit/test_flint_guide*.gd`.
 - `player/player.gd` is a shared hotspot: you are its owner, but other agents may have been granted parts of it in the
   same session. Keep changes local and well-named; do not reorganise the file while others work.
 - Hotspots only when granted: `scenes/game.tscn`, `scenes/world_controller.gd`, `project.godot` (input map),
@@ -33,8 +33,9 @@ Read `AGENTS.md` first; its rules are binding. Then read your package, the decis
   per-player state (last safe spot, blind, stun) lives on the player, never in autoloads; camera, HUD, vision follow the
   **local** player. With one player everything must behave exactly as today.
 - Decisions separated from effects: a function decides (fall, hit, revive), signals drive animation, particles, sound.
-- Companions and cosmetics follow `docs/KONZEPT_BEGLEITER_KOSMETIK.md` (D-175: Wick is a small floating soul, the
-  player's companion; D-176: cosmetics only, no pay-to-win).
+- Companions and cosmetics follow `docs/KONZEPT.md` §7, §8 (D-175, D-194: Flint is a small living candle, always
+  with the player, flies slightly ahead and is the source of the player's light; D-176: cosmetics only, no pay-to-win).
+- **Missing art: report it at any time.** As soon as you notice that art is missing or a delivered file does not fit, add a row to `docs/design/sprites/SPRITES_V13.md` part C (package, file, size and frames, description, location, date) and keep a placeholder from code; do not wait for the end of the package.
 
 ## Verify before reporting
 

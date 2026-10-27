@@ -101,6 +101,11 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 					if rock.get_cell_source_id(tile) != -1 and (fillet == 0 or rock.get_cell_atlas_coords(tile) != RockTerrain.fillet_coords(fillet)):
 						problems.append("%s: rock piece on floor %s" % [entry.id, tile])
 					continue
+				# Plateaus are no rock (half height, D-205): the HeightField draws them.
+				if tiles.get_height_layout().get_height_tiles().has(tile):
+					if rock.get_cell_source_id(tile) != -1:
+						problems.append("%s: rock piece on the plateau at %s" % [entry.id, tile])
+					continue
 				# Rock borders on floor, or on a front beside it (the side wall's edge goes up to it).
 				var borders := WallAutotile.is_front(tile + Vector2i.LEFT, floor_mask) or WallAutotile.is_front(tile + Vector2i.RIGHT, floor_mask)
 				for dy in [-1, 0, 1]:
@@ -120,10 +125,8 @@ func test_every_floor_border_gets_its_edge_in_every_template() -> void:
 				if not WallAutotile.is_front(tile, floor_mask) and RockTerrain.mask_for(tile, floor_mask) == RockTerrain.FULL:
 					problems.append("%s: border %s without an edge" % [entry.id, tile])
 				# Collision stays with the room layer: an invisible solid tile on every solid cell, its
-				# outer corners rounded like the art; the height of a plateau has its walls on the
-				# HeightField instead (M3, test_height_room).
-				if tiles.get_height_layout().get_height_tiles().has(tile):
-					continue
+				# outer corners rounded like the art (the height of a plateau has its walls on the
+				# HeightField, M3, test_height_room).
 				if not RockTerrain.is_solid_cell(tiles.get_cell_source_id(tile), tiles.get_cell_atlas_coords(tile)):
 					if tiles.get_floor_rect().has_point(RoomTiles.tile_to_local(tile)):
 						problems.append("%s: no solid cell under the rock at %s" % [entry.id, tile])
@@ -217,7 +220,10 @@ func test_fillets_lie_in_the_lower_inner_corners_of_every_template() -> void:
 
 # --- plan rules ---
 
+## A half-high plateau closes no slot: the floor ring around it may be one tile wide (D-205).
 func _blocked(tiles: RoomTiles, floor_mask: Dictionary[Vector2i, bool], tile: Vector2i) -> bool:
+	if tiles.has_height() and tiles.get_height_layout().get_height_tiles().has(tile):
+		return false
 	return not floor_mask.has(tile) or tiles.is_pit(tile)
 
 

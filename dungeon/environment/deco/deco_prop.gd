@@ -88,6 +88,11 @@ const PLACEHOLDER := Color(0.42, 0.4, 0.46)
 ## the item's whole footprint): the generator measures the art's standing parts, so flat bits beside
 ## them (candles, bones, a puddle) do not block (playtest 15.10.2026, notes 22 and 24).
 @export var solid_span := Vector2.ZERO
+## Open gaps inside solid_span (one Vector2(x from, x to) each, world px from the origin as drawn
+## unflipped, west to east): the generator leaves a gap between two standing parts open when a
+## figure fits through it (bug report 23.10.2026 #9a693e5f, "Hier ist eine Hitbox wo man nicht
+## durchkommt").
+@export var solid_gaps := PackedVector2Array()
 
 ## Delivered pictures by path, kept for the session (a few dozen small files).
 static var _loaded: Dictionary[String, Texture2D] = {}
@@ -248,18 +253,31 @@ func _build_body(footprint: Vector2, shadow := true) -> void:
 	body.name = "Body"
 	body.collision_layer = PhysicsLayers.WORLD
 	body.collision_mask = 0
-	var shape := RectangleShape2D.new()
-	shape.size = footprint
-	var collision := CollisionShape2D.new()
-	collision.shape = shape
-	collision.position = Vector2(0, -footprint.y * 0.5)
+	var parts: Array[Vector2] = [Vector2(-footprint.x * 0.5, footprint.x * 0.5)]
 	if solid_span != Vector2.ZERO:
-		shape.size.x = absf(solid_span.y - solid_span.x)
-		collision.position.x = (solid_span.x + solid_span.y) * 0.5 * (-1.0 if flip else 1.0)
-	body.add_child(collision)
+		parts = solid_parts(solid_span, solid_gaps)
+	for part in parts:
+		var shape := RectangleShape2D.new()
+		shape.size = Vector2(absf(part.y - part.x), footprint.y)
+		var collision := CollisionShape2D.new()
+		collision.shape = shape
+		collision.position = Vector2((part.x + part.y) * 0.5 * (-1.0 if flip else 1.0), -footprint.y * 0.5)
+		body.add_child(collision)
 	add_child(body)
 	if shadow:
 		DropShadow.attach(self, footprint.x * 0.4, -2.0)
+
+
+## The solid stretches of span (x from, x to, unflipped) without the gaps (solid_gaps).
+static func solid_parts(span: Vector2, gaps: PackedVector2Array) -> Array[Vector2]:
+	var parts: Array[Vector2] = []
+	var start := span.x
+	for gap in gaps:
+		if gap.x > start and gap.y < span.y:
+			parts.append(Vector2(start, gap.x))
+			start = gap.y
+	parts.append(Vector2(start, span.y))
+	return parts
 
 
 ## A small organic puddle in the biome's water palette (WaterArt), its shape from the position.

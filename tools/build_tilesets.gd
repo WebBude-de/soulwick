@@ -107,7 +107,7 @@ func _init() -> void:
 			only = arg.trim_prefix("only=")
 	if only.is_empty() or only == "dungeon":
 		_build_dungeon("res://dungeon/environment/dungeon_tileset.tres", "dungeon_tileset.png", "inner_wall_tiles.png", ABYSS_FALLBACK_BIOME)
-		# Biome tilesets share the dungeon layout (docs/design/sprites/SPRITES_V2.md §1).
+		# Biome tilesets share the dungeon layout (docs/design/sprites/delivered/SPRITES_V2.md §1).
 		for biome in BIOMES:
 			_build_dungeon(
 				"res://dungeon/environment/%s_tileset.tres" % biome,

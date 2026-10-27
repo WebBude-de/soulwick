@@ -20,7 +20,7 @@ const PAD_KEYS := {"Enter": "{a}", "Esc": "{b}"}
 const PADDING := Vector2(8, 10)
 
 var content: VBoxContainer = null
-## Phones: ScrollContainer around content once the panel is taller than the screen (set_max_content_height).
+## ScrollContainer around content once the panel is taller than the screen (set_max_height).
 var _scroll: ScrollContainer = null
 var _eyebrow: Label = null
 var _title: Label = null
@@ -103,7 +103,8 @@ func get_unlimited_minimum_size() -> Vector2:
 	return result.max(custom_minimum_size)
 
 
-## Phones: the panel is at most height layout pixels high, the content scrolls (0 = no limit).
+## The panel is at most height layout pixels high, the content scrolls (0 = no limit); the main
+## menu sets the screen height (phones: at their zoom).
 func set_max_height(height: float) -> void:
 	var limit := height > 0.0 and get_unlimited_minimum_size().y > height + 0.5
 	if not limit and _scroll == null:

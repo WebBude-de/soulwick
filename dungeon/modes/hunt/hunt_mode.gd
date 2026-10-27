@@ -1,6 +1,6 @@
 class_name HuntMode
 extends RoomMode
-## Minigame "Jagd" (KONZEPT_RAEUME_V2 §3.8, design answer 01_raumarten.md, R4b; replaces the bounty
+## Minigame "Jagd" (RAEUME §3.8, design answer 01_raumarten.md, R4b; replaces the bounty
 ## variant of D-114): "Fang den Gekrönten, bevor er entkommt."
 ##   Intro:  camera on the crowned one (plan marker crowned), banner "Fang den Gekrönten". The escape
 ##           hole (plan marker escape_hole) is already there, closed.
@@ -63,6 +63,18 @@ func _shape_group(group: EncounterGroup) -> EncounterGroup:
 
 func get_focus() -> Vector2:
 	return crowned.global_position if crowned != null and is_instance_valid(crowned) and crowned.is_inside_tree() else Vector2.INF
+
+
+## Flint's first-time tour (WK11, D-206 "Fang den Gekrönten"): the crowned one, his escape hole,
+## a guard, then "corner him".
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var hole := _hole.global_position if _hole != null and is_instance_valid(_hole) and _hole.is_inside_tree() else Vector2.INF
+	var guard := Vector2.INF
+	for enemy in guards:
+		if is_instance_valid(enemy) and enemy.is_inside_tree():
+			guard = enemy.global_position
+			break
+	return RoomFlint.steps(RoomObjective.HUNT, [get_focus(), hole, guard])
 
 
 func _own_first_wave() -> Array[Enemy]:

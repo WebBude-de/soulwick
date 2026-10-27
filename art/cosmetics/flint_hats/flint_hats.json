@@ -1,0 +1,88 @@
+{
+  "anchor": "hat",
+  "anchor_px": [
+    8,
+    6
+  ],
+  "frame_size": [
+    16,
+    16
+  ],
+  "notes": [
+    "Hut-Sprite in derselben 16×16-Zelle wie Flint zeichnen (Offset 0,0); Loch 2 px über dem Docht, Flamme liegt darüber."
+  ],
+  "items": [
+    {
+      "name": "flint_hat_tophat",
+      "file": "flint_hat_tophat.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_crown",
+      "file": "flint_hat_crown.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_wizard",
+      "file": "flint_hat_wizard.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_beanie",
+      "file": "flint_hat_beanie.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_leaf",
+      "file": "flint_hat_leaf.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_horns",
+      "file": "flint_hat_horns.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_candle_crown",
+      "file": "flint_hat_candle_crown.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_chicken",
+      "file": "flint_hat_chicken.png",
+      "pivot": [
+        8,
+        6
+      ]
+    },
+    {
+      "name": "flint_hat_flower_wreath",
+      "file": "flint_hat_flower_wreath.png",
+      "pivot": [
+        8,
+        6
+      ]
+    }
+  ]
+}

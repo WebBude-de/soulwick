@@ -7,7 +7,7 @@
 - **Dungeon:** spannend und atmosphärisch, darf düster sein, nie ernst oder lächerlich. Das Licht des Spielers ist warm und positiv.
 - **Dorf:** süß, gemütlich, lebendig, heller als der Dungeon. Die Palette unten gilt weiter; das Dorf **darf heller und wärmer werden** (OFFEN in D-174, nicht still festlegen: erst mit Briefing und Freigabe).
 - **Moderne Pixel-Art statt Retro-Look:** Pixel bleiben, dazu dynamisches Licht, Bloom, weiche Schatten, Partikel, Wind, Squash and Stretch, weiche Kamera, klares animiertes UI. Keine gewollten Grafikfehler. Nach außen „moderne Pixel-Art“, nicht „8-Bit“.
-- **Maskottchen:** Wick (Docht-Wesen) und das Huhn (D-175); Figuren und Name sind geschützt (D-177).
+- **Maskottchen:** Flint (Docht-Wesen) und das Huhn (D-175); Figuren und Name sind geschützt (D-177).
 
 ## Maßstab und Format
 
@@ -52,7 +52,7 @@
 - Weiche Palette für Fels-Räume (D-142): Referenz `crypt_soft` (Erdboden ohne Fugen, Fels `#5a5677`, Kante `#b9b5d2`/`#8f8bac`, Kontur `#2a2740`); andere Biome per Palettentausch in `tools/build_tilesets.gd`
 - Dorf: Gras `#5a8f46` / `#6ea455` / `#4a7a3a`, Weg `#a8875a`
 
-Koop-Farben P1 `#3690da`, P2 `#e0463a`, P3 `#5fcd62`, P4 `#f2cf4a` (Namensschilder; VORGESCHLAGEN). Spielerfiguren werden über ihre Schlüsselfarben umgefärbt (`PlayerLook`, D-152); was nicht umgefärbt werden soll, braucht eigene Farben ([SPRITES_V10.md](design/sprites/SPRITES_V10.md)).
+Koop-Farben P1 `#3690da`, P2 `#e0463a`, P3 `#5fcd62`, P4 `#f2cf4a` (Namensschilder; VORGESCHLAGEN). Spielerfiguren werden über ihre Schlüsselfarben umgefärbt (`PlayerLook`, D-152); was nicht umgefärbt werden soll, braucht eigene Farben ([SPRITES_V10.md](design/sprites/delivered/SPRITES_V10.md)).
 
 ## UI-Regeln
 
@@ -79,12 +79,12 @@ Koop-Farben P1 `#3690da`, P2 `#e0463a`, P3 `#5fcd62`, P4 `#f2cf4a` (Namensschild
 ```text
 art/
   characters/player|enemies/<typ>|bosses/<name>|npcs
-  companions/wick            (Begleiter, später Pets; geplant, SPRITES_V12)
-  cosmetics/hats|wick_hats   (Kosmetik-Teile für Spielfigur und Wick; geplant, SPRITES_V12)
+  companions/flint            (Begleiter, später Pets; geplant, SPRITES_V12)
+  cosmetics/hats|flint_hats   (Kosmetik-Teile für Spielfigur und Flint; geplant, SPRITES_V12)
   weapons  projectiles  effects
   environment/tiles|props|buildings|village|doors|campfire|rooms|variants|trials|spawn|objectives|deco|side
   ui  ui/menu  fonts
-  ui/mascot  ui/cosmetics    (Wick groß für Menü und Stores, Kosmetik-Symbole; geplant, SPRITES_V12)
+  ui/mascot  ui/cosmetics    (Flint groß für Menü und Stores, Kosmetik-Symbole; geplant, SPRITES_V12)
   index.json                 (alle Gruppen und Dateien, maschinenlesbar)
 docs/design/
   sprites/                   (Briefings SPRITES_V*.md mit Stand)

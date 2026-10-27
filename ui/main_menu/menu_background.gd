@@ -34,6 +34,9 @@ const LIGHTS: Array[Dictionary] = [
 	{"position": Vector2(222, 114), "color": Color("#ffd166"), "radius": 30.0, "torch": false},
 ]
 const LIGHT_ALPHA := 0.32
+## Hard steps of a light (glow texture) and of its flicker (D-218).
+const LIGHT_STEPS := 4
+const LIGHT_FLICKER_STEPS := 4
 ## Mouse parallax in art pixels at the screen edge: sky moves more than the ground.
 const PARALLAX_FAR := 4.0
 const PARALLAX_NEAR := 1.5
@@ -92,17 +95,15 @@ func _ready() -> void:
 		_near_group.add_child(mist)
 		_mists.append(mist)
 
-	var glow := _glow_texture()
 	var additive := CanvasItemMaterial.new()
 	additive.blend_mode = CanvasItemMaterial.BLEND_MODE_ADD
 	for light in LIGHTS:
 		var sprite := Sprite2D.new()
-		sprite.texture = glow
+		sprite.texture = glow_texture(roundi(float(light["radius"])))
 		sprite.material = additive
 		sprite.position = light["position"]
 		sprite.modulate = Color(light["color"], LIGHT_ALPHA)
-		sprite.scale = Vector2.ONE * float(light["radius"]) * 2.0 / float(glow.get_width())
-		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 		_near_group.add_child(sprite)
 		_lights.append(sprite)
 
@@ -158,9 +159,10 @@ func _process(delta: float) -> void:
 		# Two detuned waves per light: torches flicker, the lantern only breathes.
 		var wave := sin(_time * (9.0 + i * 1.7) + i * 2.1) * 0.5 + sin(_time * (14.3 + i) + i) * 0.5
 		var strength := 0.12 if torch else 0.05
-		var base_scale := float(LIGHTS[i]["radius"]) * 2.0 / float(_lights[i].texture.get_width())
-		_lights[i].modulate.a = LIGHT_ALPHA * (1.0 + wave * strength * 2.0)
-		_lights[i].scale = Vector2.ONE * base_scale * (1.0 + wave * strength * 0.5)
+		# Pixel light (D-218): the alpha flickers in hard steps, the radius in whole art pixels.
+		var flicker := PixelDraw.stepped(wave * 0.5 + 0.5, LIGHT_FLICKER_STEPS) * 2.0 - 1.0
+		_lights[i].modulate.a = LIGHT_ALPHA * (1.0 + flicker * strength * 2.0)
+		_lights[i].texture = glow_texture(roundi(float(LIGHTS[i]["radius"]) * (1.0 + wave * strength * 0.5)))
 	_update_parallax(delta)
 
 
@@ -194,17 +196,11 @@ func _sprite(texture: Texture2D, frames := 1) -> Sprite2D:
 	return sprite
 
 
-## Soft round light: white centre fading to transparent.
-static func _glow_texture() -> GradientTexture2D:
+## Round light of radius art pixels in LIGHT_STEPS hard steps (D-218), one texel per art pixel:
+## white centre fading to transparent (tinted by modulate). Cached per radius by PixelDraw.
+static func glow_texture(radius: int) -> Texture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color(1, 1, 1, 1))
 	gradient.set_color(1, Color(1, 1, 1, 0))
 	gradient.add_point(0.45, Color(1, 1, 1, 0.35))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.5)
-	texture.fill_to = Vector2(1.0, 0.5)
-	texture.width = 64
-	texture.height = 64
-	return texture
+	return PixelDraw.stepped_glow_texture(maxi(1, radius), gradient, LIGHT_STEPS)

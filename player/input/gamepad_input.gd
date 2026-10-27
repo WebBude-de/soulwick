@@ -3,7 +3,7 @@ extends RefCounted
 ## Gamepad at this machine (P0-2, Steam Deck), two sticks like the touch controls (D-155):
 ## left stick (or D-pad) walks, right stick aims, RT attacks, LT uses the special, A dashes (jumps in
 ## a side view), B is the side dash, X uses/interacts, Y switches the weapon, Start pauses and
-## Back/Select opens the overview (Tab). Without right stick the player aims where it walks,
+## Back/Select opens the overview (Tab), held 0.5 s it breaks the return stone (KE5, GameUI). Without right stick the player aims where it walks,
 ## otherwise keeps the last direction. With a ranged weapon the deflected aim stick snaps onto a
 ## visible enemy (TouchAimAssist, option "Zielhilfe (Gamepad)").
 ##
@@ -61,6 +61,11 @@ static func bindings() -> Array[Array]:
 		[PlayerInput.SIDE_DASH, button(JOY_BUTTON_B)],
 		[PlayerInput.INTERACT, button(JOY_BUTTON_X)],
 		[PlayerInput.SWITCH_WEAPON, button(JOY_BUTTON_Y)],
+		[PlayerInput.CAST_SPELL, button(JOY_BUTTON_RIGHT_SHOULDER)],
+		[PlayerInput.CAST_SPELL_2, button(JOY_BUTTON_LEFT_SHOULDER)],
+		# Held, not pressed (KE5): Select opens the overview on a short press; GameUI breaks the
+		# return stone after a hold and LocalKeyboardMouseInput ignores this pad press.
+		[PlayerInput.USE_RETURN_STONE, button(JOY_BUTTON_BACK)],
 		[PAUSE_MENU, button(JOY_BUTTON_START)],
 		[UPGRADE_OVERVIEW, button(JOY_BUTTON_BACK)],
 		[UI_ACCEPT, button(JOY_BUTTON_A)],

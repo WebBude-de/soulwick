@@ -2,15 +2,16 @@ class_name Village
 extends Node2D
 ## Village world: start and return point of every run (PRD 3). Besides the dungeon entrance it
 ## has four enterable buildings (D-078): Schmiede, Handelsposten, Chronik and Gilde, plus the
-## player's Zuhause ("Umkleiden") and the mirror next to it (D-152): both open the profile editor
-## (name and look of the player, VillageMirror, VillageUI.open_mirror / open_home). Pressing E at a door opens that
+## player's Zuhause ("Eintreten", KE8: its door leads into the home interior with the talent altar,
+## VillageBuildings.enter_home) and the mirror next to it (D-152, the profile editor: name and look
+## of the player, VillageMirror, VillageUI.open_mirror). Pressing E at another door opens that
 ## building's dialog (VillageUI). A building that has not explained itself yet
 ## (D-087) shows a bobbing info marker above its door sign until the explanation was seen.
 ## Locked buildings (MetaUnlocks, D-087: Chronik after the first run, Handelsposten with the first
 ## crystal) stay visible with a lock and "Öffnet nach …" above the door; E shows that as a notice.
 ## On load the village records reached unlock events and announces new ones once ("Neu freigeschaltet").
 ## B3: the layout comes from tools/generate_village.py (neighbour houses, villagers, chimney smoke,
-## props from docs/design/sprites/SPRITES_V4.md); the small decoration is scattered here by VillageDecor.
+## props from docs/design/sprites/delivered/SPRITES_V4.md); the small decoration is scattered here by VillageDecor.
 ## R7 (06_dorf.md): village square instead of a cross, the dungeon ruin up on the ridge
 ## (VillageEntrance), rescued villagers and chickens from the escort walk around (RescueRecord,
 ## D-135), the evening is a soft vignette with lit windows (VillageEvening). Building names show only
@@ -18,9 +19,11 @@ extends Node2D
 ## readable: a small lock on the door sign, the "Öffnet nach …" text is in the door prompt and the
 ## notice. The chronicle has a board in front: empty before the first run, one chalk mark per run.
 ## P1-2 (VillageGuide): until the first run of a world a trail of soul lights leads from the spawn to
-## the ruin, an arrow points at the entrance and the goal line says "Steig in den Dungeon hinab"; on
-## the very first visit the chronicler says a few words (VillageUI.show_opening). Optics at this
-## machine only: the state is this player's world, nothing is shared in a room.
+## the ruin, an arrow points at the entrance and the goal line says "Steig in den Dungeon hinab".
+## Optics at this machine only: the state is this player's world, nothing is shared in a room.
+## WK9 (VillageTour): on the first start of an account Flint shows every local player around the
+## village (camera ride, one sentence per building; replaces the chronicler's opening words, D-161)
+## and explains each building on its first entry (VillageUI.explain_building).
 ## P1-3 (VillageAffordable): a pulsing gold "!" over every building where something is affordable
 ## right now (Schmiede, Handelsposten), on a layer above the darkness; it goes after a visit until
 ## the building's currency changes. After a run, before the first forge purchase, the goal line says
@@ -61,10 +64,8 @@ const BOARD_OFFSET := Vector2(-78, 0)
 const MIRROR_OFFSET := Vector2(112, 6)
 ## P1-2: way to the dungeon until the first run (preloaded: works before the class cache knows it).
 const GuideScript := preload("res://world/village/village_guide.gd")
-## The opening words come from the chronicler (the chronicle keeps the village's story).
-const OPENING_SPEAKER: StringName = &"chronicle"
-const OPENING_SPEAKER_NAME: StringName = &"VILLAGE_OPENING_SPEAKER"
-const OPENING_LINES: Array[StringName] = [&"VILLAGE_OPENING_1", &"VILLAGE_OPENING_2", &"VILLAGE_OPENING_3"]
+## WK9: Flint's village tour (preloaded like the guide).
+const TourScript := preload("res://world/village/village_tour.gd")
 const GOAL_DESCEND: StringName = &"VILLAGE_GOAL_DESCEND"
 ## P1-3: affordable marks and the forge goal (preloaded like the guide).
 const AffordableScript := preload("res://world/village/village_affordable.gd")
@@ -138,6 +139,10 @@ func _ready() -> void:
 	refresh_locks()
 	SaveManager.seen_changed.connect(_on_seen_changed)
 	ui.show_unlocks(announcements)
+	# KE4: the v5 forge conversion, short on arrival (the forge shows and takes it on its first visit).
+	var news := MetaProgression.peek_migration_notice()
+	if announcements.is_empty() and not news.is_empty():
+		ui.show_notice(Loc.t(&"FORGE_MIGRATION_TITLE"), news)
 	_setup_guide()
 	# P1-3: purchases, a payout or an unlock change what is affordable.
 	SaveManager.permanent_gold_changed.connect(_on_wallet_changed.unbind(1))
@@ -160,6 +165,7 @@ func on_player_spawned(player: Player) -> void:
 		return
 	player.set_armed(false)
 	player.dash_cooldown = DASH_COOLDOWN
+	_offer_tour(player)
 
 
 ## Lock or intro marker per building from the save: locked buildings get the lock (and no intro
@@ -250,7 +256,8 @@ func enter_building(building_id: StringName) -> void:
 		&"guild":
 			await ui.open_guild()
 		&"home":
-			await ui.open_home()
+			# KE8: inside alone (HomeTravel), the talent tree read-only in a group session.
+			await VillageBuildings.enter_home(self)
 		_:
 			push_warning("Village: unknown building '%s'." % building_id)
 	# P1-3: seen now; its "!" waits until the currency changes.
@@ -261,8 +268,8 @@ func enter_building(building_id: StringName) -> void:
 
 # --- P1-2: goal and way to the dungeon until the first run ---
 
-## Trail, arrow and goal line while the world has no run yet; the opening words on the first visit
-## (not while a room wish of the main menu opens the guild dialog: they wait for the next visit).
+## Trail, arrow and goal line while the world has no run yet (the greeting is Flint's tour, WK9:
+## on_player_spawned).
 func _setup_guide() -> void:
 	if not GuideScript.is_active():
 		return
@@ -276,25 +283,29 @@ func _setup_guide() -> void:
 	# The key: the label translates itself (also after a language switch).
 	ui.show_goal(GOAL_DESCEND)
 	_goal_kind = GOAL_DESCEND
-	if GuideScript.needs_opening() and not _online_start_pending():
-		ui.opening_closed.connect(func() -> void: GuideScript.mark_opening_seen(), CONNECT_ONE_SHOT)
-		ui.show_opening(OPENING_SPEAKER, Loc.t(OPENING_SPEAKER_NAME), opening_lines())
 
 
-## The opening words in the current language.
-static func opening_lines() -> Array[String]:
-	var lines: Array[String] = []
-	for key in OPENING_LINES:
-		lines.append(Loc.t(key))
-	return lines
+## WK9: Flint's tour for a local player on the first start of the account (each machine its own, a
+## guest in the host's village too). When the guild dialog opens right away (a room wish of the main
+## menu, a reopened lobby) the tour waits until it is closed.
+func _offer_tour(player: Player) -> void:
+	if player == null or not player.is_local:
+		return
+	if _lobby_dialog_pending():
+		# The lobby dialog opens deferred (VillageUI._resume_lobby).
+		await get_tree().process_frame
+		while is_inside_tree() and is_instance_valid(player) and ui.is_dialog_open():
+			await get_tree().process_frame
+	if is_inside_tree() and is_instance_valid(player) and player.is_inside_tree():
+		TourScript.offer(player, self)
 
 
-## A room wish of the main menu (or a running room) opens the guild dialog right away.
-func _online_start_pending() -> bool:
+## True while the guild dialog is about to open by itself (VillageUI._resume_lobby).
+func _lobby_dialog_pending() -> bool:
 	if LobbyClient.has_pending_launch():
 		return true
 	var lobby := LobbyClient.find(self)
-	return lobby != null and lobby.is_in_room()
+	return lobby != null and lobby.is_in_room() and lobby.resume_dialog
 
 
 ## Trail and arrow to the entrance (null after the first run), for tests and tools.

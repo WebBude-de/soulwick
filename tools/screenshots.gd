@@ -22,6 +22,8 @@ func _run() -> void:
 	# Slots, settings and the old save live in a test folder: the real save is never touched.
 	# Buttons are found by their German texts; English is the default language (D-111).
 	TranslationServer.set_locale("de")
+	# The pictures show Flint's village tour and building explanation (WK9), skipped after the shot.
+	load("res://world/village/village_tour.gd").set(&"force_in_scripts", true)
 	var save_manager := root.get_node("SaveManager")
 	_wipe(STORAGE_ROOT)
 	save_manager.set_storage_root(STORAGE_ROOT)
@@ -62,13 +64,15 @@ func _run() -> void:
 	await _seconds(1.2)
 	await _frames(30)
 	_shot("02_village")
+	var village_player: Node = current_scene.get_node("WorldController").get_player()
+	await _skip_flint(village_player)
 
-	# Zuhause: explanation on the first visit, then the wardrobe with a new colour.
+	# Zuhause: Flint explains on the first visit, then the wardrobe with a new colour.
 	var village: Node = current_scene.get_node("WorldController").get_world()
 	village.enter_building(&"home")
 	await _seconds(0.4)
 	_shot("02b_home_intro")
-	village.ui.get_intro_modal().finish()
+	await _skip_flint(village_player)
 	await _frames(5)
 	village.ui.put_on_color(1)
 	village.ui._request_refresh()
@@ -245,6 +249,17 @@ func _settle() -> void:
 	for i in 6:
 		_close_modals(root)
 		await _seconds(0.4)
+
+
+## Skips Flint like a player would (VillageTour.force_in_scripts makes him explain in the pictures),
+## with everything he still has queued, so the next step finds the dialog it waits for.
+func _skip_flint(player: Node) -> void:
+	for attempt in 10:
+		var guide: Object = load("res://companions/guide/flint_guide.gd").of(player)
+		if guide == null or (guide.get(&"current") == null and guide.get_queue_size() == 0):
+			return
+		guide.skip()
+		await _seconds(load("res://companions/guide/flint_guide_rules.gd").FLY_BACK_TIME + 0.1)
 
 
 func _seconds(duration: float) -> void:

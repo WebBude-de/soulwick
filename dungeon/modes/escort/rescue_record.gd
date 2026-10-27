@@ -1,6 +1,6 @@
 class_name RescueRecord
 extends RefCounted
-## Save marker of the escort mode (KONZEPT_RAEUME_V2 §3.3: "Gerettete tauchen später im Dorf auf"):
+## Save marker of the escort mode (RAEUME §3.3: "Gerettete tauchen später im Dorf auf"):
 ## every lost villager brought to the exit - or, rarely, a chicken - is counted in the save's
 ## statistics (SaveManager.add_stat). Written when the rescue happens, stored with the next save
 ## like every statistic (run end). Hook for R7: the village reads get_rescued() and lets that many

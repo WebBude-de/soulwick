@@ -4,6 +4,8 @@ extends GutTest
 ## at the mirror, a real run end that counts the run once (RunRecap.award_xp) and the "+XP" block
 ## that fills its bar and celebrates a level up. Test folder only (SaveManager.set_storage_root),
 ## never the real save, profile or progress.cfg.
+## KE1: rank and free points on the card, "Rang gestiegen" at the run end, the run's danger level in
+## its XP, and the entrance card in the village (shown only, D-196; the group level from outside).
 
 const ROOT := "user://test_account_progress_ui"
 const MobileUi := preload("res://ui/menus/mobile_ui.gd")
@@ -46,6 +48,8 @@ func after_each() -> void:
 	MobileUi.phone_override = -1
 	MobileUi.safe_inset_override = -1.0
 	RunManager.end_run(RunManager.EndReason.ABORT)
+	RunManager.set_danger_level(0)
+	AccountProgress.spent_points_source = Callable()
 	GameManager.clear_pause_reasons()
 
 
@@ -208,3 +212,105 @@ func test_phone_menu_keeps_its_zoom_and_shows_the_card_over_the_gold() -> void:
 	assert_true(MobileUi.safe_rect(get_viewport()).grow(0.5).encloses(card), "inside the safe area")
 	assert_lte(card.end.y, currency.position.y + 0.5, "over gold and crystals")
 	assert_false(card.intersects(menu.get_list().get_global_rect()), "never over the menu list")
+
+
+# --- KE1: rank, talent points, danger level ---
+
+func test_card_shows_rank_and_free_points() -> void:
+	get_tree().root.size = Vector2i(1280, 720)
+	var menu := MainMenu.new()
+	add_child_autofree(menu)
+	await wait_process_frames(3)
+	var card := menu.get_account_card()
+	assert_eq(card.get_rank_text(), "Funke I", "a new account")
+	assert_eq(card.get_points_text(), "", "level 1: no point yet")
+	assert_false(card.badge.show_points)
+	AccountProgress.current().mark_synced([], AccountProgress.xp_for_level(7))
+	card.refresh()
+	assert_eq(card.get_rank_text(), "Kerze I", "level 7, no runs: G 3")
+	assert_eq(card.rank_badge.danger, 3)
+	assert_eq(card.get_points_text(), "6 Punkte frei")
+	assert_true(card.badge.show_points, "the badge sparks while points are free")
+	AccountProgress.spent_points_source = func() -> int: return 5
+	card.refresh()
+	assert_eq(card.get_points_text(), "1 Punkt frei")
+	AccountProgress.spent_points_source = func() -> int: return 6
+	card.refresh()
+	assert_eq(card.get_points_text(), "")
+	assert_true(get_viewport().get_visible_rect().encloses(card.get_global_rect()), "still on screen")
+	assert_false(card.get_global_rect().intersects(menu.get_list().get_global_rect()), "never over the menu list")
+
+
+func test_run_end_names_a_rank_change() -> void:
+	assert_eq(RunRecap.rank_change_text(2, 3), "Rang gestiegen: Kerze I")
+	assert_eq(RunRecap.rank_change_text(4, 2), "Rang gesunken: Funke III")
+	assert_eq(RunRecap.rank_change_text(3, 3), "")
+	var up := XpGainView.create({"xp": 20, "parts": [], "xp_before": 120, "xp_after": 140, "level_before": 2,
+			"level_after": 2, "danger_before": 3, "danger_after": 4})
+	add_child_autofree(up)
+	await wait_process_frames(2)
+	up.skip()
+	assert_eq(up.get_rank_text(), "Rang gestiegen: Kerze II")
+	assert_not_null(up.find_child("RankBadge", true, false), "with the new rank's badge")
+	var same := XpGainView.create({"xp": 5, "parts": [], "xp_before": 0, "xp_after": 5, "level_before": 1,
+			"level_after": 1, "danger_before": 0, "danger_after": 0})
+	add_child_autofree(same)
+	await wait_process_frames(1)
+	assert_eq(same.get_rank_text(), "", "no line while the rank stays")
+	assert_null(same.find_child("RankChange", true, false))
+
+
+func test_a_run_counts_its_danger_level() -> void:
+	SaveManager.create_slot(1, "Nebeltal")
+	var recap := RunRecap.new()
+	add_child_autofree(recap)
+	RunManager.set_danger_level(4)
+	RunManager.start_run()
+	for room in 2:
+		EventBus.room_completed.emit(room + 1)
+		RunManager.advance_room()
+	RunManager.end_run(RunManager.EndReason.DEATH)
+	var result := recap.get_xp_result()
+	var danger := (result["parts"] as Array).filter(func(part: Dictionary) -> bool: return part["id"] == AccountProgress.PART_DANGER)
+	assert_eq(danger.size(), 1, "G 4 adds its part")
+	assert_eq(int(danger[0]["count"]), 4)
+	var entry := AccountProgress.current().entries[-1]
+	assert_eq(entry["danger"], 4, "the entry keeps the run's level")
+
+
+func test_entrance_shows_rank_danger_and_loot() -> void:
+	var village_script := GDScript.new()
+	village_script.source_code = "extends Node2D\nsignal dungeon_requested\n"
+	village_script.reload()
+	var village := Node2D.new()
+	village.set_script(village_script)
+	var entrance := Node2D.new()
+	entrance.position = Vector2(300, 200)
+	add_child_autofree(village)
+	village.add_child(entrance)
+	var ui := VillageUI.new()
+	ui.entrance_anchor = entrance
+	village.add_child(ui)
+	ui.set_process(false)
+	AccountProgress.current().mark_synced([], AccountProgress.xp_for_level(9))
+	assert_eq(ui.get_entrance_danger(), 4, "own level: L 9, no runs")
+	ui.update_entrance([Vector2(1200, 200)] as Array[Vector2])
+	assert_null(ui.get_entrance_info(), "far away: nothing")
+	ui.update_entrance([Vector2(320, 240)] as Array[Vector2])
+	var card := ui.get_entrance_info()
+	assert_not_null(card, "near the entrance")
+	assert_eq(ui.entrance_texts(), ["Dein Rang", "Kerze II", "Gefahrenstufe 4 · Beute +20 %"] as Array[String])
+	assert_eq((card.find_child("EntranceRank", true, false) as Label).text, "Kerze II")
+	assert_null(card.find_child("*Button*", true, false), "shown only, nothing to pick (D-196)")
+	village.emit_signal(&"dungeon_requested")
+	assert_eq(RunManager.get_danger_level(), 4, "the entrance hands the own level to the run")
+	ui.set_group_danger(6)
+	assert_eq(ui.entrance_texts(), ["Eure Gruppe", "Flamme I", "Gefahrenstufe 6 · Beute +30 %"] as Array[String])
+	assert_eq((card.find_child("EntranceRank", true, false) as Label).text, "Flamme I", "the shown card follows")
+	village.emit_signal(&"dungeon_requested")
+	assert_eq(RunManager.get_danger_level(), 6, "in a group the host's level")
+	ui.set_group_danger(-1)
+	assert_eq(ui.get_entrance_danger(), 4)
+	ui.show_notice("Neu", ["Etwas"] as Array[String])
+	ui.update_entrance([Vector2(320, 240)] as Array[Vector2])
+	assert_null(ui.get_entrance_info(), "never together with a notice")

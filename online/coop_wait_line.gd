@@ -4,7 +4,7 @@ extends CanvasLayer
 ## centre of the screen: the group countdown (CoopWaitBanner, like the truck of R.E.P.O.: a big
 ## number over "Beeil dich!" for a straggler, a smaller one over "Warte auf <Name> …" for the ones
 ## waiting), a small line for plain status texts ("Warte auf die Wahl der anderen …") and the arrow
-## from the local player towards where the others wait. It replaces the old label in the playfield:
+## from the local player towards where the others wait (pixel style, PixelArrow: feedback #a1a651ae). It replaces the old label in the playfield:
 ## that one sat half outside the left screen edge (its x was set as if relative to the centre
 ## anchor) and shared one text between four owners. Everything sits below the task bar or the boss
 ## bar when one is up (Hud.TOP_CENTER_GROUP; the HUD's room line dodges it in turn), never over the
@@ -30,10 +30,9 @@ const TOP := 4.0
 const GAP := 3.0
 const COLOR := Color(1.0, 0.85, 0.4)
 ## TESTWERTE: the arrow sits this far (mockup px) from the local player and hides within this
-## distance (world px) of its target.
+## distance (world px) of its target; its size is PixelArrow's (16 art px, ART_SCALE).
 const ARROW_DISTANCE := 46.0
 const ARROW_HIDE_DISTANCE := 40.0
-const ARROW_SIZE := 11.0
 ## The countdown stays above this share of the screen height (never over the middle of the field).
 const SCREEN_TOP_SHARE := 0.4
 ## Translation key and English fallback of the straggler's line under the big number.
@@ -60,7 +59,7 @@ var _arrow_channel: StringName = &""
 var _panel: PanelContainer = null
 var _label: Label = null
 var _banner: WaitBanner = null
-var _arrow: Polygon2D = null
+var _arrow: Sprite2D = null
 
 
 ## Translated text of key with args; fallback (English) while the key has no translation yet, so a
@@ -104,13 +103,13 @@ func _init() -> void:
 	_banner = WaitBanner.new()
 	_banner.add_to_group(Hud.TOP_CENTER_GROUP)
 	root.add_child(_banner)
-	# Points along +x, turned towards the target.
-	_arrow = Polygon2D.new()
+	# A pixel arrow (PixelArrow: turned in art pixels, never smoothed), tinted like the line.
+	_arrow = Sprite2D.new()
 	_arrow.name = "Arrow"
-	var size := UiKit.px(ARROW_SIZE)
-	_arrow.polygon = PackedVector2Array([Vector2(size, 0.0), Vector2(-size * 0.7, -size * 0.75),
-			Vector2(-size * 0.3, 0.0), Vector2(-size * 0.7, size * 0.75)])
-	_arrow.color = COLOR
+	_arrow.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	_arrow.scale = Vector2.ONE * UiKit.ART_SCALE
+	_arrow.texture = PixelArrow.texture_for(0.0)
+	_arrow.modulate = COLOR
 	_arrow.visible = false
 	add_child(_arrow)
 
@@ -288,9 +287,10 @@ func _update_arrow() -> void:
 		_arrow_channel = channel
 		if offset.length() > ARROW_HIDE_DISTANCE:
 			var direction := offset.normalized()
-			_arrow.position = player.get_global_transform_with_canvas().origin + direction * UiKit.px(ARROW_DISTANCE)
-			_arrow.rotation = direction.angle()
-			_arrow.color = WaitBanner.URGENT_COLOR if _banner.is_urgent() else COLOR
+			# Whole screen pixels and a picture per direction: the pixels stay square.
+			_arrow.position = (player.get_global_transform_with_canvas().origin + direction * UiKit.px(ARROW_DISTANCE)).round()
+			_arrow.texture = PixelArrow.texture_for(direction.angle())
+			_arrow.modulate = WaitBanner.URGENT_COLOR if _banner.is_urgent() else COLOR
 			show = true
 		break
 	_arrow.visible = show

@@ -4,6 +4,14 @@ extends GutTest
 const PLAYER_SCENE := preload("res://player/player.tscn")
 
 
+## A test ending in wait_physics_frames leaves GUT inside a physics frame; the next test (next script)
+## would start there, where Input counts a freshly parsed press for the next physics frame
+## (is_action_just_pressed false). Hand the runner back in an idle frame.
+func after_each() -> void:
+	if Engine.is_in_physics_frame():
+		await wait_process_frames(1)
+
+
 func test_extra_dark_rooms() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 3
@@ -19,7 +27,7 @@ func test_extra_dark_rooms() -> void:
 
 func test_elite_chance_grows_per_block() -> void:
 	assert_eq(EnemySpawner.get_elite_chance(5), 0.0, "no elites before room 6")
-	assert_almost_eq(EnemySpawner.get_elite_chance(6), 0.14, 0.0001)
+	assert_almost_eq(EnemySpawner.get_elite_chance(6), 0.15, 0.0001)
 	assert_almost_eq(EnemySpawner.get_elite_chance(500), 0.5, 0.0001, "capped")
 	assert_gt(EnemySpawner.get_elite_chance(40), EnemySpawner.get_elite_chance(6))
 

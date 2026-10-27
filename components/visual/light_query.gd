@@ -9,7 +9,9 @@ extends RefCounted
 ## (is_in_circles) works without nodes for tests and other rules (light run).
 ## Co-op: every player is looked up through the group "player" (no first-node lookup, D-088); the
 ## light radius is state at the player (meta PLAYER_RADIUS_META, written by whoever draws that
-## player's vision - today the VisionOverlay - and read by everyone).
+## player's vision - today the VisionOverlay - and read by everyone). The circle's centre is always the
+## player's own figure (D-212, get_player_light_center); Flint's flame only adds a small warm glow
+## that never counts as light.
 
 ## The player's circle is drawn soft over 150 px (vision.gdshader "softness"); the visible edge,
 ## where half of the light is left, lies this far inside the radius.
@@ -66,11 +68,21 @@ static func get_player_radius(player: Node2D) -> float:
 	return DEFAULT_PLAYER_RADIUS * factor
 
 
+## Centre of a player's light circle (D-212): always the player's figure, so the circle never sits
+## beside him (a stone guardian next to the player freezes in a small torch circle). The one place
+## that answers this: gameplay (player_circles) and drawing (VisionOverlay, MateLight,
+## DarknessVisibility) all ask here.
+static func get_player_light_center(player: Node2D) -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return Vector2.ZERO
+	return player.global_position
+
+
 ## One circle per living player.
 static func player_circles(tree: SceneTree) -> Array[Vector3]:
 	var circles: Array[Vector3] = []
 	for player in EnemyTargeting.living_players(tree):
-		circles.append(circle(player.global_position, player_lit_radius(get_player_radius(player))))
+		circles.append(circle(get_player_light_center(player), player_lit_radius(get_player_radius(player))))
 	return circles
 
 

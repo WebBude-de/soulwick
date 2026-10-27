@@ -124,7 +124,7 @@ Hinterlegen: Base64 wie oben (`soulwick-release.p12` statt `debug.keystore`) als
 
 - Keystore-Datei und Passwort in den **Passwort-Manager** des Teams (Datei als Anhang) und eine zweite Kopie offline (verschlüsselter USB-Stick an einem sicheren Ort).
 - **Nie** ins Repo (es ist öffentlich), nie per Chat oder Mail, nie in `export_presets.cfg` (dort bleiben die Keystore-Felder leer).
-- Geht der Schlüssel verloren, kann keine installierte App mehr ein Update bekommen. Für Google Play später „Play App Signing“ nutzen: Dann ist dieser Schlüssel nur der Upload-Schlüssel und lässt sich bei Verlust über Google zurücksetzen ([ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) CP7).
+- Geht der Schlüssel verloren, kann keine installierte App mehr ein Update bekommen. Für Google Play später „Play App Signing“ nutzen: Dann ist dieser Schlüssel nur der Upload-Schlüssel und lässt sich bei Verlust über Google zurücksetzen ([ROADMAP.md](ROADMAP.md) CP7).
 - Die lokale Datei nach dem Hochladen aus dem Download-Ordner löschen.
 
 ## 5. Was die Pipeline prüft
@@ -170,4 +170,4 @@ APK prüfen: `aapt dump badging <apk>` (Paket, `versionCode`, Architekturen), `a
 
 ## 8. Stores
 
-Vorbereitet, aber erst mit Konten und Secrets aktiv: Google Play (AAB, interner Test), App Store (IPA, TestFlight), Steam (Beta-Branch), Signaturen für Windows und macOS. Konten, Kosten, Secrets, Schritte bis zur Veröffentlichung, fehlende Grafiken, Altersfreigabe und Datenschutz-Angaben: [STORES.md](STORES.md). Steamworks im Spiel (GodotSteam, Einladungen, Erfolge) gehört zu [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) MP6/MP10. Die **Browser-Version** läuft über Dokploy, nicht hier (D-148).
+Vorbereitet, aber erst mit Konten und Secrets aktiv: Google Play (AAB, interner Test), App Store (IPA, TestFlight), Steam (Beta-Branch), Signaturen für Windows und macOS. Konten, Kosten, Secrets, Schritte bis zur Veröffentlichung, fehlende Grafiken, Altersfreigabe und Datenschutz-Angaben: [STORES.md](STORES.md). Steamworks im Spiel (GodotSteam, Einladungen, Erfolge) gehört zu [ROADMAP.md](ROADMAP.md) MP6/MP10. Die **Browser-Version** läuft über Dokploy, nicht hier (D-148).

@@ -3,7 +3,8 @@ extends RefCounted
 ## Checks of the height of a live room (M3) for tools/smoke_test.gd (hook for the integrator, next to
 ## RoomPlanChecks.problems, which already checks the rules of the layout): the room built its
 ## HeightField with one wall per cliff run and edge, every living player stops at cliffs, every
-## enemy of the room at cliffs and ladders, the navigation of the surface is cut off at the edges.
+## enemy of the room at cliffs and ladders, every height tile is a floor cell (D-205: the ground in
+## front of a half-high front belongs to the room).
 ## problems() returns readable lines, empty = fine (also for rooms without height).
 
 
@@ -30,9 +31,10 @@ static func problems(room: Node) -> Array[String]:
 		result.append("ladders without the enemy block")
 	if field.get_connectors().size() != layout.ladders.size() + layout.stairs.size():
 		result.append("%d switch areas for %d stairs and ladders" % [field.get_connectors().size(), layout.ladders.size() + layout.stairs.size()])
-	for tile: Vector2i in layout.edge_sides:
+	# Every height tile is a floor cell: the surface, and the ground in front of a half-high front.
+	for tile: Vector2i in layout.get_height_tiles():
 		if tiles.get_cell_source_id(tile) == -1:
-			result.append("surface %s without a floor cell" % tile)
+			result.append("height tile %s without a floor cell" % tile)
 			break
 	for player in room.get_tree().get_nodes_in_group(&"player"):
 		if player is Player and (player as Player).collision_mask & PhysicsLayers.CLIFF == 0:

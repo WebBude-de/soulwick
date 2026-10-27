@@ -1,25 +1,43 @@
 class_name SideRules
 extends RefCounted
-## Gang segments in side view (M5, Makeover 3 §3): every decision and every number in one place.
-## A segment is a short jump'n'run between two rooms: black fade, banner "Abstieg", 20-40 s of
-## running and jumping, a door, black fade, the next room from above again. The functions here only
-## decide (no nodes, no sounds); SideTransit, SideSegment and PlayerSideMotion apply them.
+## Side view between two rooms (M5, D-144): every decision and every number in one place. Since
+## D-216 every such section is an obstacle run (Hindernislauf): black fade, banner, a small
+## jump'n'run level of about a minute (ObstacleRunPlans: opening, two ways, hard part, lantern,
+## final jump), a door, black fade, the next room from above again. The functions here only decide
+## (no nodes, no sounds); SideTransit, SideSegment and PlayerSideMotion apply them.
 ## Randomness only through a RandomNumberGenerator the caller passes in (multiplayer rule).
+## The way rule (roll_reason) decides where a run sits: on the way into every champion room, behind
+## the campfire and on the ladder way (D-216, Nachtrag 26.10.2026).
 
-## Why a way runs through a segment.
+## Why a way runs through an obstacle run.
 enum Reason {
 	NONE,
 	## After the campfire, into the next biome ("Abstieg", once per 15 rooms).
 	BIOME_CHANGE,
 	## The ladder door of a branch: a side way with coins and a chest instead of a fight.
 	LADDER_WAY,
-	## Now and then after a rest room, as a surprise.
+	## Now and then after a rest room, as a surprise (rounds 1-3; since SV3 the share rule, SHARE).
 	AFTER_REST,
+	## The way into a champion room (miniboss, place 5 of a cycle; D-216, Nachtrag 26.10.2026). The
+	## name stays from the former share rule (about every fourth way at random): the number travels
+	## (NetSide) and the smoke test reads it by name.
+	SHARE,
 }
 
 const TILE := 64.0
-## Height of every segment in tiles (one screen high at zoom 1, no vertical scrolling in V1).
+## Height of a plan in tiles: ROWS for the plans of rounds 1-3, tall jump trials (SV2, D-195) up to
+## MAX_ROWS; the camera scrolls vertically and looks ahead along the way (SideCamera).
 const ROWS := 11
+const MAX_ROWS := 22
+
+# --- Tiers (SV2, D-195, kept by D-216, TESTWERTE) ---
+## Tier 1 up to room TIER_2_FROM_ROOM - 1, tier 2 up to TIER_3_FROM_ROOM - 1, tier 3 from there on or
+## from danger level TIER_3_FROM_DANGER (KE2). A tier-t run draws from the biome's runs of tier t
+## and the one before (ObstacleRunPlans.pick), so the elements met before stay in the mix.
+const TIER_2_FROM_ROOM := 16
+const TIER_3_FROM_ROOM := 46
+const TIER_3_FROM_DANGER := 6
+const MAX_TIER := 3
 
 # --- Platform physics (TESTWERTE, world px; sprites are drawn ×2, one tile = 64 px) ---
 # Round 2 (15.10.2026): snappier jump (higher gravity, faster take-off), a short hang at the apex,
@@ -66,7 +84,7 @@ const CRUMBLE_DELAY := 0.6
 const CRUMBLE_RESPAWN := 3.0
 
 # --- Round 3 (16.10.2026): towers, pools, spike rhythm (TESTWERTE) ---
-## Share of segments whose plan mounts its turret(s) ("T"); one draw per segment (SidePlans.pick).
+## Share of runs whose plan mounts its turret(s) ("T"); one draw per run (ObstacleRunPlans.pick).
 const TURRET_CHANCE := 0.5
 ## A turret mount keeps at least this many columns away from the start and the door.
 const TURRET_MIN_DISTANCE := 6
@@ -96,20 +114,30 @@ const PIT_RETURN_TIME := 0.45
 
 # --- Rewards (TESTWERTE, delegated 15.10.2026: "worth about a normal combat room, not more") ---
 ## A normal combat room pays about 1 gold per enemy (gold_drop × 0.4, at least 1) for 2-6 enemies,
-## plus 1-2 from crates: 4-8 gold in rooms 1-29, ×2 waves from room 30, ×3 from room 60. A segment
-## pays 6-7 coins + the golden coin (2 coins) = 8-9 coin values, scaled by the same wave count, and
-## its enemies drop nothing (they are obstacles here). No crystals, no hearts; the chest (an upgrade
-## choice) only on the ladder way of a branch, where it stands against the elite nest or a variant.
+## plus 1-2 from crates: 4-8 gold in rooms 1-29, ×2 waves from room 30, ×3 from room 60. An obstacle
+## run (D-216) keeps every RUN_COIN_KEEP_EVERY-th coin of its pieces: about 7 on the lower ways + the
+## golden coin (2 coins) = about 9 coin values, the upper way of its two-way piece 2-3 more, scaled
+## by the same wave count; its enemies drop nothing (they are obstacles here). No crystals, no
+## hearts; the chest (an upgrade choice) only on the ladder way of a branch, where it stands against
+## the elite nest or a variant.
 const COIN_GOLD := 1
 const GOLDEN_COIN_COINS := 2
 ## Side enemies drop no gold (the coins are the reward).
 const ENEMY_GOLD := 0
+## An obstacle run keeps every this-many-th coin of its pieces (in way order, ObstacleRunPlans).
+const RUN_COIN_KEEP_EVERY := 3
 
-# --- Where segments sit (TESTWERTE) ---
-## Round 3 (16.10.2026, team member: "kann gern minimal öfter kommen"): 0.1 -> 0.18. With two
-## eligible rest rooms per biome (room 4 and 9; room 14 leads into the boss) that is about 0.29
-## instead of 0.16 surprise segments per biome, on top of the campfire one and the ladder ways.
-const AFTER_REST_CHANCE := 0.18
+# --- Where obstacle runs sit (way rule, D-216, TESTWERTE) ---
+## Project member 26.10.2026 ("Vor jedem Champion"): no random ways any more. The way into every
+## champion room (miniboss, place 5 of a cycle: rooms 5, 10, 20, 25, ...) always runs through an
+## obstacle run (Reason.SHARE), the way behind the campfire too ("Abstieg", BIOME_CHANGE) and the
+## ladder way of a branch (its chest, LADDER_WAY); every other way is a plain corridor. Never into
+## the boss room or out of it, never twice in a row (D-144), never with "Seitenwege auslassen". The
+## champion way never meets a ladder way: the room before a champion is the special room (place 4),
+## which never branches, and the way into it never runs through a run either.
+## SHARE_TARGET is the expected share of all ways (2 champion ways + 1 campfire way of 16 ways per
+## biome, plus the ladder ways taken); measured in tests/unit/test_side_ways.gd and the smoke log.
+const SHARE_TARGET := 0.19
 ## The jump hint ("Springen: Leertaste") on the first few segments of a save.
 const JUMP_HINT_TIMES := 3
 ## Save statistic counting the segments entered (SaveManager.add_stat).
@@ -123,8 +151,10 @@ const BANNER_TIME := 1.3
 const BANNER_TIME_WITH_HINT := 2.2
 ## Co-op: a player outside the view this long is brought to the foremost player.
 const CATCH_UP_TIME := 3.0
-## Segments must never take longer than this (checked by the side check tool).
-const MAX_SEGMENT_SECONDS := 45.0
+## How long the bot (side check) needs for an obstacle run: about a minute (D-216, TESTWERT).
+const RUN_SECONDS_RANGE := Vector2(45.0, 75.0)
+## A piece played alone (side check pieces=1) stays under this (TESTWERT).
+const MAX_PIECE_SECONDS := 40.0
 
 # --- Sounds: delivered names first, existing fallbacks second (R9 may add the first ones) ---
 const SOUND_DRONE := &"side_drone"
@@ -142,32 +172,40 @@ const SOUND_GOLDEN_COIN := &"soul_collect"
 const SOUND_DOOR := &"door_open"
 
 
-## Decides whether the way into the next room runs through a segment. Draws at most one number
-## (only after a rest room), so the caller's RNG stream stays predictable.
+## Decides whether the way into the next room runs through an obstacle run (way rule). Draws
+## nothing: every machine answers the same from the rooms alone.
 ## after_campfire: the room the group leaves is the campfire between two biomes.
 ## ladder_way: the group took the ladder door of a branch.
-## after_rest: the room the group leaves is a rest room (shop, weapons, fountain, altar).
-## next_is_boss: the next room is a boss room. previous_was_side: the last way was a segment.
-## skip: the player switched side ways off (OPTION_SKIP).
-static func roll_reason(after_campfire: bool, ladder_way: bool, after_rest: bool, next_is_boss: bool,
-		previous_was_side: bool, skip: bool, rng: RandomNumberGenerator) -> Reason:
+## from_boss: the room the group leaves is a boss room (its way leads to the campfire).
+## next_is_boss: the next room is a boss room. previous_was_side: the last way was a run.
+## skip: the player switched side ways off (OPTION_SKIP). next_is_champion: the next room is a
+## champion room (RoomType.MINIBOSS).
+static func roll_reason(after_campfire: bool, ladder_way: bool, from_boss: bool, next_is_boss: bool,
+		previous_was_side: bool, skip: bool, next_is_champion := false) -> Reason:
 	if skip or next_is_boss or previous_was_side:
 		return Reason.NONE
 	if after_campfire:
 		return Reason.BIOME_CHANGE
 	if ladder_way:
 		return Reason.LADDER_WAY
-	if after_rest and rng != null and rng.randf() < AFTER_REST_CHANCE:
-		return Reason.AFTER_REST
+	if next_is_champion and not from_boss:
+		return Reason.SHARE
 	return Reason.NONE
 
 
-## Whether a branch may show a ladder door at all (same limits as roll_reason, no draw).
+## Whether a room may branch with a ladder way (BranchRules: a normal combat room from FROM_ROOM on
+## before another normal combat room). Static, no draw: asked before the branch is rolled.
+static func may_offer_ladder(room_index: int, room_type: RoomSequence.RoomType, next_slot_type: RoomSequence.RoomType) -> bool:
+	return room_index >= BranchRules.FROM_ROOM and RoomSequence.is_normal_combat(room_type) \
+			and RoomSequence.is_normal_combat(next_slot_type)
+
+
+## Whether a branch may show a ladder door at all (same limits as roll_reason).
 static func allows_ladder_way(next_is_boss: bool, previous_was_side: bool, skip: bool) -> bool:
 	return not skip and not next_is_boss and not previous_was_side
 
 
-## A segment's own RNG, derived from the run seed and the slot it sits in front of: the dungeon
+## A run's own RNG, derived from the run seed and the slot it sits in front of: the dungeon
 ## stream stays untouched and every co-op peer builds the same segment.
 static func make_rng(run_seed: int, slot: int) -> RandomNumberGenerator:
 	var rng := RandomNumberGenerator.new()
@@ -194,6 +232,22 @@ static func segment_gold(coins: int, room_index: int, gold_multiplier := 1.0) ->
 ## Damage of a fall out of the segment: the same as an abyss in a room (may kill).
 static func pit_damage() -> float:
 	return ChasmRules.fall_damage()
+
+
+## Tier of an obstacle run (D-195, D-216) in front of room room_index at a danger level: 1 for
+## rooms 1-15, 2 for rooms 16-45, 3 from room 46 or from danger level TIER_3_FROM_DANGER.
+static func tier_for(room_index: int, danger := 0) -> int:
+	if room_index >= TIER_3_FROM_ROOM or danger >= TIER_3_FROM_DANGER:
+		return 3
+	if room_index >= TIER_2_FROM_ROOM:
+		return 2
+	return 1
+
+
+## The longest a bot may need for a layout (side check, smoke test): a run RUN_SECONDS_RANGE.y,
+## a piece played alone MAX_PIECE_SECONDS.
+static func max_seconds_for(layout: SideLayout) -> float:
+	return RUN_SECONDS_RANGE.y if layout.is_obstacle_run() else MAX_PIECE_SECONDS
 
 
 ## Whether the chest in a plan's niche is set up: only on the ladder way of a branch.

@@ -65,7 +65,7 @@ position = Vector2(608, 160)
 position = Vector2(800, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(1184, 160)
+position = Vector2(1248, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(672, 544)
@@ -136,6 +136,7 @@ script = ExtResource("3_deco")
 item = &"group_large_1"
 blocked_tiles = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(-14, 60)
 biome = &"crypt"
 
 [node name="Group2" type="Node2D" parent="Props"]
@@ -154,6 +155,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(5, 9), Vector2i(6, 9), Vector2i(7, 9)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(-14, 60)
 biome = &"crypt"
 
 [node name="Group4" type="Node2D" parent="Props"]
@@ -163,6 +165,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(11, 0), Vector2i(12, 0), Vector2i(13, 0)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(-14, 60)
 biome = &"crypt"
 
 [node name="Ingredients" type="Node2D" parent="."]

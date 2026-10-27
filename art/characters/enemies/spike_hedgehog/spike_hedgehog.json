@@ -1,0 +1,48 @@
+{
+  "name": "spike_hedgehog",
+  "frame_size": [
+    32,
+    32
+  ],
+  "pivot": [
+    16,
+    30
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Stacheln spitz, dunkelbraun/grau mit heller Spitze.",
+    "refuse_3f: Stacheln stellen sich auf, kurzes Zittern = Draufspringen abgewehrt (Teil C)."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "spike_hedgehog_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "spike_hedgehog_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "refuse",
+      "file": "spike_hedgehog_refuse_3f.png",
+      "frames": 3,
+      "fps": 10,
+      "loop": false
+    },
+    {
+      "name": "death",
+      "file": "spike_hedgehog_death_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

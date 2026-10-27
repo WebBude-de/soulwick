@@ -1,0 +1,119 @@
+{
+  "notes": [
+    "Pivot Mitte; kein Licht nach außen gemalt."
+  ],
+  "items": [
+    {
+      "name": "light_flash",
+      "file": "light_flash_6f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 6,
+      "fps": 18,
+      "loop": false,
+      "pivot": [
+        48,
+        48
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_shield",
+      "file": "soul_shield_6f.png",
+      "frame_size": [
+        40,
+        40
+      ],
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "pivot": [
+        20,
+        20
+      ],
+      "note": ""
+    },
+    {
+      "name": "soul_shield_loop",
+      "file": "soul_shield_loop_4f.png",
+      "frame_size": [
+        40,
+        40
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        20,
+        20
+      ],
+      "note": ""
+    },
+    {
+      "name": "flame_ring",
+      "file": "flame_ring_8f.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "frames": 8,
+      "fps": 16,
+      "loop": false,
+      "pivot": [
+        48,
+        52
+      ],
+      "note": ""
+    },
+    {
+      "name": "wisp",
+      "file": "wisp_4f.png",
+      "frame_size": [
+        10,
+        10
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        5,
+        5
+      ],
+      "note": ""
+    },
+    {
+      "name": "wisp_trail",
+      "file": "wisp_trail_3f.png",
+      "frame_size": [
+        8,
+        8
+      ],
+      "frames": 3,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        4,
+        4
+      ],
+      "note": ""
+    },
+    {
+      "name": "heal_spark",
+      "file": "heal_spark_8f.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 8,
+      "fps": 12,
+      "loop": false,
+      "pivot": [
+        32,
+        56
+      ],
+      "note": ""
+    }
+  ]
+}

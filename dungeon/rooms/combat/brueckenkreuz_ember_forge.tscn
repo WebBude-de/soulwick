@@ -22,7 +22,7 @@ front_fixtures = Array[Vector2i]([Vector2i(6, -1), Vector2i(16, -1)])
 rock_style = 1
 cave_mouth = true
 zone_cells = Array[Vector3i]([Vector3i(1, 1, 2), Vector3i(2, 0, 2), Vector3i(2, 1, 2), Vector3i(3, 0, 2), Vector3i(3, 1, 2), Vector3i(5, 6, 1), Vector3i(6, 5, 1), Vector3i(6, 6, 1), Vector3i(7, 6, 1), Vector3i(7, 7, 1), Vector3i(8, 6, 1), Vector3i(9, 6, 1), Vector3i(10, 6, 1), Vector3i(12, 4, 0), Vector3i(12, 5, 0), Vector3i(12, 6, 0), Vector3i(13, 4, 0), Vector3i(13, 5, 0), Vector3i(13, 6, 0), Vector3i(14, 4, 0), Vector3i(14, 5, 0), Vector3i(14, 6, 0), Vector3i(15, 4, 0)])
-overlay_cells = Array[Vector3i]([Vector3i(2, 1, 1), Vector3i(5, 7, 13), Vector3i(12, 0, 3), Vector3i(15, 6, 9), Vector3i(16, 0, 1), Vector3i(16, 1, 11), Vector3i(16, 6, 1), Vector3i(18, 2, 1)])
+overlay_cells = Array[Vector3i]([Vector3i(5, 7, 13), Vector3i(8, 0, 5), Vector3i(12, 0, 3), Vector3i(15, 6, 9), Vector3i(16, 0, 1), Vector3i(16, 1, 11), Vector3i(16, 6, 1)])
 
 [node name="Spawn1" parent="SpawnPoints"]
 position = Vector2(480, 32)
@@ -55,7 +55,7 @@ position = Vector2(800, 224)
 position = Vector2(608, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(928, 96)
+position = Vector2(736, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(672, 416)
@@ -109,39 +109,21 @@ tint = Color(1, 0.7, 0.45, 1)
 blocked_tiles = Array[Vector2i]([Vector2i(9, 2)])
 
 [node name="Group1" type="Node2D" parent="Props"]
-position = Vector2(1152, 120)
+position = Vector2(960, 504)
 script = ExtResource("3_deco")
 item = &"group_3"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(17, 1), Vector2i(18, 1)])
+blocked_tiles = Array[Vector2i]([Vector2i(14, 7), Vector2i(15, 7)])
 solid_span = Vector2(-50, 46)
 biome = &"ember_forge"
 
 [node name="Group2" type="Node2D" parent="Props"]
-position = Vector2(64, 120)
+position = Vector2(256, 504)
 script = ExtResource("3_deco")
 item = &"group_2"
 flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(0, 1), Vector2i(1, 1)])
-solid_span = Vector2(-52, 48)
-biome = &"ember_forge"
-
-[node name="Group3" type="Node2D" parent="Props"]
-position = Vector2(960, 504)
-script = ExtResource("3_deco")
-item = &"group_1"
-flip = true
-blocked_tiles = Array[Vector2i]([Vector2i(14, 7), Vector2i(15, 7)])
-solid_span = Vector2(-52, 50)
-biome = &"ember_forge"
-
-[node name="Group4" type="Node2D" parent="Props"]
-position = Vector2(256, 504)
-script = ExtResource("3_deco")
-item = &"group_3"
-flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(3, 7), Vector2i(4, 7)])
-solid_span = Vector2(-50, 46)
+solid_span = Vector2(-52, 48)
 biome = &"ember_forge"
 
 [node name="Ingredients" type="Node2D" parent="."]

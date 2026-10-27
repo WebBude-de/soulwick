@@ -1,6 +1,6 @@
 class_name LostVillager
 extends Node2D
-## The lost villager of the escort mode (KONZEPT_RAEUME_V2 §3.3, R4a) - or, rarely, a chicken with a
+## The lost villager of the escort mode (RAEUME §3.3, R4a) - or, rarely, a chicken with a
 ## lantern. Body and look only: EscortMode decides where he walks, when he stops and when he is safe;
 ## this node counts his hearts (one per enemy hit, EscortHurtbox) and shows everything (walk, idle and
 ## scared animation, warm lantern light, help bubble, hearts over his head).
@@ -291,10 +291,14 @@ static func _lantern_glyph() -> Texture2D:
 	return ImageTexture.create_from_image(image)
 
 
-## Hearts over the villager's head: filled red, lost ones dark.
+## Hearts over the villager's head: filled red, lost ones dark. Pixel hearts (D-218): HEART rows
+## of art pixels (PixelDraw.WORLD_PIXEL each).
 class HeartRow extends Node2D:
-	const SIZE := 7.0
-	const GAP := 3.0
+	const HEART: PackedStringArray = ["##.##", "#####", ".###.", "..#.."]
+	## One heart in world px (5 x 4 art pixels) and the gap between two.
+	const SIZE := 10.0
+	const HEIGHT := 8.0
+	const GAP := 2.0
 
 	var hearts := 0
 	var max_hearts := 0
@@ -309,8 +313,5 @@ class HeartRow extends Node2D:
 		var x := -width * 0.5
 		for i in max_hearts:
 			var color := LostVillager.HEART_COLOR if i < hearts else LostVillager.HEART_EMPTY
-			var center := Vector2(x + SIZE * 0.5, 0.0)
-			draw_circle(center + Vector2(-1.6, -1.2), 2.2, color)
-			draw_circle(center + Vector2(1.6, -1.2), 2.2, color)
-			draw_colored_polygon(PackedVector2Array([center + Vector2(-3.7, -0.8), center + Vector2(3.7, -0.8), center + Vector2(0, 3.6)]), color)
+			PixelDraw.bitmap(self, Vector2(x, -HEIGHT * 0.5), HEART, color)
 			x += SIZE + GAP

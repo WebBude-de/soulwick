@@ -8,8 +8,8 @@ const PLATEAU := HeightLayout.Level.PLATEAU
 const BOTH := HeightLayout.Level.BOTH
 
 
-## 9 x 8 floor; plateau in the north-east (columns 5-8, rows 0-2), its cliff row 2 with stairs at
-## (6, 2) and a ladder at (8, 2).
+## 11 x 9 floor (-1..9, -1..7); plateau in the north-east (columns 5-8, rows 0-2) with a tile of
+## ground all round (D-205), its cliff row 2 with stairs at (6, 2) and a ladder at (8, 2).
 func _layout(with_stairs := true, with_ladder := true) -> HeightLayout:
 	var plateau: Array[Vector2i] = []
 	for y in 3:
@@ -24,8 +24,8 @@ func _layout(with_stairs := true, with_ladder := true) -> HeightLayout:
 		ladders.append(Vector2i(8, 2))
 		plateau.erase(Vector2i(8, 2))
 	var ground: Dictionary[Vector2i, bool] = {}
-	for y in 8:
-		for x in 9:
+	for y in range(-1, 8):
+		for x in range(-1, 10):
 			ground[Vector2i(x, y)] = true
 	return HeightLayout.build(plateau, ladders, stairs, ground)
 
@@ -36,7 +36,7 @@ func test_cliffs_surface_and_edges_follow_from_the_markers() -> void:
 	assert_true(layout.cliffs.has(Vector2i(5, 2)) and layout.cliffs.has(Vector2i(7, 2)))
 	assert_eq(layout.surface.size(), 8, "two rows of surface above the cliff")
 	assert_false(layout.ground.has(Vector2i(6, 1)), "height tiles are no ground")
-	assert_eq(layout.edge_sides.get(Vector2i(5, 0), 0), 8, "west edge of the plateau towards the ground")
+	assert_eq(layout.edge_sides.get(Vector2i(5, 0), 0), 9, "north and west edge of the plateau towards the ground")
 	assert_eq(layout.edge_sides.get(Vector2i(5, 1), 0), 8)
 	assert_false(layout.edge_sides.has(Vector2i(6, 1)), "above the stairs: no edge")
 	assert_eq(layout.problems(), [] as Array[String])
@@ -91,6 +91,15 @@ func test_plan_rules_catch_broken_height() -> void:
 	assert_string_contains(str(sliver.problems()), "no plateau surface above it", "a plateau needs two rows")
 	var pits: Dictionary[Vector2i, bool] = {Vector2i(5, 3): true}
 	assert_string_contains(str(_layout().problems(pits)), "right above an abyss", "no cliff over the abyss")
+	# D-205: no plateau at the wall - rock (no ground) among the eight neighbours of a height tile.
+	var walled_ground: Dictionary[Vector2i, bool] = {}
+	for y in 6:
+		for x in 6:
+			walled_ground[Vector2i(x, y)] = true
+	var walled := HeightLayout.build([Vector2i(1, 0), Vector2i(2, 0), Vector2i(1, 1)] as Array[Vector2i], [] as Array[Vector2i], [Vector2i(2, 1)] as Array[Vector2i], walled_ground)
+	assert_string_contains(str(walled.problems()), "touches rock at", "a plateau against the wall")
+	assert_eq(walled.rock_beside(Vector2i(1, 0)), Vector2i(0, -1))
+	assert_eq(_layout().rock_beside(Vector2i(6, 1)), Vector2i(6, 1), "free all round")
 
 
 func test_melee_reaches_only_the_own_level() -> void:

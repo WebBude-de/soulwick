@@ -1,5 +1,6 @@
 # Einsturzhoehle (L): erste Felder sind schon eingebrochen, weitere tragen die Warnmarke X.
 # M3b (Makeover 3 §8): rechts unten eine Empore mit Treppe und Lavaspalte; ihr Fels bricht nie ein.
+# CR6 (D-205): die Empore steht frei, ringsum eine Kachel Boden (halbe Hoehe, nie an der Wand).
 role: combat
 class: L
 biomes: all
@@ -11,14 +12,14 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxT###N###T####N###Txxxxx
 xxxxxx..................xxxxx
-xxxx.....................xxxx
+xxxx....v................xxxx
 xx............X............xx
-xx..v..~~..X.....X...X..v..xx
-xx.....~~..................xx
-xxx..........~~~...^^^^^^^xxx
-xxx.......X..~~~.X.^^^v^^^xxx
-xxxx..X............^&^^^^xxxx
-xxxxx.......@...v.....^^xxxxx
+xx..v..~~..X.....X^^^^^^^..xx
+xx.....~~.........^^^v^^^..xx
+xxx..........~~~..^^^^^^^.xxx
+xxx.......X..~~~.X^&^^^^^.xxx
+xxxx..X...................xxx
+xxxxx.......@...v.......xxxxx
 xxxxxxx...............xxxxxxx
 xxxxxxxxxxxxxxSxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -30,9 +31,9 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 .............................
 .............................
 .............................
+.....................^.......
 .............................
 .............................
-......................^......
 .............................
 .............................
 .............................

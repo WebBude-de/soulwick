@@ -1,0 +1,279 @@
+{
+  "notes": [
+    "Pivot unten Mitte; Draufsicht mit sauberem Fuß (frei stellbar)."
+  ],
+  "items": [
+    {
+      "name": "candle_altar_idle",
+      "file": "candle_altar_idle_6f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 6,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "candle_altar_ready",
+      "file": "candle_altar_ready_4f.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "fireplace",
+      "file": "fireplace_6f.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        32,
+        62
+      ],
+      "note": ""
+    },
+    {
+      "name": "bed",
+      "file": "bed.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "chest",
+      "file": "chest.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "rug_round",
+      "file": "rug_round.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "shelf",
+      "file": "shelf.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        46
+      ],
+      "note": ""
+    },
+    {
+      "name": "plant_pot",
+      "file": "plant_pot.png",
+      "frame_size": [
+        16,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "pet_bed",
+      "file": "pet_bed.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "name": "nightstand",
+      "file": "nightstand.png",
+      "frame_size": [
+        16,
+        20
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        19
+      ],
+      "note": ""
+    },
+    {
+      "name": "armchair",
+      "file": "armchair.png",
+      "frame_size": [
+        24,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        23
+      ],
+      "note": ""
+    },
+    {
+      "name": "bookshelf_full",
+      "file": "bookshelf_full.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        39
+      ],
+      "note": ""
+    },
+    {
+      "name": "wall_picture",
+      "file": "wall_picture.png",
+      "frame_size": [
+        16,
+        12
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        11
+      ],
+      "note": ""
+    },
+    {
+      "name": "broom",
+      "file": "broom.png",
+      "frame_size": [
+        8,
+        24
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        4,
+        23
+      ],
+      "note": ""
+    },
+    {
+      "name": "window_sill_flower",
+      "file": "window_sill_flower.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        15
+      ],
+      "note": ""
+    },
+    {
+      "name": "home_window_night",
+      "file": "home_window_night.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "home_window_day",
+      "file": "home_window_day.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        31
+      ],
+      "note": ""
+    }
+  ]
+}

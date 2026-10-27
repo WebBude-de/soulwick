@@ -214,19 +214,23 @@ func test_remote_copies_do_not_emit_global_weapon_events() -> void:
 	assert_signal_emitted(EventBus, "weapon_changed")
 
 
-func test_village_damage_bonus_only_from_the_local_save_in_single_player() -> void:
-	SaveManager.set_meta_level(MetaProgression.SHARPNESS, 2)
+func test_forge_bonus_comes_from_the_snapshot_at_the_player() -> void:
+	# KE4: no global damage bonus any more; "Waffe schmieden" is per weapon and stored at the player
+	# (solo the own save, in a quick game the host applies each player's lobby snapshot), so the
+	# host's save never reaches the other players' copies (D-081).
 	var player := _player(true)
-	var solo_damage := player.weapon_controller.get_effective_damage(SWORD)
-	assert_almost_eq(player.weapon_controller.get_meta_damage_bonus(), MetaProgression.get_damage_bonus(), 0.0001, "solo: own forge")
-	var owner_node := SessionOwner.new()
-	owner_node.game_mode = GameMode.quick(2)
-	add_child_autofree(owner_node)
-	owner_node.add_to_group(GameMode.OWNER_GROUP)
-	assert_eq(player.weapon_controller.get_meta_damage_bonus(), 0.0, "D-081: quick games without village bonuses")
-	assert_lt(player.weapon_controller.get_effective_damage(SWORD), solo_damage)
-	owner_node.remove_from_group(GameMode.OWNER_GROUP)
-	SaveManager.set_meta_level(MetaProgression.SHARPNESS, 0)
+	var sword := player.weapon_controller.get_active_weapon()
+	assert_eq(player.weapon_controller.get_meta_damage_bonus(sword), 0.0, "no snapshot: no forge")
+	var snapshot := MetaProgression.sanitize_snapshot({})
+	snapshot["weapons"][String(sword.id)] = 2
+	MetaProgression.set_player_forge(player, snapshot)
+	assert_almost_eq(player.weapon_controller.get_meta_damage_bonus(sword), MetaProgression.weapon_damage_bonus_at(2), 0.0001,
+			"the player's own snapshot counts")
+	assert_almost_eq(player.weapon_controller.get_meta_damage_bonus(), MetaProgression.weapon_damage_bonus_at(2), 0.0001,
+			"no weapon: the active one (spells)")
+	var copy := _player(false)
+	copy.weapon_controller.equip_weapon(sword, 0)
+	assert_eq(copy.weapon_controller.get_meta_damage_bonus(sword), 0.0, "another copy keeps its own (none)")
 
 
 ## Stand-in for the WorldController: any node of the owner group with a game_mode property.

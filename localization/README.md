@@ -1,6 +1,6 @@
 # localization/ – Sprachen im Spiel (D-111)
 
-Englisch ist Standard, Deutsch die zweite Sprache. Die Sprache kommt aus dem System (`auto`) oder aus den Optionen (`GameOptions.LANGUAGE`). Konzept, Schlüsselschema und Backlog: [docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md](../docs/KONZEPT_SPRACHEN_EINSTELLUNGEN.md).
+Englisch ist Standard, Deutsch die zweite Sprache. Die Sprache kommt aus dem System (`auto`) oder aus den Optionen (`GameOptions.LANGUAGE`). Konzept, Schlüsselschema und Backlog: [docs/SPRACHEN.md](../docs/SPRACHEN.md).
 
 | Datei | Zweck |
 | --- | --- |

@@ -162,6 +162,18 @@ func register_player(player: Player) -> void:
 	if player == null or players.has(player):
 		return
 	players.append(player)
+	# Every player gets their own Flint (WK1, D-198): companion and centre of their light circle.
+	FlintCompanion.attach_to(player)
+	# KE7: the spells live at the player (cast by Flint); without spell talents they do nothing.
+	var spells := PlayerSpells.attach_to(player)
+	if player.is_local and spells != null:
+		# WK8: the first spell shown here (own cast or the host's event), Flint explains it once.
+		spells.spell_shown.connect(func(_id: StringName, _aim: Vector2, _from_event: bool) -> void:
+			FlintExplanations.spell(player))
+	# WK8: first-time hints in the village (rank, talent point), for the local player only. The
+	# village is told by its dungeon_requested signal, like VillageUI does.
+	if player.is_local and _world != null and _world.has_signal(&"dungeon_requested"):
+		FlintExplanations.on_village_arrival.call_deferred(player)
 	if _world != null and _world.has_method(&"on_player_spawned"):
 		_world.on_player_spawned(player)
 	if player.is_local and local_player == null:
@@ -211,6 +223,9 @@ func _on_run_ended(_reason: int, _remaining: int, _payout: int) -> void:
 	var choice := await game_ui.show_run_end(RunManager.get_last_summary())
 	# A relay room goes back to the shared village; the host starts the next run there (MP3).
 	var new_run := choice == GameUI.RUN_END_NEW_RUN and not game_mode.is_networked()
+	if new_run:
+		# The entrance is skipped: the own danger level, already counting the run that just ended (KE1).
+		RunManager.set_danger_level(AccountProgress.current().get_danger_level())
 	load_world(dungeon_scene if new_run else village_scene)
 
 

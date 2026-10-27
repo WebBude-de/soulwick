@@ -1,0 +1,40 @@
+{
+  "name": "dog",
+  "frame_size": [
+    16,
+    16
+  ],
+  "pivot": [
+    8,
+    15
+  ],
+  "facing": "right",
+  "flip_h_for_left": true,
+  "anchors": {},
+  "notes": [
+    "Brauner Dorfhund, Füße auf y=15. react: Schwanz wedelt, Zunge."
+  ],
+  "animations": [
+    {
+      "name": "idle",
+      "file": "dog_idle_4f.png",
+      "frames": 4,
+      "fps": 4,
+      "loop": true
+    },
+    {
+      "name": "walk",
+      "file": "dog_walk_6f.png",
+      "frames": 6,
+      "fps": 8,
+      "loop": true
+    },
+    {
+      "name": "react",
+      "file": "dog_react_4f.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": false
+    }
+  ]
+}

@@ -93,7 +93,7 @@ func set_preset(value: Preset) -> void:
 			# Glinting drips: short, falling, blinking.
 			_configure_accent(14, 1.4, Vector2(0, 1), 8.0, 30.0, 60.0, Vector2(0, 160), Color(0.7, 1.0, 0.95, 0.85), 2.0, true)
 		Preset.WISPS:
-			_configure(24, 6.0, Vector2(0, -1), 90.0, 8.0, 20.0, Vector2(0, -4), Color(0.7, 0.5, 1.0, 0.45), 3.0)
+			_configure(24, 6.0, Vector2(0, -1), 90.0, 8.0, 20.0, Vector2(0, -4), Color(0.7, 0.5, 1.0, 0.45), 4.0)
 			# Soul sparks rising slowly.
 			_configure_accent(10, 4.0, Vector2(0, -1), 25.0, 10.0, 24.0, Vector2(0, -6), Color(0.62, 0.72, 1.0, 0.7), 2.0, true)
 		Preset.EMBERS:
@@ -119,11 +119,15 @@ func _configure(count: int, life: float, dir: Vector2, spread_deg: float, speed_
 	gravity = grav
 	scale_amount_min = pixel
 	scale_amount_max = pixel
+	# Fades in and out in hard steps (pixel art, D-218).
 	var ramp := Gradient.new()
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	ramp.set_color(0, Color(color_value, 0.0))
 	ramp.set_color(1, Color(color_value, 0.0))
+	ramp.add_point(0.1, Color(color_value, color_value.a * 0.5))
 	ramp.add_point(0.2, color_value)
-	ramp.add_point(0.8, color_value)
+	ramp.add_point(0.8, Color(color_value, color_value.a * 0.5))
+	ramp.add_point(0.9, Color(color_value, color_value.a * 0.25))
 	color_ramp = ramp
 
 
@@ -139,8 +143,9 @@ func _configure_accent(count: int, life: float, dir: Vector2, spread_deg: float,
 	_accent.gravity = grav
 	_accent.scale_amount_min = pixel
 	_accent.scale_amount_max = pixel
+	# Hard steps only (pixel art, D-218): blinking glints or a stepped fade.
 	var ramp := Gradient.new()
-	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT if blink else Gradient.GRADIENT_INTERPOLATE_LINEAR
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	ramp.set_color(0, Color(color_value, 0.0))
 	ramp.set_color(1, Color(color_value, 0.0))
 	if blink:
@@ -150,4 +155,5 @@ func _configure_accent(count: int, life: float, dir: Vector2, spread_deg: float,
 	else:
 		ramp.add_point(0.05, color_value)
 		ramp.add_point(0.6, Color(color_value, color_value.a * 0.7))
+		ramp.add_point(0.8, Color(color_value, color_value.a * 0.35))
 	_accent.color_ramp = ramp

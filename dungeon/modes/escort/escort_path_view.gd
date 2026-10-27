@@ -49,7 +49,8 @@ func build(path_tiles: Array[Vector2i]) -> void:
 			mark = sprite
 		else:
 			var dot := Polygon2D.new()
-			dot.polygon = PackedVector2Array([Vector2(-4, 0), Vector2(0, -4), Vector2(4, 0), Vector2(0, 4)])
+			# A pixel diamond (D-218), not a smooth one.
+			dot.polygon = PixelDraw.diamond_points(2)
 			dot.color = FALLBACK_COLOR
 			dot.position = RoomTiles.tile_center(tiles[i])
 			mark = dot

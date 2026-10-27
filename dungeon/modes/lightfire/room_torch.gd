@@ -1,6 +1,6 @@
 class_name RoomTorch
 extends Node2D
-## Torch stand of "Lichtfeuer" (KONZEPT_RAEUME_V2 §3.9; before the variant "Fackelraum", A9): starts
+## Torch stand of "Lichtfeuer" (RAEUME §3.9; before the variant "Fackelraum", A9): starts
 ## unlit (torch_stand_unlit, SPRITES_V5 §3); any hit by a player (sword, arrow, blast) or E lights it
 ## for good (torch_stand_4f, SPRITES_V5 §1). A burning torch is a light for LightQuery (it holds the
 ## stone guardians). The origin is the base line of the stand; it blocks like a crate.

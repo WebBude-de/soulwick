@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Spiel starten (für Menschen: mit Fenster und Ton; Agenten nutzen die leisen Werkzeuge aus AGENTS.md §7).
+#   scripts/play            Spiel im Fenster
+#   scripts/play --editor   Godot-Editor mit dem Projekt
+#   scripts/play --coop     zwei Instanzen nebeneinander (instance=1 und instance=2, eigenes Konto je Instanz)
+#   scripts/play --web      Browser-Version auf http://localhost:3110 (tools/web_local.sh, baut bei Bedarf neu)
+#   scripts/play -- <args>  weitere Argumente ans Spiel, z. B. scripts/play -- room=ABC123
+# Online (Konto, Koop, Ranglisten) braucht `bun dev` in soulwick-platform; Solo-Runs nicht.
+# Godot-Pfad: Umgebungsvariable GODOT, sonst godot / godot4 / Flatpak org.godotengine.Godot.
+set -euo pipefail
+cd "$(dirname "$(readlink -f "$0")")/.."
+if [ -n "${GODOT:-}" ]; then godot=("$GODOT")
+elif command -v godot >/dev/null; then godot=(godot)
+elif command -v godot4 >/dev/null; then godot=(godot4)
+elif command -v flatpak >/dev/null && flatpak info org.godotengine.Godot >/dev/null 2>&1; then godot=(flatpak run org.godotengine.Godot)
+else echo "play: Godot nicht gefunden (GODOT=/pfad/zu/godot setzen)" >&2; exit 1; fi
+
+mode="${1:-}"
+case "$mode" in
+  --editor) exec "${godot[@]}" --path . -e ;;
+  --web) exec tools/web_local.sh ;;
+  --coop)
+    "${godot[@]}" --path . -- instance=1 &
+    exec "${godot[@]}" --path . -- instance=2 ;;
+  --) shift; exec "${godot[@]}" --path . -- "$@" ;;
+  "") exec "${godot[@]}" --path . ;;
+  *) echo "play: unbekannte Option $mode (--editor, --coop, --web, -- <args>)" >&2; exit 2 ;;
+esac

@@ -24,7 +24,8 @@ const MUZZLE_OFFSET := Vector2(0.0, -24.0)
 const GLOW_RADIUS := Vector2(5.0, 14.0)
 const LINE_COLOR := Color(1.0, 0.25, 0.15)
 const LINE_ALPHA := Vector2(0.2, 0.85)
-## Aim line width while the aim follows and once it holds.
+## Aim line width while the aim follows and once it holds (a PixelLine, D-218: 2 px = one art
+## pixel, 3 px = two).
 const LINE_WIDTH := Vector2(2.0, 3.0)
 ## Own glow (Enemy "Glow" light, data.light_radius) at the shot, as a multiple of its idle radius;
 ## it grows over the charge. Optics only. TESTWERT

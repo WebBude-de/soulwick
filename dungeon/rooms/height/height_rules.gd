@@ -16,6 +16,9 @@ const LADDER_SLOW := 0.55
 ## ground, so the navigation of both levels only meets at stairs. Larger than the map's edge
 ## connection margin (1 px). TESTWERT
 const NAV_INSET := 3.0
+## A path goal on a plateau keeps this much more than NAV_INSET off its edges (art px), safely inside
+## the navigation of the plateau (navigation_goal). TESTWERT
+const GOAL_INSET := 2.0
 ## Thickness of an edge wall between a surface tile and the ground beside it (art px). TESTWERT
 const EDGE_THICKNESS := 2.0
 ## Damage tags that always cross levels (shots, explosions); melee is a hit tagged "melee" without
@@ -111,14 +114,48 @@ static func keep_level(from: Vector2, destination: Vector2) -> Vector2:
 	return destination if melee_reaches(level_at(from), level_at(destination)) else from
 
 
+## Goal of a path request (EnemyNavigation): a point on a plateau close to its edge (a player pressed
+## against the edge stands with his origin over the strip without navigation) is moved into the
+## navigation of the plateau; otherwise the nearest navigation would be the ground beside it and the
+## path would lead down the stairs and round to the rock under the target. Other points unchanged.
+static func navigation_goal(point: Vector2) -> Vector2:
+	if not has_height():
+		return point
+	var tree := Engine.get_main_loop() as SceneTree
+	for node in tree.get_nodes_in_group(FIELDS_GROUP):
+		var field := node as HeightField
+		if field != null and field.is_inside_tree() and field.covers(point):
+			return field.into_surface(point, NAV_INSET + GOAL_INSET)
+	return point
+
+
+## Is point a walking goal on the level of from (a target's feet) that the navigation reaches on that
+## level (M3)? Not on the other level, not on a cliff, and no point within margin of it either: near an
+## edge the navigation of the other level can be nearer than the own one, and a path to such a point
+## leads round over the stairs. From stairs or a ladder every level counts.
+static func is_level_goal(from: Vector2, point: Vector2, margin: float) -> bool:
+	if not has_height():
+		return true
+	for offset: Vector2 in [Vector2.ZERO, Vector2(margin, 0), Vector2(-margin, 0), Vector2(0, margin), Vector2(0, -margin)]:
+		var probe := point + offset
+		if keep_level(from, probe) != probe:
+			return false
+	return true
+
+
 ## Room modes (M3b, D-189): the free tiles of a room mode (VariantSpots.free_tiles, ground only) lose
 ## the feet of the room's stairs and ladders, so no bonus chest, altar or relic ever closes the way up
-## (a chest at the foot of the only stairs would lock a player on the plateau). Returns free.
+## (a chest at the foot of the only stairs would lock a player on the plateau), and the ground tiles
+## right behind a plateau's north edge (HeightLayout.get_behind_tiles: a chest there stood on the rim
+## line and seemed to float, bug report #2d4a4686). Returns free.
 static func keep_feet_free(tiles: RoomTiles, free: Dictionary[Vector2i, bool]) -> Dictionary[Vector2i, bool]:
 	if tiles == null or not tiles.has_height():
 		return free
-	for foot in tiles.get_height_layout().get_connector_feet():
+	var layout := tiles.get_height_layout()
+	for foot in layout.get_connector_feet():
 		free.erase(foot)
+	for tile in layout.get_behind_tiles():
+		free.erase(tile)
 	return free
 
 

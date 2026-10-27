@@ -46,7 +46,7 @@ hard to master.
 - **Play anywhere.** Mouse and keyboard, gamepad or touch; Windows, Linux, macOS, Android and the
   browser.
 - **Coming with the release:** AI bosses (wish for a boss, then fight it – the clip machine) and
-  Wick, the little wick creature that keeps you company from your first run.
+  Flint, the little wick creature that keeps you company from your first run.
 - **After the release:** a party mode with mini-games head to head.
 
 <table>
@@ -139,7 +139,7 @@ follow the [Code of Conduct](CODE_OF_CONDUCT.md). Security issues go through
 ## License
 
 - **Code:** GPL-3.0-or-later, see [LICENSE](LICENSE).
-- **Content:** artwork, music and sound, the logo, the name "Soulwick" and the characters (Wick, the
+- **Content:** artwork, music and sound, the logo, the name "Soulwick" and the characters (Flint, the
   chicken) are © WebBude, all rights reserved – see [LICENSE-ASSETS.md](LICENSE-ASSETS.md). Forks
   that publish a game bring their own content and name.
 - **Videos and streams** of Soulwick are welcome, monetized ones included.

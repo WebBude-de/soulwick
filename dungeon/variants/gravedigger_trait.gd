@@ -1,6 +1,6 @@
 class_name GravediggerTrait
 extends Node2D
-## "Totengräber" as a trait of the crypt (KONZEPT_RAEUME_V2 §2, D-120; before the variant of D-114):
+## "Totengräber" as a trait of the crypt (RAEUME §2, D-120; before the variant of D-114):
 ## in crypt combat rooms some skeletons leave a bone heap when beaten. Destroyed within RISE_TIME s
 ## (walking over it, dashing through, any hit) it is gone for good; otherwise the skeleton stands up
 ## again with RISE_HEALTH_SHARE of its health - at most once. Its gold drops only on the final death.

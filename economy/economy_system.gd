@@ -14,6 +14,19 @@ static func scale_by_block(base: float, room_index: int, growth_per_block: float
 	return roundi(base * (1.0 + growth_per_block * EnemyScaling.get_block(room_index)))
 
 
+## Loot factor of danger level G (KE2): 1 + 0.05 G, for gold and soul crystals alike.
+static func danger_loot_factor(danger: int) -> float:
+	return 1.0 + EconomyConfig.LOOT_GAIN_PER_DANGER * maxi(0, danger)
+
+
+## A payout (permanent gold or crystals at the run end) with the danger bonus, rounded half up;
+## unchanged at G 0 and for nothing paid out.
+static func apply_danger_loot(amount: int, danger: int) -> int:
+	if amount <= 0:
+		return maxi(0, amount)
+	return floori(float(amount) * danger_loot_factor(danger) + 0.5 + 1e-6)
+
+
 func get_gold_drop(enemy: EnemyData, room_index: int, is_miniboss: bool) -> int:
 	var base := float(enemy.gold_drop) * config.gold_drop_factor * (config.miniboss_gold_multiplier if is_miniboss else 1.0)
 	# Every enemy drops at least 1 gold.
@@ -53,9 +66,16 @@ func generate_shop_offers(room_index: int, context: DungeonContext) -> Array[Sho
 	return offers
 
 
+## What buyer pays for offer: the offer's price minus the buyer's own Händlerfreund discount (KE5
+## trade level, MetaProgression.player_merchant_price); the host prices every purchase for the
+## player who buys, the shop shows the same number.
+static func price_for(offer: ShopOffer, buyer: Node) -> int:
+	return MetaProgression.player_merchant_price(buyer, offer.price) if offer != null else 0
+
+
 ## weapon_slot: target slot for weapon offers (needed when both slots are taken).
 func can_purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, weapon_slot := -1) -> bool:
-	if offer.sold or player == null or RunManager.get_run_gold() < offer.price:
+	if offer.sold or player == null or RunManager.get_run_gold() < price_for(offer, player):
 		return false
 	return can_deliver(offer, player, upgrades, weapon_slot)
 
@@ -82,7 +102,7 @@ func try_purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, we
 func purchase(offer: ShopOffer, player: Player, upgrades: UpgradeManager, weapon_slot := -1) -> bool:
 	if not can_purchase(offer, player, upgrades, weapon_slot):
 		return false
-	if not RunManager.try_spend_run_gold(offer.price):
+	if not RunManager.try_spend_run_gold(price_for(offer, player)):
 		return false
 	match offer.kind:
 		ShopOffer.Kind.UPGRADE:

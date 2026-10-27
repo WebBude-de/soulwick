@@ -72,6 +72,8 @@ var run: NetRun = null
 var dm: DungeonManager = null
 var is_host := false
 var enemies: NetEnemies = null
+## Flint's hints for the whole group (online/net_guide.gd).
+var group_hints: NetGuide = null
 
 ## Test and tool counters.
 var rooms_activated := 0
@@ -184,8 +186,9 @@ static func create(owner_run: NetRun, dungeon: DungeonManager) -> NetDungeon:
 
 static func signature_of(room: RoomController) -> String:
 	var tiles := room.get_node("Tiles") as RoomTiles
-	return "%s|%d|%d|%s|%s|%s|%s|%s" % [room.scene_file_path.get_file(), room.room_type, room.special_type,
-			room.position.round(), tiles.get_entrance_door(), tiles.get_exit_doors(), room.get_variant_id(), NetModes.layout_of(room)]
+	return "%s|%d|%d|%s|%s|%s|%s|%s|%s" % [room.scene_file_path.get_file(), room.room_type, room.special_type,
+			room.position.round(), tiles.get_entrance_door(), tiles.get_exit_doors(), room.get_variant_id(), NetModes.layout_of(room),
+			room.has_portal]
 
 
 static func serialize_offer(offer: ShopOffer) -> Array:
@@ -239,6 +242,9 @@ func _ready() -> void:
 	add_child(details)
 	wait_line = WaitLine.new()
 	add_child(wait_line)
+	# Flint's "first time" hints go to everybody at once (feedback #2b1a5a87).
+	group_hints = NetGuide.create(self)
+	add_child(group_hints)
 	# DungeonUI exists only once the dungeon itself is ready (this node is its child).
 	if dm.is_node_ready():
 		_hook_ui()
@@ -263,6 +269,7 @@ func _hook_ui() -> void:
 		dm.ui.revive_share_provider = func(p: Player) -> float: return get_revive_progress(p) / CoopRules.REVIVE_TIME
 		mate_pointers = MatePointers.new()
 		dm.ui.add_child(mate_pointers)
+		dm.ui.soul_gate_used.connect(_on_soul_gate_used)
 	if is_host and dm.economy != null:
 		dm.economy.purchase_hook = _host_purchase
 
@@ -488,9 +495,14 @@ func on_player_spawned(player: Player) -> void:
 	else:
 		# MP5: a mate's light circle on this screen (optics only).
 		MateLight.attach(player)
+	var spells := PlayerSpells.attach_to(player)
 	if is_host:
 		player.hurtbox.hit_received.connect(_on_player_hit_host.bind(player))
 		player.weapon_controller.weapon_changed.connect(_on_weapons_changed_host.bind(player).unbind(2))
+		# KE7: the host decides every cast; the clients get it as an event (cooldown, looks).
+		var on_cast := _on_spell_cast_host.bind(player)
+		if spells != null and not spells.spell_cast.is_connected(on_cast):
+			spells.spell_cast.connect(on_cast)
 		player.weapon_controller.active_slot_changed.connect(_on_weapons_changed_host.bind(player).unbind(1))
 	else:
 		player.hurtbox.set_invulnerable(CLIENT_INVULNERABLE, true)
@@ -499,6 +511,11 @@ func on_player_spawned(player: Player) -> void:
 			player.health.health_changed.connect(_on_local_health_changed)
 			player.weapon_controller.weapon_changed.connect(_on_local_weapon_changed)
 			player.died.connect(_on_local_downed)
+			_show_own_spells(spells)
+			# WK8: a Flint tour protects the player like an open menu; the host must know it.
+			var guide := FlintGuide.for_player(player)
+			if guide != null and not guide.protection_changed.is_connected(_on_guide_protection):
+				guide.protection_changed.connect(_on_guide_protection)
 		var peer := peer_of(player)
 		if _pending_loadouts.has(peer):
 			var args: Array = _pending_loadouts[peer]
@@ -774,10 +791,18 @@ func _start_room(room: RoomController) -> void:
 	_wait_time = 0.0
 	_send_wait(-1, [], [])
 	_gather_outside(room)
+	_end_intro_gather(room)
 	_send(&"activate_slot", [room.slot_index, room.room_index])
 	rooms_activated += 1
 	dm.enter_room(room)
 	_share_shop(room)
+
+
+## The room start brought everybody in: the intro stops waiting for the group (#88465571).
+static func _end_intro_gather(room: RoomController) -> void:
+	var intro := RoomIntro.get_intro(room)
+	if intro != null:
+		intro.end_gather()
 
 
 ## Downed players lying outside come along into the room that starts (D-128), and so do living
@@ -916,7 +941,8 @@ func _tick_revive(delta: float) -> void:
 			if other != player and other.global_position.distance_to(player.global_position) <= CoopRules.REVIVE_RADIUS:
 				near = true
 				break
-		var progress := CoopRules.revive_progress(_revive.get(peer, 0.0), near, delta)
+		# Zweites Herz (KE6): a downed player with the talent is helped up twice as fast.
+		var progress := CoopRules.revive_progress(_revive.get(peer, 0.0), near, delta * TalentEffects.revive_speed(player))
 		if progress >= CoopRules.REVIVE_TIME:
 			_revive.erase(peer)
 			_revive_player(player)
@@ -968,7 +994,7 @@ func _send_pot() -> void:
 func _on_player_hit_host(result: DamageResult, damage: DamageData, player: Player) -> void:
 	_send(&"player_hit", [peer_of(player), result.shield_damage, result.health_damage, damage.stun_duration,
 			damage.blind_duration, damage.slow_factor, damage.slow_duration, player.health.get_health(),
-			player.shield.get_shield()])
+			player.shield.get_shield(), damage.knockback])
 
 
 func _on_weapons_changed_host(player: Player) -> void:
@@ -1085,6 +1111,14 @@ func submit_protected(protected: bool) -> void:
 		player.set_protected(REMOTE_MENU, protected)
 
 
+## Client -> host: a "Flint erklärt" tour protects (or frees) the client's player (WK8).
+@rpc("any_peer", "call_remote", "reliable")
+func submit_guide_protected(protected: bool) -> void:
+	var player := _sender_player()
+	if is_host and player != null:
+		player.set_protected(FlintGuide.PROTECTION, protected)
+
+
 @rpc("any_peer", "call_remote", "reliable")
 func request_end(reason: int) -> void:
 	if is_host and _sender_player() != null and reason == RunManager.EndReason.EXIT:
@@ -1176,6 +1210,7 @@ func activate_slot(slot: int, room_number: int) -> void:
 		push_warning("NetDungeon: slot %d to activate is not prepared." % slot)
 		return
 	rooms_activated += 1
+	_end_intro_gather(room)
 	dm.enter_room(room, false)
 	RunManager.sync_room(room_number)
 
@@ -1286,7 +1321,7 @@ func player_states(data: PackedFloat32Array) -> void:
 ## The client rebuilds the hit; the statuses (stun, blind, slow) then come through Player._on_hit_received.
 @rpc("authority", "call_remote", "reliable")
 func player_hit(peer: int, shield_damage: float, health_damage: float, stun: float, blind: float, slow_factor: float,
-		slow_duration: float, health: float, shield: float) -> void:
+		slow_duration: float, health: float, shield: float, knockback := Vector2.ZERO) -> void:
 	var player := _player_of(peer)
 	if is_host or player == null or _detached:
 		return
@@ -1300,6 +1335,8 @@ func player_hit(peer: int, shield_damage: float, health_damage: float, stun: flo
 	damage.blind_duration = blind
 	damage.slow_factor = slow_factor
 	damage.slow_duration = slow_duration
+	# The own player is pushed here at once (Player.apply_knockback); the host pushes its copy too.
+	damage.knockback = knockback
 	if not player.is_downed():
 		player.hurtbox.hit_received.emit(result, damage)
 	if player.is_local:
@@ -1428,6 +1465,110 @@ func run_over(reason: int, gold: int, earned: int, crystals: int, room_number: i
 	dm.end_run(reason as RunManager.EndReason)
 
 
+# --- Spells (KE7) ---
+
+## Host: a player's cast (its own or a client's, decided here from the input bits) to every client.
+func _on_spell_cast_host(spell_id: StringName, slot: int, aim: Vector2, cooldown: float, player: Player) -> void:
+	_send(&"spell_cast_net", [peer_of(player), String(spell_id), slot, aim, cooldown])
+
+
+## Host -> client: peer's player cast spell_id (cooldown and looks here, the result comes from the host).
+@rpc("authority", "call_remote", "reliable")
+func spell_cast_net(peer: int, spell_id: String, slot: int, aim: Vector2, cooldown: float) -> void:
+	if is_host or _detached:
+		return
+	var spells := PlayerSpells.of(_player_of(peer))
+	if spells != null:
+		spells.play_remote_cast(StringName(spell_id), slot, aim, cooldown)
+
+
+## Client: the HUD shows the own spells before the first cast (the host runs the talents from the
+## lobby profile, NetPlayers; guild runs have no solo talents).
+func _show_own_spells(spells: PlayerSpells) -> void:
+	if spells == null or GameMode.of(self).kind == GameMode.Kind.GUILD:
+		return
+	var loadout := SpellEffects.loadout_of(TalentEffects.resolve(AccountTalents.load_state()))
+	if not loadout.is_empty():
+		spells.set_loadout(loadout)
+
+
+# --- Soul gate (KE3) ---
+
+## The local player stands at the soul gate or decided there: every other machine shows
+## "<Name> steht am Seelentor …" (DungeonUI.show_soul_gate_notice); the run end itself goes over end_run.
+func _on_soul_gate_used(player: Player, phase: StringName) -> void:
+	if _detached or player == null or not player.is_local:
+		return
+	if is_host:
+		_relay_soul_gate(peer_of(player), phase)
+	else:
+		_send_host(&"soul_gate_report", [String(phase)])
+
+
+## Host: the notice of peer's gate moment to every ready client but peer itself.
+func _relay_soul_gate(peer: int, phase: StringName) -> void:
+	if not is_host or _detached or not _has_session():
+		return
+	var player_name := names_of([peer])
+	for target in _ready_peers:
+		if target != peer:
+			rpc_id(target, &"soul_gate_notice", player_name, String(phase))
+
+
+## Client -> host: the client's player is at the soul gate (phase: DungeonUI.SOUL_GATE_*).
+@rpc("any_peer", "call_remote", "reliable")
+func soul_gate_report(phase: String) -> void:
+	if not is_host or _detached:
+		return
+	var peer := multiplayer.get_remote_sender_id()
+	if dm.ui != null:
+		dm.ui.show_soul_gate_notice(names_of([peer]), StringName(phase))
+	_relay_soul_gate(peer, StringName(phase))
+
+
+## Host -> client: a teammate is at the soul gate.
+@rpc("authority", "call_remote", "reliable")
+func soul_gate_notice(player_name: String, phase: String) -> void:
+	if is_host or _detached or dm.ui == null:
+		return
+	dm.ui.show_soul_gate_notice(player_name, StringName(phase))
+
+
+# --- Rückkehrstein (KE5) ---
+
+## Client: the own player breaks its return stone; the host decides (DungeonManager.use_return_stone).
+func request_return_stone() -> void:
+	_send_host(&"return_stone_request")
+
+
+## Client -> host: the sender's player wants its return stone.
+@rpc("any_peer", "call_remote", "reliable")
+func return_stone_request() -> void:
+	var player := _sender_player()
+	if is_host and not _detached and player != null:
+		dm.use_return_stone(player)
+
+
+## Host: player's stone opened a gate in room; every client opens it too and marks the stone used.
+func on_return_stone_used(player: Player, room: RoomController) -> void:
+	if is_host and room != null:
+		_send(&"return_gate_net", [room.slot_index, peer_of(player), player.global_position])
+
+
+## Host -> client: the return stone of peer's player opened a gate in the room of slot.
+@rpc("authority", "call_remote", "reliable")
+func return_gate_net(slot: int, peer: int, at: Vector2) -> void:
+	if is_host or _detached:
+		return
+	var room := dm.get_room_at_slot(slot)
+	if room == null:
+		return
+	# The host checked the rules; a client's copy of the room may lag a step behind them.
+	if SoulGate.open_return_gate(room, false, at) == null and not room.has_portal:
+		room.spawn_exit_portal()
+	MetaProgression.mark_return_stone_used(_player_of(peer))
+
+
 # --- Host: own purchases ---
 
 ## Host: its own purchase in the shop or at the merchant; a sold offer is sold for everybody (MP5:
@@ -1489,6 +1630,11 @@ func _on_local_upgrade(upgrade: UpgradeData, _stacks: int) -> void:
 func _on_pause_changed(menus_open: bool) -> void:
 	if not _detached:
 		_send_host(&"submit_protected", [menus_open])
+
+
+func _on_guide_protection(protected: bool) -> void:
+	if not _detached:
+		_send_host(&"submit_guide_protected", [protected])
 
 
 func _on_local_downed() -> void:
@@ -1613,6 +1759,11 @@ func _passage_views() -> Array[DoorView]:
 			if is_instance_valid(door) and door.view != null and not door.view.get_lintel().is_empty():
 				views.append(door.view)
 	return views
+
+
+## Every player of this world (local and remote), for NetGuide.
+func get_all_players() -> Array[Player]:
+	return _all_players()
 
 
 func _all_players() -> Array[Player]:

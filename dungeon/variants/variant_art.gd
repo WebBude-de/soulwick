@@ -1,6 +1,6 @@
 class_name VariantArt
 extends RefCounted
-## Art of the combat variants and the wager altar (docs/design/sprites/SPRITES_V5.md §3, delivered in
+## Art of the combat variants and the wager altar (docs/design/sprites/delivered/SPRITES_V5.md §3, delivered in
 ## art/environment/variants/, variants.json), also of the light variants (A9: stone guardian,
 ## soul lantern, lantern socket, unlit torch stand). Loads the file by name and draws a simple pixel
 ## placeholder with the same frame layout if it is missing. Placeholders use fixed shapes (pure

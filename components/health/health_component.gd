@@ -7,6 +7,10 @@ signal died
 
 @export var max_health := 6.0
 
+## Asked once a hit would kill (KE6, Zweites Herz via PlayerTalents): returns the HP to stay up with,
+## 0 to fall. Empty = no last chance.
+var death_guard: Callable = Callable()
+
 var _current := 0.0
 var _is_dead := false
 var _initialized := false
@@ -56,6 +60,13 @@ func take_damage(amount: float) -> float:
 		return 0.0
 	var applied := minf(amount, _current)
 	_current -= applied
+	if _current <= 0.0:
+		# A last chance from the owner (Zweites Herz, KE6): HP to stand up with, 0 = falls.
+		var rescue: float = death_guard.call() if death_guard.is_valid() else 0.0
+		if rescue > 0.0:
+			_current = minf(rescue, max_health)
+			health_changed.emit(_current, max_health)
+			return applied
 	health_changed.emit(_current, max_health)
 	if _current <= 0.0:
 		_is_dead = true

@@ -11,13 +11,17 @@ extends CanvasLayer
 ##   TouchInput, so the touch aim assist for ranged weapons (D-155, like the gamepad D-163) applies.
 ## - side view: A jumps, B side dash, X special, Y attacks, a second small button next to Benutzen
 ##   switches the weapon (like the landscape touch layout there).
+## - both views: a small Zauber button above and outside the face buttons (like a shoulder button)
+##   casts the spell (KE7, PlayerSpells.ACTION; shown only while the local player has one, with the
+##   spell's symbol).
 ## - menus (and everywhere without a playing local player, e.g. the main menu): the D-pad sends
 ##   ui_up/down/left/right, A ui_accept, B ui_cancel (a gamepad in the hand), Start/Select their
 ##   actions; for NAV_GUARD_MSEC after a menu opened the buttons stay quiet (A is also the attack).
 ## Writes the device's TouchState like the landscape TouchOverlay (which hides in portrait), so
 ## TouchInput, cooldowns and the co-op input path stay the same (D-088: state per device, no player
 ## lookup). Options: "Seiten tauschen" puts the D-pad right and the buttons left, "Größe" picks the
-## art pixel size; opacity is always 100 % (the casing is no overlay), "Joysticks" does not apply.
+## art pixel size (D-219: millimetres on the real screen, art_pixel); opacity is always 100 % (the
+## casing is no overlay), "Joysticks" does not apply.
 ## Looks: pixel art at whole window pixels per art pixel; files from art/ui/touch/ (SPRITES_V10 §10)
 ## replace the drawn placeholders (PortraitPixelArt), icons are the touch icons (TouchArt).
 
@@ -26,9 +30,18 @@ const PixelArt := preload("res://ui/touch/portrait_pixel_art.gd")
 
 ## Above every overlay of the game screen (side transit 90); below the dev feedback (119, 120).
 const LAYER := 100
-## Art pixel = floor(window width / columns) window pixels, per size option small/medium/large.
+## Size steps small, medium, large (D-219, TESTWERT): wanted width of the A/B buttons in mm on the
+## real screen (TouchMetrics), at least floor(window width / ART_COLUMNS) window pixels per art
+## pixel (the sizes before D-219), at most what fits: WIDTH_PER_PIXEL window pixels of width and
+## FIELD_ART_ROWS art pixels of field height per art pixel (face buttons, D-pad, top row and
+## Select/Start without overlaps).
+const TARGET_BIG_MM: Array[float] = [10.0, 12.0, 14.0]
 const ART_COLUMNS: Array[int] = [200, 176, 150]
+const WIDTH_PER_PIXEL := 131.0
+const FIELD_ART_ROWS := 104.0
 const MIN_ART_PIXEL := 2
+## Every round button takes a finger at least this wide (mm; D-219, TESTWERT), outside the D-pad.
+const MIN_TOUCH_MM := 12.0
 ## Layout in art pixels (TESTWERTE): main row (D-pad, face buttons) at this share of the field
 ## height, the D-pad and the face buttons at these shares of the width.
 const MAIN_ROW_SHARE := 0.46
@@ -71,6 +84,11 @@ const USE: StringName = &"use"
 const WEAPON: StringName = &"weapon"
 const START: StringName = &"start"
 const SELECT: StringName = &"select"
+## Cast button (KE7).
+const SPELL: StringName = &"spell"
+## Cast button relative to the centre of the face buttons (art pixels, outwards and up; mirrored
+## with swapped sides): clear of A and X, inside the field.
+const SPELL_OFFSET := Vector2(24, -26)
 const FACE_BUTTONS: Array[StringName] = [A, B, X, Y]
 const PAUSE: StringName = &"pause_menu"
 const OVERVIEW: StringName = &"upgrade_overview"
@@ -85,11 +103,15 @@ var state: TouchState
 ## off and call set_options().
 var follow_options := true
 var swap_sides := false
-var size_step := 1
+var size_step := 2
+## Millimetres per window pixel; 0 = from the device (TouchMetrics). Tests and previews set it.
+var mm_per_px := 0.0
 ## {id, center (window px), size (art px), kind, art} of the buttons shown right now.
 var buttons: Array[Dictionary] = []
 ## The local player plays (else menu navigation).
 var playing := false
+## Spell on the cast button (&"" = hidden), from the local player's PlayerSpells.
+var spell_shown: StringName = &""
 
 var _frame: PortraitLayout.Frame = null
 var _pixel := 6
@@ -136,6 +158,7 @@ func _process(delta: float) -> void:
 		set_options(GameOptions.is_touch_swap_sides(), GameOptions.get_touch_size())
 	set_frame(frame)
 	refresh_mode()
+	_read_spell()
 	_repeat_nav(delta)
 	_view.queue_redraw()
 
@@ -168,7 +191,7 @@ func set_frame(frame: PortraitLayout.Frame) -> void:
 			_release_everything()
 	_layout_key = key
 	_side_view = state.side_view
-	_pixel = art_pixel(frame.window.x, size_step)
+	_pixel = fitted_pixel(frame, size_step, _mm())
 	var layout := layout_controls(frame, _pixel, swap_sides, _side_view)
 	_dpad_center = layout.dpad
 	buttons.assign(layout.buttons)
@@ -193,9 +216,30 @@ func refresh_mode() -> void:
 
 # --- Layout (window pixels) ---
 
-## Window pixels per art pixel for a window width and size step.
-static func art_pixel(window_width: float, step: int) -> int:
-	return maxi(MIN_ART_PIXEL, floori(window_width / float(ART_COLUMNS[clampi(step, 0, ART_COLUMNS.size() - 1)])))
+## Window pixels per art pixel for a window width and size step at mm_per_window_px (0 = a typical
+## phone, TouchMetrics): the A/B buttons TARGET_BIG_MM wide, never smaller than before D-219, never
+## wider than the field allows.
+static func art_pixel(window_width: float, step: int, mm_per_window_px := 0.0) -> int:
+	step = clampi(step, 0, ART_COLUMNS.size() - 1)
+	var before := maxi(MIN_ART_PIXEL, floori(window_width / float(ART_COLUMNS[step])))
+	var mm := mm_per_window_px if mm_per_window_px > 0.0 else TouchMetrics.MM_PER_INCH / TouchMetrics.REFERENCE_DPI
+	var wanted := roundi(TARGET_BIG_MM[step] / (float(PixelArt.BUTTON_BIG_SIZE) * mm))
+	var widest := maxi(before, floori(window_width / WIDTH_PER_PIXEL))
+	return clampi(wanted, before, widest)
+
+
+## art_pixel() for a frame, also within the height of its controller field.
+static func fitted_pixel(frame: PortraitLayout.Frame, step: int, mm_per_window_px := 0.0) -> int:
+	var pixel := art_pixel(frame.window.x, step, mm_per_window_px)
+	var tallest := floori((frame.pad_bottom() - frame.pad_top()) / FIELD_ART_ROWS)
+	return maxi(MIN_ART_PIXEL, mini(pixel, tallest))
+
+
+## Millimetres per window pixel: the set value, else the device's.
+func _mm() -> float:
+	if mm_per_px > 0.0:
+		return mm_per_px
+	return TouchMetrics.mm_per_window_px(_frame.window if _frame != null else Vector2.ZERO)
 
 
 ## {dpad: centre, main_y, buttons: [{id, center, size, kind, art}]} in window pixels for a frame.
@@ -222,6 +266,8 @@ static func layout_controls(frame: PortraitLayout.Frame, pixel: int, swap: bool,
 		result.append(_button(USE, top_row + Vector2(SIDE_TOP_SPREAD * p, 0), Kind.SMALL, PixelArt.BUTTON_SMALL))
 	else:
 		result.append(_button(USE, top_row, Kind.SMALL, PixelArt.BUTTON_SMALL))
+	var outwards := -1.0 if swap else 1.0
+	result.append(_button(SPELL, face + Vector2(SPELL_OFFSET.x * outwards, SPELL_OFFSET.y) * p, Kind.SMALL, PixelArt.BUTTON_SMALL))
 	var select_row := Vector2(width * 0.5, main_y + SELECT_ROW_GAP * p).round()
 	result.append(_button(SELECT, select_row - Vector2(SELECT_SPREAD * p, 0), Kind.FLAT, PixelArt.BUTTON_FLAT))
 	result.append(_button(START, select_row + Vector2(SELECT_SPREAD * p, 0), Kind.FLAT, PixelArt.BUTTON_FLAT))
@@ -251,6 +297,8 @@ static func action_of(id: StringName, side_view: bool) -> StringName:
 			return PlayerInput.INTERACT
 		WEAPON:
 			return PlayerInput.SWITCH_WEAPON
+		SPELL:
+			return PlayerSpells.ACTION
 		START:
 			return PAUSE
 		SELECT:
@@ -287,6 +335,8 @@ static func icon_of(action: StringName, side_view: bool) -> StringName:
 			return TouchArt.ICON_SWITCH
 		PlayerInput.INTERACT:
 			return TouchArt.ICON_INTERACT
+		PlayerSpells.ACTION:
+			return TouchArt.ICON_SPELL
 	return &""
 
 
@@ -396,23 +446,45 @@ func handle_drag(index: int, position: Vector2) -> bool:
 	return at.y >= _frame.pad_top()
 
 
-## The button under a window position (touch area BUTTON_GRAB × its half size; the nearest wins).
+## The button under a window position (touch area BUTTON_GRAB × its half size, round buttons at
+## least MIN_TOUCH_MM wide outside the drawn D-pad; the nearest wins).
 func button_at(at: Vector2) -> Dictionary:
 	var best: Dictionary = {}
 	var best_distance := INF
+	var min_radius := TouchMetrics.px(MIN_TOUCH_MM, _mm()) * 0.5
+	var on_dpad := absf(at.x - _dpad_center.x) <= dpad_half() and absf(at.y - _dpad_center.y) <= dpad_half()
 	for button in buttons:
+		if not is_button_active(button):
+			continue
 		var size: Vector2 = button.size * float(_pixel)
 		var center: Vector2 = button.center
 		var hit := false
 		if button.kind == Kind.FLAT:
 			hit = Rect2(center - size * 0.5, size).grow(size.y * (BUTTON_GRAB - 1.0) + float(_pixel) * 2.0).has_point(at)
 		else:
-			hit = at.distance_to(center) <= size.x * 0.5 * BUTTON_GRAB
+			var grab := size.x * 0.5 * BUTTON_GRAB
+			hit = at.distance_to(center) <= (grab if on_dpad else maxf(grab, min_radius))
 		var distance := at.distance_to(center)
 		if hit and distance < best_distance:
 			best = button
 			best_distance = distance
 	return best
+
+
+## Every button but the cast button while the local player has no spell.
+func is_button_active(button: Dictionary) -> bool:
+	return button.id != SPELL or spell_shown != &""
+
+
+## The cast button shows the local player's first spell (display only; the press goes through the
+## TouchState like every button, PlayerSpells picks the slot).
+func set_spell(spells: PlayerSpells) -> void:
+	spell_shown = spells.get_spell(0) if spells != null else &""
+
+
+func _read_spell() -> void:
+	var player := Hud.local_player(get_tree()) if is_inside_tree() else null
+	set_spell(PlayerSpells.of(player) if player != null else null)
 
 
 ## Half the drawn size of the D-pad in window pixels.
@@ -597,7 +669,8 @@ func _draw_pad() -> void:
 	_draw_print()
 	_draw_dpad()
 	for button in buttons:
-		_draw_button(button)
+		if is_button_active(button):
+			_draw_button(button)
 
 
 func _to_view_rect(rect: Rect2) -> Rect2:
@@ -724,6 +797,8 @@ func _draw_button(button: Dictionary) -> void:
 	var share := state.cooldown_share(action) if playing else 0.0
 	var cooling := share > 0.0 and not held
 	var icon := TouchArt.attack_sprite(state.weapon_type) if action == PlayerInput.ATTACK else TouchArt.icon_sprite(icon_of(action, _side_view))
+	if id == SPELL:
+		icon = SpellArt.icon(spell_shown)
 	var icon_pixel := _pixel if kind == Kind.BIG else maxi(1, roundi(_pixel * 0.75))
 	_draw_sprite(icon, face, icon_pixel, TouchArt.TINT_DISABLED if cooling else Color.WHITE)
 	if cooling:

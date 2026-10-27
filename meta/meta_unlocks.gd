@@ -2,9 +2,10 @@ class_name MetaUnlocks
 extends RefCounted
 ## Village unlocks (D-087): which buildings and forge upgrades are open, the progress events that
 ## open them and the short "Neu freigeschaltet" message shown once in the village afterwards.
-## A fresh save starts with the forge (Vitalität, Startschild, Schärfe), the guild, home and the
-## dungeon. Chronik opens after the first run, Handelsposten with the first Seelenkristall, Goldgier,
-## Dash-Training and Arsenal after the first defeated boss.
+## A fresh save starts with the forge (Waffe schmieden for every weapon, Schildplatte, Laterne; KE4),
+## the guild, home and the dungeon. Chronik opens after the first run, Handelsposten with the first
+## Seelenkristall, Arsenal and the second start slot after the first defeated boss (TESTWERT: like the
+## old Arsenal, D-087).
 ## Events are stored in the save as ids in [progress] unlocked (SaveManager.unlock_content) and are
 ## never taken back. Saves from before v3 get every event in SaveManager.migrate() ("alles
 ## freigeschaltet", D-087) and their announcements count as already shown.
@@ -27,9 +28,11 @@ const BUILDING_EVENTS := {
 }
 ## Forge upgrade id (MetaProgression) -> event that opens it. Upgrades not listed are open from the start.
 const UPGRADE_EVENTS := {
-	&"gold_greed": EVENT_FIRST_BOSS,
-	&"dash_training": EVENT_FIRST_BOSS,
-	&"arsenal": EVENT_FIRST_BOSS,
+	&"arsenal_bow": EVENT_FIRST_BOSS,
+	&"arsenal_staff": EVENT_FIRST_BOSS,
+	&"arsenal_dagger": EVENT_FIRST_BOSS,
+	&"arsenal_hammer": EVENT_FIRST_BOSS,
+	&"second_slot": EVENT_FIRST_BOSS,
 }
 ## When an event happens, as the end of "Öffnet …" (lock label at the door, door prompt) and of
 ## "Weitere Verbesserungen öffnen …" (forge). Translation keys (D-111).
@@ -166,7 +169,8 @@ static func get_announce_key(event: StringName) -> StringName:
 	return StringName(ANNOUNCED_PREFIX + String(event).trim_prefix(EVENT_PREFIX))
 
 
-## What opened with an event, e.g. "Chronik" or "Schmiede: Goldgier, Dash-Training und Arsenal".
+## What opened with an event, e.g. "Chronik" or "Schmiede: Arsenal und Zweiter Startplatz" (forge
+## upgrades by group: the four Arsenal entries are one "Arsenal").
 static func describe_event(event: StringName) -> String:
 	var buildings: Array[String] = []
 	for id in BUILDING_EVENTS:
@@ -174,8 +178,9 @@ static func describe_event(event: StringName) -> String:
 			buildings.append(VillageBuildings.get_display_name(id))
 	var upgrades: Array[String] = []
 	for id in MetaProgression.UPGRADE_ORDER:
-		if UPGRADE_EVENTS.get(id, &"") == event:
-			upgrades.append(MetaProgression.get_upgrade_name(id))
+		var group := MetaProgression.get_upgrade_group(id)
+		if UPGRADE_EVENTS.get(id, &"") == event and not upgrades.has(group):
+			upgrades.append(group)
 	var parts: Array[String] = []
 	if not buildings.is_empty():
 		parts.append(join_names(buildings))

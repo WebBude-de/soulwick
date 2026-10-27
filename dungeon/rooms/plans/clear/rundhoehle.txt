@@ -1,6 +1,7 @@
 # Makeover 3, Mockup 26 (Rundhoehle): runder Umriss, Felsblock links, Empore rechts oben (M3:
 # Plateau mit Treppe in der Klippe), Kristall; Nordplatz links fuer eine Abzweigung.
 # M3b: oben auf der Empore ein Grab (Druck von oben, D-189).
+# CR6 (D-205): die Empore steht frei, ringsum eine Kachel Boden (halbe Hoehe, nie an der Wand).
 role: combat
 mode: clear
 mirror: yes
@@ -12,11 +13,11 @@ size: 23x13
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxN#T#####N######xxxx
-xxx...:......,,^^^^xxxx
+xxx...:......,,.....xxx
 xx....::.G.....^^G^..xx
 xx...G.........^^^^..xx
-xx.............^&^^..xx
-xxx....###...........xx
+xx.............^^^^..xx
+xxx....###.....^&^^..xx
 xxxx..C###.k..,,..G.xxx
 xxxxx......@,,.G...xxxx
 xxxxxxx..........xxxxxx

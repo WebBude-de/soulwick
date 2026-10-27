@@ -2,6 +2,8 @@ extends GutTest
 ## Account level (D-188, KF2): the curve 50·L·(L−1) and the XP of a run as pure functions, entries
 ## per run id exactly once in progress.cfg (daily bonus, caps, record), the first file takes the
 ## worlds' record, pending entries and the profile values for the later server sync (KF4).
+## KE1: XP × (1 + 0.05 · G), the danger level in every entry, talent points (level − 1, spent ones
+## from a replaceable source), the last 5 runs for DangerRank and the account state store.
 ## progress.cfg lives in a test folder (SaveManager.set_storage_root / path_override), never the
 ## real one (AGENTS.md rule 4).
 
@@ -201,7 +203,8 @@ func test_daily_cap_and_pending_entries() -> void:
 	progress.mark_synced(["big-0", "big-1"], 4000)
 	assert_eq(progress.get_pending_entries().size(), 9)
 	assert_eq(progress.get_total_xp(), maxi(progress.xp, 4000 + progress.get_pending_xp()))
-	assert_eq(progress.to_profile(), {"xp": progress.get_total_xp(), "level": progress.get_level()})
+	assert_eq(progress.to_profile(), {"xp": progress.get_total_xp(), "level": progress.get_level(),
+		"danger": progress.get_danger_level(), "rank": {"tier": "spark", "step": progress.get_danger_level() + 1}})
 
 
 func test_entries_carry_the_contract_fields_for_the_sync() -> void:
@@ -213,8 +216,8 @@ func test_entries_carry_the_contract_fields_for_the_sync() -> void:
 	assert_eq(sent[0], {
 		"runId": "0b6c6a8e-3a7d-4c1e-9d43-1f2a3b4c5d6e", "endedAt": "2026-10-18T12:00:00Z", "durationSeconds": 754,
 		"gameVersion": AccountProgress.game_version(), "rooms": 14, "champions": 2, "bosses": 1, "deepestRoom": 16,
-		"endReason": "portal", "players": 2,
-	}, "POST /me/xp entry (KF3 XpEntry)")
+		"endReason": "portal", "players": 2, "danger": 0,
+	}, "POST /me/xp entry (KF3 XpEntry, danger KF3b)")
 	assert_eq(RunRecap.xp_end_reason(RunManager.EndReason.DEATH), "wiped")
 	assert_eq(RunRecap.xp_end_reason(RunManager.EndReason.ABORT), "abandoned")
 	AccountProgress.reset()
@@ -266,3 +269,83 @@ func test_run_ids_are_unique_uuids() -> void:
 		assert_not_null(pattern.search(id), id)
 		ids[id] = true
 	assert_eq(ids.size(), 50)
+
+
+# --- KE1: danger level, talent points, account state ---
+
+func test_danger_adds_five_percent_per_level_after_the_coop_bonus() -> void:
+	var plain := AccountProgress.compute_run_xp({"rooms_cleared": 10, "players": 2})
+	var hard := AccountProgress.compute_run_xp({"rooms_cleared": 10, "players": 2, "danger": 4})
+	assert_eq(plain["xp"], 60)
+	assert_eq(_part(hard, AccountProgress.PART_DANGER), 12, "60 · 20 % (G 4)")
+	assert_eq(hard["xp"], 72)
+	var odd := AccountProgress.compute_run_xp({"rooms_cleared": 7, "danger": 3})
+	assert_eq(_part(odd, AccountProgress.PART_DANGER), 5, "35 · 15 % = 5.25, rounded down")
+	var capped := AccountProgress.compute_run_xp({"rooms_cleared": 390, "danger": 10})
+	assert_eq(capped["xp"], AccountProgress.MAX_XP_PER_RUN, "the cap comes last")
+	assert_eq(_part(AccountProgress.compute_run_xp({"rooms_cleared": 3}), AccountProgress.PART_DANGER), 0)
+	assert_eq(AccountProgress.part_text({"id": AccountProgress.PART_DANGER, "count": 4, "xp": 12}), "Gefahr 4")
+
+
+func test_entries_keep_the_danger_level() -> void:
+	var progress := AccountProgress.current()
+	var result := progress.record_run("hard", {"rooms_cleared": 4, "room": 5, "danger": 3}, NOON)
+	assert_eq(result["xp"], 20 + 25 + 25 + 10, "rooms, record, daily, +15 % of 70 = 10")
+	assert_eq(progress.entries[0]["danger"], 3)
+	assert_eq(progress.get_pending_xp_entries()[0]["danger"], 3)
+	AccountProgress.reset()
+	assert_eq(AccountProgress.current().entries[0]["danger"], 3, "kept in the file")
+
+
+func test_talent_points_are_level_minus_one() -> void:
+	assert_eq(AccountProgress.talent_points_for_level(1), 0)
+	assert_eq(AccountProgress.talent_points_for_level(2), 1)
+	assert_eq(AccountProgress.talent_points_for_level(50), 49)
+	var progress := AccountProgress.current()
+	progress.mark_synced([], AccountProgress.xp_for_level(7))
+	assert_eq(progress.get_talent_points(), 6)
+	assert_eq(progress.get_free_points(), 6, "nothing spent without the talents")
+	AccountProgress.spent_points_source = func() -> int: return 4
+	assert_eq(progress.get_spent_points(), 4)
+	assert_eq(progress.get_free_points(), 2)
+	AccountProgress.spent_points_source = func() -> int: return 99
+	assert_eq(progress.get_free_points(), 0, "never below 0")
+	AccountProgress.spent_points_source = Callable()
+
+
+func test_danger_level_from_level_and_the_last_five_runs() -> void:
+	var progress := AccountProgress.current()
+	progress.mark_synced([], AccountProgress.xp_for_level(21))
+	assert_eq(progress.get_danger_level(), 10, "no runs: the level alone (L 21 -> 10)")
+	for i in 6:
+		progress.record_run("r-%d" % i, {"room": [50, 4, 12, 9, 30, 11][i]}, NOON + i)
+	assert_eq(progress.recent_deepest_rooms(), [11, 30, 9, 12, 4] as Array[int], "the last five, newest first (contract)")
+	assert_eq(progress.get_danger_level(), 3, "median 11 -> 3")
+	assert_eq(progress.get_rank(), {"tier": DangerRank.CANDLE, "step": 1})
+	var result := progress.record_run("deep", {"room": 40}, NOON + 10)
+	assert_eq(result["danger_before"], 3)
+	assert_eq(result["danger_after"], 3, "rooms 12, 9, 30, 11, 40: median 12 -> 3")
+	var deeper := progress.record_run("deeper", {"room": 45}, NOON + 11)
+	assert_eq(deeper["danger_after"], 7, "9, 30, 11, 40, 45: median 30 -> 7")
+	var known := progress.record_run("deeper", {"room": 1}, NOON + 12)
+	assert_eq(known["danger_before"], 7, "a known run still reports the level")
+	assert_eq(known["danger_after"], 7)
+
+
+func test_account_state_is_stored_at_once() -> void:
+	var progress := AccountProgress.current()
+	assert_eq(progress.get_state("talents"), {})
+	assert_false(progress.has_state("talents"))
+	var data := {"points": {"swift": 2}, "spell": "spark", "list": [1, 2]}
+	assert_eq(progress.set_state("talents", data), OK)
+	data["spell"] = "changed"
+	var copy := progress.get_state("talents")
+	assert_eq(copy["spell"], "spark", "set_state keeps a copy")
+	copy["points"]["swift"] = 9
+	assert_eq(progress.get_state("talents")["points"]["swift"], 2, "get_state hands out a copy")
+	AccountProgress.reset()
+	var loaded := AccountProgress.current()
+	assert_eq(loaded.get_state("talents"), {"points": {"swift": 2}, "spell": "spark", "list": [1, 2]}, "written at once")
+	loaded.record_run("keeps", {"rooms_cleared": 1}, NOON)
+	AccountProgress.reset()
+	assert_true(AccountProgress.current().has_state("talents"), "a run save keeps the state")

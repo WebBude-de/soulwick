@@ -1,6 +1,6 @@
 class_name RoomObjective
 extends Node
-## Goal of a room with gameplay of its own (KONZEPT_RAEUME_V2 §1.3/§1.4, R3): one sentence, one
+## Goal of a room with gameplay of its own (RAEUME §1.3/§1.4, R3): one sentence, one
 ## symbol, one colour and the progress the task bar at the top centre shows ("Welle 1/3 · 6 Gegner",
 ## "Flamme 70 %" + 0:27). Data only: a mode (the arena now, the minigames of R4) creates one, adds it
 ## under its room (attach) and keeps it up to date; DungeonUI finds it (node_added) and binds the
@@ -22,7 +22,7 @@ enum Progress { NONE, COUNT, RATIO }
 const GROUP: StringName = &"room_objective"
 const META_KEY: StringName = &"room_objective"
 
-# --- Mode ids (KONZEPT_RAEUME_V2 §2) ---
+# --- Mode ids (RAEUME §2) ---
 const ARENA: StringName = &"arena"
 const ESCORT: StringName = &"escort"
 const FLAME: StringName = &"flame"

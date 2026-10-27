@@ -40,6 +40,10 @@ const STATUS_TEXT_COLOR := Color(1.0, 0.9, 0.4)
 const SHADOW_RADIUS := 14.0
 ## I-frames after getting up from the floor (MP3, TESTWERT).
 const REVIVE_INVULNERABILITY := 1.5
+## Knockback of hits on the player (DamageData.knockback, apply_knockback; D-199, D-206): the push
+## slows down by this much per second and is never faster than KNOCKBACK_MAX (px/s). TESTWERTE
+const KNOCKBACK_FRICTION := 1600.0
+const KNOCKBACK_MAX := 420.0
 
 ## PLATZHALTER: player move speed is not specified in the GDD.
 @export var move_speed := 180.0
@@ -47,12 +51,20 @@ const REVIVE_INVULNERABILITY := 1.5
 @export var dash_duration := 0.2
 @export var dash_speed := 450.0
 @export var dash_cooldown := 1.5
+## Dashes in a row before the cooldown matters (Doppel-Dash, KE6: PlayerTalents sets 2). Each spent
+## charge comes back after dash_cooldown, one after the other; setting it refills every charge.
+var dash_charges := 1:
+	set(value):
+		dash_charges = maxi(1, value)
+		_dash_charges_left = dash_charges
+		_dash_cooldown_left = 0.0
 @export_group("Hit I-frames")
 ## Started by every effective hit on shield or HP (D-017).
 @export var hit_invulnerability_time := 0.5
 
 var _dash_time_left := 0.0
 var _dash_cooldown_left := 0.0
+var _dash_charges_left := 1
 var _dash_direction := Vector2.RIGHT
 var _hit_invulnerability_left := 0.0
 var _aim := Vector2.RIGHT
@@ -65,7 +77,16 @@ var _focused_interactable: Interactable = null
 var _stun_left := 0.0
 var _input_locks: Dictionary[StringName, bool] = {}
 var _protections: Dictionary[StringName, bool] = {}
+## A dialog (Modal) is open at this machine: its local players take no game input (feedback
+## #ce7cde79 23.10.2026: dash in the lobby dialog of a group game, where nothing pauses). Per player
+## (set_input_locked), no pause; held DIALOG_RELEASE_FRAMES physics frames after the last dialog
+## closed, so the key that closed it does not dash or attack.
+const INPUT_LOCK_DIALOG: StringName = &"open_dialog"
+const DIALOG_RELEASE_FRAMES := 2
+var _dialog_hold := 0
 var _stun_stars: Node2D = null
+## Push of the last hit (px/s), slowing down; walls stop it, an abyss edge too (apply_knockback).
+var _knockback_velocity := Vector2.ZERO
 ## Holds and uses weapons (#80c94d8c: false in the village). State of this player (D-088), set by
 ## the world for every copy on every machine (Village.on_player_spawned); see set_armed().
 var _armed := true
@@ -140,10 +161,12 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	input.poll(self)
+	_hold_input_for_dialogs()
 	_tick_timers(delta)
 	var side_view := is_side_view()
 	if not side_view:
 		fall.update(delta)
+		_tick_knockback(delta)
 
 	_aim = get_aim_direction()
 	weapon_controller.aim_direction = _aim
@@ -238,7 +261,7 @@ func is_dashing() -> bool:
 
 
 func can_dash() -> bool:
-	return not is_dashing() and _dash_cooldown_left <= 0.0
+	return not is_dashing() and _dash_charges_left > 0
 
 
 ## Dash in a fixed direction (side-view segments, M5); false while dashing or cooling down.
@@ -254,8 +277,13 @@ func is_side_view() -> bool:
 	return side_motion != null and side_motion.is_active()
 
 
+## Seconds until the next dash is possible: 0 while a charge is left.
 func get_dash_cooldown_left() -> float:
-	return _dash_cooldown_left
+	return 0.0 if _dash_charges_left > 0 else _dash_cooldown_left
+
+
+func get_dash_charges_left() -> int:
+	return _dash_charges_left
 
 
 func get_feet_position() -> Vector2:
@@ -279,6 +307,20 @@ func set_input_locked(reason: StringName, locked: bool) -> void:
 
 func is_input_locked() -> bool:
 	return not _input_locks.is_empty()
+
+
+## Local players: locked while a dialog is open at this machine (INPUT_LOCK_DIALOG); the polled
+## keyboard/mouse/pad input is emptied too, so a client sends nothing to the host either
+## (NetPlayerState reads it after this). A RemoteInput (bots, tests) keeps its held state.
+func _hold_input_for_dialogs() -> void:
+	if not is_local:
+		return
+	_dialog_hold = DIALOG_RELEASE_FRAMES if Modal.open_count() > 0 else maxi(0, _dialog_hold - 1)
+	var held := _dialog_hold > 0
+	if held != _input_locks.has(INPUT_LOCK_DIALOG):
+		set_input_locked(INPUT_LOCK_DIALOG, held)
+	if held and input.is_local():
+		input.clear()
 
 
 ## Protected for a named reason (MP1, D-085/D-123: a menu open in a group game): no input, no
@@ -325,6 +367,7 @@ func set_body_visible(body_visible: bool) -> void:
 
 ## No movement, attacks, dash or interaction while stunned (D-066).
 func stun(duration: float) -> void:
+	duration *= TalentEffects.stagger_multiplier(self)
 	if health.is_dead() or duration <= 0.0:
 		return
 	_stun_left = maxf(_stun_left, duration)
@@ -338,18 +381,33 @@ func stun(duration: float) -> void:
 
 
 func blind(duration: float) -> void:
-	if health.is_dead() or duration <= 0.0:
+	# Klarsicht (KE5 Proviant): immune to blindness; biome darkness stays.
+	if health.is_dead() or duration <= 0.0 or MetaProgression.player_blind_immune(self):
 		return
 	blinded.emit(duration)
 	Sfx.play_at(self, &"blind", global_position)
 	DamageNumber.spawn_status(get_parent(), global_position + Vector2(0, -56), &"STATUS_BLINDED", Color(0.75, 0.6, 1.0))
 
 
+## The cooldown runs while charges are missing; each run gives one back (Doppel-Dash).
+func _tick_dash_charges(delta: float) -> void:
+	if _dash_charges_left >= dash_charges:
+		_dash_cooldown_left = 0.0
+		return
+	_dash_cooldown_left -= delta
+	if _dash_cooldown_left <= 0.0:
+		_dash_charges_left += 1
+		_dash_cooldown_left = dash_cooldown if _dash_charges_left < dash_charges else 0.0
+
+
 ## Dash goes in movement direction, or in aim direction without movement input.
 func _start_dash(move_input: Vector2, aim: Vector2) -> void:
 	_dash_direction = move_input.normalized() if move_input != Vector2.ZERO else aim
 	_dash_time_left = dash_duration
-	_dash_cooldown_left = dash_cooldown
+	_dash_charges_left -= 1
+	# The cooldown refills one charge at a time; a running refill keeps its time.
+	if _dash_cooldown_left <= 0.0:
+		_dash_cooldown_left = dash_cooldown
 	weapon_controller.cancel_attack()
 	_weapon_swing_left = 0.0
 	hurtbox.set_invulnerable(INVULNERABLE_DASH, true)
@@ -359,7 +417,7 @@ func _start_dash(move_input: Vector2, aim: Vector2) -> void:
 
 
 func _tick_timers(delta: float) -> void:
-	_dash_cooldown_left = maxf(0.0, _dash_cooldown_left - delta)
+	_tick_dash_charges(delta)
 	if _dash_time_left > 0.0:
 		_dash_time_left -= delta
 		if _dash_time_left <= 0.0:
@@ -484,6 +542,44 @@ func _on_slam_swing_started(arc: float, wind_up: float) -> void:
 	_weapon_swing_left = wind_up + SLAM_HOLD_TIME
 
 
+## A short push (impulse in px/s, e.g. DamageData.knockback): the strongest push of the moment wins
+## (two sources of one hit do not add up). It slows down (KNOCKBACK_FRICTION), walls stop it and it
+## stops at an abyss edge, so a hit never throws the player into a pit; nothing in the side view,
+## while dashing or falling. Effects follow the decision at the machine that moves this player.
+func apply_knockback(impulse: Vector2) -> void:
+	if health.is_dead() or is_side_view() or is_falling() or impulse == Vector2.ZERO:
+		return
+	var push := impulse.limit_length(KNOCKBACK_MAX)
+	if push.length_squared() > _knockback_velocity.length_squared():
+		_knockback_velocity = push
+
+
+func get_knockback_velocity() -> Vector2:
+	return _knockback_velocity
+
+
+func _tick_knockback(delta: float) -> void:
+	if _knockback_velocity == Vector2.ZERO:
+		return
+	if is_dashing() or is_falling() or health.is_dead():
+		_knockback_velocity = Vector2.ZERO
+		return
+	var step := _knockback_velocity * delta
+	_knockback_velocity = _knockback_velocity.move_toward(Vector2.ZERO, KNOCKBACK_FRICTION * delta)
+	# Never into a pit: the push ends where the next step's feet would stand over an abyss.
+	if fall != null and fall.pit_probe.is_valid() and bool(fall.pit_probe.call(get_feet_position() + step)):
+		_knockback_velocity = Vector2.ZERO
+		return
+	if move_and_collide(step) != null:
+		_knockback_velocity = Vector2.ZERO
+
+
+## This machine moves this player: its own player, and every player on the host (or solo). A
+## client's copies of the others follow the host's positions.
+func _moves_here() -> bool:
+	return is_local or not is_inside_tree() or multiplayer.is_server()
+
+
 func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 	# Set synchronously, so a second hit in the same frame is already blocked (serial handling, D-017).
 	if result.is_effective() and not health.is_dead():
@@ -497,6 +593,8 @@ func _on_hit_received(result: DamageResult, damage: DamageData) -> void:
 		stun(damage.stun_duration)
 		blind(damage.blind_duration)
 		SlowStatus.apply_from_damage(self, result, damage)
+		if _moves_here():
+			apply_knockback(damage.knockback)
 	SpriteFx.flash(_sprite, HIT_FLASH_COLOR, HIT_FLASH_DURATION)
 
 

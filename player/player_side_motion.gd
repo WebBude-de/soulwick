@@ -3,9 +3,10 @@ extends Node
 ## Side-view platform motion of one player (M5, gang segments). While active, Player hands its
 ## movement over to this node (Player.side_motion, three small hooks in player.gd): gravity with a
 ## short hang at the apex and faster falling, a 2.5-tile jump with coyote time, jump buffer and
-## variable height, one double jump in the air, wall slide and wall jump on rock, a horizontal dash,
-## ladders up and down, falling out of the segment. Weapons, hits, upgrades, health, shield and the
-## HUD stay the player's own, so nothing else changes. The state lives here, per player (multiplayer
+## variable height, one double jump in the air, wall slide and wall jump on rock, ladders up and
+## down, falling out of the segment; no dash in side view (D-216: the jump is the only move key).
+## Weapons, hits, upgrades, health, shield and the HUD stay the player's own, so nothing else
+## changes. The state lives here, per player (multiplayer
 ## rule): coyote and buffer timers, air jumps, the wall, the ladder, the last safe platform, the
 ## time outside the view; the public fields (air_jumps_left, has_double_jumped, is_wall_sliding,
 ## wall_side) can be mirrored to other peers.
@@ -18,6 +19,15 @@ extends Node
 ## (moves_from_remote) never decides a jump, a wall slide or a landing itself; it moves with the
 ## host's velocity, takes the moves as events (apply_remote_move: the same signals, so salto and dust
 ## show on every machine) and the air state from the synced bits (apply_remote_air_state).
+## Momentum and stomping (D-195, SV1, D-216): running on in one direction speeds the player up
+## (momentum, SideMomentum, 1.3× to 2.0×), landing on a side enemy from above stomps it and bounces
+## (SideContactRules); nobody is run over - touching an enemy from the side hurts at any speed (the
+## enemy's contact). The enemy has the last word (SideEnemy.on_stomped, true = taken); only a
+## machine that decides enemy contacts asks it (the host and a solo run: decides_enemy_contacts,
+## never a copy, never an enemy that is a host's puppet), the bounce goes to the others as
+## Move.STOMP. Slopes (SideSlopes): on a layout with slopes the body counts them as floor (enter).
+## In side view the drop shadows under the player and Flint are hidden (they belong to the floor of
+## the top-down view, feedback #e0486234).
 
 signal jumped(player: Player)
 signal double_jumped(player: Player)
@@ -29,9 +39,15 @@ signal landed(player: Player, fall_speed: float)
 signal fell_into_pit(player: Player)
 ## Back on the last platform after a pit; damage = HP lost (0.5 steps).
 signal returned(player: Player, damage: float)
+## The player stomped an enemy (taken by the enemy) and bounces; enemy is null on a copy that only
+## shows the host's stomp.
+signal stomped(player: Player, enemy: Node2D)
+## The momentum is gone (stop, turn, wall, hit, ladder, pit).
+signal momentum_lost(player: Player)
 
-## Jump shares the dash key of the top-down view (design: "Sprung auf der Dash-Taste"); the side
-## dash gets its own action, created at runtime until the integrator adds it to project.godot.
+## Jump shares the dash key of the top-down view (design: "Sprung auf der Dash-Taste"). The side
+## dash is gone (D-216, feedback #9aeff0be); its action stays in project.godot and the input menus
+## until the integrator removes it there, this motion never reads it.
 const JUMP_ACTION := &"dash"
 const DASH_ACTION := &"side_dash"
 const DASH_KEY := KEY_SHIFT
@@ -52,8 +68,15 @@ const DOUBLE_JUMP_ANIMATION_TIME := 0.32
 const WALL_GRACE_TIME := 0.1
 
 
-## Moves the host sends for the copies at the other machines (NetSide.side_move_net).
-enum Move { JUMP, DOUBLE_JUMP, WALL_JUMP, LAND }
+## Short protection after a stomp (SideContactRules.CONTACT_GRACE).
+const INVULNERABLE_CONTACT := &"side_contact"
+## An enemy that refused a stomp is not asked again for this long (seconds, TESTWERT).
+const REFUSED_MEMORY := 0.4
+
+
+## Moves the host sends for the copies at the other machines (NetSide.side_move_net). New moves only
+## at the end (the number travels).
+enum Move { JUMP, DOUBLE_JUMP, WALL_JUMP, LAND, STOMP }
 
 
 ## One frame of side-view input, read from the player's input object; a bot fills the same fields
@@ -63,13 +86,12 @@ class SideInput:
 	var axis := Vector2.ZERO
 	var jump_pressed := false
 	var jump_just_pressed := false
-	var dash_just_pressed := false
 	var attack_pressed := false
 
 
 ## Callable() -> SideInput replacing the player's input (bot). Invalid = player.input.
 var input_source: Callable
-## Facing in the run: +1 right, -1 left (camera look-ahead, dash without input).
+## Facing in the run: +1 right, -1 left (camera look-ahead).
 var facing := 1.0
 ## Seconds this player has been outside the segment camera's view (co-op catch-up).
 var outside_time := 0.0
@@ -90,6 +112,17 @@ var wall_jumps := 0
 ## slides and landings come from the host (apply_remote_move, apply_remote_air_state), not from the
 ## replayed input; set by NetPlayerState. False for the player at this machine and at the host.
 var moves_from_remote := false
+## Momentum of this player (state at the player; every machine runs it from the same input).
+var momentum := SideMomentum.new()
+## This machine decides the stomps of this player (host, solo run). A client's NetSide turns it
+## off for its own player (the host decides and sends Move.STOMP); a copy never decides anyway.
+var decides_enemy_contacts := true
+## Stomps during this segment (tools, tests).
+var stomps := 0
+## The ramp cell this player runs on (SideSlopes; Vector2i(-1, -1): none) and the ramp throws
+## during this segment (tools, tests).
+var ramp_cell := Vector2i(-1, -1)
+var ramp_launches := 0
 
 var _player: Player = null
 var _world: SideSegment = null
@@ -100,7 +133,6 @@ var _jumping := false
 var _climbing := false
 var _ladder := Rect2()
 var _excepted: Array[PhysicsBody2D] = []
-var _dash_direction := 1.0
 var _on_floor := false
 var _air_time := 0.0
 var _fall_speed := 0.0
@@ -110,10 +142,19 @@ var _safe_feet := Vector2.INF
 var _saved_shape: Shape2D = null
 var _saved_shape_position := Vector2.ZERO
 var _saved_motion_mode := CharacterBody2D.MOTION_MODE_FLOATING
+var _saved_floor_angle := 0.0
+var _saved_floor_snap := 0.0
+var _saved_constant_speed := false
 var _last_input := SideInput.new()
 var _wall_grace := 0.0
 var _wall_jump_lock := 0.0
 var _double_jump_left := 0.0
+var _contact_grace_left := 0.0
+var _stomp_left := 0.0
+var _last_health := 0.0
+var _last_shield := 0.0
+## Instance id of an enemy that refused -> seconds until it may be asked again.
+var _refused: Dictionary[int, float] = {}
 
 
 ## The side motion of player, created on first use.
@@ -127,7 +168,14 @@ static func attach(player: Player) -> PlayerSideMotion:
 	return player.side_motion
 
 
-## Adds the side dash action when project.godot does not have it (hook for the integrator).
+## Hook for the HUD (weapon bar "Dash", key row; integrator): a player has the dash only outside
+## side view (D-216, feedback #9aeff0be).
+static func has_dash(player: Player) -> bool:
+	return player != null and not player.is_side_view()
+
+
+## Adds the side dash action when project.godot does not have it (input menus and Flint's hint still
+## name it until the integrator removes it, D-216; never read here).
 static func ensure_actions() -> void:
 	if InputMap.has_action(DASH_ACTION):
 		return
@@ -218,6 +266,11 @@ func apply_remote_move(move: Move, remote_velocity: Vector2, remote_facing: floa
 			_double_jump_left = 0.0
 			_jumping = false
 			landed.emit(_player, fall_speed)
+		Move.STOMP:
+			# Only the height: a client's own player keeps its predicted run.
+			_bounce(remote_velocity.y)
+			stomps += 1
+			stomped.emit(_player, null)
 
 
 ## Network copy: the air state of the host's copy (synced 30/s): wall slide and its side, double jump
@@ -242,6 +295,18 @@ func get_last_input() -> SideInput:
 	return _last_input
 
 
+## Running speed as a factor on the move speed right now (1.3 without momentum; looks, SV5).
+func get_speed_factor() -> float:
+	return momentum.factor()
+
+
+## Loses the momentum (decision; momentum_lost drives the looks). Also the hook for a client whose
+## HP or shield the host lowered.
+func lose_momentum() -> void:
+	if momentum.reset():
+		momentum_lost.emit(_player)
+
+
 ## Switches the player into side view in world, feet at feet (global).
 func enter(world: SideSegment, feet: Vector2) -> void:
 	if _player == null:
@@ -259,7 +324,7 @@ func enter(world: SideSegment, feet: Vector2) -> void:
 	_saved_motion_mode = _player.motion_mode
 	_player.motion_mode = CharacterBody2D.MOTION_MODE_GROUNDED
 	_player.up_direction = Vector2.UP
-	_player.floor_snap_length = FLOOR_SNAP
+	_set_up_floor(world != null and world.layout != null and not world.layout.slopes.is_empty())
 	_player.velocity = Vector2.ZERO
 	_player.global_position = feet - Player.FEET_OFFSET
 	_safe_feet = feet
@@ -275,10 +340,18 @@ func enter(world: SideSegment, feet: Vector2) -> void:
 	pit_falls = 0
 	double_jumps = 0
 	wall_jumps = 0
+	stomps = 0
+	ramp_cell = Vector2i(-1, -1)
+	ramp_launches = 0
+	momentum.reset()
+	_contact_grace_left = 0.0
+	_refused.clear()
 	_reset_air_jumps()
 	_set_wall_sliding(false, 0)
 	_set_shadow_visible(false)
+	_watch_vitals(true)
 	PlayerSideArt.ensure(_player.get_node("Sprite") as AnimatedSprite2D)
+	SideSpeedArt.ensure(_player.get_node("Sprite") as AnimatedSprite2D)
 
 
 ## Back to the top-down view (the body shape, the floating motion, the shadow).
@@ -292,10 +365,17 @@ func exit() -> void:
 		_player.set_body_visible(true)
 		_player.set_input_locked(INPUT_LOCK_PIT, false)
 		_player.hurtbox.set_invulnerable(INVULNERABLE_PIT, false)
+	_contact_grace_left = 0.0
+	_player.hurtbox.set_invulnerable(INVULNERABLE_CONTACT, false)
+	_watch_vitals(false)
+	momentum.reset()
 	var shape_node := _player.get_node("CollisionShape2D") as CollisionShape2D
 	shape_node.shape = _saved_shape
 	shape_node.position = _saved_shape_position
 	_player.motion_mode = _saved_motion_mode
+	_player.floor_max_angle = _saved_floor_angle
+	_player.floor_snap_length = _saved_floor_snap
+	_player.floor_constant_speed = _saved_constant_speed
 	_player.velocity = Vector2.ZERO
 	_set_shadow_visible(true)
 	_active = false
@@ -307,6 +387,7 @@ func exit() -> void:
 func physics_step(delta: float, has_control: bool) -> Vector2:
 	if not _active:
 		return Vector2.ZERO
+	_tick_contact_grace(delta)
 	if _pit_left > 0.0:
 		_pit_left -= delta
 		if _pit_left <= 0.0:
@@ -316,39 +397,43 @@ func physics_step(delta: float, has_control: bool) -> Vector2:
 	_last_input = input
 	if absf(input.axis.x) > 0.1:
 		facing = signf(input.axis.x)
-	if input.dash_just_pressed and not _climbing:
-		var direction := signf(input.axis.x) if absf(input.axis.x) > 0.2 else facing
-		if _player.try_dash(Vector2(direction, 0)):
-			_dash_direction = direction
-			_jumping = false
 	_update_ladder(input)
-	if _player.is_dashing():
-		_player.velocity = Vector2(_dash_direction * _player.dash_speed, 0.0)
-	elif _climbing:
+	if _climbing:
 		_climb(input, delta)
 	else:
 		_run_and_jump(input, delta)
 	var falling_speed := _player.velocity.y
+	var previous_feet := _player.get_feet_position()
 	_player.move_and_slide()
 	_after_move(falling_speed, delta)
+	_check_enemy_contacts(previous_feet, falling_speed, delta)
 	return Vector2(input.axis.x, 0.0) if not _climbing else input.axis
 
 
 ## Body animation for this frame (Player._update_visuals).
 func get_animation(move_input: Vector2) -> StringName:
-	if _player.is_dashing():
-		return &"dash"
 	if _climbing:
 		return PlayerSideArt.CLIMB if absf(move_input.y) > 0.1 else &"idle"
 	if is_wall_sliding:
 		return PlayerSideArt.WALL_SLIDE
 	if not _on_floor and _double_jump_left > 0.0:
 		return PlayerSideArt.DOUBLE_JUMP
+	if not _on_floor and _stomp_left > 0.0 and _has_animation(SideSpeedArt.STOMP):
+		return SideSpeedArt.STOMP
 	if not _on_floor:
 		return PlayerSideArt.FALL if _player.velocity.y > FALL_ANIMATION_SPEED else PlayerSideArt.JUMP
 	if _land_left > 0.0:
 		return PlayerSideArt.LAND
-	return &"walk" if absf(move_input.x) > 0.1 else &"idle"
+	if absf(move_input.x) <= 0.1:
+		return &"idle"
+	if momentum.factor() >= SideSpeedArt.SPRINT_FACTOR and _has_animation(SideSpeedArt.SPRINT):
+		return SideSpeedArt.SPRINT
+	return &"walk"
+
+
+func _has_animation(animation: StringName) -> bool:
+	var sprite := _player.get_node_or_null("Sprite") as AnimatedSprite2D
+	return sprite != null and sprite.sprite_frames != null and sprite.sprite_frames.has_animation(animation)
 
 
 # --- Decisions ---
@@ -358,6 +443,7 @@ func start_pit() -> void:
 	if _pit_left > 0.0 or not _player.is_alive():
 		return
 	_stop_climbing()
+	lose_momentum()
 	_pit_left = SideRules.PIT_RETURN_TIME
 	pit_falls += 1
 	_player.velocity = Vector2.ZERO
@@ -391,6 +477,151 @@ func place_at(feet: Vector2) -> void:
 	outside_time = 0.0
 
 
+# --- Enemies: stomp (D-195, SV1, D-216) ---
+
+## Whether this machine decides the stomps of this player: the host and a solo run, never
+## a copy of another machine's player, never a client's own player once NetSide switched it off.
+func decides_contacts() -> bool:
+	return decides_enemy_contacts and not moves_from_remote and _world != null and _player != null \
+			and _player.is_alive()
+
+
+## After the move: a stomp on an enemy below (it bounces). The enemy takes it or refuses it (then its
+## own contact or reaction hurts, not this code); touching it from the side is the enemy's contact.
+func _check_enemy_contacts(previous_feet: Vector2, fall_speed: float, delta: float) -> void:
+	_tick_refused(delta)
+	if not decides_contacts() or _pit_left > 0.0 or _climbing:
+		return
+	var feet := _player.get_feet_position()
+	for enemy: Node2D in _world.get_enemies():
+		if not _is_open_enemy(enemy):
+			continue
+		var rect := SideContactRules.enemy_body_rect(enemy)
+		if SideContactRules.is_stomp(previous_feet, feet, fall_speed, BODY_SIZE.x * 0.5, rect, delta):
+			if _ask_enemy(enemy, &"on_stomped", SideContactRules.TAG_STOMP):
+				_take_stomp(enemy)
+				return
+			_refuse(enemy)
+
+
+## A living enemy this machine runs itself (a client's enemies are the host's puppets with their
+## physics off) and that did not just refuse this player.
+func _is_open_enemy(enemy: Node2D) -> bool:
+	if not is_instance_valid(enemy) or not enemy.is_physics_processing():
+		return false
+	if enemy.has_method(&"is_dead") and enemy.call(&"is_dead"):
+		return false
+	return not _refused.has(enemy.get_instance_id())
+
+
+## Asks the enemy (SV4 hook: on_stomped(player) -> bool, true = taken). An enemy
+## without the hook is a normal one: it is beaten through its hurtbox (kill rewards as usual).
+func _ask_enemy(enemy: Node2D, hook: StringName, tag: StringName) -> bool:
+	if enemy.has_method(hook):
+		var answer: Variant = enemy.call(hook, _player)
+		return answer is bool and answer
+	return _defeat(enemy, tag)
+
+
+func _defeat(enemy: Node2D, tag: StringName) -> bool:
+	var enemy_hurtbox := enemy.get(&"hurtbox") as Hurtbox
+	var enemy_health := enemy.get(&"health") as HealthComponent
+	if enemy_hurtbox == null or enemy_health == null or enemy_health.is_dead():
+		return false
+	var damage := DamageData.new()
+	damage.amount = ceilf(enemy_health.get_health()) + 1.0
+	damage.source = _player
+	damage.tags.assign([tag])
+	damage.hit_id = DamageData.next_hit_id()
+	damage.knockback = Vector2(signf(enemy.global_position.x - _player.global_position.x) * 200.0, 0.0)
+	return not enemy_hurtbox.receive_hit(damage).blocked
+
+
+func _take_stomp(enemy: Node2D) -> void:
+	stomps += 1
+	_bounce()
+	_grant_contact_grace()
+	stomped.emit(_player, enemy)
+
+
+## Throws the body straight up with vertical_velocity (< 0; a spring, SV2): ends a running jump, so
+## letting go of the button cannot cut the rise (variable height), and leaves the floor; the double
+## jump stays free for the top.
+func launch(vertical_velocity: float) -> void:
+	_player.velocity.y = vertical_velocity
+	_jumping = false
+	_on_floor = false
+	_coyote_left = 0.0
+	_buffer_left = 0.0
+
+
+## Up off a stomped enemy: STOMP_BOUNCE_TILES high (not cut by letting go of the jump), the double
+## jump back. vertical_velocity < 0: the host's bounce speed (a copy or a client's own player).
+func _bounce(vertical_velocity := 0.0) -> void:
+	_player.velocity.y = vertical_velocity if vertical_velocity < 0.0 else -SideContactRules.stomp_bounce_velocity()
+	_jumping = false
+	_on_floor = false
+	_coyote_left = 0.0
+	_double_jump_left = 0.0
+	_stomp_left = SideSpeedArt.STOMP_ANIMATION_TIME
+	_reset_air_jumps()
+
+
+func _grant_contact_grace() -> void:
+	_contact_grace_left = SideContactRules.CONTACT_GRACE
+	_player.hurtbox.set_invulnerable(INVULNERABLE_CONTACT, true)
+
+
+func _tick_contact_grace(delta: float) -> void:
+	if _contact_grace_left <= 0.0:
+		return
+	_contact_grace_left -= delta
+	if _contact_grace_left <= 0.0:
+		_player.hurtbox.set_invulnerable(INVULNERABLE_CONTACT, false)
+
+
+## An enemy that refused is not asked again for REFUSED_MEMORY seconds (its own hit decides).
+func _refuse(enemy: Node2D) -> void:
+	_refused[enemy.get_instance_id()] = REFUSED_MEMORY
+
+
+func _tick_refused(delta: float) -> void:
+	for id: int in _refused.keys():
+		_refused[id] -= delta
+		if _refused[id] <= 0.0:
+			_refused.erase(id)
+
+
+## HP or shield going down is a hit (also a client's, whose vitals the host sets): momentum lost.
+func _watch_vitals(watch: bool) -> void:
+	var health := _player.health
+	var shield := _player.shield
+	if watch:
+		_last_health = health.get_health() if health != null else 0.0
+		_last_shield = shield.get_shield() if shield != null else 0.0
+		if health != null and not health.health_changed.is_connected(_on_health_changed):
+			health.health_changed.connect(_on_health_changed)
+		if shield != null and not shield.shield_changed.is_connected(_on_shield_changed):
+			shield.shield_changed.connect(_on_shield_changed)
+		return
+	if health != null and health.health_changed.is_connected(_on_health_changed):
+		health.health_changed.disconnect(_on_health_changed)
+	if shield != null and shield.shield_changed.is_connected(_on_shield_changed):
+		shield.shield_changed.disconnect(_on_shield_changed)
+
+
+func _on_health_changed(current: float, _maximum: float) -> void:
+	if current < _last_health - 0.001:
+		lose_momentum()
+	_last_health = current
+
+
+func _on_shield_changed(current: float) -> void:
+	if current < _last_shield - 0.001:
+		lose_momentum()
+	_last_shield = current
+
+
 # --- Input ---
 
 ## The only place the side view reads input: a bot's input_source, else player.input (polled by
@@ -407,7 +638,6 @@ func _read_input() -> SideInput:
 	input.axis = commands.move
 	input.jump_pressed = commands.is_pressed(JUMP_ACTION)
 	input.jump_just_pressed = commands.is_just_pressed(JUMP_ACTION)
-	input.dash_just_pressed = commands.is_just_pressed(DASH_ACTION)
 	input.attack_pressed = commands.is_pressed(PlayerInput.ATTACK)
 	return input
 
@@ -416,7 +646,9 @@ func _read_input() -> SideInput:
 
 func _run_and_jump(input: SideInput, delta: float) -> void:
 	var velocity := _player.velocity
-	var target := input.axis.x * _player.move_speed * SideRules.RUN_SPEED_FACTOR
+	if momentum.update(delta, _on_floor, input.axis.x):
+		momentum_lost.emit(_player)
+	var target := input.axis.x * _player.move_speed * momentum.factor()
 	if _wall_jump_lock > 0.0:
 		# Right after a wall jump the stick cannot pull the body back into the wall.
 		_wall_jump_lock -= delta
@@ -469,8 +701,9 @@ func _run_and_jump(input: SideInput, delta: float) -> void:
 	elif input.jump_just_pressed and not _on_floor and air_jumps_left > 0:
 		velocity.y = -SideRules.DOUBLE_JUMP_VELOCITY
 		if absf(input.axis.x) > 0.1:
-			# The second jump may turn: full speed in the pressed direction at once.
-			velocity.x = input.axis.x * _player.move_speed * SideRules.RUN_SPEED_FACTOR
+			# The second jump may turn: full speed in the pressed direction at once (a turn has
+			# just lost the momentum, so only straight on keeps it).
+			velocity.x = input.axis.x * _player.move_speed * momentum.factor()
 		air_jumps_left -= 1
 		has_double_jumped = true
 		double_jumps += 1
@@ -543,8 +776,6 @@ func _update_ladder(input: SideInput) -> void:
 		elif absf(input.axis.x) > 0.6 and absf(input.axis.y) < 0.4:
 			_stop_climbing()
 		return
-	if _player.is_dashing():
-		return
 	var ladder := _world.ladder_rect_at(feet)
 	if not ladder.has_area() or absf(_player.global_position.x - ladder.get_center().x) > SideRules.LADDER_GRAB_DISTANCE:
 		return
@@ -558,6 +789,7 @@ func _start_climbing(ladder: Rect2) -> void:
 	_climbing = true
 	_ladder = ladder
 	_jumping = false
+	lose_momentum()
 	_reset_air_jumps()
 	_set_wall_sliding(false, 0)
 	_player.velocity = Vector2.ZERO
@@ -581,6 +813,11 @@ func _after_move(falling_speed: float, delta: float) -> void:
 	_on_floor = _player.is_on_floor() or _climbing
 	_land_left = maxf(0.0, _land_left - delta)
 	_double_jump_left = maxf(0.0, _double_jump_left - delta)
+	_stomp_left = maxf(0.0, _stomp_left - delta)
+	if momentum.direction != 0 and _player.is_on_wall() and not _climbing \
+			and _player.get_wall_normal().x * momentum.direction < -0.7:
+		# Ran into a wall (on the ground or in the air): the momentum is gone.
+		lose_momentum()
 	# Rock walls (ledges and ladder steps are one-way and never count as walls).
 	if not _on_floor and not _climbing and not moves_from_remote and _player.is_on_wall():
 		var normal := _player.get_wall_normal()
@@ -606,7 +843,7 @@ func _after_move(falling_speed: float, delta: float) -> void:
 	if _world == null:
 		return
 	var feet := _player.get_feet_position()
-	if _on_floor and not _climbing and not _player.is_dashing():
+	if _on_floor and not _climbing:
 		var safe := _world.safe_feet_for(feet)
 		if safe != Vector2.INF:
 			_safe_feet = safe
@@ -614,7 +851,20 @@ func _after_move(falling_speed: float, delta: float) -> void:
 		start_pit()
 
 
+## The drop shadows of the top-down view under the player and everything carried along (Flint):
+## hidden through their alpha, so the owners' own visible switches (pit, Flint's excursion) cannot
+## bring them back in side view (feedback #e0486234).
 func _set_shadow_visible(shadow_visible: bool) -> void:
-	var shadow := _player.get_node_or_null("DropShadow") as CanvasItem
-	if shadow != null:
-		shadow.visible = shadow_visible
+	for shadow: Node in _player.find_children("*", "DropShadow", true, false):
+		(shadow as CanvasItem).self_modulate.a = 1.0 if shadow_visible else 0.0
+
+
+## The body's floor rules in side view (saved for exit): slopes count as floor at constant speed
+## when the layout has some (SideSlopes.FLOOR_*), else the plain side-view snap.
+func _set_up_floor(with_slopes: bool) -> void:
+	_saved_floor_angle = _player.floor_max_angle
+	_saved_floor_snap = _player.floor_snap_length
+	_saved_constant_speed = _player.floor_constant_speed
+	_player.floor_max_angle = deg_to_rad(SideSlopes.FLOOR_MAX_ANGLE_DEGREES) if with_slopes else deg_to_rad(45.0)
+	_player.floor_snap_length = SideSlopes.FLOOR_SNAP if with_slopes else FLOOR_SNAP
+	_player.floor_constant_speed = with_slopes

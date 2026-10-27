@@ -1,5 +1,5 @@
 extends GutTest
-## Enemy scaling per five-room block (D-011, retuned D-074, D-154).
+## Enemy scaling per five-room block (D-011, retuned D-074, D-154, D-210, D-213).
 
 
 func test_block_index() -> void:
@@ -17,8 +17,8 @@ func test_first_block_is_unscaled() -> void:
 
 
 func test_scaling_compounds_per_block() -> void:
-	assert_almost_eq(EnemyScaling.health_multiplier(11, false), 1.16 * 1.16, 0.0001)
-	assert_almost_eq(EnemyScaling.damage_multiplier(11, false), 1.12 * 1.12, 0.0001)
+	assert_almost_eq(EnemyScaling.health_multiplier(11, false), 1.17 * 1.17, 0.0001)
+	assert_almost_eq(EnemyScaling.damage_multiplier(11, false), 1.11 * 1.11, 0.0001)
 
 
 func test_tempo_limits() -> void:
@@ -28,5 +28,5 @@ func test_tempo_limits() -> void:
 
 
 func test_champion_factor() -> void:
-	assert_almost_eq(EnemyScaling.health_multiplier(5, true), 3.0, 0.0001)
-	assert_almost_eq(EnemyScaling.damage_multiplier(5, true), 1.5, 0.0001)
+	assert_almost_eq(EnemyScaling.health_multiplier(5, true), 6.0, 0.0001)
+	assert_almost_eq(EnemyScaling.damage_multiplier(5, true), 1.7, 0.0001)

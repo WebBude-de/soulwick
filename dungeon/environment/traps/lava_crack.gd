@@ -4,7 +4,8 @@ extends Node2D
 ## Ember-forge floor hazard (D-075): a glowing crack that periodically erupts, like a
 ## spike trap: idle -> warning (bright, sparks) -> burst (hurts the player) -> idle. Only the player
 ## is targeted. Dormant while the player is far away (rooms are prepared ahead).
-## Code-drawn; art/environment/props/lava_crack_4f.png replaces the drawing when present.
+## Code-drawn in pixel art (PixelDraw, D-218); art/environment/props/lava_crack_4f.png replaces the
+## drawing when present.
 
 enum Phase { IDLE, WARN, ACTIVE }
 
@@ -131,16 +132,17 @@ func _art_brightness() -> Color:
 func _draw() -> void:
 	if _sprite != null:
 		return
+	# Pixel art (D-218): pixel lines along the crack, sparks as stepped discs.
 	var crust := PackedVector2Array()
 	for point in POINTS:
 		crust.append(point)
-	draw_polyline(crust, CRUST_COLOR, 12.0)
-	var width := 4.0
+	PixelDraw.polyline(self, crust, CRUST_COLOR, 6)
+	var width := 2
 	if _phase == Phase.WARN:
-		width = 6.0
+		width = 3
 	elif _phase == Phase.ACTIVE:
-		width = 10.0
-	draw_polyline(crust, _glow_color(), width)
+		width = 5
+	PixelDraw.polyline(self, crust, _glow_color(), width)
 	if _phase == Phase.ACTIVE:
 		for point in POINTS:
-			draw_circle(point + Vector2(0, -8), 6.0, Color(HOT_COLOR, 0.8))
+			PixelDraw.disc(self, point + Vector2(0, -8), 6.0, Color(HOT_COLOR, 0.8))

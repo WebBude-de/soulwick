@@ -76,9 +76,9 @@ static func group_enemy_speed_factor(players: Array) -> float:
 	return factor
 
 
-## Light circle factor of player (1.0 without GLOOM).
+## Light circle factor of player (1.0 without GLOOM; Klarsicht, KE5, makes it immune).
 static func vision_factor(player: Node) -> float:
-	return VISION_FACTOR if has_curse(player, Curse.GLOOM) else 1.0
+	return VISION_FACTOR if has_curse(player, Curse.GLOOM) and not MetaProgression.player_blind_immune(player) else 1.0
 
 
 ## Share of a fountain heal player gets (1.0 without DRY_FOUNTAINS).

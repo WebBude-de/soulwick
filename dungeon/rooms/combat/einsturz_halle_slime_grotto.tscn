@@ -124,6 +124,7 @@ item = &"group_large_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(14, 0), Vector2i(15, 0), Vector2i(16, 0)])
 solid_span = Vector2(-84, 86)
+solid_gaps = PackedVector2Array(8, 60)
 biome = &"slime_grotto"
 
 [node name="Group2" type="Node2D" parent="Props"]

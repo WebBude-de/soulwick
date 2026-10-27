@@ -1,16 +1,17 @@
 class_name FlameMode
 extends RoomMode
-## Minigame "Flamme hüten" (KONZEPT_RAEUME_V2 §3.4, design answer 01_raumarten.md, R4b; replaces the
+## Minigame "Flamme hüten" (RAEUME §3.4, design answer 01_raumarten.md, R4b; replaces the
 ## soul flame variant of D-114): "Halte die Seelenflamme 40 s am Leben."
 ##   Intro:  camera on the flame in the middle (plan marker soul_flame), banner "Halte die Flamme 40 s".
 ##   Fight:  enemies come out of the sources in short pushes (FlameRules: every 8 s, sooner when the
-##           room is almost empty, other sources each time); 70 % of them go for the flame (EnemyDecoy).
+##           room is almost empty), each push from two sides of the flame (two sources far apart
+##           around it, away from the players); 85 % of them go for the flame (EnemyDecoy).
 ##           Task bar: flame health as a bar (red below 30 %) and the time left. The flame's light
 ##           shrinks with its health.
 ##   End:    after 40 s the sources go dark and the rest must be beaten - flame alive = success
 ##           (bonus chest; untouched flame +1 soul crystal). Flame out = no bonus, the room gets
 ##           darker, the fight goes on. The room stays shut while the raid time runs.
-## Co-op: +50 % flame health per extra player (MP5).
+## Co-op: +30 % flame health per extra player (MP5; #56d68b40: was 50 %).
 
 var flame: SoulFlame = null
 
@@ -44,6 +45,12 @@ func _shape_group(group: EncounterGroup) -> EncounterGroup:
 
 func get_focus() -> Vector2:
 	return flame.global_position if flame != null and flame.is_inside_tree() else Vector2.INF
+
+
+## Flint's first-time tour (WK11): the flame and its time, where the monsters come from.
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var focus := get_focus()
+	return RoomFlint.steps(RoomObjective.FLAME, [focus, RoomFlint.source_point(room, focus)], {0: [roundi(FlameRules.DURATION)]})
 
 
 func _setup_objective(goal: RoomObjective) -> void:
@@ -89,10 +96,44 @@ func is_raid_over() -> bool:
 func send_push() -> Array[Enemy]:
 	_since_push = 0.0
 	var size := FlameRules.push_size(room.spawner.roll_enemy_count(room.room_index, _rng))
-	var enemies := push_from_sources(size)
+	var sides := two_side_sources()
+	var enemies := release_from(sides, size) if not sides.is_empty() else push_from_sources(size)
 	if not enemies.is_empty():
 		_pushes += 1
 	return enemies
+
+
+## Two free sources on two sides of the flame, at least SpawnSourceRules.MIN_PLAYER_DISTANCE from
+## every player; among all such pairs one by the mode RNG. Empty when the
+## room has no such pair.
+func two_side_sources() -> Array[SpawnSource]:
+	var result: Array[SpawnSource] = []
+	var sources := get_sources()
+	if sources == null or flame == null:
+		return result
+	var centre := sources.to_local(flame.global_position)
+	var players := get_players()
+	var free: Array[SpawnSource] = []
+	for source in sources.get_pool():
+		if source.is_active() or not source.visible:
+			continue
+		var clear := true
+		for player in players:
+			if player.global_position.distance_to(sources.to_global(source.spot)) < SpawnSourceRules.MIN_PLAYER_DISTANCE:
+				clear = false
+				break
+		if clear:
+			free.append(source)
+	var pairs: Array[Array] = []
+	for i in free.size():
+		for j in range(i + 1, free.size()):
+			if FlameRules.on_two_sides(free[i].spot - centre, free[j].spot - centre):
+				pairs.append([free[i], free[j]])
+	if pairs.is_empty():
+		return result
+	var pick: Array = pairs[_rng.randi_range(0, pairs.size() - 1)]
+	result.assign(pick)
+	return result
 
 
 func _is_bonus_met() -> bool:

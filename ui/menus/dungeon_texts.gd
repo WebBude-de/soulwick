@@ -263,7 +263,7 @@ const DE: Dictionary[StringName, String] = {
 	&"SECRET_CRYSTALS_SUB": "+%d aus der Nische",
 	&"SECRET_MERCHANT_NAME": "Wandernder Händler",
 	&"SECRET_MERCHANT_PROMPT": "Handeln",
-	# --- Room intro, task bar, wave banner (R3, KONZEPT_RAEUME_V2 §1.3/§1.4) ---
+	# --- Room intro, task bar, wave banner (R3, RAEUME §1.3/§1.4) ---
 	&"INTRO_GO": "Los!",
 	&"INTRO_SKIP": "überspringen",
 	&"INTRO_EYEBROW": "Raum %d · %s",
@@ -425,7 +425,7 @@ const DE: Dictionary[StringName, String] = {
 	# Gang segments in side view (M5, SideTransit / SideSegment).
 	&"SIDE_DESCENT_TITLE": "Abstieg",
 	&"SIDE_DESCENT_SUB": "Der Gang führt tiefer",
-	&"SIDE_HINT_JUMP": "Springen: %s · Dash: %s",
+	&"SIDE_HINT_JUMP": "Springen: %s",
 	&"SIDE_GOLDEN_COIN_TITLE": "Goldene Münze!",
 	&"SIDE_GOLDEN_COIN_SUB": "+%d Seelenkristall",
 	&"SIDE_WAY_NAME": "Seitenweg",

@@ -5,7 +5,8 @@ extends RefCounted
 ## N=1 NE=2 E=4 SE=8 S=16 SW=32 W=64 NW=128, a corner bit only when both of its sides are rock) and
 ## ledges from the same set's fronts (front_left/mid/right/single) as one-way platforms. The TileSet
 ## is built at runtime from the sheet and its JSON (cached per biome, never saved). Collision on the
-## world layer: rock = full tile, ledge = a one-way strip at the top.
+## world layer: rock = full tile, ledge = a one-way strip at the top. Slopes (SV3, two-way pieces) are no
+## tiles (SideSlopes draws and collides them); the rock beside and under them joins them.
 
 const TILES_DIR := "res://art/environment/tiles/"
 const FALLBACK_BIOME := &"crypt"
@@ -85,22 +86,43 @@ static func tileset_for(biome_id: StringName) -> TileSet:
 	return tileset
 
 
-## 8-bit neighbour mask of a rock cell with the corner rule applied.
+## 8-bit neighbour mask of a rock cell with the corner rule applied. Slopes (SV3) count as rock
+## on their solid sides (SLOPE_SOLID_SIDES), and the rock under a slope runs on below it without an
+## inner corner at the slope's foot.
 static func rock_mask(layout: SideLayout, cell: Vector2i) -> int:
-	var n := _rock_for_mask(layout, cell + Vector2i.UP)
-	var e := _rock_for_mask(layout, cell + Vector2i.RIGHT)
-	var s := _rock_for_mask(layout, cell + Vector2i.DOWN)
-	var w := _rock_for_mask(layout, cell + Vector2i.LEFT)
+	var n := _solid_toward(layout, cell + Vector2i.UP, Vector2i.DOWN)
+	var e := _solid_toward(layout, cell + Vector2i.RIGHT, Vector2i.LEFT)
+	var s := _solid_toward(layout, cell + Vector2i.DOWN, Vector2i.UP)
+	var w := _solid_toward(layout, cell + Vector2i.LEFT, Vector2i.RIGHT)
+	var under_slope := layout.is_slope(cell + Vector2i.UP)
 	var mask := (1 if n else 0) | (4 if e else 0) | (16 if s else 0) | (64 if w else 0)
-	if n and e and _rock_for_mask(layout, cell + Vector2i(1, -1)):
+	if n and e and (under_slope or _rock_for_mask(layout, cell + Vector2i(1, -1))):
 		mask |= 2
 	if s and e and _rock_for_mask(layout, cell + Vector2i(1, 1)):
 		mask |= 8
 	if s and w and _rock_for_mask(layout, cell + Vector2i(-1, 1)):
 		mask |= 32
-	if n and w and _rock_for_mask(layout, cell + Vector2i(-1, -1)):
+	if n and w and (under_slope or _rock_for_mask(layout, cell + Vector2i(-1, -1))):
 		mask |= 128
 	return mask
+
+
+## Sides of a slope cell that are solid from edge to edge (the rock next to them joins seamlessly).
+const SLOPE_SOLID_SIDES := {
+	SideLayout.Slope.UP: [Vector2i.RIGHT, Vector2i.DOWN],
+	SideLayout.Slope.DOWN: [Vector2i.LEFT, Vector2i.DOWN],
+	SideLayout.Slope.LONG_UP_LOW: [Vector2i.DOWN],
+	SideLayout.Slope.LONG_UP_HIGH: [Vector2i.RIGHT, Vector2i.DOWN],
+	SideLayout.Slope.LONG_DOWN_HIGH: [Vector2i.LEFT, Vector2i.DOWN],
+	SideLayout.Slope.LONG_DOWN_LOW: [Vector2i.DOWN],
+}
+
+
+## Rock for the mask of the cell on side of neighbour: rock, or a slope solid on that side.
+static func _solid_toward(layout: SideLayout, neighbour: Vector2i, side: Vector2i) -> bool:
+	if layout.is_slope(neighbour):
+		return (SLOPE_SOLID_SIDES.get(layout.slope_at(neighbour), []) as Array).has(side)
+	return _rock_for_mask(layout, neighbour)
 
 
 ## Front piece of a ledge cell from its ledge neighbours.

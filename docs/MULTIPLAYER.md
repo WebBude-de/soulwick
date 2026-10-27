@@ -1,6 +1,6 @@
 # Multiplayer – Host-Modell und Regeln
 
-> **Stand:** 18.10.2026 · **Gebaut:** MP1 bis MP4 (lokale Basis, Anmeldung, Raum mit Raumcode, gemeinsamer Run, Testversion), Online-Menü mit Gilden und Profil, Koop-Gefühl zum Teil (MP5, D-191); Plan und Abnahme in [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md). Hier stehen **Absicht und Regeln**: wer was rechnet, was gespiegelt wird, was für neuen Code gilt und wie man testet. Wie es gebaut ist, steht im Code unter `online/` (D-178).
+> **Stand:** 18.10.2026 · **Gebaut:** MP1 bis MP4 (lokale Basis, Anmeldung, Raum mit Raumcode, gemeinsamer Run, Testversion), Online-Menü mit Gilden und Profil, Koop-Gefühl zum Teil (MP5, D-191); Plan und Abnahme in [ROADMAP.md](ROADMAP.md). Hier stehen **Absicht und Regeln**: wer was rechnet, was gespiegelt wird, was für neuen Code gilt und wie man testet. Wie es gebaut ist, steht im Code unter `online/` (D-178).
 > **Entscheidungen:** D-080 bis D-085 (Umfang), D-119 und D-121 bis D-128 (Netz, Konto, Lobby, Run, Tore), D-147 (Online-Menü), D-152 (Profil), D-158, D-159 (Raumwechsel, Synchronisierung), D-190 (Einladen per Link), D-191 (Koop-Gefühl). Im Koop bringt niemand seine Dorf-Boni mit, und Run-Gold ist eine gemeinsame Kasse (D-081).
 
 ## 1. Ziel
@@ -89,12 +89,12 @@ Name und Aussehen gehören dem Spieler (`profile.cfg`), nicht dem Spielstand; Sp
 
 - **Absicht:** Link antippen, schon in der Lobby: im Browser ohne Download, Konto oder Code-Tippen. Der Link `https://game.playsoulwick.com/?room=ABC123` (Testumgebung `game-dev.…`) trägt nur den Raumcode; `online/invite_link.gd` baut und liest ihn, die Startseite (`deploy/web/shell.html`) gibt ihn als `-- room=ABC123` ans Spiel, ungültige Codes fallen weg.
 - **Ablauf:** Hauptmenü überspringen → ohne Profil „Einladung · Wie heißt du?“ → Welt von „Weiterspielen“ oder „Welt 1“ → Dorf → Beitritt wie mit Raumcode über `LobbyClient` (Gast-Anmeldung unterwegs). Fehler zeigt das Online-Menü als ein Satz mit „Erneut versuchen“ (wo es hilft) und „Selbst spielen“; bei laufendem Run wartet der Beitritt bis zum Run-Ende.
-- **Testen:** Unit-Tests `tests/unit/test_invite_{link,arrival,lobby}.gd`. Ende zu Ende gegen die lokale Plattform (`bun dev`): `SOULWICK_TEST_API=http://localhost:3101 SOULWICK_TEST_RELAY=ws://localhost:3103/v1 SOULWICK_TEST_DEV_KEY=<DEV_AUTH_KEY> godot --headless --audio-driver Dummy --path . -s addons/gut/gut_cmdln.gd -gselect=test_invite_e2e -gexit` (Link lesen → Beitritt, Warten auf den Run, abgelaufener Raum). Von Hand ohne Browser: `godot --path . -- instance=2 room=ABC123`. Im Browser: lokale Browser-Version (WEB_BUILD.md, Port 3110) mit `http://localhost:3110/?room=ABC123` öffnen.
+- **Testen:** Unit-Tests `tests/unit/test_invite_{link,arrival,lobby}.gd`. Ende zu Ende gegen die lokale Plattform (`bun dev`): `SOULWICK_TEST_API=http://localhost:3102 SOULWICK_TEST_RELAY=ws://localhost:3103/v1 SOULWICK_TEST_DEV_KEY=<DEV_AUTH_KEY> godot --headless --audio-driver Dummy --path . -s addons/gut/gut_cmdln.gd -gselect=test_invite_e2e -gexit` (Link lesen → Beitritt, Warten auf den Run, abgelaufener Raum). Von Hand ohne Browser: `godot --path . -- instance=2 room=ABC123`. Im Browser: lokale Browser-Version (WEB_BUILD.md, Port 3110) mit `http://localhost:3110/?room=ABC123` öffnen.
 - **Noch nicht:** Native Builds nehmen angeklickte Links nicht an (App Links, Universal Links, Steam, OFFEN in D-190); ein stummer Playwright-Test gegen die Test-Server fehlt noch.
 
 ## 4. Schritte
 
-Phasenplan mit Abnahmekriterien: [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md); Stores und Crossplay: [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md).
+Pakete mit Abnahmekriterien: [ROADMAP.md](ROADMAP.md) Bereich B (Koop, Gilden, Ranglisten, Steam, Stores, Crossplay).
 
 ## 4a. Verbindungsarten
 
@@ -113,7 +113,7 @@ Gilden, Ranglisten und Run-Berichte laufen getrennt davon über die HTTPS-API (`
 
 ## 6. Regeln für neuen Code (Multiplayer-Vertrag)
 
-- Den Koop-Check aus [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) erfüllen (kein `get_first_node_in_group(&"player")`, Zufall nur über den Dungeon-RNG, Zustand am Spieler, keine globale Pause).
+- Den Koop-Check aus [ROADMAP.md](ROADMAP.md) erfüllen (kein `get_first_node_in_group(&"player")`, Zufall nur über den Dungeon-RNG, Zustand am Spieler, keine globale Pause).
 - Nichts hält das Spiel im Koop bei Fokus- oder Sichtbarkeitsverlust an oder drosselt es (auch nicht im Browser): Der Host rechnet für alle. Warten gehört je Spieler an den Spieler (`set_input_locked` mit eigenem Grund), nie in eine Pause (D-183).
 - Raum- und Modus-Logik nur, wenn `room.remote_encounter == false` (Host oder Einzelspieler).
 - Raumziele in ein `RoomObjective` schreiben (wird gespiegelt); Banner nur über `CombatVariant.show_banner`, Truhen über `spawn_bonus_chests`, Bonus über `set_bonus`.
@@ -140,9 +140,9 @@ Gilden, Ranglisten und Run-Berichte laufen getrennt davon über die HTTPS-API (`
 Godot immer leise starten (`--audio-driver Dummy`, AGENTS.md §7).
 
 - **Ohne Netz:** `godot --headless --audio-driver Dummy --fixed-fps 60 --path . -s tools/mp_local_sim.gd -- players=2 rooms=5` (1–4 Spieler, Bots über `RemoteInput`).
-- **Zwei Spieler auf einem PC:** Im Plattform-Repo `bun run services:up`, einmal `bun run db:deploy` und `bun run db:seed:dev`, dann `bun dev` (API 3101, Relay 3103). `DEV_AUTH_KEY` aus `soulwick-platform/apps/api/.env` einmal in `%APPDATA%/Godot/app_userdata/Soulwick/online.cfg` unter `[settings] dev_key="…"` eintragen (ohne Schlüssel meldet sich jede Instanz als Gast an). Im Editor *Debug → Ausführungsinstanzen anpassen*: zwei Instanzen mit `-- instance=1` und `-- instance=2` (eigene Geräte-ID und eigenes Konto je Instanz); ohne Editor zwei Terminals mit `godot --path . -- instance=1` bzw. `instance=2`. Instanz 1: Online spielen → Raum erstellen, Code ablesen; Instanz 2: Code eingeben → beitreten; Host drückt Starten.
+- **Zwei Spieler auf einem PC:** Im Plattform-Repo `bun run services:up`, einmal `bun run db:deploy` und `bun run db:seed:dev`, dann `bun dev` (API 3102, Relay 3103). `DEV_AUTH_KEY` aus `soulwick-platform/apps/api/.env` einmal in `%APPDATA%/Godot/app_userdata/Soulwick/online.cfg` unter `[settings] dev_key="…"` eintragen (ohne Schlüssel meldet sich jede Instanz als Gast an). Im Editor *Debug → Ausführungsinstanzen anpassen*: zwei Instanzen mit `-- instance=1` und `-- instance=2` (eigene Geräte-ID und eigenes Konto je Instanz); ohne Editor zwei Terminals mit `godot --path . -- instance=1` bzw. `instance=2`. Instanz 1: Online spielen → Raum erstellen, Code ablesen; Instanz 2: Code eingeben → beitreten; Host drückt Starten.
 - **Gilden von Hand:** Instanz 1 gründet eine Gilde und kopiert den Einladungscode, Instanz 2 tritt bei; Instanz 1 erstellt einen Gilden-Raum, Instanz 2 tritt mit dem Raumcode bei; ein paar Räume spielen (mindestens 8 s je Raum), Portal oder aufgeben → beide sehen „Gildenkasse · +X Gold“. Eine dritte Instanz außerhalb der Gilde wird abgewiesen.
 - **Automatisch** (zwei Headless-Prozesse über den Relay):
-  - `godot --headless --audio-driver Dummy --path . -s tools/net_smoke.gd -- api=http://localhost:3101 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>`: Anmeldung, Raum, Beitritt, Eingaben, Verlassen.
+  - `godot --headless --audio-driver Dummy --path . -s tools/net_smoke.gd -- api=http://localhost:3102 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>`: Anmeldung, Raum, Beitritt, Eingaben, Verlassen.
   - `tools/net_run_smoke.gd` mit denselben Argumenten und `rooms=5|16`, `seed=N`, `end=portal|host_leaves|client_leaves|two_runs`, `modes=all|<ids>`, `branch=1`, `side=1`: ganzer gemeinsamer Run mit Signaturvergleich auf beiden Rechnern. Schlechtes Netz: Relay mit `RELAY_SIM_LATENCY_MS=120` starten.
 - **Gegen den Dev-Server:** ein `development`-Build verbindet sich ohne Einstellungen mit `api-dev`/`play-dev`.

@@ -1,5 +1,5 @@
 extends GutTest
-## Stone guardians (Lichtfeuer, KONZEPT_RAEUME_V2 §3.9; before A9): frozen and vulnerable in a light
+## Stone guardians (Lichtfeuer, RAEUME §3.9; before A9): frozen and vulnerable in a light
 ## circle, stone and advancing in the dark, a wind-up is cut off by the light, a started leap goes on;
 ## in Lichtfeuer only the fires hold them, not the players' own circles. The mode itself is tested in
 ## test_mode_rooms.gd.

@@ -70,7 +70,9 @@ const PROP_SPACING := 3
 const HANG_CHANCE := 0.3
 const HANG_SPACING := 4
 ## Shade under overhangs and ledges: height (px) and darkness at the rock.
-const SHADE_HEIGHT := 46.0
+const SHADE_HEIGHT := 48.0
+## Hard bands of the shade from dark to clear (D-218, TESTWERT).
+const SHADE_BANDS := 3
 const SHADE_ALPHA := 0.42
 const ROOT_COLORS: Dictionary[StringName, Color] = {
 	&"slime_grotto": Color("#2c4a2a"),
@@ -284,16 +286,16 @@ func _draw() -> void:
 				for i in 7:
 					var t := i / 6.0
 					points.append(Vector2(x0 + sin(t * 5.0 + wobble * 6.0 + strand) * 4.0 * t, top.y - 2.0 + length * t * (0.7 + 0.15 * strand)))
-				draw_polyline(points, color, 3.0 - strand * 0.6)
-				# A glowing bead at the tip.
-				draw_circle(points[points.size() - 1], 2.0, Color(0.6, 1.0, 0.5, 0.7))
+				SidePixels.polyline(self, points, color, 2 if strand == 0 else 1)
+				# A glowing bead at the tip (one art pixel).
+				SidePixels.dot(self, points[points.size() - 1], Color(0.6, 1.0, 0.5, 0.7))
 		elif kind == "crystals":
 			for shard in 3:
 				var x := top.x + (shard - 1) * 12.0
 				var h := length * (0.5 + 0.25 * ((shard + int(wobble * 3.0)) % 3))
 				var tip := Vector2(x, top.y + h)
-				draw_colored_polygon(PackedVector2Array([Vector2(x - 5, top.y - 2), Vector2(x + 5, top.y - 2), tip]), CRYSTAL_COLOR.darkened(0.35))
-				draw_colored_polygon(PackedVector2Array([Vector2(x - 1, top.y), Vector2(x + 4, top.y), tip]), Color(CRYSTAL_COLOR, 0.85))
+				SidePixels.polygon(self, PackedVector2Array([Vector2(x - 6, top.y - 2), Vector2(x + 6, top.y - 2), tip]), CRYSTAL_COLOR.darkened(0.35))
+				SidePixels.polygon(self, PackedVector2Array([Vector2(x - 2, top.y), Vector2(x + 4, top.y), tip]), Color(CRYSTAL_COLOR, 0.85))
 
 
 ## Leading rows of a hanging's art that are opaque all across (its strip of rock), cached per path.
@@ -325,7 +327,11 @@ func _path(relative: String) -> String:
 	return ("res://art/environment/" + relative)
 
 
-## Soft shade under every overhang and ledge (drawn over the back wall, behind the rock).
+## Shade under every overhang and ledge in hard bands (D-218; drawn over the back wall, behind the
+## rock). A one-way
+## ledge is thin, so its shade starts right under it; ground that falls away (crumbling ledges,
+## tilting platforms, bridge pieces) gets none, or a dark box would hang in the air once it fell
+## (feedback #e0486234).
 class _Shade:
 	extends Node2D
 	var layout: SideLayout = null
@@ -334,12 +340,14 @@ class _Shade:
 		var tile := SideRules.TILE
 		var dark := Color(0.0, 0.0, 0.02, SideDecor.SHADE_ALPHA)
 		var clear := Color(0.0, 0.0, 0.02, 0.0)
+		var bands := maxi(1, SideDecor.SHADE_BANDS)
 		for row in range(0, layout.size.y - 1):
 			for column in range(1, layout.size.x - 1):
 				var cell := Vector2i(column, row)
-				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.DOWN):
+				if not layout.is_blocking(cell) or layout.is_blocking(cell + Vector2i.DOWN) or layout.is_element_ground(cell):
 					continue
 				var top := (row + 1) * tile
+				if layout.is_ledge(cell):
+					top = row * tile + SideTiles.LEDGE_DEPTH * SpriteStrip.PIXEL_SCALE
 				var x := column * tile
-				draw_polygon(PackedVector2Array([Vector2(x, top), Vector2(x + tile, top), Vector2(x + tile, top + SideDecor.SHADE_HEIGHT), Vector2(x, top + SideDecor.SHADE_HEIGHT)]),
-						PackedColorArray([dark, dark, clear, clear]))
+				SidePixels.bands(self, Rect2(x, top, tile, SideDecor.SHADE_HEIGHT), dark, clear, bands)

@@ -1,6 +1,7 @@
 # Makeover 2, Plan 24 (Kristallkluft, Seelen), als Hoehle: versetzte Felsbloecke, zwoelf Seelen-Plaetze
 # verteilt (D-135), Risse als Quellen zwischen den Bloecken. M3b (Makeover 3 §8): rechts eine Empore
 # mit Treppe, oben ein Riss - Druck von oben auf die Seelen-Jaeger (Seelen oben: Seelenhoehle L).
+# CR6 (D-205): die Empore steht frei, ringsum eine Kachel Boden (halbe Hoehe, nie an der Wand).
 role: combat
 mode: souls
 biomes: all
@@ -11,12 +12,12 @@ size: 23x13
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxT######N#######xxxx
-xxxx.*.....,...^^^^xxxx
+xxxx.*.....,........xxx
 xx...........i.^i^^..xx
 xx..*.##..*....^^^^*.xx
-xx....##..i.*..^^&^..xx
-xxx*......##.*....*.xxx
-xxx...*...##....i...xxx
+xx....##..i.*..^^^^..xx
+xxx*......##.*.^^&^.xxx
+xxx...*...##....i..*xxx
 xxxx.*......@...*..xxxx
 xxxxx..........*..xxxxx
 xxxxxxxxxxxSxxxxxxxxxxx

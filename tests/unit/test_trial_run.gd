@@ -215,7 +215,9 @@ func test_open_chest_opens_the_shortcut_and_offers_an_upgrade() -> void:
 	var content := _trial(context)
 	content.start_run(player)
 	content.finish_run(player)
-	assert_eq(content.room.tiles.wall_rects, TrialLayout.get_wall_rects(true), "gate open")
+	# Only the gate's tiles open (#a831f005: no repaint of the whole room).
+	for tile in TrialLayout.get_gate_tiles():
+		assert_true(content.room.tiles.is_walkable(tile), "gate open at %s" % tile)
 	await wait_physics_frames(2)
 	var modals := ui.find_children("*", "Modal", true, false)
 	assert_eq(modals.size(), 1, "upgrade choice from the chest (D-109)")

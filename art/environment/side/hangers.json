@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "Oberkante = Fels, 32×48."
+  ],
+  "items": [
+    {
+      "name": "hang_roots",
+      "file": "hang_roots.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "hang_crystals",
+      "file": "hang_crystals.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        16,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

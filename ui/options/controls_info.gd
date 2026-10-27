@@ -14,6 +14,7 @@ const DASH: StringName = &"dash"
 const SPECIAL: StringName = &"special"
 const SWITCH: StringName = &"switch"
 const INTERACT: StringName = &"interact"
+const SPELL: StringName = &"spell"
 const OVERVIEW: StringName = &"overview"
 const PAUSE: StringName = &"pause"
 const CHOICE: StringName = &"choice"
@@ -26,6 +27,7 @@ const ENTRIES: Array[Array] = [
 	[DASH, &"CONTROLS_DASH", &"CONTROLS_DASH_NOTE", [&"dash"]],
 	[SPECIAL, &"CONTROLS_SPECIAL", &"CONTROLS_SPECIAL_NOTE", [&"special_attack"]],
 	[SWITCH, &"CONTROLS_SWITCH", &"CONTROLS_SWITCH_NOTE", [&"switch_weapon"]],
+	[SPELL, &"CONTROLS_SPELL", &"CONTROLS_SPELL_NOTE", [&"cast_spell"]],
 	[INTERACT, &"CONTROLS_INTERACT", &"CONTROLS_INTERACT_NOTE", [&"interact"]],
 	[OVERVIEW, &"CONTROLS_OVERVIEW", &"CONTROLS_OVERVIEW_NOTE", [&"upgrade_overview"]],
 	[PAUSE, &"CONTROLS_PAUSE", &"", [&"pause_menu"]],

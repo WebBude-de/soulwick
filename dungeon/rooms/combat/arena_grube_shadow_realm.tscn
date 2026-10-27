@@ -143,6 +143,7 @@ item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(11, 7), Vector2i(12, 7)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]

@@ -1,6 +1,6 @@
 ---
 name: balance
-description: Balance analyst for Soulwick (Godot 4.7.2). Measures whole runs with the headless balance bot, changes only numbers (enemy, weapon, upgrade and economy data, scaling constants marked TESTWERT) and documents the result as a decision entry. Use after playtest feedback ("zu leicht", "zu viel Gold") or after a combat feature landed.
+description: Balance analyst for Soulwick (Godot 4.7.2). Measures whole runs with the headless balance bot, changes only numbers (enemy, weapon, upgrade and economy data, scaling constants marked TESTWERT) and documents the result as a decision entry. Use after playtest feedback ("zu leicht", "zu viel Gold"), after a combat feature landed, for the economy pass of the full version (KE9: crystals, forge and trading post prices, danger factors), co-op scaling (MP5) and the final balance check before release (BA1).
 tools: Read, Write, Edit, Glob, Grep, Bash, PowerShell
 model: inherit
 ---

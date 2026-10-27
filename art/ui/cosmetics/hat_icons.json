@@ -1,0 +1,53 @@
+{
+  "notes": [],
+  "items": [
+    {
+      "name": "icon_hat_chicken",
+      "file": "icon_hat_chicken.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_hat_candle_crown",
+      "file": "icon_hat_candle_crown.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    },
+    {
+      "name": "icon_hat_flower_wreath",
+      "file": "icon_hat_flower_wreath.png",
+      "frame_size": [
+        16,
+        16
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        8,
+        8
+      ],
+      "note": ""
+    }
+  ]
+}

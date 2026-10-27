@@ -1,6 +1,6 @@
 class_name FlameRules
 extends RefCounted
-## Rules and numbers of "Flamme hüten" (KONZEPT_RAEUME_V2 §3.4, R4b; before: Seelenflamme, D-114,
+## Rules and numbers of "Flamme hüten" (RAEUME §3.4, R4b; before: Seelenflamme, D-114,
 ## D-118). No nodes, unit-testable; FlameMode only applies them.
 
 ## Raid time: enemies come in short pushes for this long after the fight started ("Halte die Flamme
@@ -11,17 +11,25 @@ const PUSH_INTERVAL := 8.0  # TESTWERT (Claude Design: "Schübe alle 8 s")
 const PUSH_AT_ALIVE := 1
 ## ... but never two pushes closer than this.
 const PUSH_MIN_GAP := 5.0  # TESTWERT
-## Size of a push: the room's normal roll times this factor, at least PUSH_MIN.
-const PUSH_FACTOR := 0.4  # TESTWERT
+## Size of a push: the room's normal roll times this factor, at least PUSH_MIN (#56d68b40, the
+## flame was never touched: 0.4 -> 0.7, more enemies arrive at once from the two sides).
+const PUSH_FACTOR := 0.7  # TESTWERT
 const PUSH_MIN := 2
 ## The room's own first wave is smaller (the pushes bring the rest).
 const FIRST_WAVE_FACTOR := 0.7  # TESTWERT
-## Share of the enemies that go for the flame instead of the players.
-const RAID_SHARE := 0.7  # TESTWERT
-## Flame health in hits of a plain enemy, scaled with the enemy damage of the room.
-const FLAME_HITS := 16.0  # TESTWERT
+## Share of the enemies that go for the flame instead of the players (playtest 23.10.2026
+## #56d68b40, "die Flamme bekommt nie Schaden": 0.7 -> 0.85).
+const RAID_SHARE := 0.85  # TESTWERT
+## Flame health in hits of a plain enemy, scaled with the enemy damage of the room (#56d68b40:
+## 16 -> 10).
+const FLAME_HITS := 10.0  # TESTWERT
+## Every push comes from two sides of the flame (#56d68b40): two sources whose directions from the
+## flame differ by at least this angle (degrees), so one player cannot catch the whole push at one
+## spot; without such a pair the room's usual choice. TESTWERT
+const TWO_SIDES_MIN_ANGLE := 100.0
 ## Co-op (D-109, set in MP5): extra flame health per additional player.
-const HEALTH_PER_EXTRA_PLAYER := 0.5  # TESTWERT
+## #56d68b40: two defenders at the flame held it untouched, 0.5 -> 0.3.
+const HEALTH_PER_EXTRA_PLAYER := 0.3  # TESTWERT
 ## The flame's light follows its health: radius from OUT_LIGHT_RADIUS (empty) to LIGHT_RADIUS (full).
 const LIGHT_RADIUS := 200.0  # TESTWERT
 const LOW_LIGHT_RADIUS := 70.0
@@ -50,6 +58,13 @@ static func should_push(elapsed: float, since_push: float, alive: int, flame_ali
 	if since_push >= PUSH_INTERVAL:
 		return true
 	return alive <= PUSH_AT_ALIVE and since_push >= PUSH_MIN_GAP
+
+
+## Do two sources (directions from the flame) lie on two sides of it?
+static func on_two_sides(a: Vector2, b: Vector2) -> bool:
+	if a.is_zero_approx() or b.is_zero_approx():
+		return false
+	return rad_to_deg(absf(a.angle_to(b))) >= TWO_SIDES_MIN_ANGLE
 
 
 static func push_size(rolled: int) -> int:

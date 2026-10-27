@@ -179,26 +179,26 @@ func test_data_texts_follow_the_language_and_fall_back() -> void:
 
 func test_meta_texts_in_english() -> void:
 	Loc.apply(&"en")
-	assert_eq(MetaProgression.get_upgrade_name(MetaProgression.VITALITY), "Vitality")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.VITALITY, 0), "Max HP 6 → 7")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.DASH_TRAINING, 1), "Dash cooldown 1.35 s → 1.2 s", "English decimal point")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL, 0), "Second starting weapon: none → Bow")
-	assert_eq(MetaProgression.get_boost_name(MetaProgression.BOOST_GOLD), "Gold Pouch")
+	assert_eq(MetaProgression.get_upgrade_name(MetaProgression.SHIELD_PLATE), "Shield Plate")
+	assert_eq(MetaProgression.get_upgrade_name(MetaProgression.SMITH_BOW), "Forge Bow")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 0), "Damage 15 → 16.2", "English decimal point")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.ARSENAL_BOW, 0), "Starting weapon: locked → unlocked")
+	assert_eq(MetaProgression.get_boost_name(MetaProgression.BOOST_GOLD_RAIN), "Gold Rain")
 	assert_eq(MetaProgression.get_run_banner_title(), "From the village")
-	assert_eq(MetaProgression.describe_forge_bonuses({MetaProgression.SHARPNESS: 2, MetaProgression.DASH_TRAINING: 2}, &""),
-		["+20 % damage", "−0.3 s dash"] as Array[String])
+	assert_eq(MetaProgression.describe_forge_bonuses({MetaProgression.SHIELD_PLATE: 2, MetaProgression.LANTERN: 2}, [&"sword"]),
+		["+6 shield", "+20 % light"] as Array[String])
 	assert_eq(MetaUnlocks.get_building_lock_text(VillageBuildings.CHRONICLE), "Opens after your first run")
 	assert_eq(MetaUnlocks.get_forge_lock_text(MetaUnlocks.EVENT_FIRST_BOSS), "More upgrades open after your first boss.")
 	assert_eq(MetaUnlocks.join_names(["A", "B", "C"] as Array[String]), "A, B and C")
-	assert_eq(MetaUnlocks.describe_event(MetaUnlocks.EVENT_FIRST_BOSS), "Forge: Gold Greed, Dash Training and Arsenal")
+	assert_eq(MetaUnlocks.describe_event(MetaUnlocks.EVENT_FIRST_BOSS), "Forge: Arsenal and Second Starting Slot")
 	assert_eq(SaveSlots.default_name(2), "World 2")
 	var now := int(Time.get_unix_time_from_system())
 	assert_string_starts_with(SaveSlots.format_last_played(now, now), "today")
 	assert_eq(VillageBuildings.get_display_name(VillageBuildings.TRADER), "Trading Post")
-	assert_eq(VillageBuildings.get_prompt(VillageBuildings.HOME), "Change clothes")
+	assert_eq(VillageBuildings.get_prompt(VillageBuildings.HOME), "Go inside")
 	assert_eq(RunRecap.describe_hit(_trap_hit([&"trap", &"fire"])), "Lava fissure")
 	Loc.apply(&"de")
-	assert_eq(MetaProgression.describe_level_step(MetaProgression.DASH_TRAINING, 1), "Dash-Abklingzeit 1,35 s → 1,2 s")
+	assert_eq(MetaProgression.describe_level_step(MetaProgression.SMITH_SWORD, 0), "Schaden 15 → 16,2")
 	assert_eq(SaveSlots.default_name(2), "Welt 2")
 
 

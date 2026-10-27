@@ -1,8 +1,8 @@
 class_name DoorStyle
 extends RefCounted
-## Look of one door (ROADMAP_AUSBAU D1): frame, leaf, torches, light, glow, particles and sound,
+## Look of one door (ROADMAP D1): frame, leaf, torches, light, glow, particles and sound,
 ## chosen from the biome of the room and the kind of room behind the door. Pure data, no nodes.
-## Art files (docs/design/sprites/SPRITES_V4.md §4) are resolved by DoorArt; until they exist DoorArt paints
+## Art files (docs/design/sprites/delivered/SPRITES_V4.md §4) are resolved by DoorArt; until they exist DoorArt paints
 ## placeholders from the palette fields below.
 ## One gate per transition (M2, 11_makeover3_komplett.md §11/§12, art/environment/doors/gates.json):
 ## the leaf of a north exit is a gate flush in the wall line (stone slab sinking into the floor or a
@@ -367,7 +367,7 @@ func get_leaf_path() -> String:
 	return ART_DIR + "gate_%s_open_4f.png" % gate
 
 
-## Leaf of a door in the west or east wall, seen from above (A10, docs/design/sprites/SPRITES_V7.md): four
+## Leaf of a door in the west or east wall, seen from above (A10, docs/design/sprites/delivered/SPRITES_V7.md): four
 ## frames of 32x32, drawn for a west wall door (the east one is mirrored).
 ## Soft rooms: the portcullis across the passage (door_side_<biome>_bars_4f, V9) when it exists.
 func get_side_leaf_path() -> String:

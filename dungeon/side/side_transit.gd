@@ -1,7 +1,8 @@
 class_name SideTransit
 extends Node
-## The way through a side segment (M5): door -> black fade 0.3 s with a low drone -> banner
-## "Abstieg" (the first three segments of a save also show "Springen: Leertaste") -> the segment
+## The way through an obstacle run (M5, D-216): door -> black fade 0.3 s with a low drone -> banner
+## "Hindernislauf" -> the segment (Flint explains the side view once per account to every local
+## player, D-211: no keys in the banner)
 ## (players in side view, its own camera and light) -> door -> black fade -> the next room, where
 ## the caller puts the players (on_finished) -> fade in. Input is locked per player while black, no
 ## global pause (multiplayer rule). The transit frees itself and the segment at the end; a run that
@@ -32,7 +33,7 @@ var _on_finished: Callable
 var _layer: CanvasLayer = null
 var _black: ColorRect = null
 var _title: Label = null
-## Rich text: key names in the hint become input symbols (GlyphText; touch: the jump and dash buttons).
+## Rich text: key names in a hint become input symbols (GlyphText).
 var _subtitle: RichTextLabel = null
 var _saved_lighting: LightingProfile = null
 
@@ -88,20 +89,16 @@ func _run() -> void:
 	if not is_inside_tree():
 		return
 	_enter_segment()
-	var seen := int(SaveManager.get_stat(SideRules.STAT_SEGMENTS)) if SaveManager.get_stat(SideRules.STAT_SEGMENTS) != null else 0
-	var hint := SideRules.shows_jump_hint(seen)
 	SaveManager.add_stat(SideRules.STAT_SEGMENTS, 1)
-	_title.text = DungeonTexts.t(&"SIDE_DESCENT_TITLE")
-	var subtitle := DungeonTexts.t(&"SIDE_DESCENT_SUB")
-	if hint:
-		subtitle += " · " + jump_hint_text()
-	GlyphText.apply(_subtitle, subtitle)
-	await get_tree().create_timer(SideRules.BANNER_TIME_WITH_HINT if hint else SideRules.BANNER_TIME, false).timeout
+	_title.text = DungeonTexts.t(&"SIDE_RUN_TITLE")
+	GlyphText.apply(_subtitle, DungeonTexts.t(&"SIDE_RUN_SUB"))
+	await get_tree().create_timer(SideRules.BANNER_TIME, false).timeout
 	if not is_inside_tree():
 		return
 	_title.text = ""
 	_subtitle.clear()
 	_lock(false)
+	_explain_side_view()
 	await _fade(0.0)
 	if not is_inside_tree() or segment == null:
 		return
@@ -125,13 +122,12 @@ func _run() -> void:
 	queue_free()
 
 
-## "Springen: Leertaste · in der Luft nochmal: Doppelsprung · Dash: Umschalt" with the keys
-## actually bound (round 2: the double jump is part of the hint).
-static func jump_hint_text() -> String:
-	var jump := ControlsInfo.action_key(PlayerSideMotion.JUMP_ACTION)
-	PlayerSideMotion.ensure_actions()
-	var dash := ControlsInfo.action_key(PlayerSideMotion.DASH_ACTION)
-	return Loc.t(&"SIDE_HINT_MOVES", [jump if not jump.is_empty() else "Space", dash if not dash.is_empty() else "Shift"])
+## Flint explains the side view to every local player once per account (FlintControls.SIDE_VIEW);
+## each machine for its own players (D-088).
+func _explain_side_view() -> void:
+	for player in players:
+		if player != null and is_instance_valid(player) and player.is_local:
+			FlintExplanations.side_view(player)
 
 
 func _enter_segment() -> void:

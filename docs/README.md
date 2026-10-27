@@ -1,6 +1,6 @@
 # Doku – Inhaltsverzeichnis
 
-> **Stand:** 17.10.2026 · Die Doku ist Deutsch, Code und Kommentare sind Englisch. Arbeitsweise mit KI-Agenten: [AGENTS.md](../AGENTS.md).
+> **Stand:** 22.10.2026 · Die Doku ist Deutsch, Code und Kommentare sind Englisch. Arbeitsweise mit KI-Agenten: [AGENTS.md](../AGENTS.md).
 > **Grundsatz (D-178):** Die Doku beschreibt Absicht, Gründe, Regeln, Begriffe und was kommt. **Was gebaut ist, steht im Code** (Kopfkommentare, `*.tres`, Konstanten mit `TESTWERT`). Ist etwas gebaut, wird sein Konzept auf Entscheidung und Glossar eingedampft; Roadmaps behalten Offenes und eine kurze Erledigt-Liste. Kein Archiv: Git hat die Historie.
 > **Leseregel:** `VERBINDLICH` = beschlossen · `TESTWERT` = vorläufige Zahl · `VORGESCHLAGEN` = braucht Bestätigung · `OFFEN` = nicht entschieden, nicht still festlegen.
 
@@ -10,42 +10,29 @@
 | --- | --- | --- |
 | 1 | [PRODUKT.md](PRODUKT.md) | Was Soulwick ist, für wen, Ton, Geschäftsmodell; gilt für beide Repositories |
 | 2 | [GLOSSAR.md](GLOSSAR.md) | Begriffe Deutsch ↔ Englisch für Spiel, Website und Plattform |
-| 3 | [ROADMAP.md](ROADMAP.md) | Übersicht aller Phasen und was jetzt dran ist |
+| 3 | [ROADMAP.md](ROADMAP.md) und [KONZEPT.md](KONZEPT.md) | was jetzt dran ist und wie es werden soll |
 | 4 | [PRD.md](PRD.md) | Designziele, Spielregeln mit Grund, Nicht-Ziele |
 | 5 | [ARCHITECTURE.md](ARCHITECTURE.md) | Landkarte: Szenen, Zuständigkeiten, Ordner, Datenfluss |
 | 6 | [TECHSTACK.md](TECHSTACK.md) | Godot-Version, Konventionen, Git-Workflow, Tests |
 | 7 | [DECISIONS.md](DECISIONS.md) | alle Entscheidungen (D-Nummern), bei Widerspruch maßgeblich |
 | 8 | [BACKLOG.md](BACKLOG.md) | Ideen für „nicht jetzt“, eine Zeile je Idee, keine Zusagen |
 
-## Roadmaps
+## Was jetzt dran ist
 
-Jede Roadmap ist in Pakete für je **einen Agenten** geschnitten; abgehakt wird nur mit Nachweis (Tests grün, Datum).
-
-| Roadmap | Inhalt |
+| Dokument | Wofür |
 | --- | --- |
-| [ROADMAP.md](ROADMAP.md) | Übersicht über alle Phasen (D-179) |
-| [ROADMAP_AUSBAU.md](ROADMAP_AUSBAU.md) | Phase 1 und 2: spielbar machen, Räume (2, 2b, 2c) |
-| [ROADMAP_MULTIPLAYER.md](ROADMAP_MULTIPLAYER.md) | Phase 3: Koop, Steam, Gilden, Ranglisten (MP0–MP10) |
-| [ROADMAP_CROSSPLAY.md](ROADMAP_CROSSPLAY.md) | Stores und Crossplay (CP0–CP7) |
-| [ROADMAP_KI_BOSS.md](ROADMAP_KI_BOSS.md) | Phase 4: KI-Bosse „Traumweber“ |
+| [ROADMAP.md](ROADMAP.md) | **die einzige Roadmap** für die Vollversion (Release 1.0): vier Bereiche A Kern-Umbau, B Online und Release-Technik, C Inhalt und Feinschliff, D KI-Bosse und Party-Modus; Startaufstellung für die Agenten, Release-Tor (D-193) |
+| [KONZEPT.md](KONZEPT.md) | **das Konzept** für alles Ungebaute: Extraktion, Gefahrenstufe und Rang, Level mit Talentpunkten, Schmiede, Handelsposten, Zuhause mit Talentbaum und Zaubern, Flint als Begleiter und Erklärer, Kosmetik, Koop, Konto und Cloud, KI-Bosse, Party-Modus (D-194) |
+| [design/sprites/SPRITES_V13.md](design/sprites/SPRITES_V13.md) | **das offene Grafik-Briefing** für Claude Design; Agenten tragen fehlende Grafik jederzeit in Teil C ein |
 
 Server, Website und Admin-Panel haben eine eigene Roadmap im Repo `soulwick-platform` (`docs/ROADMAP.md`).
-
-## Konzepte
-
-| Konzept | Wofür |
-| --- | --- |
-| [KONZEPT_RAEUME_V2.md](KONZEPT_RAEUME_V2.md) | Raumarten und Minispiele: Leitlinien, Regeln, Offenes (D-120) |
-| [KONZEPT_KI_BOSS.md](KONZEPT_KI_BOSS.md) | KI-Bosse aus einem Wunsch (Phase 4) |
-| [KONZEPT_PARTY_MODUS.md](KONZEPT_PARTY_MODUS.md) | Party-Modus: nur Minispiele, Spieler gegeneinander (Phase 5) |
-| [KONZEPT_BEGLEITER_KOSMETIK.md](KONZEPT_BEGLEITER_KOSMETIK.md) | Wick als Begleiter, Kosmetik und Dorf-Deko |
-| [KONZEPT_KONTO_FORTSCHRITT.md](KONZEPT_KONTO_FORTSCHRITT.md) | Ein Konto, viele Anmeldungen, Welten in der Cloud, Konto-Level (D-188) |
-| [KONZEPT_SPRACHEN_EINSTELLUNGEN.md](KONZEPT_SPRACHEN_EINSTELLUNGEN.md) | Regeln für Texte, Übersetzungen und Optionen (D-111) |
 
 ## Regeln und Anleitungen
 
 | Dokument | Wofür |
 | --- | --- |
+| [RAEUME.md](RAEUME.md) | Regeln für Raumarten und Minispiele (Räume v2, D-120); Abschnittsnummern sind Code-Verweise |
+| [SPRACHEN.md](SPRACHEN.md) | Regeln für Texte, Übersetzungen und Optionen (D-111) |
 | [MULTIPLAYER.md](MULTIPLAYER.md) | Host-Modell: wer was rechnet, Regeln für neuen Code, Koop testen |
 | [HANDOUT.md](HANDOUT.md) | Ton, Maßstab, Palette, Namensregeln für Grafik und Code |
 | [AUDIO.md](AUDIO.md) | Musik, Geräuschkulissen, Übergänge, eigene Dateien |
@@ -61,6 +48,6 @@ Server, Website und Admin-Panel haben eine eigene Roadmap im Repo `soulwick-plat
 | Ordner | Inhalt |
 | --- | --- |
 | [design/](design/README.md) | Briefings, Antworten von Claude Design, Mockups, Szenen-Galerie (Inspiration, keine exakte Vorlage); Godot liest `docs/` nicht |
-| [design/sprites/](design/sprites/README.md) | Grafik-Briefings `SPRITES_V*.md` mit Stand, neuestes: [SPRITES_V12.md](design/sprites/SPRITES_V12.md) |
+| [design/sprites/](design/sprites/README.md) | offenes Briefing [SPRITES_V13.md](design/sprites/SPRITES_V13.md), gelieferte in `delivered/` |
 | [design/responses/](design/responses/README.md) | Antworten von Claude Design; Dateinamen nicht ändern, Code und Werkzeuge verweisen darauf |
 | [feedback/](feedback/README.md) | Dev-Feedback-Modus (F9): Anleitung; die Auswertungen bleiben lokal |

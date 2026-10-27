@@ -1,6 +1,6 @@
 class_name VillageArt
 extends RefCounted
-## Village decoration art (B3, docs/design/sprites/SPRITES_V4.md): loads art/environment/village/<name>.png and
+## Village decoration art (B3, docs/design/sprites/delivered/SPRITES_V4.md): loads art/environment/village/<name>.png and
 ## the villager/animal strips in art/characters/npcs/ as soon as the files exist. Until then simple
 ## props get a pixel placeholder in the palette (flowers, grass, stones, bush, stump, garden fence,
 ## flower bed, hay bale, bench, signpost, pond, chicken); the rest (cart, cat) has none and stays
@@ -68,7 +68,7 @@ static func has_art(art_name: String) -> bool:
 
 
 ## Frames for a villager or animal from art/characters/npcs/<name>_idle_<n>f.png and
-## <name>_walk_<n>f.png (square frames, size from the strip height). Without the idle strip: a
+## <name>_walk_<n>f.png (+ <name>_react_<n>f.png, WK12; square frames, size from the strip height). Without the idle strip: a
 ## one-frame placeholder for simple animals (chicken), else null.
 ## Sprite offset (art px, sprite centred) that puts the lowest opaque row of the first idle frame on
 ## the node's feet line. Measured instead of assumed: not every figure stands on row 29 of its frame
@@ -105,6 +105,10 @@ static func get_character_frames(art_name: String) -> SpriteFrames:
 		var walk := _find_strip(art_name, "walk")
 		if not walk.is_empty():
 			SpriteStrip.add_strip(frames, &"walk", load(walk) as Texture2D, size, 8.0, true)
+		# WK12: an animal's reaction when spoken to (VillageAnimal), once it is delivered.
+		var react := _find_strip(art_name, "react")
+		if not react.is_empty():
+			SpriteStrip.add_strip(frames, &"react", load(react) as Texture2D, size, 8.0, true)
 	elif art_name == "chicken":
 		frames = SpriteFrames.new()
 		frames.rename_animation(&"default", &"idle")

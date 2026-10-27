@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "8 Frames 64×64, Aufhängung (32,2); Frame 1 und 5 Außenpositionen."
+  ],
+  "items": [
+    {
+      "name": "pendulum_blade",
+      "file": "pendulum_blade_8f.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "frames": 8,
+      "fps": 8,
+      "loop": true,
+      "pivot": [
+        32,
+        2
+      ],
+      "note": ""
+    }
+  ]
+}

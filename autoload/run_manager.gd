@@ -11,7 +11,9 @@ signal room_changed(room_index: int)
 enum EndReason { DEATH, ABORT, EXIT }
 
 const EXIT_PAYOUT_RATIO := 1.0
-const LOSS_PAYOUT_RATIO := 0.5
+## TESTWERT (KE3, D-196 point 3, KONZEPT §2): death and abort pay 25 % (was 50 %, D-039), so the
+## soul gate is worth taking; the danger loot bonus comes on top (end_run).
+const LOSS_PAYOUT_RATIO := 0.25
 
 var _is_run_active := false
 var _current_room := 0
@@ -22,16 +24,38 @@ var _run_crystals := 0
 ## Proviant boosts taken from SaveManager at run start; valid for this run only.
 var _run_boosts: Array[StringName] = []
 var _last_summary: Dictionary = {}
+## Danger level G of this run (D-194, D-196, KONZEPT §3): set once by whoever starts the run (solo:
+## the player's own level from DangerRank, co-op: the group level the host computed and sent along).
+## Enemy scaling and economy read it; it never changes inside a run.
+var _danger_level := 0
+## Goldregen of a group run (KE5): the host sets the mean of the players' gold factors
+## (MetaProgression.group_gold_factor) once every player's Proviant is on; -1 = not set (solo: the
+## own boost counts, MetaProgression.get_gold_multiplier).
+var _group_gold_factor := -1.0
 
 
-## Permanent gold (or crystals) credited for the remaining run amount (D-039).
-## Odd amounts in the 50 % case are rounded up (D-062).
+## Permanent gold (or crystals) credited for the remaining run amount (D-039): the soul gate pays
+## everything, death and abort LOSS_PAYOUT_RATIO, with this run's Seelenanker 50 % (KE5, D-196
+## point 3; SoulGateRules.payout). Fractions are rounded up (D-062). Each machine books its own
+## payout with its own Proviant.
 func calculate_payout(remaining_gold: int, reason: EndReason) -> int:
-	if remaining_gold <= 0:
-		return 0
-	if reason == EndReason.EXIT:
-		return remaining_gold
-	return ceili(remaining_gold * LOSS_PAYOUT_RATIO)
+	return SoulGateRules.payout(remaining_gold, reason, _run_boosts.has(SoulGateRules.SOUL_ANCHOR_BOOST))
+
+
+## Share of death and abort payouts in this run (25 %, with Seelenanker 50 %; pause menu, run end).
+func get_loss_payout_ratio() -> float:
+	return SoulGateRules.loss_payout_ratio(_run_boosts.has(SoulGateRules.SOUL_ANCHOR_BOOST))
+
+
+## Danger level of the current (or last) run; 0 before the first run.
+func get_danger_level() -> int:
+	return _danger_level
+
+
+## Sets the danger level for the next start_run() (the entrance or the co-op run start calls this
+## before starting; values below 0 count as 0).
+func set_danger_level(level: int) -> void:
+	_danger_level = maxi(level, 0)
 
 
 func start_run() -> void:
@@ -40,9 +64,11 @@ func start_run() -> void:
 	_run_gold = 0
 	_run_gold_earned = 0
 	_run_crystals = 0
-	# Pending boosts are consumed now and saved, so quitting mid-run cannot keep them. Group runs
-	# without meta upgrades (quick game, D-081) neither use nor consume them: they wait for solo.
-	if GameMode.of_tree(get_tree()).get_meta_source() == GameMode.MetaSource.LOCAL:
+	_group_gold_factor = -1.0
+	# Pending boosts are consumed now and saved, so quitting mid-run cannot keep them. A quick game
+	# (no forge from the save, D-081) takes the own Proviant too: the lobby profile carries it and the
+	# host applies it to this player (KE5, KONZEPT §9). Guild runs have none: it waits for later.
+	if GameMode.of_tree(get_tree()).get_meta_source() != GameMode.MetaSource.GUILD:
 		_run_boosts = SaveManager.take_pending_boosts()
 		if not _run_boosts.is_empty():
 			SaveManager.save_game()
@@ -104,6 +130,16 @@ func has_run_boost(id: StringName) -> bool:
 	return _is_run_active and _run_boosts.has(id)
 
 
+## Host of a group run: the gold factor of the shared purse (mean of the players' Goldregen, KE5).
+func set_group_gold_factor(factor: float) -> void:
+	_group_gold_factor = maxf(factor, 0.0)
+
+
+## The group's gold factor of this run, -1 if none was set (solo).
+func get_group_gold_factor() -> float:
+	return _group_gold_factor if _is_run_active else -1.0
+
+
 ## MP3 (D-081): the host owns the shared run gold and crystals; a network client mirrors them.
 func sync_from_host(gold: int, gold_earned: int, crystals: int) -> void:
 	if not _is_run_active:
@@ -145,9 +181,10 @@ func end_run(reason: EndReason) -> bool:
 		return false
 	_is_run_active = false
 	var remaining_gold := _run_gold
-	var payout := calculate_payout(remaining_gold, reason)
+	# Danger loot bonus (KE2) once on the payout, so small drops never round away.
+	var payout := EconomySystem.apply_danger_loot(calculate_payout(remaining_gold, reason), _danger_level)
 	var remaining_crystals := _run_crystals
-	var crystal_payout := calculate_payout(remaining_crystals, reason)
+	var crystal_payout := EconomySystem.apply_danger_loot(calculate_payout(remaining_crystals, reason), _danger_level)
 	SaveManager.add_permanent_gold(payout)
 	SaveManager.add_permanent_crystals(crystal_payout)
 	SaveManager.save_game()
@@ -159,10 +196,14 @@ func end_run(reason: EndReason) -> bool:
 		"gold_earned": _run_gold_earned,
 		"remaining_crystals": remaining_crystals,
 		"crystal_payout": crystal_payout,
+		"danger": _danger_level,
+		# Share death and abort paid in this run (Seelenanker 50 %, else LOSS_PAYOUT_RATIO).
+		"loss_ratio": get_loss_payout_ratio(),
 	}
 	_run_gold = 0
 	_run_crystals = 0
 	_run_boosts.clear()
+	_group_gold_factor = -1.0
 	run_gold_changed.emit(_run_gold)
 	run_crystals_changed.emit(_run_crystals)
 	EventBus.run_ended.emit(reason, remaining_gold, payout)

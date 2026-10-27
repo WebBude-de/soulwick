@@ -1,0 +1,135 @@
+{
+  "notes": [
+    "Puppen 32×32 Pivot (16,30); station_sign 24×32 mit freier Fläche x4–20/y4–16; tutorial_gate 64×48 (Durchgang dunkel-transparent)."
+  ],
+  "items": [
+    {
+      "name": "training_dummy_idle",
+      "file": "training_dummy_idle_2f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 2,
+      "fps": 2,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "training_dummy_hit",
+      "file": "training_dummy_hit_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "training_dummy_break",
+      "file": "training_dummy_break_6f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "training_dummy_shield_idle",
+      "file": "training_dummy_shield_idle_2f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 2,
+      "fps": 2,
+      "loop": true,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "training_dummy_shield_block",
+      "file": "training_dummy_shield_block_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 10,
+      "loop": false,
+      "pivot": [
+        16,
+        30
+      ],
+      "note": ""
+    },
+    {
+      "name": "station_sign",
+      "file": "station_sign.png",
+      "frame_size": [
+        24,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        12,
+        31
+      ],
+      "note": ""
+    },
+    {
+      "name": "station_flag",
+      "file": "station_flag_2f.png",
+      "frame_size": [
+        16,
+        24
+      ],
+      "frames": 2,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        4,
+        23
+      ],
+      "note": ""
+    },
+    {
+      "name": "tutorial_gate",
+      "file": "tutorial_gate.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        32,
+        47
+      ],
+      "note": ""
+    }
+  ]
+}

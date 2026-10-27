@@ -37,7 +37,7 @@ func _segment(plan: StringName, mirrored := false) -> SideSegment:
 
 
 func test_segment_builds_everything_of_its_plan() -> void:
-	for plan in [&"crypt_gallery", &"grotto_pools", &"shadow_rift", &"ember_anvils"]:
+	for plan in [&"crypt_gallery", &"grotto_pools", &"shadow_rift", &"ember_anvils", &"crypt_gauntlet", &"shadow_tower"]:
 		var segment := _segment(plan)
 		var layout := segment.layout
 		var tiles := segment.get_node("Tiles") as TileMapLayer
@@ -45,7 +45,7 @@ func test_segment_builds_everything_of_its_plan() -> void:
 		for row in layout.size.y:
 			for column in layout.size.x:
 				var cell := Vector2i(column, row)
-				if layout.is_blocking(cell) and not layout.is_crumble(cell):
+				if layout.is_blocking(cell) and not layout.is_element_ground(cell):
 					solid += 1
 		var in_plan := 0
 		for cell in tiles.get_used_cells():
@@ -55,9 +55,13 @@ func test_segment_builds_everything_of_its_plan() -> void:
 		assert_eq(segment.coins_total, layout.coins.size(), "%s: coins" % plan)
 		assert_true(segment.has_golden_coin(), "%s: golden coin" % plan)
 		assert_eq(segment.get_ladder_bodies().size(), layout.ladders.size(), "%s: ladder steps" % plan)
-		assert_eq(segment.get_enemies().size(), layout.slimes.size() + layout.skeletons.size(), "%s: enemies" % plan)
+		assert_eq(segment.get_enemies().size(), layout.enemy_cells().size(), "%s: enemies" % plan)
 		assert_eq(segment.get_chest() != null, layout.chest.x >= 0, "%s: chest as planned" % plan)
-		assert_eq(segment.get_crumbles().size(), layout.crumbles.size(), "%s: crumbling ledges" % plan)
+		var bridge_pieces := 0
+		for run in layout.bridges:
+			bridge_pieces += run.y - run.x + 1
+		assert_eq(segment.get_crumbles().size(), layout.crumbles.size() + layout.tilts.size() + bridge_pieces,
+				"%s: crumbling ledges, tilting platforms and bridge pieces" % plan)
 		assert_not_null(segment.get_node_or_null("Exit"), "%s: door" % plan)
 		assert_not_null(segment.camera, "%s: own camera" % plan)
 		assert_eq(segment.get_door_feet(), segment.to_global(SideLayout.feet_of(layout.door)))
@@ -191,7 +195,7 @@ func test_transit_hands_the_player_over_and_back() -> void:
 	assert_true(player.is_side_view(), "in side view behind the black")
 	assert_true(player.is_input_locked(), "locked while black")
 	assert_not_null(transit.segment)
-	await wait_seconds(SideRules.BANNER_TIME_WITH_HINT + SideRules.FADE_TIME + 0.2)
+	await wait_seconds(SideRules.BANNER_TIME + SideRules.FADE_TIME + 0.2)
 	assert_false(player.is_input_locked(), "free to play")
 	transit.segment.finish()
 	await wait_seconds(SideRules.FADE_TIME * 2.0 + 0.4)
@@ -204,9 +208,9 @@ func test_transit_hands_the_player_over_and_back() -> void:
 	assert_gte(int(SaveManager.get_stat(SideRules.STAT_SEGMENTS)), 1, "counted for the jump hint")
 
 
-func test_jump_hint_names_the_keys() -> void:
-	var text := SideTransit.jump_hint_text()
-	assert_false(text.is_empty())
+func test_side_view_keys_come_from_flint() -> void:
+	var explanation := FlintControls.explanation_for(FlintControls.SIDE_VIEW)
+	assert_not_null(explanation, "Flint explains jump and dash (D-211)")
 	assert_true(InputMap.has_action(PlayerSideMotion.DASH_ACTION), "the side dash action exists at runtime")
 
 

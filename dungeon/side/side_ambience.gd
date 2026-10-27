@@ -3,7 +3,9 @@ extends Node2D
 ## Air of a side segment (M5 round 3): small particles drifting through the whole segment in the
 ## biome's mood - dust in the crypt, rising spores in the grotto, violet wisps in the shadow realm,
 ## embers in the ember forge - and something rising out of every pit (mist, or sparks above the
-## forge's glow). Look only; CPU particles, so the browser build shows them too.
+## forge's glow). Look only; CPU particles, so the browser build shows them too. Pixel art (D-218):
+## every particle is a square of whole art pixels (sizes rounded by pixel_size) and fades in hard
+## steps (constant colour ramp).
 
 ## [colour, amount per 1000 px of width, direction, speed, gravity y, size, additive] per biome.
 const AIR: Dictionary[StringName, Array] = {
@@ -50,8 +52,8 @@ func _ready() -> void:
 	air.initial_velocity_min = setting[3] * 0.5
 	air.initial_velocity_max = setting[3]
 	air.gravity = Vector2(0, setting[4])
-	air.scale_amount_min = setting[5]
-	air.scale_amount_max = setting[5] * 1.5
+	air.scale_amount_min = pixel_size(setting[5])
+	air.scale_amount_max = air.scale_amount_min
 	air.preprocess = AIR_LIFETIME
 	air.z_index = -2
 	add_child(air)
@@ -77,12 +79,17 @@ func _ready() -> void:
 		emitter.initial_velocity_min = pit[2] * 0.6
 		emitter.initial_velocity_max = pit[2]
 		emitter.gravity = Vector2.ZERO
-		emitter.scale_amount_min = pit[3]
-		emitter.scale_amount_max = pit[3] * 1.6
+		emitter.scale_amount_min = pixel_size(pit[3])
+		emitter.scale_amount_max = emitter.scale_amount_min
 		emitter.preprocess = PIT_LIFETIME
 		emitter.z_index = -4
 		add_child(emitter)
 		pits.append(emitter)
+
+
+## A particle size (px) rounded to whole art pixels, at least one.
+static func pixel_size(size: float) -> float:
+	return SidePixels.whole(size)
 
 
 func _particles(color: Color, amount: int, lifetime: float, additive: bool) -> CPUParticles2D:
@@ -95,6 +102,7 @@ func _particles(color: Color, amount: int, lifetime: float, additive: bool) -> C
 	ramp.set_color(1, Color(color, 0.0))
 	ramp.add_point(0.2, color)
 	ramp.add_point(0.75, Color(color, color.a * 0.6))
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	particles.color_ramp = ramp
 	if additive:
 		var material := CanvasItemMaterial.new()

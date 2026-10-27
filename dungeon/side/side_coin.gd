@@ -60,7 +60,10 @@ func take() -> bool:
 		return false
 	is_taken = true
 	if is_inside_tree():
-		Burst.spawn(get_parent(), global_position, GOLDEN_COLOR if golden else COLOR, 18 if golden else 8, 140.0, 0.4, 3.0)
+		# A pixel pop (D-218); the plain coin keeps the small light flash its burst had.
+		SideDust.spawn(get_parent(), global_position, SideDust.Kind.POP, 1.0 if golden else 0.4, 0.0, GOLDEN_COLOR if golden else COLOR)
+		if not golden and Burst.should_flash(8):
+			LightSource.flash(get_parent(), global_position, Burst.flash_radius(140.0), 0.24, COLOR, Burst.FLASH_PEAK)
 		Sfx.play_at(self, SideRules.SOUND_GOLDEN_COIN if golden else SideRules.SOUND_COIN, global_position, -3.0)
 		if golden:
 			LightSource.flash(get_parent(), global_position, 160.0, 0.5)

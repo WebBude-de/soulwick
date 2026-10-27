@@ -19,6 +19,8 @@ const FIRE_FPS := 8.0
 ## Warm glow on the floor around the fire and the coloured glows of the two biomes.
 const FIRE_GLOW_COLOR := Color(1.0, 0.55, 0.2, 0.5)
 const FIRE_GLOW_SIZE := 460.0
+## The floor glows step down in this many hard rings.
+const GLOW_STEPS := 4
 const BIOME_GLOW_ALPHA := 0.15
 const BIOME_GLOW_SIZE := 300.0
 ## Glow colour per biome (light of the old biome at the entrance, of the new one at the exit).
@@ -186,10 +188,13 @@ func get_dark_color(progress: float) -> Color:
 
 func _add_glow(offset_position: Vector2, color: Color, size: float) -> Sprite2D:
 	var sprite := Sprite2D.new()
-	sprite.texture = _glow_texture()
+	var radius_pixels := maxi(1, roundi(size * 0.5 / PixelDraw.WORLD_PIXEL))
+	sprite.texture = _glow_texture(radius_pixels)
+	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	sprite.modulate = color
-	sprite.scale = Vector2.ONE * size / 64.0
-	sprite.position = offset_position
+	# One texel per art pixel (D-218): the glow steps in whole art pixels.
+	sprite.scale = Vector2.ONE * PixelDraw.WORLD_PIXEL
+	sprite.position = PixelDraw.snap(offset_position)
 	# On the floor, under props and characters; adds light instead of painting over it.
 	sprite.z_index = -8
 	var additive := CanvasItemMaterial.new()
@@ -199,19 +204,13 @@ func _add_glow(offset_position: Vector2, color: Color, size: float) -> Sprite2D:
 	return sprite
 
 
-static func _glow_texture() -> GradientTexture2D:
+## Floor glow in GLOW_STEPS hard steps (pixel art, D-218) instead of a smooth radial gradient.
+static func _glow_texture(radius_pixels: int) -> Texture2D:
 	var gradient := Gradient.new()
 	gradient.set_color(0, Color.WHITE)
 	gradient.set_color(1, Color(1, 1, 1, 0))
 	gradient.add_point(0.45, Color(1, 1, 1, 0.45))
-	var texture := GradientTexture2D.new()
-	texture.gradient = gradient
-	texture.fill = GradientTexture2D.FILL_RADIAL
-	texture.fill_from = Vector2(0.5, 0.5)
-	texture.fill_to = Vector2(1.0, 0.5)
-	texture.width = 64
-	texture.height = 64
-	return texture
+	return PixelDraw.stepped_glow_texture(radius_pixels, gradient, GLOW_STEPS)
 
 
 ## Sparks rising from the fire (optics only).
@@ -227,11 +226,15 @@ func _add_embers() -> void:
 	embers.gravity = Vector2(0, -30)
 	embers.initial_velocity_min = 18.0
 	embers.initial_velocity_max = 46.0
-	embers.scale_amount_min = 2.0
-	embers.scale_amount_max = 3.0
+	# One art pixel each, fading in hard steps (D-218).
+	embers.scale_amount_min = PixelDraw.WORLD_PIXEL
+	embers.scale_amount_max = PixelDraw.WORLD_PIXEL
 	var ramp := Gradient.new()
+	ramp.interpolation_mode = Gradient.GRADIENT_INTERPOLATE_CONSTANT
 	ramp.set_color(0, Color(1.0, 0.9, 0.5, 1.0))
 	ramp.set_color(1, Color(1.0, 0.35, 0.15, 0.0))
+	ramp.add_point(0.45, Color(1.0, 0.65, 0.3, 0.7))
+	ramp.add_point(0.75, Color(1.0, 0.45, 0.2, 0.35))
 	embers.color_ramp = ramp
 	embers.z_index = 4
 	add_child(embers)

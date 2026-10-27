@@ -57,7 +57,7 @@ position = Vector2(416, 352)
 position = Vector2(672, 224)
 
 [node name="PortalAnchor" parent="."]
-position = Vector2(928, 160)
+position = Vector2(992, 160)
 
 [node name="PlayerStart" type="Marker2D" parent="."]
 position = Vector2(928, 416)
@@ -118,6 +118,7 @@ item = &"group_1"
 flip = true
 blocked_tiles = Array[Vector2i]([Vector2i(16, 5), Vector2i(17, 5)])
 solid_span = Vector2(-48, 48)
+solid_gaps = PackedVector2Array(-44, -18, 18, 44)
 biome = &"shadow_realm"
 
 [node name="Ingredients" type="Node2D" parent="."]

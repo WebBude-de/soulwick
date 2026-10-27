@@ -24,6 +24,10 @@ extends RefCounted
 ## plain ledge over the second pit). D-144 (18.10.2026): every plan has its chest niche, mostly a
 ## pocket in the rock under the start shelf or under a block beside the way, else the far end of a
 ## side ledge: a short detour without the double jump, never over a pit, never on the way.
+## SV2 (D-195): the jump trial's plans live in SideTrialPlans (four per biome, with elements, up to
+## 22 rows); ids_for, pick, build and all_ids cover both, every plan has a tier (these six: 1).
+## D-216: these plans are pieces of the obstacle runs (ObstacleRunPlans: the opening and the hard
+## part); the game no longer plays one alone, pick() stays for tests and tools.
 
 ## Test aid (net_run_smoke side=1): every picked layout sets its turrets up (the draw still happens,
 ## so the RNG stream stays the same). Set on every machine before the run. Never in the game.
@@ -352,41 +356,60 @@ const PLANS: Dictionary[StringName, Array] = {
 }
 
 
-## Plan ids of a biome (the crypt's for unknown biomes).
-static func ids_for(biome_id: StringName) -> Array[StringName]:
+## Plan ids of a biome up to a jump trial tier (the crypt's for unknown biomes).
+static func ids_for(biome_id: StringName, max_tier := SideRules.MAX_TIER, min_tier := 1) -> Array[StringName]:
 	var ids: Array[StringName] = []
-	ids.assign(BIOME_PLANS.get(biome_id, BIOME_PLANS[&"crypt"]))
+	var known := BIOME_PLANS.has(biome_id)
+	var all: Array = BIOME_PLANS.get(biome_id, BIOME_PLANS[&"crypt"]).duplicate()
+	all.append_array(SideTrialPlans.BIOME_PLANS.get(biome_id if known else &"crypt", []))
+	for plan_id: StringName in all:
+		var tier := tier_of(plan_id)
+		if tier <= max_tier and tier >= min_tier:
+			ids.append(plan_id)
 	return ids
 
 
-## The plans of a biome with a chest niche ("C").
-static func chest_ids_for(biome_id: StringName) -> Array[StringName]:
+## Jump trial tier of a plan (D-195): the plans of rounds 1-3 are tier 1.
+static func tier_of(plan_id: StringName) -> int:
+	return SideTrialPlans.TIERS.get(plan_id, 1)
+
+
+## The plans of a biome with a chest niche ("C"), from min_tier up to max_tier.
+static func chest_ids_for(biome_id: StringName, max_tier := SideRules.MAX_TIER, min_tier := 1) -> Array[StringName]:
 	var ids: Array[StringName] = []
-	for plan_id in ids_for(biome_id):
+	for plan_id in ids_for(biome_id, max_tier, min_tier):
 		if "".join(get_rows(plan_id)).contains("C"):
 			ids.append(plan_id)
 	return ids
 
 
 static func get_rows(plan_id: StringName) -> PackedStringArray:
-	return PackedStringArray(PLANS.get(plan_id, []))
+	return PackedStringArray(PLANS.get(plan_id, SideTrialPlans.PLANS.get(plan_id, [])))
 
 
 ## Every plan id (tests, the check tool).
 static func all_ids() -> Array[StringName]:
 	var ids: Array[StringName] = []
 	ids.assign(PLANS.keys())
+	for plan_id: StringName in SideTrialPlans.PLANS:
+		ids.append(plan_id)
 	return ids
 
 
-## One of the twelve layouts of the biome (six plans, each plain or mirrored): one draw; a second
-## draw decides whether its turrets are set up (SideRules.TURRET_CHANCE).
+## One of the layouts of the biome at a jump trial tier (each plan plain or mirrored; SV2: the plans
+## of the tier and the one before, SideRules.tier_for - deep runs no longer draw the first easy
+## plans; Vorschlag accepted by the team member): one draw; a second draw decides whether its turrets
+## are set up (SideRules.TURRET_CHANCE).
 ## with_chest: only plans with a chest niche (the ladder way always brings its chest, M5); the same
 ## two draws.
-static func pick(biome_id: StringName, rng: RandomNumberGenerator, with_chest := false) -> SideLayout:
-	var ids := chest_ids_for(biome_id) if with_chest else ids_for(biome_id)
+static func pick(biome_id: StringName, rng: RandomNumberGenerator, with_chest := false,
+		max_tier := SideRules.MAX_TIER) -> SideLayout:
+	var min_tier := pick_min_tier(max_tier)
+	var ids := chest_ids_for(biome_id, max_tier, min_tier) if with_chest else ids_for(biome_id, max_tier, min_tier)
+	if ids.is_empty() and with_chest:
+		ids = chest_ids_for(biome_id, max_tier)
 	if ids.is_empty():
-		ids = ids_for(biome_id)
+		ids = ids_for(biome_id, max_tier)
 	var index := rng.randi_range(0, ids.size() * 2 - 1) if rng != null else 0
 	var layout := build(ids[index % ids.size()], index >= ids.size(), biome_id)
 	var roll := rng.randf() if rng != null else 1.0
@@ -394,9 +417,15 @@ static func pick(biome_id: StringName, rng: RandomNumberGenerator, with_chest :=
 	return layout
 
 
+## The easiest tier pick() draws at max_tier: the tier before it (tier 1 at tier 1 and 2).
+static func pick_min_tier(max_tier: int) -> int:
+	return maxi(1, max_tier - 1)
+
+
 ## A parsed layout of a plan, mirrored on request.
 static func build(plan_id: StringName, mirrored := false, biome_id: StringName = &"") -> SideLayout:
 	var layout := SideLayout.parse(get_rows(plan_id), plan_id)
+	layout.tier = tier_of(plan_id)
 	if mirrored:
 		layout = layout.mirrored()
 	layout.biome_id = biome_id if biome_id != &"" else biome_of(plan_id)
@@ -406,6 +435,6 @@ static func build(plan_id: StringName, mirrored := false, biome_id: StringName =
 ## The biome a plan was drawn for.
 static func biome_of(plan_id: StringName) -> StringName:
 	for biome in BIOME_PLANS:
-		if (BIOME_PLANS[biome] as Array).has(plan_id):
+		if (BIOME_PLANS[biome] as Array).has(plan_id) or (SideTrialPlans.BIOME_PLANS.get(biome, []) as Array).has(plan_id):
 			return biome
 	return &"crypt"

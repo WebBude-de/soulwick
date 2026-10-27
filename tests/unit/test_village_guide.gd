@@ -1,8 +1,7 @@
 extends GutTest
 ## P1-2 "Ziel und Weg zum Dungeon": until the first run of a world the village shows the goal line,
-## a trail of soul lights from the spawn to the ruin and an arrow to the entrance; on the very first
-## visit the chronicler says a few words (non-blocking card, once per world, old saves have seen it).
-## Uses a test save file only.
+## a trail of soul lights from the spawn to the ruin and an arrow to the entrance. The chronicler's
+## opening words are gone (WK9: Flint's village tour, test_village_tour.gd). Uses a test save file only.
 
 const TEST_PATH := "user://test_village_guide.cfg"
 const VILLAGE_SCENE := "res://world/village/village.tscn"
@@ -42,19 +41,9 @@ func _village() -> Village:
 	return village
 
 
-func _opening_lines(ui: VillageUI) -> Array[String]:
-	var lines: Array[String] = []
-	var card := ui.get_opening()
-	if card != null:
-		for node in card.find_children("*", "Label", true, false):
-			if node.is_in_group(&"village_opening_line"):
-				lines.append((node as Label).text)
-	return lines
+# --- Fresh world: goal, trail and arrow ---
 
-
-# --- Fresh world: opening, goal, trail and arrow ---
-
-func test_fresh_world_shows_opening_goal_and_way() -> void:
+func test_fresh_world_shows_goal_and_way_without_a_card() -> void:
 	var village := _village()
 	var ui := village.ui
 	assert_true(GuideScript.is_active(), "no run yet")
@@ -63,38 +52,9 @@ func test_fresh_world_shows_opening_goal_and_way() -> void:
 	var goal_text := ui.get_goal().find_child("GoalText", true, false) as Label
 	assert_not_null(goal_text)
 	assert_eq(goal_text.text, "VILLAGE_GOAL_DESCEND", "the key: the label translates itself")
-	assert_not_null(ui.get_opening(), "the chronicler speaks on the first visit")
-	assert_eq(_opening_lines(ui).size(), Village.OPENING_LINES.size(), "2-3 sentences")
-	assert_false(ui.is_dialog_open(), "the opening never blocks: no dialog, no pause")
+	assert_null(ui.get_node_or_null(^"NoticeRoot/Opening"), "no opening card any more (WK9: Flint greets)")
+	assert_false(ui.is_dialog_open(), "nothing blocks")
 	assert_false(get_tree().paused, "no global pause (Koop)")
-	assert_false(SaveManager.has_seen(GuideScript.OPENING_SEEN_ID), "seen only once it closes")
-
-
-func test_enter_closes_the_opening_once_per_world() -> void:
-	var village := _village()
-	var ui := village.ui
-	ui._unhandled_input(MenuInput.key_event(KEY_ENTER))
-	await wait_physics_frames(2)
-	assert_null(ui.get_opening(), "Enter closes it")
-	assert_true(SaveManager.has_seen(GuideScript.OPENING_SEEN_ID), "marked as seen")
-	assert_not_null(ui.get_goal(), "the goal stays until the first run")
-	# Stored in the save: the next visit has goal and way, but no opening.
-	SaveManager.load_game()
-	assert_true(SaveManager.has_seen(GuideScript.OPENING_SEEN_ID), "written to the file")
-	var again := _village()
-	assert_null(again.ui.get_opening(), "not again")
-	assert_not_null(again.ui.get_goal())
-	assert_not_null(again.get_guide())
-
-
-func test_opening_closes_by_itself() -> void:
-	var village := _village()
-	var tween_time := VillageUI.OPENING_TIME + VillageUI.NOTICE_FADE * 2.0 + 0.3
-	assert_lt(tween_time, 30.0)
-	village.ui.close_opening()
-	await wait_physics_frames(2)
-	assert_null(village.ui.get_opening())
-	assert_true(SaveManager.has_seen(GuideScript.OPENING_SEEN_ID))
 
 
 func test_after_the_first_run_the_village_is_quiet() -> void:
@@ -103,18 +63,15 @@ func test_after_the_first_run_the_village_is_quiet() -> void:
 	assert_false(GuideScript.is_active())
 	assert_null(village.get_guide(), "no trail after the first run")
 	assert_null(village.ui.get_goal(), "no goal line")
-	assert_null(village.ui.get_opening(), "no opening")
 
 
-func test_old_saves_have_seen_the_opening() -> void:
+func test_old_saves_keep_the_goal_until_a_run() -> void:
 	# v2 without [seen] counts as "everything seen" (D-087); with runs the guide is gone as well.
 	var file := FileAccess.open(TEST_PATH, FileAccess.WRITE)
 	file.store_string("[meta]\nversion=2\n[progress]\npermanent_gold=5\n[stats]\nruns=0\n")
 	file.close()
 	SaveManager.load_game()
-	assert_true(SaveManager.has_seen(GuideScript.OPENING_SEEN_ID), "old save: seen")
 	var village := _village()
-	assert_null(village.ui.get_opening(), "old players are not greeted again")
 	assert_not_null(village.ui.get_goal(), "without a run the goal still helps")
 	file = FileAccess.open(TEST_PATH, FileAccess.WRITE)
 	file.store_string("[meta]\nversion=2\n[progress]\npermanent_gold=5\n[stats]\nruns=4\n")
@@ -174,14 +131,12 @@ func test_arrow_hides_while_a_dialog_is_open() -> void:
 	guide._process(0.016)
 	assert_true(guide.is_pointer_shown())
 	assert_eq(guide.process_mode, Node.PROCESS_MODE_ALWAYS, "updates while a dialog pauses the village")
-	village.ui.close_opening()
+	# No local player in this test: Flint has nobody to explain to, the dialog opens directly.
 	village.enter_building(&"forge")
 	await wait_physics_frames(2)
 	assert_true(village.ui.is_dialog_open())
 	guide._process(0.016)
 	assert_false(guide.is_pointer_shown(), "no arrow over a dialog")
-	village.ui.get_intro_modal().finish()
-	await wait_physics_frames(2)
 	village.ui.get_building_modal().finish()
 	await wait_physics_frames(2)
 	guide._process(0.016)

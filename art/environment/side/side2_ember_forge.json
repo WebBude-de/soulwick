@@ -1,0 +1,40 @@
+{
+  "notes": [
+    "mid_<biom>_parallax 480×270 bei ¾ Kamera-Tempo, links/rechts kachelbar, transparent bis auf Silhouetten.",
+    "pool_<biom>_4f: Becken-Zelle, Oberfläche y≈13, 75 % Deckkraft, nahtlos."
+  ],
+  "items": [
+    {
+      "name": "mid_ember_forge_parallax",
+      "file": "mid_ember_forge_parallax.png",
+      "frame_size": [
+        480,
+        270
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "pool_ember_forge",
+      "file": "pool_ember_forge_4f.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 4,
+      "fps": 6,
+      "loop": true,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

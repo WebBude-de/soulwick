@@ -1,6 +1,6 @@
 class_name CombatVariant
 extends Node2D
-## Common interface of the room modes (KONZEPT_RAEUME_V2 §2-§4, D-120; before: the combat variants of
+## Common interface of the room modes (RAEUME §2-§4, D-120; before: the combat variants of
 ## D-101, D-114): a child node of a normal combat room. Minigames extend RoomMode, which
 ## adds the goal, the intro and the helpers for guards and enemy sources; the elite nest (A10)
 ## extends this class directly. The DungeonManager treats the room like any combat room; the variant follows

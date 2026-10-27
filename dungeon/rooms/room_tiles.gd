@@ -54,16 +54,21 @@ extends TileMapLayer
 ## (rock with floor north of it, RockTerrain.is_lip) collides only from RockTerrain.LIP_WALK down and
 ## is drawn a second time as a y-sorted sprite in the room ("RockLips"), sorted at the foot of its
 ## block: a character that walks a bit behind it is hidden by it, one in front of the block is not
-## (playtest 15.10.2026, note 17). Without the terrain art (editor, old tilesets) the walls fall back
-## to the WallAutotile pieces above.
+## (playtest 15.10.2026, note 17). One rule for every raised mass (bug reports 22.10.2026): the foot
+## blocks, the band at the top is open from the north and the sides (RockTerrain.LIP_CAPS off), the
+## upper part hides a figure behind it with his weapon - fronts with floor beside them are y-sorted
+## at their foot too (sorted_front_lips), plateaus do the same at their north band (HeightField).
+## Without the terrain art (editor, old tilesets) the walls fall back to the WallAutotile pieces above.
 ## Height (M3, HeightLayout): plateau_tiles ('^'), ladder_tiles ('L') and stair_tiles ('&') are part
 ## of the wall mass for every floor rule (the floor mask, walkable and reachable tiles, the plan
-## checks: a plateau is rock for the ground level, nothing is placed on it by the room logic), and
-## they are drawn as rock (the crown is the plateau, the front its cliff). On this layer the surface
-## tiles and stairs are floor cells with navigation (cut off at the edges to the ground, so the
-## navigation of both levels only meets at stairs), cliffs and ladders have no cell; the walls of the
-## height, the switch areas and the pictures are a child HeightField. get_height_layout() and
-## get_height_reachable_tiles() answer for both levels.
+## checks: a plateau is rock for the ground level, nothing is placed on it by the room logic). They
+## are not drawn as rock (half height, D-205): for the rock pieces and fillets around them they count
+## as floor, and the child HeightField draws surface, front, steps and ladders. On this layer every
+## height tile is a floor cell: surface tiles and stairs with navigation (cut off at the edges to the
+## ground, so the navigation of both levels only meets at stairs), cliffs and ladders with navigation
+## only on the ground in front of their half-high front (foot_polygon); the walls of the height and
+## the switch areas are the HeightField's too. get_height_layout() and get_height_reachable_tiles()
+## answer for both levels.
 
 const SOURCE_ID := 0
 ## World size of one tile: 32 px art drawn at SpriteStrip.PIXEL_SCALE.
@@ -321,6 +326,17 @@ var _height_layout: HeightLayout = null
 var _height_field: HeightField = null
 ## Surface tiles whose navigation polygon is inset at the edges to the ground (side bits N=1 E=2 S=4 W=8).
 var _nav_insets: Dictionary[Vector2i, int] = {}
+## Cliff and ladder tiles: navigation only on the ground in front of the front (foot_polygon, D-205).
+var _nav_feet: Dictionary[Vector2i, bool] = {}
+## Fronts left out of the y-sort (keep_front_plain): a cracked secret wall's picture lies on them.
+var _plain_fronts: Dictionary[Vector2i, bool] = {}
+## Changed while hidden: Godot builds no runtime tile data (navigation insets, feet, blocked props)
+## for a layer that is not visible in the tree and does not build it later when the layer shows. A
+## room staged hidden (DungeonManager, veil) kept the tiles' original polygons, so the navigation of
+## ground and plateau joined at every edge (bug reports 23.10.2026 #03d88a6b, #536bc219). Once the
+## layer shows, its runtime data is built again (a frame later: in the frame it shows, it is still
+## skipped).
+var _painted_hidden := false
 
 
 func _ready() -> void:
@@ -329,7 +345,25 @@ func _ready() -> void:
 		var rock := ShaderMaterial.new()
 		rock.shader = ROCK_SHADER
 		material = rock
+	changed.connect(_on_layer_changed)
 	paint()
+
+
+func _on_layer_changed() -> void:
+	if is_inside_tree() and not is_visible_in_tree():
+		_painted_hidden = true
+
+
+func _on_visible_again() -> void:
+	if not _painted_hidden or not is_visible_in_tree():
+		return
+	_painted_hidden = false
+	get_tree().process_frame.connect(_rebuild_runtime_data, CONNECT_ONE_SHOT)
+
+
+func _rebuild_runtime_data() -> void:
+	if is_instance_valid(self) and is_inside_tree():
+		notify_runtime_tile_data_update()
 
 
 static func tile_to_local(tile: Vector2i) -> Vector2:
@@ -633,7 +667,7 @@ func is_navigation_blocked(tile: Vector2i) -> bool:
 
 
 func _use_tile_data_runtime_update(coords: Vector2i) -> bool:
-	return _navigation_blocked.has(coords) or _nav_insets.has(coords)
+	return _navigation_blocked.has(coords) or _nav_insets.has(coords) or _nav_feet.has(coords)
 
 
 func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
@@ -641,7 +675,11 @@ func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
 		return
 	var polygon: NavigationPolygon = null
 	if _nav_insets.has(coords) and not _navigation_blocked.get(coords, false):
-		polygon = inset_polygon(_nav_insets[coords], float(tile_set.tile_size.x), HeightRules.NAV_INSET)
+		var unit := float(tile_set.tile_size.x)
+		polygon = inset_polygon(_nav_insets[coords], unit, HeightRules.NAV_INSET, HeightField.band_of(unit))
+	elif _nav_feet.has(coords) and not _navigation_blocked.get(coords, false):
+		var unit := float(tile_set.tile_size.x)
+		polygon = foot_polygon(unit, HeightField.front_of(unit))
 	elif not _navigation_blocked.get(coords, false):
 		var source := tile_set.get_source(get_cell_source_id(coords)) as TileSetAtlasSource
 		if source != null:
@@ -651,15 +689,26 @@ func _tile_data_runtime_update(coords: Vector2i, tile_data: TileData) -> void:
 
 
 ## Square navigation polygon of a tile (centred, size unit) moved in by inset on every side of
-## sides (N=1 E=2 S=4 W=8): a surface tile at an edge to the ground (M3).
-static func inset_polygon(sides: int, unit: float, inset: float) -> NavigationPolygon:
+## sides (N=1 E=2 S=4 W=8): a surface tile at an edge to the ground (M3). north_band: the edge in the
+## north lies that much further in (HeightField.band_of: the ground walks behind the plateau there).
+static func inset_polygon(sides: int, unit: float, inset: float, north_band := 0.0) -> NavigationPolygon:
 	var half := unit / 2.0
-	var top := -half + (inset if sides & 1 else 0.0)
+	var top := -half + (inset + north_band if sides & 1 else 0.0)
 	var right := half - (inset if sides & 2 else 0.0)
 	var bottom := half - (inset if sides & 4 else 0.0)
 	var left := -half + (inset if sides & 8 else 0.0)
 	var polygon := NavigationPolygon.new()
 	polygon.vertices = PackedVector2Array([Vector2(left, top), Vector2(right, top), Vector2(right, bottom), Vector2(left, bottom)])
+	polygon.add_polygon(PackedInt32Array([0, 1, 2, 3]))
+	return polygon
+
+
+## Navigation polygon of a cliff or ladder tile (centred, size unit): the ground below its front of
+## front px (HeightField.front_of), the rest of the tile is the front itself (D-205).
+static func foot_polygon(unit: float, front: float) -> NavigationPolygon:
+	var half := unit / 2.0
+	var polygon := NavigationPolygon.new()
+	polygon.vertices = PackedVector2Array([Vector2(-half, -half + front), Vector2(half, -half + front), Vector2(half, half), Vector2(-half, half)])
 	polygon.add_polygon(PackedInt32Array([0, 1, 2, 3]))
 	return polygon
 
@@ -711,6 +760,7 @@ func get_height_reachable_tiles(for_enemy := false) -> Dictionary[Vector2i, bool
 func _paint_height() -> void:
 	_height_layout = null
 	_nav_insets.clear()
+	_nav_feet.clear()
 	if not has_height():
 		if _height_field != null:
 			_height_field.queue_free()
@@ -719,6 +769,16 @@ func _paint_height() -> void:
 	var layout := get_height_layout()
 	for tile: Vector2i in layout.edge_sides:
 		_nav_insets[tile] = layout.edge_sides[tile]
+	# Beside a cliff, stairs or ladder the surface ends too (HeightLayout.foot_sides).
+	for tile: Vector2i in layout.foot_sides:
+		_nav_insets[tile] = int(_nav_insets.get(tile, 0)) | layout.foot_sides[tile]
+	# Stairs keep their navigation off the ground beside them: enemies walk up from below only.
+	for tile: Vector2i in layout.connector_sides:
+		if layout.stairs.has(tile):
+			_nav_insets[tile] = layout.connector_sides[tile]
+	# Cliffs and ladders: the ground in front of the half-high front is ground like beside it.
+	for tile: Vector2i in layout.cliffs.keys() + layout.ladders.keys():
+		_nav_feet[tile] = true
 	if not get_used_cells().is_empty():
 		notify_runtime_tile_data_update()
 	if Engine.is_editor_hint() or tile_set == null or not _terrain_active:
@@ -729,21 +789,30 @@ func _paint_height() -> void:
 	_height_field.build(self, layout, WallAutotile.biome_of(tile_set), _look)
 
 
-## Main-layer cell of a height tile with the terrain: surface and stairs are floor with navigation,
-## cliffs and ladders have none (their walls are bodies of the HeightField). False = no height tile.
+## Main-layer cell of a height tile with the terrain: a floor cell on every one (surface and stairs
+## with navigation, cliffs and ladders with navigation on the ground in front of their front only,
+## _nav_feet; their walls are bodies of the HeightField). False = no height tile.
 func _put_height_cell(tile: Vector2i) -> bool:
 	if not (plateau_tiles.has(tile) or ladder_tiles.has(tile) or stair_tiles.has(tile)):
 		return false
-	var layout := get_height_layout()
-	if layout.surface.has(tile) or layout.stairs.has(tile):
-		var source := get_floor_source()
-		if source == SOURCE_ID:
-			_put_tile(tile, FLOOR_TILES[0])
-		else:
-			set_cell(tile, source, RockTerrain.ground_coords(0))
+	var source := get_floor_source()
+	if source == SOURCE_ID:
+		_put_tile(tile, FLOOR_TILES[0])
 	else:
-		erase_cell(tile)
+		set_cell(tile, source, RockTerrain.ground_coords(_floor_cells.get(tile, FLOOR_TILES[0]).x))
 	return true
+
+
+## The floor mask the rock is drawn with (pieces, fillets): height tiles count as floor, a plateau is
+## no rock any more (D-205); collision and every floor rule keep the floor mask.
+func _rock_draw_mask(floor_mask: Dictionary[Vector2i, bool]) -> Dictionary[Vector2i, bool]:
+	if not has_height():
+		return floor_mask
+	var mask := floor_mask.duplicate()
+	for tiles: Array[Vector2i] in [plateau_tiles, ladder_tiles, stair_tiles]:
+		for tile in tiles:
+			mask[tile] = true
+	return mask
 
 
 ## Abyss tiles: not walkable, crossable by a dash when at most MAX_DASH_GAP wide (D-086).
@@ -1051,6 +1120,8 @@ func _update_blend_range() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSFORM_CHANGED:
 		_update_blend_range()
+	elif what == NOTIFICATION_VISIBILITY_CHANGED:
+		_on_visible_again()
 	elif what == NOTIFICATION_PREDELETE:
 		# Lips that never reached the room (freed before the deferred attach) go with the layer.
 		if _lips != null and is_instance_valid(_lips) and not _lips.is_inside_tree():
@@ -1173,6 +1244,7 @@ func get_floor_mask() -> Dictionary[Vector2i, bool]:
 ## with edges, enclosed rock as the plain wall-top tile (the rock shader turns it into stones).
 func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 	var floor_mask := get_floor_mask()
+	var draw_mask := _rock_draw_mask(floor_mask)
 	_update_lip_blockers()
 	var rect := _get_painted_rect()
 	var parts := get_painted_parts()
@@ -1189,7 +1261,7 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 				_paint_floor_cell(tile)
 				continue
 			if _terrain_active:
-				_paint_rock_cell(tile, floor_mask)
+				_paint_rock_cell(tile, floor_mask, draw_mask)
 				continue
 			var piece := WallAutotile.cell_for_floor(tile, floor_mask)
 			if piece == WallAutotile.ROCK:
@@ -1201,7 +1273,7 @@ func _paint_from_mask(rng: RandomNumberGenerator) -> void:
 	if _terrain_active:
 		for tile: Vector2i in floor_mask:
 			if parts.size() <= 1 or _in_any(parts, tile):
-				_paint_fillet(tile, floor_mask)
+				_paint_fillet(tile, draw_mask)
 
 
 ## Editor view (no generated pieces there): the hand-drawn outer wall, walls as pillar tiles.
@@ -1327,6 +1399,7 @@ static func tile_bounds(tiles: Array[Vector2i]) -> Rect2i:
 ## The second brick pattern is picked from the tile position instead of the paint RNG.
 func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 	var floor_mask := get_floor_mask()
+	var draw_mask := _rock_draw_mask(floor_mask)
 	_update_lip_blockers()
 	for tile: Vector2i in area:
 		if not is_painted(tile):
@@ -1341,7 +1414,7 @@ func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 				_rock_layer.erase_cell(tile)
 			continue
 		if _terrain_active:
-			_paint_rock_cell(tile, floor_mask)
+			_paint_rock_cell(tile, floor_mask, draw_mask)
 			continue
 		var piece := WallAutotile.cell_for_floor(tile, floor_mask)
 		if piece == WallAutotile.ROCK:
@@ -1356,7 +1429,7 @@ func _repaint_cells(area: Dictionary[Vector2i, bool]) -> void:
 		for tile: Vector2i in area:
 			for offset: Vector2i in [Vector2i.ZERO, Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i(-1, -1), Vector2i(1, -1)]:
 				if floor_mask.has(tile + offset) and is_painted(tile + offset):
-					_paint_fillet(tile + offset, floor_mask)
+					_paint_fillet(tile + offset, draw_mask)
 
 
 ## Solid rock around the room on a child layer below every room's tiles (also below neighbours,
@@ -1455,20 +1528,24 @@ func get_overlay_layer() -> TileMapLayer:
 
 
 ## Solid tile with the terrain: this layer gets the invisible solid tile (collision, no navigation),
-## the rock layer the piece of the mass; enclosed rock is left to the backdrop.
-func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool]) -> void:
-	# Height tiles (M3): surface and stairs are floor, cliffs and ladders have no cell.
-	if not _put_height_cell(tile):
-		# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
-		# characters walk a bit behind it.
-		var lip := RockTerrain.is_lip(tile, floor_mask, _not_lip_walls)
-		var caps := RockTerrain.lip_caps(tile, floor_mask, _corridor_set) if lip else 0
-		set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip, caps))
+## the rock layer the piece of the mass (drawn with draw_mask, _rock_draw_mask); enclosed rock is
+## left to the backdrop.
+func _paint_rock_cell(tile: Vector2i, floor_mask: Dictionary[Vector2i, bool], draw_mask: Dictionary[Vector2i, bool]) -> void:
 	_ensure_cave_layers()
-	if RockTerrain.is_enclosed(tile, floor_mask):
+	# Height tiles (M3): floor cells, drawn by the HeightField and never as rock (half height, D-205).
+	if _put_height_cell(tile):
+		_rock_layer.erase_cell(tile)
+		return
+	# The collision rounds the outer corners like the art (RockTerrain.solid_corners); a lip lets
+	# characters walk a bit behind it, a front a bit closer to its foot (RockTerrain.FRONT_REACH).
+	var lip := RockTerrain.is_lip(tile, floor_mask, _not_lip_walls)
+	var caps := RockTerrain.lip_caps(tile, floor_mask, _corridor_set) if lip else 0
+	var front := RockTerrain.has_front_reach(tile, floor_mask)
+	set_cell(tile, RockTerrain.SOURCE_GROUND, RockTerrain.solid_coords(RockTerrain.solid_corners(tile, floor_mask), lip, caps, front))
+	if RockTerrain.is_enclosed(tile, draw_mask):
 		_rock_layer.erase_cell(tile)
 	else:
-		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, floor_mask))
+		_rock_layer.set_cell(tile, RockTerrain.rock_source(_look), RockTerrain.piece_for(tile, draw_mask))
 
 
 ## Rounded rock in the lower corners of a floor cell between two edges (RockTerrain fillets), on
@@ -1584,13 +1661,15 @@ func _paint_lips() -> void:
 	var room := get_parent() as Node2D
 	if Engine.is_editor_hint() or not _terrain_active or _rock_layer == null or room == null or not is_inside_tree():
 		return
-	var source := tile_set.get_source(RockTerrain.rock_source(_look)) as TileSetAtlasSource
-	if source == null:
+	# The pieces without the floor in their rounded corners (RockTerrain.lip_texture): the copies lie
+	# over the characters, floor pixels there would cut a figure beside a corner (#581b8b3d).
+	var lip_art := RockTerrain.lip_texture(tile_set, _look)
+	if lip_art == null:
 		return
 	# A room between two biomes: the next biome's piece on top, in the blend's mask (set_biome_blend).
-	var blend_source: TileSetAtlasSource = null
+	var blend_art: Texture2D = null
 	if _blend_layer != null and _blend_layer.tile_set != null and _blend_layer.tile_set.has_source(RockTerrain.rock_source(_look)):
-		blend_source = _blend_layer.tile_set.get_source(RockTerrain.rock_source(_look)) as TileSetAtlasSource
+		blend_art = RockTerrain.lip_texture(_blend_layer.tile_set, _look)
 	var floor_mask := get_floor_mask()
 	if _lips == null or not is_instance_valid(_lips):
 		_lips = Node2D.new()
@@ -1608,10 +1687,54 @@ func _paint_lips() -> void:
 		var region := Rect2(Vector2(_rock_layer.get_cell_atlas_coords(lip)) * art_tile, Vector2.ONE * art_tile)
 		var at := position + Vector2(float(lip.x) * art_tile * scale.x, sort_y)
 		var offset := Vector2(0.0, (float(lip.y) * art_tile * scale.y - sort_y) / scale.y)
-		_lips.add_child(_lip_sprite(source.texture, region, at, offset, material, modulate))
-		if blend_source != null:
+		_lips.add_child(_lip_sprite(lip_art, region, at, offset, material, modulate))
+		if blend_art != null:
 			# Same sort position: drawn right after (above) the old biome's piece.
-			_lips.add_child(_lip_sprite(blend_source.texture, region, at, offset, _blend_material, _blend_layer.modulate))
+			_lips.add_child(_lip_sprite(blend_art, region, at, offset, _blend_material, _blend_layer.modulate))
+	# A front below a lip or with floor beside it (a block, a step of the outline) sorts at its foot
+	# line too: a figure behind or beside it whose feet are behind that line is drawn behind the whole
+	# block, his weapon with him (bug report 22.10.2026 #c1f94cec, "Layer-Problem": the sword lay
+	# over a pillar's face). Not beside a door corridor (the door's art owns those fronts) nor on a
+	# front fixture (torches and the like stay in front of their wall).
+	for tile in sorted_front_lips(floor_mask):
+		var foot := float(tile.y + 1) * art_tile
+		var sort_y := foot * scale.y - LIP_SORT_FEET
+		var region := Rect2(Vector2(_rock_layer.get_cell_atlas_coords(tile)) * art_tile, Vector2.ONE * art_tile)
+		var at := position + Vector2(float(tile.x) * art_tile * scale.x, sort_y)
+		var offset := Vector2(0.0, (float(tile.y) * art_tile * scale.y - sort_y) / scale.y)
+		_lips.add_child(_lip_sprite(lip_art, region, at, offset, material, modulate))
+		if blend_art != null:
+			_lips.add_child(_lip_sprite(blend_art, region, at, offset, _blend_material, _blend_layer.modulate))
+
+
+## A front that stays on the rock layer only (hook for SecretNiche: the cracked wall's picture lies
+## on it, below the figures; a sorted copy of the front would cover it).
+func keep_front_plain(tile: Vector2i) -> void:
+	if _plain_fronts.has(tile):
+		return
+	_plain_fronts[tile] = true
+	if _lips != null and is_instance_valid(_lips):
+		_paint_lips()
+
+
+## Fronts drawn once more in the y-sort (_paint_lips): rock faces below a lip or with floor west or
+## east of them, away from door corridors and front fixtures, painted on the rock layer.
+func sorted_front_lips(floor_mask: Dictionary[Vector2i, bool]) -> Array[Vector2i]:
+	var fronts: Array[Vector2i] = []
+	if _rock_layer == null:
+		return fronts
+	for tile: Vector2i in _rock_layer.get_used_cells():
+		if floor_mask.has(tile) or not WallAutotile.is_front(tile, floor_mask) or front_fixtures.has(tile) or _plain_fronts.has(tile):
+			continue
+		var beside := RockTerrain.is_lip(tile + Vector2i.UP, floor_mask, _not_lips)
+		for side: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT]:
+			var other := tile + side
+			if floor_mask.has(other) and not _corridor_set.has(other) and not _not_lips.has(other) and not is_pit(other):
+				beside = true
+		if beside:
+			fronts.append(tile)
+	fronts.sort()
+	return fronts
 
 
 func _lip_sprite(texture: Texture2D, region: Rect2, at: Vector2, offset: Vector2, look: Material, tint: Color) -> Sprite2D:

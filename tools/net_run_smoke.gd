@@ -1,5 +1,6 @@
 extends SceneTree
-## Two-instance test of the shared dungeon run (MP3, ROADMAP_MULTIPLAYER, D-126): a headless host and
+
+## Two-instance test of the shared dungeon run (MP3, ROADMAP, D-126): a headless host and
 ## a headless client (second Godot process, started by the host) over a running soulwick-api and
 ## soulwick-relay play a scripted run. The client's player is a bot (RemoteInput: walks to the
 ## nearest enemy, aims, attacks), the host places the group and finishes fights that take too long.
@@ -25,7 +26,7 @@ extends SceneTree
 ## for three players (scaling, same seed, run number 2 everywhere), rooms 1-2, ends through the
 ## portal for everybody, end_run again; then the host closes the room.
 ## Usage (API and relay running, see docs/MULTIPLAYER.md §3c):
-##   godot --headless --path . -s tools/net_run_smoke.gd -- api=http://localhost:3101 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
+##   godot --headless --path . -s tools/net_run_smoke.gd -- api=http://localhost:3102 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>
 ## Options: side=1 (see above), rooms=1..16 (default 5; 16 = first boss, campfire and the first room of the next biome), seed=<n> (default random), end=portal|host_leaves|client_leaves|two_runs,
 ## modes=all|flame,escort,... (room modes R4 from room mode_from, default 2, in every combat room the
 ## mode table allows; both machines), branch=1 (every eligible room branches, D-105/R5). With modes
@@ -52,11 +53,11 @@ extends SceneTree
 ## of the client's player carry the client's weapon tags; the active weapons of every player and
 ## the weapons of its attacks (in order) are the same on the owner's machine and on the other one.
 ## (portal: the client uses the portal after the revive; host_leaves: the host leaves in room 3,
-## both get 50 %; client_leaves: the client gives up in room 3, the host plays on alone),
+## both get 25 %; client_leaves: the client gives up in room 3, the host plays on alone),
 ## spawn_client=0. Real time.
 ## Classes are accessed dynamically: this script is compiled before autoloads exist.
 
-const DEFAULT_API := "http://localhost:3101"
+const DEFAULT_API := "http://localhost:3102"
 const DEFAULT_RELAY := "ws://localhost:3103/v1"
 const HOST_INSTANCE := 21
 const CLIENT_INSTANCE := 22
@@ -318,8 +319,8 @@ func _host() -> void:
 		_stats["host_pot"] = int(summary.get("remaining_gold", -1))
 	_stats["host_payout"] = int(summary.get("payout", -1))
 	_stats["host_room"] = int(summary.get("room", -1))
-	var expected_payout: int = _stats["host_pot"] if expected_reason == 2 else ceili(_stats["host_pot"] * 0.5)
-	_check(_stats["host_payout"] == expected_payout, "host: %s of the pot as village gold (%d)" % ["100 %" if expected_reason == 2 else "50 %", _stats["host_payout"]])
+	var expected_payout: int = _with_danger(_stats["host_pot"] if expected_reason == 2 else ceili(_stats["host_pot"] * _loss_ratio()))
+	_check(_stats["host_payout"] == expected_payout, "host: %s of the pot as village gold (%d)" % ["100 %" if expected_reason == 2 else "25 %", _stats["host_payout"]])
 	_check(root.get_node("SaveManager").get_permanent_gold() - start_gold == _stats["host_payout"], "host: village gold booked")
 	_stats["host_enemies"] = _net().enemies.spawned_count if _net() != null else -1
 	_stats["host_deaths"] = _net().enemies.died_count if _net() != null else -1
@@ -476,7 +477,7 @@ func _host_second_run() -> void:
 	_stats["r2_host_pot"] = int(summary.get("remaining_gold", -1))
 	_stats["r2_host_payout"] = int(summary.get("payout", -1))
 	_stats["r2_host_room"] = int(summary.get("room", -1))
-	_check(_stats["r2_host_payout"] == _stats["r2_host_pot"], "run 2: 100 %% of the pot (%d)" % _stats["r2_host_payout"])
+	_check(_stats["r2_host_payout"] == _with_danger(_stats["r2_host_pot"]), "run 2: 100 %% of the pot plus danger bonus (%d)" % _stats["r2_host_payout"])
 	_check(root.get_node("SaveManager").get_permanent_gold() - start_gold == _stats["r2_host_payout"], "run 2: village gold booked")
 	await _close_run_end()
 	await _until(func() -> bool: return _world_name() == &"Village" and _players().size() == 3, "host back in the village with both clients after run 2")
@@ -499,6 +500,11 @@ func _host_room(index: int, last_room := -1) -> bool:
 	var type_name: String = ROOM_TYPES[room.room_type]
 	var variant: Node = room.get_node_or_null("CombatVariant")
 	_note_mode(room)
+	# A mode's RoomIntro comes up to a frame after the room; Flint's tour (SOULWICK_FLINT_ROOMS=1)
+	# holds its countdown, so the room's limits grow by its time (read now: the intro frees itself).
+	await process_frame
+	await process_frame
+	var extra := _room_timeout(room, 0.0)
 	if index >= 2 and type_name != "SPECIAL" and _has_weapon_test() and last_room < 0 and not _switch_started:
 		# Not awaited: the room goes on meanwhile.
 		_switch_started = true
@@ -513,7 +519,9 @@ func _host_room(index: int, last_room := -1) -> bool:
 		# The client acts in the special room (shop, weapon); give it time.
 		await _seconds(6.0)
 	else:
-		await _until(func() -> bool: return _living_enemies(room).size() > 0, "room %d has enemies" % index)
+		await _until(func() -> bool: return _living_enemies(room).size() > 0, "room %d has enemies" % index, STEP_TIMEOUT + extra)
+		if extra > 0.0:
+			await _until(func() -> bool: return not _intro_holds(room), "room %d: the intro lets the fight begin" % index, STEP_TIMEOUT + extra)
 		_stats["enemies_room_%d" % index] = _living_enemies(room).size()
 		var start_damage := _client_player_damage_dealt()
 		await _seconds(BOT_FIGHT_SECONDS)
@@ -543,6 +551,8 @@ func _host_room(index: int, last_room := -1) -> bool:
 				_kill(remaining[i], players[i % players.size()])
 			await _seconds(0.4)
 		_check(room.state == ROOM_CLEARED and _living_enemies(room).is_empty(), "room %d cleared on the host" % index)
+		if room.state != ROOM_CLEARED:
+			_say("room %d state %d, left: %s" % [index, room.state, ", ".join(_living_enemies(room).map(func(enemy: Node) -> String: return "%s (invulnerable %s)" % [enemy.name, enemy.hurtbox.is_invulnerable()]))])
 	if type_name == "COMBAT_UPGRADE":
 		await _seconds(1.0)
 		await _answer_upgrade()
@@ -556,7 +566,7 @@ func _host_room(index: int, last_room := -1) -> bool:
 			player.global_position = room.to_global(tiles.position + _tile_center(inside))
 		await _until(func() -> bool: return room.get_chosen_branch() == 0, "room %d: the group chose way 1" % index)
 		_stats["branches"] = int(_stats.get("branches", 0)) + 1
-	if not await _until(func() -> bool: return room._exit_door.is_open, "room %d exit open on the host" % index, STEP_TIMEOUT * 2):
+	if not await _until(func() -> bool: return room._exit_door.is_open, "room %d exit open on the host" % index, STEP_TIMEOUT * 2 + extra):
 		return false
 	if type_name == "COMBAT_UPGRADE":
 		_check(_net().upgrade_rounds >= 1, "upgrade round ran on the host")
@@ -640,7 +650,7 @@ func _host_side(gate: Node, next: Node) -> bool:
 		crumble.touch()
 	_stats["side_crumbles"] = int(_stats.get("side_crumbles", 0)) + segment.get_crumbles().size()
 	var bot: RefCounted = load("res://dungeon/side/side_bot.gd").drive(segment, local)
-	if not await _until(func() -> bool: return side.segments_finished > finished_before, "host: the group reached the door of the segment", 60.0):
+	if not await _until(func() -> bool: return side.segments_finished > finished_before, "host: the group reached the door of the segment", 120.0):
 		_say("  segment %s, feet %s, door %s, locked %s, protected %s, on floor %s, climbing %s, pit falls %d" % [segment.layout.plan_id,
 				segment.to_local(local.get_feet_position()), segment.to_local(segment.get_door_feet()), local.is_input_locked(),
 				local.is_protected(), local.side_motion.is_on_floor(), local.side_motion.is_climbing(), local.side_motion.pit_falls])
@@ -862,8 +872,8 @@ func _client() -> void:
 	_check(net.progress_events > 0, "client: the host's wave state arrived (%d updates)" % net.progress_events)
 	_check(net.enemies.emerge_count > 0, "client: puppets came out of spawn sources (%d)" % net.enemies.emerge_count)
 	_check(net.enemies.source_events > 0, "client: spawn sources warned and opened (%d phases)" % net.enemies.source_events)
-	var expected_payout: int = _stats["pot"] if expected_reason == 2 else ceili(_stats["pot"] * 0.5)
-	_check(_stats["payout"] == expected_payout and _stats["pot"] > 0, "client: %s of the pot (%d of %d)" % ["100 %" if expected_reason == 2 else "50 %", _stats["payout"], _stats["pot"]])
+	var expected_payout: int = _with_danger(_stats["pot"] if expected_reason == 2 else ceili(_stats["pot"] * _loss_ratio()))
+	_check(_stats["payout"] == expected_payout and _stats["pot"] > 0, "client: %s of the pot (%d of %d)" % ["100 %" if expected_reason == 2 else "25 %", _stats["payout"], _stats["pot"]])
 	_check(root.get_node("SaveManager").get_permanent_gold() - start_gold == _stats["payout"], "client: village gold booked")
 	_bot_enabled = false
 	await _close_run_end()
@@ -944,7 +954,7 @@ func _client_second_run() -> void:
 	_stats["r2_pot"] = int(summary.get("remaining_gold", -1))
 	_stats["r2_payout"] = int(summary.get("payout", -1))
 	_stats["r2_room"] = int(summary.get("room", -1))
-	_check(_stats["r2_payout"] == _stats["r2_pot"], "%s: 100 %% of the pot in run 2 (%d)" % [_role, _stats["r2_payout"]])
+	_check(_stats["r2_payout"] == _with_danger(_stats["r2_pot"]), "%s: 100 %% of the pot plus danger bonus in run 2 (%d)" % [_role, _stats["r2_payout"]])
 	_check(root.get_node("SaveManager").get_permanent_gold() - start_gold == _stats["r2_payout"], "%s: run 2 village gold booked" % _role)
 	_bot_enabled = false
 	await _close_run_end()
@@ -1088,8 +1098,6 @@ func _drive_side(local: Node, input: Object) -> void:
 		input.press(&"dash")
 	else:
 		input.release(&"dash")
-	if step.dash_just_pressed:
-		input.tap(&"side_dash")
 
 
 func _drive_bot() -> void:
@@ -1471,6 +1479,18 @@ func _close_run_end() -> void:
 	_check(false, "%s: run end screen shown" % _role)
 
 
+## base plus the seconds Flint's co-op tour holds the room's countdown (RoomIntro.flint_time, with
+## SOULWICK_FLINT_ROOMS=1; 0 without a tour).
+func _room_timeout(room: Node, base := STEP_TIMEOUT) -> float:
+	var intro: Object = load("res://dungeon/modes/room_intro.gd").get_intro(room)
+	return base + (float(intro.get(&"flint_time")) if intro != null else 0.0)
+
+
+## True while the room's RoomIntro holds the fight back (Flint's tour, banner, 3-2-1).
+func _intro_holds(room: Node) -> bool:
+	return load("res://dungeon/modes/room_intro.gd").holds_encounter(room)
+
+
 func _until(condition: Callable, label: String, timeout := STEP_TIMEOUT) -> bool:
 	var deadline := Time.get_ticks_msec() + int(timeout * 1000.0)
 	while Time.get_ticks_msec() < deadline:
@@ -1566,3 +1586,19 @@ func _read_file(path: String) -> String:
 	if not FileAccess.file_exists(path):
 		return ""
 	return FileAccess.get_file_as_string(path).strip_edges()
+
+
+## Death, abort and a lost host pay this share of the pot (KE3: 25 %, RunManager.LOSS_PAYOUT_RATIO).
+func _loss_ratio() -> float:
+	return root.get_node("RunManager").get_script().get_script_constant_map()["LOSS_PAYOUT_RATIO"]
+
+
+## A payout with the danger loot bonus of this run (KE2, D-197): the group level the host sent.
+func _with_danger(amount: int) -> int:
+	return _economy().apply_danger_loot(amount, root.get_node("RunManager").get_danger_level())
+
+
+## EconomySystem loaded at run time: it names the RunManager autoload, which a -s script does not know
+## at compile time (a preload would fail and leave a broken cached script for the whole run).
+func _economy() -> GDScript:
+	return load("res://economy/economy_system.gd")

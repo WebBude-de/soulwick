@@ -161,7 +161,7 @@ func test_placeholders_stay_without_art() -> void:
 
 func test_delivered_art_is_picked_up() -> void:
 	EnemyArt.clear_cache()
-	# Only checks what is actually delivered (docs/design/sprites/SPRITES_V2.md), so it never blocks missing art.
+	# Only checks what is actually delivered (docs/design/sprites/delivered/SPRITES_V2.md), so it never blocks missing art.
 	if not ResourceLoader.exists("res://art/characters/enemies/golem/golem_idle_4f.png"):
 		pass_test("no golem art delivered yet")
 		return

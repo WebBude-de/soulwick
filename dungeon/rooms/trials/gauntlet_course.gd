@@ -1,15 +1,18 @@
 class_name GauntletCourse
 extends TrialCourse
-## Spießrutenlauf (D-112): both lanes of the parcours hold spikes, flame jets and
-## pendulum blades with their own beats. Every kind appears at least once; order, columns, gaps
-## and timing are rolled with the dungeon RNG, so no two rooms play the same.
+## Spießrutenlauf (D-112): both lanes of the parcours hold spikes and flame jets with their own
+## beats. Every kind appears at least once; order, columns, gaps and timing are rolled with the
+## dungeon RNG, so no two rooms play the same. Bug report 23.10.2026 #1a47997f ("Mach das Element
+## weg. Man checkt nicht, was das macht, und das macht eigentlich immer Damage"): no pendulum blade
+## any more (TrialPendulum stays, unplaced, until it gets a readable warning).
 
-enum Kind { SPIKES, FLAMES, PENDULUM }
+enum Kind { SPIKES, FLAMES }
 
 ## Free columns between two hazards (TESTWERTE): room to wait for the next gap.
 const GAP_RANGE := Vector2i(1, 2)
-## Hazards beyond the first three (one of each kind) are drawn at random.
-const EXTRA_HAZARDS := 4
+## Hazards beyond the first ones (one of each kind) are drawn at random; one more since the pendulum
+## left (#1a47997f), so the lanes keep seven hazard columns. TESTWERT
+const EXTRA_HAZARDS := 5
 
 var hazards: Array[TrialHazard] = []
 ## Kind per placed hazard column, in placement order (tests).
@@ -17,7 +20,7 @@ var placed_kinds: Array[Kind] = []
 
 
 func build(rng: RandomNumberGenerator) -> void:
-	var queue: Array[Kind] = [Kind.SPIKES, Kind.FLAMES, Kind.PENDULUM]
+	var queue: Array[Kind] = [Kind.SPIKES, Kind.FLAMES]
 	_shuffle(queue, rng)
 	for i in EXTRA_HAZARDS:
 		queue.append(rng.randi_range(0, Kind.size() - 1) as Kind)
@@ -84,13 +87,6 @@ func _place(kind: Kind, lane: Rect2i, column: int, rng: RandomNumberGenerator) -
 					jet.copy_timing(first)
 					jet.advance(TrialFlameJet.WARN_TIME + TrialFlameJet.ACTIVE_TIME)
 				hazards.append(jet)
-		Kind.PENDULUM:
-			var pendulum := TrialPendulum.new()
-			pendulum.build(rect)
-			add_child(pendulum)
-			SortLift.lift(pendulum)
-			pendulum.configure_swing(rng)
-			hazards.append(pendulum)
 
 
 ## Fisher-Yates with the dungeon RNG (Array.shuffle would use the global one).

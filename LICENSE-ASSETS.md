@@ -23,7 +23,7 @@ eigene Spiele verwenden – unter den Bedingungen der GPL.
 | Musik, Geräuschkulissen und Klänge | `audio/` |
 | Bilder für Doku und GitHub (Mockups, Screenshots, Banner) | `docs/design/`, `.github/assets/` |
 | Logo und der Name **„Soulwick“** als Kennzeichen des Spiels | überall |
-| Die Figuren **Wick** (das Docht-Wesen) und **das Huhn**, ihr Aussehen und ihre Namen | überall |
+| Die Figuren **Flint** (das Docht-Wesen) und **das Huhn**, ihr Aussehen und ihre Namen | überall |
 
 Ohne schriftliche Erlaubnis von WebBude dürfen diese Inhalte nicht kopiert, verändert, weitergegeben
 oder in anderen Projekten verwendet werden, außer wie in Abschnitt 3 beschrieben.
@@ -81,7 +81,7 @@ games under the terms of the GPL.
 | Music, ambience and sound effects | `audio/` |
 | Images for docs and GitHub (mockups, screenshots, banners) | `docs/design/`, `.github/assets/` |
 | The logo and the name **"Soulwick"** as the name of the game | everywhere |
-| The characters **Wick** (the little wick creature) and **the chicken**, their look and their names | everywhere |
+| The characters **Flint** (the little wick creature) and **the chicken**, their look and their names | everywhere |
 
 Without written permission from WebBude this content may not be copied, modified, redistributed or
 used in other projects, except as described in section 3.

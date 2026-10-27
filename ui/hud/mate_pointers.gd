@@ -3,13 +3,15 @@ extends Control
 ## Co-op (MP5, D-191; D-184 OFFEN "Pfeil am Rand"): where the standing teammates are when they are off
 ## screen. At the screen edge an arrow in the mate's co-op colour points towards him, his name
 ## (shortened) beside it; nothing while he is on screen. Downed mates have their own markers
-## (ui/hints/downed_markers.gd), so the NetDungeon feeds only standing mates. Look only, no sprites:
-## the NetDungeon calls set_targets() every frame with the viewport position, colour and name.
+## (ui/hints/downed_markers.gd), so the NetDungeon feeds only standing mates. Look only: the arrow is
+## the pixel arrow (PixelArrow, feedback #a1a651ae), tinted in the mate's colour; the NetDungeon calls
+## set_targets() every frame with the viewport position, colour and name.
 
 const NODE_NAME := &"MatePointers"
 const COLOR_SHADOW := Color("#1c1a2b")
-## Sizes in mockup px: arrow, edge margin (inside the downed markers' edge), name gap.
-const ARROW := 7.0
+## Sizes in mockup px: half the arrow (for the name's place; the picture is PixelArrow's), edge
+## margin (inside the downed markers' edge), name gap.
+const ARROW := 9.0
 const EDGE_MARGIN := 22.0
 const NAME_GAP := 4.0
 ## Longest name shown at the edge (characters), the rest is cut with "…".
@@ -22,6 +24,7 @@ var _targets: Array[Dictionary] = []
 func _init() -> void:
 	name = NODE_NAME
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 
 
@@ -85,18 +88,10 @@ func _draw() -> void:
 		_draw_name(at, angle, short_name(str(target.get("name", ""))), color)
 
 
+## The pixel arrow centred on point, its outline is the shadow (no smoothed polygon).
 func _draw_arrow(point: Vector2, angle: float, color: Color) -> void:
-	var size := UiKit.px(ARROW)
-	var forward := Vector2.from_angle(angle)
-	var side := forward.orthogonal()
-	var tip := point + forward * size
-	var shape := PackedVector2Array([tip, point - forward * size * 0.6 + side * size * 0.8,
-			point - forward * size * 0.2, point - forward * size * 0.6 - side * size * 0.8])
-	var shadow := PackedVector2Array()
-	for p in shape:
-		shadow.append(p + Vector2(2, 2))
-	draw_colored_polygon(shadow, COLOR_SHADOW)
-	draw_colored_polygon(shape, color)
+	var size := PixelArrow.screen_size()
+	draw_texture_rect(PixelArrow.texture_for(angle), Rect2((point - size * 0.5).round(), size), false, color)
 
 
 ## The name behind the arrow, towards the screen centre, kept inside the screen.

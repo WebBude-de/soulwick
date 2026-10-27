@@ -277,16 +277,28 @@ func _phase_village() -> void:
 		player.global_position = forge.global_position + Vector2(200, 140)
 		camera.reset_smoothing()
 		await _seconds(0.5)
+	# Flint explains the forge on the first visit (WK9; scripts only when forced), skipped after the shot.
+	var tour_script: GDScript = load("res://world/village/village_tour.gd")
+	tour_script.set(&"force_in_scripts", true)
 	village.enter_building(&"forge")
 	await _seconds(1.4)
-	await _shot("dorf_schmiede_erklaerung", "Dorf", "Schmiede betreten: Erklärkarte beim ersten Besuch")
-	var intro: Node = village.ui.get_intro_modal()
-	if intro != null:
-		intro.finish()
+	await _shot("dorf_schmiede_erklaerung", "Dorf", "Schmiede betreten: Flint erklärt beim ersten Besuch")
+	await _skip_flint(player)
+	tour_script.set(&"force_in_scripts", false)
 	await _seconds(1.4)
 	await _shot("dorf_schmiede_dialog", "Dorf", "Schmiede-Dialog mit dauerhaften Upgrades und Preisen")
 	await _close_modals()
 	await _seconds(0.5)
+
+
+## Skips Flint like a player would, with everything he still has queued.
+func _skip_flint(player: Node) -> void:
+	for attempt in 10:
+		var guide: Object = load("res://companions/guide/flint_guide.gd").of(player)
+		if guide == null or (guide.get(&"current") == null and guide.get_queue_size() == 0):
+			return
+		guide.skip()
+		await _seconds(load("res://companions/guide/flint_guide_rules.gd").FLY_BACK_TIME + 0.1)
 
 
 func _set_village_time(village: Node, hour: float) -> void:

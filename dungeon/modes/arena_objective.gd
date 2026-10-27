@@ -1,6 +1,6 @@
 class_name ArenaObjective
 extends RoomObjective
-## The arena as a room goal (KONZEPT_RAEUME_V2 §3.2, R3): "Überlebe N Wellen", task bar
+## The arena as a room goal (RAEUME §3.2, R3): "Überlebe N Wellen", task bar
 ## "Welle 1/N · x Gegner", between two waves "Welle 2/N kommt …" (wave_cleared: DungeonUI shows
 ## the wave banner and plays the gong). Reads the room only (get_wave_progress, get_wave_alive,
 ## get_alive_enemy_count, wave_started, completed); it never changes the fight.
@@ -57,6 +57,12 @@ func get_wave() -> int:
 
 func get_total_waves() -> int:
 	return planned_waves(_room) if _room != null else 1
+
+
+## Flint's first-time tour of the arena (WK11): the gates and the number of waves.
+func get_flint_steps() -> Array[FlintGuideStep]:
+	var center := _room.get_arena().get_center() if _room != null and is_instance_valid(_room) else Vector2.INF
+	return RoomFlint.steps(RoomObjective.ARENA, [RoomFlint.source_point(_room, center)], {0: [get_total_waves()]})
 
 
 ## true between two waves (the running one is down, the next one not out yet).

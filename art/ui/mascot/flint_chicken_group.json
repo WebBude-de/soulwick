@@ -1,0 +1,39 @@
+{
+  "notes": [
+    "160×96 und ×4."
+  ],
+  "items": [
+    {
+      "name": "flint_chicken_group",
+      "file": "flint_chicken_group.png",
+      "frame_size": [
+        160,
+        96
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        80,
+        94
+      ],
+      "note": ""
+    },
+    {
+      "name": "flint_chicken_group_512",
+      "file": "flint_chicken_group_512.png",
+      "frame_size": [
+        640,
+        384
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        320,
+        376
+      ],
+      "note": ""
+    }
+  ]
+}

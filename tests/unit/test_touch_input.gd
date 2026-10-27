@@ -210,11 +210,11 @@ func test_stick_drag_moves_and_release_stops() -> void:
 	var overlay := _overlay(state)
 	_touch(overlay, 0, Vector2(220, 520), true)
 	assert_true(overlay.is_stick_held())
-	_drag(overlay, 0, Vector2(220 + TouchOverlay.STICK_RADIUS, 520))
+	_drag(overlay, 0, Vector2(220 + overlay.get_stick_radius(), 520))
 	assert_almost_eq(state.move, Vector2.RIGHT, Vector2(0.01, 0.01))
 	_drag(overlay, 0, Vector2(225, 520))
 	assert_eq(state.move, Vector2.ZERO, "inside the dead zone")
-	_drag(overlay, 0, Vector2(225, 520 - 3.0 * TouchOverlay.STICK_RADIUS))
+	_drag(overlay, 0, Vector2(225, 520 - 3.0 * overlay.get_stick_radius()))
 	assert_almost_eq(state.move.length(), 1.0, 0.01, "the floating stick follows the thumb")
 	_touch(overlay, 0, Vector2(225, 300), false)
 	assert_false(overlay.is_stick_held())
@@ -225,7 +225,7 @@ func test_buttons_press_their_actions_with_multi_touch() -> void:
 	var state := _forced_state()
 	var overlay := _overlay(state)
 	_touch(overlay, 0, Vector2(200, 500), true)
-	_drag(overlay, 0, Vector2(200, 500 - TouchOverlay.STICK_RADIUS))
+	_drag(overlay, 0, Vector2(200, 500 - overlay.get_stick_radius()))
 	_touch(overlay, 1, _button_center(overlay, PlayerInput.DASH), true)
 	_touch(overlay, 2, _button_center(overlay, PlayerInput.INTERACT), true)
 	assert_true(state.is_held(PlayerInput.DASH))
@@ -244,23 +244,23 @@ func test_aim_stick_on_its_ring_aims_at_once_and_floats_elsewhere() -> void:
 	var state := _forced_state()
 	var overlay := _overlay(state)
 	var rest := overlay.get_aim_rest()
-	_touch(overlay, 3, rest + Vector2(0, -TouchOverlay.STICK_RADIUS), true)
+	_touch(overlay, 3, rest + Vector2(0, -overlay.get_stick_radius()), true)
 	assert_true(overlay.is_aim_held())
 	assert_almost_eq(state.aim, Vector2.UP, Vector2(0.01, 0.01), "a touch on the ring's edge aims at once")
 	_drag(overlay, 3, rest + Vector2(5, 0))
 	assert_eq(state.aim, Vector2.ZERO, "back in the dead zone")
-	_drag(overlay, 3, rest + Vector2(-TouchOverlay.STICK_RADIUS, 0))
+	_drag(overlay, 3, rest + Vector2(-overlay.get_stick_radius(), 0))
 	assert_almost_eq(state.aim, Vector2.LEFT, Vector2(0.01, 0.01))
 	_touch(overlay, 3, rest, false)
 	assert_false(overlay.is_aim_held())
 	assert_eq(state.aim, Vector2.ZERO, "released: no aim")
 	# Elsewhere in the right half (not on a button): the stick starts under the thumb.
-	var free := Vector2(SCREEN.size.x * 0.62, SCREEN.size.y * 0.75)
+	var free := Vector2(SCREEN.size.x * 0.57, SCREEN.size.y * 0.42)
 	assert_eq(overlay.button_at(free), {}, "test point is free")
 	_touch(overlay, 4, free, true)
 	assert_true(overlay.is_aim_held())
 	assert_eq(state.aim, Vector2.ZERO, "floating: no deflection on touch-down")
-	_drag(overlay, 4, free + Vector2(0, TouchOverlay.STICK_RADIUS))
+	_drag(overlay, 4, free + Vector2(0, overlay.get_stick_radius()))
 	assert_almost_eq(state.aim, Vector2.DOWN, Vector2(0.01, 0.01))
 	_touch(overlay, 4, free, false)
 
@@ -269,10 +269,10 @@ func test_both_sticks_work_at_the_same_time() -> void:
 	var state := _forced_state()
 	var overlay := _overlay(state)
 	_touch(overlay, 0, Vector2(200, 500), true)
-	_drag(overlay, 0, Vector2(200 + TouchOverlay.STICK_RADIUS, 500))
+	_drag(overlay, 0, Vector2(200 + overlay.get_stick_radius(), 500))
 	var rest := overlay.get_aim_rest()
 	_touch(overlay, 1, rest, true)
-	_drag(overlay, 1, rest + Vector2(0, -TouchOverlay.STICK_RADIUS))
+	_drag(overlay, 1, rest + Vector2(0, -overlay.get_stick_radius()))
 	assert_almost_eq(state.move, Vector2.RIGHT, Vector2(0.01, 0.01))
 	assert_almost_eq(state.aim, Vector2.UP, Vector2(0.01, 0.01))
 	_touch(overlay, 2, _button_center(overlay, PlayerInput.SPECIAL), true)
@@ -292,8 +292,8 @@ func test_layout_special_left_other_buttons_right_nothing_overlaps() -> void:
 		state.side_view = side
 		overlay.layout(SCREEN)
 		var circles: Array[Dictionary] = [
-			{"name": "move stick", "center": overlay.get_stick_rest(), "radius": TouchOverlay.STICK_RADIUS},
-			{"name": "aim stick", "center": overlay.get_aim_rest(), "radius": TouchOverlay.STICK_RADIUS},
+			{"name": "move stick", "center": overlay.get_stick_rest(), "radius": overlay.get_stick_radius()},
+			{"name": "aim stick", "center": overlay.get_aim_rest(), "radius": overlay.get_stick_radius()},
 		]
 		var inner := SCREEN.grow(-2.0)
 		for button in overlay.buttons:
@@ -301,7 +301,8 @@ func test_layout_special_left_other_buttons_right_nothing_overlaps() -> void:
 			var radius: float = button.radius
 			var corner := Vector2(radius, radius)
 			assert_true(inner.has_point(center + corner) and inner.has_point(center - corner), "%s on screen" % button.action)
-			if button.event:
+			if button.event or button.action == PlayerInput.USE_RETURN_STONE:
+				# Top row: overview, pause and the return stone (on the move side).
 				continue
 			if button.action == PlayerInput.SPECIAL:
 				assert_lt(center.x, SCREEN.size.x * TouchOverlay.STICK_ZONE_WIDTH, "special on the left, next to the move stick")
@@ -422,9 +423,13 @@ func test_touch_art_returns_null_for_missing_files_and_falls_back_for_attack() -
 
 
 func test_touch_art_sizes_fit_the_touch_areas() -> void:
-	assert_almost_eq(TouchArt.frame_screen_size(TouchArt.Size.NORMAL) * 0.5, TouchOverlay.BUTTON_RADIUS, 4.0)
-	assert_almost_eq(TouchArt.frame_screen_size(TouchArt.Size.SMALL) * 0.5, TouchOverlay.SMALL_RADIUS, 4.0)
-	assert_almost_eq(float(TouchArt.STICK_BASE_ART_SIZE * TouchArt.PIXEL) * 0.5, TouchOverlay.STICK_RADIUS, 4.0)
+	var overlay := _overlay(_forced_state())
+	var pixel := overlay.get_pixel()
+	assert_almost_eq(float(TouchArt.STICK_BASE_ART_SIZE * pixel) * 0.5, overlay.get_stick_radius(), float(pixel) * 2.0,
+			"the drawn stick matches its reach")
+	for button in overlay.buttons:
+		assert_true(float(button.radius) >= TouchArt.frame_screen_size(button.size, pixel) * 0.5,
+				"%s: the touch area covers the picture" % button.action)
 	assert_eq(TouchArt.cooldown_frame(1.0), 0, "just used")
 	assert_eq(TouchArt.cooldown_frame(0.01), TouchArt.COOLDOWN_FRAMES - 1, "almost ready")
 
@@ -449,7 +454,7 @@ func test_overlay_draws_with_cooldowns_and_pressed_buttons() -> void:
 	state.cooldowns[PlayerInput.SPECIAL] = 1.0
 	state.weapon_type = WeaponData.WeaponType.BOW
 	_touch(overlay, 1, _button_center(overlay, PlayerInput.INTERACT), true)
-	_touch(overlay, 2, overlay.get_aim_rest() + Vector2(TouchOverlay.STICK_RADIUS, 0), true)
+	_touch(overlay, 2, overlay.get_aim_rest() + Vector2(overlay.get_stick_radius(), 0), true)
 	overlay._view.queue_redraw()
 	await wait_process_frames(2)
 	assert_true(state.is_held(PlayerInput.INTERACT), "drawing every state does not break input")

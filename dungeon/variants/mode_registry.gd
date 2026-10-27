@@ -1,6 +1,6 @@
 class_name ModeRegistry
 extends RefCounted
-## Every minigame mode of the combat rooms in one table (KONZEPT_RAEUME_V2 §2, §4, D-120): one line
+## Every minigame mode of the combat rooms in one table (RAEUME §2, §4, D-120): one line
 ## per mode. VariantTable draws from it, CombatVariant.create() builds the mode node from its script,
 ## the DungeonManager draws the plan of the plan mode (RoomCatalog.pick(..., mode)).
 ##

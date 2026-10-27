@@ -19,6 +19,9 @@ extends Node
 ## village) goes to the host (request_look) and from there to every peer of this world (apply_look);
 ## a peer that loads the world later gets all current looks once it is ready. The relay round trip
 ## of every machine is shared the same way every PING_SHARE_SECONDS (lobby slots, D-152).
+## Room types (WK11): every profile carries the room types the account had Flint explain
+## (RoomFlint.PROFILE_KEY); the spawn data hands them to the player on every machine (player meta),
+## so every machine knows who still needs Flint's tour and holds the room countdown alike.
 
 signal players_changed
 ## A player's look or name changed (lobby slots; pings are read with get_ping()).
@@ -57,7 +60,7 @@ static func create(world_controller: Node, target_world: Node, profile: Dictiona
 	net.name = NODE_NAME
 	net.controller = world_controller
 	net.world = target_world
-	net.local_profile = with_own_look(profile)
+	net.local_profile = with_seen_rooms(with_own_look(profile))
 	return net
 
 
@@ -72,6 +75,21 @@ static func with_own_look(profile: Dictionary) -> Dictionary:
 	if not own.player_name.is_empty():
 		result["name"] = own.player_name
 	return result
+
+
+## profile plus the room types this account knows (Flint explained them, WK11).
+static func with_seen_rooms(profile: Dictionary) -> Dictionary:
+	var result := profile.duplicate()
+	result[RoomFlint.PROFILE_KEY] = Array(RoomFlint.account_known())
+	return result
+
+
+## The room types of a profile or spawn data, cleaned; null when it has none (an older build: its
+## player counts as knowing every room type, RoomFlint.knows).
+static func profile_seen_rooms(profile: Dictionary) -> Variant:
+	if not profile.has(RoomFlint.PROFILE_KEY):
+		return null
+	return Array(RoomFlint.sanitize_known(profile[RoomFlint.PROFILE_KEY]))
 
 
 ## Colour of the index-th player (P1..P4).
@@ -211,12 +229,76 @@ func _host_spawn(peer: int, profile: Dictionary) -> void:
 		"color": str(profile.get("color", "")),
 		"look": look,
 		"pos": _origin + WorldController.get_spawn_offset(index),
+		"forge": profile_forge(profile) if _takes_profile_forge() else {},
+		"provisions": profile_provisions(profile) if _takes_profile_forge() else {},
 	}
+	var seen_rooms: Variant = profile_seen_rooms(profile)
+	if seen_rooms != null:
+		data[RoomFlint.PROFILE_KEY] = seen_rooms
 	var player := _spawner.spawn(data) as Player
 	if player != null:
+		_apply_profile_talents(player, profile)
+		_apply_profile_forge(player, data["forge"])
+		_apply_profile_provisions(player, data["provisions"])
 		_register(player, peer)
 		for ready_peer in _ready_peers:
 			_show_to(player, ready_peer)
+
+
+## Host, dungeon of a quick game (KONZEPT §9): the solo character's talents from the profile, checked
+## against the profile's account level (TalentState.sanitized); the host runs them for every player,
+## the clients only see the result. Guild runs use the guild character later (MP8b), the village none.
+func _apply_profile_talents(player: Player, profile: Dictionary) -> void:
+	if not (world is DungeonManager) or GameMode.of(self).kind == GameMode.Kind.GUILD:
+		return
+	var state := profile_talents(profile)
+	if not state.levels.is_empty():
+		TalentEffects.apply_to(player, state)
+
+
+## Dungeon of a quick game (KE4, KONZEPT §9): every player brings their own forge in the lobby
+## profile. Solo takes the own save (DungeonManager, MetaProgression.apply_to_run), guild runs none.
+func _takes_profile_forge() -> bool:
+	return world is DungeonManager and GameMode.of(self).get_meta_source() == GameMode.MetaSource.NONE
+
+
+## The cleaned forge snapshot of a lobby profile; {} for old profiles without one (no forge).
+static func profile_forge(profile: Dictionary) -> Dictionary:
+	var raw: Variant = profile.get("forge", null)
+	return MetaProgression.sanitize_snapshot(raw) if raw is Dictionary else {}
+
+
+## Host: the player's forge (weapon levels, Laterne, Schildplatte, start weapons) on its copy; the
+## clients got the snapshot with the spawn data (_build_player), the loadout follows from the host.
+func _apply_profile_forge(player: Player, forge: Dictionary) -> void:
+	if forge.is_empty():
+		return
+	MetaProgression.apply_forge_snapshot(player, forge, (world as DungeonManager).context)
+
+
+## The cleaned Proviant snapshot of a lobby profile (KE5); {} for old profiles without one.
+static func profile_provisions(profile: Dictionary) -> Dictionary:
+	var raw: Variant = profile.get("provisions", null)
+	return MetaProgression.sanitize_provisions(raw) if raw is Dictionary else {}
+
+
+## Host: the player's Proviant and trade levels on its copy (Heiltrank, Glücksamulett act now; the
+## rest is asked through MetaProgression.player_*), then the group's Goldregen anew. The clients got
+## the snapshot with the spawn data (_build_player) for their own optics (Klarsicht, Spürnase,
+## Rückkehrstein button, prices).
+func _apply_profile_provisions(player: Player, provisions: Dictionary) -> void:
+	if provisions.is_empty():
+		return
+	var dungeon := world as DungeonManager
+	MetaProgression.apply_provisions(player, provisions, dungeon.context)
+	dungeon.refresh_group_gold()
+
+
+## The talent distribution of a lobby profile, valid for its "level" (empty for old profiles).
+static func profile_talents(profile: Dictionary) -> TalentState:
+	var level: Variant = profile.get("level", 1)
+	var points := TalentState.points_for_level(int(level) if (level is int or level is float) else 1)
+	return TalentState.from_dict(profile.get("talents", {})).sanitized(points)
 
 
 ## Host (MP3): the players of this world leave every client at once (start or end of a run): they
@@ -265,8 +347,20 @@ func _build_player(data: Variant) -> Node:
 	var index := int(info.get("index", 0))
 	var player := PLAYER_SCENE.instantiate() as Player
 	player.name = "Net%d" % peer
+	# KE4: the forge of a quick game's player on every machine (weapon damage shown, own Laterne).
+	var forge: Variant = info.get("forge", {})
+	if forge is Dictionary and not (forge as Dictionary).is_empty():
+		MetaProgression.set_player_forge(player, forge)
+	# KE5: the Proviant of a quick game's player on every machine (own optics, prices, the stone).
+	var provisions: Variant = info.get("provisions", {})
+	if provisions is Dictionary and not (provisions as Dictionary).is_empty() and not multiplayer.is_server():
+		MetaProgression.set_player_provisions(player, provisions)
 	player.player_id = index
 	player.is_local = peer == multiplayer.get_unique_id()
+	# WK11: the room types this player knows, the same on every machine.
+	var seen_rooms: Variant = profile_seen_rooms(info)
+	if seen_rooms != null:
+		RoomFlint.set_known(player, seen_rooms)
 	player.input = LocalKeyboardMouseInput.new() if player.is_local else RemoteInput.new()
 	# The newest look known here wins over the spawn data (it may have changed since the spawn).
 	var appearance: Dictionary = _looks.get(peer, _profile_look(info))

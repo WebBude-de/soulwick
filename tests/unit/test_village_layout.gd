@@ -215,7 +215,8 @@ func test_decoration_never_on_paths_doors_or_spawn() -> void:
 func test_decoration_does_not_collide() -> void:
 	var village := _village()
 	assert_eq(village.get_node("Decor").find_children("*", "CollisionObject2D", true, false).size(), 0)
-	assert_eq(village.get_node("Villagers").find_children("*", "CollisionObject2D", true, false).size(), 0, "villagers never block")
+	# Animals carry an Area2D to be spoken to (WK12, VillageAnimal); nothing solid.
+	assert_eq(village.get_node("Villagers").find_children("*", "PhysicsBody2D", true, false).size(), 0, "villagers never block")
 
 
 ## Report #d83bda23: flat decoration (grass, stones, flowers) and the rubble lie under characters,
