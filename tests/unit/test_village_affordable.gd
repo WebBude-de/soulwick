@@ -11,7 +11,7 @@ const VILLAGE_SCENE := "res://world/village/village.tscn"
 const AffordableScript := preload("res://world/village/village_affordable.gd")
 ## The new texts until the integrator has them in translations.csv (keys_p1_3_village.json).
 const KEYS := {
-	"VILLAGE_GOAL_FORGE": ["Grow stronger at the forge", "Stärke dich in der Schmiede"],
+	"VILLAGE_GOAL_FORGE": ["Off to the forge · %s", "Ab zur Schmiede · %s"],
 	"VILLAGE_UI_AFFORDABLE": ["Affordable", "Leistbar"],
 	"VILLAGE_UI_MISSING_GOLD": ["%d more gold", "Noch %d Gold"],
 	"VILLAGE_UI_MISSING_CRYSTAL": ["%d more crystal", "Noch %d Kristall"],
@@ -118,7 +118,6 @@ func test_nothing_affordable_without_gold() -> void:
 	_after_first_run(5)
 	assert_true(AffordableScript.affordable_items(VillageBuildings.FORGE).is_empty())
 	assert_false(AffordableScript.needs_marker(VillageBuildings.FORGE))
-	assert_false(AffordableScript.needs_forge_goal())
 	var cost := MetaProgression.get_next_cost(MetaProgression.SHIELD_PLATE)
 	assert_eq(AffordableScript.gold_missing(MetaProgression.SHIELD_PLATE), cost - 5, "Noch N Gold")
 
@@ -156,13 +155,26 @@ func test_visits_belong_to_one_world() -> void:
 	SaveManager.save_path = TEST_PATH
 
 
-func test_forge_goal_only_after_a_run_and_until_the_first_purchase() -> void:
-	SaveManager.add_permanent_gold(10000)
-	assert_false(AffordableScript.needs_forge_goal(), "before the first run the dungeon is the goal")
-	SaveManager.add_stat(StatsTracker.RUNS, 1)
-	assert_true(AffordableScript.needs_forge_goal())
-	assert_true(MetaProgression.try_buy(MetaProgression.SHIELD_PLATE))
-	assert_false(AffordableScript.needs_forge_goal(), "first purchase done")
+## FS6 (D-220 point 3): the goal names the next forge step until every open step is bought.
+func test_forge_goal_names_the_next_step_and_moves_on_after_a_purchase() -> void:
+	_after_first_run(_cheapest_forge_cost())
+	var goal := VillageGoal.current()
+	assert_eq(goal.get("kind"), VillageGoal.FORGE)
+	var first: StringName = goal["step"]["id"]
+	assert_eq(goal["text"], "Ab zur Schmiede · %s" % goal["step"]["name"])
+	assert_true(MetaProgression.try_buy(first))
+	var next := VillageGoal.current()
+	assert_false(next.is_empty(), "the next step is the goal now")
+	assert_eq(next.get("kind"), VillageGoal.SAVE, "gold spent: down once more")
+
+
+func test_save_goal_says_how_much_gold_is_missing() -> void:
+	_after_first_run(5)
+	var goal := VillageGoal.current()
+	assert_eq(goal.get("kind"), VillageGoal.SAVE)
+	var missing := int(goal["step"]["missing"])
+	assert_gt(missing, 0)
+	assert_eq(goal["text"], "Noch einmal hinab · noch %d Gold bis %s" % [missing, goal["step"]["name"]])
 
 
 # --- Village: "!" and goal line ---
@@ -179,8 +191,7 @@ func test_village_marks_the_forge_and_shows_the_goal() -> void:
 	assert_true(layer.follow_viewport_enabled, "moves with the world")
 	assert_eq(village.get_goal_kind(), Village.GOAL_FORGE)
 	var goal_text := village.ui.get_goal().find_child("GoalText", true, false) as Label
-	assert_eq(goal_text.text, "VILLAGE_GOAL_FORGE", "the key: the label translates itself")
-	assert_eq(Loc.t(Village.GOAL_FORGE), "Stärke dich in der Schmiede")
+	assert_string_starts_with(goal_text.text, "Ab zur Schmiede · ", "built in the current language")
 
 
 func test_marker_pulses() -> void:
@@ -195,12 +206,12 @@ func test_marker_pulses() -> void:
 	assert_not_null(marker.call(&"get_texture"), "badge art (drawn in code until the file exists)")
 
 
-func test_no_marker_and_no_forge_goal_when_poor_or_before_the_first_run() -> void:
+func test_no_marker_but_a_save_goal_when_poor() -> void:
 	_after_first_run(3)
 	var village := _village()
 	assert_false(village.has_afford_marker(VillageBuildings.FORGE))
-	assert_eq(village.get_goal_kind(), &"")
-	assert_null(village.ui.get_goal())
+	assert_eq(village.get_goal_kind(), Village.GOAL_SAVE, "the goal line never goes empty after the first run")
+	assert_not_null(village.ui.get_goal())
 
 
 func test_first_run_keeps_the_descend_goal() -> void:
@@ -210,7 +221,7 @@ func test_first_run_keeps_the_descend_goal() -> void:
 	assert_eq(village.get_goal_kind(), Village.GOAL_DESCEND, "the way down first")
 
 
-func test_visit_hides_the_marker_and_buying_ends_the_goal() -> void:
+func test_visit_hides_the_marker_and_buying_moves_the_goal_on() -> void:
 	_after_first_run(_cheapest_forge_cost())
 	var village := _village()
 	village.enter_building(VillageBuildings.FORGE)
@@ -218,14 +229,13 @@ func test_visit_hides_the_marker_and_buying_ends_the_goal() -> void:
 	assert_not_null(modal)
 	var cheapest: StringName = AffordableScript.affordable_items(VillageBuildings.FORGE)[0]
 	assert_true(MetaProgression.try_buy(cheapest))
-	assert_eq(village.get_goal_kind(), &"", "goal gone after the first purchase")
-	assert_null(village.ui.get_goal())
+	assert_eq(village.get_goal_kind(), Village.GOAL_SAVE, "next step, gold spent")
 	modal.finish()
 	await wait_physics_frames(2)
 	assert_false(village.has_afford_marker(VillageBuildings.FORGE), "visited (and nothing affordable)")
 	SaveManager.add_permanent_gold(10000)
 	assert_true(village.has_afford_marker(VillageBuildings.FORGE), "new gold: the ! is back")
-	assert_eq(village.get_goal_kind(), &"", "the goal stays gone")
+	assert_eq(village.get_goal_kind(), Village.GOAL_FORGE, "off to the forge again")
 
 
 func test_visit_without_buying_hides_the_marker_but_keeps_the_goal() -> void:
@@ -235,7 +245,7 @@ func test_visit_without_buying_hides_the_marker_but_keeps_the_goal() -> void:
 	village.ui.get_building_modal().finish()
 	await wait_physics_frames(2)
 	assert_false(village.has_afford_marker(VillageBuildings.FORGE))
-	assert_eq(village.get_goal_kind(), Village.GOAL_FORGE, "until the first purchase")
+	assert_eq(village.get_goal_kind(), Village.GOAL_FORGE, "still affordable")
 	var again := _village()
 	assert_false(again.has_afford_marker(VillageBuildings.FORGE), "same gold after a reload: still seen")
 
@@ -545,4 +555,4 @@ func test_old_v2_save_loads_and_marks_what_is_affordable() -> void:
 	file.close()
 	assert_eq(SaveManager.load_game(), OK)
 	var again := _village()
-	assert_eq(again.get_goal_kind(), &"", "bought before (Startschild -> Schildplatte, KE4): no forge goal")
+	assert_ne(again.get_goal_kind(), &"", "bought before (Startschild -> Schildplatte, KE4): the next step is the goal (FS6)")

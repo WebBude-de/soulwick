@@ -2,9 +2,11 @@ class_name HomeRoom
 extends Node2D
 ## Floor and walls of the home interior (KE8): wooden planks, two rows of panelled back wall with the
 ## moon window (by day lighter), side and bottom walls with the door out. Drawn from the delivered
-## tile sheet (home_interior_tiles.png, only row 1 and the door are delivered); side walls and the
-## bottom wall are dark beams until the missing rows arrive (SPRITES_V13 Teil C). Also the static
-## bodies of the walls. Lies under everything (z_index), drawn in art px at HomeLayout.SCALE.
+## tile sheet (home_interior_tiles.png: row 1 and the door; rows 2 and 3 of V13d are not named yet);
+## side walls and the bottom wall are dark beams until named tiles for them arrive (SPRITES_V13 Teil
+## C). The window is the delivered picture (home_window_day/night, V13d) on the panelling once it
+## exists, else the window tiles tinted lighter by day. Also the static bodies of the walls. Lies under
+## everything (z_index), drawn in art px at HomeLayout.SCALE.
 
 const BEAM := Color("#3b2a22")
 const BEAM_LIGHT := Color("#5c3a24")
@@ -31,15 +33,23 @@ func set_night(amount: float) -> void:
 func _draw() -> void:
 	var sheet := HomeArt.tiles_texture()
 	var tile := float(HomeLayout.TILE)
+	var window := HomeArt.window_texture(night)
 	for row in HomeLayout.ROWS:
 		for col in HomeLayout.COLS:
 			var at := Rect2(col * tile, row * tile, tile, tile)
 			if row >= HomeLayout.WALL_ROWS:
 				_tile(sheet, "floor_a" if (col * 7 + row * 3) % 5 != 0 else "floor_b", at, Color.WHITE)
 			elif row == HomeLayout.WALL_ROWS - 1:
-				_tile(sheet, _back_wall_tile(col), at, _window_tint(col))
+				var wall_tile := _back_wall_tile(col)
+				if window != null and wall_tile.begins_with("window"):
+					wall_tile = "wall_front"
+				_tile(sheet, wall_tile, at, _window_tint(col) if window == null else Color.WHITE)
 			else:
 				_tile(sheet, "wall_front", at, UPPER_WALL_TINT)
+	if window != null:
+		var spec := HomeArt.prop_spec(HomeArt.WINDOW_NIGHT)
+		var foot := window_foot()
+		draw_texture(window, (foot - HomeArt.pivot(spec)).round())
 	# Side walls and the bottom wall with a gap for the door (beams until the tiles exist).
 	var height := HomeLayout.ROWS * tile
 	var width := HomeLayout.COLS * tile
@@ -55,6 +65,12 @@ func _draw() -> void:
 		draw_texture_rect_region(sheet, door, HomeArt.tile_region("door_out"))
 	else:
 		draw_rect(door.grow(-4), BEAM_LIGHT)
+
+
+## Foot point of the window picture (art px): centred over the two window columns, standing on the
+## lower edge of the panelling (the sill flower sits in front of it).
+static func window_foot() -> Vector2:
+	return Vector2((HomeLayout.WINDOW_COL + 1) * HomeLayout.TILE, HomeLayout.WALL_ROWS * HomeLayout.TILE - 2)
 
 
 func _back_wall_tile(col: int) -> String:

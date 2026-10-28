@@ -183,3 +183,61 @@ func test_dashed_box_frame_is_whole_ui_pixels() -> void:
 	_assert_rects_on_grid(raster.rects, "dashed box", pixel)
 	assert_gt(raster.image.get_pixel(0, 0).a, 0.0, "a dash starts in the corner")
 	assert_eq(raster.image.get_pixel(45, 22).a, 0.0, "the inside stays empty")
+
+
+# --- Delivered ember golem art (lava impact, lava pool, stomp ring): whole scales ---
+
+func _spawned_art(holder: Node, look: StringName, radius: float) -> AnimatedSprite2D:
+	var blast := Blast.spawn(holder, Vector2(200, 200), radius, 1.0)
+	blast.target_mask = 0
+	blast.look = look
+	await wait_physics_frames(2)
+	for child in holder.get_children():
+		if child is AnimatedSprite2D:
+			return child
+	return null
+
+
+func test_lava_impact_and_stomp_ring_art_get_whole_scales() -> void:
+	for look: StringName in [Blast.LOOK_LAVA, Blast.LOOK_STOMP]:
+		var holder := Node2D.new()
+		add_child_autofree(holder)
+		var radius := 44.0 if look == Blast.LOOK_LAVA else 150.0
+		var sprite: AnimatedSprite2D = await _spawned_art(holder, look, radius)
+		assert_not_null(sprite, "%s: the delivered strip is shown" % look)
+		if sprite == null:
+			continue
+		assert_eq(sprite.sprite_frames.get_frame_count(&"default"), 6, "%s: six frames sliced right" % look)
+		assert_eq(sprite.scale.x, roundf(sprite.scale.x), "%s: whole scale %s" % [look, sprite.scale])
+		var art_radius := Blast.LAVA_IMPACT_ART_RADIUS if look == Blast.LOOK_LAVA else Blast.STOMP_RING_ART_RADIUS
+		assert_lte(absf(art_radius * sprite.scale.x - radius), art_radius * 0.5 + 0.01, "%s: drawn near the hit radius" % look)
+
+
+func test_lava_pool_art_gets_a_whole_scale_and_keeps_its_hit_radius() -> void:
+	assert_true(ResourceLoader.exists(LavaPool.ART_PATH), "lava pool art is delivered")
+	var holder := Node2D.new()
+	add_child_autofree(holder)
+	var pool := LavaPool.spawn(holder, Vector2(100, 100), 44.0 * Blast.POOL_RADIUS_SHARE, 2.0, 0.5, PhysicsLayers.PLAYER_HURTBOX, null)
+	var sprite: AnimatedSprite2D = null
+	for child in pool.get_children():
+		if child is AnimatedSprite2D:
+			sprite = child
+	assert_not_null(sprite, "the delivered pool is shown")
+	if sprite != null:
+		assert_eq(sprite.sprite_frames.get_frame_count(&"default"), 4)
+		assert_eq(sprite.scale.x, 3.0, "a 37 px pool shows the 12.5 texel art at 3x")
+	var shape: CollisionShape2D = null
+	for child in pool.get_children():
+		if child is Hitbox:
+			shape = child.get_child(0) as CollisionShape2D
+	assert_not_null(shape, "the pool hurts")
+	if shape == null:
+		return
+	assert_almost_eq((shape.shape as CircleShape2D).radius, 44.0 * Blast.POOL_RADIUS_SHARE, 0.001, "the hit area is exact")
+
+
+func test_lava_ball_art_is_drawn_at_a_whole_scale() -> void:
+	assert_true(ResourceLoader.exists(LobShell.ART_PATH), "lava ball art is delivered")
+	assert_eq(LobShell.ART_SCALE, roundf(LobShell.ART_SCALE))
+	var texture := load(LobShell.ART_PATH) as Texture2D
+	assert_eq(texture.get_width() % LobShell.ART_FRAME.x, 0, "whole frames")

@@ -2,7 +2,8 @@ extends GutTest
 ## Flint in online games (feedback 23.10.2026): no explanations in the online lobby and the village of
 ## a relay room (#ce7cde79, FlintGuide.allowed_now), and in a shared run the "first time" hints go
 ## through the host to everybody at once, all players held until the learner is through or the time
-## is up (#2b1a5a87, NetGuide; FlintControls routes to it). Seen flags are a dictionary, never the
+## is up (#2b1a5a87, NetGuide; FlintControls routes to it); FS5: only learners are held, the host
+## orders by priority and drops what nobody needs. Seen flags are a dictionary, never the
 ## real save; no network (NetGuide's message paths are called directly).
 
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
@@ -141,27 +142,30 @@ func test_the_coach_hands_hints_to_the_group_router() -> void:
 	assert_true(router.asked.has(FlintControls.CHASM), "explain_first goes the same way")
 
 
-func _net_guide(host: bool, local: Player, everybody: Array[Player]) -> NetGuide:
+func _net_guide(host: bool, local: Player, everybody: Array[Player], peers := {}) -> NetGuide:
 	var net_guide := NetGuide.create(null)
 	net_guide.is_host = host
 	net_guide.local_player = func() -> Player: return local
 	net_guide.all_players = func() -> Array[Player]: return everybody
+	# Without a network the local player is peer 1; remote copies get their peer from peers.
+	net_guide.peer_of = func(player: Node) -> int:
+		return 1 if player == local else int(peers.get(player.get_instance_id(), 0))
 	add_child_autofree(net_guide)
 	return net_guide
 
 
-func test_host_shows_a_hint_to_everybody_and_holds_all_until_the_learner_is_through() -> void:
+func test_host_shows_a_hint_to_everybody_and_holds_only_the_learner() -> void:
 	GameManager.set_phase(GameManager.Phase.DUNGEON)
 	var host_player := _player()
 	var client_copy := _player()
 	client_copy.is_local = false
 	var guide := _guide(host_player)
-	var net_guide := _net_guide(true, host_player, [host_player, client_copy] as Array[Player])
+	var net_guide := _net_guide(true, host_player, [host_player, client_copy] as Array[Player], {client_copy.get_instance_id(): 7})
 	assert_true(net_guide.request_hint(host_player, FlintControls.SPECIAL), "taken over")
 	assert_eq(net_guide.get_active(), FlintControls.SPECIAL)
 	assert_true(net_guide.is_learner(), "the host's own player asked: he pages")
-	assert_true(host_player.is_protected(), "the host's player is held")
-	assert_true(client_copy.is_protected(), "the client's player is held at the host too")
+	assert_true(host_player.is_protected(), "the learner is held")
+	assert_false(client_copy.is_protected(), "the client knows it: he plays on (FS5)")
 	assert_eq(guide.current.id, FlintControls.SPECIAL)
 	assert_true(guide.current.locks_player(), "a tour with \"Weiter\" for the learner")
 	assert_false(guide.current.advances_by_itself())
@@ -172,36 +176,81 @@ func test_host_shows_a_hint_to_everybody_and_holds_all_until_the_learner_is_thro
 	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
 	assert_eq(net_guide.get_active(), &"", "the learner is through: over for everybody")
 	assert_false(host_player.is_protected())
-	assert_false(client_copy.is_protected())
 	assert_true(_seen.has(FlintControls.SPECIAL), "seen")
 	assert_true(net_guide.request_hint(host_player, FlintControls.SPECIAL), "seen: nothing more to do")
 	assert_eq(net_guide.get_active(), &"")
 
 
-func test_a_clients_hint_runs_on_the_host_and_ends_by_time() -> void:
+func test_a_clients_hint_holds_his_copy_and_ends_by_time() -> void:
 	GameManager.set_phase(GameManager.Phase.DUNGEON)
 	var host_player := _player()
+	var client_copy := _player()
+	client_copy.is_local = false
 	var guide := _guide(host_player)
 	_seen[FlintControls.SWITCH] = true
-	var net_guide := _net_guide(true, host_player, [host_player] as Array[Player])
+	var net_guide := _net_guide(true, host_player, [host_player, client_copy] as Array[Player], {client_copy.get_instance_id(): 7})
 	# Client 7 is new to weapon switching; the host's own player knows it already.
 	net_guide.host_need(FlintControls.SWITCH, 7)
 	assert_eq(net_guide.get_active(), FlintControls.SWITCH)
 	assert_false(net_guide.is_learner(), "the host's player only watches")
-	assert_true(host_player.is_protected(), "but waits with everybody")
+	assert_false(host_player.is_protected(), "and plays on (FS5)")
+	assert_true(client_copy.is_protected(), "the learner's copy is held at the host")
 	assert_eq(guide.current.id, FlintControls.SWITCH, "shown here too, even though seen")
-	assert_true(guide.current.advances_by_itself(), "it goes on by itself for those who watch")
-	net_guide.host_need(FlintControls.INTERACT, 7)
+	assert_false(guide.current.locks_player(), "a short hint for who knows it")
+	assert_true(guide.current.advances_by_itself(), "it goes on by itself")
+	net_guide.host_need(FlintControls.OVERVIEW, 7)
 	assert_eq(net_guide.get_waiting_count(), 1, "one at a time")
 	var limit := NetGuide.time_limit(FlintControls.explanation_for(FlintControls.SWITCH))
 	assert_between(limit, NetGuide.LIMIT_MIN, NetGuide.LIMIT_MAX)
 	net_guide._process(limit + 0.1)
-	assert_eq(net_guide.get_active(), FlintControls.INTERACT, "time up: the next one starts")
-	net_guide.host_done(FlintControls.INTERACT, 7)
+	assert_eq(net_guide.get_active(), FlintControls.OVERVIEW, "time up: the next one starts")
+	net_guide.host_done(FlintControls.OVERVIEW, 7)
 	assert_eq(net_guide.get_active(), &"", "client 7 is through")
+	assert_false(client_copy.is_protected(), "his copy is free")
 	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
-	assert_false(host_player.is_protected(), "free once Flint is back")
 	assert_null(guide.current, "the dropped hint does not come afterwards")
+
+
+func test_the_host_puts_danger_first_and_the_cut_hint_comes_again() -> void:
+	GameManager.set_phase(GameManager.Phase.DUNGEON)
+	var host_player := _player()
+	var guide := _guide(host_player)
+	var net_guide := _net_guide(true, host_player, [host_player] as Array[Player])
+	net_guide.host_need(FlintControls.OVERVIEW, 7)
+	net_guide.host_need(FlintControls.SWITCH, 7)
+	net_guide.host_need(FlintControls.INTERACT, 7)
+	assert_eq(net_guide.get_active(), FlintControls.INTERACT, "the place cuts the general hint")
+	assert_eq(net_guide.get_waiting_count(), 2)
+	net_guide.host_need(FlintControls.CHASM, 7)
+	assert_eq(net_guide.get_active(), FlintControls.CHASM, "danger cuts the place")
+	assert_false(_seen.has(FlintControls.INTERACT), "a cut hint is not seen")
+	net_guide.host_done(FlintControls.CHASM, 7)
+	assert_eq(net_guide.get_active(), FlintControls.INTERACT, "then the place again")
+	net_guide.host_done(FlintControls.INTERACT, 7)
+	assert_eq(net_guide.get_active(), FlintControls.OVERVIEW, "then the general ones, in order")
+	net_guide.host_done(FlintControls.OVERVIEW, 7)
+	assert_eq(net_guide.get_active(), FlintControls.SWITCH)
+	_run(guide, 0.1)
+
+
+func test_a_need_taken_back_is_dropped_by_the_host() -> void:
+	GameManager.set_phase(GameManager.Phase.DUNGEON)
+	var host_player := _player()
+	_guide(host_player)
+	var net_guide := _net_guide(true, host_player, [host_player] as Array[Player])
+	net_guide.host_need(FlintControls.CHASM, 7)
+	var used := [false]
+	assert_true(net_guide.request_hint(host_player, FlintControls.INTERACT, func() -> bool: return not used[0]))
+	assert_eq(net_guide.get_waiting_count(), 1, "waits behind the danger")
+	used[0] = true
+	net_guide._process(DT)
+	assert_eq(net_guide.get_waiting_count(), 0, "the host's player used the key himself: dropped")
+	net_guide.host_need(FlintControls.SWITCH, 7)
+	net_guide.host_need(FlintControls.SWITCH, 9)
+	net_guide.host_drop_need(FlintControls.SWITCH, 7)
+	assert_eq(net_guide.get_waiting_count(), 1, "peer 9 still needs it")
+	net_guide.host_drop_need(FlintControls.SWITCH, 9)
+	assert_eq(net_guide.get_waiting_count(), 0, "nobody needs it any more")
 
 
 func test_a_client_follows_the_host() -> void:
@@ -209,12 +258,18 @@ func test_a_client_follows_the_host() -> void:
 	var player := _player()
 	var guide := _guide(player)
 	var net_guide := _net_guide(false, player, [player] as Array[Player])
-	net_guide.group_hint(String(FlintControls.OVERVIEW), PackedInt32Array([5]))
+	net_guide.group_hint(String(FlintControls.OVERVIEW), PackedInt32Array([1]))
 	assert_true(net_guide.is_showing())
-	assert_true(player.is_protected(), "held while the host's hint runs")
+	assert_true(player.is_protected(), "the learner is held while the host's hint runs")
 	assert_eq(guide.current.id, FlintControls.OVERVIEW)
 	net_guide.group_hint_end(String(FlintControls.OVERVIEW))
 	assert_false(net_guide.is_showing())
 	assert_ne(guide.phase, FlintGuide.Phase.TALK, "Flint flies back")
 	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
 	assert_false(player.is_protected(), "free when the host ends it")
+	net_guide.group_hint(String(FlintControls.SWITCH), PackedInt32Array([5]))
+	assert_false(player.is_protected(), "somebody else's hint: no hold")
+	assert_eq(guide.current.id, FlintControls.SWITCH)
+	net_guide.group_hint_drop(String(FlintControls.SWITCH))
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
+	assert_false(_seen.has(FlintControls.SWITCH), "dropped by the host: not seen")

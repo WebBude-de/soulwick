@@ -13,6 +13,10 @@ extends Node2D
 ## skipped, the account never gets it again (AccountSeen TutorialRules.SEEN_ID).
 ## Only alone: in a group game begin() adds TutorialCoopTips instead (tip bubbles in the first rooms)
 ## and the practice run waits for the next solo start.
+## Flint's hints share the channel FLINT_CHANNEL (FS5): the newest one replaces the running one, so
+## the welcome never holds back "Strohpuppen!" and every station's hint comes when it begins. In
+## room 1 he adds what a fall costs (D-220, RunManager.LOSS_PAYOUT_RATIO); a completed run marks
+## FlintControls' basics seen (everything there was shown here).
 ##
 ## Hook (DungeonManager, integrator): at the end of _ready(), after the first two slots are prepared,
 ##     TutorialRun.begin(self)
@@ -40,6 +44,8 @@ const FINISH_ID: StringName = &"flint_tutorial_finish"
 const DONE_ID: StringName = &"flint_tutorial_done"
 const FALL_ID: StringName = &"flint_tutorial_fall"
 const BLOCKED_ID: StringName = &"flint_tutorial_blocked"
+## FlintExplanation.channel of every practice hint: the newest replaces the running one.
+const FLINT_CHANNEL: StringName = &"tutorial"
 const INPUT_LOCK: StringName = &"tutorial"
 const FADE_LAYER := 95
 ## Flint repeats the "Klonk!" tip after this many more blocked hits. TESTWERT
@@ -260,6 +266,9 @@ func finish(completed: bool) -> void:
 	is_finished = true
 	was_completed = completed
 	mark_seen.call(TutorialRules.SEEN_ID)
+	if completed:
+		# Walk, aim, attack and dash were all practised: Flint's first-run basics are not needed.
+		mark_seen.call(FlintControls.BASICS)
 	var amount := TutorialRules.xp_for(completed, was_seen)
 	if amount > 0 and TutorialRules.credit_xp(progress_source.call(), amount):
 		credited_xp = amount
@@ -311,16 +320,27 @@ func place_in_first_room() -> void:
 
 
 ## In room 1: Flint says it is done (with the XP of the first completion) instead of a banner over
-## the room that is just starting.
+## the room that is just starting, then what a fall costs and where to secure the loot (D-220).
 func _say_done() -> void:
 	if player == null or not is_instance_valid(player):
 		return
-	var step := FlintGuideStep.say(&"FLINT_TUTORIAL_DONE", FlintGuideStep.Mood.PROUD)
-	if credited_xp > 0:
-		step = FlintGuideStep.say(&"FLINT_TUTORIAL_DONE_XP", FlintGuideStep.Mood.PROUD, [credited_xp])
-	var hint := FlintExplanation.hint(DONE_ID, [step] as Array[FlintGuideStep])
+	var hint := FlintExplanation.hint(DONE_ID, done_steps(credited_xp))
 	hint.once = false
 	FlintGuide.explain(player, hint)
+
+
+## Flint's sentences at the end: done (with xp when credited) and the loss on a fall (D-220).
+static func done_steps(xp: int) -> Array[FlintGuideStep]:
+	var done := FlintGuideStep.say(&"FLINT_TUTORIAL_DONE", FlintGuideStep.Mood.PROUD)
+	if xp > 0:
+		done = FlintGuideStep.say(&"FLINT_TUTORIAL_DONE_XP", FlintGuideStep.Mood.PROUD, [xp])
+	var death := FlintGuideStep.say(&"FLINT_TUTORIAL_DEATH", FlintGuideStep.Mood.WORRIED, [loss_percent()])
+	return [done, death] as Array[FlintGuideStep]
+
+
+## What a fall or an abort pays, in percent (RunManager.LOSS_PAYOUT_RATIO).
+static func loss_percent() -> int:
+	return roundi(RunManager.LOSS_PAYOUT_RATIO * 100.0)
 
 
 # --- Stations ---
@@ -413,6 +433,8 @@ func say(id: StringName, keys: Array[StringName], mood: FlintGuideStep.Mood) -> 
 		steps.append(FlintGuideStep.say(key, mood))
 	var hint := FlintExplanation.hint(id, steps)
 	hint.once = false
+	hint.priority = FlintExplanation.Priority.PLACE
+	hint.channel = FLINT_CHANNEL
 	return FlintGuide.explain(player, hint)
 
 

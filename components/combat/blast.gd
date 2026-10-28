@@ -16,11 +16,16 @@ const LOOK_LAVA := &"lava"
 const LOOK_STOMP := &"stomp"
 ## Optional art (SPRITES_V13 part C); without it the explosion strip resp. a PixelRingWave stand in.
 const LAVA_IMPACT_PATH := "res://art/effects/lava_impact_6f.png"
-const LAVA_IMPACT_FRAME := Vector2i(64, 64)
-const LAVA_IMPACT_ART_RADIUS := 28.0
+## Frames, pivots and fps from art/effects/ember_golem_fx.json; art radii measured on the delivered
+## PNGs (widest frame, horizontal, in texels).
+const LAVA_IMPACT_FRAME := Vector2i(32, 32)
+const LAVA_IMPACT_PIVOT := Vector2(16, 22)
+const LAVA_IMPACT_FPS := 12.0
+const LAVA_IMPACT_ART_RADIUS := 15.5
 const STOMP_RING_PATH := "res://art/effects/stomp_ring_6f.png"
-const STOMP_RING_FRAME := Vector2i(128, 128)
-const STOMP_RING_ART_RADIUS := 60.0
+const STOMP_RING_FRAME := Vector2i(96, 96)
+const STOMP_RING_FPS := 12.0
+const STOMP_RING_ART_RADIUS := 46.5
 const STOMP_RING_COLOR := Color(0.85, 0.5, 0.2, 0.9)
 ## Alpha of the warning circle in the dark half of its blink.
 const WARNING_DIM := 0.45
@@ -135,7 +140,7 @@ func _detonate() -> void:
 func _show_lava(parent: Node) -> void:
 	if ResourceLoader.exists(LAVA_IMPACT_PATH):
 		var art_scale := PixelDraw.whole_scale(radius / LAVA_IMPACT_ART_RADIUS)
-		SpriteStrip.spawn_effect(parent, global_position, load(LAVA_IMPACT_PATH) as Texture2D, LAVA_IMPACT_FRAME, 14.0, Vector2(LAVA_IMPACT_FRAME) * 0.5, Vector2(art_scale, art_scale))
+		SpriteStrip.spawn_effect(parent, global_position, load(LAVA_IMPACT_PATH) as Texture2D, LAVA_IMPACT_FRAME, LAVA_IMPACT_FPS, LAVA_IMPACT_PIVOT, Vector2(art_scale, art_scale))
 		return
 	var fallback_scale := PixelDraw.whole_scale(radius / EXPLOSION_ART_RADIUS)
 	var sprite := SpriteStrip.spawn_effect(parent, global_position, EXPLOSION_TEXTURE, Vector2i(96, 96), 14.0, Vector2(48, 48), Vector2(fallback_scale, fallback_scale))
@@ -146,7 +151,7 @@ func _show_lava(parent: Node) -> void:
 func _show_stomp(parent: Node) -> void:
 	if ResourceLoader.exists(STOMP_RING_PATH):
 		var art_scale := PixelDraw.whole_scale(radius / STOMP_RING_ART_RADIUS)
-		SpriteStrip.spawn_effect(parent, global_position, load(STOMP_RING_PATH) as Texture2D, STOMP_RING_FRAME, 14.0, Vector2(STOMP_RING_FRAME) * 0.5, Vector2(art_scale, art_scale))
+		SpriteStrip.spawn_effect(parent, global_position, load(STOMP_RING_PATH) as Texture2D, STOMP_RING_FRAME, STOMP_RING_FPS, Vector2(STOMP_RING_FRAME) * 0.5, Vector2(art_scale, art_scale))
 		return
 	PixelRingWave.spawn(parent, global_position, radius, STOMP_RING_COLOR, 0.4, 7.0, 0.15)
 	PixelRingWave.spawn(parent, global_position, radius * 0.7, Color(STOMP_RING_COLOR, 0.6), 0.3, 4.0, 0.1)

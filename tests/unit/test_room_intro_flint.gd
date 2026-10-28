@@ -386,6 +386,7 @@ func test_online_the_tour_goes_to_the_whole_group_through_net_guide() -> void:
 	var mate := _player([], true, "Mia")
 	net_guide.local_player = func() -> Player: return host
 	net_guide.all_players = func() -> Array[Player]: return [host, mate] as Array[Player]
+	net_guide.peer_of = func(player: Node) -> int: return 2 if player == mate else 1
 	_seen[&"flint_room_hunt"] = true
 	var intro := RoomIntro.start(room, _goal(room, &"hunt"), Vector2(900, 300))
 	assert_true(intro.has_flint(), "Mia learns the hunt")
@@ -393,8 +394,9 @@ func test_online_the_tour_goes_to_the_whole_group_through_net_guide() -> void:
 	assert_eq(RoomIntro.build_group_tour(&"flint_room_hunt"), intro.flint_tour, "every machine builds the same tour")
 	net_guide.host_need(&"flint_room_hunt", 2)
 	assert_eq(net_guide.get_active(), &"flint_room_hunt", "Mia's request starts it for everybody")
-	assert_true(host.is_protected(), "the host listens too, protected")
-	assert_true(mate.is_protected(), "and so does Mia's copy")
+	assert_false(host.is_protected(), "the host knows the hunt: short form, not held (FS5)")
+	assert_true(mate.is_protected(), "Mia's copy is held at the host")
+	assert_false(FlintGuide.of(host).current.locks_player(), "the host sees it as a hint")
 	await wait_seconds(RoomIntro.DOOR_TIME + 0.1)
 	assert_eq(intro.phase, RoomIntro.Phase.FLINT)
 	await wait_seconds(RoomIntro.GROUP_START_WAIT + 0.2)
@@ -548,3 +550,56 @@ func test_explain_room_leaves_rooms_with_an_intro_to_it() -> void:
 	RoomFlint.set_known(player, [])
 	assert_false(RoomFlint.explain_room(player, &"hunt", room), "the RoomIntro explains its room")
 	assert_false(RoomFlint.explain_room(_player([], true), &"shop"), "never for a remote player")
+
+
+## A dungeon stand-in that names its active room (RoomFlint.active_room_of).
+class FakeWorld:
+	extends Node2D
+	var active: Node2D = null
+
+	func get_active_slot() -> int:
+		return 0
+
+	func get_room_at_slot(_slot: int) -> Node2D:
+		return active
+
+
+func test_a_room_tour_is_about_the_place_and_dropped_when_the_room_is_left() -> void:
+	var world := FakeWorld.new()
+	add_child_autofree(world)
+	var room := FakeRoom.new()
+	world.add_child(room)
+	world.active = room
+	var player := PLAYER_SCENE.instantiate() as Player
+	world.add_child(player)
+	RoomFlint.set_known(player, [])
+	var guide := FlintGuide.for_player(player)
+	guide.set_process(false)
+	guide.shows_view = false
+	guide.has_seen = func(id: StringName) -> bool: return _seen.has(id)
+	guide.mark_seen = func(id: StringName) -> void: _seen[id] = true
+	assert_eq(RoomFlint.tour(&"shop", RoomFlint.steps(&"shop")).priority, FlintExplanation.Priority.PLACE)
+	# A hint runs first; the shop's tour cuts it.
+	assert_true(guide.queue(FlintControls.explanation_for(FlintControls.OVERVIEW)))
+	guide.advance(FlintGuideRules.GROW_TIME + FlintGuideRules.FLY_OUT_TIME + 0.02)
+	assert_true(RoomFlint.explain_room(player, &"shop", room))
+	assert_eq(guide.current.id, &"flint_room_shop", "the room's tour at once (FS5)")
+	guide.skip()
+	guide.advance(FlintGuideRules.FLY_BACK_TIME + 0.02)
+	assert_eq(guide.current.id, FlintControls.OVERVIEW, "the cut hint comes back afterwards")
+	guide.cancel_all()
+	# The next room's tour waits behind another tour ... and the player is not in that room.
+	var next := FakeRoom.new()
+	world.add_child(next)
+	assert_true(guide.queue(FlintExplanation.tour(&"flint_test_tour", [FlintGuideStep.say(&"FLINT_ENTRANCE_1")] as Array[FlintGuideStep])))
+	assert_true(RoomFlint.explain_room(player, &"fountain", next))
+	assert_true(guide.is_known(&"flint_room_fountain"))
+	world.active = room
+	guide.advance(0.02)
+	assert_false(guide.is_known(&"flint_room_fountain"), "the fountain's room is not the active one: dropped")
+	assert_false(_seen.has(&"flint_room_fountain"), "unseen: it comes in the next fountain room")
+	var still := RoomFlint.still_in_room(player, room)
+	assert_true(still.call())
+	world.active = next
+	assert_false(still.call(), "left the room")
+	assert_false(RoomFlint.still_in_room(player, null).is_valid(), "no room, no condition")

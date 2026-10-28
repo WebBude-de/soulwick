@@ -27,6 +27,14 @@ const RED := Color("#a83a3a")
 const RED_LIGHT := Color("#c85252")
 const LAMP := Color("#ffd166")
 const LEAF := Color("#5fae4a")
+## V13d (27.10.2026) delivered home_interior_tiles.png as 256×96 with rows 2 and 3 but kept the old
+## home_interior_tiles.json ("rows": 2, the door at (0, 32), where the new sheet has plain plaster).
+## While the JSON names fewer rows than the sheet has, these tiles (art px) win over it; an updated
+## JSON (rows 3) is taken as it is. Only the door is used so far (SPRITES_V13 Teil C, FS6).
+const SHEET_V13D_TILES := {"door_out": Vector2(192, 64)}
+## The window pictures of the back wall (day, night), replacing the window tiles once delivered.
+const WINDOW_DAY := "home_window_day"
+const WINDOW_NIGHT := "home_window_night"
 
 static var _specs: Dictionary = {}
 static var _textures: Dictionary[String, Texture2D] = {}
@@ -117,7 +125,19 @@ static func tile_region(tile_name: String) -> Rect2:
 			for key: String in data["tiles"]:
 				var tile: Dictionary = data["tiles"][key]
 				_regions[key] = Rect2(float(tile["x"]), float(tile["y"]), float(size[0]), float(size[1]))
+			var sheet := tiles_texture()
+			if sheet != null and int(data.get("rows", 0)) * float(size[1]) < sheet.get_height():
+				for key: String in SHEET_V13D_TILES:
+					_regions[key] = Rect2(SHEET_V13D_TILES[key], Vector2(float(size[0]), float(size[1])))
 	return _regions.get(tile_name, Rect2())
+
+
+## The delivered window picture for the time of day (night >= 0.5: the night one); null until both
+## are delivered (the room keeps its window tiles then).
+static func window_texture(night: float) -> Texture2D:
+	if not has_prop(WINDOW_DAY) or not has_prop(WINDOW_NIGHT):
+		return null
+	return prop_texture(WINDOW_NIGHT if night >= 0.5 else WINDOW_DAY)
 
 
 static func clear_cache() -> void:

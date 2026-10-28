@@ -10,6 +10,8 @@ extends Node2D
 ## in the village). On the first visit Flint explains altar and mirror (FlintExplanation
 ## "flint_home_altar", once per account).
 ## Only alone (HomeTravel.can_enter); talents stay account state (AccountTalents).
+## FS6 (D-220, newcomer run P3-9): the village's goal line stays at the top left in here too
+## (VillageGoal), as long as there is a goal.
 
 const EXPLANATION_ID: StringName = &"flint_home_altar"
 const PAUSE_MIRROR: StringName = &"home_mirror"
@@ -30,6 +32,7 @@ var lights: Dictionary[StringName, LightSource] = {}
 var night := 1.0
 var _busy := false
 var _floor_layer: Node2D = null
+var _goal: Control = null
 
 
 func _ready() -> void:
@@ -59,6 +62,7 @@ func _ready() -> void:
 	ui.layer = UI_LAYER
 	ui.process_mode = Node.PROCESS_MODE_ALWAYS
 	add_child(ui)
+	refresh_goal()
 	altar.refresh_from_account()
 
 
@@ -255,6 +259,26 @@ func _place_exit() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and exit_door != null:
 		exit_door.prompt = Loc.t(&"HOME_EXIT_PROMPT")
+		refresh_goal()
+
+
+## The goal line of the village (VillageGoal) at the top left; none without a goal.
+func refresh_goal() -> void:
+	if ui == null:
+		return
+	if _goal != null and is_instance_valid(_goal):
+		_goal.queue_free()
+	_goal = null
+	var goal := VillageGoal.current()
+	if goal.is_empty():
+		return
+	_goal = VillageGoal.build_card(String(goal["text"]), goal["icon"])
+	ui.add_child(_goal)
+
+
+## The goal line while shown (null otherwise), for tests and tools.
+func get_goal() -> Control:
+	return _goal if _goal != null and is_instance_valid(_goal) and not _goal.is_queued_for_deletion() else null
 
 
 func _add_lights() -> void:

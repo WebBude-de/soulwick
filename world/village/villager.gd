@@ -203,6 +203,10 @@ func hold(face: Vector2, seconds: float) -> void:
 	var feet := get_feet_global()
 	if absf(face.x - feet.x) > 0.5:
 		_sprite.flip_h = face.x < feet.x
+	# A new reaction plays the strip from the start (delivered "react" strips play once, V13d).
+	if _sprite.animation == &"react":
+		_sprite.play(&"react")
+		_sprite.frame = 0
 	_set_walking(false)
 
 

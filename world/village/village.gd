@@ -26,8 +26,12 @@ extends Node2D
 ## and explains each building on its first entry (VillageUI.explain_building).
 ## P1-3 (VillageAffordable): a pulsing gold "!" over every building where something is affordable
 ## right now (Schmiede, Handelsposten), on a layer above the darkness; it goes after a visit until
-## the building's currency changes. After a run, before the first forge purchase, the goal line says
-## "Stärke dich in der Schmiede" while a level is affordable. Local only, nothing is sent.
+## the building's currency changes. Local only, nothing is sent.
+## FS6 (D-220): the goal line follows VillageGoal (before the first run "Steig in den Dungeon hinab",
+## after it the next forge goal: "Noch einmal hinab · noch 33 Gold bis Schildplatte I", then "Ab zur
+## Schmiede · …"); the way grows stronger when the player strays (VillageGuide, timer held while Flint
+## talks or a dialog is open); the tour leaves out locked buildings and Flint names a building when it
+## opens (VillageTour.offer_opened, the buildings of the "Neu freigeschaltet" notice).
 
 signal dungeon_requested
 ## Emitted when the player uses a building door; id is the building's building_id metadata.
@@ -66,11 +70,13 @@ const MIRROR_OFFSET := Vector2(112, 6)
 const GuideScript := preload("res://world/village/village_guide.gd")
 ## WK9: Flint's village tour (preloaded like the guide).
 const TourScript := preload("res://world/village/village_tour.gd")
-const GOAL_DESCEND: StringName = &"VILLAGE_GOAL_DESCEND"
+const GOAL_DESCEND: StringName = VillageGoal.DESCEND
 ## P1-3: affordable marks and the forge goal (preloaded like the guide).
 const AffordableScript := preload("res://world/village/village_affordable.gd")
 const AffordMarkerScript := preload("res://world/village/village_afford_marker.gd")
-const GOAL_FORGE: StringName = &"VILLAGE_GOAL_FORGE"
+## FS6: the forge goals of the goal line ("Ab zur Schmiede · …", "Noch einmal hinab · …").
+const GOAL_FORGE: StringName = VillageGoal.FORGE
+const GOAL_SAVE: StringName = VillageGoal.SAVE
 ## Above the darkness (VisionOverlay 2) like the trail, below the HUD (5) and the dialogs (20).
 const AFFORD_LAYER := 3
 ## "!" above the door sign (world px, like the info marker); next to the info marker while that shows.
@@ -98,8 +104,12 @@ var _guide: GuideScript = null
 ## P1-3: layer and "!" markers per building id (only where something is affordable).
 var _afford_layer: CanvasLayer = null
 var _afford_markers: Dictionary[StringName, Node2D] = {}
-## Which goal the goal line shows: GOAL_DESCEND, GOAL_FORGE or &"" (none).
+## Which goal the goal line shows: GOAL_DESCEND, GOAL_FORGE, GOAL_SAVE or &"" (none), and its text.
 var _goal_kind: StringName = &""
+var _goal_text := ""
+## FS6: buildings that open with this visit (their "Neu freigeschaltet" was not shown yet); Flint
+## names them (VillageTour.offer_opened).
+var _opened_now: Array[StringName] = []
 
 
 func _ready() -> void:
@@ -127,6 +137,7 @@ func _ready() -> void:
 	VillageEvening.add_window_glows(_buildings)
 	# Unlock events reached in the last run (or missed by an older build) open buildings now.
 	var new_events := MetaUnlocks.sync_from_save()
+	_opened_now = TourScript.opening_buildings()
 	var announcements := MetaUnlocks.take_announcements()
 	if not new_events.is_empty() or not announcements.is_empty():
 		SaveManager.save_game()
@@ -217,6 +228,7 @@ func _notification(what: int) -> void:
 	if what == NOTIFICATION_TRANSLATION_CHANGED and _buildings != null and is_node_ready():
 		_apply_captions()
 		refresh_locks()
+		refresh_goal()
 
 
 ## True while the building still shows its "not explained yet" marker (for tests and tools).
@@ -268,8 +280,9 @@ func enter_building(building_id: StringName) -> void:
 
 # --- P1-2: goal and way to the dungeon until the first run ---
 
-## Trail, arrow and goal line while the world has no run yet (the greeting is Flint's tour, WK9:
-## on_player_spawned).
+## Trail and arrow while the world has no run yet (the greeting is Flint's tour, WK9:
+## on_player_spawned; the goal line comes from refresh_goal). FS6: the guide measures how far this
+## machine's players are from the entrance and holds its stray timer while Flint or a dialog holds them.
 func _setup_guide() -> void:
 	if not GuideScript.is_active():
 		return
@@ -279,10 +292,32 @@ func _setup_guide() -> void:
 	_guide = GuideScript.new()
 	_guide.setup(start, entrance.global_position)
 	_guide.hidden_check = ui.is_dialog_open
+	_guide.distance_source = _local_entrance_distance
+	_guide.paused_check = _guide_paused
 	add_child(_guide)
-	# The key: the label translates itself (also after a language switch).
-	ui.show_goal(GOAL_DESCEND)
-	_goal_kind = GOAL_DESCEND
+
+
+## Distance of the nearest player of this machine to the entrance (INF without one).
+func _local_entrance_distance() -> float:
+	if _guide == null:
+		return INF
+	var best := INF
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player != null and is_instance_valid(player) and player.is_local:
+			best = minf(best, player.global_position.distance_to(_guide.target))
+	return best
+
+
+## True while the stray timer waits: a dialog is open or Flint holds a player of this machine.
+func _guide_paused() -> bool:
+	if ui != null and ui.is_dialog_open():
+		return true
+	for node in get_tree().get_nodes_in_group(&"player"):
+		var player := node as Player
+		if player != null and is_instance_valid(player) and player.is_local and player.is_protected():
+			return true
+	return false
 
 
 ## WK9: Flint's tour for a local player on the first start of the account (each machine its own, a
@@ -297,7 +332,10 @@ func _offer_tour(player: Player) -> void:
 		while is_inside_tree() and is_instance_valid(player) and ui.is_dialog_open():
 			await get_tree().process_frame
 	if is_inside_tree() and is_instance_valid(player) and player.is_inside_tree():
-		TourScript.offer(player, self)
+		# The first tour shows every building open by now; otherwise Flint names the ones that just
+		# opened (FS6, D-220: the tour leaves locked buildings out).
+		if not TourScript.offer(player, self):
+			TourScript.offer_opened(player, self, _opened_now)
 
 
 ## True while the guild dialog is about to open by itself (VillageUI._resume_lobby).
@@ -316,8 +354,8 @@ func get_guide() -> GuideScript:
 # --- P1-3: what can I afford? ---
 
 ## "!" over every building where something is affordable (VillageAffordable.needs_marker) and the
-## forge goal line until the first forge purchase. Called on load, after a visit and whenever gold,
-## crystals or forge levels change.
+## goal line (VillageGoal). Called on load, after a visit and whenever gold, crystals or forge levels
+## change.
 func refresh_affordable() -> void:
 	for building_id in AffordableScript.BUILDINGS:
 		var building := _building_node(building_id)
@@ -325,7 +363,7 @@ func refresh_affordable() -> void:
 			_place_afford_marker(building, building_id)
 		else:
 			_remove_marker(_afford_markers, building_id)
-	_update_forge_goal()
+	refresh_goal()
 
 
 ## True while the building shows its "!" (for tests and tools).
@@ -339,7 +377,7 @@ func get_afford_marker(building_id: StringName) -> Node2D:
 	return _afford_markers[building_id] if has_afford_marker(building_id) else null
 
 
-## Which goal the goal line shows (GOAL_DESCEND, GOAL_FORGE or &""), for tests and tools.
+## Which goal the goal line shows (GOAL_DESCEND, GOAL_FORGE, GOAL_SAVE or &""), for tests and tools.
 func get_goal_kind() -> StringName:
 	return _goal_kind
 
@@ -376,18 +414,21 @@ func _place_afford_marker(building: Node2D, building_id: StringName) -> void:
 	marker.global_position = _afford_position(building, building_id)
 
 
-## The forge goal never replaces the first-run goal (descend).
-func _update_forge_goal() -> void:
-	if _goal_kind == GOAL_DESCEND:
+## The goal line from VillageGoal (FS6, D-220): replaced only when goal or text changed.
+func refresh_goal() -> void:
+	if ui == null:
 		return
-	var wanted := AffordableScript.needs_forge_goal()
-	if wanted and _goal_kind != GOAL_FORGE:
-		var icon := VillageBuildings.get_sign_texture(VillageBuildings.FORGE)
-		ui.show_goal(GOAL_FORGE, icon if icon != null else VillageUI.GOLD_ICON)
-		_goal_kind = GOAL_FORGE
-	elif not wanted and _goal_kind == GOAL_FORGE:
+	var goal := VillageGoal.current()
+	var kind: StringName = goal.get("kind", &"")
+	var text: String = goal.get("text", "")
+	if kind == _goal_kind and text == _goal_text and (kind == &"") == (ui.get_goal() == null):
+		return
+	_goal_kind = kind
+	_goal_text = text
+	if kind == &"":
 		ui.hide_goal()
-		_goal_kind = &""
+	else:
+		ui.show_goal(text, goal["icon"])
 
 
 func _on_wallet_changed() -> void:

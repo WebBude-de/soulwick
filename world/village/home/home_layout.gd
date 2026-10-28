@@ -31,7 +31,7 @@ const FURNITURE: Array[Dictionary] = [
 	{"name": "bed", "at": Vector2(52, 150), "solid": Vector2(60, 22)},
 	{"name": "nightstand", "at": Vector2(98, 126), "solid": Vector2(14, 8)},
 	{"name": "fireplace", "at": Vector2(392, 74), "solid": Vector2(60, 10)},
-	{"name": "armchair", "at": Vector2(440, 130), "solid": Vector2(26, 12)},
+	{"name": "armchair", "at": Vector2(440, 130), "solid": Vector2(22, 10)},
 	{"name": "pet_bed", "at": Vector2(392, 104), "layer": FLOOR},
 	{"name": "rug_round", "at": Vector2(300, 178), "layer": FLOOR},
 	{"name": "shelf", "at": Vector2(268, 74), "solid": Vector2(30, 10)},
