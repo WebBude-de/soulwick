@@ -8,8 +8,7 @@ extends RefCounted
 ## stays away until the building's currency changes (gold for the forge, crystals for the trader).
 ## The visits are remembered for this session only (per save file): after a restart the marker shows
 ## once more if something is still affordable. Nothing is written to the save.
-## The forge goal ("Stärke dich in der Schmiede") shows after a run while no forge level was bought
-## yet and one is affordable, i.e. until the first purchase.
+## The goal line (forge goals after the first run) is VillageGoal's (FS6, D-220).
 ## Koop: reads the local save only (the player's own wallet at this machine); nothing is sent.
 ## Reads MetaProgression, MetaUnlocks and SaveManager, never writes. No class_name: used through
 ## preload (Village.AffordableScript).
@@ -91,16 +90,6 @@ static func crystals_missing(boost_id: StringName) -> int:
 	if SaveManager.has_pending_boost(boost_id):
 		return 0
 	return maxi(0, price - SaveManager.get_permanent_crystals())
-
-
-## The forge goal: after a run, before the first forge purchase, while a level is affordable.
-static func needs_forge_goal() -> bool:
-	if int(SaveManager.get_stat(StatsTracker.RUNS)) <= 0:
-		return false
-	for id in MetaProgression.UPGRADE_ORDER:
-		if MetaProgression.get_level(id) > 0:
-			return false
-	return has_affordable(VillageBuildings.FORGE)
 
 
 static func _visit_key(building_id: StringName) -> String:

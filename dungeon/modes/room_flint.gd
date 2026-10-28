@@ -20,6 +20,9 @@ extends RefCounted
 ## knowing it. So every machine computes the same learners and the same extra countdown
 ## (estimated_duration, language independent). A learner sees the tour (protected by FlintGuide),
 ## the others the short sentence and the line "Flint erklärt Mia die Jagd …".
+## Queue (FS5): a room tour is about the PLACE, so it goes before general hints and cuts a running
+## one; a tour of a room without an intro is dropped unseen once the player left the room or stands
+## in the side view (it comes in the next room of that type), and no tour starts in the side view.
 ## Pure helpers (static), no state of their own; the knowledge lives at the player (meta).
 
 const SEEN_PREFIX := "flint_room_"
@@ -133,12 +136,26 @@ static func steps(genre: StringName, points: Array = [], args: Dictionary = {}) 
 
 
 ## The tour of a genre with these steps. coop: goes on by itself (the countdown waits a fixed
-## time on every machine), single player waits for "Weiter" (not in a tool, ENV_SWITCH).
+## time on every machine), single player waits for "Weiter" (not in a tool, ENV_SWITCH). Priority
+## PLACE (FS5).
 static func tour(genre: StringName, tour_steps: Array[FlintGuideStep], coop := false) -> FlintExplanation:
 	var explanation := FlintExplanation.tour(seen_id(genre), tour_steps)
 	explanation.auto_advance = coop or (_switched_on_by_environment() and PlayerProfile.is_script_run())
 	explanation.max_pan_distance = MAX_PAN_DISTANCE
+	explanation.priority = FlintExplanation.Priority.PLACE
 	return explanation
+
+
+## () -> bool for FlintExplanation.still_due (FS5): true while player is still in room and not in the
+## side view. Empty without a room (nothing to compare).
+static func still_in_room(player: Player, room: Node2D) -> Callable:
+	if player == null or room == null or not is_instance_valid(room):
+		return Callable()
+	return func() -> bool:
+		if not is_instance_valid(player) or not is_instance_valid(room) or player.is_side_view():
+			return false
+		var active := active_room_of(player)
+		return active == null or active == room
 
 
 ## The short version for players who know the room type while a mate learns it (co-op): one
@@ -278,7 +295,9 @@ static func explain_room(player: Player, genre: StringName, room: Node2D = null)
 	var tour_steps := steps(genre, room_points(room, genre))
 	if genre == &"campfire" and room != null and room.get(&"has_portal") == false:
 		tour_steps.resize(CAMPFIRE_PORTAL_STEP)
-	return FlintGuide.explain(player, tour(genre, tour_steps, GameMode.of(player).is_multiplayer()))
+	var explanation := tour(genre, tour_steps, GameMode.of(player).is_multiplayer())
+	explanation.still_due = still_in_room(player, room)
+	return FlintGuide.explain(player, explanation)
 
 
 ## Camera goals of a room without a mode, by sentence: the content (merchant, altar, fountain,

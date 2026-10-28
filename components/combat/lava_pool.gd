@@ -11,8 +11,12 @@ const TICK_INTERVAL := 0.8
 const ARM_TIME := 0.35
 const FADE_TIME := 0.5
 const ART_PATH := "res://art/effects/lava_pool_4f.png"
+## Frame, pivot and fps from art/effects/ember_golem_fx.json; ART_RADIUS = half width of the drawn
+## pool in texels (measured on the delivered PNG).
 const ART_FRAME := Vector2i(32, 32)
-const ART_FPS := 5.0
+const ART_PIVOT := Vector2(16, 21)
+const ART_FPS := 6.0
+const ART_RADIUS := 12.5
 const BASE_COLOR := Color(0.95, 0.35, 0.08, 0.75)
 const CRUST_COLOR := Color(0.3, 0.1, 0.05, 0.9)
 const BUBBLE_COLOR := Color(1.0, 0.85, 0.4, 0.9)
@@ -63,9 +67,15 @@ func _ready() -> void:
 		_sprite = AnimatedSprite2D.new()
 		_sprite.sprite_frames = SpriteStrip.make_frames(load(ART_PATH) as Texture2D, ART_FRAME, ART_FPS, true)
 		# Whole scale (FS2b): the art's pixels stay even; the hitbox keeps the exact radius.
-		_sprite.scale = Vector2.ONE * PixelDraw.whole_scale(radius * 2.0 / float(ART_FRAME.x))
+		_sprite.scale = Vector2.ONE * art_scale(radius)
+		_sprite.offset = SpriteStrip.pivot_offset(ART_FRAME, ART_PIVOT)
 		_sprite.play(&"default")
 		add_child(_sprite)
+
+
+## Whole sprite scale that brings the drawn pool closest to radius (at least 1).
+static func art_scale(pool_radius: float) -> float:
+	return PixelDraw.whole_scale(pool_radius / ART_RADIUS)
 
 
 func is_burning() -> bool:

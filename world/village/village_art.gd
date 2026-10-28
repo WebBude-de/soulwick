@@ -101,20 +101,37 @@ static func get_character_frames(art_name: String) -> SpriteFrames:
 	if not idle.is_empty():
 		var texture := load(idle) as Texture2D
 		var size := Vector2i(texture.get_height(), texture.get_height())
-		frames = SpriteStrip.make_frames(texture, size, 4.0, true, &"idle")
+		# Speed and looping as delivered (<art_name>.json, V13d), else the old defaults.
+		var specs := _character_specs(art_name)
+		var idle_spec: Dictionary = specs.get("idle", {})
+		frames = SpriteStrip.make_frames(texture, size, float(idle_spec.get("fps", 4.0)), bool(idle_spec.get("loop", true)), &"idle")
 		var walk := _find_strip(art_name, "walk")
 		if not walk.is_empty():
-			SpriteStrip.add_strip(frames, &"walk", load(walk) as Texture2D, size, 8.0, true)
+			var walk_spec: Dictionary = specs.get("walk", {})
+			SpriteStrip.add_strip(frames, &"walk", load(walk) as Texture2D, size, float(walk_spec.get("fps", 8.0)), bool(walk_spec.get("loop", true)))
 		# WK12: an animal's reaction when spoken to (VillageAnimal), once it is delivered.
 		var react := _find_strip(art_name, "react")
 		if not react.is_empty():
-			SpriteStrip.add_strip(frames, &"react", load(react) as Texture2D, size, 8.0, true)
+			var react_spec: Dictionary = specs.get("react", {})
+			SpriteStrip.add_strip(frames, &"react", load(react) as Texture2D, size, float(react_spec.get("fps", 8.0)), bool(react_spec.get("loop", true)))
 	elif art_name == "chicken":
 		frames = SpriteFrames.new()
 		frames.rename_animation(&"default", &"idle")
 		frames.add_frame(&"idle", _chicken())
 	_cache[key] = frames
 	return frames
+
+
+## Animation name -> {fps, loop} from the delivered <art_name>.json next to the strips ({} without).
+static func _character_specs(art_name: String) -> Dictionary:
+	var result := {}
+	var text := FileAccess.get_file_as_string("%s%s.json" % [NPC_DIR, art_name])
+	var data: Variant = JSON.parse_string(text) if not text.is_empty() else null
+	if data is Dictionary and data.get("animations") is Array:
+		for entry: Variant in data["animations"]:
+			if entry is Dictionary and entry.has("name"):
+				result[String(entry["name"])] = {"fps": float(entry.get("fps", 8.0)), "loop": bool(entry.get("loop", true))}
+	return result
 
 
 ## True once the real strips exist (not the placeholder).

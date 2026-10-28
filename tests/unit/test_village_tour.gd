@@ -1,7 +1,8 @@
 extends GutTest
 ## WK9 (KONZEPT §7.2): Flint's village tour on the first start of an account: greeting, a camera
 ## ride over dungeon entrance, forge, trading post, home, chronicle and guild with one sentence each
-## (the locked buildings say when they open), goodbye; a ring marks the station he talks about; once
+## (FS6, D-220: locked buildings are left out; when they open Flint names them on the next visit),
+## goodbye with the keys for walking and using; a ring marks the station he talks about; once
 ## per account; only for local players, only their own camera, nothing pauses (a guest in the host's
 ## village gets his own tour). Also: every FLINT_VILLAGE_* text in two languages fits Flint's bubble,
 ## and the bubble's tail never lies across the text (report #94669ed6). Test folder only
@@ -121,6 +122,8 @@ func _tour_of(village: Village) -> VillageTour:
 # --- What Flint says ---
 
 func test_the_tour_visits_the_six_stations_in_order() -> void:
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
 	var village := _village()
 	var tour := VillageTour.build_tour(village)
 	assert_true(tour.is_valid(), "%s" % [tour.problems()])
@@ -128,7 +131,7 @@ func test_the_tour_visits_the_six_stations_in_order() -> void:
 	assert_eq(tour.style, FlintExplanation.Style.TOUR, "camera, lock, 'Weiter'")
 	assert_true(tour.once, "once per account")
 	assert_eq(tour.max_pan_distance, 0.0, "the whole village")
-	assert_eq(tour.steps.size(), VillageTour.STATIONS.size() + 2, "greeting, six stations, goodbye")
+	assert_eq(tour.steps.size(), VillageTour.STATIONS.size() + 2, "everything open: greeting, six stations, goodbye")
 	assert_eq(tour.steps[0].text_key, VillageTour.WELCOME_KEY)
 	assert_false(tour.steps[0].wants_camera(), "the greeting stays with the player")
 	assert_eq(tour.steps[tour.steps.size() - 1].text_key, VillageTour.DONE_KEY)
@@ -138,15 +141,35 @@ func test_the_tour_visits_the_six_stations_in_order() -> void:
 		var step := tour.steps[i + 1]
 		assert_eq(step.focus_node, village.get_node(expected_nodes[i]), "station %d: %s" % [i, expected_nodes[i]])
 		assert_eq(step.mood, FlintGuideStep.Mood.POINT, "Flint points")
-	# A fresh world: chronicle (first run) and trading post (first crystal) are still closed.
-	assert_eq(tour.steps[3].text_key, &"FLINT_VILLAGE_TRADER_LOCKED")
-	assert_eq(tour.steps[5].text_key, &"FLINT_VILLAGE_CHRONICLE_LOCKED")
 	assert_eq(tour.steps[2].text_key, &"FLINT_VILLAGE_FORGE")
-	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
-	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
-	var open := VillageTour.build_tour(village)
-	assert_eq(open.steps[3].text_key, &"FLINT_VILLAGE_TRADER", "open: what it is for")
-	assert_eq(open.steps[5].text_key, &"FLINT_VILLAGE_CHRONICLE")
+	assert_eq(tour.steps[3].text_key, &"FLINT_VILLAGE_TRADER", "open: what it is for")
+	assert_eq(tour.steps[5].text_key, &"FLINT_VILLAGE_CHRONICLE")
+
+
+func test_a_fresh_world_leaves_the_locked_buildings_out() -> void:
+	# FS6 (D-220): chronicle (first run) and trading post (first crystal) are still closed.
+	var village := _village()
+	var tour := VillageTour.build_tour(village)
+	assert_eq(VillageTour.tour_stations(), [VillageTour.ENTRANCE, &"forge", &"home", &"guild"] as Array[StringName])
+	assert_eq(tour.steps.size(), 6, "greeting, entrance, forge, home, guild, goodbye")
+	var keys: Array[StringName] = []
+	for step in tour.steps:
+		keys.append(step.text_key)
+	assert_eq(keys, [VillageTour.WELCOME_KEY, &"FLINT_VILLAGE_ENTRANCE", &"FLINT_VILLAGE_FORGE",
+		&"FLINT_VILLAGE_HOME", &"FLINT_VILLAGE_GUILD", VillageTour.DONE_KEY] as Array[StringName])
+	assert_eq(tour.steps[4].focus_node, village.get_node(^"Buildings/Guild"))
+
+
+func test_the_goodbye_names_the_keys_for_walking_and_using() -> void:
+	var village := _village()
+	var tour := VillageTour.build_tour(village)
+	var goodbye := tour.steps[tour.steps.size() - 1]
+	assert_eq(goodbye.text_args, [ControlsInfo.key_text(ControlsInfo.MOVE), ControlsInfo.key_text(ControlsInfo.INTERACT)])
+	var text := goodbye.get_text()
+	assert_string_contains(text, ControlsInfo.key_text(ControlsInfo.MOVE))
+	assert_string_contains(text, ControlsInfo.key_text(ControlsInfo.INTERACT))
+	assert_string_contains(text, "Lauf mit")
+	assert_false(goodbye.wants_camera(), "said at the player")
 
 
 func test_the_forge_sentence_is_the_one_from_the_concept() -> void:
@@ -156,9 +179,9 @@ func test_the_forge_sentence_is_the_one_from_the_concept() -> void:
 func test_every_village_text_is_translated_and_fits_two_lines() -> void:
 	var keys: Array[StringName] = [VillageTour.WELCOME_KEY, VillageTour.DONE_KEY]
 	for station in VillageTour.STATION_TEXTS:
-		for key: StringName in VillageTour.STATION_TEXTS[station]:
-			if key != &"":
-				keys.append(key)
+		keys.append(VillageTour.STATION_TEXTS[station])
+	for building in VillageTour.OPENED_TEXTS:
+		keys.append(VillageTour.OPENED_TEXTS[building])
 	for building in VillageTour.BUILDING_TEXTS:
 		for key: StringName in VillageTour.BUILDING_TEXTS[building]:
 			keys.append(key)
@@ -172,6 +195,9 @@ func test_every_village_text_is_translated_and_fits_two_lines() -> void:
 		for language: StringName in Loc.LANGUAGES:
 			var text := String((translations[language] as Translation).get_message(key))
 			assert_false(text.is_empty() or text == String(key), "%s has %s" % [key, language])
+			if key == VillageTour.DONE_KEY:
+				# With the longest key names it still fits (keyboard: "W A S D", "E").
+				text = text % ["W A S D", "E"]
 			assert_lte(FlintGuideRules.line_count(text, font, size, width), FlintGuideRules.MAX_LINES,
 					"%s (%s) fits two lines: %s" % [key, language, text])
 
@@ -193,6 +219,9 @@ func test_the_village_offers_the_tour_to_its_local_player() -> void:
 
 
 func test_the_camera_flies_to_each_station_and_home() -> void:
+	# Every building open (a fresh world leaves the locked ones out, see above).
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_RUN)
+	MetaUnlocks.record_event(MetaUnlocks.EVENT_FIRST_CRYSTAL)
 	var village := _village()
 	var player := _player(village)
 	assert_true(VillageTour.offer(player, village))
@@ -258,6 +287,8 @@ func test_old_worlds_get_the_tour_once_too() -> void:
 	var tour := FlintGuide.of(player).current
 	assert_eq(tour.steps[3].text_key, &"FLINT_VILLAGE_TRADER", "old save: everything open")
 	assert_eq(tour.steps[5].text_key, &"FLINT_VILLAGE_CHRONICLE")
+	assert_false(VillageTour.offer_opened(player, village, VillageTour.opening_buildings()),
+		"old save: nothing is announced as new, so nothing opens 'now'")
 
 
 func test_script_runs_get_no_tour_unless_forced() -> void:
@@ -296,6 +327,99 @@ func test_the_tour_waits_behind_nothing_and_hints_queue_behind_it() -> void:
 	assert_true(FlintExplanations.talent_point(player), "a first-time hint arriving now")
 	assert_eq(guide.current.id, VillageTour.TOUR_ID, "the tour comes first")
 	assert_eq(guide.get_queue_size(), 1, "the hint waits")
+
+
+# --- FS6: Flint names a building when it opens ---
+
+## The tour seen, the first run behind: the world is back in the village after its first run.
+func _after_first_run(crystal: bool) -> void:
+	AccountSeen.mark_seen(VillageTour.TOUR_ID)
+	SaveManager.add_stat(StatsTracker.RUNS, 1)
+	SaveManager.add_stat(StatsTracker.DEATHS, 1)
+	if crystal:
+		SaveManager.add_permanent_crystals(1)
+
+
+func test_opening_buildings_are_the_ones_announced_now() -> void:
+	assert_eq(VillageTour.opening_buildings(), [] as Array[StringName], "fresh world: nothing opened")
+	_after_first_run(true)
+	MetaUnlocks.sync_from_save()
+	assert_eq(VillageTour.opening_buildings(), [&"trader", &"chronicle"] as Array[StringName])
+	MetaUnlocks.take_announcements()
+	assert_eq(VillageTour.opening_buildings(), [] as Array[StringName], "announced: not new any more")
+
+
+func test_after_the_first_run_flint_names_the_opened_buildings() -> void:
+	_after_first_run(true)
+	var village := _village()
+	var player := _player(village)
+	village.on_player_spawned(player)
+	var guide := FlintGuide.of(player)
+	assert_true(guide.is_running(), "Flint shows what opened")
+	assert_eq(guide.current.id, VillageTour.OPENED_ID)
+	assert_eq(guide.current.style, FlintExplanation.Style.TOUR, "with the camera on the building")
+	var keys: Array[StringName] = []
+	for step in guide.current.steps:
+		keys.append(step.text_key)
+	assert_eq(keys, [&"FLINT_VILLAGE_TRADER_OPENED", &"FLINT_VILLAGE_CHRONICLE_OPENED"] as Array[StringName], "tour order")
+	assert_eq(guide.current.steps[0].focus_node, village.get_node(^"Buildings/TradingPost"))
+	assert_eq(guide.current.steps[1].focus_node, village.get_node(^"Buildings/Chronicle"))
+	assert_not_null(_tour_of(village), "the ring marks the building")
+	_run(guide, FlintGuideRules.GROW_TIME + FlintGuideRules.FLY_OUT_TIME + DT)
+	assert_eq(_tour_of(village).get_focus(), village.get_node(^"Buildings/TradingPost"))
+	assert_true(_talk_through(guide))
+	assert_true(AccountSeen.has_seen(VillageTour.opened_seen_id(&"trader")))
+	assert_true(AccountSeen.has_seen(VillageTour.opened_seen_id(&"chronicle")))
+	await wait_physics_frames(2)
+	assert_null(_tour_of(village), "the ring is gone")
+	var again := _village()
+	var later := _player(again)
+	again.on_player_spawned(later)
+	assert_false(FlintGuide.of(later).is_running(), "the next visit: nothing new, nothing said")
+
+
+func test_only_the_chronicle_without_a_crystal_and_once_per_account() -> void:
+	_after_first_run(false)
+	var village := _village()
+	var player := _player(village)
+	village.on_player_spawned(player)
+	var guide := FlintGuide.of(player)
+	assert_eq(guide.current.id, VillageTour.OPENED_ID)
+	assert_eq(guide.current.steps.size(), 1)
+	assert_eq(guide.current.steps[0].text_key, &"FLINT_VILLAGE_CHRONICLE_OPENED")
+	assert_true(_talk_through(guide))
+	# A second world of the same account: its chronicle opens too, Flint said it already.
+	SaveManager.save_path = SaveManager.slot_path(2)
+	SaveManager.load_game()
+	_after_first_run(false)
+	var other := _village()
+	var newcomer := _player(other)
+	other.on_player_spawned(newcomer)
+	assert_false(FlintGuide.of(newcomer).is_running(), "once per account and building")
+
+
+func test_the_first_tour_covers_open_buildings_itself() -> void:
+	# The tour was never seen (e.g. Flint was off online) but the world has its first run: the tour
+	# names the chronicle as an open station, no second sentence about it.
+	SaveManager.add_stat(StatsTracker.RUNS, 1)
+	SaveManager.add_stat(StatsTracker.DEATHS, 1)
+	var village := _village()
+	var player := _player(village)
+	village.on_player_spawned(player)
+	var guide := FlintGuide.of(player)
+	assert_eq(guide.current.id, VillageTour.TOUR_ID)
+	assert_false(guide.is_known(VillageTour.OPENED_ID))
+
+
+func test_script_runs_and_remote_players_get_no_opened_tour() -> void:
+	_after_first_run(true)
+	var village := _village()
+	var remote := _player(village, false)
+	assert_false(VillageTour.offer_opened(remote, village, [&"trader"] as Array[StringName]))
+	VillageTour.force_in_scripts = false
+	var local := _player(village)
+	assert_false(VillageTour.offer_opened(local, village, [&"trader"] as Array[StringName]))
+	assert_false(AccountSeen.has_seen(VillageTour.opened_seen_id(&"trader")), "not marked when not said")
 
 
 # --- Report #94669ed6: the black stroke over Flint's bubble ---

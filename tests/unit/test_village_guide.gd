@@ -57,12 +57,12 @@ func test_fresh_world_shows_goal_and_way_without_a_card() -> void:
 	assert_false(get_tree().paused, "no global pause (Koop)")
 
 
-func test_after_the_first_run_the_village_is_quiet() -> void:
+func test_after_the_first_run_the_trail_is_gone_and_the_goal_is_the_forge() -> void:
 	SaveManager.add_stat(StatsTracker.RUNS, 1)
 	var village := _village()
 	assert_false(GuideScript.is_active())
 	assert_null(village.get_guide(), "no trail after the first run")
-	assert_null(village.ui.get_goal(), "no goal line")
+	assert_true(village.get_goal_kind() in [Village.GOAL_FORGE, Village.GOAL_SAVE], "next forge goal (FS6, D-220)")
 
 
 func test_old_saves_keep_the_goal_until_a_run() -> void:
@@ -79,7 +79,7 @@ func test_old_saves_keep_the_goal_until_a_run() -> void:
 	SaveManager.load_game()
 	var veteran := _village()
 	assert_null(veteran.get_guide())
-	assert_null(veteran.ui.get_goal())
+	assert_ne(veteran.get_goal_kind(), Village.GOAL_DESCEND, "after runs the forge is the goal (FS6)")
 
 
 # --- Trail and arrow ---

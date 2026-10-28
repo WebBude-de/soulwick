@@ -5,11 +5,17 @@ extends Node
 ##   the camera above the darkness (VisionOverlay, layer 2), so the way is visible at night too.
 ## - An arrow (art/ui/teammate_arrow.png, tinted gold) at the screen edge points to the entrance
 ##   while it is off screen and bobs above the ruin once it is in view.
-## The goal line ("Steig in den Dungeon hinab") is VillageUI's (show_goal); this class decides when
-## it is due (is_active). The chronicler's opening words are gone: Flint's village tour greets now
+## - FS6 (D-220) "Herumirren": when the player has not come closer to the entrance than ever before
+##   for STRAY_TIME s (the timer waits while Flint or a dialog holds him, paused_check), trail and
+##   arrow grow stronger: brighter, twice as many soul lights, pulsing in whole art pixels; the arrow
+##   one art scale larger on every other beat and lighter gold. Getting closer than ever, or
+##   RECOVER_STEP px closer than the farthest point since, makes them normal again. No Flint sentence.
+## The goal line is VillageGoal's (shown by VillageUI.show_goal); this class decides when the way is
+## due (is_active). The chronicler's opening words are gone: Flint's village tour greets now
 ## (WK9, VillageTour).
 ## Koop: pure optics at this machine. The state is this player's world (runs, seen flag), the arrow
-## follows this machine's camera (get_viewport), no player lookup; nothing is sent.
+## follows this machine's camera (get_viewport); the distance comes from the village (its players at
+## this machine, distance_source), no player lookup here; nothing is sent.
 ## No class_name: used through preload (Village.GuideScript), so it works before the class cache
 ## knows it.
 
@@ -45,11 +51,28 @@ const ARROW_ABOVE := 150.0
 const ARROW_BOB := 6.0
 const ARROW_BOB_SPEED := 3.2
 const ARROW_COLOR := Color("#f2cf4a")
+## TESTWERT (FS6, D-220): straying. Seconds without getting closer than ever (by APPROACH_STEP world
+## px) before the way grows stronger; while strong, this much closer than the farthest point since
+## counts as coming back; blend time (s); one pulse beat (s); ring alpha factor; strong arrow colour.
+const STRAY_TIME := 45.0
+const APPROACH_STEP := 48.0
+const RECOVER_STEP := 192.0
+const STRONG_BLEND_TIME := 0.4
+const STRONG_BEAT := 0.3
+const STRONG_ALPHA := 1.7
+const STRONG_ARROW_COLOR := Color("#fff1a8")
+
+## Emitted when the way grows stronger (true) or normal again (false).
+signal strength_changed(strong: bool)
 
 ## Entrance pivot (world px).
 var target := Vector2.ZERO
 ## Hides the arrow while it returns true (the village: a dialog is open).
 var hidden_check := Callable()
+## FS6: distance of this machine's player to the entrance (world px, INF without one) and the check
+## that holds the stray timer (Flint talks, a dialog is open). Set by the village.
+var distance_source := Callable()
+var paused_check := Callable()
 
 var _points := PackedVector2Array()
 var _length := 0.0
@@ -62,6 +85,13 @@ var _pointer: Control = null
 var _pointer_position := Vector2.ZERO
 var _pointer_angle := 0.0
 var _pointer_on_screen := false
+## Straying (FS6): closest distance so far, seconds since, strong state, farthest distance since it
+## became strong, the drawn strength (0 normal .. 1 strong).
+var _best := INF
+var _stray := 0.0
+var _strong := false
+var _far := 0.0
+var _strength := 0.0
 
 
 ## Until the first run of the world (the stat counts started runs).
@@ -162,9 +192,62 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
+	if distance_source.is_valid() and not (paused_check.is_valid() and bool(paused_check.call())):
+		track(float(distance_source.call()), delta)
+	_strength = move_toward(_strength, 1.0 if _strong else 0.0, delta / STRONG_BLEND_TIME)
 	_update_pointer()
 	_trail.queue_redraw()
 	_pointer.queue_redraw()
+
+
+## One step of the stray rule with the player's distance to the entrance (INF: nobody, ignored).
+func track(distance: float, delta: float) -> void:
+	if is_inf(distance) or is_nan(distance):
+		return
+	if distance < _best - APPROACH_STEP or is_inf(_best):
+		_best = distance
+		_stray = 0.0
+		_set_strong(false)
+		return
+	if _strong:
+		_far = maxf(_far, distance)
+		if distance <= _far - RECOVER_STEP:
+			_stray = 0.0
+			_set_strong(false)
+		return
+	_stray += delta
+	if _stray >= STRAY_TIME:
+		_far = distance
+		_set_strong(true)
+
+
+func is_strong() -> bool:
+	return _strong
+
+
+## Seconds without getting closer (tests and tools).
+func get_stray_time() -> float:
+	return _stray
+
+
+## 0 = normal, 1 = strong (blended over STRONG_BLEND_TIME).
+func get_strength() -> float:
+	return _strength
+
+
+func _set_strong(value: bool) -> void:
+	if value == _strong:
+		return
+	_strong = value
+	strength_changed.emit(value)
+
+
+## 1 on every other STRONG_BEAT while the way is strong (whole art pixels: rings one larger, the
+## arrow one scale step larger), else 0.
+func strong_beat() -> int:
+	if _strength < 0.5:
+		return 0
+	return int(floorf(_time / STRONG_BEAT)) % 2
 
 
 func get_points() -> PackedVector2Array:
@@ -200,26 +283,36 @@ func _update_pointer() -> void:
 	_pointer_on_screen = placed[2]
 
 
-## Soul lights along the way; each fades in at the spawn and out at the stairs.
+## Soul lights along the way; each fades in at the spawn and out at the stairs. Strong (FS6): a
+## second light between every two, all brighter and pulsing a pixel larger on every other beat.
 func _draw_trail() -> void:
 	if _length <= 0.0:
 		return
 	var count := maxi(1, floori(_length / MOTE_SPACING))
+	var bright := lerpf(1.0, STRONG_ALPHA, _strength)
+	var grow := strong_beat()
 	for i in count:
-		var distance := fposmod(_time * MOTE_SPEED + i * MOTE_SPACING, _length)
-		var fade := clampf(minf(distance, _length - distance) / MOTE_EDGE_FADE, 0.0, 1.0)
-		var twinkle := 0.75 + 0.25 * sin(_time * 3.0 + i * 1.7)
-		var alpha := fade * twinkle
-		var spot := point_at(_points, distance) + Vector2(0, sin(_time * 2.0 + i) * MOTE_FLOAT)
-		_draw_mote(spot.snapped(Vector2.ONE * MOTE_PIXEL), alpha)
+		_draw_trail_mote(_time * MOTE_SPEED + i * MOTE_SPACING, i, bright, grow, 1.0)
+		if _strength > 0.0:
+			_draw_trail_mote(_time * MOTE_SPEED + (i + 0.5) * MOTE_SPACING, i + 7, bright, 1 - grow, _strength)
+
+
+func _draw_trail_mote(along: float, index: int, bright: float, grow: int, weight: float) -> void:
+	var distance := fposmod(along, _length)
+	var fade := clampf(minf(distance, _length - distance) / MOTE_EDGE_FADE, 0.0, 1.0)
+	var twinkle := 0.75 + 0.25 * sin(_time * 3.0 + index * 1.7)
+	var spot := point_at(_points, distance) + Vector2(0, sin(_time * 2.0 + index) * MOTE_FLOAT)
+	_draw_mote(spot.snapped(Vector2.ONE * MOTE_PIXEL), fade * twinkle * weight, bright, grow)
 
 
 ## One soul light in pixel art (feedback #e5d0f6c6, #6ce10692 "Mach Pixel Grafik"): stepped
-## squares on the village's art pixel grid instead of soft circles, glow from the rings.
-func _draw_mote(center: Vector2, alpha: float) -> void:
+## squares on the village's art pixel grid instead of soft circles, glow from the rings. bright
+## scales the ring alpha (strong way), grow adds whole art pixels to the outer rings (pulse).
+func _draw_mote(center: Vector2, alpha: float, bright := 1.0, grow := 0) -> void:
 	for ring: Array in MOTE_RINGS:
-		var color := Color(SOUL_CORE if ring[2] else SOUL_COLOR, float(ring[1]) * alpha)
-		for rect: Rect2 in _mote_rects(int(ring[0])):
+		var color := Color(SOUL_CORE if ring[2] else SOUL_COLOR, minf(1.0, float(ring[1]) * bright) * alpha)
+		var radius := int(ring[0]) + (grow if not ring[2] else 0)
+		for rect: Rect2 in _mote_rects(radius):
 			_trail.draw_rect(Rect2(center + rect.position * MOTE_PIXEL, rect.size * MOTE_PIXEL), color)
 
 
@@ -236,10 +329,12 @@ func _draw_pointer() -> void:
 	var size := ARROW_TEXTURE.get_size()
 	var bob := sin(_time * ARROW_BOB_SPEED) * ARROW_BOB
 	var offset := Vector2.from_angle(_pointer_angle) * bob
-	var pulse := 0.85 + 0.15 * sin(_time * ARROW_BOB_SPEED * 1.3)
-	_pointer.draw_set_transform(_pointer_position + offset, _pointer_angle, Vector2.ONE * ARROW_SCALE)
+	var pulse := lerpf(0.85 + 0.15 * sin(_time * ARROW_BOB_SPEED * 1.3), 1.0, _strength)
+	# Strong (FS6): one whole scale step larger on every other beat (pixel art), lighter gold.
+	var arrow_scale := ARROW_SCALE + float(strong_beat())
+	_pointer.draw_set_transform(_pointer_position + offset, _pointer_angle, Vector2.ONE * arrow_scale)
 	# Dark outline first (offset copies), then the gold arrow.
 	for shift: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
 		_pointer.draw_texture(ARROW_TEXTURE, -size * 0.5 + shift * 0.5, Color(0.08, 0.06, 0.12, 0.85))
-	_pointer.draw_texture(ARROW_TEXTURE, -size * 0.5, Color(ARROW_COLOR, pulse))
+	_pointer.draw_texture(ARROW_TEXTURE, -size * 0.5, Color(ARROW_COLOR.lerp(STRONG_ARROW_COLOR, _strength), pulse))
 	_pointer.draw_set_transform(Vector2.ZERO)

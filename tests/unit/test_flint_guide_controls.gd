@@ -246,3 +246,55 @@ func test_the_bubble_shows_key_pictures() -> void:
 		if guide.get_revealed() >= text.length():
 			break
 	assert_eq(rich.visible_characters, -1, "all of it once typed")
+
+
+# --- Queue (FS5) and the first crystal (D-220) ---
+
+func test_danger_and_the_place_come_before_general_keys() -> void:
+	assert_eq(FlintControls.explanation_for(FlintControls.CHASM).priority, FlintExplanation.Priority.URGENT, "holes")
+	assert_eq(FlintControls.explanation_for(FlintControls.SIDE_VIEW).priority, FlintExplanation.Priority.URGENT, "side view")
+	assert_eq(FlintControls.explanation_for(FlintControls.INTERACT).priority, FlintExplanation.Priority.PLACE, "the thing in front of him")
+	assert_eq(FlintControls.explanation_for(FlintControls.SECRET_WALL).priority, FlintExplanation.Priority.PLACE)
+	for id in [FlintControls.BASICS, FlintControls.SPECIAL, FlintControls.SWITCH, FlintControls.OVERVIEW, FlintControls.FIRST_CRYSTAL]:
+		assert_eq(FlintControls.explanation_for(id).priority, FlintExplanation.Priority.GENERAL, String(id))
+
+
+func test_a_waiting_key_hint_is_dropped_once_the_player_did_it() -> void:
+	var player := _player()
+	var guide := _guide(player)
+	guide.shows_view = false
+	var coach := _coach(player)
+	coach.explain = func(target: Player, explanation: FlintExplanation) -> bool:
+		_told.append(explanation.id)
+		return FlintGuide.of(target).queue(explanation)
+	_seen[FlintControls.BASICS] = true
+	# A tour runs: the special hint has to wait.
+	assert_true(guide.queue(FlintExplanation.tour(&"flint_test_tour", [FlintGuideStep.say(&"FLINT_ENTRANCE_1")] as Array[FlintGuideStep])))
+	EventBus.room_entered.emit(FlintControls.SPECIAL_ROOM)
+	coach.tick(DT)
+	assert_true(guide.is_known(FlintControls.SPECIAL), "asked, waits behind the tour")
+	player.weapon_controller.special_performed.emit(null)
+	assert_true(coach.did_action(player, FlintControls.SPECIAL), "the coach saw the special")
+	guide.advance(DT)
+	assert_false(guide.is_known(FlintControls.SPECIAL), "dropped: he knows it already")
+	assert_false(_seen.has(FlintControls.SPECIAL), "dropped is not seen")
+	coach.tick(DT)
+	assert_eq(_told.count(FlintControls.SPECIAL), 1, "not again in the same room")
+	EventBus.room_entered.emit(FlintControls.SPECIAL_ROOM + 1)
+	coach.tick(DT)
+	assert_eq(_told.count(FlintControls.SPECIAL), 2, "the next room is the next occasion")
+	assert_false(coach.did_action(player, FlintControls.SPECIAL), "counted anew from the new ask")
+
+
+func test_the_first_crystal_brings_its_hint() -> void:
+	var player := _player()
+	var coach := _coach(player)
+	coach.tick(FlintControls.START_DELAY + 0.1)
+	assert_false(_told.has(FlintControls.FIRST_CRYSTAL))
+	RunManager.run_crystals_changed.emit(0)
+	coach.tick(DT)
+	assert_false(_told.has(FlintControls.FIRST_CRYSTAL), "no crystal yet")
+	RunManager.run_crystals_changed.emit(1)
+	coach.tick(DT)
+	assert_true(_told.has(FlintControls.FIRST_CRYSTAL), "the first crystal: what it is for")
+	assert_eq(FlintControls.explanation_for(FlintControls.FIRST_CRYSTAL).steps[0].text_key, &"FLINT_FIRST_CRYSTAL")

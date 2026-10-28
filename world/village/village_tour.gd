@@ -5,12 +5,16 @@ extends Node2D
 ## durch Flint ersetzen").
 ## - The tour: on the first start of an account (AccountSeen "flint_village_tour") Flint greets the
 ##   player, flies the player's own camera over the village (dungeon entrance, forge, trading post,
-##   home, chronicle, guild) and says one sentence per station; a locked building gets its "opens
-##   after …" sentence. While he talks about a station, a warm ring and rising sparks mark it (this
+##   home, chronicle, guild) and says one sentence per station. FS6 (D-220): locked buildings are left
+##   out, and the goodbye names the keys for walking and using (ControlsInfo.key_text; the bubble shows
+##   them as pictures of the device in use, GlyphText). While he talks about a station, a warm ring and rising sparks mark it (this
 ##   node, drawn above the darkness like the soul-light trail). Report #2e95d42c (23.10.2026, "Der
 ##   Kreis ist hässlich. Alles in Pixeloptik"): the ring is a pixel ellipse in art px (VillageArt.SCALE,
 ##   no anti-aliasing) in Flint's flame palette (D-198), it pulses in whole pixels and the sparks are
 ##   pixel squares, every position snapped to the art pixel grid.
+## - A building opens (FS6, D-220: the buildings of the "Neu freigeschaltet" notice, opening_buildings):
+##   when the player comes back to the village, Flint flies the camera there and names it in one
+##   sentence (offer_opened, once per account and building, "flint_village_opened_<id>").
 ## - The first entry of a building: before its dialog opens, Flint says what it is for and one tip
 ##   (FlintExplanation "flint_village_<id>", once per account); the dialog's info button asks him
 ##   again (VillageUI).
@@ -29,17 +33,27 @@ const ENTRANCE_NODE := ^"Buildings/DungeonEntrance"
 const BUILDINGS_NODE := ^"Buildings"
 ## Stations in the order of KONZEPT §7.2.
 const STATIONS: Array[StringName] = [ENTRANCE, &"forge", &"trader", &"home", &"chronicle", &"guild"]
-## station -> [sentence while open, sentence while locked (or &"")].
+## station -> its sentence (only open buildings are visited, FS6).
 const STATION_TEXTS := {
-	ENTRANCE: [&"FLINT_VILLAGE_ENTRANCE", &""],
-	&"forge": [&"FLINT_VILLAGE_FORGE", &""],
-	&"trader": [&"FLINT_VILLAGE_TRADER", &"FLINT_VILLAGE_TRADER_LOCKED"],
-	&"home": [&"FLINT_VILLAGE_HOME", &""],
-	&"chronicle": [&"FLINT_VILLAGE_CHRONICLE", &"FLINT_VILLAGE_CHRONICLE_LOCKED"],
-	&"guild": [&"FLINT_VILLAGE_GUILD", &""],
+	ENTRANCE: &"FLINT_VILLAGE_ENTRANCE",
+	&"forge": &"FLINT_VILLAGE_FORGE",
+	&"trader": &"FLINT_VILLAGE_TRADER",
+	&"home": &"FLINT_VILLAGE_HOME",
+	&"chronicle": &"FLINT_VILLAGE_CHRONICLE",
+	&"guild": &"FLINT_VILLAGE_GUILD",
 }
 const WELCOME_KEY: StringName = &"FLINT_VILLAGE_WELCOME"
+## "Walk with %s, use doors with %s. …" (keys of the device in use).
 const DONE_KEY: StringName = &"FLINT_VILLAGE_DONE"
+## FS6: a building that just opened -> Flint's sentence; seen per account with OPENED_PREFIX + id.
+const OPENED_TEXTS := {
+	&"trader": &"FLINT_VILLAGE_TRADER_OPENED",
+	&"chronicle": &"FLINT_VILLAGE_CHRONICLE_OPENED",
+}
+## Explanation id of the "just opened" tour (shown every time it is asked for; the seen flags are the
+## per-building ones below) and the per-building seen prefix.
+const OPENED_ID: StringName = &"flint_village_opened"
+const OPENED_PREFIX := "flint_village_opened_"
 ## building -> sentences of its first entry (role, then a tip). Zuhause explains itself inside
 ## (HomeInterior, "flint_home_altar").
 const BUILDING_TEXTS := {
@@ -95,34 +109,107 @@ static func offer(player: Player, village: Node) -> bool:
 		return false
 	if not FlintGuide.explain(player, build_tour(village)):
 		return false
-	var guide := FlintGuide.of(player)
-	if guide != null:
-		var marker := VillageTour.new()
-		marker.guide = guide
-		village.add_child(marker)
+	_add_marker(player, village)
 	return true
 
 
-## The tour through village: greeting, one step per station found (camera on it), goodbye.
+## The tour through village: greeting, one step per open station found (camera on it), goodbye
+## with the keys for walking and using.
 static func build_tour(village: Node) -> FlintExplanation:
 	var steps: Array[FlintGuideStep] = [FlintGuideStep.say(WELCOME_KEY, FlintGuideStep.Mood.HAPPY)]
-	for station in STATIONS:
+	for station in tour_stations():
 		var node := station_node(village, station)
 		if node == null:
 			continue
 		var offset := ENTRANCE_FOCUS_OFFSET if station == ENTRANCE else BUILDING_FOCUS_OFFSET
 		steps.append(FlintGuideStep.say(station_key(station), FlintGuideStep.Mood.POINT).at_node(node, offset))
-	steps.append(FlintGuideStep.say(DONE_KEY, FlintGuideStep.Mood.HAPPY))
+	steps.append(FlintGuideStep.say(DONE_KEY, FlintGuideStep.Mood.HAPPY,
+			[ControlsInfo.key_text(ControlsInfo.MOVE), ControlsInfo.key_text(ControlsInfo.INTERACT)]))
 	return FlintExplanation.tour(TOUR_ID, steps)
 
 
-## Sentence of a station: the locked one while its building is closed (MetaUnlocks, D-087).
+## The stations of the tour now: STATIONS without the locked buildings (FS6, D-220).
+static func tour_stations() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for station in STATIONS:
+		if station == ENTRANCE or MetaUnlocks.is_building_open(station):
+			result.append(station)
+	return result
+
+
+## Sentence of a station.
 static func station_key(station: StringName) -> StringName:
-	var texts: Array = STATION_TEXTS.get(station, [&"", &""])
-	var locked_key: StringName = texts[1]
-	if locked_key != &"" and not MetaUnlocks.is_building_open(station):
-		return locked_key
-	return texts[0]
+	return STATION_TEXTS.get(station, &"")
+
+
+# --- A building opens (FS6) ---
+
+## Buildings whose unlock event is reached but not announced yet ("Neu freigeschaltet" comes with
+## this visit). Call before MetaUnlocks.take_announcements(), which marks them announced.
+static func opening_buildings() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for building_id: StringName in OPENED_TEXTS:
+		var event := MetaUnlocks.get_building_event(building_id)
+		if event != &"" and MetaUnlocks.has_event(event) and not SaveManager.has_seen(MetaUnlocks.get_announce_key(event)):
+			result.append(building_id)
+	return result
+
+
+## Seen id (per account) of Flint's sentence about a building that opened.
+static func opened_seen_id(building_id: StringName) -> StringName:
+	return StringName(OPENED_PREFIX + String(building_id))
+
+
+## The buildings of building_ids Flint has not named for this account yet, in tour order.
+static func opened_to_explain(building_ids: Array[StringName]) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for station in STATIONS:
+		if building_ids.has(station) and OPENED_TEXTS.has(station) and not AccountSeen.has_seen(opened_seen_id(station)):
+			result.append(station)
+	return result
+
+
+## Flint's tour over the buildings that just opened (one sentence each, camera on the building);
+## null when none is left.
+static func build_opened(village: Node, building_ids: Array[StringName]) -> FlintExplanation:
+	var steps: Array[FlintGuideStep] = []
+	for building_id in building_ids:
+		var node := station_node(village, building_id)
+		if node != null and OPENED_TEXTS.has(building_id):
+			steps.append(FlintGuideStep.say(OPENED_TEXTS[building_id], FlintGuideStep.Mood.POINT).at_node(node, BUILDING_FOCUS_OFFSET))
+	if steps.is_empty():
+		return null
+	var explanation := FlintExplanation.tour(OPENED_ID, steps)
+	explanation.once = false
+	return explanation
+
+
+## Flint names the buildings that opened with this visit (local players only, once per account and
+## building). True if he will.
+static func offer_opened(player: Player, village: Node, building_ids: Array[StringName]) -> bool:
+	if not may_explain(player) or village == null or not village.is_inside_tree():
+		return false
+	var due := opened_to_explain(building_ids)
+	var explanation := build_opened(village, due)
+	if explanation == null or not FlintGuide.explain(player, explanation):
+		return false
+	for building_id in due:
+		AccountSeen.mark_seen(opened_seen_id(building_id))
+	_add_marker(player, village)
+	return true
+
+
+## The station ring for player's guide (one per village).
+static func _add_marker(player: Player, village: Node) -> void:
+	var guide := FlintGuide.of(player)
+	if guide == null:
+		return
+	for child in village.get_children():
+		if child is VillageTour and (child as VillageTour).guide == guide and not child.is_queued_for_deletion():
+			return
+	var marker := VillageTour.new()
+	marker.guide = guide
+	village.add_child(marker)
 
 
 ## The node of a station in village: the ruin, or the building with that building_id.
@@ -265,7 +352,7 @@ func _process(delta: float) -> void:
 
 ## The station Flint talks about now (null between stations and outside the tour).
 func get_focus() -> Node2D:
-	if guide == null or not is_instance_valid(guide) or guide.current == null or guide.current.id != TOUR_ID:
+	if guide == null or not is_instance_valid(guide) or guide.current == null or not is_marked(guide.current.id):
 		return null
 	if guide.phase != FlintGuide.Phase.TALK:
 		return null
@@ -275,8 +362,15 @@ func get_focus() -> Node2D:
 	return step.focus_node
 
 
+## True for the explanations whose stations get the ring (the tour and the "just opened" tour).
+static func is_marked(id: StringName) -> bool:
+	return id == TOUR_ID or id == OPENED_ID
+
+
 func _on_finished(explanation: FlintExplanation, _skipped: bool) -> void:
-	if explanation != null and explanation.id == TOUR_ID:
+	if explanation == null or not is_marked(explanation.id) or guide == null or not is_instance_valid(guide):
+		return
+	if not guide.is_known(TOUR_ID) and not guide.is_known(OPENED_ID):
 		queue_free()
 
 

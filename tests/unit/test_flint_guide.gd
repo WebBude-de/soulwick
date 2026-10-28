@@ -434,3 +434,116 @@ func test_seen_flags_go_to_the_account() -> void:
 	assert_true(AccountSeen.has_seen(&"flint_first_rank_up"), "per account, not per world")
 	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
 	assert_false(FlintExplanations.rank_up(player), "seen")
+
+
+# --- Queue with priority (FS5, finding P1-1 of the newcomer run) ---
+
+func _prioritized(id: StringName, priority: FlintExplanation.Priority, tour := false) -> FlintExplanation:
+	var explanation := _tour(id, 1) if tour else _hint(id)
+	explanation.priority = priority
+	return explanation
+
+
+func test_rules_order_the_queue_by_priority() -> void:
+	var general := FlintExplanation.Priority.GENERAL
+	var place := FlintExplanation.Priority.PLACE
+	var urgent := FlintExplanation.Priority.URGENT
+	assert_eq(FlintGuideRules.queue_index([] as Array[int], general), 0)
+	assert_eq(FlintGuideRules.queue_index([urgent, place, general] as Array[int], place), 2, "behind its equals")
+	assert_eq(FlintGuideRules.queue_index([urgent, place, general] as Array[int], place, true), 1, "a cut one in front of them")
+	assert_eq(FlintGuideRules.queue_index([place, general] as Array[int], urgent), 0, "danger first")
+	var hint := _prioritized(&"flint_test_general", general)
+	assert_true(FlintGuideRules.gives_way(hint, true, _prioritized(&"flint_test_urgent", urgent)))
+	assert_false(FlintGuideRules.gives_way(hint, false, _prioritized(&"flint_test_urgent", urgent)), "not while flying back")
+	assert_false(FlintGuideRules.gives_way(hint, true, _prioritized(&"flint_test_other", general)), "equals wait")
+	assert_false(FlintGuideRules.gives_way(_prioritized(&"flint_test_tour", general, true), true,
+			_prioritized(&"flint_test_urgent", urgent)), "a tour is never cut")
+
+
+func test_the_place_goes_before_general_hints_and_danger_cuts_a_running_hint() -> void:
+	var player := _player()
+	var guide := _guide(player)
+	var ended: Array = []
+	guide.finished.connect(func(explanation: FlintExplanation, skipped: bool) -> void: ended.append([explanation.id, skipped]))
+	assert_true(guide.queue(_prioritized(&"flint_test_general", FlintExplanation.Priority.GENERAL)))
+	assert_true(guide.queue(_prioritized(&"flint_test_general_2", FlintExplanation.Priority.GENERAL)))
+	_to_talk(guide)
+	assert_true(guide.queue(_prioritized(&"flint_test_room", FlintExplanation.Priority.PLACE, true)))
+	assert_eq(guide.current.id, &"flint_test_room", "the room's tour cuts the general hint at once")
+	assert_true(player.is_protected(), "the tour holds")
+	assert_eq(ended, [[&"flint_test_general", true]])
+	assert_false(_seen.has(&"flint_test_general"), "a cut hint is not seen")
+	assert_true(guide.is_known(&"flint_test_general"), "it waits again")
+	assert_true(guide.queue(_prioritized(&"flint_test_hole", FlintExplanation.Priority.URGENT)))
+	assert_eq(guide.current.id, &"flint_test_room", "a tour is never cut")
+	guide.skip()
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
+	assert_eq(guide.current.id, &"flint_test_hole", "danger next")
+	_to_talk(guide)
+	guide.skip()
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
+	assert_eq(guide.current.id, &"flint_test_general", "the cut hint comes back first of its kind")
+	guide.skip()
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
+	assert_eq(guide.current.id, &"flint_test_general_2")
+
+
+func test_a_hint_no_longer_due_is_dropped_unseen() -> void:
+	var player := _player()
+	var guide := _guide(player)
+	var dropped: Array[StringName] = []
+	guide.dropped.connect(func(explanation: FlintExplanation) -> void: dropped.append(explanation.id))
+	assert_true(guide.queue(_hint(&"flint_test_first")))
+	var due := [true]
+	var waiting := _hint(&"flint_test_key")
+	waiting.still_due = func() -> bool: return due[0]
+	assert_true(guide.queue(waiting))
+	_to_talk(guide)
+	due[0] = false
+	guide.advance(DT)
+	assert_eq(dropped, [&"flint_test_key"] as Array[StringName], "the key was pressed meanwhile")
+	assert_false(guide.is_known(&"flint_test_key"))
+	assert_false(_seen.has(&"flint_test_key"), "not seen: it comes on the next occasion")
+	assert_true(guide.queue(_hint(&"flint_test_key")), "and may be asked again")
+
+
+func test_the_same_channel_replaces_the_running_hint() -> void:
+	var player := _player()
+	var guide := _guide(player)
+	var welcome := _hint(&"flint_test_welcome")
+	welcome.channel = &"test"
+	var station := _hint(&"flint_test_station")
+	station.channel = &"test"
+	var other := _hint(&"flint_test_other")
+	other.channel = &"test"
+	assert_true(guide.queue(welcome))
+	_to_talk(guide)
+	assert_true(guide.queue(station))
+	assert_eq(guide.current.id, &"flint_test_station", "the new station's hint at once")
+	assert_eq(guide.phase, FlintGuide.Phase.TALK, "Flint stays in his corner")
+	assert_false(guide.is_known(&"flint_test_welcome"), "the welcome is gone, not waiting")
+	assert_true(guide.queue(other))
+	assert_eq(guide.current.id, &"flint_test_other")
+	assert_eq(guide.get_queue_size(), 0)
+
+
+func test_no_tour_starts_in_the_side_view() -> void:
+	var player := _player()
+	var guide := _guide(player)
+	if player.side_motion == null:
+		player.side_motion = PlayerSideMotion.new()
+		player.add_child(player.side_motion)
+	player.side_motion.set(&"_active", true)
+	assert_true(player.is_side_view())
+	assert_true(guide.queue(_prioritized(&"flint_test_room", FlintExplanation.Priority.PLACE, true)))
+	assert_false(guide.is_running(), "the tour waits: it would hold him mid-jump")
+	assert_true(guide.queue(_prioritized(&"flint_test_side", FlintExplanation.Priority.URGENT)))
+	assert_eq(guide.current.id, &"flint_test_side", "the side view hint comes at once")
+	guide.skip()
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)
+	assert_false(guide.is_running(), "still in the side view")
+	player.side_motion.set(&"_active", false)
+	guide.advance(DT)
+	assert_eq(guide.current.id, &"flint_test_room", "back on the floor: the tour")
+	guide.skip()
+	_run(guide, FlintGuideRules.FLY_BACK_TIME + DT)

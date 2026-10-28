@@ -8,7 +8,7 @@ extends Node2D
 
 const ART_PATH := "res://art/projectiles/lava_ball_4f.png"
 const ART_FRAME := Vector2i(16, 16)
-const ART_FPS := 10.0
+const ART_FPS := 8.0
 const ART_SCALE := 3.0
 ## Peak of the arc: this share of the distance, within the bounds (px).
 const HEIGHT_SHARE := 0.4

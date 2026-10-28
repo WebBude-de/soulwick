@@ -228,6 +228,35 @@ func test_the_shield_dummy_needs_the_special_and_the_gate_ends_it() -> void:
 	var guide: FlintGuide = parts[3]
 	assert_true(guide.is_known(TutorialRun.DONE_ID), "Flint says it is done in room 1 (no banner)")
 	assert_eq(guide.current.steps[0].text_key, &"FLINT_TUTORIAL_DONE_XP", "with the XP")
+	assert_eq(guide.current.steps[1].text_key, &"FLINT_TUTORIAL_DEATH", "and what a fall costs (D-220)")
+	assert_true(_seen.has(FlintControls.BASICS), "completed: Flint's first-run basics are not needed (FS5)")
+
+
+func test_the_end_names_what_a_fall_costs() -> void:
+	var steps := TutorialRun.done_steps(0)
+	assert_eq(steps.size(), 2)
+	assert_eq(steps[0].text_key, &"FLINT_TUTORIAL_DONE", "no XP: the plain sentence")
+	assert_eq(steps[1].text_key, &"FLINT_TUTORIAL_DEATH")
+	assert_eq(steps[1].text_args, [roundi(RunManager.LOSS_PAYOUT_RATIO * 100.0)], "the share from the code")
+	assert_eq(TutorialRun.loss_percent(), 25)
+	assert_true(steps[1].get_text().contains("25"), "the number is in the sentence")
+
+
+func test_a_new_station_replaces_the_running_hint() -> void:
+	var parts: Array = await _start()
+	var run: TutorialRun = parts[1]
+	var guide: FlintGuide = parts[3]
+	guide.advance(FlintGuideRules.GROW_TIME + FlintGuideRules.FLY_OUT_TIME + DT)
+	assert_eq(guide.current.id, TutorialRun.WELCOME_ID, "Flint welcomes")
+	run._announce(0)
+	assert_eq(guide.current.id, TutorialRules.explanation_id(TutorialRules.Station.ATTACK), "the welcome gives way to the straw dummies at once")
+	assert_eq(guide.get_queue_size(), 0, "the welcome does not come again")
+	assert_eq(guide.current.channel, TutorialRun.FLINT_CHANNEL)
+	run.complete(TutorialRules.Station.ATTACK)
+	assert_eq(guide.current.id, StringName(String(TutorialRules.explanation_id(TutorialRules.Station.ATTACK)) + "_done"))
+	run._announce(1)
+	assert_eq(guide.current.id, TutorialRules.explanation_id(TutorialRules.Station.DASH), "the newest station counts")
+	assert_eq(guide.get_queue_size(), 0)
 
 
 func test_skip_ends_it_without_xp() -> void:
