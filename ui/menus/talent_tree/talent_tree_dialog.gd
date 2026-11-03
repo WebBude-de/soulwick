@@ -11,6 +11,10 @@ extends VBoxContainer
 ## one), Enter/A sets a point, Entf/Backspace/− or Y takes one back, +/X sets one, Esc/B closes.
 ## Closing with free changes stores them; with a fee it asks first (pay, discard, back).
 ## Read-only (co-op guests): the same view without any button that changes something.
+## Layout like the village buildings (FS7a): the head (title, points, crystals) sits directly in the
+## Modal's content (named Header, so touch screens keep its end free for the X), the dialog below
+## holds the scrolling body (paths and detail) and the fixed foot with "Schließen"; the body gets the
+## height Modal.max_panel_height() leaves, so the panel itself never scrolls.
 
 signal closed(applied: bool)
 
@@ -26,6 +30,14 @@ const SPELL_ICON := 12.0
 const CHOICE_PAY: StringName = &"pay"
 const CHOICE_DISCARD: StringName = &"discard"
 const CHOICE_BACK: StringName = &"back"
+## Scrolling body (mockup px, as VillageUI): gap kept to the screen edge (half the village's, so the
+## co-op guest view with its note still fits 720 px unscrolled), scroll bar room, least height.
+const SCREEN_GAP := 4.0
+const BODY_SCROLL_BAR := 6.0
+const BODY_MIN_HEIGHT := 48.0
+## Narrowest gap between the columns when a touch screen leaves too little width (mockup px).
+const MIN_COLUMN_GAP := 1.0
+const MobileUi := preload("res://ui/menus/mobile_ui.gd")
 
 var edit: TalentTreeEdit = null
 var modal: Modal = null
@@ -53,6 +65,9 @@ var _discard_button: Button = null
 var _close_button: Button = null
 var _confirm: Modal = null
 var _layer: CanvasLayer = null
+var _body: HBoxContainer = null
+var _body_scroll: ScrollContainer = null
+var _fit_queued := false
 
 
 ## Builds the dialog for a visit (not shown yet: show_on / open).
@@ -85,6 +100,7 @@ func show_on(parent: Node) -> void:
 		parent.add_child(_layer)
 		host = _layer
 	modal.show_on(host)
+	fit_body()
 	if InputGlyphs.is_gamepad():
 		_focus_selected.call_deferred()
 
@@ -98,11 +114,15 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	edit.changed.connect(refresh)
 	SaveManager.permanent_crystals_changed.connect(_on_crystals_changed)
+	if not get_viewport().size_changed.is_connected(_queue_fit_body):
+		get_viewport().size_changed.connect(_queue_fit_body)
 
 
 func _exit_tree() -> void:
 	if SaveManager.permanent_crystals_changed.is_connected(_on_crystals_changed):
 		SaveManager.permanent_crystals_changed.disconnect(_on_crystals_changed)
+	if get_viewport() != null and get_viewport().size_changed.is_connected(_queue_fit_body):
+		get_viewport().size_changed.disconnect(_queue_fit_body)
 
 
 # --- Building ---
@@ -112,29 +132,39 @@ func _build() -> void:
 	modal.cancel_allowed = false
 	modal.input_handler = handle_input
 	modal.close_action = request_close
-	add_child(_header())
+	# The head goes straight into the Modal's content (see the class comment), above this dialog.
+	var header := _header()
+	modal.content.add_child(header)
+	modal.content.move_child(header, get_index())
 	if not edit.editable:
 		var note := UiKit.text_label(Loc.t(&"TALENT_TREE_VIEW_ONLY"), UiKit.SIZE_BODY, UiKit.COLOR_MUTED)
 		note.name = "ViewOnlyNote"
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		add_child(note)
-	var body := UiKit.hbox(int(UiKit.px(COLUMN_GAP)))
-	body.name = "Body"
-	add_child(body)
-	body.add_child(_tier_column())
+	_body = UiKit.hbox(int(UiKit.px(COLUMN_GAP)))
+	_body.name = "Body"
+	_body.add_child(_tier_column())
 	for talent_path in TalentDef.PATHS:
-		body.add_child(_path_column(talent_path))
+		_body.add_child(_path_column(talent_path))
 	var line := ColorRect.new()
 	line.color = UiKit.COLOR_LINE
 	line.custom_minimum_size = Vector2(UiKit.px(1), 0)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	body.add_child(line)
-	body.add_child(_detail_column())
-	add_child(UiKit.separator())
+	_body.add_child(line)
+	_body.add_child(_detail_column())
+	_body_scroll = _make_body_scroll()
+	_body_scroll.add_child(_body)
+	add_child(_body_scroll)
+	var footer_line := UiKit.separator()
+	footer_line.name = "FooterLine"
+	add_child(footer_line)
 	add_child(_footer())
 	selected_id = _first_choice()
 	modal.set_key_hints(_key_entries(), true)
 	refresh()
+	# Spell slots and texts change the body's height; the key bar changes with the input device.
+	_body.minimum_size_changed.connect(_queue_fit_body)
+	modal.key_bar.minimum_size_changed.connect(_queue_fit_body)
 
 
 func _header() -> Control:
@@ -280,6 +310,94 @@ func _footer() -> Control:
 	_close_button.name = "CloseButton"
 	row.add_child(_close_button)
 	return row
+
+
+# --- Scrolling body, "Schließen" always visible (FS7a, as VillageUI) ---
+
+func _make_body_scroll() -> ScrollContainer:
+	var scroll := ScrollContainer.new()
+	scroll.name = "BodyScroll"
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = true
+	scroll.mouse_filter = Control.MOUSE_FILTER_PASS
+	scroll.add_theme_stylebox_override(&"panel", StyleBoxEmpty.new())
+	Modal._style_scroll_bar(scroll.get_v_scroll_bar())
+	return scroll
+
+
+func _queue_fit_body() -> void:
+	if _fit_queued:
+		return
+	_fit_queued = true
+	fit_body.call_deferred()
+
+
+## Gives the body as much height as the screen leaves next to the head, the foot with "Schließen",
+## the key bar and the panel frame; a taller body scrolls inside, so the dialog itself never has to.
+func fit_body() -> void:
+	_fit_queued = false
+	if _body_scroll == null or not is_instance_valid(_body_scroll) or modal == null \
+			or not is_instance_valid(modal) or not modal.is_inside_tree():
+		return
+	var need := _body.get_combined_minimum_size()
+	var room := maxf(UiKit.px(BODY_MIN_HEIGHT), body_room())
+	var scrolls := need.y > room + 0.5
+	_body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if scrolls else ScrollContainer.SCROLL_MODE_DISABLED
+	var bar := UiKit.px(BODY_SCROLL_BAR) if scrolls else 0.0
+	need.x = _fit_width(bar)
+	_body_scroll.custom_minimum_size = Vector2(need.x + bar, minf(need.y, room))
+
+
+## Touch screens keep a margin and room for the X, so the panel may be wider than the screen allows
+## at zoom 1 (the X sat half off screen at 1280 px): the column gaps shrink until it fits. Returns
+## the body width with the chosen gap.
+func _fit_width(bar: float) -> float:
+	var gaps := maxi(0, _body.get_child_count() - 1)
+	var current := _body.get_theme_constant(&"separation")
+	var full_gap := UiKit.px(COLUMN_GAP)
+	var full := _body.get_combined_minimum_size().x + (full_gap - current) * gaps
+	var style := modal.frame.get_theme_stylebox(&"panel")
+	var padding := style.get_minimum_size().x if style != null else 0.0
+	var limit := max_panel_width() - padding - bar
+	var gap := full_gap
+	if full > limit and gaps > 0:
+		gap = maxf(UiKit.px(MIN_COLUMN_GAP), full_gap - ceilf((full - limit) / gaps))
+	if int(gap) != current:
+		_body.add_theme_constant_override(&"separation", int(gap))
+	return full - (full_gap - gap) * gaps
+
+
+## The widest panel (layout px) the Modal places without overflowing: the area it lays the dialog
+## out in (safe area minus touch margin and X room; the whole viewport on a PC).
+func max_panel_width() -> float:
+	return INF if modal == null else modal.max_panel_width()
+
+
+## Height (layout px) the body may take: the tallest panel the Modal shows without scrolling itself
+## (screen, safe area, X on touch screens, its zoom) minus everything else in the panel.
+func body_room() -> float:
+	var screen: float = modal.max_panel_height()
+	var style := modal.frame.get_theme_stylebox(&"panel")
+	var padding := style.get_minimum_size().y if style != null else 0.0
+	# The column around content and key bar (inside the Modal's own scroll if it ever made one).
+	var column := modal.content.get_parent() as Control
+	var others := column.get_combined_minimum_size().y - _body_scroll.get_combined_minimum_size().y
+	return floorf(screen - padding - others - 2.0 * UiKit.px(SCREEN_GAP))
+
+
+## True while the body scrolls (for tests and tools).
+func is_body_scrolling() -> bool:
+	return _body_scroll != null and is_instance_valid(_body_scroll) \
+			and _body_scroll.vertical_scroll_mode != ScrollContainer.SCROLL_MODE_DISABLED
+
+
+func get_body_scroll() -> ScrollContainer:
+	return _body_scroll if _body_scroll != null and is_instance_valid(_body_scroll) else null
+
+
+func get_close_button() -> Button:
+	return _close_button
 
 
 func _small_button(text: String, on_pressed: Callable) -> Button:

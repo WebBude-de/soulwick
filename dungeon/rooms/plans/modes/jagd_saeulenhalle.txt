@@ -3,6 +3,11 @@
 # M3b (Makeover 3 §8): in der Mitte eine Empore mit Treppe, oben wacht ein Bogenschuetze.
 # Meldung 22.10.2026 (#35292dbf): der rechte Pfeiler klebte an der Empore und las sich wie eine
 # untere Stufe, die man nicht betreten kann; er faellt weg, die Empore ist dort der Sichtblocker.
+# FS7c (Jagd zu leicht, D-213): der Gekroente startet links von der Hallenmitte zwischen Pfeiler und
+# Empore, weit vom Eingang, nicht mehr in der Bucht am Fluchtloch (dort sass er in der Ecke und war in
+# knapp 3 s gefangen); zum Loch muss er quer durch die Halle. Genau in der Mitte steht die Empore, im
+# Gang dahinter und an ihrem Fuss gleich beim Eingang hat er keine Ausweichpunkte bzw. ist sofort
+# gestellt (BountyFlight braucht freien Boden ringsum).
 role: combat
 mode: hunt
 biomes: all
@@ -13,9 +18,9 @@ xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxxxxxxxxxxxxxxxxxxx
 xxxxxT###N#####T##xxxxx
 xxxxx...........xxxxxxx
-xxxx.............exxxxx
+xxxx....9........exxxxx
 xx...##...^^^^^......xx
-xx...##...^^4^^...9..xx
+xx...##...^^4^^......xx
 xx........^&^^^......xx
 xxx.3...............xxx
 xxxx...3....@......xxxx

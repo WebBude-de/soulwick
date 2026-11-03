@@ -23,8 +23,9 @@ const SPRINT_FACTOR := 1.8
 const STOMP_ANIMATION_TIME := 0.25
 
 
-## Makes sure the sprite's frames and character masks know the sprint and the stomp (after
-## PlayerSideArt.ensure, whose jump frames are the stomp's placeholder).
+## Makes sure the sprite's frames and character masks know the sprint and the stomp. Called by
+## PlayerSideArt.ensure after its jump frames (the stomp's placeholder) exist, also on the base frames
+## a look is baked from (PlayerLook), so sprint and stomp wear the look's colours.
 static func ensure(sprite: AnimatedSprite2D) -> void:
 	if sprite == null or sprite.sprite_frames == null:
 		return

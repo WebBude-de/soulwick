@@ -11,6 +11,8 @@ const COOLING_TINT := Color(0.55, 0.53, 0.62, 0.9)
 const SHADE := Color(0.06, 0.05, 0.1, 0.62)
 ## A slot flashes this long when its spell is ready again.
 const READY_FLASH_TIME := 0.25
+## The flash fades in this many hard steps (pixel art, D-218).
+const FLASH_STEPS := 3
 
 var player: Player = null
 var _icons: Array[SpellSlotIcon] = []
@@ -127,7 +129,9 @@ class SpellSlotIcon:
 		if share > 0.01:
 			_draw_clock(full * 0.5, (float(SpellArt.ICON_SIZE) * 0.5) * pixel)
 		if _flash_left > 0.0:
-			draw_rect(Rect2(Vector2.ONE * pixel, full - Vector2.ONE * 2.0 * pixel), Color(1, 1, 1, 0.5 * _flash_left / READY_FLASH_TIME))
+			# Fades in hard steps (pixel art, D-218).
+			var flash := PixelDraw.stepped(_flash_left / READY_FLASH_TIME, FLASH_STEPS)
+			draw_rect(Rect2(Vector2.ONE * pixel, full - Vector2.ONE * 2.0 * pixel), Color(1, 1, 1, 0.5 * flash))
 
 	## The part of the cooldown still to wait as a dark fan from twelve o'clock, clockwise, over the
 	## square symbol area (half size half_size around center).

@@ -40,6 +40,14 @@ extends CanvasLayer
 ## the body of a building dialog scrolls (BodyScroll, as tall as the screen allows); title,
 ## currencies and "Schließen" stay visible. The D-pad focus scrolls the body (follow_focus), the
 ## right stick scrolls it (Modal.scroll_target), touch drags it.
+## FS7a (reports #e0d2989d "sieht weird aus", #f6fe6427 "schlecht lesen", #6bdaa672, 26.10.2026):
+## every building dialog has a fixed head (title, info button and the currencies in one line, the
+## role sentence) and a fixed foot ("Schließen", a line above it while the body scrolls); only the
+## body between them scrolls. Forge and trade rows are one line each and line up like a table
+## (_align_tables: name, level pips, "Leistbar", price and start cell share their column width),
+## buttons keep off the row frame, texts use the mockup sizes of UiKit (body 7, names 8 bold, small
+## lines 6 instead of 13-15 px), and "15 → 16,2" draws its arrow with PixelArrows (the pixel font has
+## none; the browser showed a box).
 
 const PAUSE_VILLAGE_DIALOG: StringName = &"village_dialog"
 ## P1-3: what the village marks as affordable (preloaded: works before the class cache knows it).
@@ -83,16 +91,27 @@ const FORGE_ICONS := {
 }
 ## Weapon icons of the forge rows (art/ui/icon_<weapon>.png, delivered).
 const WEAPON_ICON_PATH := "res://art/ui/icon_%s.png"
-## Forge rows (mockup px → px via the label sizes): widths of name, value step, "Leistbar" line,
-## buy button and the start/Arsenal cell, so the rows line up like a table and fit 720 px (KE4).
-const FORGE_ROW_PADDING := Vector2(1, 5)
-const FORGE_NAME_WIDTH := 170.0
-const FORGE_STEP_WIDTH := 300.0
-const FORGE_AFFORD_WIDTH := 120.0
-const FORGE_BUY_WIDTH := 110.0
-const FORGE_START_WIDTH := 170.0
-const FORGE_ICON_SIZE := 28.0
+## Forge and trade rows (FS7a): padding in mockup px (vertical, horizontal; the buttons keep off the
+## row frame), gap between the cells and the icon size in px (16 px art at 2×, crisp), the smallest
+## widths of the value step and the buy button in px; the other cells take the width of the widest
+## cell of their column (_align_tables).
+const ROW_PADDING := Vector2(3, 5)
+const ROW_GAP := 10
+const ROW_ICON_SIZE := 32.0
+const ROW_STEP_MIN_WIDTH := 200.0
+const ROW_BUY_MIN_WIDTH := 110.0
 const FORGE_NOTICE_WIDTH := 880.0
+## FS7a text sizes in mockup px (UiKit.font_px): titles, names and currencies, body text (value
+## steps, effects, subtitles), small lines ("Leistbar", "Noch 28 Gold", hints).
+const TITLE_SIZE := UiKit.SIZE_HEADING
+const NAME_SIZE := UiKit.SIZE_KEY_HINT
+const BODY_SIZE := UiKit.SIZE_BODY
+const SMALL_SIZE := UiKit.SIZE_EYEBROW
+## Cells that line up across the rows of one table (meta on the cell / on the rows container).
+const COLUMN_META: StringName = &"village_column"
+const TABLE_META: StringName = &"village_table"
+const PixelArrows := preload("res://ui/menus/village/pixel_arrows.gd")
+const LevelPips := preload("res://ui/menus/village/level_pips.gd")
 ## Trading post icons (SPRITES_V13 §B7, art/ui/trading/, delivered): boost_<id>.png per Proviant,
 ## trade_slot/trade_luck/trade_merchant_friend.png per trade level.
 const TRADING_ICON_DIR := "res://art/ui/trading/"
@@ -136,6 +155,10 @@ var _body: VBoxContainer = null
 ## #d1a7f411: the scroll area around _body (null while no building dialog is open).
 var _body_scroll: ScrollContainer = null
 var _fit_queued := false
+## FS7a: the line above "Schließen", shown while the body scrolls.
+var _footer_line: Control = null
+## FS7a: the empty cell left of the title, as wide as the currencies right of it (title centred).
+var _header_balance: Control = null
 var _currencies: HBoxContainer = null
 var _notice_root: Control = null
 var _notice: Control = null
@@ -205,8 +228,7 @@ func open_forge() -> void:
 func _build_forge(body: VBoxContainer, refresh: Callable) -> void:
 	if not _forge_notice.is_empty():
 		body.add_child(_forge_notice_box(_forge_notice))
-	var rows := UiKit.vbox(CARD_GAP)
-	rows.name = "ForgeRows"
+	var rows := _table("ForgeRows")
 	body.add_child(rows)
 	for weapon in MetaProgression.WEAPON_ORDER:
 		rows.add_child(_weapon_row(weapon, refresh))
@@ -227,80 +249,94 @@ func _forge_notice_box(lines: Array[String]) -> Control:
 	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", CARD_PADDING.x, CARD_PADDING.y))
 	var box := UiKit.vbox(2)
 	card.add_child(box)
-	box.add_child(_centered(UiKit.label(Loc.t(&"FORGE_MIGRATION_TITLE"), 18, UiKit.ACCENT_COLOR)))
-	var text := UiKit.wrapped_label(" ".join(lines), FORGE_NOTICE_WIDTH, 14)
+	box.add_child(_centered(UiKit.text_label(Loc.t(&"FORGE_MIGRATION_TITLE"), NAME_SIZE, UiKit.ACCENT_COLOR, true)))
+	var text := UiKit.wrapped_label(" ".join(lines), FORGE_NOTICE_WIDTH, UiKit.font_px(SMALL_SIZE))
 	text.name = "ForgeMigrationText"
 	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(text)
 	return card
 
 
-## One weapon: icon, name with its level, the damage step with real values, "Leistbar"/"Noch N Gold",
+## One weapon: icon, name, level pips, the damage step with real values, "Leistbar"/"Noch N Gold",
 ## the "Waffe schmieden" button and the start cell (Arsenal entry or start choice).
 func _weapon_row(weapon: StringName, refresh: Callable) -> Control:
 	var id := MetaProgression.smith_id(weapon)
 	var row := _forge_row(id, load(WEAPON_ICON_PATH % weapon) as Texture2D, MetaProgression.get_weapon_name(weapon), refresh)
-	row.add_child(_start_cell(weapon, refresh))
+	row.add_child(_column(_start_cell(weapon, refresh), &"start"))
 	return row.get_parent()
 
 
+## Equipment has no start cell: an empty cell of the same column keeps the buttons in line.
 func _equipment_row(id: StringName, refresh: Callable) -> Control:
 	var row := _forge_row(id, _forge_icon(id), MetaProgression.get_upgrade_name(id), refresh)
 	var spacer := Control.new()
-	spacer.custom_minimum_size.x = FORGE_START_WIDTH
-	row.add_child(spacer)
+	spacer.name = "NoStartCell"
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(_column(spacer, &"start"))
 	return row.get_parent()
 
 
-## A dark (or, when affordable, gold) row with icon, name and level, value step, afford line and buy
-## button; returns the row's HBox (card = get_parent()). Buy_<id> sits next to its afford line, so
-## the line is found under button.get_parent() like on the cards.
+## A forge row (_level_row) with the value step, the afford line and the buy button; returns the
+## row's HBox (card = get_parent()). Buy_<id> sits next to its afford line, so the line is found
+## under button.get_parent() like on the cards.
 func _forge_row(id: StringName, icon: Texture2D, title: String, refresh: Callable) -> HBoxContainer:
-	var card := UiKit.panel(&"dark")
-	card.name = "Row_%s" % id
-	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", FORGE_ROW_PADDING.x, FORGE_ROW_PADDING.y))
-	var row := UiKit.hbox(10)
-	card.add_child(row)
 	var level := MetaProgression.get_level(id)
-	var max_level := MetaProgression.get_max_level(id)
-	if icon != null:
-		var image := UiKit.icon(icon, FORGE_ICON_SIZE)
-		image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		row.add_child(image)
-	var name_box := UiKit.vbox(0)
-	name_box.custom_minimum_size.x = FORGE_NAME_WIDTH
-	name_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	name_box.add_child(UiKit.label(title, 16, UiKit.ACCENT_COLOR))
-	var level_label := UiKit.label(Loc.t(&"VILLAGE_UI_LEVEL", [level, max_level]), 13, UiKit.MUTED_COLOR)
-	level_label.name = "LevelLabel"
-	name_box.add_child(level_label)
-	row.add_child(name_box)
 	# Real values instead of "+8 % je Stufe" (D-087): "Schaden 15 → 16,2".
-	var step := UiKit.label(MetaProgression.describe_level_step(id, level), 15, UiKit.ACCENT_COLOR)
-	step.name = "StepLabel"
-	step.custom_minimum_size.x = FORGE_STEP_WIDTH
-	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	step.tooltip_text = MetaProgression.get_upgrade_effect(id)
-	step.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(step)
+	var row := _level_row("Row_%s" % id, icon, title, level, MetaProgression.get_max_level(id),
+		MetaProgression.describe_level_step(id, level), MetaProgression.get_upgrade_effect(id))
 	var cost := MetaProgression.get_next_cost(id)
 	var buy := _card_button("Max." if cost < 0 else Loc.t(&"VILLAGE_UI_GOLD", [cost]), func() -> void:
 		if MetaProgression.try_buy(id):
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	buy.name = "Buy_%s" % id
-	buy.custom_minimum_size.x = FORGE_BUY_WIDTH
-	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy.disabled = not MetaProgression.can_buy(id)
 	var affordable := cost >= 0 and not buy.disabled
-	var line := _afford_label(card, buy, affordable, AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD")
-	line.custom_minimum_size.x = FORGE_AFFORD_WIDTH
+	_add_row_purchase(row, buy, _afford_label(row.get_parent() as PanelContainer, buy, affordable,
+		AffordableScript.gold_missing(id), &"VILLAGE_UI_MISSING_GOLD"))
+	return row
+
+
+## One line of a forge or trade table (FS7a): dark row (gold when affordable, _afford_label) with
+## icon, name, level pips and the value step "Schaden 15 → 16,2"; returns the HBox for the
+## purchase cells (_add_row_purchase) and the start cell.
+func _level_row(row_name: String, icon: Texture2D, title: String, level: int, max_level: int, step_text: String, step_tip: String) -> HBoxContainer:
+	var card := UiKit.panel(&"dark")
+	card.name = row_name
+	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", ROW_PADDING.x, ROW_PADDING.y))
+	var row := UiKit.hbox(ROW_GAP)
+	card.add_child(row)
+	if icon != null:
+		var image := UiKit.icon(icon, ROW_ICON_SIZE)
+		image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		row.add_child(image)
+	var name_label := UiKit.text_label(title, NAME_SIZE, UiKit.ACCENT_COLOR, true)
+	name_label.name = "NameLabel"
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(_column(name_label, &"name"))
+	row.add_child(_column(LevelPips.create(level, max_level), &"pips"))
+	var step := UiKit.text_label(step_text, BODY_SIZE, UiKit.COLOR_TEXT)
+	step.name = "StepLabel"
+	step.add_theme_font_override("font", PixelArrows.with_arrows(UiKit.get_font()))
+	step.custom_minimum_size.x = ROW_STEP_MIN_WIDTH
+	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	step.tooltip_text = step_tip
+	step.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.add_child(step)
+	return row
+
+
+## The afford line (right-aligned, next to the button) and the buy button of a row.
+func _add_row_purchase(row: HBoxContainer, buy: Button, line: Label) -> void:
+	buy.custom_minimum_size.x = ROW_BUY_MIN_WIDTH
+	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	# Row buttons with less padding (like the key bar's): one row stays one line of text high.
+	Modal.compact_buttons(buy)
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(line)
-	row.add_child(buy)
-	return row
+	row.add_child(_column(line, &"afford"))
+	row.add_child(_column(buy, &"buy"))
 
 
 ## The start cell of a weapon row: an unlocked weapon picks the start loadout (Start_<weapon>), a
@@ -312,7 +348,7 @@ func _start_cell(weapon: StringName, refresh: Callable) -> Control:
 				Sfx.play_ui(self, &"ui_click")
 			refresh.call())
 		pick.name = "Start_%s" % weapon
-		pick.custom_minimum_size.x = FORGE_START_WIDTH
+		Modal.compact_buttons(pick)
 		pick.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		pick.disabled = not _can_toggle_start_weapon(weapon)
 		pick.tooltip_text = Loc.t(&"FORGE_ARSENAL_UNLOCK_EFFECT", [MetaProgression.get_weapon_name(weapon)])
@@ -321,10 +357,10 @@ func _start_cell(weapon: StringName, refresh: Callable) -> Control:
 	if not MetaUnlocks.is_upgrade_open(id):
 		var locked := UiKit.hbox(4)
 		locked.name = "ArsenalLocked_%s" % weapon
-		locked.custom_minimum_size.x = FORGE_START_WIDTH
 		locked.alignment = BoxContainer.ALIGNMENT_CENTER
-		locked.add_child(UiKit.icon(LOCK_ICON, 18.0))
-		locked.add_child(UiKit.label(Loc.t(&"FORGE_ARSENAL_NAME"), 13, UiKit.MUTED_COLOR))
+		locked.mouse_filter = Control.MOUSE_FILTER_PASS
+		locked.add_child(UiKit.icon(LOCK_ICON, 24.0))
+		locked.add_child(UiKit.text_label(Loc.t(&"FORGE_ARSENAL_NAME"), SMALL_SIZE, UiKit.MUTED_COLOR))
 		locked.tooltip_text = MetaUnlocks.get_lock_text(MetaUnlocks.get_upgrade_event(id))
 		return locked
 	var cost := MetaProgression.get_next_cost(id)
@@ -333,7 +369,7 @@ func _start_cell(weapon: StringName, refresh: Callable) -> Control:
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	unlock.name = "Buy_%s" % id
-	unlock.custom_minimum_size.x = FORGE_START_WIDTH
+	Modal.compact_buttons(unlock)
 	unlock.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	unlock.disabled = not MetaProgression.can_buy(id)
 	unlock.tooltip_text = MetaProgression.get_upgrade_effect(id)
@@ -411,16 +447,16 @@ func _afford_label(card: PanelContainer, button: Button, affordable: bool, missi
 	var line: Label = null
 	if affordable:
 		if card != null:
-			var padding := FORGE_ROW_PADDING if card.name.begins_with("Row_") else CARD_PADDING
+			var padding := ROW_PADDING if card.name.begins_with("Row_") else CARD_PADDING
 			card.add_theme_stylebox_override("panel", UiKit.padded_style(&"gold", padding.x, padding.y))
-		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15, AFFORDABLE_COLOR)
+		line = UiKit.text_label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), SMALL_SIZE, AFFORDABLE_COLOR)
 		line.name = "AffordableTag"
 		button.add_theme_color_override("font_color", AFFORDABLE_COLOR)
 	elif missing > 0:
-		line = UiKit.label(_amount_text(missing_key, missing), 15, MISSING_COLOR)
+		line = UiKit.text_label(_amount_text(missing_key, missing), SMALL_SIZE, MISSING_COLOR)
 		line.name = "MissingLabel"
 	else:
-		line = UiKit.label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), 15)
+		line = UiKit.text_label(Loc.t(&"VILLAGE_UI_AFFORDABLE"), SMALL_SIZE)
 		line.name = "AffordSpacer"
 		line.modulate.a = 0.0
 	return line
@@ -451,12 +487,11 @@ func _build_trader(body: VBoxContainer, refresh: Callable) -> void:
 	for id in MetaProgression.BOOST_ORDER:
 		grid.add_child(_provision_card(id, refresh))
 	body.add_child(_section_title(Loc.t(&"VILLAGE_UI_TRADE_LEVELS")))
-	var rows := UiKit.vbox(CARD_GAP)
-	rows.name = "TradeRows"
+	var rows := _table("TradeRows")
 	body.add_child(rows)
 	for id in MetaProgression.TRADE_ORDER:
 		rows.add_child(_trade_row(id, refresh))
-	body.add_child(_centered(UiKit.label(Loc.t(&"VILLAGE_TRADER_HINT_2"), 14, UiKit.MUTED_COLOR)))
+	body.add_child(_centered(UiKit.text_label(Loc.t(&"VILLAGE_TRADER_HINT_2"), SMALL_SIZE, UiKit.MUTED_COLOR)))
 
 
 ## "Eingepackt: 1 von 2 Plätzen" with the slot icon.
@@ -464,9 +499,10 @@ func _provision_slots_line() -> Control:
 	var row := UiKit.hbox(6)
 	row.name = "ProvisionSlots"
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(UiKit.icon(_trading_icon(TRADE_ICON_FILES[MetaProgression.TRADE_PROVISION_SLOT]), 20.0))
-	var text := UiKit.label(Loc.t(&"VILLAGE_UI_PROVISION_SLOTS",
-		[MetaProgression.get_packed_boosts().size(), MetaProgression.get_provision_slots()]), 15, UiKit.MUTED_COLOR)
+	row.add_child(UiKit.icon(_trading_icon(TRADE_ICON_FILES[MetaProgression.TRADE_PROVISION_SLOT]), 32.0))
+	var text := UiKit.text_label(Loc.t(&"VILLAGE_UI_PROVISION_SLOTS",
+		[MetaProgression.get_packed_boosts().size(), MetaProgression.get_provision_slots()]), BODY_SIZE, UiKit.MUTED_COLOR)
+	text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	text.name = "ProvisionSlotsLabel"
 	row.add_child(text)
 	return row
@@ -483,9 +519,10 @@ func _provision_card(id: StringName, refresh: Callable) -> Control:
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	button.name = "Boost_%s" % id
+	Modal.compact_buttons(button)
 	button.disabled = not MetaProgression.can_buy_boost(id)
 	if not pending and not MetaProgression.has_free_provision_slot():
-		var full := UiKit.label(Loc.t(&"VILLAGE_UI_SLOTS_FULL"), 15, MISSING_COLOR)
+		var full := UiKit.text_label(Loc.t(&"VILLAGE_UI_SLOTS_FULL"), SMALL_SIZE, MISSING_COLOR)
 		full.name = "SlotsFullLabel"
 		full.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		box.add_child(full)
@@ -497,52 +534,23 @@ func _provision_card(id: StringName, refresh: Callable) -> Control:
 	return box.get_parent()
 
 
-## One trade level as a row like the forge's: icon, name and level, the step with real values, the
-## afford line and the buy button (BuyTrade_<id>).
+## One trade level as a row like the forge's (_level_row): icon, name, level pips, the step with
+## real values, the afford line and the buy button (BuyTrade_<id>).
 func _trade_row(id: StringName, refresh: Callable) -> Control:
-	var card := UiKit.panel(&"dark")
-	card.name = "Row_trade_%s" % id
-	card.add_theme_stylebox_override("panel", UiKit.padded_style(&"dark", FORGE_ROW_PADDING.x, FORGE_ROW_PADDING.y))
-	var row := UiKit.hbox(10)
-	card.add_child(row)
-	var image := UiKit.icon(_trading_icon(TRADE_ICON_FILES[id]), FORGE_ICON_SIZE)
-	image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(image)
-	var name_box := UiKit.vbox(0)
-	name_box.custom_minimum_size.x = FORGE_NAME_WIDTH
-	name_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	name_box.add_child(UiKit.label(MetaProgression.get_trade_name(id), 16, UiKit.ACCENT_COLOR))
-	var level_label := UiKit.label(Loc.t(&"VILLAGE_UI_LEVEL",
-		[MetaProgression.get_trade_level(id), MetaProgression.get_trade_max_level(id)]), 13, UiKit.MUTED_COLOR)
-	level_label.name = "LevelLabel"
-	name_box.add_child(level_label)
-	row.add_child(name_box)
-	var step := UiKit.label(MetaProgression.describe_next_trade_level(id), 15, UiKit.ACCENT_COLOR)
-	step.name = "StepLabel"
-	step.custom_minimum_size.x = FORGE_STEP_WIDTH
-	step.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	step.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	step.tooltip_text = MetaProgression.get_trade_effect(id)
-	step.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.add_child(step)
+	var row := _level_row("Row_trade_%s" % id, _trading_icon(TRADE_ICON_FILES[id]), MetaProgression.get_trade_name(id),
+		MetaProgression.get_trade_level(id), MetaProgression.get_trade_max_level(id),
+		MetaProgression.describe_next_trade_level(id), MetaProgression.get_trade_effect(id))
 	var cost := MetaProgression.get_trade_next_cost(id)
 	var buy := _card_button("Max." if cost < 0 else _crystal_price_text(cost), func() -> void:
 		if MetaProgression.try_buy_trade(id):
 			Sfx.play_ui(self, &"coin")
 		refresh.call())
 	buy.name = "BuyTrade_%s" % id
-	buy.custom_minimum_size.x = FORGE_BUY_WIDTH
-	buy.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	buy.disabled = not MetaProgression.can_buy_trade(id)
 	var missing := MetaProgression.trade_crystals_missing(id)
-	var line := _afford_label(card, buy, cost >= 0 and not buy.disabled, missing,
-		&"VILLAGE_UI_MISSING_CRYSTAL" if missing == 1 else &"VILLAGE_UI_MISSING_CRYSTALS")
-	line.custom_minimum_size.x = FORGE_AFFORD_WIDTH
-	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	line.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	row.add_child(line)
-	row.add_child(buy)
-	return card
+	_add_row_purchase(row, buy, _afford_label(row.get_parent() as PanelContainer, buy, cost >= 0 and not buy.disabled, missing,
+		&"VILLAGE_UI_MISSING_CRYSTAL" if missing == 1 else &"VILLAGE_UI_MISSING_CRYSTALS"))
+	return row.get_parent()
 
 
 static func _crystal_price_text(price: int) -> String:
@@ -566,12 +574,12 @@ func _build_chronicle(body: VBoxContainer, _refresh: Callable) -> void:
 	grid.add_theme_constant_override("h_separation", 40)
 	grid.add_theme_constant_override("v_separation", 6)
 	for row in STAT_ROWS:
-		grid.add_child(UiKit.label(Loc.t(row[1]), 17))
-		var value := UiKit.label(str(int(SaveManager.get_stat(row[0]))), 17, UiKit.ACCENT_COLOR)
+		grid.add_child(UiKit.text_label(Loc.t(row[1]), BODY_SIZE))
+		var value := UiKit.text_label(str(int(SaveManager.get_stat(row[0]))), BODY_SIZE, UiKit.ACCENT_COLOR, true)
 		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		grid.add_child(value)
-	grid.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_STAT_PLAY_TIME"), 17))
-	var time := UiKit.label(StatsTracker.format_play_time(float(SaveManager.get_stat(StatsTracker.PLAY_TIME))), 17, UiKit.ACCENT_COLOR)
+	grid.add_child(UiKit.text_label(Loc.t(&"VILLAGE_UI_STAT_PLAY_TIME"), BODY_SIZE))
+	var time := UiKit.text_label(StatsTracker.format_play_time(float(SaveManager.get_stat(StatsTracker.PLAY_TIME))), BODY_SIZE, UiKit.ACCENT_COLOR, true)
 	time.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	grid.add_child(time)
 	var frame := UiKit.panel(&"dark")
@@ -667,7 +675,7 @@ func open_mirror() -> void:
 	modal.name = "MirrorModal"
 	_open_modal = modal
 	modal.content.add_child(_title(Loc.t(&"MIRROR_TITLE")))
-	var subtitle := _centered(UiKit.label(Loc.t(&"MIRROR_SUBTITLE"), 16, UiKit.MUTED_COLOR))
+	var subtitle := _centered(UiKit.text_label(Loc.t(&"MIRROR_SUBTITLE"), BODY_SIZE, UiKit.MUTED_COLOR))
 	subtitle.name = "Subtitle"
 	modal.content.add_child(subtitle)
 	var editor := _profile_editor()
@@ -850,7 +858,7 @@ func _lock_row(text: String) -> Control:
 	var row := UiKit.hbox(8)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(UiKit.icon(LOCK_ICON, 24.0))
-	row.add_child(UiKit.label(text, 15, UiKit.MUTED_COLOR))
+	row.add_child(UiKit.text_label(text, SMALL_SIZE, UiKit.MUTED_COLOR))
 	return row
 
 
@@ -881,24 +889,17 @@ func _show_building(building_id: StringName, build: Callable) -> void:
 	modal.name = "BuildingModal"
 	_open_modal = modal
 	_build = build
-	modal.content.add_child(_title_row(building_id))
-	var subtitle := _centered(UiKit.label(VillageBuildings.get_role(building_id), 16, UiKit.MUTED_COLOR))
+	modal.content.add_child(_header(building_id))
+	var subtitle := _centered(UiKit.text_label(VillageBuildings.get_role(building_id), BODY_SIZE, UiKit.MUTED_COLOR))
 	subtitle.name = "Subtitle"
 	modal.content.add_child(subtitle)
-	_currencies = UiKit.hbox(8)
-	_currencies.alignment = BoxContainer.ALIGNMENT_CENTER
-	modal.content.add_child(_currencies)
 	_body = UiKit.vbox(10)
 	_body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_body_scroll = _make_body_scroll()
 	_body_scroll.add_child(_body)
 	modal.content.add_child(_body_scroll)
 	_body.minimum_size_changed.connect(_queue_fit_body)
-	var close := _button(Loc.t(&"MENU_CLOSE"), modal.finish)
-	close.name = "CloseButton"
-	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	make_focusable(close)
-	modal.content.add_child(close)
+	modal.content.add_child(_footer(modal))
 	_rebuild()
 	# Guild and home set their own key handler (online menu, profile editor) while building.
 	if not modal.input_handler.is_valid():
@@ -916,6 +917,97 @@ func _show_building(building_id: StringName, build: Callable) -> void:
 	_body = null
 	_body_scroll = null
 	_currencies = null
+	_footer_line = null
+	_header_balance = null
+
+
+## FS7a head: building name with the info button in the middle, the currencies on the right (an
+## empty cell as wide on the left keeps the name centred, _balance_header). Named Header, so on
+## touch screens the Modal keeps its ends free for the X.
+func _header(building_id: StringName) -> HBoxContainer:
+	var header := UiKit.hbox(8)
+	header.name = "Header"
+	_header_balance = Control.new()
+	_header_balance.name = "HeaderBalance"
+	_header_balance.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_header_balance.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_header_balance)
+	header.add_child(_title_row(building_id))
+	_currencies = UiKit.hbox(8)
+	_currencies.name = "Currencies"
+	_currencies.alignment = BoxContainer.ALIGNMENT_END
+	_currencies.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header.add_child(_currencies)
+	return header
+
+
+## FS7a foot, outside the scrolling body: a line (only while the body scrolls) and "Schließen".
+func _footer(modal: Modal) -> VBoxContainer:
+	var footer := UiKit.vbox(int(UiKit.px(Modal.CONTENT_GAP)))
+	footer.name = "Footer"
+	_footer_line = UiKit.separator()
+	_footer_line.name = "FooterLine"
+	# Shown by alpha, not visibility: the dialog keeps its height when the body starts to scroll.
+	_footer_line.modulate.a = 0.0
+	footer.add_child(_footer_line)
+	var close := _button(Loc.t(&"MENU_CLOSE"), modal.finish)
+	close.name = "CloseButton"
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	make_focusable(close)
+	footer.add_child(close)
+	return footer
+
+
+## The empty cell left of the title takes the width of the currencies (needs the theme: in the tree).
+func _balance_header() -> void:
+	if _header_balance == null or not is_instance_valid(_header_balance) or not is_instance_valid(_currencies):
+		return
+	var width := _currencies.get_combined_minimum_size().x
+	if not is_equal_approx(_header_balance.custom_minimum_size.x, width):
+		_header_balance.custom_minimum_size.x = width
+
+
+# --- Tables: forge and trade rows line up (FS7a, #e0d2989d) ---
+
+## Rows container of a table (forge, trade levels); _align_tables lines its columns up.
+func _table(table_name: String) -> VBoxContainer:
+	var rows := UiKit.vbox(CARD_GAP)
+	rows.name = table_name
+	rows.set_meta(TABLE_META, true)
+	return rows
+
+
+## Marks control as a cell of column key (name, pips, afford, buy, start).
+static func _column(control: Control, key: StringName) -> Control:
+	control.set_meta(COLUMN_META, key)
+	return control
+
+
+## Every tagged cell of a table gets the width of the widest cell of its column, so names, pips,
+## "Leistbar", prices and the start cells stand one under the other whatever the language or price.
+## Needs the dialog in the tree (label sizes come from the theme); fit_body calls it.
+func align_tables() -> void:
+	if _body == null or not is_instance_valid(_body) or not _body.is_inside_tree():
+		return
+	for node in _body.find_children("*", "VBoxContainer", true, false):
+		if node.has_meta(TABLE_META):
+			_align_columns(node as Control)
+
+
+static func _align_columns(table: Control) -> void:
+	var widest := {}
+	var cells: Array[Control] = []
+	for node in table.find_children("*", "Control", true, false):
+		var cell := node as Control
+		if not cell.has_meta(COLUMN_META):
+			continue
+		cells.append(cell)
+		var key: StringName = cell.get_meta(COLUMN_META)
+		widest[key] = maxf(float(widest.get(key, 0.0)), cell.get_combined_minimum_size().x)
+	for cell in cells:
+		var width: float = widest[cell.get_meta(COLUMN_META)]
+		if not is_equal_approx(cell.custom_minimum_size.x, width):
+			cell.custom_minimum_size.x = width
 
 
 # --- Scrolling body, "Schließen" always visible (#d1a7f411) ---
@@ -946,20 +1038,23 @@ func fit_body() -> void:
 	if _body_scroll == null or not is_instance_valid(_body_scroll) or _open_modal == null \
 			or not is_instance_valid(_open_modal) or not _open_modal.is_inside_tree():
 		return
+	align_tables()
+	_balance_header()
 	var need := _body.get_combined_minimum_size()
 	var room := maxf(UiKit.px(BODY_MIN_HEIGHT), body_room())
 	var scrolls := need.y > room + 0.5
 	_body_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO if scrolls else ScrollContainer.SCROLL_MODE_DISABLED
 	var bar := UiKit.px(BODY_SCROLL_BAR) if scrolls else 0.0
 	_body_scroll.custom_minimum_size = Vector2(need.x + bar, minf(need.y, room))
+	if _footer_line != null and is_instance_valid(_footer_line):
+		_footer_line.modulate.a = 1.0 if scrolls else 0.0
 
 
-## Height (layout px) the body may take in the open dialog: the screen (safe area at the menu zoom)
-## minus everything else in the panel.
+## Height (layout px) the body may take in the open dialog: the tallest panel the Modal can show
+## without scrolling itself (screen, safe area, X on touch screens, its zoom) minus everything else
+## in the panel.
 func body_room() -> float:
-	var viewport := _open_modal.get_viewport()
-	var screen := MobileUiScript.safe_rect(viewport).size.y - 2.0 * MobileUiScript.touch_margin(viewport)
-	screen /= maxf(MobileUiScript.menu_zoom(viewport), 0.01)
+	var screen := _open_modal.max_panel_height()
 	var style := _open_modal.frame.get_theme_stylebox(&"panel")
 	var padding := style.get_minimum_size().y if style != null else 0.0
 	var others := _open_modal.content.get_combined_minimum_size().y - _body_scroll.get_combined_minimum_size().y
@@ -1023,9 +1118,10 @@ func _rebuild() -> void:
 		for child in row.get_children():
 			row.remove_child(child)
 			child.queue_free()
-	_fill_currencies(_currencies)
-	# Gold and crystals do not count online (D-081): the guild dialog shows none.
-	_currencies.visible = _build != _build_guild
+	# Gold and crystals do not count online (D-081): the guild dialog shows none (the empty cell
+	# stays, so the title stays centred).
+	if _build != _build_guild:
+		_fill_currencies(_currencies)
 	_build.call(_body, _request_refresh)
 	# While the dialog is open it never shrinks after a purchase (#bf9c698d): the body keeps the
 	# largest size of this visit (a new body per visit, so the next one starts fresh).
@@ -1033,6 +1129,9 @@ func _rebuild() -> void:
 	if _build != _build_guild:
 		for node in _body.find_children("*", "Button", true, false):
 			make_focusable(node as Button)
+	align_tables()
+	if _currencies.is_inside_tree():
+		_balance_header()
 	if focused_name != &"":
 		var again := _body.find_child(String(focused_name), true, false) as Control
 		if again != null and again.is_inside_tree():
@@ -1102,14 +1201,26 @@ func _on_dialog_key(event: InputEvent) -> bool:
 	return false
 
 
+## Gold and crystals as icon and number like the HUD (FS7a: short, so the title stays in the
+## middle); the tooltip names them.
 func _fill_currencies(row: HBoxContainer) -> void:
+	var gold_amount := SaveManager.get_permanent_gold()
+	var crystal_amount := SaveManager.get_permanent_crystals()
+	row.mouse_filter = Control.MOUSE_FILTER_PASS
+	row.tooltip_text = "%d Gold · %s" % [gold_amount, Loc.t(&"VILLAGE_UI_CRYSTALS", [crystal_amount])]
 	row.add_child(UiKit.icon(GOLD_ICON, 24.0))
-	row.add_child(UiKit.label("%d Gold" % SaveManager.get_permanent_gold(), 20, UiKit.ACCENT_COLOR))
+	var gold := UiKit.text_label(str(gold_amount), NAME_SIZE, UiKit.ACCENT_COLOR, true)
+	gold.name = "GoldLabel"
+	gold.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(gold)
 	var spacer := Control.new()
-	spacer.custom_minimum_size = Vector2(24, 0)
+	spacer.custom_minimum_size = Vector2(16, 0)
 	row.add_child(spacer)
 	row.add_child(UiKit.icon(CRYSTAL_ICON, 24.0))
-	row.add_child(UiKit.label(Loc.t(&"VILLAGE_UI_CRYSTALS", [SaveManager.get_permanent_crystals()]), 20, Color(0.7, 0.85, 1.0)))
+	var crystals := UiKit.text_label(str(crystal_amount), NAME_SIZE, UiKit.COLOR_CRYSTAL, true)
+	crystals.name = "CrystalLabel"
+	crystals.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(crystals)
 
 
 ## A dialog button like the online menu's (UiKit.dialog_button: bold, the dialog size), BUTTON_WIDTH
@@ -1137,9 +1248,11 @@ func _card(icon: Texture2D, title: String, effect: String) -> VBoxContainer:
 	var header := UiKit.hbox(10)
 	if icon != null:
 		header.add_child(UiKit.icon(icon, 32.0))
-	header.add_child(UiKit.label(title, 18, UiKit.ACCENT_COLOR))
+	var name_label := UiKit.text_label(title, NAME_SIZE, UiKit.ACCENT_COLOR, true)
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	header.add_child(name_label)
 	box.add_child(header)
-	var text := UiKit.wrapped_label(effect, CARD_WIDTH - 40.0, 14)
+	var text := UiKit.wrapped_label(effect, CARD_WIDTH - 40.0, UiKit.font_px(SMALL_SIZE), UiKit.COLOR_TEXT_SOFT)
 	text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(text)
 	return box
@@ -1154,15 +1267,11 @@ func _grid(columns: int) -> GridContainer:
 
 
 func _title(text: String) -> Label:
-	var title := UiKit.label(text, 28, UiKit.ACCENT_COLOR)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return title
+	return UiKit.title(text, TITLE_SIZE)
 
 
 func _section_title(text: String) -> Label:
-	var title := UiKit.label(text, 20, UiKit.ACCENT_COLOR)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	return title
+	return UiKit.title(text, NAME_SIZE)
 
 
 func _centered(label: Label) -> Label:

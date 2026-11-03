@@ -58,6 +58,10 @@ const LADDER_SHARE_UNTIL_TAKEN := 1.0
 const SIDE_REASONS := ["NONE", "BIOME_CHANGE", "LADDER_WAY", "AFTER_REST", "SHARE"]
 ## Longest wait for one segment (fades, banner and the way itself), seconds.
 const SIDE_TIMEOUT := 75.0
+## FS7c: the autopilot counts as hanging when its feet moved less than this (px) for SIDE_STALL_SECONDS;
+## then one diagnosis line is printed (input locks, dialog, feet, door), again every SIDE_STALL_SECONDS.
+const SIDE_STALL_PX := 8.0
+const SIDE_STALL_SECONDS := 8.0
 ## WK10: the practice run and the longest the bot may take for it (s).
 const TUTORIAL_PATH := "res://dungeon/tutorial/tutorial_run.gd"
 const TUTORIAL_TIMEOUT := 150.0
@@ -746,6 +750,7 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 			break
 	_check(transit != null and transit.segment != null, "%s: walking into the gate starts the side segment" % label)
 	if transit == null or transit.segment == null:
+		_print_side_diagnosis(label, "gate", player, null, transit, null, 300)
 		return
 	var segment: Node = transit.segment
 	_check(player.is_side_view(), "%s: the player is in side view" % label)
@@ -763,6 +768,9 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 	var limit := int(maxf(SIDE_TIMEOUT, max_seconds + 30.0) * Engine.physics_ticks_per_second)
 	var falls := 0
 	var segment_frames := -1
+	var stall_feet: Vector2 = player.get_feet_position()
+	var stall_frames := 0
+	var stall_limit := int(SIDE_STALL_SECONDS * Engine.physics_ticks_per_second)
 	while is_instance_valid(transit) and frames < limit:
 		await _frames(1)
 		frames += 1
@@ -770,6 +778,18 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 			falls = player.side_motion.pit_falls
 			if segment.is_finished and segment_frames < 0:
 				segment_frames = frames
+		# FS7c: say why the autopilot hangs (FS7b: crypt_run_springs mirrored hung once, 51 follow-up
+		# failures without a hint).
+		var feet: Vector2 = player.get_feet_position()
+		if feet.distance_to(stall_feet) > SIDE_STALL_PX or segment_frames >= 0:
+			stall_feet = feet
+			stall_frames = 0
+		else:
+			stall_frames += 1
+			if stall_frames % stall_limit == 0:
+				_print_side_diagnosis(label, "stall", player, segment, transit, bot, frames)
+	if is_instance_valid(transit):
+		_print_side_diagnosis(label, "timeout", player, segment, transit, bot, frames)
 	bot = null
 	var seconds := segment_frames / float(Engine.physics_ticks_per_second)
 	_check(segment_frames >= 0, "%s: the autopilot reached the door (%.1f s)" % [label, frames / float(Engine.physics_ticks_per_second)])
@@ -785,6 +805,34 @@ func _play_side_way(index: int, room: Node, player: Node) -> void:
 	_side_seconds += maxf(0.0, seconds)
 	_segments_played.append("%s %s %s %.1f s, gold +%d, %d pit falls" % [label, reason, layout.plan_id, seconds, run_manager.get_run_gold() - gold_before, falls])
 	_entered_by_segment = next.room_index
+
+
+## FS7c: one line on why the autopilot hangs in a side segment (where: "gate" = the segment did not
+## start, "stall" = the feet stood still for SIDE_STALL_SECONDS, "timeout" = the time limit ran out):
+## the player's input locks, an open dialog, the tree pause and time scale, the feet and their floor,
+## the bot's cell and target, the door and whether the segment or the transit still run. Read-only.
+func _print_side_diagnosis(label: String, where: String, player: Node, segment: Node, transit: Node, bot: Object, frames: int) -> void:
+	var parts: Array[String] = ["%.1f s" % (frames / float(Engine.physics_ticks_per_second))]
+	var locks: Variant = player.get(&"_input_locks")
+	parts.append("locks [%s]" % (", ".join((locks as Dictionary).keys()) if locks is Dictionary else "?"))
+	var modal := _find_modal(root)
+	parts.append("dialog %s" % (modal.name if modal != null else "-"))
+	parts.append("paused %s time_scale %.2f" % [paused, Engine.time_scale])
+	var feet: Vector2 = player.get_feet_position()
+	parts.append("feet (%.0f, %.0f) side_view %s" % [feet.x, feet.y, player.is_side_view()])
+	var motion: Object = player.get(&"side_motion")
+	if motion != null:
+		parts.append("on_floor %s climbing %s velocity (%.0f, %.0f) pit_falls %d input %s" % [motion.get(&"_on_floor"), motion.get(&"_climbing"), player.velocity.x, player.velocity.y, motion.get(&"pit_falls"), (motion.get(&"input_source") as Callable).is_valid() if motion.get(&"input_source") is Callable else false])
+	if bot != null:
+		parts.append("bot cell %s target %s stuck %.1f s replans %s" % [bot.get(&"_current"), bot.get(&"_target"), float(bot.get(&"_stuck_time")), bot.get(&"replans")])
+	if segment != null and is_instance_valid(segment):
+		var door: Vector2 = segment.get_door_feet()
+		parts.append("door (%.0f, %.0f) %.0f px away, at door %s, waits %s, finished %s" % [door.x, door.y, feet.distance_to(door), segment.is_at_door(player), segment.get(&"door_waits"), segment.is_finished])
+	if transit != null and is_instance_valid(transit):
+		parts.append("transit running %s" % transit.get(&"is_running"))
+	else:
+		parts.append("transit gone")
+	print("SIDE DIAGNOSIS %s (%s): %s" % [label, where, "; ".join(parts)])
 
 
 ## Room kind rules (D-100): rooms 1-5 normal, no chasm twice in a row, fallback to a normal room

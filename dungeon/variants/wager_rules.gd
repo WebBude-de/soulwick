@@ -13,9 +13,9 @@ const TIME_LIMIT := 30.0  # TESTWERT
 ## Light circle of CURSE_GLOOM, enemy speed of CURSE_HASTE (KONZEPT §5).
 const GLOOM_VISION_FACTOR := 0.6  # TESTWERT
 const HASTE_SPEED_FACTOR := 1.15  # TESTWERT
-## Soul crystals on success per condition (D-109: 1-2). TESTWERTE
+## Soul crystals on success per condition (D-109, D-221: 1 each). TESTWERTE
 const REWARD_CRYSTALS := {
-	Condition.NO_HIT: 2,
+	Condition.NO_HIT: 1,
 	Condition.UNDER_TIME: 1,
 	Condition.SECONDARY_ONLY: 1,
 	Condition.CURSE_GLOOM: 1,

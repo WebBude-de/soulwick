@@ -11,8 +11,14 @@ extends RoomMode
 ##   End:    caught (killed) = his loot: lots of gold, sometimes a bonus chest with an upgrade.
 ##           Escaped = he is gone without loot; the rest of the room as usual.
 ## Co-op: everyone hunts the same crowned one (the nearest player decides nothing special).
+## Intro (feedback #5d3cb8f7, "instant gefangen"): players may walk during the goal banner and the
+## 3-2-1, so he watches then too (HuntRules.watches_in_intro); a player in sight wakes him and he
+## flees at once, invulnerable until the fight starts (INTRO_SHIELD). The host decides (BountyFlight
+## runs there), a client's room only follows (remote_encounter).
 
 const HOLE_Z := -1
+## Hurtbox reason of a crowned one woken during the intro (until the fight starts).
+const INTRO_SHIELD := &"hunt_intro"
 
 var crowned: Enemy = null
 var flight: BountyFlight = null
@@ -23,6 +29,10 @@ var _caught_at := Vector2.ZERO
 var _loot_upgrade := false
 ## Zigzag spots, taken at attach before the guards stand on them (they walk off once the fight runs).
 var _evade_tiles: Array[Vector2i] = []
+## He saw a player during the intro and flees already (wake_in_intro).
+var _woke_in_intro := false
+## His "spotted" banner waits for the end of the countdown (no banner over the 3-2-1).
+var _spotted_banner_waits := false
 
 
 func can_host() -> bool:
@@ -96,10 +106,63 @@ func _on_fight_started() -> void:
 			# Without the first-wave hook he joins the room's own wave here.
 			_wake(crowned)
 			track_enemy(crowned)
+		elif _woke_in_intro:
+			crowned.hurtbox.set_invulnerable(INTRO_SHIELD, false)
+			if not _first_wave_given:
+				track_enemy(crowned)
 		flight.evade_points = _evade_points()
 		flight.watching = true
+		if _spotted_banner_waits:
+			_spotted_banner_waits = false
+			_show_spotted_banner()
 	else:
 		set_bonus(false)
+
+
+func _physics_process(delta: float) -> void:
+	super(delta)
+	if not _started and _watches_now() and _player_in_sight():
+		wake_in_intro()
+
+
+## Is the room intro in a phase where he watches (host only, before the fight, still frozen)?
+func _watches_now() -> bool:
+	if _woke_in_intro or crowned == null or not is_instance_valid(crowned) or crowned.is_dead() or not crowned.is_in_intro():
+		return false
+	if room == null or room.remote_encounter or flight == null:
+		return false
+	var intro := RoomIntro.get_intro(room)
+	return intro != null and HuntRules.watches_in_intro(intro.phase)
+
+
+## A living player within his sight (HuntRules.sees; the intro does not blind him).
+func _player_in_sight() -> bool:
+	if not crowned.is_inside_tree():
+		return false
+	var navigation := crowned.get_navigation()
+	for node in EnemyTargeting.living_players(crowned.get_tree()):
+		var distance := crowned.global_position.distance_to(node.global_position)
+		var free_line := navigation == null or navigation.has_free_shot(crowned.global_position, node.global_position)
+		if HuntRules.sees(distance, free_line):
+			return true
+	return false
+
+
+## Decision (host): he saw a player during the intro and flees now, invulnerable until the fight
+## starts. Public for tests.
+func wake_in_intro() -> bool:
+	if _woke_in_intro or _started or crowned == null or not is_instance_valid(crowned) or crowned.is_dead():
+		return false
+	_woke_in_intro = true
+	crowned.end_intro()
+	crowned.hurtbox.set_invulnerable(INTRO_SHIELD, true)
+	flight.evade_points = _evade_points()
+	flight.watching = true
+	return flight.spot()
+
+
+func is_woken_in_intro() -> bool:
+	return _woke_in_intro
 
 
 func _step(_delta: float) -> void:
@@ -134,9 +197,16 @@ func _on_spotted(_flight: BountyFlight) -> void:
 		var local := RoomTiles.tile_center(tile) if tile != VariantSpots.INVALID else room.to_local(crowned.global_position)
 		_build_hole(local)
 	flight.hole_position = room.to_global(_hole.position - Vector2(0, 8))
-	show_banner(DungeonTexts.t(&"MODE_HUNT_SPOTTED"), DungeonTexts.t(&"MODE_HUNT_SPOTTED_SUB", [roundi(HuntRules.CATCH_TIME)]), RoomObjective.get_mode_ui_color(RoomObjective.HUNT))
+	if _started:
+		_show_spotted_banner()
+	else:
+		_spotted_banner_waits = true
 	if is_inside_tree():
 		Sfx.play_at(self, &"bounty_hole", flight.hole_position, -6.0)
+
+
+func _show_spotted_banner() -> void:
+	show_banner(DungeonTexts.t(&"MODE_HUNT_SPOTTED"), DungeonTexts.t(&"MODE_HUNT_SPOTTED_SUB", [roundi(HuntRules.CATCH_TIME)]), RoomObjective.get_mode_ui_color(RoomObjective.HUNT))
 
 
 ## Escaped: the enemy leaves the room without a death (no gold, no kill) - the room counts it as

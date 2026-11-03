@@ -31,8 +31,10 @@ static func depth_crystals(base: int, room_index: int) -> int:
 		return 0
 	return floori(base * (1.0 + DEPTH_BONUS_PER_BLOCK * EnemyScaling.get_block(room_index)) + 0.5 + 1e-6)
 ## TESTWERT (D-118: 5 -> 9, keeps the champion's gold with gold_drop_factor 0.4; P1-5: 9 -> 12, the
-## champion in room 5 comes right before a typical first death and makes the first forge buy reachable).
-@export var miniboss_gold_multiplier := 12.0
+## champion in room 5 comes right before a typical first death and makes the first forge buy reachable;
+## KE9/D-221: 12 -> 24, champions pay gold instead of a crystal, a run to the gate in room 14 brings
+## about 100-150 gold as KONZEPT §5.4 asks, a whole run about +15-25 % gold).
+@export var miniboss_gold_multiplier := 24.0
 ## TESTWERT (D-091): flat factor on every enemy drop (playtest: 944 gold at room 43 was too much).
 ## D-118: 0.7 -> 0.4, about 1.75x as many enemies per room since then.
 @export var gold_drop_factor := 0.4

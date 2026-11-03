@@ -490,14 +490,20 @@ func _start_swing(weapon: WeaponData, radius: float, angle_degrees: float, damag
 		_swing_effect.visible = false
 		return
 
-	var radius_scale := radius / SWING_ART_RADIUS
-	var arc_scale := angle_degrees / SWING_ART_ANGLE
-	_swing_effect.scale = Vector2(radius_scale, radius_scale * arc_scale)
+	_swing_effect.scale = swing_art_scale(radius, angle_degrees)
 	_swing_effect.flip_v = aim_direction.x < 0.0
 	_swing_effect.modulate = weapon.effect_color
 	_swing_effect.visible = true
 	_swing_effect.frame = 0
 	_swing_effect.play(&"default")
+
+
+## Scale of the swing art for a swing of radius (px) over angle_degrees: reach and width of the
+## crescent each rounded to a whole number (D-218, FS2c: the art's pixels stay whole and even). Only
+## the picture; the hit polygon keeps the exact radius and angle.
+static func swing_art_scale(radius: float, angle_degrees: float) -> Vector2:
+	var reach := radius / SWING_ART_RADIUS
+	return Vector2(PixelDraw.whole_scale(reach), PixelDraw.whole_scale(reach * angle_degrees / SWING_ART_ANGLE))
 
 
 ## Hammer: wind-up, then one primary area hit in front of the player (one hit ID, D-020).

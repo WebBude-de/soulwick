@@ -110,6 +110,18 @@ func start_fall() -> bool:
 	return true
 
 
+## Ends a running fall where the player is, without landing or damage (the world switched to the
+## side view meanwhile, which has its own pits).
+func cancel() -> void:
+	if state != State.FALLING:
+		return
+	state = State.GROUNDED
+	_over_pit_time = 0.0
+	_show_fall(false)
+	_player.hurtbox.set_invulnerable(INVULNERABLE_FALL, false)
+	_player.set_input_locked(INPUT_LOCK, false)
+
+
 ## End of the fall: back at the safe spot (or the room's landing), then the damage, then the short
 ## invulnerability. The damage may kill (D-086).
 func land() -> void:

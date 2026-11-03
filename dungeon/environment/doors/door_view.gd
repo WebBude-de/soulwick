@@ -194,6 +194,10 @@ var _mouth_deco: Array[Sprite2D] = []
 var _rubble: Array[Node2D] = []
 ## Rooms the lintel is taken from (the door's room and the room behind it), kept across apply_style.
 var _lintel_rooms: Array[Node2D] = []
+## The room behind this sealed branch gate is gone (the way not taken faded out, plain rock stands
+## there): the lintel is the door's room alone, as if its corridor ran into the rock (bug report
+## 26.10.2026 #51c557a8, _on_way_left).
+var _way_gone := false
 var _lintel: Array[Sprite2D] = []
 ## The top of the frame over the cover, the tunnel fade and shade.
 var _lintel_extras: Array[Sprite2D] = []
@@ -352,8 +356,31 @@ func build_lintel(rooms: Array[Node2D]) -> void:
 	if style == null or is_entrance:
 		return
 	_lintel_rooms = rooms.duplicate()
+	_way_gone = false
+	if rooms.size() >= 2 and is_instance_valid(rooms[1]) and not rooms[1].tree_exited.is_connected(_on_way_left):
+		rooms[1].tree_exited.connect(_on_way_left, CONNECT_DEFERRED)
 	_build_lintel()
 	set_symbol(style.symbol)
+
+
+## Bug report 26.10.2026 #51c557a8 ("Das sieht verbuggt aus", a T over the north gate of a branch
+## room): the lintel of a sealed branch gate was copied while the way behind it still stood - the
+## light edge of its floor and of the door room's corridor end, which the room gets back when the way
+## is freed (PassageSeam.release), stayed over the plain rock left there (DungeonManager._leave_rock).
+## Once the way has left the tree the lintel is built again from the door's room alone.
+func _on_way_left() -> void:
+	if not _sealed or not is_inside_tree() or _lintel_rooms.size() < 2:
+		return
+	var way := _lintel_rooms[1]
+	if is_instance_valid(way) and way.is_inside_tree():
+		return
+	_way_gone = true
+	_build_lintel()
+
+
+## The way behind a sealed branch gate is gone and the lintel shows the door's room alone.
+func is_way_gone() -> bool:
+	return _way_gone
 
 
 func get_lintel() -> Array[Sprite2D]:
@@ -447,15 +474,21 @@ func _build_lintel() -> void:
 		return
 	var rooms: Array = []
 	for room in _lintel_rooms:
-		if is_instance_valid(room):
+		if is_instance_valid(room) and not (_way_gone and room != _lintel_rooms[0]):
 			rooms.append(room)
 	var own_tiles := (rooms[0] as Node).get_node_or_null("Tiles") as RoomTiles if not rooms.is_empty() else null
-	if rooms.size() < 2 or own_tiles == null:
+	if rooms.size() < (1 if _way_gone else 2) or rooms[0] != _lintel_rooms[0] or own_tiles == null:
 		return
 	var outward := -Vector2i(get_inward())
 	var door_cell := PassageSeam.origin_of(rooms[0]) + own_tiles.local_to_map(own_tiles.to_local(global_position + Vector2.ONE * TILE * 0.5))
-	for cell in PassageCover.passage_cells(door_cell, outward, rooms[1]):
-		_passage_rects.append(Rect2(Vector2(cell - door_cell) * TILE, Vector2.ONE * TILE))
+	if _way_gone:
+		# Nobody walks into a sealed gate: no tunnel any more, only the rock over its corridor.
+		if is_in_group(TUNNEL_GROUP):
+			remove_from_group(TUNNEL_GROUP)
+		add_to_group(COVER_GROUP)
+	else:
+		for cell in PassageCover.passage_cells(door_cell, outward, rooms[1]):
+			_passage_rects.append(Rect2(Vector2(cell - door_cell) * TILE, Vector2.ONE * TILE))
 	# D-206: no tunnel before the boss gate (the room before the boss is always left to the north).
 	if style.is_boss() and not _is_side():
 		if is_in_group(TUNNEL_GROUP):
@@ -471,7 +504,7 @@ func _build_lintel() -> void:
 	# round it (G2 note 18). A north gate shows its arch and gate on the door tile: there the front is
 	# drawn only around the opening (no floor of the door tile beside the arch).
 	var north := not _is_side()
-	var plan := PassageCover.plan(rooms, door_cell, outward, not north, not north)
+	var plan := _cover_plan(rooms, door_cell, outward, not north, not north)
 	var notch: Dictionary = {}
 	if not north:
 		notch = _side_notch_cells(rooms, door_cell, outward, plan)
@@ -503,7 +536,7 @@ func _build_lintel() -> void:
 				_crown_full.append(piece)
 		_lintel.append(piece)
 	if _is_side():
-		for entry: Dictionary in PassageCover.notch_floor(rooms, door_cell, outward):
+		for entry: Dictionary in _notch_floor(rooms, door_cell, outward):
 			var floor_piece := _cover_sprite(entry, door_cell)
 			if floor_piece != null:
 				floor_piece.name = "NotchFloor%d" % _lintel_extras.size()
@@ -513,6 +546,68 @@ func _build_lintel() -> void:
 		_build_side_notch()
 	else:
 		_build_frame_top()
+
+
+## The rock over the passage (PassageCover.plan). Once the way behind a sealed gate is gone
+## (_way_gone) the door's room alone: its wall drawn again as if its corridor were not there
+## (PassageCover.sealed_cells, like a blocked entrance), the door tile kept as the plan keeps it.
+func _cover_plan(rooms: Array, door_cell: Vector2i, outward: Vector2i, keep_door: bool, open_door: bool) -> Array[Dictionary]:
+	if not _way_gone:
+		return PassageCover.plan(rooms, door_cell, outward, keep_door, open_door)
+	var pieces: Array[Dictionary] = []
+	var room := rooms[0] as Node2D
+	var tiles := room.get_node_or_null("Tiles") as RoomTiles
+	var alone := _alone_floor(room, door_cell, outward)
+	var passage: Array[Vector2i] = alone["passage"]
+	var closed: Dictionary[Vector2i, bool] = alone["closed"]
+	if open_door:
+		closed[door_cell] = true
+	for cell in PassageCover.cover_cells(passage, outward, keep_door, closed):
+		var atlas := PassageCover.piece_of(cell, tiles, closed)
+		if atlas.z >= 0:
+			pieces.append({"cell": cell, "room": room, "atlas": atlas})
+	return pieces
+
+
+## The floor of a side gate's notch (PassageCover.notch_floor); with the way gone from the door's room
+## alone.
+func _notch_floor(rooms: Array, door_cell: Vector2i, outward: Vector2i) -> Array[Dictionary]:
+	if not _way_gone:
+		return PassageCover.notch_floor(rooms, door_cell, outward)
+	var pieces: Array[Dictionary] = []
+	var room := rooms[0] as Node2D
+	var tiles := room.get_node_or_null("Tiles") as RoomTiles
+	var local := door_cell - PassageSeam.origin_of(room)
+	var source := tiles.get_cell_source_id(local)
+	if source < 0:
+		return pieces
+	var coords := tiles.get_cell_atlas_coords(local)
+	pieces.append({"cell": door_cell, "room": room, "atlas": Vector3i(coords.x, coords.y, source)})
+	if tiles.is_terrain_drawn():
+		var closed: Dictionary[Vector2i, bool] = _alone_floor(room, door_cell, outward)["closed"]
+		closed[door_cell] = true
+		var bits := RockTerrain.fillet_bits(door_cell, closed)
+		if bits > 0:
+			var fillet := RockTerrain.fillet_coords(bits)
+			pieces.append({"cell": door_cell, "room": room, "atlas": Vector3i(fillet.x, fillet.y, RockTerrain.rock_source(tiles.get_look()))})
+	return pieces
+
+
+## The passage of a sealed gate whose way is gone (its door tile and the room's corridor beyond it)
+## and the room's floor without it, in world tiles: {"passage": Array[Vector2i], "closed":
+## Dictionary[Vector2i, bool]}.
+func _alone_floor(room: Node2D, door_cell: Vector2i, outward: Vector2i) -> Dictionary:
+	var tiles := room.get_node_or_null("Tiles") as RoomTiles
+	var origin := PassageSeam.origin_of(room)
+	var passage: Array[Vector2i] = []
+	for cell in PassageCover.sealed_cells(tiles, door_cell - origin, outward):
+		passage.append(cell + origin)
+	var closed: Dictionary[Vector2i, bool] = {}
+	for tile in tiles.get_floor_mask():
+		closed[tile + origin] = true
+	for cell in passage:
+		closed.erase(cell)
+	return {"passage": passage, "closed": closed}
 
 
 ## The passage of the boss gate. D-206 (Projektmitglied 22.10.2026, "da müsste Boden sein") kept it
@@ -582,7 +677,7 @@ func _side_notch_cells(rooms: Array, door_cell: Vector2i, outward: Vector2i, ope
 	for entry: Dictionary in open_plan:
 		open[entry["cell"]] = entry
 	var closed: Dictionary = {}
-	for entry: Dictionary in PassageCover.plan(rooms, door_cell, outward, false, false):
+	for entry: Dictionary in _cover_plan(rooms, door_cell, outward, false, false):
 		closed[entry["cell"]] = entry
 	var taken: Dictionary = {}
 	for row: int in SIDE_NOTCH_ROWS:
@@ -601,7 +696,7 @@ func _side_notch_cells(rooms: Array, door_cell: Vector2i, outward: Vector2i, ope
 			rest.append(open[behind])
 	result["plan"] = rest
 	result["open"] = open
-	for entry: Dictionary in PassageCover.notch_floor(rooms, door_cell, outward):
+	for entry: Dictionary in _notch_floor(rooms, door_cell, outward):
 		var atlas: Vector3i = entry["atlas"]
 		var tiles := (entry["room"] as Node).get_node_or_null("Tiles") as RoomTiles
 		if tiles != null and tiles.is_terrain_drawn() and atlas.z == RockTerrain.rock_source(tiles.get_look()):

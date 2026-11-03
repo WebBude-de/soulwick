@@ -31,6 +31,8 @@ extends Control
 ## tappable X on the top-right corner of the panel; key hints hide while touch is in use. Without a
 ## touch screen nothing of this applies (zoom 1, no X, R8 limits as before); only a dialog taller than
 ## the whole screen scrolls there too instead of being cut off.
+## Dialogs with a scrolling part of their own (the village buildings, FS7a) size it with
+## max_panel_height(), so the whole column never has to scroll and their buttons stay in view.
 
 signal finished(result: Variant)
 
@@ -673,19 +675,14 @@ func _layout_mobile() -> void:
 		return
 	var viewport := get_viewport()
 	var full := Rect2(Vector2.ZERO, get_viewport_rect().size)
-	var safe := MobileUi.safe_rect(viewport)
-	var target := MobileUi.menu_zoom(viewport)
 	# PC: as before, unless the dialog is taller than the screen; then it scrolls instead of being
 	# cut off at the top and the bottom (report #0efb405c).
-	if not MobileUi.is_touch_screen() and is_equal_approx(target, 1.0) and safe.is_equal_approx(full) and _scroll == null \
-			and _content_minimum().y <= full.size.y + 0.5:
+	if _is_plain_screen() and _scroll == null and _content_minimum().y <= full.size.y + 0.5:
 		zoom = 1.0
 		MobileUi.place_stage(_stage, full, 1.0, full)
 		return
-	var margin := MobileUi.touch_margin(viewport)
-	if has_close_button():
-		margin = maxf(margin, ceilf(_close_size(target) * target * CLOSE_OUTSIDE + UiKit.px(2)))
-	var area := safe.grow(-margin)
+	var target := MobileUi.menu_zoom(viewport)
+	var area := _layout_area(target)
 	var need := _content_minimum()
 	# The width decides the zoom (no sideways scrolling); the height scrolls instead of shrinking text.
 	zoom = MobileUi.fit_zoom(target, Vector2(need.x, 1.0), area.size, MobileUi.device_scale(viewport))
@@ -696,6 +693,45 @@ func _layout_mobile() -> void:
 		_close_button.custom_minimum_size = Vector2.ONE * _close_size(zoom)
 		_close_button.size = _close_button.custom_minimum_size
 		_place_close_button()
+
+
+## The tallest panel (layout pixels, at the zoom it is drawn with) that fits the screen without the
+## column scrolling: the whole viewport on a PC, else the safe area minus the edge and X room.
+func max_panel_height() -> float:
+	if not is_inside_tree():
+		return 0.0
+	if _is_plain_screen():
+		return get_viewport_rect().size.y
+	var viewport := get_viewport()
+	var target := MobileUi.menu_zoom(viewport)
+	var area := _layout_area(target)
+	var drawn := MobileUi.fit_zoom(target, Vector2(_content_minimum().x, 1.0), area.size, MobileUi.device_scale(viewport))
+	return floorf(area.size.y / maxf(drawn, 0.01))
+
+
+## The widest panel (layout pixels) the Modal places without overflowing: the area it lays the
+## dialog out in (safe area minus touch margin and X room; the whole viewport on a PC).
+func max_panel_width() -> float:
+	if not is_inside_tree():
+		return INF
+	return _layout_area(MobileUi.menu_zoom(get_viewport())).size.x
+
+
+## No touch screen, zoom 1 and no safe-area insets: the stage is the whole viewport (the PC).
+func _is_plain_screen() -> bool:
+	var viewport := get_viewport()
+	var full := Rect2(Vector2.ZERO, get_viewport_rect().size)
+	return not MobileUi.is_touch_screen() and is_equal_approx(MobileUi.menu_zoom(viewport), 1.0) \
+			and MobileUi.safe_rect(viewport).is_equal_approx(full)
+
+
+## The safe area minus the room kept free at its edge (touch margin, the X sticking out) at target zoom.
+func _layout_area(target: float) -> Rect2:
+	var viewport := get_viewport()
+	var margin := MobileUi.touch_margin(viewport)
+	if has_close_button():
+		margin = maxf(margin, ceilf(_close_size(target) * target * CLOSE_OUTSIDE + UiKit.px(2)))
+	return MobileUi.safe_rect(viewport).grow(-margin)
 
 
 ## Panel size the content asks for (without the scroll limit).

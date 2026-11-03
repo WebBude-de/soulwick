@@ -8,8 +8,10 @@ extends RefCounted
 const CATCH_TIME := 15.0  # TESTWERT (D-114: 12 s; the hall has pillars and guards)
 ## He spots a player within this distance and with a free line of sight.
 const SIGHT_RANGE := 320.0  # TESTWERT
-## Running speed of the crowned one relative to his normal speed.
-const FLEE_SPEED_FACTOR := 1.1  # TESTWERT
+## Running speed of the crowned one relative to his normal speed. FS7c (playtest "alles zu leicht",
+## D-213): 1.1 left him at about 152 px/s against the player's 180 plus dash; at 1.25 a player still
+## gains on him, but has to cut him off between the pillars instead of just running him down.
+const FLEE_SPEED_FACTOR := 1.25  # TESTWERT (D-114: 1.1)
 ## Until the last RUN_TO_HOLE_TIME seconds he zigzags away from the players between the pillars
 ## (design answer: "flieht im Zickzack"), then he runs for the hole.
 const RUN_TO_HOLE_TIME := 4.0  # TESTWERT
@@ -44,6 +46,14 @@ const DANGER_PROGRESS := 0.75
 ## Does an enemy at distance with or without a free line see the player?
 static func sees(distance: float, free_line: bool) -> bool:
 	return free_line and distance <= SIGHT_RANGE
+
+
+## Does the crowned one already watch in this phase of the room intro (RoomIntro.Phase)? Players may
+## walk during the goal banner and the 3-2-1 (nothing pauses), so he does too (feedback #5d3cb8f7:
+## they reached him frozen before "Los!" and caught him at once). Not during the door, the camera
+## swing or Flint's tour (players held or listening; a long tour must not let him escape early).
+static func watches_in_intro(phase: int) -> bool:
+	return phase == RoomIntro.Phase.BANNER or phase == RoomIntro.Phase.COUNTDOWN
 
 
 ## Opening of the escape hole (0..1) after time_fleeing seconds.

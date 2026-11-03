@@ -27,8 +27,8 @@ const FROM_ROOM := 6
 const CHANCE := 1.0 / 8.0
 ## Content weights in Content order: chest, soul crystals, wandering merchant (rare). TESTWERTE
 const CONTENT_WEIGHTS: Array[float] = [0.55, 0.35, 0.10]
-## Soul crystals lying in a niche (for the group). TESTWERT
-const CRYSTALS := 2
+## Soul crystals lying in a niche (for the group, D-221). TESTWERT
+const CRYSTALS := 1
 ## The niche: NICHE_WIDTH floor tiles in a row, two rows behind the cracked front (crown between).
 const NICHE_WIDTH := 3
 ## Tiles of the niche on each side of the crack column (NICHE_WIDTH = 2 * NICHE_HALF + 1).

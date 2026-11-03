@@ -61,8 +61,11 @@ const DUNGEON_DARKNESS := 0.97
 const VISION_RADIUS := 300.0
 const EXTRA_DARK_VISION_RADIUS := 190.0
 const SPECIAL_ROOM_DARKNESS := 0.2
-const CRYSTALS_PER_BOSS := 3
-const CRYSTALS_PER_CHAMPION := 1
+const CRYSTALS_PER_BOSS := 3  # TESTWERT (D-078; KE9/D-221 keeps 3, the depth bonus stays visible at room 15)
+## TESTWERT (KE9/D-221: 1 -> 0, KONZEPT §5.3 "viel zu viele": a run to the first boss paid 6-7
+## crystals instead of 3-5). Champions pay gold instead (EconomyConfig.miniboss_gold_multiplier);
+## KONZEPT's "30 % chance of 1" needs code (dungeon RNG), see D-221.
+const CRYSTALS_PER_CHAMPION := 0
 ## Test aid (ROADMAP A1): normal combat rooms announce their kind and size in the banner.
 const SHOW_ROOM_KIND_BANNER := false
 const INPUT_LOCK_BOSS_INTRO := &"boss_intro"

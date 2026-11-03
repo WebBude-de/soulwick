@@ -5,8 +5,8 @@ extends Node
 ## Save format (D-059, extended by D-078, D-087, MM1, D-152 and KE4): ConfigFile with [meta] version and
 ## sections [progress] (also start_weapon/second_weapon), [meta_upgrades] (forge levels, KONZEPT §5.1),
 ## [trade_levels] (trading post levels, KE5), [boosts], [stats], [seen], [world] (id, name), [profile]
-## (created, last_played), [migration] (what v5 did, once per world) and, in migrated files only,
-## [legacy_profile]. Older versions are migrated
+## (created, last_played), [migration] (what v5 did, once per world), [cloud] (local sync data of the
+## cloud world, KF9: never uploaded) and, in migrated files only, [legacy_profile]. Older versions are migrated
 ## on load (the untouched file is kept once as *.v<old>.bak before); missing files start fresh, a
 ## broken file (unreadable, newer or invalid) is kept as *.bak and its last good copy is loaded (P1-8,
 ## see below), only without one the game starts fresh.
@@ -23,6 +23,10 @@ extends Node
 ## into the first free slot once (import_legacy_save_into_slot), when the main menu opens; it is
 ## never changed or deleted. Global settings (volume, last slot) live in settings_path; their first
 ## values come from the old save's [settings] section.
+## Cloud worlds (KF9, D-188): export_world()/import_world() turn a world into the cloud blob and back
+## (SaveMerge, merge rules per field); read_world_config()/write_world_config() do the same for any
+## slot without touching the loaded one. [cloud] holds the sync state (CLOUD_DEFAULTS); it is part of
+## v5 and additive like [seen] (a file without it was never synced). CloudSave does the network part.
 
 signal permanent_gold_changed(permanent_gold: int)
 signal permanent_crystals_changed(permanent_crystals: int)
@@ -62,6 +66,8 @@ const MIGRATION_BACKUP_SUFFIX := ".v%d.bak"
 ## Crash-safe writing (P1-8). Preloaded instead of the global class name, so the autoload also
 ## compiles before the editor registered the new class.
 const _SafeSave := preload("res://meta/safe_save.gd")
+## Cloud blob and merge rules (KF9), preloaded for the same reason.
+const _SaveMerge := preload("res://meta/save_merge.gd")
 
 # --- Migration v2 -> v3 (B2, D-087). Frozen: later changes need their own migration step. ---
 ## Forge level rule per upgrade: [numerator, denominator, new maximum]. New level = old effect
@@ -106,6 +112,11 @@ const V5_SECOND_SLOT_KEY := "second_slot"
 const TRADE_LEVEL_DEFAULTS := {"provision_slot": 0, "luck": 0, "merchant_friend": 0}
 ## Start weapon of every world that never picked one (the sword is always unlocked).
 const DEFAULT_START_WEAPON := "sword"
+# --- Cloud sync data ([cloud], KF9; local only, SaveMerge.Rule.LOCAL) ---
+## base_revision: server revision this state is based on (0 = never synced with player_id);
+## synced_hash: SaveMerge.content_hash of the state at the last sync (different = changed here since);
+## player_id: account of the last sync; synced_at: unix seconds of the last sync.
+const CLOUD_DEFAULTS := {"base_revision": 0, "synced_hash": "", "player_id": "", "synced_at": 0}
 # --- Proviant ids before KE5 (KONZEPT §5.2). Frozen. ---
 ## Packed Proviant of older builds -> the Proviant that replaced it (same or better effect, so nothing
 ## is lost): Heiltrank stays, the random upgrade becomes the Glücksamulett (rare upgrade), the
@@ -134,6 +145,8 @@ var _trade_levels: Dictionary[StringName, int] = {}
 ## The world's id ([world] id, v5): a UUID v4 given once, the same on every device (cloud worlds,
 ## D-188). "" until the first save of a fresh world.
 var _world_id := ""
+## [cloud]: sync state of this world (CLOUD_DEFAULTS keys), {} = never synced.
+var _cloud: Dictionary = {}
 ## [migration]: what the v4 -> v5 migration did (refunded gold, old levels, new unlocks) and whether
 ## the village still has to say so. Kept for good (the refund happens once per world).
 var _migration: Dictionary = {}
@@ -165,6 +178,9 @@ var _last_slot := 0
 var _legacy_imported := false
 ## Global player options (UX1: fullscreen, screen shake, …), section [options] of settings.cfg.
 var _options: Dictionary = {}
+## Ids of synced worlds deleted here whose cloud copy still has to go to the archive (KF9, settings
+## [cloud] deleted_worlds); CloudSave sends them and forgets them.
+var _deleted_world_ids := PackedStringArray()
 
 
 func _ready() -> void:
@@ -245,26 +261,47 @@ func _load_file(path: String) -> Error:
 	if version < SAVE_VERSION:
 		_backup_before_migration(version, path)
 	migrate(config)
+	return _apply_config(config)
 
+
+## Why a migrated config cannot be loaded ("" = it can): invalid currencies, unlock list or forge
+## levels. Everything else is cleaned on load (invalid entries dropped).
+static func check_world_config(config: ConfigFile) -> String:
+	var version: Variant = config.get_value("meta", "version", -1)
+	if typeof(version) != TYPE_INT or version < 1 or version > SAVE_VERSION:
+		return "unsupported version %s" % str(version)
 	var gold: Variant = config.get_value("progress", "permanent_gold", 0)
 	if typeof(gold) != TYPE_INT or gold < 0:
-		return _fail("invalid permanent_gold", ERR_INVALID_DATA)
+		return "invalid permanent_gold"
 	var crystals: Variant = config.get_value("progress", "permanent_crystals", 0)
 	if typeof(crystals) != TYPE_INT or crystals < 0:
-		return _fail("invalid permanent_crystals", ERR_INVALID_DATA)
+		return "invalid permanent_crystals"
 	var unlocked: Variant = config.get_value("progress", "unlocked", PackedStringArray())
 	if typeof(unlocked) != TYPE_PACKED_STRING_ARRAY:
-		return _fail("invalid unlocked list", ERR_INVALID_DATA)
-	var levels: Dictionary[StringName, int] = {}
+		return "invalid unlocked list"
 	if config.has_section("meta_upgrades"):
 		for key in config.get_section_keys("meta_upgrades"):
 			var level: Variant = config.get_value("meta_upgrades", key)
 			if typeof(level) != TYPE_INT or level < 0:
-				return _fail("invalid meta upgrade level %s" % key, ERR_INVALID_DATA)
-			levels[StringName(key)] = level
+				return "invalid meta upgrade level %s" % key
+	return ""
 
-	_permanent_gold = gold
-	_permanent_crystals = crystals
+
+## Checks a migrated config and makes it the loaded state (nothing changes when it is rejected;
+## _load_failure says why).
+func _apply_config(config: ConfigFile) -> Error:
+	var reason := check_world_config(config)
+	if not reason.is_empty():
+		return _fail(reason, ERR_INVALID_DATA)
+	_reset_quietly()
+	var unlocked: PackedStringArray = config.get_value("progress", "unlocked", PackedStringArray())
+	var levels: Dictionary[StringName, int] = {}
+	if config.has_section("meta_upgrades"):
+		for key in config.get_section_keys("meta_upgrades"):
+			levels[StringName(key)] = config.get_value("meta_upgrades", key)
+
+	_permanent_gold = config.get_value("progress", "permanent_gold", 0)
+	_permanent_crystals = config.get_value("progress", "permanent_crystals", 0)
 	for id in unlocked:
 		_unlocked_content[StringName(id)] = true
 	_meta_levels = levels
@@ -279,6 +316,7 @@ func _load_file(path: String) -> Error:
 	if config.has_section("migration"):
 		for key in config.get_section_keys("migration"):
 			_migration[key] = config.get_value("migration", key)
+	_cloud = cloud_state_of(config)
 	var world_id: Variant = config.get_value("world", "id", "")
 	_world_id = String(world_id) if is_valid_world_id(world_id) else new_world_id()
 	# Boosts and statistics are not worth a full reset: invalid entries are dropped.
@@ -520,7 +558,27 @@ func _backup_before_migration(from_version: int, source: String) -> void:
 		push_warning("SaveManager: could not back up %s before migrating (%s)." % [source, error_string(err)])
 
 
+## Writes the loaded world and stamps it as played now ([profile] last_played).
 func save_game() -> Error:
+	_last_played = int(Time.get_unix_time_from_system())
+	return _write_loaded()
+
+
+## Writes the loaded world as it is in memory (no new last_played: an imported cloud state keeps
+## its time, so the next merge still knows which state was played last).
+func _write_loaded() -> Error:
+	var config := _build_config()
+	# P1-8: .tmp, read back, rename; a rejected file is not kept as the last good copy.
+	var err := _SafeSave.write_config(config, save_path, not _skip_backup_once)
+	if err != OK:
+		push_error("SaveManager: could not write %s (%s)." % [save_path, error_string(err)])
+	else:
+		_skip_backup_once = false
+	return err
+
+
+## The loaded world as a save file (what save_game() writes, with the current last_played).
+func _build_config() -> ConfigFile:
 	var config := ConfigFile.new()
 	config.set_value("meta", "version", SAVE_VERSION)
 	config.set_value("progress", "permanent_gold", _permanent_gold)
@@ -551,7 +609,8 @@ func save_game() -> Error:
 	for id in _seen:
 		seen.append(String(id))
 	config.set_value("seen", "ids", seen)
-	_last_played = int(Time.get_unix_time_from_system())
+	if _last_played <= 0:
+		_last_played = int(Time.get_unix_time_from_system())
 	if _created_at <= 0:
 		_created_at = _last_played
 	if _world_id.is_empty():
@@ -562,13 +621,9 @@ func save_game() -> Error:
 	config.set_value("profile", "last_played", _last_played)
 	for key: String in _legacy_profile:
 		config.set_value("legacy_profile", key, _legacy_profile[key])
-	# P1-8: .tmp, read back, rename; a rejected file is not kept as the last good copy.
-	var err := _SafeSave.write_config(config, save_path, not _skip_backup_once)
-	if err != OK:
-		push_error("SaveManager: could not write %s (%s)." % [save_path, error_string(err)])
-	else:
-		_skip_backup_once = false
-	return err
+	for key: String in _cloud:
+		config.set_value("cloud", key, _cloud[key])
+	return config
 
 
 # --- Currencies ---
@@ -857,6 +912,143 @@ func get_last_played() -> int:
 	return _last_played
 
 
+# --- Cloud worlds (KF9, D-188) ---
+
+## The world in a slot as the cloud blob (WorldData of the contract, without [cloud]); 0 or the
+## loaded slot = the loaded world as it is in memory. {} if the slot has no usable world.
+func export_world(slot := 0) -> Dictionary:
+	var config := read_world_config(slot)
+	return _SaveMerge.to_world_data(config) if config != null else {}
+
+
+## Writes a cloud blob as the world of a slot (0 or the loaded slot: also the loaded state). The
+## blob is checked like a loaded file and migrated if it is older; a blob of a newer game version or
+## another world id than the slot's (unless replace_id) is refused. cloud = the new [cloud] state
+## (CLOUD_DEFAULTS keys); empty keeps the slot's current one. The world keeps the blob's last_played.
+func import_world(data: Dictionary, slot := 0, cloud := {}, replace_id := false) -> Error:
+	var config := _SaveMerge.from_world_data(data)
+	var version: Variant = config.get_value("meta", "version", -1)
+	if typeof(version) != TYPE_INT or version < 1 or version > SAVE_VERSION:
+		push_warning("SaveManager: cloud world of version %s refused (this game knows %d)." % [str(version), SAVE_VERSION])
+		return ERR_FILE_UNRECOGNIZED
+	var current := read_world_config(slot)
+	if current != null and not replace_id:
+		var own := String(current.get_value("world", "id", "")).to_lower()
+		if own != String(config.get_value("world", "id", "")).to_lower():
+			push_warning("SaveManager: cloud world %s does not belong to slot %d." % [str(config.get_value("world", "id", "")), slot])
+			return ERR_INVALID_PARAMETER
+	if config.has_section("cloud"):
+		config.erase_section("cloud")
+	var state := cloud if not cloud.is_empty() else (cloud_state_of(current) if current != null else {})
+	for key: String in state:
+		config.set_value("cloud", key, state[key])
+	return write_world_config(config, slot)
+
+
+## The world of a slot as a migrated config (0 or the loaded slot: built from memory). A file of an
+## older version is migrated on disk first (with its *.v<n>.bak), so its new world id stays. null if
+## the slot is empty, broken or of a newer version.
+func read_world_config(slot := 0) -> ConfigFile:
+	if _is_loaded_slot(slot):
+		# A deleted loaded slot leaves an empty state in memory that is no world.
+		return _build_config() if slot == 0 or has_slot(slot) else null
+	var path := slot_path(slot)
+	var config := ConfigFile.new()
+	if not FileAccess.file_exists(path) or _SafeSave.load_config(config, path) != OK:
+		return null
+	var version: Variant = config.get_value("meta", "version", -1)
+	if typeof(version) != TYPE_INT or version < 1 or version > SAVE_VERSION:
+		return null
+	if version < SAVE_VERSION:
+		var backup := path + MIGRATION_BACKUP_SUFFIX % version
+		if not FileAccess.file_exists(backup):
+			DirAccess.copy_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(backup))
+		migrate(config)
+		if not check_world_config(config).is_empty() or _SafeSave.write_config(config, path) != OK:
+			return null
+	return config if check_world_config(config).is_empty() else null
+
+
+## Writes a migrated config as the world of a slot (0 or the loaded slot: it becomes the loaded
+## state, signals included). Refuses what loading would reject (ERR_INVALID_DATA).
+func write_world_config(config: ConfigFile, slot := 0) -> Error:
+	var copy := ConfigFile.new()
+	copy.parse(config.encode_to_text())
+	migrate(copy)
+	var reason := check_world_config(copy)
+	if not reason.is_empty():
+		push_warning("SaveManager: world for slot %d refused (%s)." % [slot, reason])
+		return ERR_INVALID_DATA
+	if _is_loaded_slot(slot):
+		var err := _apply_config(copy)
+		if err != OK:
+			return err
+		return _write_loaded()
+	if slot < 1 or slot > SaveSlots.SLOT_COUNT:
+		return ERR_PARAMETER_RANGE_ERROR
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(saves_dir))
+	return _SafeSave.write_config(copy, slot_path(slot))
+
+
+## The [cloud] state of a slot (CLOUD_DEFAULTS keys; 0 or the loaded slot: memory).
+func get_cloud_state(slot := 0) -> Dictionary:
+	if _is_loaded_slot(slot):
+		return _with_cloud_defaults(_cloud)
+	var config := read_world_config(slot)
+	return cloud_state_of(config) if config != null else _with_cloud_defaults({})
+
+
+## Stores the [cloud] state of a slot without changing the world (after an upload). The loaded
+## world is written as it is in memory, keeping its last_played.
+func set_cloud_state(state: Dictionary, slot := 0) -> Error:
+	var clean := _with_cloud_defaults(state)
+	if _is_loaded_slot(slot):
+		_cloud = clean
+		return _write_loaded()
+	var config := read_world_config(slot)
+	if config == null:
+		return ERR_FILE_NOT_FOUND
+	for key: String in clean:
+		config.set_value("cloud", key, clean[key])
+	return _SafeSave.write_config(config, slot_path(slot))
+
+
+## [cloud] of a config with every CLOUD_DEFAULTS key in its type (invalid values = defaults).
+static func cloud_state_of(config: ConfigFile) -> Dictionary:
+	var state := {}
+	if config != null and config.has_section("cloud"):
+		for key in config.get_section_keys("cloud"):
+			state[key] = config.get_value("cloud", key)
+	return _with_cloud_defaults(state)
+
+
+static func _with_cloud_defaults(state: Dictionary) -> Dictionary:
+	var clean := {}
+	for key: String in CLOUD_DEFAULTS:
+		var fallback: Variant = CLOUD_DEFAULTS[key]
+		var value: Variant = state.get(key, fallback)
+		clean[key] = value if typeof(value) == typeof(fallback) else fallback
+	clean["base_revision"] = maxi(0, int(clean["base_revision"]))
+	return clean
+
+
+## Synced worlds deleted on this device whose cloud copy still goes to the archive (CloudSave).
+func get_deleted_world_ids() -> PackedStringArray:
+	return _deleted_world_ids.duplicate()
+
+
+## The cloud copy of a deleted world went to the archive (or is gone): stop sending it.
+func forget_deleted_world(world_id: String) -> void:
+	var index := _deleted_world_ids.find(world_id)
+	if index >= 0:
+		_deleted_world_ids.remove_at(index)
+		save_settings()
+
+
+func _is_loaded_slot(slot: int) -> bool:
+	return slot == 0 or save_path == slot_path(slot)
+
+
 # --- Save slots (MM1) ---
 
 func slot_path(slot: int) -> String:
@@ -937,6 +1129,7 @@ func create_slot(slot: int, world_name := "", _character_id: StringName = &"", _
 func delete_slot(slot: int) -> Error:
 	if not has_slot(slot):
 		return ERR_FILE_NOT_FOUND
+	_remember_deleted_world(slot)
 	var path := ProjectSettings.globalize_path(slot_path(slot))
 	if FileAccess.file_exists(path + DELETED_SUFFIX):
 		DirAccess.remove_absolute(path + DELETED_SUFFIX)
@@ -952,6 +1145,18 @@ func delete_slot(slot: int) -> Error:
 		_reset()
 		slot_changed.emit(0)
 	return OK
+
+
+## A world that was in the cloud goes to the archive there too (CloudSave sends it, KF9); kept in
+## settings until then, so it does not come back with the next sync.
+func _remember_deleted_world(slot: int) -> void:
+	var config := ConfigFile.new()
+	if _SafeSave.load_config(config, slot_path(slot)) != OK:
+		return
+	var world_id: Variant = config.get_value("world", "id", "")
+	if cloud_state_of(config)["base_revision"] > 0 and is_valid_world_id(world_id) and not _deleted_world_ids.has(world_id):
+		_deleted_world_ids.append(String(world_id))
+		save_settings()
 
 
 ## True while the pre-slot save exists and was not copied into a slot yet.
@@ -1029,6 +1234,7 @@ func load_settings() -> Error:
 	_last_slot = 0
 	_legacy_imported = false
 	_options = {}
+	_deleted_world_ids = PackedStringArray()
 	var config := ConfigFile.new()
 	var err := ERR_FILE_NOT_FOUND
 	_SafeSave.recover(settings_path)
@@ -1046,6 +1252,9 @@ func load_settings() -> Error:
 		if config.has_section("options"):
 			for key in config.get_section_keys("options"):
 				_options[StringName(key)] = config.get_value("options", key)
+		var deleted: Variant = config.get_value("cloud", "deleted_worlds", PackedStringArray())
+		if typeof(deleted) == TYPE_PACKED_STRING_ARRAY:
+			_deleted_world_ids = deleted
 	elif FileAccess.file_exists(legacy_save_path):
 		var legacy := ConfigFile.new()
 		if legacy.load(legacy_save_path) == OK:
@@ -1063,6 +1272,8 @@ func save_settings() -> Error:
 	config.set_value("slots", "legacy_imported", _legacy_imported)
 	for key in _options:
 		config.set_value("options", String(key), _options[key])
+	if not _deleted_world_ids.is_empty():
+		config.set_value("cloud", "deleted_worlds", _deleted_world_ids)
 	var err := _SafeSave.write_config(config, settings_path)
 	if err != OK:
 		push_error("SaveManager: could not write %s (%s)." % [settings_path, error_string(err)])
@@ -1110,6 +1321,15 @@ func _apply_volumes() -> void:
 
 
 func _reset() -> void:
+	_reset_quietly()
+	permanent_gold_changed.emit(_permanent_gold)
+	permanent_crystals_changed.emit(_permanent_crystals)
+	meta_changed.emit()
+	profile_changed.emit()
+
+
+## Empties the loaded state without signals (_apply_config emits them once it is filled).
+func _reset_quietly() -> void:
 	_permanent_gold = 0
 	_permanent_crystals = 0
 	_unlocked_content.clear()
@@ -1127,10 +1347,7 @@ func _reset() -> void:
 	_legacy_profile = {}
 	_created_at = 0
 	_last_played = 0
-	permanent_gold_changed.emit(_permanent_gold)
-	permanent_crystals_changed.emit(_permanent_crystals)
-	meta_changed.emit()
-	profile_changed.emit()
+	_cloud = {}
 
 
 ## Why _load_file() rejected a file (load_game() logs it and keeps the file as *.bak, D-059).

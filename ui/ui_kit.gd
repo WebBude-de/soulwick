@@ -22,6 +22,8 @@ const SHADOW_OFFSET: int = maxi(1, floori(UI_SCALE))
 const SOURCE_THEME_PATH := "res://art/ui/theme.tres"
 const SLIDER_GRABBER_PATH := "res://art/ui/slider_grabber.png"
 const FONT: FontFile = preload("res://art/fonts/PixelifySans-Variable.ttf")
+## Pixel arrows as fallback of FONT (get_font()).
+const PixelArrows := preload("res://ui/menus/village/pixel_arrows.gd")
 ## Phones and touch screens: menu zoom, safe area, touch sizes (ui/menus/mobile_ui.gd).
 const MobileUi := preload("res://ui/menus/mobile_ui.gd")
 const PANEL_TEXTURE: Texture2D = preload("res://art/ui/panel.png")
@@ -163,14 +165,18 @@ static func get_theme() -> Theme:
 
 
 ## Pixelify Sans (regular). Bold and eyebrow variants: bold_font(), eyebrow_font().
+## The font has no arrows (→ ← ↑ ↓); a pixel fallback draws them, also in the browser (FS7a).
 static func get_font() -> Font:
-	return FONT
+	var font: FontFile = FONT
+	if font.fallbacks.is_empty():
+		font.fallbacks = [PixelArrows.fallback()]
+	return font
 
 
 static func bold_font() -> FontVariation:
 	if _bold_font == null:
 		_bold_font = FontVariation.new()
-		_bold_font.base_font = FONT
+		_bold_font.base_font = get_font()
 		_bold_font.variation_opentype = {_weight_tag(): 700}
 	return _bold_font
 
@@ -178,7 +184,7 @@ static func bold_font() -> FontVariation:
 static func eyebrow_font() -> FontVariation:
 	if _eyebrow_font == null:
 		_eyebrow_font = FontVariation.new()
-		_eyebrow_font.base_font = FONT
+		_eyebrow_font.base_font = get_font()
 		_eyebrow_font.variation_opentype = {_weight_tag(): 600}
 		_eyebrow_font.spacing_glyph = maxi(1, roundi(EYEBROW_SPACING_EM * SIZE_EYEBROW * UI_SCALE))
 	return _eyebrow_font
@@ -554,20 +560,23 @@ static func weapon_stat_rows(controller: WeaponController, weapon: WeaponData) -
 
 # --- Accents and motion (R8: dialogs and HUD feel alive; optics only) ---
 
-## Divider in an accent colour that fades out to both sides (dialog headers, R8).
+## Hard steps of the accent line's fade (D-218: banded, not a smooth gradient).
+const ACCENT_LINE_STEPS := 4
+
+
+## Divider in an accent colour that fades out to both sides (dialog headers, R8): ACCENT_LINE_STEPS
+## hard bands (PixelDraw.stepped_ramp_texture, nearest filtering), height in whole art pixels (D-218).
 static func accent_line(color: Color, height := 1.0) -> TextureRect:
 	var gradient := Gradient.new()
 	gradient.offsets = PackedFloat32Array([0.0, 0.2, 0.8, 1.0])
 	gradient.colors = PackedColorArray([Color(color, 0.0), color, color, Color(color, 0.0)])
-	var texture := GradientTexture1D.new()
-	texture.gradient = gradient
-	texture.width = 64
 	var line := TextureRect.new()
 	line.name = "AccentLine"
-	line.texture = texture
+	line.texture = PixelDraw.stepped_ramp_texture(gradient, ACCENT_LINE_STEPS)
+	line.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	line.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	line.stretch_mode = TextureRect.STRETCH_SCALE
-	line.custom_minimum_size = Vector2(0, maxf(1.0, px(height)))
+	line.custom_minimum_size = Vector2(0, maxi(1, roundi(height)) * ART_SCALE)
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return line
 
