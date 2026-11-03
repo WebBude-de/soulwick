@@ -9,7 +9,8 @@ const EXPLOSION_TEXTURE: Texture2D = preload("res://art/effects/explosion_6f.png
 ## PLATZHALTER: the GDD does not specify the explosion radius of "Explosiver Treffer".
 const EXPLOSION_RADIUS := 48.0
 const EXPLOSION_KNOCKBACK := 120.0
-## Explosion art: the 45 px AOE radius matches the 96 px frame at scale 1.
+## Explosion art: the 45 px AOE radius matches the 96 px frame at scale 1. The art is shown at a whole
+## scale (WeaponFx.art_scale, D-218); the hit keeps EXPLOSION_RADIUS.
 const EXPLOSION_ART_RADIUS := 45.0
 const MAX_REMEMBERED_HIT_IDS := 512
 ## TESTWERT (D-091, D-200): "Schild bei Tötung" only fills the shield up to this value,
@@ -69,7 +70,7 @@ func _explode(explosion: Dictionary) -> void:
 	damage.hit_id = DamageData.next_hit_id()
 	var center: Vector2 = explosion["center"]
 	AreaDamage.apply(self, center, EXPLOSION_RADIUS, PhysicsLayers.ENEMY_HURTBOX, damage, EXPLOSION_KNOCKBACK)
-	var art_scale := EXPLOSION_RADIUS / EXPLOSION_ART_RADIUS
+	var art_scale := WeaponFx.art_scale(EXPLOSION_RADIUS, EXPLOSION_ART_RADIUS)
 	SpriteStrip.spawn_effect(self, center, EXPLOSION_TEXTURE, Vector2i(96, 96), 14.0, Vector2(48, 48), Vector2(art_scale, art_scale))
 	LightSource.flash(self, center, EXPLOSION_RADIUS * 2.2, 0.35)
 	Burst.spawn(self, center, Color(1.0, 0.6, 0.2), 14, 160.0)

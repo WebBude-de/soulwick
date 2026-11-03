@@ -227,6 +227,16 @@ func _on_run_ended(_reason: int, _remaining: int, _payout: int) -> void:
 		# The entrance is skipped: the own danger level, already counting the run that just ended (KE1).
 		RunManager.set_danger_level(AccountProgress.current().get_danger_level())
 	load_world(dungeon_scene if new_run else village_scene)
+	if not new_run:
+		_sync_cloud()
+
+
+## Back in the village: match the worlds with the account in the background (KF9, no dialog).
+func _sync_cloud() -> void:
+	var session := get_tree().get_first_node_in_group(OnlineSession.GROUP) as OnlineSession
+	var cloud := CloudSave.for_session(session)
+	if cloud != null and CloudSave.is_due():
+		cloud.sync_all()
 
 
 func _on_abort_requested() -> void:

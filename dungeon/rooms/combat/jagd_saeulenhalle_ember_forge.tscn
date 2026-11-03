@@ -62,15 +62,15 @@ position = Vector2(672, 416)
 
 [node name="Objectives" type="Node2D" parent="."]
 
+[node name="Crowned1" type="Marker2D" parent="Objectives"]
+position = Vector2(416, 96)
+metadata/objective_kind = &"crowned"
+metadata/tile = Vector2i(6, 1)
+
 [node name="EscapeHole1" type="Marker2D" parent="Objectives"]
 position = Vector2(992, 96)
 metadata/objective_kind = &"escape_hole"
 metadata/tile = Vector2i(15, 1)
-
-[node name="Crowned1" type="Marker2D" parent="Objectives"]
-position = Vector2(1056, 224)
-metadata/objective_kind = &"crowned"
-metadata/tile = Vector2i(16, 3)
 
 [node name="Guard1" type="Marker2D" parent="Objectives"]
 position = Vector2(160, 352)

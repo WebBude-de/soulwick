@@ -167,6 +167,9 @@ func _physics_process(delta: float) -> void:
 	if not side_view:
 		fall.update(delta)
 		_tick_knockback(delta)
+	elif fall.is_falling():
+		# A fall begun in the top-down view right before a side segment would never land there.
+		fall.cancel()
 
 	_aim = get_aim_direction()
 	weapon_controller.aim_direction = _aim

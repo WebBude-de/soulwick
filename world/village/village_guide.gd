@@ -3,8 +3,10 @@ extends Node
 ## - A trail of soul lights (small violet glows like the flame bowl) drifts along the path from the
 ##   spawn across the square and up the stairs to the ruin. It is drawn on a canvas layer that follows
 ##   the camera above the darkness (VisionOverlay, layer 2), so the way is visible at night too.
-## - An arrow (art/ui/teammate_arrow.png, tinted gold) at the screen edge points to the entrance
-##   while it is off screen and bobs above the ruin once it is in view.
+## - An arrow (PixelArrow: art/ui/teammate_arrow.png turned in whole pixels, tinted gold) at the
+##   screen edge points to the entrance while it is off screen and bobs above the ruin once it is in
+##   view. Pixel art (D-218, FS2c): the turned picture is drawn upright at a whole scale and bobs in
+##   whole art pixels; the soul lights twinkle in MOTE_ALPHA_STEPS hard steps.
 ## - FS6 (D-220) "Herumirren": when the player has not come closer to the entrance than ever before
 ##   for STRAY_TIME s (the timer waits while Flint or a dialog holds him, paused_check), trail and
 ##   arrow grow stronger: brighter, twice as many soul lights, pulsing in whole art pixels; the arrow
@@ -19,7 +21,6 @@ extends Node
 ## No class_name: used through preload (Village.GuideScript), so it works before the class cache
 ## knows it.
 
-const ARROW_TEXTURE: Texture2D = preload("res://art/ui/teammate_arrow.png")
 ## Above the darkness (VisionOverlay 2), below the HUD (5) and the village dialogs (20).
 const TRAIL_LAYER := 3
 const POINTER_LAYER := 4
@@ -40,9 +41,11 @@ const MOTE_PIXEL := 2.0
 const MOTE_RINGS: Array = [[5, 0.12, false], [3, 0.3, false], [2, 0.6, false], [1, 0.95, true]]
 const MOTE_FLOAT := 3.0
 const MOTE_EDGE_FADE := 90.0
+## Hard alpha steps of a soul light's twinkle and fade (D-218: no smooth fade).
+const MOTE_ALPHA_STEPS := 4
 const SOUL_COLOR := Color(0.72, 0.45, 1.0)
 const SOUL_CORE := Color(1.0, 0.93, 1.0)
-## TESTWERT: arrow (art scale, screen px kept free at the edges: left, top, right, bottom - the
+## TESTWERT: arrow (whole art scale of PixelArrow's picture, screen px kept free at the edges: left, top, right, bottom - the
 ## goal line and the currencies at the top, the HUD rows at the bottom; world px above the entrance
 ## pivot, over the ruin's doorway; bob).
 const ARROW_SCALE := 4.0
@@ -51,6 +54,8 @@ const ARROW_ABOVE := 150.0
 const ARROW_BOB := 6.0
 const ARROW_BOB_SPEED := 3.2
 const ARROW_COLOR := Color("#f2cf4a")
+## Hard alpha steps of the arrow's breathing.
+const ARROW_PULSE_STEPS := 4
 ## TESTWERT (FS6, D-220): straying. Seconds without getting closer than ever (by APPROACH_STEP world
 ## px) before the way grows stronger; while strong, this much closer than the farthest point since
 ## counts as coming back; blend time (s); one pulse beat (s); ring alpha factor; strong arrow colour.
@@ -302,7 +307,12 @@ func _draw_trail_mote(along: float, index: int, bright: float, grow: int, weight
 	var fade := clampf(minf(distance, _length - distance) / MOTE_EDGE_FADE, 0.0, 1.0)
 	var twinkle := 0.75 + 0.25 * sin(_time * 3.0 + index * 1.7)
 	var spot := point_at(_points, distance) + Vector2(0, sin(_time * 2.0 + index) * MOTE_FLOAT)
-	_draw_mote(spot.snapped(Vector2.ONE * MOTE_PIXEL), fade * twinkle * weight, bright, grow)
+	_draw_mote(spot.snapped(Vector2.ONE * MOTE_PIXEL), mote_alpha(fade * twinkle * weight), bright, grow)
+
+
+## A soul light's alpha (fade, twinkle and weight multiplied) in MOTE_ALPHA_STEPS hard steps.
+static func mote_alpha(value: float) -> float:
+	return PixelDraw.stepped(value, MOTE_ALPHA_STEPS)
 
 
 ## One soul light in pixel art (feedback #e5d0f6c6, #6ce10692 "Mach Pixel Grafik"): stepped
@@ -326,15 +336,18 @@ static func _mote_rects(radius: int) -> Array[Rect2]:
 
 
 func _draw_pointer() -> void:
-	var size := ARROW_TEXTURE.get_size()
-	var bob := sin(_time * ARROW_BOB_SPEED) * ARROW_BOB
-	var offset := Vector2.from_angle(_pointer_angle) * bob
+	var picture := pointer_rect(_pointer_position, _pointer_angle, sin(_time * ARROW_BOB_SPEED) * ARROW_BOB, strong_beat())
 	var pulse := lerpf(0.85 + 0.15 * sin(_time * ARROW_BOB_SPEED * 1.3), 1.0, _strength)
-	# Strong (FS6): one whole scale step larger on every other beat (pixel art), lighter gold.
-	var arrow_scale := ARROW_SCALE + float(strong_beat())
-	_pointer.draw_set_transform(_pointer_position + offset, _pointer_angle, Vector2.ONE * arrow_scale)
-	# Dark outline first (offset copies), then the gold arrow.
-	for shift: Vector2 in [Vector2(-1, 0), Vector2(1, 0), Vector2(0, -1), Vector2(0, 1)]:
-		_pointer.draw_texture(ARROW_TEXTURE, -size * 0.5 + shift * 0.5, Color(0.08, 0.06, 0.12, 0.85))
-	_pointer.draw_texture(ARROW_TEXTURE, -size * 0.5, Color(ARROW_COLOR.lerp(STRONG_ARROW_COLOR, _strength), pulse))
-	_pointer.draw_set_transform(Vector2.ZERO)
+	var color := Color(ARROW_COLOR.lerp(STRONG_ARROW_COLOR, _strength), PixelDraw.stepped(pulse, ARROW_PULSE_STEPS))
+	# PixelArrow's picture already points along the angle and has its dark outline: no rotation.
+	_pointer.draw_texture_rect(PixelArrow.texture_for(_pointer_angle), picture, false, color)
+
+
+## Screen rect of the arrow picture centred on center: PixelArrow.CANVAS art px at the whole scale
+## ARROW_SCALE (+ grow on the strong beat), bobbed by bob px along angle in whole art pixels, its
+## corner on a whole screen pixel.
+static func pointer_rect(center: Vector2, angle: float, bob: float, grow := 0) -> Rect2:
+	var art := roundf(ARROW_SCALE) + float(grow)
+	var size := Vector2.ONE * PixelArrow.CANVAS * art
+	var offset := (Vector2.from_angle(angle) * bob / art).round() * art
+	return Rect2((center + offset - size * 0.5).round(), size)

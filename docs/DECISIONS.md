@@ -703,6 +703,7 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Koop-Parameter (für MP5):** Flamme +50 % HP je weiterem Spieler, +1 Riss je weiterem Spieler, Truhen je Spieler aus.
 - **Offen (Projektmitglied):** Bonus beim Totengräber nur ohne Aufstehen? Wagnis-Kristalle 2/1 passend? Variantenanteil auf echte 20 % ausgleichen? Wagnis-Banner schon beim Öffnen der Tür?
 - **Nachtrag 22.10.2026 (Meldung #eff1c81c, Gekrönter der Jagd pendelte):** Der Gekrönte flieht nur zu Punkten, die mindestens `EVADE_GAIN` = 16 px weiter vom nächsten Spieler weg liegen, und nie auf einem Weg, der einem Spieler näher als 64 px (`EVADE_PASS_DISTANCE`) kommt (TESTWERT); ohne solchen Punkt kauert er in der Ecke und lässt sich fangen. Er greift weiterhin nie an (RAEUME §3.8).
+- **Nachtrag 03.11.2026 (FS7b, FS7c; Meldung #5d3cb8f7 „den Gekrönten einfach instant fangen“, D-213 „zu leicht“, TESTWERTE):** Der Gekrönte schaut schon während Banner und Countdown; sieht er einen Spieler, flieht er sofort, bleibt aber bis „Los!“ unverwundbar (`HuntRules.watches_in_intro`, nicht während Tür, Kameraschwenk und Flints Erklärung). Fluchttempo ×1,25 statt ×1,1 (`FLEE_SPEED_FACTOR`). Startplatz in `jagd_saeulenhalle` und `jagd_l` links der Empore, weit weg von Eingang und Loch (die Hallenmitte ist Empore). Messung mit einfachem Verfolger in Spielertempo: Säulenhalle 2,8 s → 5,5 s, Höhle 11,2 s (Grenze 15 s).
 
 ### D-115 – Abgrund und Brücken: Ausgestaltung (A4)
 
@@ -2040,6 +2041,54 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
   3. **Ziel nach dem ersten Run:** die Zielzeile zeigt das nächste Schmiede-Ziel („Noch einmal hinab · noch 33 Gold bis Schildplatte I“), sobald das Gold reicht „Ab zur Schmiede“; die Zielzeile gilt auch im Zuhause.
   4. **Erklären:** je ein Satz – am Ende des Übungsgangs, was beim Tod passiert (nur ein Viertel bleibt, am Seelentor sichern), und beim ersten Seelenkristall, wofür er gut ist.
 - **Folgen:** FS5 (Flint, Übungsgang: Punkte 2 Gefahren-Tour, 4), FS6 (Dorf: Punkte 1, 2 Rundgang, 3).
+
+### D-221 – Wirtschaft: weniger Kristalle, Champions zahlen Gold (KE9, Solo)
+
+- **Status:** VERBINDLICH (TESTWERTE) · **Datum:** 2026-11-03 / Claude im Auftrag des Projektmitglieds (Balance delegiert; Playtest hat Vorrang vor dem Bot)
+- **Anlass:** KONZEPT §5.3 (VERBINDLICH „viel zu viele“ Kristalle) und §5.4 mit den Zielen (TESTWERT): ein früher Run 0–2 Kristalle, ein Run bis zum ersten Boss 3–5, ein tiefer Run 8–12; ein Run bis Raum 10 mit Seelentor etwa 100–150 Gold, in den ersten Abenden eine Schmiede-Stufe je 1–2 Runs. Messung vorher: Ein Run bis zum ersten Boss mit Tor zahlte 6–7 Kristalle (Champion 1 + 1, Knochenkönig 3 × 1,2 → 4), am Raum 30 lagen 14–16 Kristalle im Run; Gold bis zum Tor in Raum 9 nur 53–61 verdient, bis Raum 15 90 (der Bot kauft im Laden, ausgezahlt 33–40 bzw. 44–70).
+- **Werkzeug:** `tools/balance_sim.gd` kennt jetzt Gefahrenstufe (`danger=`), Talentpfade (`talents=wind|ember|soul`, Punkte = 2·G bzw. aus dem Level; Seele rüstet Zauber aus und der Bot wirkt sie), Proviant (`boosts=`), Seelentor (`exit=N`: erstes Tor ab Raum N), eine Spielerkarriere (`career=1`: eigener Konto-Fortschritt je Prozess, Gefahr aus dem Konto, Schmiede-Käufe nach `buy=`, Meilensteine) und schreibt je Run eine `ECON`-Zeile (Auszahlung, Kristalle je Quelle, XP, Level, G).
+- **Beschluss (Zahlen, alt → neu):**
+  - **Champion-Kristalle** (`DungeonManager.CRYSTALS_PER_CHAMPION`): **1 → 0**. Das KONZEPT will „30 % Chance auf 1“; das braucht Code (Dungeon-RNG, Host) und ist hier nicht gebaut. Boss bleibt 3 (+10 % je Block: Raum 15 → 4, 30 → 5, 45 → 5), damit der Tiefenbonus schon am ersten Boss sichtbar ist.
+  - **Champion-Gold** (`EconomyConfig.miniboss_gold_multiplier`): **12 → 24**. Der Champion bezahlt in Gold statt Kristall; das trifft vor allem den frühen Run (Raum 5 und 10), tiefer etwa +15–25 % Gold je Run.
+  - **Seelen sammeln** (`SoulsRules.CRYSTAL_STEPS`): 12/9/6 → 3/2/1 wird **12/9 → 2/1**, 6 Seelen geben nichts mehr (KONZEPT §5.3; der Bot sammelt keine Seelen, daher nur gerechnet).
+  - **Unverändert (gemessen, kein Grund):** Preise der Schmiede (Arsenal 80–200, Waffe 60–480, Schildplatte 40–160, Laterne 50–200, Zweiter Platz 300) und des Handelspostens (Proviant 2–5, Plätze 8/15, Glück 6/12/20, Händlerfreund 5/10), Tiefenbonus +10 % je Block, Gefahr-Faktoren (HP +6 %, Schaden +4 %, Beute und XP +5 % je G), Boss-Kristalle 3, „volle Flamme“ und „Risse schnell“ je 1 Kristall (bis der Gold-Bonus gebaut ist, siehe Offen), Schwierigkeit (keine Messung zeigt einen klaren Grund; D-213 gilt).
+  - **Verworfen:** Boss 3 → 2 mit Champion 1 (gleiche Summen, aber am ersten Boss rundet der Tiefenbonus weg: 2 × 1,2 → 2); höherer `gold_drop_factor` (mehr Gold in jedem Raum macht den Laden tief im Run reicher, das Spiel galt im Playtest als zu leicht).
+- **Messung** (`balance_sim.gd`, Bot Reaktion 0,8, sieht keine Dunkelheit, `hazards=1 falls=1 nav=1 smart=1 vt.skip=collapse max_rooms=90`, gleiche Seeds 401–405 vorher/nachher; Tor-Läufe je 10 Runs, Karrieren je 20 Runs mit Glut-Talenten aus dem Level und Schmiede-Käufen, Bogen 3 Karrieren, Schwert 2):
+
+| Messung | vorher | nachher |
+| --- | --- | --- |
+| Tor ab Raum 9 (Bogen · Schwert): Kristalle ausgezahlt · Gold verdient / ausgezahlt | 1,9 · 2,2 · 53/33 · 61/40 | 0,6 · 0,8 · 68/42 · 77/48 |
+| Tor ab Raum 15 (Bogen, 9 von 10 am Tor): Kristalle · Gold verdient / ausgezahlt | 6,2 · 90/70 | **4,2** · 114/89 |
+| Kristalle im Run bei Raum 10 · 15 · 30 · 45 (Bogen, G 0) | 2,8 · 6,9 · 15,7 · 21 | 0,7 · 4,8 · 11,4 · 15,5 |
+| Gold im Run (nach Ladenkäufen) bei Raum 10 · 15 · 30 · 45 (Bogen, G 0; Raum 45 nur n = 1–2) | 51 · 72 · 137 · 356 | 75 · 92 · 205 · 456 |
+| Karriere ohne Tor, Tod tief (Bogen, Median Raum 45): Gold · Kristalle je Run | 158–192 · 6,3–6,8 | 183–208 · 4,0–4,5 |
+| Karriere ohne Tor (Schwert, Median Raum 38): Gold · Kristalle je Run | 102–113 · 5,2–5,8 | 142–165 · 3,8–4,2 |
+| Karriere immer Tor bei Raum 15 (Bogen · Schwert): Gold · Kristalle je Run | 53–90 · 6,9–7,1 · 45–73 · 6,3 | 65–112 · 4,7–4,8 · 63–99 · 4,7–4,8 |
+| Kristalle nach 10 Runs (Bogen ohne Tor · mit Tor bei 15) | 45–76 · 67–69 | 37–40 · 44–46 |
+| Gefahr (Bogen G 0 · Glut G 6 · Glut G 9 · Schwert G 0): Median Raum | 36 · 31 · 30 · 15,5 | 32 · 34,5 · 33,5 · 15,5 (Streuung, nicht schwerer oder leichter) |
+
+- **Leitfrage (nachher, Karrieren):** erste Schmiede-Stufe im **1.–2. Run**; erste Waffe (Arsenal Bogen 80, öffnet nach dem ersten Boss) im **1.–2. Run** (vorher 1.–4.); Funke II (G 1) im 1.–2. Run, Funke III (G 2) im 3.–7., **Kerze I (G 3)** im 4.–6. Run bei tiefen Runs bzw. im 12.–13. bei „immer Tor bei Raum 15“, **Flamme I (G 6)** im 16.–19. Run; wer immer bei Raum 15 aussteigt, bleibt bei G 4 stehen (Können-Deckel `floor(15/5)+1`). Der Level-Deckel `floor((L−1)/2)` bestimmt das Tempo bis Kerze, das Können danach. Eine Waffe auf V plus Schildplatte III (≈ 1 550 Gold) hat der gute Bogen-Bot nach etwa 7 Runs; die ganze Schmiede (≈ 7 400 Gold) nach etwa 35–40 Runs.
+- **Gefahr und Pfade (vorher, je 10 Runs, Talentpunkte 2·G, ohne Schmiede):** Bogen Median Raum G 0 36 · G 3 Glut/Wind/Seele 33/28,5/24,5 · G 6 31/22/18 · G 9 30/17,5/23,5; Schwert mit Glut G 0/3/6/9 15,5/18,5/24,5/34. Gold je Run fällt mit G nicht (Bogen G 0 63, Glut G 3/6/9 109/102/101; Seele 52–75). Lesart: Mit Schmiede und Talenten pendelt der Bot (Reaktion 0,8) um G 5–7 ein (Kerze III bis Flamme II), ein guter Mensch höher; die Faktoren bleiben. Der Seelen-Pfad liegt im Bot hinten, weil er Zauber nur stumpf wirkt (bei Gegner unter 170 px) – nach dem nächsten Playtest prüfen.
+- **Nach dem nächsten Playtest prüfen:** ob Kristalle jetzt „wertvoll“ wirken (ein Proviant je Run zum ersten Boss, Handelsstufen als Sparziel über viele Runs); ob Neulinge den Handelsposten zu spät sehen (er öffnet mit dem ersten Kristall, jetzt meist beim ersten Boss oder einem Elite-Nest); ob der Champion mit doppeltem Gold lohnend genug ist.
+- **Offen (nicht in diesem Auftrag, Vorschläge):** (1) Champion „30 % Chance auf 1“ als Code (Dungeon-RNG, Host), dann `CRYSTALS_PER_CHAMPION` wieder 1. (2) Integrator, Zahlen nach KONZEPT §5.3: `EliteNestVariant.NEST_CRYSTALS` 2 → 1, `SecretRules.CRYSTALS` 2 → 1, `WagerRules.REWARD_CRYSTALS` „ohne Treffer“ 2 → 1; Prüfung makellos (`TrialRules.FLAWLESS_CRYSTALS`), volle Flamme und Risse schnell: Gold-Bonus statt Kristall braucht Code (`rooms-dev`). (3) Texte `VILLAGE_TRADER_HINT_2` und `FLINT_VILLAGE_TRADER_TIP` sagen „Kristalle haben Champions und Bosse“ – auf „Bosse und besondere Räume“ ändern. (4) Koop-Gold ist nicht gemessen: `balance_sim` spielt allein; jeder Spieler bekommt die ganze Kasse ausgezahlt, bei zwei Spielern ≈ 1,7× Gegner und damit Gold je Spieler – Messung in BA1 oder sobald `balance_sim` Koop kann (MP5).
+- **Folgen:** `dungeon/dungeon_manager.gd`, `economy/economy_config.gd`, `dungeon/modes/souls/souls_rules.gd`, `tools/balance_sim.gd` (Optionen `danger`, `talents`, `points`, `boosts`, `exit`, `career`, `buy`; `ECON`-Zeilen, Spalte `crystals` in der CSV, eigener Konto-Fortschritt je Prozess); Test `test_souls_mode` (Erwartungswerte).
+- **Ersetzt:** Champion-Kristall 1 aus D-078; `miniboss_gold_multiplier` 12 (P1-5); Seelen-Stufen 3/2/1 aus D-135 (D-207 ließ sie stehen).
+- **Nachtrag 03.11.2026 (Integrator, nach KONZEPT §5.3, TESTWERTE):** Elite-Nest 2 → 1 Kristall (`EliteNestVariant.NEST_CRYSTALS`), Geheimnische 2 → 1 (`SecretRules.CRYSTALS`), Wagnis-Altar „ohne Treffer“ 2 → 1 (`WagerRules.REWARD_CRYSTALS`); Texte `VILLAGE_TRADER_HINT_2` und `FLINT_VILLAGE_TRADER_TIP` nennen „Bosse und besondere Räume“ statt Champions. Nicht neu gemessen; das Nest war im Bot die drittgrößte Quelle, die Werte senken frühe Runs weiter Richtung 0–2.
+
+### D-222 – Cloud-Abgleich der Welten: Mischregeln (KF9)
+
+- **Status:** VERBINDLICH für die Mischregeln aus KONZEPT §10 · Einzelheiten **VORGESCHLAGEN** (Claude) · Zahlen **TESTWERT** · **Datum:** 2026-11-03
+- **Kontext:** KF8 (Cloud-Welten mit `revision`/`baseRevision`, `409 revision_conflict`) ist auf der Plattform; das Spiel gleicht jetzt ab (`meta/save_merge.gd`, `online/cloud_save.gd`).
+- **Beschluss:** Mischregel je Feld in `SaveMerge.FIELD_RULES` (ein Test je Feld, ein Wächter-Test: jedes Feld aus `save_game()` hat eine Regel). Kurz: Schmiede, Handelsstufen, Rekorde und Zähler Maximum; Freischaltungen und Gesehen-Merker Vereinigung; Gold, Kristalle, Startwaffen, Proviant und Weltname vom zuletzt gespielten Stand (größeres `last_played`, Gleichstand: dieses Gerät); Welt-ID muss gleich sein; unbekannte Abschnitte ganz vom zuletzt gespielten Stand; `[cloud]` bleibt lokal. Abgleich ohne Dialog beim Öffnen der Weltenliste, beim Login und nach jedem Run im Dorf, nie im Run; höchstens alle 60 s, bei 409 höchstens 3 Versuche (TESTWERTE). Eine lokal gelöschte Welt, die in der Cloud war, geht dort ins Archiv. `[cloud]` kommt ohne Versionssprung in v5.
+- **Offen (Projektmitglied):** stiller Gast-Login beim Start, damit der Abgleich ohne Online-Spiel läuft; ob eine endgültig gelöschte Cloud-Welt von einem anderen Gerät „zurückkommen“ darf (heute ja); Sicherungen und Archiv wiederherstellen gehört zu KF6.
+
+### D-223 – Feinschliff aus den Meldungen vom 23. und 26.10.2026 (FS7a–FS7c)
+
+- **Status:** VORGESCHLAGEN (Claude, Umsetzung von Meldungen des Projektmitglieds) · Zahlen **TESTWERT** · **Datum:** 2026-11-03
+- **Dorf-Fenster (FS7a, #e0d2989d, #f6fe6427, #6bdaa672, #d1a7f411):** Kopf und Fuß mit Schließen stehen fest, nur der Inhalt scrollt, Höhe aus `Modal.max_panel_height()`; Werte-Zeilen als Tabelle mit Stufen-Punkten (Text im Tooltip); Währungen im Kopf als Symbol und Zahl; Schrift 21/19/16 px. Gleich im Talentbaum. Pfeile (→ ← ↑ ↓) über eine Pixel-Ersatzschrift für das ganze Spiel, weil Pixelify Sans keine hat und der Browser sonst Kästen zeigt.
+- **Seitenansicht (FS7b, #31d6e702, #e0486234):** Sprint- und Stampf-Bilder werden mit dem Look umgefärbt; die Kippplattform dreht nicht mehr frei, sondern schert in ganzen Pixeln (`SideTilt.SHEAR_TIPPING` 0,2, `SHEAR_FALLING` 0,45), bis 64×48-Bilder geliefert sind (SPRITES_V13 Teil C).
+- **Türsturz (FS7c, #51c557a8):** Wird der Weg hinter einem versiegelten Tor ausgeblendet, baut das Tor seinen Türsturz aus der eigenen Raumwand neu.
+- **Jagd:** siehe Nachtrag D-114.
 
 ## 8. Vorlagen für spätere Entscheidungen
 

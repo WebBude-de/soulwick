@@ -8,6 +8,9 @@ extends MenuPanel
 ## click plays, buttons below. Gamepad (P0-2 step 2): D-pad/stick select, A plays, Y renames,
 ## X deletes (after the question), B goes back; footer and buttons show the gamepad's buttons. Texts are translation keys (D-111); the cards are rebuilt on a
 ## language change.
+## Cloud (KF9, D-188): while the game is logged in, opening the list (or logging in while it is open)
+## syncs the worlds with the account without a dialog (CloudSave, at most once a minute); a line
+## under the cards says what happened, every card whether its world is in the cloud.
 
 signal play_requested(slot: int)
 signal create_requested(slot: int)
@@ -36,6 +39,10 @@ var _renaming := false
 var _rename_edit: LineEdit = null
 var _cards_box: VBoxContainer = null
 var _actions: HBoxContainer = null
+## "Cloud: …" under the cards (hidden while there is nothing to say).
+var _cloud_label: Label = null
+## A sync finished while renaming or asking: the cards are re-read afterwards.
+var _cloud_refresh_pending := false
 
 
 func _ready() -> void:
@@ -43,6 +50,11 @@ func _ready() -> void:
 	add_header(&"MENU_SLOTS", &"SLOTS_TITLE")
 	_cards_box = UiKit.vbox(int(UiKit.px(4)))
 	content.add_child(_cards_box)
+	_cloud_label = UiKit.text_label("", UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
+	_cloud_label.name = "CloudLine"
+	_cloud_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cloud_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	content.add_child(_cloud_label)
 	_actions = UiKit.hbox(int(UiKit.px(6)))
 	_actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(_actions)
@@ -50,6 +62,65 @@ func _ready() -> void:
 	refresh()
 	if active > 0:
 		select_slot(active)
+	_watch_session()
+	_update_cloud_line()
+	if CloudSave.is_due():
+		start_cloud_sync()
+
+
+## Syncs the worlds with the account of the logged-in session in the background (nothing without a
+## login or while another sync runs); the cards are re-read when it is done. Returns the started
+## sync (null if none), whose finished signal carries the report.
+func start_cloud_sync() -> CloudSave:
+	var cloud := CloudSave.for_session(_session())
+	if cloud == null or CloudSave.is_running():
+		return null
+	_set_cloud_text(tr(&"CLOUD_SYNC_RUNNING"))
+	# A signal, not await: the panel may be closed before the server answers.
+	cloud.finished.connect(_on_cloud_finished)
+	cloud.sync_all()
+	return cloud
+
+
+func _on_cloud_finished(_report: Dictionary) -> void:
+	if not is_inside_tree():
+		return
+	if _renaming or _confirm_delete:
+		_cloud_refresh_pending = true
+	else:
+		refresh()
+	_update_cloud_line()
+
+
+## The running game's session, without creating one (OnlineSession.of would).
+func _session() -> OnlineSession:
+	return get_tree().get_first_node_in_group(OnlineSession.GROUP) as OnlineSession if is_inside_tree() else null
+
+
+## A login while the list is open starts the first sync (no dialog, D-188).
+func _watch_session() -> void:
+	var session := _session()
+	if session != null and not session.state_changed.is_connected(_on_session_state):
+		session.state_changed.connect(_on_session_state)
+
+
+func _on_session_state(state: OnlineSession.State) -> void:
+	if state == OnlineSession.State.ONLINE and CloudSave.is_due():
+		start_cloud_sync()
+
+
+func _update_cloud_line() -> void:
+	if CloudSave.is_running():
+		_set_cloud_text(tr(&"CLOUD_SYNC_RUNNING"))
+	else:
+		_set_cloud_text(CloudSave.report_text(CloudSave.last_report))
+
+
+func _set_cloud_text(text: String) -> void:
+	if _cloud_label == null:
+		return
+	_cloud_label.text = text
+	_cloud_label.visible = not text.is_empty()
 
 
 ## Re-reads all slots from disk and rebuilds the cards.
@@ -235,6 +306,9 @@ func _select(index: int, by_key := false) -> void:
 
 
 func _update_state() -> void:
+	if _cloud_refresh_pending and not _renaming and not _confirm_delete:
+		_cloud_refresh_pending = false
+		refresh.call_deferred()
 	for i in _cards.size():
 		var kind := &"gold" if i == _selected else &"dark"
 		if _confirm_delete and i == _selected:
@@ -389,6 +463,9 @@ func _build_card(index: int) -> Button:
 		spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		bottom.add_child(spacer)
+		var cloud_tag := _cloud_tag(summary)
+		if cloud_tag != null:
+			bottom.add_child(cloud_tag)
 		var when := UiKit.text_label(SaveSlots.format_last_played(summary.get("last_played", 0)), UiKit.SIZE_EYEBROW, UiKit.COLOR_DISABLED)
 		when.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 		bottom.add_child(when)
@@ -404,6 +481,19 @@ func _build_card(index: int) -> Button:
 		card.add_child(warning)
 	_set_children_ignore_mouse(card)
 	return card
+
+
+## "in der Cloud" (synced, unchanged since) or "Cloud: noch offen" (changed since the last
+## sync); null for worlds that were never synced.
+func _cloud_tag(summary: Dictionary) -> Label:
+	if int(summary.get("cloud_revision", 0)) <= 0:
+		return null
+	var dirty: bool = summary.get("cloud_dirty", false)
+	var tag := UiKit.text_label(&"SLOTS_CLOUD_PENDING" if dirty else &"SLOTS_CLOUD_SYNCED", UiKit.SIZE_EYEBROW,
+			UiKit.COLOR_DISABLED if dirty else UiKit.COLOR_CRYSTAL)
+	tag.name = "CloudTag"
+	tag.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	return tag
 
 
 ## The world's mark on its card: the world icon (once it exists) or the slot number, framed.

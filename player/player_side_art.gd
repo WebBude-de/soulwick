@@ -9,7 +9,9 @@ extends RefCounted
 ## characters (characters/wick.tres, ember.tres, moss.tres, frost.tres), then ensure() finds them
 ## and does nothing.
 ## Squash, stretch and the salto turn of the double jump are not frames: SidePlayerFx scales and
-## turns the sprite.
+## turns the sprite. ensure() also adds the sprint and the stomp (SideSpeedArt), so a look baked from
+## the base frames (PlayerLook.frames_for) has all side animations in its colours (feedback
+## #31d6e702: the sprint was added later to the baked frames and showed the art's own colours).
 
 const JUMP := &"side_jump"
 const LAND := &"side_land"
@@ -73,6 +75,7 @@ static func ensure(sprite: AnimatedSprite2D) -> void:
 			SpriteStrip.add_strip(frames, WALL_SLIDE, wall_slide, FRAME, WALL_SLIDE_FPS, true)
 		else:
 			_add_single(frames, WALL_SLIDE, FALL_TEXTURE, 0, 1.0)
+	SideSpeedArt.ensure(sprite)
 	if data == null:
 		return
 	_add_mask(data, JUMP, JUMP_MASK)

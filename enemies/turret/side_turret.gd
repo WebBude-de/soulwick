@@ -34,6 +34,12 @@ const GLOW_RADIUS := Vector2(5.0, 15.0)
 const LINE_COLOR := Color(1.0, 0.25, 0.15)
 const LINE_ALPHA := Vector2(0.15, 0.8)
 const LINE_WIDTH := 2.0
+## Pixel telegraph (D-218, FS2c): the aim line as still pixel dashes like the room turret's
+## PixelLine (dash and gap in art pixels), its alpha and the eye glow growing in TELEGRAPH_STEPS hard
+## steps.
+const LINE_DASH := 3
+const LINE_GAP := 2
+const TELEGRAPH_STEPS := 4
 const RECOIL_TIME := 0.2
 const DEATH_TIME := 0.6
 ## The room turret got much stronger on 17.10.2026 (feedback #3aae30f6: health 12 -> 60, damage
@@ -320,18 +326,26 @@ func _charge_progress() -> float:
 
 
 ## Telegraph: the glow in the eye grows, the red line shows where the orb goes (holds at the lock).
+## Drawn in pixel art on the world grid (D-218).
 func _draw() -> void:
 	if _dead or rules == null or not is_charging():
 		return
-	var progress := _charge_progress()
-	var eye := TurretArt.get_eye_color(data)
-	var muzzle := normal * MUZZLE_DISTANCE
-	var locked := rules.is_aim_locked() if not remote_controlled else progress > 0.75
-	var alpha := LINE_ALPHA.y if locked else lerpf(LINE_ALPHA.x, LINE_ALPHA.y * 0.8, progress)
-	draw_line(muzzle, muzzle + rules.aim * rules.sight_range, Color(LINE_COLOR, alpha), LINE_WIDTH)
-	var radius := lerpf(GLOW_RADIUS.x, GLOW_RADIUS.y, progress)
-	draw_circle(muzzle, radius, Color(eye, lerpf(0.15, 0.45, progress)))
-	draw_arc(muzzle, radius, 0.0, TAU, 24, Color(eye, 0.9), 1.5)
+	var locked := rules.is_aim_locked() if not remote_controlled else _charge_progress() > 0.75
+	PixelDraw.align_to_world_grid(self)
+	paint_telegraph(self, normal * MUZZLE_DISTANCE, rules.aim * rules.sight_range, _charge_progress(), locked, TurretArt.get_eye_color(data))
+
+
+## The telegraph into item (this turret or a PixelDraw.Raster): a dashed pixel line from muzzle
+## along reach, a pixel disc in the eye colour inside a one-pixel ring, growing with progress (0..1),
+## alpha and size in TELEGRAPH_STEPS hard steps.
+static func paint_telegraph(item: Object, muzzle: Vector2, reach: Vector2, progress: float, locked: bool, eye: Color) -> void:
+	var step := PixelDraw.stepped(progress, TELEGRAPH_STEPS)
+	var alpha := LINE_ALPHA.y if locked else lerpf(LINE_ALPHA.x, LINE_ALPHA.y * 0.8, step)
+	var width := PixelLine.pixels_for_width(LINE_WIDTH)
+	SidePixels.dashed(item, muzzle, muzzle + reach, Color(LINE_COLOR, alpha), LINE_DASH, LINE_GAP, width)
+	var radius := SidePixels.whole(lerpf(GLOW_RADIUS.x, GLOW_RADIUS.y, step))
+	SidePixels.disc(item, muzzle, radius - SidePixels.PIXEL, Color(eye, lerpf(0.15, 0.45, step)))
+	SidePixels.ring(item, muzzle, radius, Color(eye, 0.9))
 
 
 func _play(animation: StringName) -> void:

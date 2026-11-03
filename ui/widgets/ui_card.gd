@@ -7,8 +7,9 @@ extends PanelContainer
 ## half transparency); the owner shows why with a badge (UiChip.badge). Clicks and number keys on
 ## a blocked card answer with UiSound.error and a short shake instead of silence.
 ## R8 (more life): an accent colour (upgrade category, offer kind) runs as a band along the top
-## inner edge; the focused card glows in it (soft pulse) and its symbol (symbol) does a small hop;
-## a pick plays pick_sound and leaves a burst (UiKit.pick_burst) that outlasts the closing dialog.
+## inner edge; the focused card glows in it (pixel frames, stepped pulse) and its symbol (symbol)
+## does a small hop; a pick plays pick_sound and leaves a burst (UiKit.pick_burst) that outlasts the
+## closing dialog.
 
 signal pressed
 ## Emitted on mouse enter so the owner can move the focus here.
@@ -25,6 +26,8 @@ const FRAME_INSET := 3
 const ACCENT_ROWS := 2
 const GLOW_RINGS := 3
 const GLOW_SPEED := 4.0
+## Hard steps of the glow's breathing (pixel art, D-218).
+const GLOW_STEPS := 3
 ## Symbol hop when the card gets the focus (scale).
 const HOP_SCALE := 1.18
 
@@ -87,13 +90,20 @@ func _draw() -> void:
 	draw_rect(Rect2(inset, inset, size.x - inset * 2.0, ACCENT_ROWS * UiKit.ART_SCALE), band)
 	if not focused or disabled:
 		return
-	# Soft pixel glow around the focused card, breathing slowly.
-	var breath := 0.5 + 0.5 * sin(_glow)
+	paint_glow(self, 0.5 + 0.5 * sin(_glow))
+
+
+## Pixel glow around the focused card (D-218) into item (this card in _draw, or a PixelDraw.Raster
+## in tests): GLOW_RINGS one-art-pixel frames on the UI grid, each fainter outwards, breathing
+## (breath 0..1) in GLOW_STEPS hard steps.
+func paint_glow(item: Object, breath: float) -> void:
+	var stepped_breath := PixelDraw.stepped(breath, GLOW_STEPS)
 	var step := float(UiKit.ART_SCALE)
 	for i in GLOW_RINGS:
 		var grow := step * (i + 1)
-		var alpha := (0.22 - 0.06 * i) * (0.6 + 0.4 * breath)
-		draw_rect(Rect2(-grow, -grow, size.x + grow * 2.0, size.y + grow * 2.0), Color(accent, alpha), false, step)
+		var alpha := (0.22 - 0.06 * i) * (0.6 + 0.4 * stepped_breath)
+		var ring := Rect2(-grow, -grow, size.x + grow * 2.0, size.y + grow * 2.0)
+		PixelDraw.rect_outline(item, ring, Color(accent, alpha), 1, step)
 
 
 func _gui_input(event: InputEvent) -> void:

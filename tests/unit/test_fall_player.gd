@@ -124,6 +124,21 @@ func test_a_fall_can_kill() -> void:
 	assert_true(player.health.is_dead(), "2 HP left, the shield does not help (D-086)")
 
 
+func test_a_fall_cancelled_by_a_side_segment_frees_the_player_without_damage() -> void:
+	var player := _player()
+	var full := player.health.get_health()
+	_put_feet(player, Vector2(30, 0))
+	_run(player, 0.05)
+	_put_feet(player, Vector2(150, 0))
+	_run(player, 0.12)
+	assert_true(player.fall.is_falling(), "falls before the segment starts")
+	player.fall.cancel()
+	assert_false(player.fall.is_falling())
+	assert_false(player.is_input_locked(), "the side segment must not inherit the fall lock")
+	assert_eq(player.health.get_health(), full, "no damage for a cancelled fall")
+	assert_eq(player.get_feet_position(), Vector2(150, 0), "stays where the segment put it")
+
+
 func test_the_fall_names_the_abyss_as_cause() -> void:
 	var player := _player()
 	var hits: Array = []

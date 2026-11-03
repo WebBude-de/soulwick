@@ -43,12 +43,15 @@ static func sanitize_name(text: String, slot: int) -> String:
 ## play_time (s), last_played (unix s, 0 = unknown), all_seen, from_backup (the file is broken, the
 ## values come from its last good copy, which loading will use too; P1-8), forge_level and
 ## forge_max (forge levels bought / all levels, see forge_progress; D-188 progress at a glance),
-## world_id ([world] id of v5 files, "" before; a file of an older version gets one when it is loaded).
+## world_id ([world] id of v5 files, "" before; a file of an older version gets one when it is loaded),
+## cloud_revision (server revision of the last cloud sync, 0 = never synced; KF9), cloud_synced_at
+## (unix s of that sync) and cloud_dirty (changed here since then, so the next sync uploads it).
 static func read_summary(path: String, slot: int) -> Dictionary:
 	var summary := {
 		"exists": false, "broken": false, "name": default_name(slot), "world_name": "", "version": 0,
 		"gold": 0, "crystals": 0, "deepest_room": 0, "play_time": 0.0, "last_played": 0, "all_seen": false,
 		"from_backup": false, "forge_level": 0, "forge_max": forge_max_level(), "world_id": "",
+		"cloud_revision": 0, "cloud_synced_at": 0, "cloud_dirty": false,
 	}
 	if not FileAccess.file_exists(path):
 		return summary
@@ -85,6 +88,11 @@ static func read_summary(path: String, slot: int) -> Dictionary:
 	summary["forge_level"] = forge_progress(config)
 	var world_id: Variant = stored.get_value("world", "id", "")
 	summary["world_id"] = String(world_id) if SaveManager.is_valid_world_id(world_id) else ""
+	var cloud := SaveManager.cloud_state_of(stored)
+	summary["cloud_revision"] = cloud["base_revision"]
+	summary["cloud_synced_at"] = cloud["synced_at"]
+	summary["cloud_dirty"] = cloud["base_revision"] > 0 \
+			and SaveMerge.content_hash(SaveMerge.to_world_data(config)) != cloud["synced_hash"]
 	return summary
 
 

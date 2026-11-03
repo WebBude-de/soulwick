@@ -7,6 +7,8 @@ extends Control
 ## Like the companion (D-217, FlintShine): a soft warm glow breathes behind him (under the ring, so
 ## it stays inside it) and sparks rise from his flame and fade before the ring; no sparks on
 ## "Lichteffekte: Niedrig". Optics only.
+## Pixel art (D-218, FS2c): the dark disc and the code ring are stepped pixel discs on the UI art grid
+## (PixelDraw, 1 art pixel = UiKit.ART_SCALE); only Flint's glow stays soft (D-217).
 
 ## Ring and portrait size in mockup pixels (§B2: 56 and 48).
 const RING_SPEC := 56.0
@@ -98,9 +100,8 @@ func _draw() -> void:
 	var portrait := Rect2(box.get_center() - Vector2(side, side) * 0.5, Vector2(side, side))
 	var pixel := side / FlintPortraitArt.FRAME_SIZE.x
 	var flame := portrait.position + _flame * pixel
+	paint_frame(self, box, _ring != null)
 	if _ring != null:
-		var art := UiKit.ART_SCALE
-		draw_circle(box.get_center(), minf(box.size.x, box.size.y) * 0.5 - art, RING_FILL)
 		# Under the ring: what spills over its inner edge is covered.
 		FlintShine.draw_glow(self, flame + Vector2(0, GLOW_DROP * pixel), GLOW_RADIUS * pixel, _shine_time)
 		draw_texture_rect(_ring, box, false)
@@ -108,12 +109,24 @@ func _draw() -> void:
 		var center := box.get_center()
 		var radius := minf(box.size.x, box.size.y) * 0.5
 		var art := UiKit.ART_SCALE
-		draw_circle(center, radius, RING_SHADE)
-		draw_circle(center, radius - art, RING_EDGE)
-		draw_circle(center, radius - art * 2, RING_FILL)
 		var glow_center := flame + Vector2(0, GLOW_DROP * pixel)
 		FlintShine.draw_glow(self, glow_center, minf(GLOW_RADIUS * pixel, radius - art * 2 - (glow_center - center).length()), _shine_time)
 	if texture == null:
 		return
 	draw_texture_rect(texture, portrait, false)
 	FlintShine.draw_sparks(self, flame, pixel, SPARK_RISE * pixel, _shine_time, box.get_center(), SPARK_CLIP_RADIUS * pixel)
+
+
+## The pixel frame behind the portrait in box (item: this control or a PixelDraw.Raster). With the
+## delivered ring (delivered) only the dark disc inside it, one art pixel smaller; without it the
+## code ring: shade rim, gold ring and the dark disc, each one art pixel inside the last.
+static func paint_frame(item: Object, box: Rect2, delivered: bool) -> void:
+	var art := float(UiKit.ART_SCALE)
+	var center := box.get_center()
+	var radius := minf(box.size.x, box.size.y) * 0.5
+	if delivered:
+		PixelDraw.disc(item, center, radius - art, RING_FILL, art)
+		return
+	PixelDraw.ring(item, center, radius, RING_SHADE, 1, art)
+	PixelDraw.ring(item, center, radius - art, RING_EDGE, 1, art)
+	PixelDraw.disc(item, center, radius - art * 2.0, RING_FILL, art)

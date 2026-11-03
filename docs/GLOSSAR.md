@@ -167,6 +167,9 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Magic Link | magic link (Vorschlag) | Anmelde-Link per E-Mail, einmal gültig | D-188 |
 | Konto-Level, Level, XP | account level, level, XP (Vorschlag) | Level des Kontos über alle Welten, Solo und Koop; steigt mit XP aus Runs und fällt nie; je Level ein Talentpunkt (D-194 ersetzt „nur Optik“), alle 5 Level Kosmetik | D-188, D-194 |
 | Cloud-Welt | cloud world (Vorschlag) | Kopie einer Welt am Konto auf dem Server, für alle Geräte des Kontos | D-188, CP5 |
+| Abgleich, „in der Cloud“, „Cloud: noch offen“ | sync, “in the cloud”, “cloud: pending” (TR `CLOUD_SYNC_*`, `SLOTS_CLOUD_*`) | Welten des Geräts mit den Cloud-Welten des Kontos zusammenbringen, ohne Rückfrage; die Weltkarte zeigt, ob die Welt seit dem letzten Abgleich geändert wurde | D-188, KF9, `CloudSave` |
+| Mischregel | merge rule (nur intern, `SaveMerge.Rule`) | wie ein Feld zweier Stände derselben Welt zusammenkommt: Maximum, Minimum, Vereinigung oder „zuletzt gespielt“ | D-188, KONZEPT §10, `SaveMerge.FIELD_RULES` |
+| Sicherung (Cloud) | backup (`discarded`, `WorldBackup`) | der beim Mischen unterlegene Stand, 30 Tage am Server wiederherstellbar | D-188, KF8 |
 | Gilde | guild (`guild`, `guilds`) | dauerhafte Gruppe, bis zu 5 je Spieler (D-147), höchstens 30 Mitglieder; hat Name und Kürzel (`GuildTag`, 2–5 Zeichen) | D-080, API `GuildName`, `GuildTag` |
 | Gründer, Offizier, Mitglied | founder, officer, member (`GuildRole`) | Rollen in einer Gilde | API `GuildRole`, `apps/admin/src/lib/format.ts` |
 | Einladungscode | invite code | Code für den Beitritt zu einer Gilde | D-080, API `InviteCode`, WEB `guildCardText` |

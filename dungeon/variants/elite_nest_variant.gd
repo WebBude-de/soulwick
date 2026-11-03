@@ -13,8 +13,8 @@ const ELITE_COUNT := Vector2i(2, 3)
 const CHAMPION_ESCORT := Vector2i(1, 2)
 ## Share of the nests with one champion instead of elites. TESTWERT
 const CHAMPION_CHANCE := 0.35
-## Soul crystals for clearing the nest, for the group ("doppelte Kristalle": a champion gives 1). TESTWERT
-const NEST_CRYSTALS := 2
+## Soul crystals for clearing the nest, for the group (D-221; champions pay gold instead). TESTWERT
+const NEST_CRYSTALS := 1
 ## Gold of a nest elite is multiplied like any elite's (EnemySpawner.ELITE_GOLD_MULTIPLIER).
 const ELITE_KINDS: Array[Enemy.Elite] = [Enemy.Elite.SWIFT, Enemy.Elite.ARMORED, Enemy.Elite.VOLATILE]
 

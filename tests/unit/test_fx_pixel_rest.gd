@@ -241,3 +241,42 @@ func test_lava_ball_art_is_drawn_at_a_whole_scale() -> void:
 	assert_eq(LobShell.ART_SCALE, roundf(LobShell.ART_SCALE))
 	var texture := load(LobShell.ART_PATH) as Texture2D
 	assert_eq(texture.get_width() % LobShell.ART_FRAME.x, 0, "whole frames")
+
+
+# --- Village and UI leftovers (FS2b): "!" marker, moon beam, card glow ---
+
+func test_afford_marker_glow_is_stepped_pixels() -> void:
+	var script := load("res://world/village/village_afford_marker.gd")
+	for beat in [0.0, 1.0 / 3.0, 1.0]:
+		var raster := PixelDraw.Raster.new(Vector2i(80, 80), Vector2(40, 40))
+		script.paint_glow(raster, beat)
+		_assert_rects_on_grid(raster.rects, "afford glow at %s" % beat)
+		assert_lte(_alphas(raster.image).size(), 3, "empty, rim and core only (beat %s)" % beat)
+	var marker: Node2D = autofree(script.new())
+	var seen := {}
+	for i in 40:
+		marker.set(&"_time", i * 0.05)
+		seen[marker.call(&"pulse_share")] = true
+	assert_lte(seen.size(), 4, "the pulse moves in a few hard steps: %s" % [seen.keys()])
+	assert_gt(seen.size(), 1, "and it moves")
+
+
+func test_moon_beam_shaft_is_whole_art_pixels() -> void:
+	var beam: HomeMoonBeam = autofree(HomeMoonBeam.new())
+	var raster := PixelDraw.Raster.new(Vector2i(200, 220))
+	beam.paint_shaft(raster)
+	_assert_rects_on_grid(raster.rects, "moon shaft", HomeMoonBeam.ART_PIXEL)
+	assert_eq(_alphas(raster.image).size(), 2, "one flat colour, no smooth edge")
+
+
+func test_card_glow_is_pixel_frames_on_the_ui_grid() -> void:
+	var pixel := float(UiKit.ART_SCALE)
+	var card: UiCard = add_child_autofree(UiCard.new())
+	card.size = Vector2(40, 20) * pixel
+	card.accent = Color(0.9, 0.6, 0.2)
+	var raster := PixelDraw.Raster.new(Vector2i(card.size + Vector2.ONE * 8.0 * pixel), Vector2.ONE * 4.0 * pixel)
+	card.paint_glow(raster, 0.37)
+	_assert_rects_on_grid(raster.rects, "card glow", pixel)
+	assert_eq(raster.rects.size(), UiCard.GLOW_RINGS * 4, "four sides per ring")
+	assert_eq(raster.image.get_pixel(int(4.0 * pixel) + 10, int(4.0 * pixel) + 10).a, 0.0, "nothing inside the card")
+

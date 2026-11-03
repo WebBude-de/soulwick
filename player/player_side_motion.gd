@@ -351,7 +351,6 @@ func enter(world: SideSegment, feet: Vector2) -> void:
 	_set_shadow_visible(false)
 	_watch_vitals(true)
 	PlayerSideArt.ensure(_player.get_node("Sprite") as AnimatedSprite2D)
-	SideSpeedArt.ensure(_player.get_node("Sprite") as AnimatedSprite2D)
 
 
 ## Back to the top-down view (the body shape, the floating motion, the shadow).

@@ -79,10 +79,10 @@ func _kill_all(room: RoomController) -> void:
 func test_souls_numbers() -> void:
 	assert_eq(SoulsRules.SOUL_COUNT, 12)
 	assert_eq(SoulsRules.TIME_LIMIT, 45.0)
-	assert_eq(SoulsRules.crystals_for(12), 3)
-	assert_eq(SoulsRules.crystals_for(10), 2)
-	assert_eq(SoulsRules.crystals_for(6), 1)
-	assert_eq(SoulsRules.crystals_for(5), 0, "too few: no bonus")
+	assert_eq(SoulsRules.crystals_for(12), 2, "D-221: 3 -> 2")
+	assert_eq(SoulsRules.crystals_for(10), 1, "D-221: 2 -> 1")
+	assert_eq(SoulsRules.crystals_for(9), 1)
+	assert_eq(SoulsRules.crystals_for(8), 0, "too few: no bonus (D-221: six souls no longer pay)")
 	for players in range(1, GameMode.MAX_PLAYERS + 1):
 		var last := SoulsRules.SPAWN_INTERVAL * (SoulsRules.SOUL_COUNT - 1) + SoulsRules.FIRST_DELAY + SoulsRules.soul_lifetime(players)
 		assert_lte(last, SoulsRules.time_limit(players), "the last soul still fits into the time (%d players)" % players)
@@ -106,7 +106,7 @@ func test_alone_the_souls_last_longer_and_come_closer() -> void:
 	assert_lt(SoulsRules.max_step(1), SoulsRules.max_step(2), "alone the next soul is nearer")
 	assert_lte(SoulsRules.max_step(2), SoulsRules.max_step(4))
 	assert_eq(SoulsRules.max_step(9), SoulsRules.max_step(GameMode.MAX_PLAYERS))
-	assert_eq(SoulsRules.crystals_for(12), 3, "CRYSTAL_STEPS unchanged (KE9)")
+	assert_eq(SoulsRules.crystals_for(12), 2, "CRYSTAL_STEPS do not depend on the players (KE9, D-221)")
 
 
 func test_chained_order_keeps_every_step_short() -> void:
@@ -249,10 +249,10 @@ func test_round_end_gives_crystals_by_count_and_opens_the_room() -> void:
 		mode.owed_enemies = 0
 		mode.step(0.5)
 	assert_eq(mode.collected, 12)
-	assert_eq(mode.crystals, 3)
+	assert_eq(mode.crystals, SoulsRules.crystals_for(12))
 	assert_eq(mode.bonus, CombatVariant.Bonus.ACHIEVED)
 	assert_not_null(mode.get_crystal_pickup(), "crystals by the exit")
-	assert_eq(mode.get_crystal_pickup().amount, 3)
+	assert_eq(mode.get_crystal_pickup().amount, SoulsRules.crystals_for(12))
 	assert_false(mode.holds_completion())
 	_kill_all(room)
 	await wait_process_frames(2)

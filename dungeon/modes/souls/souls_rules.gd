@@ -42,7 +42,8 @@ const PUSH_MAX_ALIVE := 8
 ## The room's own encounter times this: the souls bring the rest. TESTWERT
 const ENCOUNTER_FACTOR := 0.6
 ## Soul crystals by count (taken -> crystals), highest first. Less than the last = no bonus. TESTWERTE
-const CRYSTAL_STEPS: Array[Vector2i] = [Vector2i(12, 3), Vector2i(9, 2), Vector2i(6, 1)]
+## (KE9/D-221, KONZEPT §5.3: 12/9/6 -> 3/2/1 became 12/9 -> 2/1, six souls no longer pay).
+const CRYSTAL_STEPS: Array[Vector2i] = [Vector2i(12, 2), Vector2i(9, 1)]
 ## The bar turns red for the last seconds.
 const DANGER_TIME := 10.0
 ## Places the plan does not have are filled from free floor, this far from every door (tiles).

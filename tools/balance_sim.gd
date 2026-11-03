@@ -39,6 +39,24 @@ extends SceneTree
 ##   max_fps=0         cap the frame rate (0 = unlimited)
 ##   room_timeout=240  seconds before the enemies of a room are removed (the bot cannot climb plateaus,
 ##                     M3, and does not play room modes: lower values cut the attrition while stuck)
+## Economy and meta (KE9):
+##   danger=0          danger level G of every run (RunManager.set_danger_level before the start);
+##                     career=1 without danger= takes the account's own level
+##   talents=          wind | ember | soul: spend the talent points along that path (fixed order per
+##                     path, round robin, ranks open as in the tree); soul equips the unlocked spells
+##                     and the bot casts slot 1/2 when an enemy is within 170 px
+##   points=-1         talent points; -1 = 2 * danger (the level a player at G needs, L = 2G + 1),
+##                     career=1: the account level's points
+##   boosts=           Proviant ids packed before every run, e.g. boosts=gold_rain,soul_anchor
+##   exit=0            N > 0 = take the first soul gate at or after room N (place 4 or campfire);
+##                     0 = never (death or max_rooms, which ends as abort)
+##   career=0          1 = the runs of this process form one account: own progress file, danger from
+##                     the account, forge purchases between the runs (buy=), milestones in CAREER
+##   buy=auto          career forge order, comma list of MetaProgression ids, cycled while the gold
+##                     pays; auto = arsenal of the policy weapon (if not sword), weapon_<policy>,
+##                     shield_plate; none = never buy
+## Every run prints an ECON line (end, room, run gold/crystals, payout, XP, level, danger, crystal
+## sources); SUMMARY adds the means. Gold and crystals at rooms 15/30/45 are in the CSV.
 ## Recommended realistic bot: hazards=1 falls=1 nav=1 (off by default to stay comparable with
 ## older measurements).
 ## Death cause: the cause column / SUMMARY keep the short source (enemy id, trap, pit, explosion);
@@ -83,7 +101,19 @@ var opt := {
 	"reaction": 0.22, "seed": 0, "out": "", "quiet": 0, "debug": 0, "branch": "first",
 	"dseed": 1, "hazards": 0, "falls": 0, "nav": 0, "smart": 0, "god_until": 0, "bosshits": 0,
 	"audio": 0, "max_fps": 0, "room_timeout": ROOM_TIMEOUT,
+	"danger": -1, "talents": "", "points": -1, "boosts": "", "exit": 0, "career": 0, "buy": "auto",
 }
+## Talent order per path (KE9): the bot spends round robin along it; locked ranks are skipped.
+const TALENT_ORDER := {
+	"wind": ["light_foot", "dash_training", "swift_blade", "evasion", "double_dash", "wind_runner"],
+	"ember": ["vitality", "might", "steadfast", "shield_breaker", "second_heart", "ember_heart"],
+	"soul": ["light_flash", "spell_power", "flame_ring", "focus", "soul_shield", "will_o_wisp",
+			"heal_spark", "staff_master", "second_spell_slot"],
+}
+## Spells the soul bot puts into its slots, best first.
+const SPELL_ORDER: Array[StringName] = [&"flame_ring", &"light_flash", &"will_o_wisp", &"soul_shield", &"heal_spark"]
+const SPELL_CAST_RANGE := 170.0
+const END_NAMES := ["death", "abort", "exit"]
 var ovr := {}
 var res_overrides: Array = []
 
@@ -129,6 +159,12 @@ var _pending_seed := 0
 var _nav_cache := {"t": -1.0, "wp": Vector2.INF, "path": PackedVector2Array()}
 var _vt_keep: Resource = null
 var _boss_hits := {}
+# Economy (KE9): crystals per source in the current run, the last crystal count, career state.
+var _crystal_sources := {}
+var _last_crystals := 0
+var _cur_room: Node = null
+var _progress_path := ""
+var _milestones := {}
 
 
 func _init() -> void:
@@ -159,12 +195,24 @@ func _run() -> void:
 	var save_manager := root.get_node("SaveManager")
 	var save_path := "user://balance_sim_%d.cfg" % OS.get_process_id()
 	save_manager.save_path = save_path
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	_remove_user_file(save_path)
 	save_manager.load_game()
 	# Own settings in German: the real settings.cfg may say English and would win at world start.
 	save_manager.settings_path = "user://balance_sim_settings.cfg"
 	save_manager.load_settings()
 	save_manager.set_option(&"language", "de")
+	# Own account progress (XP, level, danger of the last runs) per process, never the shared one.
+	_progress_path = "user://balance_sim_progress_%d.cfg" % OS.get_process_id()
+	_remove_user_file(_progress_path)
+	var progress_script: GDScript = load("res://meta/account_progress.gd")
+	progress_script.path_override = _progress_path
+	progress_script.reset()
+	# A new account: the first load copies the record of this machine's worlds (read only), drop it.
+	var progress: Object = progress_script.current()
+	progress.best_room = 0
+	progress.bosses = 0
+	progress.champions = 0
+	progress.save()
 	if int(opt.max_fps) > 0:
 		Engine.max_fps = int(opt.max_fps)
 	if int(opt.audio) == 0:
@@ -176,7 +224,7 @@ func _run() -> void:
 		_silence_music()
 	controller = current_scene.get_node("WorldController")
 	_load_enums()
-	_rows.append("run,policy,pick,room,type,enemies,time,hp_dmg,shield_dmg,hits,dashes,hp,max_hp,shield,upgrades,gold,dead,timeout,cause,cause_detail,desc,trap_dmg,pit_dmg,expl_dmg,enemy_dmg")
+	_rows.append("run,policy,pick,room,type,enemies,time,hp_dmg,shield_dmg,hits,dashes,hp,max_hp,shield,upgrades,gold,dead,timeout,cause,cause_detail,desc,trap_dmg,pit_dmg,expl_dmg,enemy_dmg,crystals")
 	for run in int(opt.runs):
 		var summary: Dictionary = await _play_run(run)
 		_summaries.append(summary)
@@ -188,8 +236,17 @@ func _run() -> void:
 	_print_overview()
 	if int(opt.bosshits) == 1:
 		print("BOSSHITS ", JSON.stringify(_boss_hits))
-	DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	_remove_user_file(save_path)
+	_remove_user_file(_progress_path)
 	quit(0)
+
+
+## Removes a user:// file with the backup and temp file SafeSave writes next to it.
+func _remove_user_file(path: String) -> void:
+	for file in [path, path + ".prev.bak", path + ".tmp"]:
+		var absolute := ProjectSettings.globalize_path(file)
+		if FileAccess.file_exists(absolute):
+			DirAccess.remove_absolute(absolute)
 
 
 # --- Setup ---
@@ -298,6 +355,12 @@ func _play_run(run: int) -> Dictionary:
 	var wall_start := Time.get_ticks_msec()
 	if int(opt.dseed) == 1 and int(opt.seed) != 0:
 		_pending_seed = int(opt.seed) * 1000 + run + 1
+	var run_manager := root.get_node("RunManager")
+	var progress: Object = (load("res://meta/account_progress.gd") as GDScript).current()
+	var xp_before: int = progress.get_total_xp()
+	var danger := _run_danger(progress)
+	run_manager.set_danger_level(danger)
+	_pack_boosts()
 	controller.enter_dungeon()
 	await _frames(20)
 	dungeon = controller.get_world()
@@ -307,13 +370,19 @@ func _play_run(run: int) -> Dictionary:
 	if ovr.has("player_hp"):
 		player.health.reset(float(ovr.player_hp))
 	_equip_policy_weapon()
+	var talent_points := _apply_talents(danger, progress)
+	_crystal_sources = {}
+	_last_crystals = 0
+	if not run_manager.run_crystals_changed.is_connected(_on_run_crystals):
+		run_manager.run_crystals_changed.connect(_on_run_crystals)
 	player.hurtbox.hit_received.connect(_on_player_hit)
 	_shield_prev = 0.0
 	if ovr.has("softcap") or ovr.has("softcap_factor"):
 		player.shield.shield_changed.connect(_on_shield_changed)
 	_seen.clear()
 
-	var summary := {"room": 1, "dead": false, "cause": "", "upgrades": 0, "gold": 0, "wall": 0.0, "detail": "", "where": ""}
+	var summary := {"room": 1, "dead": false, "cause": "", "upgrades": 0, "gold": 0, "wall": 0.0, "detail": "", "where": "",
+		"exit": false, "index": run}
 	var index := 1
 	while true:
 		var room: Node = dungeon.get_room(index)
@@ -328,6 +397,7 @@ func _play_run(run: int) -> Dictionary:
 				break
 		if int(opt.get("god_until", 0)) > 0:
 			player.hurtbox.set_invulnerable(&"bal_god", index <= int(opt.god_until))
+		_cur_room = room
 		_begin_record(room)
 		if room.room_type == RT_SPECIAL:
 			await _use_special(room)
@@ -351,6 +421,9 @@ func _play_run(run: int) -> Dictionary:
 			break
 		# After a boss the campfire (A6, not a room) has to be entered before room n+1 exists.
 		var campfire: Node = dungeon.get_campfire(index)
+		if _wants_exit(index, room, campfire):
+			summary.exit = true
+			break
 		if campfire != null:
 			player.global_position = campfire.get_player_start()
 			for i in 120:
@@ -359,11 +432,16 @@ func _play_run(run: int) -> Dictionary:
 					break
 		index += 1
 	summary.upgrades = _upgrade_count()
-	summary.gold = root.get_node("RunManager").get_run_gold()
-	if not summary.dead:
+	summary.gold = run_manager.get_run_gold()
+	if summary.exit:
+		dungeon.end_run(2)  # RunManager.EndReason.EXIT
+	elif not summary.dead:
 		dungeon.end_run(1)  # RunManager.EndReason.ABORT
 	await _return_to_village()
 	summary.wall = (Time.get_ticks_msec() - wall_start) / 1000.0
+	_add_economy(summary, run, run_manager, progress, xp_before, danger, talent_points)
+	if int(opt.career) == 1:
+		_career_buy(summary)
 	return summary
 
 
@@ -378,6 +456,161 @@ func _equip_policy_weapon() -> void:
 		return
 	var weapon: Resource = load(path)
 	player.weapon_controller.equip_weapon(weapon, 0)
+
+
+# --- Economy and meta (KE9) ---
+
+## Danger of the next run: danger= wins; career=1 without it takes the account's own level.
+func _run_danger(progress: Object) -> int:
+	if int(opt.danger) >= 0:
+		return int(opt.danger)
+	if int(opt.career) == 1:
+		return int(progress.get_danger_level())
+	return 0
+
+
+## Packs the Proviant of boosts= for the next run (free: the sim measures the effect, not the price).
+func _pack_boosts() -> void:
+	var save_manager := root.get_node("SaveManager")
+	for id in String(opt.boosts).split(",", false):
+		save_manager.add_pending_boost(StringName(id.strip_edges()))
+
+
+## Spends the talent points round robin along the path of talents= and puts the distribution on the
+## player (soul: unlocked spells into the slots, best first). Returns the points spent.
+func _apply_talents(danger: int, progress: Object) -> int:
+	var path := String(opt.talents)
+	if not TALENT_ORDER.has(path):
+		return 0
+	var points := int(opt.points)
+	if points < 0:
+		points = int(progress.get_talent_points()) if int(opt.career) == 1 else 2 * danger
+	var state: Object = (load("res://talents/talent_state.gd") as GDScript).new()
+	var raised := true
+	while raised:
+		raised = false
+		for id in TALENT_ORDER[path]:
+			if state.raise(StringName(id), points):
+				raised = true
+	var unlocked: Array = state.get_unlocked_spells()
+	var slot := 0
+	for spell in SPELL_ORDER:
+		if unlocked.has(spell) and state.equip_spell(spell, slot):
+			slot += 1
+	(load("res://talents/talent_effects.gd") as GDScript).apply_to(player, state)
+	(load("res://spells/player_spells.gd") as GDScript).attach_to(player)
+	return int(state.get_spent_points())
+
+
+## Casts a ready spell (slot 1 first) when an enemy is within SPELL_CAST_RANGE.
+func _cast_spells(enemies: Array) -> void:
+	var spells: Node = player.get_node_or_null(^"Spells")
+	if spells == null or not spells.has_spells():
+		return
+	for enemy in enemies:
+		if player.global_position.distance_to(enemy.global_position) <= SPELL_CAST_RANGE:
+			for slot in 2:
+				if spells.try_cast_slot(slot):
+					return
+			return
+
+
+## Crystals per source: the room type (boss, champion) or the room's mode / altar / special room.
+func _on_run_crystals(amount: int) -> void:
+	var gained := amount - _last_crystals
+	_last_crystals = amount
+	if gained <= 0:
+		return
+	var key := "other"
+	if _cur_room != null and is_instance_valid(_cur_room):
+		match int(_cur_room.room_type):
+			4:
+				key = "boss"
+			3:
+				key = "champion"
+			RT_SPECIAL:
+				key = "special"
+			_:
+				key = _cur_room.get_variant_id() if _cur_room.has_method(&"get_variant_id") else ""
+				if String(key).is_empty():
+					key = "wager" if _cur_room.has_method(&"has_wager_altar") and _cur_room.has_wager_altar() else "combat"
+	_crystal_sources[String(key)] = int(_crystal_sources.get(String(key), 0)) + gained
+
+
+## exit=N: after room N the bot takes the first soul gate (place 4 or the campfire behind a boss).
+func _wants_exit(index: int, room: Node, campfire: Node) -> bool:
+	if int(opt.exit) <= 0 or index < int(opt.exit) or not player.is_alive():
+		return false
+	return bool(room.has_portal) or (campfire != null and bool(campfire.has_portal))
+
+
+## Payout, XP and danger of the finished run into summary, one ECON line.
+func _add_economy(summary: Dictionary, run: int, run_manager: Node, progress: Object, xp_before: int, danger: int, talent_points: int) -> void:
+	var last: Dictionary = run_manager.get_last_summary()
+	summary.end = END_NAMES[clampi(int(last.get("reason", 0)), 0, 2)]
+	summary.run_gold = int(last.get("remaining_gold", 0))
+	summary.gold_earned = int(last.get("gold_earned", 0))
+	summary.crystals = int(last.get("remaining_crystals", 0))
+	summary.payout = int(last.get("payout", 0))
+	summary.crystal_payout = int(last.get("crystal_payout", 0))
+	summary.danger = danger
+	summary.xp = int(progress.get_total_xp()) - xp_before
+	summary.level = int(progress.get_level())
+	summary.danger_after = int(progress.get_danger_level())
+	summary.sources = _crystal_sources.duplicate()
+	var save_manager := root.get_node("SaveManager")
+	summary.bank_gold = int(save_manager.get_permanent_gold())
+	summary.bank_crystals = int(save_manager.get_permanent_crystals())
+	print("ECON run=%d end=%s room=%d G=%d talents=%s:%d run_gold=%d earned=%d crystals=%d payout=%d crystal_payout=%d xp=%d level=%d G_after=%d bank=%d/%d sources=%s" % [
+		run, summary.end, summary.room, danger, opt.talents, talent_points, summary.run_gold, summary.gold_earned,
+		summary.crystals, summary.payout, summary.crystal_payout, summary.xp, summary.level, summary.danger_after,
+		summary.bank_gold, summary.bank_crystals, JSON.stringify(summary.sources)])
+
+
+## Forge order of buy= for the career (auto: arsenal of the policy weapon, its forge levels, plate).
+func _buy_order() -> Array[StringName]:
+	var order: Array[StringName] = []
+	var wanted := String(opt.buy)
+	if wanted == "none":
+		return order
+	if wanted != "auto":
+		for id in wanted.split(",", false):
+			order.append(StringName(id.strip_edges()))
+		return order
+	var weapon := String(opt.policy)
+	if weapon != "sword":
+		order.append(StringName("arsenal_" + weapon))
+	order.append(StringName("weapon_" + weapon))
+	order.append(&"shield_plate")
+	return order
+
+
+## Career (career=1): buys along buy= while the gold pays and notes the first run of each milestone.
+func _career_buy(summary: Dictionary) -> void:
+	var meta: GDScript = load("res://meta/meta_progression.gd")
+	var bought: Array[String] = []
+	var buying := true
+	while buying:
+		buying = false
+		for id in _buy_order():
+			if meta.try_buy(id):
+				buying = true
+				bought.append("%s:%d" % [id, meta.get_level(id)])
+				_note_milestone("first_forge", summary)
+				if String(id).begins_with("arsenal_"):
+					_note_milestone("first_weapon", summary)
+	for g in [1, 2, 3, 6]:
+		if int(summary.danger_after) >= g:
+			_note_milestone("G%d" % g, summary)
+	var save_manager := root.get_node("SaveManager")
+	print("CAREER run=%d bought=%s bank=%d/%d level=%d G=%d milestones=%s" % [summary.get("index", -1), bought,
+		save_manager.get_permanent_gold(), save_manager.get_permanent_crystals(), summary.level, summary.danger_after,
+		JSON.stringify(_milestones)])
+
+
+func _note_milestone(key: String, summary: Dictionary) -> void:
+	if not _milestones.has(key):
+		_milestones[key] = int(summary.get("index", 0)) + 1
 
 
 func _fight_room(room: Node) -> void:
@@ -499,6 +732,8 @@ func _bot_step(room: Node) -> void:
 		return
 	var enemies := _alive(room)
 	_apply_enemy_overrides(room, enemies)
+	if String(opt.talents) == "soul":
+		_cast_spells(enemies)
 	_check_stall(enemies, dt)
 	var zones := _collect_zones(room, enemies)
 	var target: Node2D = _pick_target(enemies)
@@ -948,7 +1183,8 @@ func _end_record(run: int, room: Node) -> void:
 		_rec.hp_dmg, _rec.shield_dmg, _rec.hits, _rec.dashes, player.health.get_health(), player.health.get_max_health(),
 		player.shield.get_shield(), _upgrade_count(), root.get_node("RunManager").get_run_gold(), 1 if dead else 0, _rec.timeout,
 		_last_hit_source if dead else ""]
-	row += ",%s,%s,%.1f,%.1f,%.1f,%.1f" % [_last_hit_detail if dead else "", _rec.desc, _rec.trap_dmg, _rec.pit_dmg, _rec.explosion_dmg, _rec.enemy_dmg]
+	row += ",%s,%s,%.1f,%.1f,%.1f,%.1f,%d" % [_last_hit_detail if dead else "", _rec.desc, _rec.trap_dmg, _rec.pit_dmg, _rec.explosion_dmg, _rec.enemy_dmg,
+		root.get_node("RunManager").get_run_crystals()]
 	_rows.append(row)
 	if int(opt.quiet) == 0:
 		print("  r%-3d %-15s t=%5.1fs dmg=%4.1f+%4.1fsh hits=%2d dash=%2d hp=%4.1f/%-4.1f sh=%5.1f upg=%2d%s%s" % [
@@ -1048,6 +1284,27 @@ func _print_overview() -> void:
 		deaths, ovr, res_overrides.map(func(e): return "%s=%s" % [e[0], e[1]])])
 	if not details.is_empty():
 		print("DEATHS detail=%s room kind=%s" % [details, places])
+	_print_economy()
+
+
+## Means of the ECON lines: payout gold and crystals, XP, ends; crystal sources summed.
+func _print_economy() -> void:
+	if _summaries.is_empty() or not _summaries[0].has("payout"):
+		return
+	var n := float(_summaries.size())
+	var sums := {"payout": 0.0, "crystal_payout": 0.0, "crystals": 0.0, "run_gold": 0.0, "gold_earned": 0.0, "xp": 0.0}
+	var ends := {}
+	var sources := {}
+	for summary in _summaries:
+		for key in sums:
+			sums[key] += float(summary[key])
+		ends[summary.end] = int(ends.get(summary.end, 0)) + 1
+		for key in summary.sources:
+			sources[key] = int(sources.get(key, 0)) + int(summary.sources[key])
+	print("ECONOMY runs=%d ends=%s mean payout=%.0f crystal_payout=%.1f run_crystals=%.1f run_gold=%.0f earned=%.0f xp=%.0f sources=%s%s" % [
+		_summaries.size(), ends, sums.payout / n, sums.crystal_payout / n, sums.crystals / n, sums.run_gold / n,
+		sums.gold_earned / n, sums.xp / n, JSON.stringify(sources),
+		(" milestones=" + JSON.stringify(_milestones)) if int(opt.career) == 1 else ""])
 
 
 # --- Helpers ---
