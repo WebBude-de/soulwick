@@ -78,7 +78,7 @@ Die Fach-Agenten sind in [.claude/agents/](.claude/agents/) definiert: `rooms-de
 7. **Code Englisch, Doku Deutsch, Texte im Spiel über Übersetzungsschlüssel (en + de, D-111)**, `snake_case` für Dateien und Variablen, `PascalCase` für Klassen. Kommentare wie der umgebende Code.
 8. **Erledigt heißt geprüft:** Roadmap-Punkte nur mit Nachweis abhaken (Tests grün, Datum).
 9. **Prozesse nie per Namen beenden** (`taskkill /IM …`, `pkill`, `killall`, `Stop-Process -Name …`): Das trifft Godot-Fenster, Browser und Server anderer Sitzungen. Nur selbst gestartete Prozesse über ihre PID beenden.
-10. **Keine Geheimnisse ins Repo** (es ist öffentlich): Schlüssel nur in gitignorten Dateien (`.env*`, `secrets.json` im Root), Vorlage `secrets.example.json`. `art/environment/rooms/secrets.json` ist Grafik für Geheimräume, kein Secret.
+10. **Keine Geheimnisse ins Repo** (es ist öffentlich): Das Spiel braucht keine; falls doch einmal, nur in gitignorten Dateien (`.env*`, `secrets.json` im Root). `art/environment/rooms/secrets.json` ist Grafik für Geheimräume, kein Secret.
 11. **Keine neue Abhängigkeit ohne Rückfrage** (Godot-Addon, Python- oder Bun-Paket, Docker-Image); Grund in TECHSTACK, Entscheidung in DECISIONS.
 12. **Größeres erst planen:** als Paket in die passende Roadmap schneiden (Dateien, Prüfung, Koop-Check), dann bauen.
 13. **Kein `sudo`** ohne Rückfrage.
