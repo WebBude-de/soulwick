@@ -18,8 +18,34 @@ const SETTING_FLOOR := "home_floor"
 const SETTINGS: Array[String] = [SETTING_WALL, SETTING_FLOOR]
 ## The home's starting furniture (D-205 "eingerichtet, aber basic cozy", Antwort 20 §1) as catalog
 ## pieces of the cozy style: owned from the start (they can be put away and moved like bought ones).
-## Grid of the home: 15×9 tiles, floor rows 2..8, back wall row 1 (HomeLayout).
+## KE8b (playtest 04.11.2026, TESTWERT): the small room of 11×7 tiles (floor rows 2..6, back wall
+## row 1; HomeLayout): bed corner left (lamp, bed under the window with a window box and a hanging
+## plant, nightstand, shelf, a picture), the altar under the middle window, a clock, the mirror
+## under the right window, fireplace corner right (fireplace, Flint's basket, armchair, a big plant), the
+## round rug in the middle with a cushion, the chest at the foot of the bed, a small plant at the
+## right wall. Nothing stands in the last row (it is half behind the front wall, HomeFrontWall).
+## The order matters: placed one after another, every piece passes DecorGrid.check (test).
 const STARTER_HOME: Array[String] = [
+	"floor_lamp_cozy:0:2:0",
+	"bed_single_cozy:1:2:0",
+	"nightstand_cozy:3:2:0",
+	"shelf_full_cozy:4:2:0",
+	"fireplace_cozy:8:2:0",
+	"plant_large_cozy:10:2:0",
+	"pet_basket_medium_cozy:8:3:0",
+	"armchair_cozy:10:3:3",
+	"rug_round_cozy:4:4:0",
+	"floor_cushion_cozy:6:4:0",
+	"chest_cozy:1:5:0",
+	"plant_small_cozy:10:5:0",
+	"picture_village_cozy:3:1:0",
+	"clock_cozy:6:1:0",
+	"window_box_cozy:2:1:0",
+	"hanging_plant_cozy:1:1:0",
+]
+## The starter set of save v6 on the old 15×9 grid (frozen: the v5 -> v6 migration writes it, the
+## v6 -> v7 migration recognises unmoved pieces by it, relayout_home_v6).
+const STARTER_HOME_V6: Array[String] = [
 	"bed_single_cozy:1:2:0",
 	"nightstand_cozy:3:2:0",
 	"floor_lamp_cozy:0:2:0",
@@ -202,14 +228,92 @@ static func style_collection(style: String) -> Vector2i:
 	return Vector2i(owned, total)
 
 
-## Owned starter set (id -> count) of STARTER_HOME.
-static func starter_owned() -> Dictionary[String, int]:
+## Owned starter set (id -> count) of STARTER_HOME (or another starter list).
+static func starter_owned(starter: Array[String] = STARTER_HOME) -> Dictionary[String, int]:
 	var owned: Dictionary[String, int] = {}
-	for entry in STARTER_HOME:
+	for entry in starter:
 		var parsed := parse(entry)
 		var id := String(parsed["id"])
 		owned[id] = int(owned.get(id, 0)) + 1
 	return owned
+
+
+## Placements of list that still fit grid, one after another in their order (DecorGrid.check
+## against the ones kept before): {"kept": PackedStringArray, "stored": PackedStringArray}. Entries
+## of unknown items or that do not parse stay in "kept" untouched (they are never shown); what does
+## not fit goes to "stored" (the Lager: owned stays, so nothing is lost). Pure.
+static func fit_list(list: PackedStringArray, grid: DecorGrid) -> Dictionary:
+	var kept := PackedStringArray()
+	var stored := PackedStringArray()
+	var accepted: Array[Dictionary] = []
+	for entry in list:
+		var parsed := parse(entry)
+		var item := DecorCatalog.get_item(String(parsed["id"])) if not parsed.is_empty() else null
+		if item == null:
+			kept.append(entry)
+			continue
+		if grid.check(item, parsed["cell"], int(parsed["rot"]), accepted) == DecorGrid.OK:
+			parsed["index"] = accepted.size()
+			accepted.append(parsed)
+			kept.append(entry)
+		else:
+			stored.append(entry)
+	return {"kept": kept, "stored": stored}
+
+
+## KE8b: puts the pieces of a space that no longer fit its grid into the Lager (a save merged from
+## another device, a changed room) and saves. Returns how many went.
+static func fit_space(space: StringName, grid: DecorGrid) -> int:
+	var result := fit_list(SaveManager.get_decor_placements(space), grid)
+	var stored: PackedStringArray = result["stored"]
+	if stored.is_empty():
+		return 0
+	push_warning("DecorState: %d pieces did not fit the %s and went to the storage: %s" % [stored.size(), space, ", ".join(stored)])
+	SaveManager.set_decor_placements(space, result["kept"])
+	SaveManager.save_game()
+	return stored.size()
+
+
+## KE8b (save v7): the home of a v6 save on the new, smaller grid. Starter pieces that were never
+## moved (exactly as in STARTER_HOME_V6) go to their new places; the player's own arrangement keeps
+## its cells where they still fit (after the starter pieces). The new starter pieces of KE8b (no V6
+## id) stand where there is room if every starter piece was still unmoved, else they wait in the
+## Lager ("gifted": owned, not placed), so an own arrangement is not filled up. What does not fit
+## goes to the Lager (owned stays). An untouched starter home becomes exactly STARTER_HOME.
+## Returns {"list", "stored", "gifted"} (PackedStringArray each; gifted are entries); pure.
+static func relayout_home_v6(list: PackedStringArray, grid: DecorGrid = null) -> Dictionary:
+	if grid == null:
+		grid = DecorGrid.for_home()
+	var unmoved: Array[String] = STARTER_HOME_V6.duplicate()
+	var v6_ids: Array[String] = []
+	for entry in STARTER_HOME_V6:
+		v6_ids.append(String(parse(entry)["id"]))
+	var mapped_ids: Array[String] = []
+	var rest := PackedStringArray()
+	for entry in list:
+		var id := String(parse(entry).get("id", ""))
+		if unmoved.has(entry):
+			unmoved.erase(entry)
+			mapped_ids.append(id)
+		else:
+			rest.append(entry)
+	var starter_part := PackedStringArray()
+	var extras := PackedStringArray()
+	for entry in STARTER_HOME:
+		var id := String(parse(entry)["id"])
+		if mapped_ids.has(id):
+			mapped_ids.erase(id)
+			starter_part.append(entry)
+		elif not v6_ids.has(id):
+			extras.append(entry)
+	if unmoved.is_empty() and rest.is_empty():
+		return {"list": PackedStringArray(STARTER_HOME), "stored": PackedStringArray(), "gifted": PackedStringArray()}
+	var first := fit_list(starter_part + rest, grid)
+	if not unmoved.is_empty():
+		# The player arranged the home himself: the new pieces wait in the Lager.
+		return {"list": first["kept"], "stored": first["stored"], "gifted": extras}
+	var with_extras := fit_list(PackedStringArray(first["kept"]) + extras, grid)
+	return {"list": with_extras["kept"], "stored": first["stored"], "gifted": with_extras["stored"]}
 
 
 ## Village decoration and home of this world as one small dictionary (KONZEPT §8 "Dorf besuchen",

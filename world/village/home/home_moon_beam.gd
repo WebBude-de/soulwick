@@ -1,23 +1,25 @@
 class_name HomeMoonBeam
 extends Node2D
-## Light through the window of the home (Antwort 20 §1): a slanted shaft from the window down onto
-## the planks (#c8beff at about 12 % by night, warm and fainter by day) with 3–5 slow dust motes in
-## it. Pure optics, additive, under the furniture. The light circle on the floor is a LightSource of
-## HomeInterior; this only draws the shaft. Art px (parent scales by HomeLayout.SCALE).
+## Light through one window of the home (Antwort 20 §1, KE8b): a slanted shaft from the window sill
+## down onto the planks with 3–5 slow dust motes in it, in the colour of the time of day (sun by
+## day, warm orange at dusk, the moon's #c8beff at night; HomeLayout.window_light_color). Pure
+## optics, additive, under the furniture. The light patch on the floor is a LightSource of
+## HomeInterior; this only draws the shaft. Art px (parent scales by HomeLayout.SCALE); the node
+## origin is the left end of the window's sill (create()).
 ## Pixel art (D-218): the shaft is filled art pixel by art pixel (PixelDraw.polygon with a 1 art px
 ## grid), so its slanted edges step like the room's art instead of cutting through the pixels; the
 ## motes are single art pixels.
 
 const ALPHA_NIGHT := 0.12
-const ALPHA_DAY := 0.08
+const ALPHA_DAY := 0.1
 const DUST_COUNT := 4
 const DUST_SPEED := 0.05
 const DUST_ALPHA := 0.55
-## Window bottom edge and the lit patch on the floor (art px).
-const TOP_LEFT := Vector2(66, 62)
-const TOP_RIGHT := Vector2(126, 62)
-const BOTTOM_RIGHT := Vector2(176, 206)
-const BOTTOM_LEFT := Vector2(96, 206)
+## Window bottom edge and the lit patch on the floor (art px from the node origin).
+const TOP_LEFT := Vector2(5, 0)
+const TOP_RIGHT := Vector2(27, 0)
+const BOTTOM_RIGHT := Vector2(46, 84)
+const BOTTOM_LEFT := Vector2(16, 84)
 const Z := -5
 ## The parent scales art px up to the world: one grid cell is one art pixel here.
 const ART_PIXEL := 1.0
@@ -29,6 +31,16 @@ var _time := 0.0
 var _seeds := PackedFloat32Array([0.13, 0.41, 0.67, 0.89])
 
 
+## The shaft of the window with its middle in column col (art px, HomeLayout.window_foot).
+static func create(col: int) -> HomeMoonBeam:
+	var beam := HomeMoonBeam.new()
+	beam.name = "WindowBeam%d" % col
+	beam.position = HomeLayout.window_foot(col) - Vector2(HomeLayout.TILE * 0.5, 0)
+	beam._seeds = PackedFloat32Array([fposmod(0.13 + col * 0.17, 1.0), fposmod(0.41 + col * 0.29, 1.0),
+		fposmod(0.67 + col * 0.11, 1.0), fposmod(0.89 + col * 0.23, 1.0)])
+	return beam
+
+
 func _ready() -> void:
 	z_index = Z
 	var additive := CanvasItemMaterial.new()
@@ -36,10 +48,10 @@ func _ready() -> void:
 	material = additive
 
 
-## 1 = night (moon), 0 = day (sun, fainter).
+## 1 = night (moon), 0 = day (sun), dusk in between (warm orange).
 func set_night(amount: float) -> void:
 	var night := clampf(amount, 0.0, 1.0)
-	colour = HomeLayout.SUN_COLOR.lerp(HomeLayout.MOON_COLOR, night)
+	colour = HomeLayout.window_light_color(night)
 	alpha = lerpf(ALPHA_DAY, ALPHA_NIGHT, night)
 	queue_redraw()
 

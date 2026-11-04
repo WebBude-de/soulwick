@@ -30,6 +30,7 @@ extends Node
 ## Decoration (WK5, WK7, save v6): [decor_owned] (catalog id -> count bought), [decor_placed]
 ## (village, home: "id:col:row:rot" lists) and [decor] (home_wall, home_floor: style or ""); read
 ## and changed through DecorState. v5 -> v6 furnishes the home with the starter set (owned).
+## v6 -> v7 (KE8b): the home is smaller (HomeLayout 11×7), its furniture is laid out anew.
 
 signal permanent_gold_changed(permanent_gold: int)
 signal permanent_crystals_changed(permanent_crystals: int)
@@ -50,7 +51,7 @@ signal save_restored(path: String)
 ## WK5/WK7: decoration bought, placed, put away, or a home surface changed.
 signal decor_changed
 
-const SAVE_VERSION := 6
+const SAVE_VERSION := 7
 const SETTINGS_VERSION := 1
 ## The save file of builds before slots (MM1); imported into a slot, kept as it is.
 const DEFAULT_SAVE_PATH := "user://savegame.cfg"
@@ -429,7 +430,12 @@ func _apply_decor(config: ConfigFile) -> void:
 ## v5 -> v6 (WK5, WK7): decoration. The home gets the starter furniture as catalog pieces (owned,
 ## so they can be moved and put away; DecorState.STARTER_HOME, the same pieces as the KE8 room), the
 ## village no decoration, the home's wallpaper and floor stay the original ones. Additive: nothing
-## else changes.
+## else changes. Writes the frozen v6 starter set (STARTER_HOME_V6), the next step moves it.
+## v6 -> v7 (KE8b, playtest 04.11.2026): the home shrank from 15×9 to 11×7 tiles. Unmoved starter
+## pieces go to their new places, own pieces keep their cells where they still fit, the rest goes to
+## the Lager (owned counts never drop); the new starter pieces stand where there is room in an
+## untouched starter home, else they are owned and wait in the Lager (DecorState.relayout_home_v6).
+## Nothing else changes.
 ## Every version (KE5): packed Proviant of older builds gets its new id (_map_legacy_boosts).
 static func migrate(config: ConfigFile) -> int:
 	var from_version: int = config.get_value("meta", "version", SAVE_VERSION)
@@ -449,6 +455,8 @@ static func migrate(config: ConfigFile) -> int:
 		_migrate_to_v5(config)
 	if from_version < 6:
 		_migrate_to_v6(config)
+	if from_version < 7:
+		_migrate_to_v7(config)
 	_map_legacy_boosts(config)
 	config.set_value("meta", "version", SAVE_VERSION)
 	return from_version
@@ -550,8 +558,8 @@ static func _migrate_to_v5(config: ConfigFile) -> void:
 
 static func _migrate_to_v6(config: ConfigFile) -> void:
 	if not config.has_section_key(DECOR_PLACED_SECTION, "home"):
-		config.set_value(DECOR_PLACED_SECTION, "home", PackedStringArray(_DecorState.STARTER_HOME))
-		var starter := _DecorState.starter_owned()
+		config.set_value(DECOR_PLACED_SECTION, "home", PackedStringArray(_DecorState.STARTER_HOME_V6))
+		var starter := _DecorState.starter_owned(_DecorState.STARTER_HOME_V6)
 		for id: String in starter:
 			var owned: Variant = config.get_value(DECOR_OWNED_SECTION, id, 0)
 			var count := int(owned) if typeof(owned) == TYPE_INT else 0
@@ -561,6 +569,35 @@ static func _migrate_to_v6(config: ConfigFile) -> void:
 	for key in DECOR_SETTINGS:
 		if not config.has_section_key(DECOR_SECTION, key):
 			config.set_value(DECOR_SECTION, key, "")
+
+
+static func _migrate_to_v7(config: ConfigFile) -> void:
+	var raw: Variant = config.get_value(DECOR_PLACED_SECTION, "home", null)
+	if typeof(raw) != TYPE_PACKED_STRING_ARRAY:
+		return
+	var old: PackedStringArray = raw
+	var result: Dictionary = _DecorState.relayout_home_v6(old)
+	var placed: Dictionary[String, int] = {}
+	for list: PackedStringArray in [old, result["list"]]:
+		var counts: Dictionary[String, int] = {}
+		for entry in list:
+			var parsed: Dictionary = _DecorState.parse(entry)
+			if not parsed.is_empty():
+				var id := String(parsed["id"])
+				counts[id] = int(counts.get(id, 0)) + 1
+		for id: String in counts:
+			placed[id] = maxi(int(placed.get(id, 0)), counts[id])
+	# KE8b starter pieces that do not stand (own arrangement, no room) wait in the Lager.
+	for entry: String in result["gifted"]:
+		var gift_id := String(_DecorState.parse(entry).get("id", ""))
+		if not gift_id.is_empty():
+			placed[gift_id] = maxi(int(placed.get(gift_id, 0)), 1)
+	for id: String in placed:
+		var owned: Variant = config.get_value(DECOR_OWNED_SECTION, id, 0)
+		var count := int(owned) if typeof(owned) == TYPE_INT else 0
+		if count < placed[id]:
+			config.set_value(DECOR_OWNED_SECTION, id, placed[id])
+	config.set_value(DECOR_PLACED_SECTION, "home", result["list"])
 
 
 ## Gold paid for the first level levels of an upgrade the v5 forge removed (V5_REFUND_COSTS); 0 for

@@ -8,6 +8,9 @@ extends Node2D
 ## shows the delivered signpost of the decoration and the home a drawn stand with an open book.
 ## Koop-Check: only alone (a solo session); in a group the station is switched off, guests see the
 ## host's arrangement only (Village.apply_host_decor).
+## KE8b (playtest 04.11.2026 "man kann die Wohnung nicht einrichten"): the stand always twinkles a
+## little (two gold pixels over the book), and while set_attention(true) a gold pixel arrow bounces
+## over it (the home: until the decorating mode was opened once). Pixel art (D-218), hard steps.
 
 signal used(player: Player)
 
@@ -22,8 +25,22 @@ const PAGE := Color("#e9e4d2")
 const PAGE_LINE := Color("#b9b3c9")
 const OUTLINE := Color("#1c1a2b")
 
+## TESTWERT: the arrow bounces in two hard steps (s per step, art px up), the sparkle blinks.
+const BOUNCE_STEP := 0.35
+const BOUNCE_PX := 2
+const SPARKLE_STEP := 0.5
+const ARROW := Color("#f2cf4a")
+const ARROW_LIGHT := Color("#fff1a8")
+const ARROW_EDGE := Color("#1c1a2b")
+## Size of a drawn art pixel (world px, like the sprite's scale).
+const ART_PIXEL := 2.0
+
 var space: StringName = &""
 var door: Interactable = null
+## A bouncing arrow over the stand (it has not been used yet).
+var attention := false
+var _time := 0.0
+var _sprite: Sprite2D = null
 
 
 static func create(station_space: StringName) -> DecorStation:
@@ -42,6 +59,9 @@ func _ready() -> void:
 	sprite.offset = Vector2(-sprite.texture.get_width() * 0.5, -sprite.texture.get_height())
 	sprite.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	add_child(sprite)
+	_sprite = sprite
+	# The arrow and the sparkle (this node's _draw) go over the picture.
+	sprite.show_behind_parent = true
 	door = Interactable.new()
 	door.name = "Door"
 	door.prompt = prompt_text()
@@ -55,6 +75,62 @@ func _ready() -> void:
 	door.position = Vector2(0, -8)
 	add_child(door)
 	door.interacted.connect(func(player: Player) -> void: used.emit(player))
+
+
+func set_attention(on: bool) -> void:
+	attention = on
+	queue_redraw()
+
+
+func _process(delta: float) -> void:
+	var before := _phase()
+	_time += delta
+	if _phase() != before:
+		queue_redraw()
+
+
+## Hard animation step (bounce and sparkle change only on it).
+func _phase() -> int:
+	return int(_time / BOUNCE_STEP) * 7 + int(_time / SPARKLE_STEP)
+
+
+## Arrow (while attention) and the sparkle over the book, in art pixels.
+func _draw() -> void:
+	var top := picture_top()
+	var sparkle := int(_time / SPARKLE_STEP) % 3
+	var spark_at := Vector2(-8 + sparkle * 6, top + 4 * ART_PIXEL)
+	_pixel(spark_at, ARROW_LIGHT)
+	if sparkle != 1:
+		_pixel(spark_at + Vector2(ART_PIXEL * 3, -ART_PIXEL * 2), ARROW_LIGHT)
+	if not attention:
+		return
+	var lift := BOUNCE_PX * ART_PIXEL if int(_time / BOUNCE_STEP) % 2 == 0 else 0.0
+	# A down arrow of 7×8 art px with a dark edge, its tip 2 art px over the picture.
+	var tip := Vector2(-ART_PIXEL * 0.5, top - 2 * ART_PIXEL - lift)
+	var shape: Array[Vector2i] = []
+	for row in 4:
+		for x in range(-row, row + 1):
+			shape.append(Vector2i(x, -row))
+	for y in range(4, 8):
+		for x in [-1, 0, 1]:
+			shape.append(Vector2i(x, -y))
+	for cell in shape:
+		for step: Vector2i in [Vector2i.LEFT, Vector2i.RIGHT, Vector2i.UP, Vector2i.DOWN]:
+			if not shape.has(cell + step):
+				_pixel(tip + Vector2(cell + step) * ART_PIXEL, ARROW_EDGE)
+	for cell in shape:
+		_pixel(tip + Vector2(cell) * ART_PIXEL, ARROW_LIGHT if cell.x < 0 and cell.y > -4 else ARROW)
+
+
+## Upper edge of the stand's picture (local px).
+func picture_top() -> float:
+	if _sprite == null:
+		return -28.0 * ART_PIXEL
+	return _sprite.position.y + _sprite.offset.y * _sprite.scale.y
+
+
+func _pixel(at: Vector2, colour: Color) -> void:
+	draw_rect(Rect2(at.round(), Vector2.ONE * ART_PIXEL), colour)
 
 
 func _notification(what: int) -> void:

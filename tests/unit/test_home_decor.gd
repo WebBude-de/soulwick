@@ -105,12 +105,12 @@ func test_move_turn_and_put_away_furniture() -> void:
 	editor.primary()
 	assert_eq(String(editor.held.get("id", "")), "chest_cozy", "picked up")
 	assert_false(home.furniture.get_piece(int(editor.held["from"])).visible, "the old place shows empty")
-	editor.set_cursor(Vector2i(3, 7))
+	editor.set_cursor(Vector2i(8, 5))
 	editor.turn()
 	assert_true(editor.place_held())
-	assert_eq(_cell_of("chest_cozy"), Vector2i(3, 7), "moved and saved")
+	assert_eq(_cell_of("chest_cozy"), Vector2i(8, 5), "moved and saved")
 	assert_eq(DecorState.placements(DecorState.HOME)[_index_of("chest_cozy")]["rot"], 1, "turned to the side")
-	editor.set_cursor(Vector2i(3, 7))
+	editor.set_cursor(Vector2i(8, 5))
 	editor.store()
 	assert_eq(_index_of("chest_cozy"), -1)
 	assert_eq(DecorState.stored_count("chest_cozy"), 1, "in the Lager")
@@ -120,11 +120,11 @@ func test_move_turn_and_put_away_furniture() -> void:
 func test_walling_in_a_corner_is_refused() -> void:
 	var home := _home()
 	var player := _player(HomeLayout.to_world(HomeLayout.SPAWN_AT))
-	SaveManager.set_decor_placements(DecorState.HOME, PackedStringArray(["chest_cozy:1:8:0"]))
+	SaveManager.set_decor_placements(DecorState.HOME, PackedStringArray(["chest_cozy:1:6:0"]))
 	SaveManager.set_decor_owned("chest_rustic", 1)
 	var editor := home.open_decor_editor(player)
 	editor.hold_from_storage("chest_rustic")
-	editor.set_cursor(Vector2i(0, 7))
+	editor.set_cursor(Vector2i(0, 5))
 	assert_false(editor.place_held())
 	assert_eq(editor.reason, DecorGrid.REASON_WAY)
 	editor.close()
@@ -191,3 +191,53 @@ func test_a_card_without_gold_is_disabled() -> void:
 	assert_string_contains((card.find_child("Line", true, false) as Label).text, "Noch")
 	modal.finish("")
 	await wait_process_frames(1)
+
+
+# --- KE8b: the decorating corner is easy to find ---
+
+func test_ke8b_the_stand_waits_by_the_door_with_an_arrow_until_used() -> void:
+	var home := _home()
+	var station := HomeLayout.to_world(HomeLayout.DECOR_STATION_AT)
+	var door := HomeLayout.to_world(HomeLayout.DOOR_USE_AT)
+	assert_lt(station.distance_to(door), HomeLayout.tiles_to_world(1.5), "the stand stands beside the doorway")
+	assert_lt(station.distance_to(HomeLayout.to_world(HomeLayout.SPAWN_AT)), HomeLayout.tiles_to_world(2.0), "in view on arrival")
+	assert_true(home.decor_station.attention, "a new player sees the arrow")
+	assert_true(home.decor_station.door.enabled, "alone the stand works")
+	var player := _player(HomeLayout.to_world(HomeLayout.SPAWN_AT))
+	var editor := home.open_decor_editor(player)
+	assert_not_null(editor)
+	assert_false(home.decor_station.attention, "used once: no arrow any more")
+	assert_true(AccountSeen.has_seen(HomeInterior.OPENED_ID), "remembered per account")
+	editor.close()
+	var again := _home()
+	assert_false(again.decor_station.attention, "not on the next visit either")
+
+
+func test_ke8b_the_stand_opens_by_interacting_like_any_door() -> void:
+	var home := _home()
+	var player := _player(HomeLayout.to_world(HomeLayout.SPAWN_AT))
+	home.decor_station.door.interact(player)
+	assert_true(home.is_decorating(), "E (X, a tap) at the stand opens the decorating mode")
+	home.get_decor_editor().close()
+
+
+func test_ke8b_flint_points_at_the_stand_on_its_own() -> void:
+	var home := _home()
+	var hint := home.decor_hint()
+	assert_true(hint.is_valid(), str(hint.problems()))
+	assert_eq(hint.id, HomeInterior.DECOR_HINT_ID)
+	assert_ne(hint.id, HomeInterior.EXPLANATION_ID, "not hidden inside the altar tour (seen before WK7)")
+	assert_eq(hint.steps[0].focus_node, home.decor_station)
+	assert_true(Loc.has_key(hint.steps[0].text_key, &"de") and Loc.has_key(hint.steps[0].text_key, &"en"))
+	assert_true(SaveManager.is_excluded_from_seen_all(HomeInterior.DECOR_HINT_ID), "old accounts get it too")
+
+
+func test_ke8b_pieces_that_do_not_fit_go_to_the_storage() -> void:
+	SaveManager.set_decor_owned("chest_rustic", 1)
+	var list := PackedStringArray(DecorState.STARTER_HOME)
+	list.append("chest_rustic:13:7:0")
+	SaveManager.set_decor_placements(DecorState.HOME, list)
+	var home := _home()
+	assert_eq(home.furniture.get_pieces().size(), DecorState.STARTER_HOME.size(), "the piece outside the room is not shown")
+	assert_eq(DecorState.placements(DecorState.HOME).size(), DecorState.STARTER_HOME.size())
+	assert_eq(DecorState.stored_count("chest_rustic"), 1, "in the Lager, nothing lost")

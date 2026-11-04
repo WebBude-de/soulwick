@@ -81,7 +81,8 @@ static func village_cell_allowed(cell_rect: Rect2, rules: Dictionary) -> bool:
 	return true
 
 
-## The home's grid (HomeLayout: 15×9 tiles, floor rows WALL_ROWS..ROWS-1, back wall row above).
+## The home's grid (HomeLayout: 11×7 tiles, floor rows WALL_ROWS..ROWS-1, back wall row above with
+## a window slot under each window).
 static func for_home() -> DecorGrid:
 	var grid := DecorGrid.new()
 	grid.space = DecorCatalog.HOME
@@ -93,7 +94,7 @@ static func for_home() -> DecorGrid:
 	var wall_row := HomeLayout.WALL_ROWS - 1
 	for x in range(1, HomeLayout.COLS - 1):
 		var cell := Vector2i(x, wall_row)
-		if x == HomeLayout.WINDOW_COL or x == HomeLayout.WINDOW_COL + 1:
+		if HomeLayout.WINDOW_COLS.has(x):
 			grid.window_cells[cell] = true
 		grid.wall_cells[cell] = true
 	grid.floor_cells.erase(HomeLayout.DOOR_CELL)
