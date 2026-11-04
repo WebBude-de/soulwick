@@ -1,0 +1,76 @@
+{
+  "group": "fences",
+  "notes": [
+    "Nahtlos aneinanderreihbar (Latten bis zum Rand)."
+  ],
+  "items": [
+    {
+      "name": "fence_straight",
+      "file": "fence_straight.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "fence_corner",
+      "file": "fence_corner.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "fence_gate",
+      "file": "fence_gate.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "stone_wall_low",
+      "file": "stone_wall_low.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    }
+  ]
+}

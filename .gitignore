@@ -39,3 +39,6 @@ CLAUDE.local.md
 !.env.example
 # Art for secret rooms, not a secret (standard v2 audit)
 !art/environment/rooms/secrets.json
+
+# Agent worktrees (git worktree add .worktrees/<name>), never next to the repo
+.worktrees/

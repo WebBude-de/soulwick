@@ -12,6 +12,11 @@ extends Node2D
 ## Only alone (HomeTravel.can_enter); talents stay account state (AccountTalents).
 ## FS6 (D-220, newcomer run P3-9): the village's goal line stays at the top left in here too
 ## (VillageGoal), as long as there is a goal.
+## WK7 (D-202, D-205): the furniture is decoration (DecorLayer "Furniture" on the home's grid,
+## DecorGrid.for_home): the starter set of the save, moved, turned, put away and bought in the
+## decorating mode (DecorEditor) that the catalog stand by the door opens (DecorStation, only alone).
+## Lights come from the pieces (fireplace = "fire", the first other light = "lamp"); wallpaper and
+## floor follow the chosen styles (HomeRoom). Fixed: altar, mirror, broom, stand and door.
 
 const EXPLANATION_ID: StringName = &"flint_home_altar"
 const PAUSE_MIRROR: StringName = &"home_mirror"
@@ -33,6 +38,10 @@ var night := 1.0
 var _busy := false
 var _floor_layer: Node2D = null
 var _goal: Control = null
+## WK7: the furniture, the catalog stand and the open decorating mode (null while closed).
+var furniture: DecorLayer = null
+var decor_station: DecorStation = null
+var _decor_editor: DecorEditor = null
 
 
 func _ready() -> void:
@@ -51,9 +60,11 @@ func _ready() -> void:
 	moon_beam.scale = Vector2.ONE * HomeLayout.SCALE
 	add_child(moon_beam)
 	moon_beam.set_night(night)
+	_place_fixed_props()
 	_place_furniture()
 	_place_altar()
 	_place_mirror()
+	_place_decor_station()
 	_place_exit()
 	_add_lights()
 	_ensure_spawn()
@@ -111,11 +122,30 @@ func first_visit_explanation() -> FlintExplanation:
 		FlintGuideStep.say(&"FLINT_HOME_PATHS", FlintGuideStep.Mood.PROUD).at_node(altar),
 		FlintGuideStep.say(&"FLINT_HOME_RESPEC"),
 		FlintGuideStep.say(&"FLINT_HOME_MIRROR", FlintGuideStep.Mood.POINT).at_node(mirror),
+		FlintGuideStep.say(&"FLINT_HOME_DECOR", FlintGuideStep.Mood.POINT).at_node(decor_station),
 	])
 
 
 func is_dialog_open() -> bool:
-	return _busy
+	return _busy or is_decorating()
+
+
+func is_decorating() -> bool:
+	return _decor_editor != null and is_instance_valid(_decor_editor) and not _decor_editor.is_closing()
+
+
+func get_decor_editor() -> DecorEditor:
+	return _decor_editor if is_decorating() else null
+
+
+## Opens the decorating mode for player (only alone, nothing while a dialog is open).
+func open_decor_editor(player: Player) -> DecorEditor:
+	if is_dialog_open() or furniture == null:
+		return null
+	_decor_editor = DecorStation.start(self, furniture, player)
+	if _decor_editor != null:
+		_decor_editor.closed.connect(func() -> void: _decor_editor = null)
+	return _decor_editor
 
 
 ## The talent tree of the altar (editable alone; HomeTravel only lets solo players in).
@@ -166,11 +196,10 @@ func leave() -> bool:
 
 # --- Building the room ---
 
-func _place_furniture() -> void:
-	for item in HomeLayout.FURNITURE:
+## The fixed props that are no catalog furniture (the broom).
+func _place_fixed_props() -> void:
+	for item in HomeLayout.FIXED_PROPS:
 		var prop_name := String(item["name"])
-		if bool(item.get("optional", false)) and not HomeArt.has_prop(prop_name):
-			continue
 		var layer := StringName(item.get("layer", HomeLayout.ROOM))
 		var prop := _make_prop(prop_name, item["at"], item.get("solid", Vector2.ZERO))
 		if layer == HomeLayout.ROOM:
@@ -178,6 +207,23 @@ func _place_furniture() -> void:
 			SortLift.lift(prop)
 		else:
 			_floor_layer.add_child(prop)
+
+
+## WK7: the furniture of the save on the home's grid; its lights are the room's lights.
+func _place_furniture() -> void:
+	furniture = DecorLayer.new()
+	furniture.name = "Furniture"
+	add_child(furniture)
+	furniture.rebuilt.connect(_collect_lights)
+	furniture.setup(DecorCatalog.HOME, DecorGrid.for_home(), HomeRoom.Z + 1, HomeRoom.Z + 1)
+
+
+func _place_decor_station() -> void:
+	decor_station = DecorStation.create(DecorCatalog.HOME)
+	decor_station.position = HomeLayout.to_world(HomeLayout.DECOR_STATION_AT)
+	add_child(decor_station)
+	SortLift.lift(decor_station)
+	decor_station.used.connect(open_decor_editor)
 
 
 func _make_prop(prop_name: String, at: Vector2, solid: Vector2) -> Node2D:
@@ -282,13 +328,26 @@ func get_goal() -> Control:
 
 
 func _add_lights() -> void:
-	lights[&"fire"] = _light("FireLight", HomeLayout.FIRE_AT, HomeLayout.FIRE_COLOR,
-		HomeLayout.FIRE_RADIUS_TILES, 1.0, HomeLayout.FIRE_FLICKER, Vector2(392, 74))
 	var moon_colour := HomeLayout.SUN_COLOR.lerp(HomeLayout.MOON_COLOR, night)
 	lights[&"moon"] = _light("MoonLight", HomeLayout.MOON_FLOOR_AT, moon_colour,
 		HomeLayout.MOON_RADIUS_TILES, HomeLayout.MOON_INTENSITY, 0.0, HomeLayout.MOON_FLOOR_AT)
-	lights[&"lamp"] = _light("NightLamp", HomeLayout.NIGHT_LAMP_AT, HomeLayout.NIGHT_LAMP_COLOR,
-		HomeLayout.NIGHT_LAMP_RADIUS_TILES, 0.8, 0.02, Vector2(98, 126))
+	_collect_lights()
+
+
+## Lights by role from the furniture (WK7): the first fireplace is "fire", the first other light
+## "lamp" (none while no such piece stands); the moon stays.
+func _collect_lights() -> void:
+	lights.erase(&"fire")
+	lights.erase(&"lamp")
+	if furniture == null:
+		return
+	for piece in furniture.get_pieces():
+		if piece.light == null:
+			continue
+		if piece.item.kind == "fireplace" and not lights.has(&"fire"):
+			lights[&"fire"] = piece.light
+		elif piece.item.kind != "fireplace" and not lights.has(&"lamp"):
+			lights[&"lamp"] = piece.light
 
 
 ## A light at art px at, its lit circle centred on the floor point under it (ground, art px).

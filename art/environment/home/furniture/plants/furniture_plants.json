@@ -1,0 +1,212 @@
+{
+  "group": "plants",
+  "notes": [
+    "Pivot unten Mitte; footprint Kacheln breit × tief; _side = 90°-Ansicht, Gegenseite spiegeln; light = Lichtpunkt relativ zur Frame-Ecke; anim = Overlay-Streifen."
+  ],
+  "items": [
+    {
+      "name": "plant_small_cozy_front",
+      "file": "plant_small_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "plant_large_cozy_front",
+      "file": "plant_large_cozy_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hanging_plant_cozy_front",
+      "file": "hanging_plant_cozy_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "window_box_cozy_front",
+      "file": "window_box_cozy_front.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "pivot": [
+        16,
+        15
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "plant_small_rustic_front",
+      "file": "plant_small_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "plant_large_rustic_front",
+      "file": "plant_large_rustic_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hanging_plant_rustic_front",
+      "file": "hanging_plant_rustic_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "window_box_rustic_front",
+      "file": "window_box_rustic_front.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "pivot": [
+        16,
+        15
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "plant_small_soul_front",
+      "file": "plant_small_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "plant_large_soul_front",
+      "file": "plant_large_soul_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hanging_plant_soul_front",
+      "file": "hanging_plant_soul_front.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "window_box_soul_front",
+      "file": "window_box_soul_front.png",
+      "frame_size": [
+        32,
+        16
+      ],
+      "pivot": [
+        16,
+        15
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false
+    }
+  ]
+}

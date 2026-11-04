@@ -89,6 +89,8 @@ func load_world(scene: PackedScene) -> void:
 	# MP3: a relay room configures the world before it enters the tree (dungeon seed, NetDungeon).
 	if game_mode.is_networked() and game_mode.network.has_method(&"configure_world"):
 		game_mode.network.configure_world(_world)
+	# WK5: the guild banner's colour, and in a relay room the host's village for the guests.
+	NetVillage.prepare(_world, game_mode.is_networked(), get_tree())
 	world_root.add_child(_world)
 	var in_dungeon := _world is DungeonManager
 	GameManager.set_phase(GameManager.Phase.DUNGEON if in_dungeon else GameManager.Phase.VILLAGE)
@@ -114,6 +116,7 @@ func load_world(scene: PackedScene) -> void:
 			hud.set_campfire(room.is_campfire(), Loc.t(StringName(next.display_name)) if next != null else ""))
 	if hud != null and _world.has_signal(&"heal_countdown_changed"):
 		_world.connect(&"heal_countdown_changed", hud.set_heal_countdown)
+	_attach_flint()
 	_spawn_players()
 
 
@@ -162,7 +165,7 @@ func register_player(player: Player) -> void:
 	if player == null or players.has(player):
 		return
 	players.append(player)
-	# Every player gets their own Flint (WK1, D-198): companion and centre of their light circle.
+	# WK13 (D-225): every player joins the one Flint of this world (the whole group's companion).
 	FlintCompanion.attach_to(player)
 	# KE7: the spells live at the player (cast by Flint); without spell talents they do nothing.
 	var spells := PlayerSpells.attach_to(player)
@@ -183,6 +186,15 @@ func register_player(player: Player) -> void:
 		if GameManager.is_game_paused() and not game_mode.pauses_for_menus():
 			player.set_protected(MENU_PROTECTION, true)
 	player_spawned.emit(player)
+
+
+## WK13 (D-225): one Flint per world for the whole group, created with the world before anybody
+## spawns, so a networked world has him (and his NetFlint, same node path everywhere) on every
+## machine before the host sends his spot. The players join him in register_player.
+func _attach_flint() -> void:
+	var flint := FlintCompanion.for_world(_world)
+	if flint != null and game_mode.is_networked():
+		NetFlint.attach(flint)
 
 
 ## A network player leaves the world (peer gone, MP2).

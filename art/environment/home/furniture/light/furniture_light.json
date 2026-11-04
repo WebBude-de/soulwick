@@ -1,0 +1,368 @@
+{
+  "group": "light",
+  "notes": [
+    "Pivot unten Mitte; footprint Kacheln breit × tief; _side = 90°-Ansicht, Gegenseite spiegeln; light = Lichtpunkt relativ zur Frame-Ecke; anim = Overlay-Streifen."
+  ],
+  "items": [
+    {
+      "name": "floor_lamp_cozy_front",
+      "file": "floor_lamp_cozy_front.png",
+      "frame_size": [
+        32,
+        64
+      ],
+      "pivot": [
+        16,
+        63
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          14
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "candlestick_cozy_front",
+      "file": "candlestick_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          4
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "lantern_cozy_front",
+      "file": "lantern_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          16
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "wall_sconce_cozy_front",
+      "file": "wall_sconce_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          16,
+          6
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "string_lights_cozy_front",
+      "file": "string_lights_cozy_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          32,
+          12
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "floor_lamp_rustic_front",
+      "file": "floor_lamp_rustic_front.png",
+      "frame_size": [
+        32,
+        64
+      ],
+      "pivot": [
+        16,
+        63
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          14
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "candlestick_rustic_front",
+      "file": "candlestick_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          4
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "lantern_rustic_front",
+      "file": "lantern_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          16
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "wall_sconce_rustic_front",
+      "file": "wall_sconce_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          16,
+          6
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "string_lights_rustic_front",
+      "file": "string_lights_rustic_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          32,
+          12
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "floor_lamp_soul_front",
+      "file": "floor_lamp_soul_front.png",
+      "frame_size": [
+        32,
+        64
+      ],
+      "pivot": [
+        16,
+        63
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          14
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "candlestick_soul_front",
+      "file": "candlestick_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          4
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "lantern_soul_front",
+      "file": "lantern_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          16
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "wall_sconce_soul_front",
+      "file": "wall_sconce_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          16,
+          6
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "string_lights_soul_front",
+      "file": "string_lights_soul_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          32,
+          12
+        ],
+        "color": "#ffd166"
+      }
+    }
+  ]
+}

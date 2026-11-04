@@ -65,17 +65,17 @@ func test_scene_is_a_world_with_spawn_and_camera_limits() -> void:
 
 func test_starting_furniture_is_all_there() -> void:
 	var home := _home()
-	for item in HomeLayout.FURNITURE:
-		var prop_name := String(item["name"])
-		if bool(item.get("optional", false)) and not HomeArt.has_prop(prop_name):
-			assert_null(home.get_prop(prop_name), "%s only with art" % prop_name)
-			continue
-		assert_not_null(home.get_prop(prop_name), "%s placed" % prop_name)
+	# WK7: the starter set is catalog furniture of the save (DecorState.STARTER_HOME).
+	assert_not_null(home.furniture, "furniture layer")
+	assert_eq(home.furniture.get_pieces().size(), DecorState.STARTER_HOME.size(), "every starter piece stands")
+	for entry in DecorState.STARTER_HOME:
+		assert_true(DecorCatalog.has_item(String(DecorState.parse(entry)["id"])), "%s is in the catalog" % entry)
+	for prop_name in ["broom"]:
+		assert_not_null(home.get_prop(prop_name), "%s stays a fixed prop" % prop_name)
 	assert_not_null(home.altar, "candle altar")
 	assert_not_null(home.mirror, "mirror moved in")
 	assert_not_null(home.exit_door, "door out")
-	for prop_name in ["bed", "fireplace", "chest", "shelf", "rug_round", "pet_bed", "plant_pot"]:
-		assert_true(HomeArt.has_prop(prop_name), "%s is delivered art" % prop_name)
+	assert_not_null(home.decor_station, "catalog stand by the door")
 
 
 func test_missing_furniture_gets_placeholders_in_the_briefed_size() -> void:
@@ -151,7 +151,8 @@ func test_flint_explains_the_altar_once() -> void:
 	assert_eq(explanation.style, FlintExplanation.Style.TOUR)
 	assert_true(explanation.once)
 	assert_eq(explanation.steps[1].focus_node, home.altar, "the camera shows the altar")
-	assert_eq(explanation.steps[-1].focus_node, home.mirror, "and the mirror")
+	assert_eq(explanation.steps[-2].focus_node, home.mirror, "and the mirror")
+	assert_eq(explanation.steps[-1].focus_node, home.decor_station, "WK7: and the catalog stand")
 	for step in explanation.steps:
 		assert_true(String(step.text_key).begins_with("FLINT_HOME_"))
 		assert_true(Loc.has_key(step.text_key, &"de") and Loc.has_key(step.text_key, &"en"), String(step.text_key))

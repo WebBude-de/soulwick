@@ -27,6 +27,9 @@ extends Node
 ## (SaveMerge, merge rules per field); read_world_config()/write_world_config() do the same for any
 ## slot without touching the loaded one. [cloud] holds the sync state (CLOUD_DEFAULTS); it is part of
 ## v5 and additive like [seen] (a file without it was never synced). CloudSave does the network part.
+## Decoration (WK5, WK7, save v6): [decor_owned] (catalog id -> count bought), [decor_placed]
+## (village, home: "id:col:row:rot" lists) and [decor] (home_wall, home_floor: style or ""); read
+## and changed through DecorState. v5 -> v6 furnishes the home with the starter set (owned).
 
 signal permanent_gold_changed(permanent_gold: int)
 signal permanent_crystals_changed(permanent_crystals: int)
@@ -44,8 +47,10 @@ signal content_unlocked(id: StringName)
 ## P1-8: the loaded save file was broken and its last good copy (*.prev.bak) was loaded instead.
 ## Hook for a notice in the menu ("Spielstand aus der Sicherung geladen").
 signal save_restored(path: String)
+## WK5/WK7: decoration bought, placed, put away, or a home surface changed.
+signal decor_changed
 
-const SAVE_VERSION := 5
+const SAVE_VERSION := 6
 const SETTINGS_VERSION := 1
 ## The save file of builds before slots (MM1); imported into a slot, kept as it is.
 const DEFAULT_SAVE_PATH := "user://savegame.cfg"
@@ -121,6 +126,13 @@ const CLOUD_DEFAULTS := {"base_revision": 0, "synced_hash": "", "player_id": "",
 ## Packed Proviant of older builds -> the Proviant that replaced it (same or better effect, so nothing
 ## is lost): Heiltrank stays, the random upgrade becomes the Glücksamulett (rare upgrade), the
 ## Goldbeutel (+25 %) becomes Goldregen (double gold). Mapped on every load (migrate), no version step.
+## WK5/WK7 (v6): decoration sections and the spaces of [decor_placed] (DecorState).
+const DECOR_OWNED_SECTION := "decor_owned"
+const DECOR_PLACED_SECTION := "decor_placed"
+const DECOR_SECTION := "decor"
+const DECOR_SPACES: Array[String] = ["village", "home"]
+const DECOR_SETTINGS: Array[String] = ["home_wall", "home_floor"]
+const _DecorState := preload("res://meta/decor_state.gd")
 const LEGACY_BOOST_IDS := {"potion": "healing_potion", "upgrade": "lucky_amulet", "gold": "gold_rain"}
 
 ## The loaded save file. Overridable for tests and tools (they never touch the real save).
@@ -181,6 +193,10 @@ var _options: Dictionary = {}
 ## Ids of synced worlds deleted here whose cloud copy still has to go to the archive (KF9, settings
 ## [cloud] deleted_worlds); CloudSave sends them and forgets them.
 var _deleted_world_ids := PackedStringArray()
+## WK5/WK7: decoration owned (id -> count), placed per space, home surfaces (DecorState).
+var _decor_owned: Dictionary[String, int] = {}
+var _decor_placed: Dictionary[String, PackedStringArray] = {}
+var _decor_settings: Dictionary[String, String] = {}
 
 
 func _ready() -> void:
@@ -345,6 +361,7 @@ func _apply_config(config: ConfigFile) -> Error:
 	if config.has_section("legacy_profile"):
 		for key in config.get_section_keys("legacy_profile"):
 			_legacy_profile[key] = config.get_value("legacy_profile", key)
+	_apply_decor(config)
 	var created: Variant = config.get_value("profile", "created", 0)
 	_created_at = maxi(0, created) if typeof(created) == TYPE_INT else 0
 	var last_played: Variant = config.get_value("profile", "last_played", 0)
@@ -353,7 +370,41 @@ func _apply_config(config: ConfigFile) -> Error:
 	permanent_crystals_changed.emit(_permanent_crystals)
 	meta_changed.emit()
 	profile_changed.emit()
+	decor_changed.emit()
 	return OK
+
+
+## Decoration of a migrated config (WK5/WK7): invalid entries are dropped, nothing is worth a reset.
+## Owned counts never fall below what stands (a merged or hand-edited file keeps every piece).
+func _apply_decor(config: ConfigFile) -> void:
+	if config.has_section(DECOR_PLACED_SECTION):
+		_decor_owned.clear()
+	if config.has_section(DECOR_OWNED_SECTION):
+		for key in config.get_section_keys(DECOR_OWNED_SECTION):
+			var count: Variant = config.get_value(DECOR_OWNED_SECTION, key)
+			if typeof(count) == TYPE_INT and count > 0:
+				_decor_owned[key] = count
+	for space in DECOR_SPACES:
+		if not config.has_section_key(DECOR_PLACED_SECTION, space):
+			continue
+		var list: Variant = config.get_value(DECOR_PLACED_SECTION, space)
+		if typeof(list) == TYPE_PACKED_STRING_ARRAY:
+			var valid := PackedStringArray()
+			for entry in list:
+				if not _DecorState.parse(entry).is_empty():
+					valid.append(entry)
+			_decor_placed[space] = valid
+	for key in DECOR_SETTINGS:
+		var style: Variant = config.get_value(DECOR_SECTION, key, "")
+		_decor_settings[key] = String(style) if typeof(style) == TYPE_STRING else ""
+	var placed: Dictionary[String, int] = {}
+	for space: String in _decor_placed:
+		for entry in _decor_placed[space]:
+			var id := String(_DecorState.parse(entry)["id"])
+			placed[id] = int(placed.get(id, 0)) + 1
+	for id: String in placed:
+		if int(_decor_owned.get(id, 0)) < placed[id]:
+			_decor_owned[id] = placed[id]
 
 
 ## Upgrades an older config in place to SAVE_VERSION. Returns the version it started from.
@@ -375,6 +426,10 @@ func _apply_config(config: ConfigFile) -> Error:
 ## and staff (both keep the second start slot); the world gets its id ([world] id) and the trading
 ## post levels ([trade_levels]) with their defaults. [migration] keeps what happened for the village
 ## notice (v5_notice_pending). Invalid values are left alone (load_game() rejects them).
+## v5 -> v6 (WK5, WK7): decoration. The home gets the starter furniture as catalog pieces (owned,
+## so they can be moved and put away; DecorState.STARTER_HOME, the same pieces as the KE8 room), the
+## village no decoration, the home's wallpaper and floor stay the original ones. Additive: nothing
+## else changes.
 ## Every version (KE5): packed Proviant of older builds gets its new id (_map_legacy_boosts).
 static func migrate(config: ConfigFile) -> int:
 	var from_version: int = config.get_value("meta", "version", SAVE_VERSION)
@@ -392,6 +447,8 @@ static func migrate(config: ConfigFile) -> int:
 		_migrate_to_v4(config)
 	if from_version < 5:
 		_migrate_to_v5(config)
+	if from_version < 6:
+		_migrate_to_v6(config)
 	_map_legacy_boosts(config)
 	config.set_value("meta", "version", SAVE_VERSION)
 	return from_version
@@ -489,6 +546,21 @@ static func _migrate_to_v5(config: ConfigFile) -> void:
 	config.set_value("migration", "v5_shield_plate", shield_plate)
 	config.set_value("migration", "v5_weapons", weapons)
 	config.set_value("migration", "v5_notice_pending", refund > 0 or shield_plate > 0 or not weapons.is_empty())
+
+
+static func _migrate_to_v6(config: ConfigFile) -> void:
+	if not config.has_section_key(DECOR_PLACED_SECTION, "home"):
+		config.set_value(DECOR_PLACED_SECTION, "home", PackedStringArray(_DecorState.STARTER_HOME))
+		var starter := _DecorState.starter_owned()
+		for id: String in starter:
+			var owned: Variant = config.get_value(DECOR_OWNED_SECTION, id, 0)
+			var count := int(owned) if typeof(owned) == TYPE_INT else 0
+			config.set_value(DECOR_OWNED_SECTION, id, maxi(count, starter[id]))
+	if not config.has_section_key(DECOR_PLACED_SECTION, "village"):
+		config.set_value(DECOR_PLACED_SECTION, "village", PackedStringArray())
+	for key in DECOR_SETTINGS:
+		if not config.has_section_key(DECOR_SECTION, key):
+			config.set_value(DECOR_SECTION, key, "")
 
 
 ## Gold paid for the first level levels of an upgrade the v5 forge removed (V5_REFUND_COSTS); 0 for
@@ -623,7 +695,52 @@ func _build_config() -> ConfigFile:
 		config.set_value("legacy_profile", key, _legacy_profile[key])
 	for key: String in _cloud:
 		config.set_value("cloud", key, _cloud[key])
+	for id: String in _decor_owned:
+		config.set_value(DECOR_OWNED_SECTION, id, _decor_owned[id])
+	for space in DECOR_SPACES:
+		config.set_value(DECOR_PLACED_SECTION, space, get_decor_placements(space))
+	for key in DECOR_SETTINGS:
+		config.set_value(DECOR_SECTION, key, get_decor_setting(key))
 	return config
+
+
+# --- Decoration (WK5, WK7; use DecorState) ---
+
+func get_decor_owned(id: String) -> int:
+	return int(_decor_owned.get(id, 0))
+
+
+func set_decor_owned(id: String, count: int) -> void:
+	if count > 0:
+		_decor_owned[id] = count
+	else:
+		_decor_owned.erase(id)
+	decor_changed.emit()
+
+
+func get_decor_owned_ids() -> PackedStringArray:
+	return PackedStringArray(_decor_owned.keys())
+
+
+## "id:col:row:rot" entries of a space ("village" or "home"), a copy.
+func get_decor_placements(space: StringName) -> PackedStringArray:
+	var list: PackedStringArray = _decor_placed.get(String(space), PackedStringArray())
+	return list.duplicate()
+
+
+func set_decor_placements(space: StringName, list: PackedStringArray) -> void:
+	_decor_placed[String(space)] = list.duplicate()
+	decor_changed.emit()
+
+
+## Home surface style ("home_wall", "home_floor"): "" = the original room.
+func get_decor_setting(key: String) -> String:
+	return String(_decor_settings.get(key, ""))
+
+
+func set_decor_setting(key: String, value: String) -> void:
+	_decor_settings[key] = value
+	decor_changed.emit()
 
 
 # --- Currencies ---
@@ -1326,6 +1443,7 @@ func _reset() -> void:
 	permanent_crystals_changed.emit(_permanent_crystals)
 	meta_changed.emit()
 	profile_changed.emit()
+	decor_changed.emit()
 
 
 ## Empties the loaded state without signals (_apply_config emits them once it is filled).
@@ -1348,6 +1466,10 @@ func _reset_quietly() -> void:
 	_created_at = 0
 	_last_played = 0
 	_cloud = {}
+	# A new world: the home is furnished with the starter set (v6), the village is bare.
+	_decor_owned = _DecorState.starter_owned()
+	_decor_placed = {"home": PackedStringArray(_DecorState.STARTER_HOME), "village": PackedStringArray()}
+	_decor_settings = {}
 
 
 ## Why _load_file() rejected a file (load_game() logs it and keeps the file as *.bak, D-059).

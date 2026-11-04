@@ -18,6 +18,8 @@ const SPELL_TAG: StringName = &"spell"
 const SPELL_TAGS: Array[StringName] = [SPELL_TAG]
 const ENEMY_GROUP: StringName = &"enemies"
 const PLAYER_GROUP: StringName = &"player"
+## Spells start at Flint's flame only while the group Flint is this close to the caster (px). TESTWERT
+const FLINT_CAST_REACH := 160.0
 
 
 # --- Numbers ---
@@ -53,11 +55,12 @@ static func loadout_of(stats: TalentStats) -> Array[StringName]:
 	return result
 
 
-## Where a spell visibly starts: the flame of the caster's Flint (D-194, KONZEPT §6.2), else the
-## caster's body centre. Flint's spot follows only synced state, so every machine gets the same point.
+## Where a spell visibly starts: the flame of the group's Flint when it is near the caster (D-194,
+## KONZEPT §6.2, D-225), else the caster's body centre. Flint's spot follows only synced state, so every machine gets the same point.
 static func cast_origin(caster: Node2D) -> Vector2:
 	var flint := FlintCompanion.of(caster)
-	if flint != null:
+	# One Flint per group (D-225): far away with the other part of the group, the caster casts himself.
+	if flint != null and flint.get_light_center().distance_to(caster.global_position) <= FLINT_CAST_REACH:
 		return flint.get_light_center()
 	return caster.global_position
 

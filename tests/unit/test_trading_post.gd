@@ -186,18 +186,19 @@ func test_trade_steps_with_real_values() -> void:
 # --- Proviant ids of older builds ---
 
 func test_old_proviant_ids_are_mapped_on_load() -> void:
+	# A file of the current version (no version step): only the ids are mapped.
 	_write("""[meta]
-version=5
+version=%d
 [progress]
 permanent_gold=0
 permanent_crystals=3
 [boosts]
 pending=PackedStringArray("potion", "upgrade", "gold", "healing_potion")
-""")
+""" % SaveManager.SAVE_VERSION)
 	assert_eq(SaveManager.load_game(), OK)
 	assert_eq(SaveManager.get_pending_boosts(), [MetaProgression.BOOST_HEALING_POTION,
 		MetaProgression.BOOST_LUCKY_AMULET, MetaProgression.BOOST_GOLD_RAIN] as Array[StringName], "each once, new ids")
-	assert_false(FileAccess.file_exists(TEST_PATH + ".v5.bak"), "no version step, no migration copy")
+	assert_false(FileAccess.file_exists(TEST_PATH + ".v%d.bak" % SaveManager.SAVE_VERSION), "no version step, no migration copy")
 	assert_eq(SaveManager.save_game(), OK)
 	var config := ConfigFile.new()
 	config.load(TEST_PATH)

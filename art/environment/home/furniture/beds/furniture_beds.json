@@ -1,0 +1,314 @@
+{
+  "group": "beds",
+  "notes": [
+    "Pivot unten Mitte; footprint Kacheln breit × tief; _side = 90°-Ansicht, Gegenseite spiegeln; light = Lichtpunkt relativ zur Frame-Ecke; anim = Overlay-Streifen."
+  ],
+  "items": [
+    {
+      "name": "bed_single_cozy_front",
+      "file": "bed_single_cozy_front.png",
+      "frame_size": [
+        64,
+        96
+      ],
+      "pivot": [
+        32,
+        95
+      ],
+      "footprint": [
+        2,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_single_cozy_side",
+      "file": "bed_single_cozy_side.png",
+      "frame_size": [
+        96,
+        64
+      ],
+      "pivot": [
+        48,
+        63
+      ],
+      "footprint": [
+        3,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_cozy_front",
+      "file": "bed_double_cozy_front.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_cozy_side",
+      "file": "bed_double_cozy_side.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_cozy_front",
+      "file": "hammock_cozy_front.png",
+      "frame_size": [
+        96,
+        48
+      ],
+      "pivot": [
+        48,
+        47
+      ],
+      "footprint": [
+        3,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_cozy_side",
+      "file": "hammock_cozy_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_single_rustic_front",
+      "file": "bed_single_rustic_front.png",
+      "frame_size": [
+        64,
+        96
+      ],
+      "pivot": [
+        32,
+        95
+      ],
+      "footprint": [
+        2,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_single_rustic_side",
+      "file": "bed_single_rustic_side.png",
+      "frame_size": [
+        96,
+        64
+      ],
+      "pivot": [
+        48,
+        63
+      ],
+      "footprint": [
+        3,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_rustic_front",
+      "file": "bed_double_rustic_front.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_rustic_side",
+      "file": "bed_double_rustic_side.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_rustic_front",
+      "file": "hammock_rustic_front.png",
+      "frame_size": [
+        96,
+        48
+      ],
+      "pivot": [
+        48,
+        47
+      ],
+      "footprint": [
+        3,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_rustic_side",
+      "file": "hammock_rustic_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_single_soul_front",
+      "file": "bed_single_soul_front.png",
+      "frame_size": [
+        64,
+        96
+      ],
+      "pivot": [
+        32,
+        95
+      ],
+      "footprint": [
+        2,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_single_soul_side",
+      "file": "bed_single_soul_side.png",
+      "frame_size": [
+        96,
+        64
+      ],
+      "pivot": [
+        48,
+        63
+      ],
+      "footprint": [
+        3,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_soul_front",
+      "file": "bed_double_soul_front.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bed_double_soul_side",
+      "file": "bed_double_soul_side.png",
+      "frame_size": [
+        96,
+        96
+      ],
+      "pivot": [
+        48,
+        95
+      ],
+      "footprint": [
+        3,
+        3
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_soul_front",
+      "file": "hammock_soul_front.png",
+      "frame_size": [
+        96,
+        48
+      ],
+      "pivot": [
+        48,
+        47
+      ],
+      "footprint": [
+        3,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hammock_soul_side",
+      "file": "hammock_soul_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        3
+      ],
+      "blocks": true
+    }
+  ]
+}

@@ -5,19 +5,20 @@ extends SideCrumble
 ## and falls, and is back after TILT_RESPAWN once nobody is in the way. A SideCrumble with its own
 ## timing and look, so the decision, the co-op sync (NetSide via SideSegment.get_crumbles) and the
 ## tests are the crumble's. Art: tilt_platform_<biome>_4f.png (4 frames side by side: still,
-## wobbling, tipping, falling; delivered 64×16, any height works, pivot in the middle), else the
-## ledge pieces tinted darker. The picture is lifted by the empty rows above its
-## slab (SidePixels.surface_row), so the feet stand on the drawn top (FS1).
+## wobbling, tipping ~12°, falling ~25°; V13e: 64×48, any size works) with tilt_platform_<biome>.json
+## (pivot, V13e (32, 24); without it the middle of the frame), else the ledge pieces tinted darker.
+## The pivot sits in the middle of the two cells, at the height that puts the still frame's slab top
+## (SidePixels.surface_row) on the collision top, so the feet stand on the drawn top (FS1).
 ## Pixel look (D-218, feedback #e0486234 "wenn die Plattform kaputt geht ist die Textur verbuggt"):
 ## the sprite is never rotated (a turned picture leaves the art-pixel grid); the wobble is the
-## crumble's shake in whole pixels, the tilt comes from the frames. A delivered frame cut off at the
-## top and bottom edge of its frame (the tipping and falling frames of the first delivery) is replaced
-## by the still slab sheared column by column (whole pixels, SHEAR_TIPPING / SHEAR_FALLING), in a
-## picture high enough for the whole slab.
+## crumble's shake in whole pixels, the tilt comes from the frames. Only a delivered frame whose slab
+## runs into the top or bottom edge of its frame (the 64×16 first delivery) is replaced by the still
+## slab sheared column by column (whole pixels, SHEAR_TIPPING / SHEAR_FALLING), in a picture high
+## enough for the whole slab; a few falling crumbs on an edge row do not count (CUT_OFF_PIXELS).
 
 const ART_PATH := "res://art/environment/side/tilt_platform_%s_4f.png"
-## Frame of the first delivery (the real size comes from the sheet: frame_size).
-const ART_FRAME := Vector2i(64, 16)
+## Frame of the V13e delivery (the real size comes from the sheet: frame_size).
+const ART_FRAME := Vector2i(64, 48)
 const ART_FRAMES := 4
 const FRAME_STILL := 0
 const FRAME_WOBBLE := 1
@@ -27,8 +28,11 @@ const FRAME_FALLING := 3
 const SHEAR_TIPPING := 0.2
 const SHEAR_FALLING := 0.45
 const PLACEHOLDER_TINT := Color(0.8, 0.72, 0.62)
-## Surface row of the delivered art when the picture cannot be read.
-const SURFACE_ROW_FALLBACK := 4
+## Surface row of the delivered art when the picture cannot be read (V13e: the slab starts at row 19).
+const SURFACE_ROW_FALLBACK := 19
+## Opaque pixels on a frame's top or bottom row from which the slab counts as cut off by the frame;
+## fewer are crumbs (V13e falling frame: 1 crumb on the bottom row). TESTWERT (look).
+const CUT_OFF_PIXELS := 4
 
 ## "<sheet path>|<frame>" -> sheared stand-in picture (null = the delivered frame fits).
 static var _stand_ins: Dictionary = {}
@@ -56,10 +60,12 @@ func _build_look() -> void:
 		_sprite.texture = _sheet
 		_sprite.hframes = ART_FRAMES
 		_sprite.scale = Vector2.ONE * SpriteStrip.PIXEL_SCALE
-		# Pivot (middle) of the art = the middle of the two cells' top strip, lifted to the slab.
+		# The pivot sits in the middle of the two cells, the still slab's top on the collision top.
 		var frame := frame_size(_sheet)
+		var pivot := art_pivot(path, frame)
 		var lift := SidePixels.surface_row(_sheet, Rect2i(Vector2i.ZERO, frame), SURFACE_ROW_FALLBACK)
-		_sprite.position = Vector2(cells * SideRules.TILE * 0.5, (frame.y * 0.5 - lift) * SpriteStrip.PIXEL_SCALE)
+		_sprite.offset = Vector2(frame) * 0.5 - pivot
+		_sprite.position = Vector2(cells * SideRules.TILE * 0.5, (pivot.y - lift) * SpriteStrip.PIXEL_SCALE)
 		_pieces.add_child(_sprite)
 		return
 	super._build_look()
@@ -104,6 +110,34 @@ func get_frame_picture() -> Image:
 	return image
 
 
+## Y of the still slab's drawn top relative to the collision top in px (tests, screenshots): 0 = on it.
+func get_slab_top() -> float:
+	if _sprite == null:
+		return 0.0
+	var frame := frame_size(_sheet)
+	var lift := SidePixels.surface_row(_sheet, Rect2i(Vector2i.ZERO, frame), SURFACE_ROW_FALLBACK)
+	return _sprite.position.y + (_sprite.offset.y - frame.y * 0.5 + lift) * SpriteStrip.PIXEL_SCALE
+
+
+## Pivot of the sheet at sheet_path in frame pixels: "pivot" of its JSON (tilt_platform_<biome>.json
+## next to it, top level or first item), else the middle of the frame.
+static func art_pivot(sheet_path: String, frame: Vector2i) -> Vector2:
+	var middle := Vector2(frame) * 0.5
+	var json_path := sheet_path.replace("_4f.png", ".json")
+	if json_path == sheet_path or not FileAccess.file_exists(json_path):
+		return middle
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(json_path))
+	if not parsed is Dictionary:
+		return middle
+	var pivot: Variant = (parsed as Dictionary).get("pivot")
+	var items: Variant = (parsed as Dictionary).get("items")
+	if pivot == null and items is Array and not (items as Array).is_empty() and (items as Array)[0] is Dictionary:
+		pivot = ((items as Array)[0] as Dictionary).get("pivot")
+	if pivot is Array and (pivot as Array).size() == 2:
+		return Vector2(float(pivot[0]), float(pivot[1]))
+	return middle
+
+
 ## Size of one frame of sheet (the sheet holds ART_FRAMES side by side).
 static func frame_size(sheet: Texture2D) -> Vector2i:
 	if sheet == null:
@@ -111,14 +145,15 @@ static func frame_size(sheet: Texture2D) -> Vector2i:
 	return Vector2i(floori(sheet.get_width() / float(ART_FRAMES)), sheet.get_height())
 
 
-## Whether frame of sheet runs into the top and the bottom edge (a slab cut off by the frame).
+## Whether the slab in frame of sheet runs into the top or the bottom edge (cut off by the frame):
+## at least CUT_OFF_PIXELS opaque pixels on that row; a few crumbs do not count.
 static func is_cut_off(sheet: Texture2D, frame: int) -> bool:
 	var image := _sheet_image(sheet)
 	if image == null:
 		return false
 	var size := frame_size(sheet)
 	var region := Rect2i(frame * size.x, 0, size.x, size.y)
-	return _row_has_pixels(image, region, 0) and _row_has_pixels(image, region, size.y - 1)
+	return _row_pixels(image, region, 0) >= CUT_OFF_PIXELS or _row_pixels(image, region, size.y - 1) >= CUT_OFF_PIXELS
 
 
 ## Stand-in for a cut-off tipping or falling frame: the still slab sheared in whole art pixels around
@@ -127,7 +162,8 @@ static func is_cut_off(sheet: Texture2D, frame: int) -> bool:
 static func stand_in_for(sheet: Texture2D, frame: int) -> Texture2D:
 	if sheet == null or (frame != FRAME_TIPPING and frame != FRAME_FALLING):
 		return null
-	var key := "%s|%d" % [sheet.resource_path, frame]
+	var id := sheet.resource_path if not sheet.resource_path.is_empty() else str(sheet.get_instance_id())
+	var key := "%s|%d" % [id, frame]
 	if _stand_ins.has(key):
 		return _stand_ins[key]
 	var texture: Texture2D = null
@@ -164,8 +200,9 @@ static func _sheet_image(sheet: Texture2D) -> Image:
 	return image
 
 
-static func _row_has_pixels(image: Image, region: Rect2i, row: int) -> bool:
+static func _row_pixels(image: Image, region: Rect2i, row: int) -> int:
+	var count := 0
 	for x in range(region.position.x, region.end.x):
 		if image.get_pixel(x, region.position.y + row).a > 0.0:
-			return true
-	return false
+			count += 1
+	return count

@@ -1,0 +1,61 @@
+{
+  "group": "water",
+  "notes": [
+    "Wasser-Glitzer als harte Pixel, 4–5 fps."
+  ],
+  "items": [
+    {
+      "name": "well_small",
+      "file": "well_small.png",
+      "frame_size": [
+        32,
+        40
+      ],
+      "pivot": [
+        16,
+        39
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "anim": "well_small_4f.png"
+    },
+    {
+      "name": "bird_bath",
+      "file": "bird_bath.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "pond_small",
+      "file": "pond_small.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true,
+      "anim": "pond_small_4f.png"
+    }
+  ]
+}

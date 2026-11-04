@@ -32,6 +32,10 @@ extends Node2D
 ## Schmiede · …"); the way grows stronger when the player strays (VillageGuide, timer held while Flint
 ## talks or a dialog is open); the tour leaves out locked buildings and Flint names a building when it
 ## opens (VillageTour.offer_opened, the buildings of the "Neu freigeschaltet" notice).
+## WK5 (KONZEPT §8): the world's own decoration (DecorLayer "PlacedDecor", bought with gold and set on
+## the village grid, DecorGrid) stands among the props; the board beside the home (DecorStation)
+## opens the decorating mode (DecorEditor, only alone). The scattered flowers under a placed piece
+## hide. In a group a guest sees the host's arrangement (apply_host_decor, view only).
 
 signal dungeon_requested
 ## Emitted when the player uses a building door; id is the building's building_id metadata.
@@ -66,6 +70,8 @@ const RESCUED_LANTERN_INTENSITY := 0.8
 const BOARD_OFFSET := Vector2(-78, 0)
 ## TESTWERT: the mirror stands right of the home's door (world px from the home's origin).
 const MIRROR_OFFSET := Vector2(112, 6)
+## WK5: the decoration board stands left of the home's door (world px from the home's origin, TESTWERT).
+const DECOR_STATION_OFFSET := Vector2(-118, 6)
 ## P1-2: way to the dungeon until the first run (preloaded: works before the class cache knows it).
 const GuideScript := preload("res://world/village/village_guide.gd")
 ## WK9: Flint's village tour (preloaded like the guide).
@@ -110,6 +116,10 @@ var _goal_text := ""
 ## FS6: buildings that open with this visit (their "Neu freigeschaltet" was not shown yet); Flint
 ## names them (VillageTour.offer_opened).
 var _opened_now: Array[StringName] = []
+## WK5: the placed decoration, the board and the open decorating mode (null while closed).
+var decor_layer: DecorLayer = null
+var decor_station: DecorStation = null
+var _decor_editor: DecorEditor = null
 
 
 func _ready() -> void:
@@ -120,6 +130,7 @@ func _ready() -> void:
 	_add_missing_signs()
 	_add_chronicle_board()
 	_add_mirror()
+	_add_decor_station()
 	_populate_rescued()
 	# Sort buildings, decoration and NPCs by their base line against the player's feet.
 	SortLift.lift_props(_buildings)
@@ -130,6 +141,7 @@ func _ready() -> void:
 			npc.offset.y = VillageArt.feet_offset_y(npc.sprite_frames)
 	# B3: scattered flowers, stones and bushes (fixed seed) and pollen/fireflies over the map.
 	_decor.populate(self)
+	_setup_decor_layer()
 	_ambience.setup(Rect2(get_camera_limits()))
 	# Lamps light up the village at dusk and night (VillageDaylight, darkness set by WorldController).
 	VillageDaylight.add_lamp_lights(_buildings)
@@ -596,6 +608,59 @@ func _add_mirror() -> void:
 	mirror.position = home.position + MIRROR_OFFSET
 	_buildings.add_child(mirror)
 	mirror.used.connect(func(_player: Player) -> void: open_mirror())
+
+
+# --- WK5: decoration ---
+
+## The board beside the home (DecorStation): opens the decorating mode.
+func _add_decor_station() -> void:
+	var home := _buildings.get_node_or_null(^"Home") as Node2D
+	if home == null or _buildings.get_node_or_null(^"DecorStation") != null:
+		return
+	decor_station = DecorStation.create(DecorCatalog.VILLAGE)
+	decor_station.position = home.position + DECOR_STATION_OFFSET
+	_buildings.add_child(decor_station)
+	decor_station.used.connect(open_decor_editor)
+
+
+## The placed decoration of this world on the village grid (after the props are lifted and the
+## flowers scattered: the grid keeps clear of both, the flowers hide under the pieces).
+func _setup_decor_layer() -> void:
+	decor_layer = DecorLayer.new()
+	decor_layer.name = "PlacedDecor"
+	add_child(decor_layer)
+	decor_layer.rebuilt.connect(func() -> void: _decor.hide_under(decor_layer.covered_rects()))
+	decor_layer.setup(DecorCatalog.VILLAGE, DecorGrid.for_village(self), VillageDecor.FLAT_Z, VillageDecor.FLAT_Z)
+
+
+## Opens the decorating mode for player (only alone, nothing while a dialog is open).
+func open_decor_editor(player: Player) -> DecorEditor:
+	if ui.is_dialog_open() or is_decorating() or decor_layer == null:
+		return null
+	_decor_editor = DecorStation.start(self, decor_layer, player)
+	if _decor_editor != null:
+		_decor_editor.closed.connect(func() -> void: _decor_editor = null)
+	return _decor_editor
+
+
+func is_decorating() -> bool:
+	return _decor_editor != null and is_instance_valid(_decor_editor) and not _decor_editor.is_closing()
+
+
+func get_decor_editor() -> DecorEditor:
+	return _decor_editor if is_decorating() else null
+
+
+## Koop hook (WK5): a guest shows the host's village decoration (DecorState.snapshot() of the host,
+## sent with the room's world data); view only, the guest's own save stays untouched. An empty
+## dictionary goes back to the own decoration.
+func apply_host_decor(snapshot: Dictionary) -> void:
+	if decor_layer == null:
+		return
+	if snapshot.is_empty():
+		decor_layer.show_own()
+	else:
+		decor_layer.show_snapshot(DecorState.snapshot_placements(snapshot, DecorCatalog.VILLAGE))
 
 
 ## Opens the profile editor of the mirror (nothing while another dialog is open).

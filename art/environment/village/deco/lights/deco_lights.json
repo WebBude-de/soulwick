@@ -1,0 +1,106 @@
+{
+  "group": "lights",
+  "notes": [
+    "Licht über Light2D am Punkt light.at; Flammen als harte Pixel, 8 fps."
+  ],
+  "items": [
+    {
+      "name": "lamp_post",
+      "file": "lamp_post.png",
+      "frame_size": [
+        32,
+        64
+      ],
+      "pivot": [
+        16,
+        63
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          14
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "string_lights_posts",
+      "file": "string_lights_posts.png",
+      "frame_size": [
+        96,
+        48
+      ],
+      "pivot": [
+        48,
+        47
+      ],
+      "footprint": [
+        3,
+        1
+      ],
+      "blocks": false,
+      "light": {
+        "at": [
+          48,
+          18
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "fire_bowl",
+      "file": "fire_bowl.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          14
+        ],
+        "color": "#ff8a3c"
+      },
+      "anim": "fire_bowl_4f.png"
+    },
+    {
+      "name": "torch_post",
+      "file": "torch_post.png",
+      "frame_size": [
+        16,
+        40
+      ],
+      "pivot": [
+        8,
+        39
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          8,
+          6
+        ],
+        "color": "#ff8a3c"
+      },
+      "anim": "torch_post_4f.png"
+    }
+  ]
+}

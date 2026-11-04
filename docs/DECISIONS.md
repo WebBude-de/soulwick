@@ -2090,6 +2090,51 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Türsturz (FS7c, #51c557a8):** Wird der Weg hinter einem versiegelten Tor ausgeblendet, baut das Tor seinen Türsturz aus der eigenen Raumwand neu.
 - **Jagd:** siehe Nachtrag D-114.
 
+### D-224 – Offene Fragen aus Welle 5, von Claude entschieden
+
+- **Status:** VERBINDLICH (Claude, vom Projektmitglied am 03.11.2026 delegiert: „Alles andere entscheide einfach selbst … die beste Entscheidung für das Live-Game“) · Zahlen **TESTWERT**
+- **Cloud (D-222):** Kein stiller Gast-Login beim Start. Grund: Jede Installation bekäme ein Server-Konto ohne Zutun (Datenschutz bei 12–25-Jährigen, Kosten, Konten-Müll); abgeglichen wird, sobald jemand online spielt oder sich anmeldet, „Konto sichern“ kommt mit KF6. Eine endgültig gelöschte Cloud-Welt darf von einem anderen Gerät zurückkommen (nie Daten verlieren geht vor). Sicherungen und Archiv wiederherstellen gehört zu KF6.
+- **Dorf-Fenster (D-223):** Handelsposten darf bei 720 px im Inhalt scrollen (Schließen bleibt fest); Währungen im Kopf als Symbol und Zahl; Stufen als Punkte mit Tooltip; Linie über der Fußzeile im Talentbaum bleibt immer sichtbar.
+- **Pixel (D-218):** Nachbearbeitung (Blend-Unschärfe, Farbsaum, Betäubungs-Wackeln) gehört zur Licht-Ausnahme und bleibt weich; kurze UI-Hüpfer unter 0,3 s bleiben stufenlos; Dorf-Partikel sind bei „Lichteffekte: Niedrig“ aus; der Dolch-Schwung behält seine getrennt gerundete Skala.
+- **Wirtschaft (D-221):** Champions bekommen die Regel aus KONZEPT §5.3 als Code: 30 % Chance auf 1 Kristall über den Dungeon-RNG, Entscheidung beim Host (Paket KE9b, gebaut 03.11.2026: `CRYSTALS_PER_CHAMPION` 1, `CHAMPION_CRYSTAL_CHANCE` 0,3; gewürfelt mit eigenem RNG aus Run-Seed, Raum und Champion-Nummer statt aus `context.rng`, damit der Todeszeitpunkt den Raum-Strom nicht verschiebt – wie `CorridorDressing`, `SideWays`). Koop-Gold bleibt „jeder bekommt die ganze Kasse“ (Koop soll sich lohnen, Vorrang-Regel), Messung mit BA1. Der Handelsposten öffnet weiter mit dem ersten Kristall; Flint erklärt ihn dann.
+- **Jagd (Nachtrag D-114):** Startplatz links der Empore bleibt; schmale Gänge zählen weiter nicht als Fluchtweg.
+- **Dorf-Deko-Probe (V13e):** angenommen; zweite und dritte Varianten bestellt der Orchestrator mit dem nächsten Claude-Design-Auftrag.
+- **KF5** wird neu gebaut (der halbfertige Stand vom 18.10.2026 ist verworfen).
+
+### D-225 – Ein Flint für die ganze Gruppe
+
+- **Status:** VERBINDLICH (Projektmitglied 03.11.2026: „wenn man in einer Gruppe spielt, soll nur ein [Flint] da sein, nicht jeder hat seinen eigenen. [Flint] soll immer einen gesamten Run begleiten, egal wie viele Leute“; Meldung #208b9139 „als Gruppe EINEN Flint, der die gesamte Gruppe begleitet“) · Umsetzung **VORGESCHLAGEN** (Claude) · Zahlen **TESTWERT**
+- **Ersetzt:** WK1 „ein Flint je Spieler als Kind des Spielers“ und D-215 Punkt 1 („im Online-Spiel still“), soweit es die Anwesenheit betrifft: Flint ist in jedem Run da, allein wie zu viert.
+- **Beschluss:**
+  1. Je Run (und im gemeinsamen Dorf) genau **ein** Flint, egal ob 1, 2, 3 oder 4 Spieler. Allein verhält er sich wie heute.
+  2. In der Gruppe folgt Flint der Gruppe: Ziel ist der Mittelpunkt der lebenden Spieler, mit Zug zum Spieler, der am weitesten hinten ist (niemand bleibt allein im Dunkeln); sind Spieler weit getrennt, bleibt er beim größeren Teil bzw. beim Host. Er begleitet den ganzen Run, auch durch Hindernisläufe und Übergänge.
+  3. Der Host bewegt Flint; Clients zeichnen ihn aus dem Netz-Zustand (wie Gegner, D-187). Kein `randf()` für Entscheidungen.
+  4. Licht: Jeder Spieler behält seinen eigenen Lichtkreis (D-212); Flint ist eine zusätzliche Lichtquelle für alle.
+  5. Erklärungen bleiben wie D-215 Punkt 2 (die ganze Gruppe, sobald einer sie braucht); dafür fliegt der eine Flint ins UI jedes Spielers.
+  6. Aussehen (Hut, Flammenfarbe, WK2) kommt vom Host.
+- **Nachtrag 03.11.2026 (WK13 gebaut, TESTWERTE):** Flint ist Kind „Flint“ der Welt (`FlintCompanion.for_world`), alle Spieler schließen sich an. Gruppenpunkt = Mitte der stehenden Spieler mit 35 % Zug zum Hintersten (gegen die Laufrichtung, im Stand der am weitesten von der Mitte); ab 448 px Abstand zerfällt die Gruppe, Flint bleibt beim größeren Teil, bei Gleichstand beim Host; Punkt gleitet mit 5/s, höchstens 420 px/s, springt ab 640 px; liegende Spieler zählen nicht. Führender Spieler (Zielen, Seitenansicht, Zeichenreihenfolge) = Spieler des Hosts im Teil, sonst der erste. `NetFlint`: Host sendet 15/s, Clients gleiten mit 12/s nach. Flints Schein ist nur Optik (D-212). Zauber starten an Flints Flamme nur, wenn er höchstens 160 px vom Zaubernden entfernt ist, sonst an dessen Mitte.
+
+### D-226 – Dorf-Deko und Zuhause einrichten (WK5, WK7)
+
+- **Status:** VERBINDLICH (Claude, delegiert durch D-224) · Zahlen **TESTWERT** · **Datum:** 2026-11-03
+- **Katalog:** nur aus den JSONs der Lieferung V13e (`meta/decor_catalog.gd`), keine Liste im Code; 10 Möbelgruppen in 3 Stilen (cozy, rustic, soul), 31 Dorf-Deko-Teile, Tapete/Boden je Stil.
+- **Preise:** Grundpreis je Gruppe (Betten 90, Kamin-Gruppe 60, Schränke und Fun 40, Tische und Lampen 35, Sitze und Teppiche 30, Wand 25, Pflanzen 20; Dorf: Wasser 70, Lichter 35, Garten 15, Zäune 8, Wege 6; Tapete/Boden 120) plus 10 Gold je zusätzlicher Kachel; Stil soul ×2,5; auf 5 gerundet. „Sammlung x/y“ nur Anzeige. **Kein Rückverkauf**: Wegräumen legt ins Lager.
+- **Raster:** Dorf nur auf freie Graskacheln (nie Wege, Tür- und Spawn-Kreise, Gebäude, Klippen); Zuhause: jede freie Bodenkachel bleibt von der Tür erreichbar, Altar, Spiegel und Pult behalten eine freie Seite; drei Ebenen (flach unter Möbeln, Wand in der Rückwand-Reihe, Fensterplätze nur `window_box`). Wandteile dürfen hohe Möbel überlappen.
+- **Startmöblierung:** Katalog-Teile im Stil cozy (verschiebbar, zählen als gekauft); Kamin und Stehlampe liefern die Lichter.
+- **Einrichten nur allein;** Gäste sehen Dorf (und später Zuhause) des Hosts über `DecorState.snapshot()`.
+- **Spielstand v6:** `[decor_owned]` (Maximum beim Mischen), `[decor_placed]` village/home und `[decor]` home_wall/home_floor (vom zuletzt gespielten Stand); Migration v5→v6 legt die Startmöblierung an und `*.v5.bak` (Nachtrag D-059).
+
+### D-227 – Konto-Panel im Spiel (KF6)
+
+- **Status:** VERBINDLICH (Claude, delegiert durch D-224) · Zahlen **TESTWERT** · **Datum:** 2026-11-03
+- **Eingang:** Knopf „Konto“ in den Optionen neben „Zurücksetzen“ (Haupt- und Pausemenü), eigenes Fenster, pausiert nichts.
+- **Anmelden im Browser (KF5, P-039):** Das Spiel öffnet die URL mit `#k=…`, zeigt nur den 6-stelligen `userCode`; `code` und Browser-Schlüssel erscheinen nie auf dem Bildschirm oder im Log. „Link kopieren“ bleibt (der Schlüssel gilt nur einmal, der Code muss trotzdem getippt werden). Benutzername/Passwort auch direkt im Spiel.
+- **Gerät merken:** Nach jeder Anmeldung hängt das Spiel dieses Gerät ans Konto, damit man nach Ablauf der 30-Tage-Sitzung angemeldet bleibt; sonst „Anmeldung abgelaufen“, nie ein stiller Wechsel auf ein Gastkonto. Kein stiller Gast-Login (D-224): ein Gastkonto entsteht erst bei „Konto sichern“.
+- **Profil:** Anmeldung in ein bestehendes Konto → dessen Name und Aussehen; neues Konto (≤ 120 s nach Start der Anfrage) → Profil dieses Geräts; Zusammenführen → das bleibende Konto.
+- **Cloud-Welten:** Wiederherstellen und Zurückholen nur nach einem Abgleich (lokale Änderungen bleiben als Sicherung), nie im Run; ohne freien Platz bleibt die Welt in der Cloud.
+- **Trennen** je Anbieter; der alte Verknüpfungscode (D-121) kommt nicht ins Panel, die Browser-Anmeldung ersetzt ihn (Backlog: Code verdecken oder abschaffen).
+- **Abmelden:** kommt mit KF6b (geteilte PCs).
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:

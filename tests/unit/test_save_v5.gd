@@ -63,10 +63,11 @@ func _saved() -> ConfigFile:
 
 # --- One check per field ---
 
-func test_version_is_5() -> void:
-	assert_eq(SaveManager.SAVE_VERSION, 5)
+func test_version_is_current() -> void:
+	# v5 (KE4) is migrated on to the current version (v6: WK5/WK7 decoration).
+	assert_true(SaveManager.SAVE_VERSION >= 5)
 	_load_v4("")
-	assert_eq(_saved().get_value("meta", "version"), 5)
+	assert_eq(_saved().get_value("meta", "version"), SaveManager.SAVE_VERSION)
 
 
 func test_vitality_is_refunded() -> void:
@@ -220,7 +221,7 @@ func test_no_notice_when_nothing_changed() -> void:
 func test_fresh_world_has_no_migration() -> void:
 	assert_true(SaveManager.get_v5_report().is_empty())
 	var config := _saved()
-	assert_eq(config.get_value("meta", "version"), 5)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_true(SaveManager.is_valid_world_id(config.get_value("world", "id")))
 	assert_false(config.has_section("migration"))
 
@@ -255,7 +256,7 @@ func test_real_v4_world_loads_without_loss() -> void:
 	assert_false(SaveManager.is_v5_notice_pending(), "nothing to say: no old forge levels")
 	assert_eq(MetaProgression.get_start_weapons(), [MetaProgression.WEAPON_SWORD] as Array[StringName])
 	var config := _saved()
-	assert_eq(config.get_value("meta", "version"), 5)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_eq(config.get_value("profile", "created"), 1792638786)
 	assert_eq(SaveManager.load_game(), OK)
 	assert_eq(SaveManager.get_permanent_gold(), 13, "the same after saving and reloading")

@@ -7,6 +7,8 @@ extends Node2D
 ## C). The window is the delivered picture (home_window_day/night, V13d) on the panelling once it
 ## exists, else the window tiles tinted lighter by day. Also the static bodies of the walls. Lies under
 ## everything (z_index), drawn in art px at HomeLayout.SCALE.
+## WK7: a bought wallpaper or floor style (DecorState home_wall/home_floor, V13e wall_<style>.png and
+## floor_<style>.png) replaces the plain wall tiles and the planks; corners, window and door stay.
 
 const BEAM := Color("#3b2a22")
 const BEAM_LIGHT := Color("#5c3a24")
@@ -23,6 +25,12 @@ func _ready() -> void:
 	scale = Vector2.ONE * HomeLayout.SCALE
 	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	_add_walls()
+	SaveManager.decor_changed.connect(queue_redraw)
+
+
+func _exit_tree() -> void:
+	if SaveManager.decor_changed.is_connected(queue_redraw):
+		SaveManager.decor_changed.disconnect(queue_redraw)
 
 
 func set_night(amount: float) -> void:
@@ -34,16 +42,26 @@ func _draw() -> void:
 	var sheet := HomeArt.tiles_texture()
 	var tile := float(HomeLayout.TILE)
 	var window := HomeArt.window_texture(night)
+	var floor_style := HomeArt.style_texture("floor", DecorState.surface_style(DecorState.SETTING_FLOOR))
+	var wall_style := HomeArt.style_texture("wall", DecorState.surface_style(DecorState.SETTING_WALL))
 	for row in HomeLayout.ROWS:
 		for col in HomeLayout.COLS:
 			var at := Rect2(col * tile, row * tile, tile, tile)
 			if row >= HomeLayout.WALL_ROWS:
-				_tile(sheet, "floor_a" if (col * 7 + row * 3) % 5 != 0 else "floor_b", at, Color.WHITE)
+				if floor_style != null:
+					draw_texture_rect(floor_style, at, false)
+				else:
+					_tile(sheet, "floor_a" if (col * 7 + row * 3) % 5 != 0 else "floor_b", at, Color.WHITE)
 			elif row == HomeLayout.WALL_ROWS - 1:
 				var wall_tile := _back_wall_tile(col)
 				if window != null and wall_tile.begins_with("window"):
 					wall_tile = "wall_front"
-				_tile(sheet, wall_tile, at, _window_tint(col) if window == null else Color.WHITE)
+				if wall_style != null and wall_tile.begins_with("wall_"):
+					draw_texture_rect(wall_style, at, false)
+				else:
+					_tile(sheet, wall_tile, at, _window_tint(col) if window == null else Color.WHITE)
+			elif wall_style != null:
+				draw_texture_rect(wall_style, at, false, UPPER_WALL_TINT)
 			else:
 				_tile(sheet, "wall_front", at, UPPER_WALL_TINT)
 	if window != null:

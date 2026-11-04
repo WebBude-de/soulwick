@@ -17,6 +17,13 @@ extends Node
 ## in the game (editor in the menu, lobby, village); a refused name change (429
 ## name_change_limited) keeps the server's name and sends the look alone (profile_hint() says when
 ## the name can change again).
+## Signing in with an account (KF6, D-188, D-224): the account panel hands a finished login (web
+## login, password, a merge) to adopt_auth(). login_kind remembers how the session came about:
+## LOGIN_DEVICE (guest or dev login, or an account that knows this device's id: the device signs in
+## again by itself when the 30-day session ends) or LOGIN_ACCOUNT (an account that does not know this
+## device: when its session ends, ensure_login() answers SIGNED_OUT instead of silently landing on a
+## guest account). Kept next to online.cfg in <name>_login.cfg (hook: may move into OnlineConfig).
+## Nothing logs in at the start of the game (D-224); only online play and the account panel do.
 
 signal state_changed(state: State)
 
@@ -37,6 +44,16 @@ const NAME_MAX := 24
 ## Errors of PATCH /me (contracts player.ts).
 const NAME_CHANGE_LIMITED := "name_change_limited"
 const VALIDATION_ERROR := "validation_error"
+## How the session came about (see the class comment).
+const LOGIN_DEVICE := "device"
+const LOGIN_ACCOUNT := "account"
+## Error of ensure_login() after the session of a LOGIN_ACCOUNT login ended: sign in again.
+const SIGNED_OUT := "signed_out"
+## adopt_auth(): whose profile wins after the login (D-152).
+const PROFILE_SYNC := 0
+const PROFILE_SERVER := 1
+## File next to online.cfg ("user://online.cfg" -> "user://online_login.cfg").
+const LOGIN_FILE_SUFFIX := "_login.cfg"
 
 ## Take part in the profile sync of D-152 (login body with the look, sync after the login). Off in
 ## runs started with a script (tests, tools) unless they switch it on: their fake servers and test
@@ -60,6 +77,8 @@ var public_config: Dictionary = {}
 var relay_token := ""
 ## Unix seconds (local clock), 0 without a relay token.
 var relay_token_expires_at := 0
+## LOGIN_DEVICE or LOGIN_ACCOUNT (read from the login file in _ready).
+var login_kind := LOGIN_DEVICE
 
 var _login_running := false
 var _relay_token_running := false
@@ -101,6 +120,7 @@ func _ready() -> void:
 	api.dev_key = config.dev_key
 	if not api.unauthorized.is_connected(_on_unauthorized):
 		api.unauthorized.connect(_on_unauthorized)
+	login_kind = _read_login_kind()
 
 
 func is_logged_in() -> bool:
@@ -235,6 +255,9 @@ func _login() -> ApiResult:
 			api.token = ""
 			return me
 		api.token = ""
+	# An account that does not know this device: sign in again, never a silent switch to a guest.
+	if login_kind == LOGIN_ACCOUNT:
+		return ApiResult.failure(SIGNED_OUT, "The account session ended: sign in again in the account panel")
 	# With a dev key the test login, otherwise the guest account of this installation. Name and look
 	# of the profile only count when the account is created (D-152).
 	var login: ApiResult
@@ -260,6 +283,75 @@ func _login() -> ApiResult:
 	await refresh_public_config()
 	await sync_profile()
 	return login
+
+
+# --- Signing in with an account (KF6) ---
+
+## Takes a finished login (coroutine): body is an AuthResponse {token, expiresAt, player} (also
+## AddLoginResponse, the auth of a completed web login). Stores the session and kind (LOGIN_DEVICE or
+## LOGIN_ACCOUNT), reads the public config and settles the profile: PROFILE_SERVER = the account's
+## name and look win (signed in to an existing account, merged into another), PROFILE_SYNC = as after
+## every login (sync_profile). Fails with BAD_RESPONSE without token or player, nothing changes then.
+func adopt_auth(body: Variant, kind: String, profile_rule := PROFILE_SYNC) -> ApiResult:
+	var auth: Dictionary = body if body is Dictionary else {}
+	var new_token := str(auth.get("token", ""))
+	var self_data: Variant = auth.get("player", null)
+	if new_token.is_empty() or not (self_data is Dictionary) or str(self_data.get("id", "")).is_empty():
+		return ApiResult.failure(ApiResult.BAD_RESPONSE, "AuthResponse without token or player", 200, body)
+	var expires := OnlineConfig.parse_iso_time(auth.get("expiresAt", null))
+	_accept(new_token, expires, self_data)
+	config.store_session(new_token, expires, get_player_id(), get_player_name())
+	set_login_kind(kind)
+	last_error = ""
+	var result := ApiResult.success(200, player)
+	last_result = result
+	_set_state(State.ONLINE)
+	await refresh_public_config()
+	if profile_sync_enabled:
+		if profile_rule == PROFILE_SERVER:
+			PlayerProfile.current().take_server_profile(player)
+		else:
+			await sync_profile()
+	return result
+
+
+## Remembers how the session came about (also on disk, next to online.cfg).
+func set_login_kind(kind: String) -> void:
+	login_kind = LOGIN_ACCOUNT if kind == LOGIN_ACCOUNT else LOGIN_DEVICE
+	if config == null:
+		return
+	var file := ConfigFile.new()
+	file.set_value("login", "api_url", config.api_url)
+	file.set_value("login", "kind", login_kind)
+	var error := file.save(login_file_path())
+	if error != OK:
+		push_warning("OnlineSession: could not write %s (%s)." % [login_file_path(), error_string(error)])
+
+
+## The session of a LOGIN_ACCOUNT login ended (or was never there): sign in again.
+func is_signed_out() -> bool:
+	return login_kind == LOGIN_ACCOUNT and not is_logged_in()
+
+
+## "Als Gast spielen" after a signed-out account, and after deleting the account: the session is
+## forgotten and the next online use logs in with this device again (guest account of the device).
+func forget_account() -> void:
+	logout()
+	set_login_kind(LOGIN_DEVICE)
+
+
+func login_file_path() -> String:
+	var base := config.path.get_basename() if config != null else OnlineConfig.FILE_PATH.get_basename()
+	return base + LOGIN_FILE_SUFFIX
+
+
+func _read_login_kind() -> String:
+	var file := ConfigFile.new()
+	if config == null or file.load(login_file_path()) != OK:
+		return LOGIN_DEVICE
+	if str(file.get_value("login", "api_url", "")) != config.api_url:
+		return LOGIN_DEVICE
+	return LOGIN_ACCOUNT if str(file.get_value("login", "kind", "")) == LOGIN_ACCOUNT else LOGIN_DEVICE
 
 
 func _fetch_relay_token(retry: bool) -> ApiResult:

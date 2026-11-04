@@ -12,6 +12,7 @@ extends Node2D
 ## shadows instead of being y-sorted like a prop (a sword pointing down vanished under stones,
 ## #d83bda23); only the small bush stays sorted. Flower beds are solid props of the generator now
 ## (#5a560cd1), so the scatter places none (a walkable bed looking like a solid one would confuse).
+## WK5: under a piece the player placed (DecorLayer) the scattered items hide (hide_under).
 
 ## Fixed seed: same village on every start.
 const SEED := 20261014
@@ -43,6 +44,8 @@ const FIELD_KINDS := {"grass_tuft": 4, "flowers_3": 2, "stones": 1}
 ## and props), above the ground (-10). Everything else (the small bush) is y-sorted like a prop.
 const FLAT_KINDS := ["grass_tuft", "stones", "flowers_1", "flowers_2", "flowers_3", "flower_bed"]
 const FLAT_Z := DropShadow.Z - 1
+## WK5: a scattered item this close to a placed piece's footprint (world px) hides (hide_under).
+const HIDE_MARGIN := 8.0
 
 ## Placed items: [{"art": String, "position": Vector2 (base), "rect": Rect2, "flip": bool}].
 var placements: Array[Dictionary] = []
@@ -218,6 +221,21 @@ static func _weighted(kinds: Dictionary, pick: float) -> String:
 ## True for decoration that lies flat on the ground (drawn under characters, not y-sorted).
 static func is_flat(art: String) -> bool:
 	return FLAT_KINDS.has(art)
+
+
+## WK5: scattered items whose base lies on a placed piece of decoration hide (the rest show again).
+func hide_under(rects: Array[Rect2]) -> void:
+	for holder in get_children():
+		var item := holder as Node2D
+		if item == null or item.is_queued_for_deletion():
+			continue
+		var base := item.position + Vector2(0, Player.FEET_OFFSET.y if item.z_index != FLAT_Z else 0.0)
+		var covered := false
+		for rect in rects:
+			if rect.grow(HIDE_MARGIN).has_point(base):
+				covered = true
+				break
+		item.visible = not covered
 
 
 ## Plans and places the decoration for village (once).

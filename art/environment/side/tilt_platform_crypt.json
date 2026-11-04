@@ -1,0 +1,23 @@
+{
+  "notes": [
+    "4 × 64×48, Pivot (32,24). Frame 1 ruhig (Oberkante Zeile 20), 2 wackelt (2°), 3 kippt ~12°, 4 fällt ~25° mit bröckelnden Pixeln; Neigung spaltenweise in ganzen Pixeln, Kontur geschlossen."
+  ],
+  "items": [
+    {
+      "name": "tilt_platform_crypt",
+      "file": "tilt_platform_crypt_4f.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "frames": 4,
+      "fps": 8,
+      "loop": false,
+      "pivot": [
+        32,
+        24
+      ],
+      "note": ""
+    }
+  ]
+}

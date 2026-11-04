@@ -1,0 +1,365 @@
+{
+  "group": "tables",
+  "notes": [
+    "Pivot unten Mitte; footprint Kacheln breit × tief; _side = 90°-Ansicht, Gegenseite spiegeln; light = Lichtpunkt relativ zur Frame-Ecke; anim = Overlay-Streifen."
+  ],
+  "items": [
+    {
+      "name": "dining_table_cozy_front",
+      "file": "dining_table_cozy_front.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "dining_table_cozy_side",
+      "file": "dining_table_cozy_side.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_cozy_front",
+      "file": "nightstand_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_cozy_side",
+      "file": "nightstand_cozy_side.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_cozy_front",
+      "file": "desk_cozy_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_cozy_side",
+      "file": "desk_cozy_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "tea_table_cozy_front",
+      "file": "tea_table_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "dining_table_rustic_front",
+      "file": "dining_table_rustic_front.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "dining_table_rustic_side",
+      "file": "dining_table_rustic_side.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_rustic_front",
+      "file": "nightstand_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_rustic_side",
+      "file": "nightstand_rustic_side.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_rustic_front",
+      "file": "desk_rustic_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_rustic_side",
+      "file": "desk_rustic_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "tea_table_rustic_front",
+      "file": "tea_table_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "dining_table_soul_front",
+      "file": "dining_table_soul_front.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "dining_table_soul_side",
+      "file": "dining_table_soul_side.png",
+      "frame_size": [
+        64,
+        64
+      ],
+      "pivot": [
+        32,
+        63
+      ],
+      "footprint": [
+        2,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_soul_front",
+      "file": "nightstand_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "nightstand_soul_side",
+      "file": "nightstand_soul_side.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_soul_front",
+      "file": "desk_soul_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "desk_soul_side",
+      "file": "desk_soul_side.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        2
+      ],
+      "blocks": true
+    },
+    {
+      "name": "tea_table_soul_front",
+      "file": "tea_table_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    }
+  ]
+}

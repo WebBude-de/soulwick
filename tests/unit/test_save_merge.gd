@@ -246,6 +246,38 @@ func test_legacy_profile_comes_from_the_state_played_last() -> void:
 	assert_eq(merged.get_value("legacy_profile", "name"), "Neu")
 
 
+func test_bought_decoration_takes_the_maximum() -> void:
+	var merged := _merge(NEW, "[decor_owned]\nbush=1\nlamp_post=2", OLD, "[decor_owned]\nbush=3\nfence_gate=1")
+	assert_eq(merged.get_value("decor_owned", "bush"), 3, "bought pieces never get lost")
+	assert_eq(merged.get_value("decor_owned", "lamp_post"), 2)
+	assert_eq(merged.get_value("decor_owned", "fence_gate"), 1)
+
+
+func test_village_decoration_comes_from_the_state_played_last() -> void:
+	var local := "[decor_placed]\nvillage=PackedStringArray(\"bush:1:1:0\")"
+	var server := "[decor_placed]\nvillage=PackedStringArray(\"bush:5:5:0\", \"bush:6:5:0\")"
+	assert_eq(_merge(NEW, local, OLD, server).get_value("decor_placed", "village"), PackedStringArray(["bush:1:1:0"]))
+	assert_eq(_merge(OLD, local, NEW, server).get_value("decor_placed", "village"), PackedStringArray(["bush:5:5:0", "bush:6:5:0"]),
+		"one arrangement, never two on top of each other")
+
+
+func test_home_furniture_comes_from_the_state_played_last() -> void:
+	var local := "[decor_placed]\nhome=PackedStringArray(\"chest_cozy:2:3:0\")"
+	var server := "[decor_placed]\nhome=PackedStringArray()"
+	assert_eq(_merge(NEW, local, OLD, server).get_value("decor_placed", "home"), PackedStringArray(["chest_cozy:2:3:0"]))
+	assert_eq(_merge(OLD, local, NEW, server).get_value("decor_placed", "home"), PackedStringArray())
+
+
+func test_home_wallpaper_comes_from_the_state_played_last() -> void:
+	assert_eq(_merge(NEW, "[decor]\nhome_wall=\"soul\"", OLD, "[decor]\nhome_wall=\"cozy\"").get_value("decor", "home_wall"), "soul")
+	assert_eq(_merge(OLD, "[decor]\nhome_wall=\"soul\"", NEW, "[decor]\nhome_wall=\"cozy\"").get_value("decor", "home_wall"), "cozy")
+
+
+func test_home_floor_comes_from_the_state_played_last() -> void:
+	assert_eq(_merge(NEW, "[decor]\nhome_floor=\"rustic\"", OLD, "[decor]\nhome_floor=\"\"").get_value("decor", "home_floor"), "rustic")
+	assert_eq(_merge(OLD, "[decor]\nhome_floor=\"rustic\"", NEW, "[decor]\nhome_floor=\"\"").get_value("decor", "home_floor"), "")
+
+
 func test_cloud_section_stays_local() -> void:
 	var merged := _merge(OLD, "[cloud]\nbase_revision=4\nplayer_id=\"me\"", NEW, "[cloud]\nbase_revision=9\nplayer_id=\"other\"")
 	assert_eq(merged.get_value("cloud", "base_revision"), 4)

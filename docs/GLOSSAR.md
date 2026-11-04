@@ -162,7 +162,7 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | --- | --- | --- | --- |
 | Konto | account | Soulwick-Konto = Spieler auf dem Server, im Spiel löschbar; startet still als Gast, Anmeldungen (Steam, Play Games, Game Center, Benutzername, Magic Link, Google, Apple, Discord) und Geräte hängen daran | D-108, D-121, D-122, D-188, PRODUKT §8 |
 | Identität | identity (`player_identities`) | eine Anmeldeart am Konto: `steam`, `device`, `google_play`, `game_center`, dazu nach D-188 Benutzername, Magic Link, Google, Apple, Discord | D-108, D-121, D-188 |
-| Anmeldung hinzufügen, Konto sichern | add a sign-in, secure your account (Vorschlag) | eine weitere Identität mit Nachweis ans eigene Konto hängen; „Konto sichern“ = Benutzername + Passwort für ein Gastkonto anlegen | D-188 |
+| Anmeldung hinzufügen, Konto sichern | add a sign-in, secure your account (Vorschlag) | eine weitere Identität mit Nachweis ans eigene Konto hängen; „Konto sichern“ = die erste Anmeldung (Browser oder Benutzername + Passwort) für das Gast-Konto dieses Geräts, ohne Konto wird es dabei angelegt | D-188, KF6 |
 | Benutzername | username (Vorschlag) | Login-Name für Benutzername + Passwort, eindeutig und privat; nicht der Anzeigename | D-188 |
 | Magic Link | magic link (Vorschlag) | Anmelde-Link per E-Mail, einmal gültig | D-188 |
 | Konto-Level, Level, XP | account level, level, XP (Vorschlag) | Level des Kontos über alle Welten, Solo und Koop; steigt mit XP aus Runs und fällt nie; je Level ein Talentpunkt (D-194 ersetzt „nur Optik“), alle 5 Level Kosmetik | D-188, D-194 |
@@ -170,6 +170,11 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Abgleich, „in der Cloud“, „Cloud: noch offen“ | sync, “in the cloud”, “cloud: pending” (TR `CLOUD_SYNC_*`, `SLOTS_CLOUD_*`) | Welten des Geräts mit den Cloud-Welten des Kontos zusammenbringen, ohne Rückfrage; die Weltkarte zeigt, ob die Welt seit dem letzten Abgleich geändert wurde | D-188, KF9, `CloudSave` |
 | Mischregel | merge rule (nur intern, `SaveMerge.Rule`) | wie ein Feld zweier Stände derselben Welt zusammenkommt: Maximum, Minimum, Vereinigung oder „zuletzt gespielt“ | D-188, KONZEPT §10, `SaveMerge.FIELD_RULES` |
 | Sicherung (Cloud) | backup (`discarded`, `WorldBackup`) | der beim Mischen unterlegene Stand, 30 Tage am Server wiederherstellbar | D-188, KF8 |
+| Konto-Panel, „Konto“ | account panel (TR `ACCOUNT_*`, `OPTIONS_ACCOUNT`) | Fenster aus den Optionen („Konto“ neben „Zurücksetzen“): Konto sichern, Anmelden, Anmeldungen trennen, Cloud-Welten mit Sicherungen und Archiv, Konto löschen | KF6, `AccountPanel`, `AccountService` |
+| Anmeldung im Browser, Code | web login, user code (`userCode`) | Anmeldung über die Website aus dem Spiel: das Spiel öffnet die Seite und zeigt einen kurzen Code („ABC-DEF“), den man im Browser eintippt; der Browser-Schlüssel steht nur im Link, nie auf dem Bildschirm | KF5, KF6, `WebLoginFlow` |
+| Angemeldet bleiben (Gerät merken) | stay signed in (nur intern: `LOGIN_DEVICE`/`LOGIN_ACCOUNT`) | das Gerät hängt als Anmeldung am Konto und meldet sich nach Ablauf der 30-Tage-Sitzung selbst wieder an; sonst fragt es dann neu („Anmeldung abgelaufen“) | KF6, `OnlineSession.login_kind` |
+| Archiv (Cloud) | archive | Cloud-Welt, die nicht mehr aktiv ist (lokal gelöscht oder über drei Welten); 30 Tage zurückholbar | D-188, KF8 |
+| Löschcode | deletion code | Einmal-Code aus dem Konto-Panel, mit dem man das Konto auf der Website löscht (ohne Zugang zum Spiel) | P-026, KF6 |
 | Gilde | guild (`guild`, `guilds`) | dauerhafte Gruppe, bis zu 5 je Spieler (D-147), höchstens 30 Mitglieder; hat Name und Kürzel (`GuildTag`, 2–5 Zeichen) | D-080, API `GuildName`, `GuildTag` |
 | Gründer, Offizier, Mitglied | founder, officer, member (`GuildRole`) | Rollen in einer Gilde | API `GuildRole`, `apps/admin/src/lib/format.ts` |
 | Einladungscode | invite code | Code für den Beitritt zu einer Gilde | D-080, API `InviteCode`, WEB `guildCardText` |
@@ -205,11 +210,17 @@ Dieses Glossar legt fest, wie Spielbegriffe auf Deutsch und Englisch heißen, da
 | Begleiter | companion (Vorschlag) | Figur, die dem Spieler folgt und reagiert. Flint ist der erste Begleiter und die Quelle des Lichtkreises (D-194); Pets sind nur Optik (Vorschlag) | D-175, D-194 |
 | Flint erklärt | Flint explains (nur intern) | Erklär-Baukasten: Flint fliegt aus der Welt ins UI unten rechts, spricht in einer Blase, die Kamera fliegt die Ziele ab (Dorf-Rundgang, Übungsgang, neue Raumart) | D-194, KONZEPT §7.2 |
 | Gruppen-Hinweis | group hint (nur intern) | im Online-Koop bekommt jeder Erstes-Mal-Hinweis die ganze Gruppe, sobald ein Spieler ihn braucht; alle warten geschützt bis die Neulinge durch sind; Code `NetGuide` | Meldung 2b1a5a87, 23.10.2026 |
+| Gruppen-Flint, Gruppenpunkt | group Flint, group point (nur intern) | ein Flint je Welt für alle Spieler (Kind „Flint“ der Welt); er schwebt um den Gruppenpunkt: Mitte der stehenden Spieler mit Zug zum Hintersten, bei weit getrennten Spielern beim größeren Teil bzw. beim Host, allein der Spieler selbst. Der Host bewegt ihn, Clients zeichnen ihn nach; Code `FlintGroup`, `NetFlint` | D-225, WK13 |
 | freies Schweben | roaming (nur intern) | Flint schwebt locker um seinen Platz hinter dem Spieler und macht kleine Ausflüge, nur Optik; Code `FlintRoam` | Meldung 7adeacba, 23.10.2026 |
 | Huhn | chicken | Neben-Maskottchen, taucht mit Flint auf (Dorf, Gags, selten im Dungeon, Geleit) | D-120, D-175 |
 | Pet | pet | weiterer Begleiter auf dem Gerüst von Flint; freispielbar oder kaufbar OFFEN (WK0); nur Optik (Vorschlag) | D-175 |
 | Kosmetik | cosmetics (Vorschlag) | Aussehen ohne Spielwert für Spielfigur, Flint und Dorf; freispielbar oder kaufbar, nie Stärke. ⚠ uneinheitlich: im Spiel heute „Anpassungen“/„customization“ (TR `CREATE_COSMETICS_NOTE`) | D-175, D-176 |
-| Dorf-Deko | village decor (Vorschlag) | Gegenstände, die man im eigenen Dorf kauft (Gold) und frei aufstellt; je Welt gespeichert | D-174, KONZEPT |
+| Dorf-Deko, Dorf schmücken | village decor, decorate the village | Gegenstände, die man im eigenen Dorf kauft (Gold) und auf freie Graskacheln setzt; je Welt gespeichert; das Deko-Brett neben dem Zuhause öffnet den Einrichten-Modus; TR `DECOR_TITLE_VILLAGE` | D-174, KONZEPT §8, WK5 |
+| Zuhause einrichten, Möbel | furnish your home, furniture | Möbel im Zuhause verschieben, drehen, wegräumen und kaufen; die Startmöblierung gehört dazu; der Katalog-Pult an der Tür öffnet den Einrichten-Modus; TR `DECOR_TITLE_HOME` | D-202, D-205, WK7 |
+| Einrichten-Modus | decorating mode (nur intern) | Cursor auf dem 32-px-Raster, gehaltenes Teil als Vorschau (grün passt, rot mit Grund), Leiste mit Setzen/Aufnehmen, Drehen, Wegräumen, Katalog, Fertig; nur allein; Code `DecorEditor` | WK5, WK7 |
+| Katalog, Lager | catalog, storage | Katalog = Kaufen nach Gruppen (Möbel mit Stilfilter, Tapete und Boden); Lager = Gekauftes, das gerade nicht steht (gekauft minus gesetzt); TR `DECOR_ACTION_CATALOG`, `DECOR_STORAGE`; Code `DecorCatalog`, `DecorCatalogDialog`, `DecorState` | WK5, WK7 |
+| Stil (Möbel) | style | jede Möbelart in drei Stilen: Gemütlich (`cozy`), Rustikal (`rustic`), Seele (`soul`, Violett und Gold, teurer = Sammel-Anreiz); auch Tapete und Boden je Stil | SPRITES_V13 Teil E, WK7 |
+| Sammlung | collection | wie viele verschiedene Katalog-Teile man besitzt („Sammlung 12 / 180“); nur Anzeige, kein Spielwert | WK7 |
 | Dorf besuchen | visit a village (Vorschlag) | das Dorf eines Freundes oder Gildenmitglieds ansehen: gemeinsam im Koop-Raum oder allein als Schnappschuss vom Server, nur ansehen; zum Release im Spiel | D-174, D-179, KONZEPT |
 
 ## Käufe

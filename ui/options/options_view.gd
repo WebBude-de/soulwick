@@ -9,6 +9,8 @@ extends VBoxContainer
 ## mitwandernd, Größe, Deckkraft, Zielhilfe (Touch); Projektmitglied 17.10.2026). Elsewhere that tab
 ## is hidden and skipped by Q/E and ←/→.
 ## "Zurücksetzen" (all options and volumes, after a confirmation) sits next to "Zurück".
+## "Konto" (KF6) sits left of them on the same line and opens the account panel (AccountPanel) over
+## the options; on that line ←/→ pick "Konto" or "Zurücksetzen", Enter presses the picked one.
 ## The view keeps one size whatever tab or row is shown (_fix_layout): every page gets the size of
 ## the largest one, captions the width of the longest "> caption", the key line the height of its
 ## longest text. Measured again after a language change. Wrapping labels count at the view's width
@@ -49,6 +51,9 @@ const CHOICE_WIDTH := 44.0
 ## Choice buttons: 12 mockup px high (sliders are 10), so six rows plus two sections fit the pause menu.
 const CHOICE_HEIGHT := 12.0
 const KEY_WIDTH := 50.0
+## "Konto" button on the action line (mockup pixels): narrower than the others, so the line keeps
+## the options' width.
+const ACCOUNT_BUTTON_WIDTH := 48.0
 const KeyLine := preload("res://ui/widgets/key_line.gd")
 ## Inner padding of a tab in mockup pixels (vertical, horizontal): the same for every tab and state.
 const TAB_PADDING := Vector2(1.0, 6.0)
@@ -95,6 +100,9 @@ var _pages: Array[VBoxContainer] = []
 var _controls_rows: VBoxContainer = null
 var _actions: HBoxContainer = null
 var _reset_button: Button = null
+var _account_button: Button = null
+## On the reset row: "Konto" is picked instead of "Zurücksetzen" (←/→).
+var _account_picked := false
 var _back_button: Button = null
 var _footer: Label = null
 var _footer_line: KeyLine = null
@@ -183,6 +191,7 @@ func handle_input(event: InputEvent) -> bool:
 	if MenuInput.is_up(event) or MenuInput.is_down(event):
 		var rows: Array = TAB_ROWS[_tab]
 		var index := rows.find(_row)
+		_account_picked = false
 		_set_row(rows[posmod(index + (-1 if MenuInput.is_up(event) else 1), rows.size())] as Row)
 		_scroll_to_row.call_deferred()
 		UiSound.hover(self)
@@ -195,7 +204,10 @@ func handle_input(event: InputEvent) -> bool:
 			show_tab(_next_tab(1))
 			return true
 		if _row == Row.RESET:
-			request_reset()
+			if _account_picked:
+				open_account()
+			else:
+				request_reset()
 			return true
 		if CHOICE_VALUES.has(_row):
 			change(1)
@@ -207,6 +219,10 @@ func handle_input(event: InputEvent) -> bool:
 func change(direction: int) -> void:
 	if _row == Row.TABS:
 		show_tab(_next_tab(direction))
+	elif _row == Row.RESET and not _confirming_reset:
+		_account_picked = direction < 0
+		_set_row(Row.RESET)
+		UiSound.hover(self)
 	elif SLIDER_BUSES.has(_row):
 		var slider := _sliders[_row] as HSlider
 		slider.value = clampf(slider.value + STEP * direction, 0.0, 1.0)
@@ -318,6 +334,27 @@ func is_confirming_reset() -> bool:
 	return _confirming_reset
 
 
+# --- Account (KF6) ---
+
+## Opens the account panel over the options (it reads the keys while open).
+func open_account() -> AccountPanel:
+	if _confirming_reset:
+		return null
+	var open := AccountPanel.get_open()
+	if open != null:
+		return open
+	return AccountPanel.open_for(self)
+
+
+## "Konto" is picked on the reset row (←), for tests.
+func is_account_picked() -> bool:
+	return _account_picked and _row == Row.RESET
+
+
+func get_account_button() -> Button:
+	return _account_button
+
+
 func save_volumes() -> void:
 	if _volume_dirty:
 		_volume_dirty = false
@@ -331,6 +368,7 @@ func request_reset() -> void:
 		return
 	Sfx.play_ui(self, &"ui_open")
 	_confirming_reset = true
+	_account_picked = false
 	_set_row(Row.RESET)
 	_rebuild_actions()
 	_update_footer()
@@ -404,7 +442,9 @@ func _set_row(row: Row) -> void:
 	for i in _tab_buttons.size():
 		_style_tab(i)
 	if _reset_button != null:
-		_reset_button.add_theme_color_override("font_color", UiKit.COLOR_GOLD if row == Row.RESET else UiKit.COLOR_TEXT)
+		_reset_button.add_theme_color_override("font_color", UiKit.COLOR_GOLD if row == Row.RESET and not _account_picked else UiKit.COLOR_TEXT)
+	if _account_button != null and is_instance_valid(_account_button):
+		_account_button.add_theme_color_override("font_color", UiKit.COLOR_GOLD if row == Row.RESET and _account_picked else UiKit.COLOR_TEXT)
 
 
 func _update_footer() -> void:
@@ -893,6 +933,7 @@ func _rebuild_actions_now() -> void:
 		_actions.remove_child(child)
 		child.queue_free()
 	if _confirming_reset:
+		_account_button = null
 		_reset_button = MenuPanel.action_button(&"OPTIONS_RESET_CONFIRM", "Enter", confirm_reset, true)
 		_reset_button.add_theme_color_override("font_color", UiKit.COLOR_DANGER_SOFT)
 		_reset_button.add_theme_color_override("font_hover_color", UiKit.COLOR_DANGER_SOFT.lightened(0.2))
@@ -900,8 +941,23 @@ func _rebuild_actions_now() -> void:
 		_back_button = MenuPanel.action_button(&"COMMON_CANCEL", "Esc", cancel_reset)
 		_actions.add_child(_back_button)
 		return
+	_account_button = MenuPanel.action_button(&"OPTIONS_ACCOUNT", "", func() -> void:
+		_account_picked = true
+		_set_row(Row.RESET)
+		open_account())
+	_account_button.name = "Account"
+	_account_button.custom_minimum_size.x = UiKit.px(ACCOUNT_BUTTON_WIDTH)
+	_account_button.mouse_entered.connect(func() -> void:
+		if not _confirming_reset:
+			_account_picked = true
+			_hover_row(Row.RESET)
+			_set_row(Row.RESET))
+	_actions.add_child(_account_button)
 	_reset_button = MenuPanel.action_button(&"OPTIONS_RESET", "Enter", request_reset)
-	_reset_button.mouse_entered.connect(_hover_row.bind(Row.RESET))
+	_reset_button.mouse_entered.connect(func() -> void:
+		_account_picked = false
+		_hover_row(Row.RESET)
+		_set_row(Row.RESET))
 	_actions.add_child(_reset_button)
 	_back_button = MenuPanel.action_button(&"COMMON_BACK", "Esc", _on_back_pressed, true)
 	_actions.add_child(_back_button)

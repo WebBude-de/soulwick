@@ -1,0 +1,118 @@
+{
+  "group": "fun",
+  "notes": [
+    "Flint-Statue = Website-Figur in Stein, Flamme bleibt warm."
+  ],
+  "items": [
+    {
+      "name": "scarecrow",
+      "file": "scarecrow.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bench_outdoor",
+      "file": "bench_outdoor.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "signpost",
+      "file": "signpost.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "chicken_statue",
+      "file": "chicken_statue.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "flint_statue",
+      "file": "flint_statue.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          18
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "guild_banner",
+      "file": "guild_banner.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "note": "Farbe per Modulate = Gildenfarbe"
+    }
+  ]
+}
