@@ -1,11 +1,18 @@
 class_name FlintCompanion
 extends Node2D
 ## Flint (D-175, D-194; KONZEPT §7.1; the team member named the companion Flint on 22.10.2026,
-## code ID flint): the small living candle that goes everywhere with its player. One Flint per
-## player, as a child of that player: he keeps loosely near him, falls in behind and beside him when
+## code ID flint): the small living candle that goes everywhere with his players. One Flint per
+## world for the whole group (WK13, D-225): a child "Flint" of the world, every player of that world
+## joins him (attach_to). Alone he keeps loosely near his player, falls in behind and beside him when
 ## he walks, never sits on the walking line or in the swing, stays on the player's side of walls
 ## (rays against PhysicsLayers.WORLD), roams a little around his spot (FlintRoam, optics) and fades
-## while he would cover an enemy. The player's light circle sits at the player's figure
+## while he would cover an enemy. In a group the same spot is built around the group point
+## (FlintGroup: middle of the standing players pulled towards the one furthest behind, the bigger part
+## when they split up) instead of around one player, with the lead player (the host's where he is in
+## that part) for aim, light, side view and sorting; he keeps clear of every member's picture. Only
+## the host (or a single machine) decides: a client draws him from the host's spot (net_driven,
+## NetFlint), like enemies. The look (WK2: hat, flame colour) is the host's (get_look_owner).
+## Each player's light circle sits at that player's figure
 ## (D-212, LightQuery); Flint's flame adds only a small warm glow (FlintGlow, a LightSource that never
 ## counts as light for rules) that fades out under the rock of a tunnel (feedback #118a38da: no glow
 ## through the tunnel), and his flame is where spells start (get_light_center).
@@ -13,20 +20,20 @@ extends Node2D
 ## glow behind him (FlintAura, the FlintGlow light breathes along) and sparks rising from his flame
 ## (FlintSparks, none on "Lichteffekte: Niedrig"), both children of his sprite at the frame's flame
 ## anchor; optics only.
-## Decisions are separate from looks (D-088): where Flint hovers and where the light sits follow only
-## the player's synced state (position, aim, light radius) and the room's walls through FlintFollow,
-## without randomness, so every machine computes the same spot without network state of his own;
-## only the free roaming around it (FlintRoam) and the bob are local optics. FlintMood picks the
-## animation from existing signals and state (EventBus.room_completed, the world's room_activated,
-## the player's revived/blinded, downed, darkness, village rest); bobbing and blinking use randf()
-## (optics only). No attack, no collision, never catches hits.
-## He flies (feedback 22.10.2026 #6f0d0ebf "Flint ist dahinter", #704b64b1): his picture is no child
-## drawing of the player but a node of its own in the player's world (FlintPicture), sorted there as
-## if it stood SORT_LIFT px in front of the player's centre. So he is drawn over floor props, grave
-## stones, figures and enemies around his player, while walls and rock that cover the player (the
-## passage rock of a gate on DoorView.LINTEL_Z, a house the player stands behind) cover him too.
-## Over an enemy he turns see-through; his picture never overlaps his player's (FlintFollow).
-## Usage: FlintCompanion.attach_to(player) once per spawned player (idempotent), FlintCompanion.of(player).
+## Decisions are separate from looks (D-088): where Flint hovers follows only the players' state
+## (position, velocity, aim, light radius) and the room's walls through FlintGroup and FlintFollow,
+## without randomness; only the free roaming around it (FlintRoam) and the bob are local optics.
+## FlintMood picks the animation from existing signals and state (EventBus.room_completed, the
+## world's room_activated, the members' revived/blinded, downed, darkness, village rest); bobbing and
+## blinking use randf() (optics only). No attack, no collision, never catches hits.
+## He flies (feedback 22.10.2026 #6f0d0ebf "Flint ist dahinter", #704b64b1): his picture is a node of
+## its own in the world (FlintPicture), sorted there as if it stood SORT_LIFT px in front of the
+## group point (alone: his player's centre). So he is drawn over floor props, grave stones, figures
+## and enemies around his players, while walls and rock that cover them (the passage rock of a gate
+## on DoorView.LINTEL_Z, a house the player stands behind) cover him too. Over an enemy he turns
+## see-through; his picture never overlaps a member's (FlintFollow).
+## Usage: FlintCompanion.attach_to(player) once per spawned player (idempotent; the world's Flint is
+## created on first use, WorldController creates it with the world), FlintCompanion.of(player).
 
 const NODE_NAME := &"Flint"
 ## TESTWERTE
@@ -78,9 +85,31 @@ const ROAM_WALKING := 0.3
 const ROAM_SCARED := 0.3
 const ROAM_DOWNED := 0.25
 const ROAM_FACE_SPEED := 8.0
+## TESTWERT (D-225 §3): a client glides to the host's spot this fast (1/s, exponential; the host
+## sends NetFlint.SEND_RATE times a second).
+const NET_SHARPNESS := 12.0
 
-## The player this Flint belongs to.
+## The lead player Flint keeps to: alone his one player; in a group the host's player when he is in
+## the part Flint follows, else the first member of that part (aim, light, side view, sorting).
+## null while nobody is in the world.
 var player: Player = null
+## Whose look Flint wears and whose part wins a tie (D-225 §2, §6): the host's player. NetFlint sets
+## it; by default the first member (the primary player of a local game, the host's on the host).
+var host_player: Player = null
+## A client of a networked world (D-225 §3): the host moves Flint (apply_net_follow), this machine
+## only draws him and his optics.
+var net_driven := false
+
+## Every player of the world in join order (the primary player first).
+var _members: Array[Player] = []
+## The group point Flint's spot is built around (alone: the player's position) and whether it is set.
+var _anchor := Vector2.ZERO
+var _anchor_set := false
+## The host's latest spot (net_driven), Vector2.INF until the first one came.
+var _net_follow := Vector2.INF
+## Excursion holders (FlintExcursion ids): with several local players each guide flies the one Flint;
+## he lands when the last one let go.
+var _excursion_holders: Dictionary[int, bool] = {}
 
 var _art: FlintArt = null
 ## Holds the sprite in the player's world (the y-sort position, see SORT_LIFT).
@@ -94,7 +123,6 @@ var _aura: FlintAura = null
 var _sparks: FlintSparks = null
 ## Flint's pivot in global coordinates (the decision; position is derived from it).
 var _follow := Vector2.ZERO
-var _last_player_position := Vector2.ZERO
 var _velocity := Vector2.ZERO
 var _side := 1.0
 var _facing_left := false
@@ -126,29 +154,50 @@ var _wall_pick := 0
 var _glow_open := 1.0
 
 
-## The Flint of player, created on first use (idempotent). Call once per spawned player.
+## Joins target to the one Flint of its world (D-225), creating him on first use; idempotent. Call
+## once per spawned player. A player without a world gets a Flint of his own as his child.
 static func attach_to(target: Player) -> FlintCompanion:
 	if target == null or not is_instance_valid(target):
 		return null
 	var existing := of(target)
 	if existing != null:
 		return existing
-	var flint := FlintCompanion.new()
-	flint.name = NODE_NAME
-	flint.player = target
-	target.add_child(flint)
-	flint.snap()
+	var world := target.get_parent()
+	var flint := for_world(world if world != null else target)
+	if flint != null:
+		flint.join(target)
 	return flint
 
 
-## The Flint of a player, or null (a player without Flint lights from his own position).
+## The Flint of world (child NODE_NAME), created on first use. WorldController creates it with the
+## world, before the players come, so a networked world has it (and its NetFlint) on every machine.
+static func for_world(world: Node) -> FlintCompanion:
+	if world == null or not is_instance_valid(world):
+		return null
+	var existing := world.get_node_or_null(NodePath(NODE_NAME)) as FlintCompanion
+	if existing != null and not existing.is_queued_for_deletion():
+		return existing
+	var flint := FlintCompanion.new()
+	flint.name = NODE_NAME
+	world.add_child(flint)
+	return flint
+
+
+## The Flint that goes with a player (the one of his world, if he joined it), or null (a player
+## without Flint lights from his own position).
 static func of(target: Node) -> FlintCompanion:
 	if target == null or not is_instance_valid(target):
 		return null
 	var flint := target.get_node_or_null(NodePath(NODE_NAME)) as FlintCompanion
-	if flint == null or flint.is_queued_for_deletion():
-		return null
-	return flint
+	if _usable(flint) and flint.has_member(target):
+		return flint
+	var world := target.get_parent()
+	flint = world.get_node_or_null(NodePath(NODE_NAME)) as FlintCompanion if world != null else null
+	return flint if _usable(flint) and flint.has_member(target) else null
+
+
+static func _usable(flint: FlintCompanion) -> bool:
+	return flint != null and is_instance_valid(flint) and not flint.is_queued_for_deletion()
 
 
 func _init() -> void:
@@ -158,31 +207,89 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	if player == null:
-		player = get_parent() as Player
 	_build_picture()
 	_shadow = DropShadow.attach(self, SHADOW_RADIUS, FlintFollow.HOVER_HEIGHT)
 	_build_glow()
 	EventBus.room_completed.connect(_on_room_completed)
-	if player != null:
-		player.revived.connect(react.bind(FlintMood.Mood.JOY))
-		player.blinded.connect(_on_blinded)
-		var world := player.get_parent()
-		if world != null and world.has_signal(&"room_activated"):
-			world.connect(&"room_activated", _on_room_activated)
+	var world := get_parent()
+	if world != null and world.has_signal(&"room_activated"):
+		world.connect(&"room_activated", _on_room_activated)
 	snap()
+
+
+## Takes target into the group (idempotent): his revive cheers Flint, his blinding scares him. The
+## first member puts Flint at his spot at once.
+func join(target: Player) -> void:
+	if target == null or not is_instance_valid(target) or _members.has(target):
+		return
+	_prune_members()
+	var first := _members.is_empty()
+	_members.append(target)
+	target.revived.connect(react.bind(FlintMood.Mood.JOY))
+	target.blinded.connect(_on_blinded)
+	if first:
+		_anchor_set = false
+		snap()
+
+
+func has_member(target: Node) -> bool:
+	return target is Player and _members.has(target)
+
+
+## Every player of the group (freed ones dropped), in join order.
+func get_members() -> Array[Player]:
+	_prune_members()
+	return _members.duplicate()
+
+
+## More than one player shares this Flint.
+func is_group() -> bool:
+	return _members.size() > 1
+
+
+## The player whose look Flint wears (WK2 hat and flame colour, D-225 §6): the host's.
+func get_look_owner() -> Player:
+	if host_player != null and is_instance_valid(host_player) and _members.has(host_player):
+		return host_player
+	_prune_members()
+	return _members[0] if not _members.is_empty() else null
+
+
+## The group point Flint's spot is built around (alone: his player's position).
+func get_anchor() -> Vector2:
+	return _anchor_now()
+
+
+## Client side of a networked world (NetFlint): the host decides, this machine draws.
+func set_net_driven(on: bool) -> void:
+	net_driven = on
+	if not on:
+		_net_follow = Vector2.INF
+
+
+## The host's spot of Flint (his pivot in global px, NetFlint). A jump farther than SNAP_DISTANCE puts
+## him there at once, else he glides there (NET_SHARPNESS).
+func apply_net_follow(spot: Vector2) -> void:
+	_net_follow = spot
+	if _follow.distance_to(spot) > FlintFollow.SNAP_DISTANCE:
+		_follow = spot
+		_roam.reset(true)
 
 
 ## Puts Flint at his spot at once (spawn, after a teleport).
 func snap() -> void:
-	if player == null or not is_instance_valid(player):
+	if not _update_lead():
 		return
-	_last_player_position = player.global_position
+	_anchor = _group_target()
+	_anchor_set = true
 	_velocity = Vector2.ZERO
-	_follow = player.global_position + _wall_safe(_target_offset())
+	if net_driven and _net_follow != Vector2.INF:
+		_follow = _net_follow
+	else:
+		_follow = _clear_of_members(_anchor + _wall_safe(_target_offset()))
 	_roam.reset(true)
 	_roam_velocity = Vector2.ZERO
-	position = _follow - player.global_position
+	global_position = _follow
 	_glow_open = _glow_open_target()
 	_update_picture()
 
@@ -238,8 +345,11 @@ func get_art() -> FlintArt:
 ## Excursion (WK8, FlintExcursion drives it): Flint's picture is drawn offset px away from his spot,
 ## scale_factor times his size and with alpha, e.g. on his way into the explanation corner. Optics
 ## only: his follow spot and the light centre stay with the player (LightQuery), so nobody loses
-## light while Flint explains.
-func set_excursion(offset: Vector2, scale_factor: float, alpha: float) -> void:
+## light while Flint explains. holder (a FlintExcursion id, 0 = none): with several local players
+## every guide may fly the one Flint; clear_excursion lands him when the last holder let go.
+func set_excursion(offset: Vector2, scale_factor: float, alpha: float, holder := 0) -> void:
+	if holder != 0:
+		_excursion_holders[holder] = true
 	_on_excursion = true
 	_excursion_offset = offset
 	_excursion_scale = maxf(0.01, scale_factor)
@@ -247,8 +357,11 @@ func set_excursion(offset: Vector2, scale_factor: float, alpha: float) -> void:
 	_apply_excursion()
 
 
-## Back to the normal picture at his spot.
-func clear_excursion() -> void:
+## Back to the normal picture at his spot (once no other holder still flies him).
+func clear_excursion(holder := 0) -> void:
+	_excursion_holders.erase(holder)
+	if not _excursion_holders.is_empty():
+		return
 	_on_excursion = false
 	_excursion_offset = Vector2.ZERO
 	_excursion_scale = 1.0
@@ -289,28 +402,35 @@ func play(animation: StringName) -> void:
 
 
 func _process(delta: float) -> void:
-	if player == null or not is_instance_valid(player):
+	if not _update_lead():
+		# Nobody in the world (yet): Flint waits out of sight.
+		if _picture != null and is_instance_valid(_picture):
+			_picture.visible = false
 		return
 	# The old world may have freed the picture (the player moved on): build it again.
 	_ensure_picture()
-	_track_player(delta)
+	_track_anchor(delta)
 	_tick(delta)
 	_mood = FlintMood.decide(_gather_facts())
-	var anchor := player.global_position
-	var stepped := FlintFollow.step_around(_follow - anchor, _wall_safe(_target_offset()), delta)
-	# Trailing never takes the light away from the player (dash, blinded) nor puts Flint on him,
-	# and never carries him through a wall.
-	_follow = anchor + _short_of_walls(FlintFollow.settle(stepped, _flame_offset(), _lit_radius()))
-	position = _follow - anchor + _roam_step(delta)
+	if net_driven and _net_follow != Vector2.INF:
+		# A client: the host decided the spot (D-225 §3), here he only glides there.
+		_follow = _follow.lerp(_net_follow, 1.0 - exp(-NET_SHARPNESS * delta))
+	else:
+		var anchor := _anchor
+		var stepped := FlintFollow.step_around(_follow - anchor, _wall_safe(_target_offset()), delta)
+		# Trailing never takes the light away from the player (dash, blinded) nor puts Flint on him,
+		# and never carries him through a wall.
+		_follow = _clear_of_members(anchor + _short_of_walls(FlintFollow.settle(stepped, _flame_offset(), _lit_radius())))
+	global_position = _follow + _roam_step(delta)
 	_glow_open = move_toward(_glow_open, _glow_open_target(), GLOW_ROOF_SPEED * delta)
 	_update_look(delta)
 
 
 ## Flint's spot for the light: _follow, or already the new spot when the player moved on since
 ## Flint's last frame (fall reset, teleport, a frame order where gameplay asks first), so the light
-## never lags behind the player.
+## never lags behind the player. A group's point glides, a client's spot is the host's: _follow.
 func _current_follow() -> Vector2:
-	if player == null or not is_instance_valid(player):
+	if player == null or not is_instance_valid(player) or net_driven or is_group():
 		return _follow
 	var anchor := player.global_position
 	if _follow.distance_to(anchor) > FlintFollow.SNAP_DISTANCE:
@@ -318,9 +438,120 @@ func _current_follow() -> Vector2:
 	return anchor + FlintFollow.settle(_follow - anchor, _flame_offset(), _lit_radius())
 
 
-func _track_player(delta: float) -> void:
-	var moved := player.global_position - _last_player_position
-	_last_player_position = player.global_position
+# --- The group (D-225) ---
+
+## Drops freed members.
+func _prune_members() -> void:
+	for i in range(_members.size() - 1, -1, -1):
+		if not is_instance_valid(_members[i]) or _members[i].is_queued_for_deletion():
+			_members.remove_at(i)
+
+
+## Members in the tree (a player leaving the world does not count).
+func _present() -> Array[Player]:
+	var result: Array[Player] = []
+	# Untyped loop: a member freed this frame must not be assigned to a typed variable.
+	for node: Variant in _members:
+		if is_instance_valid(node) and (node as Player).is_inside_tree():
+			result.append(node as Player)
+	return result
+
+
+## The members the group point is built from: the standing ones (alive, not downed), all present
+## ones when nobody stands.
+func _standing() -> Array[Player]:
+	var present := _present()
+	var result: Array[Player] = []
+	for member in present:
+		if member.is_alive() and not member.is_downed():
+			result.append(member)
+	return result if not result.is_empty() else present
+
+
+## Picks the lead player (see player). False when nobody is there.
+func _update_lead() -> bool:
+	_prune_members()
+	var present := _present()
+	if present.is_empty():
+		player = null
+		return false
+	if present.size() == 1:
+		player = present[0]
+		return true
+	var standing := _standing()
+	var part := FlintGroup.main_part(_positions(standing), _host_index(standing))
+	var host := get_look_owner()
+	player = standing[part[0]]
+	for index in part:
+		if standing[index] == host:
+			player = host
+	return true
+
+
+## Where the group point wants to be (FlintGroup.target): alone the player's position.
+func _group_target() -> Vector2:
+	if not is_group():
+		return player.global_position
+	var standing := _standing()
+	var velocities := PackedVector2Array()
+	for member in standing:
+		velocities.append(member.velocity)
+	var goal := FlintGroup.target(_positions(standing), velocities, _host_index(standing))
+	return goal if goal != Vector2.INF else player.global_position
+
+
+## The group point now: alone the player's position, in a group the gliding point.
+func _anchor_now() -> Vector2:
+	if player == null or not is_instance_valid(player):
+		return _anchor
+	if not is_group() or not _anchor_set:
+		return player.global_position
+	return _anchor
+
+
+static func _positions(players: Array[Player]) -> PackedVector2Array:
+	var result := PackedVector2Array()
+	for member in players:
+		result.append(member.global_position)
+	return result
+
+
+func _host_index(players: Array[Player]) -> int:
+	return maxi(0, players.find(get_look_owner()))
+
+
+## spot (global) pushed out of every member's picture (a group's point has no figure of its own).
+func _clear_of_members(spot: Vector2) -> Vector2:
+	if not is_group():
+		return spot
+	for member in _present():
+		var offset := spot - member.global_position
+		if FlintFollow.overlaps_player(offset):
+			spot = member.global_position + FlintFollow.push_out(offset)
+	return spot
+
+
+## True if Flint's picture at the global spot would come too close to a member's picture.
+func _overlaps_member(spot: Vector2) -> bool:
+	for member in _present():
+		if FlintFollow.overlaps_player(spot - member.global_position):
+			return true
+	return false
+
+
+## Moves the group point (alone: onto the player) and estimates how the group walks.
+func _track_anchor(delta: float) -> void:
+	var previous := _anchor
+	var goal := _group_target()
+	if not _anchor_set:
+		previous = goal
+		_anchor = goal
+	elif is_group():
+		_anchor = FlintGroup.glide(_anchor, goal, delta)
+	else:
+		_anchor = goal
+	_anchor_set = true
+	var moved := _anchor - previous
 	if moved.length() > FlintFollow.SNAP_DISTANCE:
 		# Fall reset, room change, teleport: he arrives at his spot, not out on a trip.
 		_roam.reset(true)
@@ -337,7 +568,8 @@ func _tick(delta: float) -> void:
 
 func _gather_facts() -> FlintMood.Facts:
 	var facts := FlintMood.Facts.new()
-	facts.downed = player.is_downed()
+	# In a group a member down makes him sad; he stays with the standing ones (D-225).
+	facts.downed = _any_member_downed()
 	facts.moving = _velocity.length() > MOVE_ANIMATION_SPEED
 	facts.afraid = _is_afraid()
 	facts.sleepy = GameManager.get_phase() == GameManager.Phase.VILLAGE and _rest_time >= SLEEP_DELAY
@@ -383,7 +615,7 @@ func _update_look(delta: float) -> void:
 	_bob_phase = fmod(_bob_phase + _bob_speed * delta, TAU)
 	var bob := sin(_bob_phase) * BOB_AMPLITUDE if _mood != FlintMood.Mood.SLEEP else sin(_bob_phase * 0.5) * BOB_AMPLITUDE * 0.5
 	var drift := secret * CURIOUS_DRIFT
-	if FlintFollow.overlaps_player(position + drift):
+	if FlintFollow.overlaps_player(global_position - _anchor_now() + drift) or (is_group() and _overlaps_member(global_position + drift)):
 		# Leaning towards a secret never puts him on his player.
 		drift = Vector2.ZERO
 	_sprite_offset = Vector2(0.0, bob) + drift
@@ -391,6 +623,9 @@ func _update_look(delta: float) -> void:
 	_sprite.rotation = 0.0 if _art.has_animation(&"curious") else secret.x * CURIOUS_TILT
 	var target_alpha := COVERING_ALPHA if _covers_enemy() else 1.0
 	_alpha = move_toward(_alpha, target_alpha, ALPHA_SPEED * delta)
+	if _shadow != null and is_instance_valid(_shadow):
+		# His floor shadow belongs to the top-down view (feedback #e0486234): none in the side view.
+		_shadow.self_modulate.a = 0.0 if player.is_side_view() else 1.0
 	_apply_excursion()
 
 
@@ -452,7 +687,7 @@ func _update_picture() -> void:
 		world.move_child(_picture, player.get_index() + 1)
 	_picture.visible = is_visible_in_tree()
 	_picture.z_index = player.z_index
-	var sort_at := Vector2(global_position.x, player.global_position.y + SORT_LIFT)
+	var sort_at := Vector2(global_position.x, _anchor_now().y + SORT_LIFT)
 	if _picture.is_inside_tree():
 		_picture.global_position = sort_at
 	else:
@@ -535,12 +770,15 @@ func _roam_step(delta: float) -> Vector2:
 	var before := _roam.offset
 	var hurry := _one_shot_left > 0.0 and (_one_shot == FlintMood.Mood.CAST or _one_shot == FlintMood.Mood.PULSE)
 	_roam.update(delta, _roam_calm(), _accepts_roam_goal, hurry, player.is_side_view())
-	var home := _follow - player.global_position
+	var home := _follow - _anchor_now()
 	var drawn := home + _roam.offset
 	if FlintFollow.overlaps_player(drawn):
 		_roam.offset = FlintFollow.push_out(drawn) - home
 	if _roam.offset.length() > 1.0 and _wall_hit(home + _roam.offset) != Vector2.INF:
 		# The player moved and a wall came between: drift home.
+		_roam.reset()
+	elif is_group() and _overlaps_member(_follow + _roam.offset):
+		# A member walked into his trip: home again (never on anybody's picture).
 		_roam.reset()
 	_roam_velocity = (_roam.offset - before) / delta if delta > 0.0 else Vector2.ZERO
 	return _roam.offset
@@ -561,8 +799,8 @@ func _roam_calm() -> float:
 ## A roam goal (relative to his spot) is fine if there he stays off the player, on the leash, with
 ## his flame in the light and no wall between him and the player.
 func _accepts_roam_goal(goal: Vector2) -> bool:
-	var spot := _follow - player.global_position + goal
-	if FlintFollow.overlaps_player(spot):
+	var spot := _follow - _anchor_now() + goal
+	if FlintFollow.overlaps_player(spot) or (is_group() and _overlaps_member(_follow + goal)):
 		return false
 	if (spot + FlintFollow.BODY_CENTER).length() > FlintFollow.LEASH_DISTANCE:
 		return false
@@ -589,7 +827,7 @@ func _wall_safe(offset: Vector2) -> Vector2:
 			_wall_pick = index + 1
 			return option
 	_wall_pick = 0
-	return FlintFollow.short_of_wall(offset, hit - player.global_position, player.is_side_view())
+	return FlintFollow.short_of_wall(offset, hit - _anchor_now(), player.is_side_view())
 
 
 ## offset cut short of a wall between it and the player (his trailing never goes through one).
@@ -597,7 +835,7 @@ func _short_of_walls(offset: Vector2) -> Vector2:
 	var hit := _wall_hit(offset)
 	if hit == Vector2.INF:
 		return offset
-	return FlintFollow.short_of_wall(offset, hit - player.global_position, player.is_side_view())
+	return FlintFollow.short_of_wall(offset, hit - _anchor_now(), player.is_side_view())
 
 
 ## Global point where a wall (PhysicsLayers.WORLD) cuts the ray from the player to Flint at offset
@@ -609,7 +847,8 @@ func _wall_hit(offset: Vector2) -> Vector2:
 	if world == null:
 		return Vector2.INF
 	var ray := FlintFollow.wall_ray(offset, player.is_side_view())
-	var query := PhysicsRayQueryParameters2D.create(player.global_position + ray[0], player.global_position + ray[1], PhysicsLayers.WORLD)
+	var anchor := _anchor_now()
+	var query := PhysicsRayQueryParameters2D.create(anchor + ray[0], anchor + ray[1], PhysicsLayers.WORLD)
 	query.collide_with_areas = false
 	var hit := world.direct_space_state.intersect_ray(query)
 	return hit["position"] if not hit.is_empty() else Vector2.INF
@@ -618,8 +857,8 @@ func _wall_hit(offset: Vector2) -> Vector2:
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_EXIT_TREE:
-			# The player leaves his world (or is freed with it): the picture waits hidden until
-			# _update_picture moves it into his next world.
+			# Flint leaves his world (or is freed with it): the picture waits hidden until
+			# _update_picture shows it again.
 			if _picture != null and is_instance_valid(_picture):
 				_picture.visible = false
 		NOTIFICATION_PREDELETE:
@@ -634,7 +873,7 @@ func _secret_direction() -> Vector2:
 	var niche := SecretNiche.of(_room)
 	if niche == null or niche.is_open:
 		return Vector2.ZERO
-	var to_niche := niche.get_crack_position() - player.global_position
+	var to_niche := niche.get_crack_position() - _anchor_now()
 	if to_niche.length() > CURIOUS_RANGE or to_niche == Vector2.ZERO:
 		return Vector2.ZERO
 	return to_niche.normalized()
@@ -675,6 +914,14 @@ func _on_room_activated(room: Node) -> void:
 		_fear_left = maxf(_fear_left, BOSS_FEAR_TIME)
 	if room.has_method(&"is_campfire") and room.is_campfire():
 		react(FlintMood.Mood.PULSE)
+
+
+## A member is down (alone: his player).
+func _any_member_downed() -> bool:
+	for member in _present():
+		if member.is_downed():
+			return true
+	return player != null and is_instance_valid(player) and player.is_downed()
 
 
 func _on_blinded(duration: float) -> void:

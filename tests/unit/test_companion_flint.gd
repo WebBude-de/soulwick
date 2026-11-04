@@ -1,7 +1,8 @@
 extends GutTest
 ## Flint as companion and light source (WK1, KONZEPT §7.1, D-194): where he hovers (FlintFollow),
-## which mood shows (FlintMood), his art with placeholder and anchors (FlintArt), one Flint per player
-## and the light circle centred on his flame for gameplay (LightQuery) and drawing (VisionOverlay).
+## which mood shows (FlintMood), his art with placeholder and anchors (FlintArt), one Flint per world
+## for the whole group (WK13, D-225; the group itself: test_flint_group.gd) and the light circle at the
+## player's figure for gameplay (LightQuery) and drawing (VisionOverlay, D-212).
 
 const PLAYER_SCENE: PackedScene = preload("res://player/player.tscn")
 const DT := 1.0 / 60.0
@@ -30,8 +31,11 @@ func after_each() -> void:
 	GameManager.set_phase(_old_phase)
 
 
+## A player in a world of his own (his Flint is a child of that world, D-225, and goes with it).
 func _player(at := Vector2(400, 300)) -> Player:
-	var player := add_child_autofree(PLAYER_SCENE.instantiate()) as Player
+	var world := add_child_autofree(Node2D.new()) as Node2D
+	var player := PLAYER_SCENE.instantiate() as Player
+	world.add_child(player)
 	player.global_position = at
 	return player
 
@@ -284,17 +288,27 @@ func test_missing_art_folder_gives_the_placeholder() -> void:
 
 # --- Node ---
 
-func test_one_flint_per_player_as_child() -> void:
-	var a := _player()
-	var b := _player(Vector2(900, 300))
-	var flint_a := FlintCompanion.attach_to(a)
-	assert_eq(FlintCompanion.attach_to(a), flint_a, "attach_to is idempotent")
-	var flint_b := FlintCompanion.attach_to(b)
-	assert_ne(flint_a, flint_b)
-	assert_eq(flint_a.get_parent(), a)
-	assert_eq(FlintCompanion.of(b), flint_b)
-	assert_eq(a.get_children().filter(func(n: Node) -> bool: return n is FlintCompanion).size(), 1)
-	assert_null(FlintCompanion.of(_player(Vector2(0, 900))), "no Flint until attached")
+func test_one_flint_per_world_for_every_player_in_it() -> void:
+	var world := Node2D.new()
+	add_child_autofree(world)
+	var a := PLAYER_SCENE.instantiate() as Player
+	var b := PLAYER_SCENE.instantiate() as Player
+	world.add_child(a)
+	world.add_child(b)
+	var flint := FlintCompanion.attach_to(a)
+	assert_eq(FlintCompanion.attach_to(a), flint, "attach_to is idempotent")
+	assert_eq(FlintCompanion.attach_to(b), flint, "D-225: the second player joins the same Flint")
+	assert_eq(flint.get_parent(), world, "a child of the world, not of a player")
+	assert_eq(FlintCompanion.for_world(world), flint)
+	assert_eq(FlintCompanion.of(b), flint)
+	assert_eq(flint.get_members(), [a, b] as Array[Player], "in join order")
+	assert_true(flint.is_group())
+	assert_eq(world.get_children().filter(func(n: Node) -> bool: return n is FlintCompanion).size(), 1)
+	var stranger := PLAYER_SCENE.instantiate() as Player
+	world.add_child(stranger)
+	assert_null(FlintCompanion.of(stranger), "no Flint until attached")
+	var elsewhere := _player(Vector2(0, 900))
+	assert_ne(FlintCompanion.attach_to(elsewhere), flint, "another world has its own Flint")
 
 
 func test_light_center_sits_at_the_player_even_with_flint() -> void:
@@ -529,7 +543,7 @@ func test_flint_flies_over_the_world_into_the_corner() -> void:
 	assert_eq(flint.get_sprite().z_index, 0)
 
 
-func test_flints_picture_leaves_with_him() -> void:
+func test_flints_picture_waits_hidden_without_players_and_goes_with_his_world() -> void:
 	var world := Node2D.new()
 	world.y_sort_enabled = true
 	add_child_autofree(world)
@@ -538,16 +552,16 @@ func test_flints_picture_leaves_with_him() -> void:
 	var flint := _flint(player)
 	flint._process(DT)
 	var picture := flint.get_picture()
-	var other := Node2D.new()
-	add_child_autofree(other)
-	player.reparent(other)
-	assert_false(picture.visible, "hidden while his player changes worlds")
-	flint._process(DT)
-	assert_eq(picture.get_parent(), other, "follows his player into the next world")
 	assert_true(picture.visible)
-	player.free()
-	await wait_process_frames(1)
-	assert_false(is_instance_valid(picture), "freed with Flint")
+	world.remove_child(player)
+	flint._process(DT)
+	assert_false(picture.visible, "nobody in his world: hidden")
+	world.add_child(player)
+	flint._process(DT)
+	assert_true(picture.visible, "back with his player")
+	world.queue_free()
+	await wait_process_frames(2)
+	assert_false(is_instance_valid(picture), "freed with his world")
 
 
 # --- Roaming, walls and the glow under tunnel rock (feedback 23.10.2026) ---
@@ -562,7 +576,7 @@ func test_roaming_flint_is_never_drawn_on_his_player() -> void:
 		if frame % 300 < 120:
 			player.global_position += Vector2(2, 1)
 		flint._process(DT)
-		var drawn := flint.position
+		var drawn := flint.global_position - player.global_position
 		roamed = maxf(roamed, drawn.distance_to(flint.get_follow_position() - player.global_position))
 		assert_gte(_picture_gap(drawn), FlintFollow.PICTURE_GAP - 0.01, "frame %d: drawn off the player" % frame)
 		assert_lte((drawn + FlintFollow.BODY_CENTER).length(), FlintFollow.LEASH_DISTANCE + FlintRoam.TRIP_RADIUS, "frame %d" % frame)

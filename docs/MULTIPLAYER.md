@@ -145,4 +145,5 @@ Godot immer leise starten (`--audio-driver Dummy`, AGENTS.md §7).
 - **Automatisch** (zwei Headless-Prozesse über den Relay):
   - `godot --headless --audio-driver Dummy --path . -s tools/net_smoke.gd -- api=http://localhost:3102 relay=ws://localhost:3103/v1 dev_key=<DEV_AUTH_KEY>`: Anmeldung, Raum, Beitritt, Eingaben, Verlassen.
   - `tools/net_run_smoke.gd` mit denselben Argumenten und `rooms=5|16`, `seed=N`, `end=portal|host_leaves|client_leaves|two_runs`, `modes=all|<ids>`, `branch=1`, `side=1`: ganzer gemeinsamer Run mit Signaturvergleich auf beiden Rechnern. Schlechtes Netz: Relay mit `RELAY_SIM_LATENCY_MS=120` starten.
+- **Log-Schalter für Werkzeuge:** `SOULWICK_NET_FLINT_LOG=1` (gesendete/empfangene Flint-Positionen je Welt, D-225) und `SOULWICK_NET_VILLAGE_LOG=1` (Deko-Schnappschuss des Hosts gesendet/empfangen/abgelehnt, WK5) vor `net_run_smoke`.
 - **Gegen den Dev-Server:** ein `development`-Build verbindet sich ohne Einstellungen mit `api-dev`/`play-dev`.

@@ -196,7 +196,8 @@ func test_decoration_never_on_paths_doors_or_spawn() -> void:
 	var paths := _paths(village)
 	var doors := _doors(village)
 	# D-152: the mirror next to Zuhause is used with E like a door.
-	assert_eq(doors.size(), VillageBuildings.ALL.size() + 2, "five doors, the mirror and the entrance")
+	# WK5: and the decoration board beside the home.
+	assert_eq(doors.size(), VillageBuildings.ALL.size() + 3, "five doors, the mirror, the decoration board and the entrance")
 	var spawn := (village.get_node("PlayerSpawn") as Node2D).global_position
 	var inner := _map(village).grow(-64.0)
 	var kinds := {}

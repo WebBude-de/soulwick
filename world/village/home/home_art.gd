@@ -140,6 +140,17 @@ static func window_texture(night: float) -> Texture2D:
 	return prop_texture(WINDOW_NIGHT if night >= 0.5 else WINDOW_DAY)
 
 
+## WK7: a wallpaper or floor style tile (kind "wall" or "floor", V13e <kind>_<style>.png, 32×32);
+## null for the original room (style "") or while the file is missing.
+static func style_texture(kind: String, style: String) -> Texture2D:
+	if style.is_empty():
+		return null
+	var file := "%s_%s.png" % [kind, style]
+	if not _textures.has(file):
+		_textures[file] = load(DIR + file) as Texture2D if ResourceLoader.exists(DIR + file) else null
+	return _textures[file]
+
+
 static func clear_cache() -> void:
 	_specs.clear()
 	_textures.clear()

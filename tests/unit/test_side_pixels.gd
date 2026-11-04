@@ -111,9 +111,12 @@ func test_tilting_platform_and_bridge_art_sit_on_their_top() -> void:
 	tilt.cells = 2
 	add_child_autofree(tilt)
 	var tilt_art := tilt.get_node("Pieces/Art") as Sprite2D
-	var tilt_row := SidePixels.surface_row(tilt_art.texture, Rect2i(Vector2i.ZERO, SideTilt.ART_FRAME))
-	var tilt_top := tilt_art.position.y - SideTilt.ART_FRAME.y * 0.5 * SpriteStrip.PIXEL_SCALE + tilt_row * SpriteStrip.PIXEL_SCALE
+	var tilt_frame := SideTilt.frame_size(tilt_art.texture)
+	var tilt_row := SidePixels.surface_row(tilt_art.texture, Rect2i(Vector2i.ZERO, tilt_frame))
+	var tilt_top := tilt_art.position.y + (tilt_art.offset.y - tilt_frame.y * 0.5 + tilt_row) * SpriteStrip.PIXEL_SCALE
 	assert_eq(tilt_top, 0.0, "tilting platform: slab at the collision top")
+	assert_eq(tilt.get_slab_top(), 0.0, "tilting platform: the same through get_slab_top")
+	assert_eq(fmod(tilt_art.position.y, SpriteStrip.PIXEL_SCALE), 0.0, "tilting platform: on the art-pixel grid")
 	var bridge := SideBridge.new()
 	add_child_autofree(bridge)
 	var bridge_art := bridge.get_node("Pieces/Art") as Sprite2D

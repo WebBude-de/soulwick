@@ -63,6 +63,14 @@ const FIELD_RULES := {
 	"migration/v5_weapons": Rule.UNION,
 	"migration/v5_notice_pending": Rule.ALL,
 	"legacy_profile/*": Rule.LATEST,
+	# Decoration (WK5, WK7, v6): what was bought only grows (maximum per id; never fewer than stand),
+	# where it stands and the home's wallpaper and floor are one arrangement: the state played last
+	# (mixing two arrangements would put pieces on top of each other).
+	"decor_owned/*": Rule.MAX,
+	"decor_placed/village": Rule.LATEST,
+	"decor_placed/home": Rule.LATEST,
+	"decor/home_wall": Rule.LATEST,
+	"decor/home_floor": Rule.LATEST,
 	"cloud/*": Rule.LOCAL,
 }
 ## Sections that never leave the device (contract: the server drops `cloud` anyway).

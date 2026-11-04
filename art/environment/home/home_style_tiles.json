@@ -1,0 +1,103 @@
+{
+  "notes": [
+    "32×32, in home_interior_tiles an die Stelle von Wand A (Spalte 1) bzw. Dielen (Zeile 3, Spalte 1) setzen, wenn der Stil gewählt ist."
+  ],
+  "items": [
+    {
+      "name": "wall_cozy",
+      "file": "wall_cozy.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "floor_cozy",
+      "file": "floor_cozy.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "wall_rustic",
+      "file": "wall_rustic.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "floor_rustic",
+      "file": "floor_rustic.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "wall_soul",
+      "file": "wall_soul.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    },
+    {
+      "name": "floor_soul",
+      "file": "floor_soul.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "frames": 1,
+      "fps": 0,
+      "loop": false,
+      "pivot": [
+        0,
+        0
+      ],
+      "note": ""
+    }
+  ]
+}

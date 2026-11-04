@@ -5,8 +5,9 @@ extends Node
 ## route); the relay only takes the short-lived JWT of get_relay_token().
 ## Every call is a coroutine returning an ApiResult (await it); nothing blocks, nothing throws, so
 ## the game stays playable without a server. Routes and bodies follow
-## soulwick-platform/packages/contracts (player.ts, common.ts, guild.ts, run.ts). No e-mail, no
-## password (D-121).
+## soulwick-platform/packages/contracts (player.ts, common.ts, guild.ts, run.ts, login.ts,
+## identity.ts). Passwords only travel in the body of the two password routes (KF6), never in a URL
+## or a log; the client keeps none of them.
 
 ## Emitted after every finished call (status lines, logs).
 signal request_finished(path: String, result: ApiResult)
@@ -17,6 +18,21 @@ signal unauthorized(path: String)
 ## TESTWERT: seconds until a call gives up.
 const TIMEOUT_SECONDS := 5.0
 const DEV_KEY_HEADER := "x-dev-auth-key"
+## Web login intents (contracts WebLoginIntent).
+const WEB_SIGN_IN := "sign_in"
+const WEB_LINK := "link"
+## Field names of the web login (contracts login.ts) in one place: the start answer and the poll.
+## WEB_CODE names the request (polling); the player sees and types only WEB_USER_CODE ("ABC-DEF").
+## WEB_BROWSER_SECRET only lives in the fragment of the opened page (#k=…), never on screen or in a log.
+const WEB_CODE := "code"
+const WEB_USER_CODE := "userCode"
+const WEB_POLL_SECRET := "pollSecret"
+const WEB_BROWSER_SECRET := "browserSecret"
+const WEB_URL := "url"
+const WEB_EXPIRES_AT := "expiresAt"
+const WEB_POLL_INTERVAL := "pollIntervalSeconds"
+## Fragment key of the browser secret in the opened URL.
+const WEB_BROWSER_FRAGMENT := "k"
 
 ## Base URL without a trailing slash, e.g. http://localhost:3102.
 var base_url := OnlineConfig.DEFAULT_API_URL
@@ -168,6 +184,73 @@ func get_guild_rooms(guild_id: String) -> ApiResult:
 ## "/guilds/<id><suffix>" with the id URL-encoded.
 static func guild_path(guild_id: String, suffix := "") -> String:
 	return "/guilds/%s%s" % [guild_id.uri_encode(), suffix]
+
+
+# --- Account logins (KF5/KF6, contracts login.ts, identity.ts) ---
+
+## POST /auth/web-login {intent, locale}: starts a login in the browser. intent WEB_SIGN_IN needs no
+## session (none is sent, the API would otherwise demand a player); WEB_LINK adds the proven login to
+## the session's account ("Konto sichern", "Anmeldung hinzufügen"). data: WebLoginStartResponse
+## {code, userCode, pollSecret, browserSecret, url (with #k=<browserSecret>), expiresAt, pollIntervalSeconds}.
+func start_web_login(intent: String, locale := "") -> ApiResult:
+	var body := {"intent": intent}
+	if locale in ["en", "de"]:
+		body["locale"] = locale
+	if intent == WEB_LINK:
+		return await _with_token(HTTPClient.METHOD_POST, "/auth/web-login", body)
+	return await request(HTTPClient.METHOD_POST, "/auth/web-login", body, PackedStringArray(), false)
+
+
+## POST /auth/web-login/poll {code, pollSecret}: state of a web login (WebLoginPollResponse, field
+## status). The session of a completed request comes exactly once. 404 web_login_not_found = gone.
+func poll_web_login(code: String, poll_secret: String) -> ApiResult:
+	return await request(HTTPClient.METHOD_POST, "/auth/web-login/poll", {"code": code, "pollSecret": poll_secret}, PackedStringArray(), false)
+
+
+## POST /auth/password {username, password} -> AuthResponse. 401 invalid_credentials (unknown name
+## and wrong password alike), 403 banned, 429 rate_limited.
+func login_password(username: String, password: String) -> ApiResult:
+	return await request(HTTPClient.METHOD_POST, "/auth/password", {"username": username, "password": password}, PackedStringArray(), false)
+
+
+## PUT /me/logins/password {username?, password?} -> IdentityList: adds the password login to the own
+## account (both needed the first time) or changes it. 409 username_taken, 400 validation_error.
+func set_password_login(username: String, password: String) -> ApiResult:
+	var body := {}
+	if not username.is_empty():
+		body["username"] = username
+	if not password.is_empty():
+		body["password"] = password
+	return await _with_token(HTTPClient.METHOD_PUT, "/me/logins/password", body)
+
+
+## POST /me/logins {provider: "device", deviceId, confirmMerge}: puts this installation's device id
+## on the own account, so the device signs in again by itself (AddLoginResponse: a fresh session of
+## the remaining account). 409 account_has_progress (AccountHasProgressResponse) when the device's
+## guest account has progress too, until confirm_merge; 409 merge_blocked_banned.
+func add_device_login(device_id: String, confirm_merge := false) -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_POST, "/me/logins", {"provider": "device", "deviceId": device_id, "confirmMerge": confirm_merge})
+
+
+## GET /me/identities -> IdentityList {items: [{id, provider, maskedId, label?, createdAt, lastUsedAt}]}.
+func get_identities() -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_GET, "/me/identities")
+
+
+## DELETE /me/identities/:provider -> IdentityList. 409 last_identity when none would be left.
+func remove_identity(provider: String) -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_DELETE, "/me/identities/" + provider.uri_encode())
+
+
+## POST /me/deletion-code -> DeletionCodeResponse {code, expiresAt}: one-time code for the deletion
+## page of the website (P-026), shown once.
+func create_deletion_code() -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_POST, "/me/deletion-code")
+
+
+## DELETE /me -> 204: deletes the own account right away (identities, guilds, cloud worlds, XP).
+func delete_account() -> ApiResult:
+	return await _with_token(HTTPClient.METHOD_DELETE, "/me")
 
 
 ## An authenticated call; without a token it fails at once (no request).

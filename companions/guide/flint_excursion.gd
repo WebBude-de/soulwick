@@ -6,6 +6,9 @@ extends RefCounted
 ## of the corner, flies back and shrinks. Optics only (FlintCompanion.set_excursion): his follow spot
 ## and the light centre stay with the player. FlintGuide calls out()/back() with the flight's
 ## progress every frame; without a Flint (a player without companion) nothing happens.
+## The one Flint of a group (WK13, D-225 §5) flies into the corner of every machine's own screen (the
+## flight is optics on each machine); two local players' guides hold him together (holder id), he
+## lands when the last one is done.
 
 ## Without a corner on screen (remote player, tests) Flint flies this far up and to the right.
 const FALLBACK_OFFSET := Vector2(160.0, -120.0)
@@ -31,13 +34,13 @@ func out(progress: float) -> void:
 	var fly := _ease_in_out(parts.y)
 	var scale_factor := lerpf(1.0, FlintGuideRules.GROW_SCALE, grow)
 	var alpha := 1.0 - clampf((parts.y - (1.0 - FADE_SHARE)) / FADE_SHARE, 0.0, 1.0)
-	flint.set_excursion(_to_corner() * fly, scale_factor, alpha)
+	flint.set_excursion(_to_corner() * fly, scale_factor, alpha, get_instance_id())
 
 
 ## Fully in the corner (the portrait shows him): his world picture is hidden.
 func hide_in_corner() -> void:
 	if _usable():
-		flint.set_excursion(_to_corner(), FlintGuideRules.GROW_SCALE, 0.0)
+		flint.set_excursion(_to_corner(), FlintGuideRules.GROW_SCALE, 0.0, get_instance_id())
 
 
 ## On the way back: progress 0..1 from the corner to his spot, shrinking to his normal size.
@@ -47,13 +50,13 @@ func back(progress: float) -> void:
 	var p := clampf(progress, 0.0, 1.0)
 	var fly := 1.0 - _ease_in_out(p)
 	var alpha := clampf(p / FADE_SHARE, 0.0, 1.0)
-	flint.set_excursion(_to_corner() * fly, lerpf(FlintGuideRules.GROW_SCALE, 1.0, _ease_in_out(p)), alpha)
+	flint.set_excursion(_to_corner() * fly, lerpf(FlintGuideRules.GROW_SCALE, 1.0, _ease_in_out(p)), alpha, get_instance_id())
 
 
 ## Back at his spot in his normal size.
 func land() -> void:
 	if _usable():
-		flint.clear_excursion()
+		flint.clear_excursion(get_instance_id())
 
 
 ## Offset from Flint's spot to the corner (world px).

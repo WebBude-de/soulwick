@@ -62,10 +62,11 @@ const VISION_RADIUS := 300.0
 const EXTRA_DARK_VISION_RADIUS := 190.0
 const SPECIAL_ROOM_DARKNESS := 0.2
 const CRYSTALS_PER_BOSS := 3  # TESTWERT (D-078; KE9/D-221 keeps 3, the depth bonus stays visible at room 15)
-## TESTWERT (KE9/D-221: 1 -> 0, KONZEPT §5.3 "viel zu viele": a run to the first boss paid 6-7
-## crystals instead of 3-5). Champions pay gold instead (EconomyConfig.miniboss_gold_multiplier);
-## KONZEPT's "30 % chance of 1" needs code (dungeon RNG), see D-221.
-const CRYSTALS_PER_CHAMPION := 0
+## Crystals of a beaten champion when its roll hits (KONZEPT §5.3, D-224: "30 % chance of 1"; D-221
+## had 0 until the roll was built). Champions mainly pay gold (EconomyConfig.miniboss_gold_multiplier).
+const CRYSTALS_PER_CHAMPION := 1  # TESTWERT
+## Chance that a beaten champion leaves CRYSTALS_PER_CHAMPION (D-224, roll_champion_crystals).
+const CHAMPION_CRYSTAL_CHANCE := 0.3  # TESTWERT
 ## Test aid (ROADMAP A1): normal combat rooms announce their kind and size in the banner.
 const SHOW_ROOM_KIND_BANNER := false
 const INPUT_LOCK_BOSS_INTRO := &"boss_intro"
@@ -1553,16 +1554,38 @@ static func _with_kind(subtitle: String, kind_text: String) -> String:
 
 
 func _on_encounter_started(room: RoomController, enemies: Array[Enemy]) -> void:
+	var champions := 0
 	for enemy in enemies:
 		if enemy.data.is_boss or enemy.is_miniboss:
 			# Soul crystals for bosses and champions (D-078, TESTWERTE); boss crystals +10 % per block (KE3).
-			var crystals := EconomyConfig.depth_crystals(CRYSTALS_PER_BOSS, room.room_index) if enemy.data.is_boss else CRYSTALS_PER_CHAMPION
+			var crystals := 0
+			if enemy.data.is_boss:
+				crystals = EconomyConfig.depth_crystals(CRYSTALS_PER_BOSS, room.room_index)
+			else:
+				crystals = get_champion_crystals(room.room_index, champions)
+				champions += 1
 			enemy.died.connect(func(_e: Enemy) -> void: RunManager.add_run_crystals(crystals))
 		if enemy.data.is_boss:
 			# Not awaited: the intro must start in this frame, the rest of the encounter goes on.
 			_announce_boss(enemy)
 		elif enemy.is_miniboss:
 			ui.show_boss_bar(enemy)
+
+
+## Crystals the ordinal-th champion of the room at room_index leaves (D-224). The host decides and
+## books them into the shared pot (NetDungeon sends it); a network client always gets 0.
+func get_champion_crystals(room_index: int, ordinal := 0) -> int:
+	return 0 if _is_net_client() else roll_champion_crystals(_run_seed, room_index, ordinal)
+
+
+## The champion roll (D-224): CHAMPION_CRYSTAL_CHANCE of CRYSTALS_PER_CHAMPION, else 0. Seeded from
+## the dungeon's run seed, the room and the champion's place in the encounter (like CorridorDressing),
+## so it is the same for the same run and never draws from context.rng: the room stream, and with it
+## every later room of the seed, stays as it was, however fast the champion falls.
+static func roll_champion_crystals(run_seed: int, room_index: int, ordinal := 0) -> int:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([run_seed, room_index, ordinal, &"champion_crystal"])
+	return CRYSTALS_PER_CHAMPION if rng.randf() < CHAMPION_CRYSTAL_CHANCE else 0
 
 
 ## Boss intro (roars and shakes itself) or, without intro data, the plain banner; then the boss bar.

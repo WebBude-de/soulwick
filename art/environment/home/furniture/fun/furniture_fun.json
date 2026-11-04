@@ -1,0 +1,284 @@
+{
+  "group": "fun",
+  "notes": [
+    "Pivot unten Mitte; footprint Kacheln breit × tief; _side = 90°-Ansicht, Gegenseite spiegeln; light = Lichtpunkt relativ zur Frame-Ecke; anim = Overlay-Streifen."
+  ],
+  "items": [
+    {
+      "name": "chicken_plush_cozy_front",
+      "file": "chicken_plush_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flint_candleholder_cozy_front",
+      "file": "flint_candleholder_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          8
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "trophy_cozy_front",
+      "file": "trophy_cozy_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "trophy_wall_cozy_front",
+      "file": "trophy_wall_cozy_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "world_map_cozy_front",
+      "file": "world_map_cozy_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "chicken_plush_rustic_front",
+      "file": "chicken_plush_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flint_candleholder_rustic_front",
+      "file": "flint_candleholder_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          8
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "trophy_rustic_front",
+      "file": "trophy_rustic_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "trophy_wall_rustic_front",
+      "file": "trophy_wall_rustic_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "world_map_rustic_front",
+      "file": "world_map_rustic_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "chicken_plush_soul_front",
+      "file": "chicken_plush_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flint_candleholder_soul_front",
+      "file": "flint_candleholder_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true,
+      "light": {
+        "at": [
+          16,
+          8
+        ],
+        "color": "#ffd166"
+      }
+    },
+    {
+      "name": "trophy_soul_front",
+      "file": "trophy_soul_front.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "trophy_wall_soul_front",
+      "file": "trophy_wall_soul_front.png",
+      "frame_size": [
+        64,
+        32
+      ],
+      "pivot": [
+        32,
+        31
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    },
+    {
+      "name": "world_map_soul_front",
+      "file": "world_map_soul_front.png",
+      "frame_size": [
+        64,
+        48
+      ],
+      "pivot": [
+        32,
+        47
+      ],
+      "footprint": [
+        2,
+        0
+      ],
+      "blocks": false
+    }
+  ]
+}

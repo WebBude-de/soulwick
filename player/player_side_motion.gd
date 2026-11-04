@@ -26,8 +26,8 @@ extends Node
 ## machine that decides enemy contacts asks it (the host and a solo run: decides_enemy_contacts,
 ## never a copy, never an enemy that is a host's puppet), the bounce goes to the others as
 ## Move.STOMP. Slopes (SideSlopes): on a layout with slopes the body counts them as floor (enter).
-## In side view the drop shadows under the player and Flint are hidden (they belong to the floor of
-## the top-down view, feedback #e0486234).
+## In side view the drop shadow under the player is hidden (it belongs to the floor of the top-down
+## view, feedback #e0486234); the group's Flint hides its own (D-225).
 
 signal jumped(player: Player)
 signal double_jumped(player: Player)
@@ -850,7 +850,7 @@ func _after_move(falling_speed: float, delta: float) -> void:
 		start_pit()
 
 
-## The drop shadows of the top-down view under the player and everything carried along (Flint):
+## The drop shadows of the top-down view under the player and everything it carries along:
 ## hidden through their alpha, so the owners' own visible switches (pit, Flint's excursion) cannot
 ## bring them back in side view (feedback #e0486234).
 func _set_shadow_visible(shadow_visible: bool) -> void:

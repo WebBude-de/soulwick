@@ -4,8 +4,10 @@ extends RefCounted
 ## Antwort 20 §1, Mockup 14b): a room of 15×9 tiles (32 art px, drawn at SCALE like the village),
 ## two rows of panelled back wall with the moon window, the starting furniture, the candle altar,
 ## the mirror and the door out at the bottom. Positions are the foot point (pivot bottom centre) in
-## art px from the room's top left; the world multiplies by SCALE. All values TESTWERT; WK7 moves the
-## furniture onto the decoration system later.
+## art px from the room's top left; the world multiplies by SCALE. All values TESTWERT.
+## WK7: the furniture is decoration now (DecorState.STARTER_HOME, DecorLayer, DecorGrid on the same
+## 32 px tiles); here stay the fixed things (altar, mirror, broom, the catalog stand, the door) and
+## the cells the furniture keeps free for them.
 
 const SCALE := 2.0
 const TILE := 32
@@ -25,27 +27,25 @@ const ROOM := &"room"
 const FLOOR := &"floor"
 const WALL := &"wall"
 
-## Starting furniture (Antwort 20 §1). "solid": footprint in art px that blocks walking (none: walk
-## over or behind it); "optional": only placed once the art exists (no placeholder).
-const FURNITURE: Array[Dictionary] = [
-	{"name": "bed", "at": Vector2(52, 150), "solid": Vector2(60, 22)},
-	{"name": "nightstand", "at": Vector2(98, 126), "solid": Vector2(14, 8)},
-	{"name": "fireplace", "at": Vector2(392, 74), "solid": Vector2(60, 10)},
-	{"name": "armchair", "at": Vector2(440, 130), "solid": Vector2(22, 10)},
-	{"name": "pet_bed", "at": Vector2(392, 104), "layer": FLOOR},
-	{"name": "rug_round", "at": Vector2(300, 178), "layer": FLOOR},
-	{"name": "shelf", "at": Vector2(268, 74), "solid": Vector2(30, 10)},
-	{"name": "bookshelf_full", "at": Vector2(236, 74), "solid": Vector2(30, 10), "optional": true},
-	{"name": "chest", "at": Vector2(168, 232), "solid": Vector2(28, 12)},
-	{"name": "plant_pot", "at": Vector2(458, 264), "solid": Vector2(12, 8)},
+## Fixed props of the KE8 room that are no catalog furniture (Antwort 20 §1: the broom in the corner).
+## "solid": footprint in art px that blocks walking (none: walk over or behind it).
+const FIXED_PROPS: Array[Dictionary] = [
 	{"name": "broom", "at": Vector2(468, 94)},
-	{"name": "window_sill_flower", "at": Vector2(96, 64), "layer": WALL},
-	{"name": "wall_picture", "at": Vector2(200, 46), "layer": WALL},
 ]
-## The candle altar with the talent tree, its footprint; the mirror (D-152).
-const ALTAR_AT := Vector2(300, 134)
+## The candle altar with the talent tree, its footprint; the mirror (D-152). WK7: both stand in the
+## middle of a tile (altar col 9, mirror col 5), so the furniture grid keeps their tiles.
+const ALTAR_AT := Vector2(304, 134)
 const ALTAR_SOLID := Vector2(26, 10)
-const MIRROR_AT := Vector2(160, 76)
+const MIRROR_AT := Vector2(176, 76)
+## WK7: the catalog stand ("Zuhause einrichten", DecorStation) beside the door.
+const DECOR_STATION_AT := Vector2(176, 280)
+## WK7 grid (tiles of TILE art px, DecorGrid.for_home): the door's tile (nothing on it, the way check
+## starts here), tiles that block walking without furniture (altar, broom, catalog stand), tiles only
+## flat pieces may cover (mirror, spawn) and tiles that must keep a free side (altar, mirror, stand).
+const DOOR_CELL := Vector2i(7, 8)
+const FIXED_CELLS: Array[Vector2i] = [Vector2i(9, 3), Vector2i(9, 4), Vector2i(14, 2), Vector2i(5, 8)]
+const FLAT_ONLY_CELLS: Array[Vector2i] = [Vector2i(5, 2), Vector2i(7, 7)]
+const ACCESS_CELLS: Array[Vector2i] = [Vector2i(9, 4), Vector2i(5, 2), Vector2i(5, 8)]
 ## The door out (bottom wall, DOOR_COL) and where a player arrives (out of the door's reach).
 const DOOR_AT := Vector2(240, 288)
 const DOOR_USE_AT := Vector2(240, 276)
@@ -58,18 +58,17 @@ const DARKNESS_NIGHT := 0.6
 const DARKNESS_DAY := 0.35
 const DARK_COLOR := Color("#2d2250")
 const FLINT_RADIUS := 150.0
+## The fireplace (catalog piece) is the main light (DecorCatalog.LIGHT_RADIUS_TILES: 5 tiles).
 const FIRE_COLOR := Color("#ff8a3c")
 const FIRE_RADIUS_TILES := 5.0
-const FIRE_FLICKER := 0.03
-const FIRE_AT := Vector2(392, 52)
 const MOON_COLOR := Color("#c8beff")
 const SUN_COLOR := Color("#fff1c8")
 const MOON_RADIUS_TILES := 2.5
 const MOON_INTENSITY := 0.45
 const MOON_FLOOR_AT := Vector2(118, 176)
+## The night light beside the bed (the starter floor lamp, a catalog piece: 2 tiles, warm yellow).
 const NIGHT_LAMP_COLOR := Color("#ffd166")
 const NIGHT_LAMP_RADIUS_TILES := 2.0
-const NIGHT_LAMP_AT := Vector2(98, 106)
 ## Altar candles in the path colours (TalentTreeArt.PATH_COLORS), 1.5 tiles, brighter when ready.
 const ALTAR_LIGHT_RADIUS_TILES := 1.5
 const ALTAR_LIGHT_IDLE := 0.5
@@ -96,9 +95,3 @@ static func floor_rect() -> Rect2:
 	var top := WALL_ROWS * TILE + 6
 	return Rect2(SIDE_WALL, top, COLS * TILE - SIDE_WALL * 2, ROWS * TILE - BOTTOM_WALL - top)
 
-
-static func furniture_names() -> Array[String]:
-	var names: Array[String] = []
-	for item in FURNITURE:
-		names.append(String(item["name"]))
-	return names

@@ -18,6 +18,10 @@ extends RefCounted
 ## Uses ApiClient.request() only (bearer token of the session). When to sync (login, village, run end,
 ## closing; never in a run) is up to the caller; see the KF9 hooks. Every failure only shows in the
 ## report: the game stays playable without a server.
+## Backups and archive (KF6, account panel): list_worlds(), list_backups(), restore_backup() and
+## unarchive_world() call the KF8 routes; the world the server answers with is written into its slot
+## here (the slot with the same world id, else a free one) through apply_cloud_world(). Never during
+## a run in that slot; a world the device deleted is no longer "deleted" once it is fetched back.
 
 ## Emitted when sync_all() is done (also when it failed), with its report.
 signal finished(report: Dictionary)
@@ -34,6 +38,8 @@ const MIN_INTERVAL_SECONDS := 60
 const STALE_SECONDS := 120
 const CONFLICT := "revision_conflict"
 const NOT_FOUND := "world_not_found"
+## 409 of restore / unarchive with MAX_CLOUD_WORLDS active worlds (WorldLimitResponse, items).
+const LIMIT_REACHED := "world_limit_reached"
 
 ## What happened to one world.
 const UPLOADED := "uploaded"
@@ -47,6 +53,8 @@ const TOO_LARGE := "too_large"
 const BUSY := "busy"
 ## Report error of a sync that did not start because another one is running.
 const ALREADY_RUNNING := "already_running"
+## apply_cloud_world(): no slot free on this device for a world that is not here.
+const NO_ROOM := "no_room"
 
 ## Automatic syncs (slot panel, hooks) only in the real game: script runs (tests, tools) never upload
 ## a world unless they switch it on with their own fake API.
@@ -131,6 +139,86 @@ func archive_world(world_id: String) -> ApiResult:
 	if not result.ok and result.error == NOT_FOUND:
 		return ApiResult.success(404, null)
 	return result
+
+
+# --- Backups and archive (KF6) ---
+
+## GET /me/worlds: WorldList {items (active), archived, maxWorlds, maxDataBytes}.
+func list_worlds() -> ApiResult:
+	return await api.request(HTTPClient.METHOD_GET, WORLDS_PATH)
+
+
+## GET /me/worlds/:id/backups: WorldBackupList {items: WorldBackupMeta[]}, newest first.
+func list_backups(world_id: String) -> ApiResult:
+	return await api.request(HTTPClient.METHOD_GET, world_path(world_id, "/backups"))
+
+
+## POST /me/worlds/:id/backups/:backupId/restore {archiveWorldId?}: the backup becomes the world's
+## new state (the replaced one stays as a backup). ok: data = RestoreWorldResponse and data
+## "applied" = what apply_cloud_world() did here. 409 LIMIT_REACHED with the active worlds (items):
+## ask which one goes to the archive and call again with archive_world_id.
+func restore_backup(world_id: String, backup_id: String, archive_world_id := "") -> ApiResult:
+	var path := world_path(world_id, "/backups/%s/restore" % backup_id.uri_encode())
+	return await _restore_call(path, archive_world_id)
+
+
+## POST /me/worlds/:id/unarchive {archiveWorldId?}: an archived world becomes active again and comes
+## back to this device (a free slot). Same answer and errors as restore_backup().
+func unarchive_world(world_id: String, archive_world_id := "") -> ApiResult:
+	return await _restore_call(world_path(world_id, "/unarchive"), archive_world_id)
+
+
+func _restore_call(path: String, archive_world_id: String) -> ApiResult:
+	var body := {}
+	if not archive_world_id.is_empty():
+		body["archiveWorldId"] = archive_world_id
+	var result := await api.request(HTTPClient.METHOD_POST, path, body)
+	if result.ok and result.data is Dictionary:
+		var world: Variant = result.data.get("world", null)
+		result.data["applied"] = apply_cloud_world(world) if world is Dictionary else FAILED
+	return result
+
+
+## Writes a CloudWorld (with data) into this device: over the slot with the same world id, else into
+## a free slot. Returns DOWNLOADED, NO_ROOM, NEWER, BUSY (a run is going on in that slot) or FAILED.
+## The device forgets that it deleted this world, so the next sync does not archive it again.
+func apply_cloud_world(world: Dictionary) -> String:
+	var data: Variant = world.get("data", null)
+	if not (data is Dictionary):
+		return FAILED
+	if int(world.get("formatVersion", 0)) > SaveManager.SAVE_VERSION:
+		return NEWER
+	var config := SaveMerge.from_world_data(data)
+	var world_id := String(config.get_value("world", "id", world.get("worldId", ""))).to_lower()
+	if world_id.is_empty():
+		return FAILED
+	var clean := SaveMerge.to_world_data(config)
+	var hash := SaveMerge.content_hash(clean)
+	var cloud := _cloud_state(int(world.get("revision", 0)), hash)
+	SaveManager.forget_deleted_world(world_id)
+	var slot := slot_of_world(world_id)
+	if slot > 0:
+		var current := SaveManager.read_world_config(slot)
+		var current_hash := SaveMerge.content_hash(SaveMerge.to_world_data(current)) if current != null else ""
+		if current_hash == hash:
+			SaveManager.set_cloud_state(cloud, slot)
+			return DOWNLOADED
+		return DOWNLOADED if _write_back(slot, clean, cloud, current_hash) else BUSY
+	slot = SaveManager.get_free_slot()
+	if slot == 0:
+		return NO_ROOM
+	return DOWNLOADED if _write_back(slot, clean, cloud, "") else FAILED
+
+
+## Slot of the local world with this id (0 = not on this device).
+static func slot_of_world(world_id: String) -> int:
+	for slot in range(1, SaveSlots.SLOT_COUNT + 1):
+		if not SaveManager.has_slot(slot):
+			continue
+		var config := SaveManager.read_world_config(slot)
+		if config != null and String(config.get_value("world", "id", "")).to_lower() == world_id.to_lower():
+			return slot
+	return 0
 
 
 static func world_path(world_id: String, suffix := "") -> String:

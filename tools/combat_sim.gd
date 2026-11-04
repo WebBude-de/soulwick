@@ -420,7 +420,7 @@ func _check_spell(room: Node, player: Node, spell_id: StringName) -> void:
 	_check(casts[0] == 1, "%s: cast %s (alive %s, stunned %s, locked %s, falling %s)" % [spell_id,
 		"through the input object" if through_input else "through PlayerSpells (cast action not wired yet)",
 		player.is_alive(), player.is_stunned(), player.is_input_locked(), player.is_falling()])
-	var flint: Node = player.get_node_or_null("Flint")
+	var flint: Node = load("res://companions/flint/flint_companion.gd").of(player)
 	if flint != null:
 		flint._process(1.0 / 60.0)
 		var cast_mood: int = load("res://companions/flint/flint_mood.gd").Mood.CAST

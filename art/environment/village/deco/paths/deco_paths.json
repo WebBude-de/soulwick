@@ -1,0 +1,98 @@
+{
+  "group": "paths",
+  "notes": [
+    "Flache Bodenkacheln 32×32, Pivot (0,0), nicht blockierend."
+  ],
+  "items": [
+    {
+      "name": "paving_1",
+      "file": "paving_1.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false,
+      "flat": true
+    },
+    {
+      "name": "paving_2",
+      "file": "paving_2.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false,
+      "flat": true
+    },
+    {
+      "name": "paving_3",
+      "file": "paving_3.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false,
+      "flat": true
+    },
+    {
+      "name": "stepping_stones",
+      "file": "stepping_stones.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false,
+      "flat": true
+    },
+    {
+      "name": "boardwalk",
+      "file": "boardwalk.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false,
+      "flat": true
+    }
+  ]
+}

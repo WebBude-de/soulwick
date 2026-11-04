@@ -590,7 +590,8 @@ func test_slot_cards_show_the_cloud_state() -> void:
 ## A v5 world of another device (OTHER_WORLD).
 func _cloud_world(world_name: String, gold: int) -> ConfigFile:
 	var config := ConfigFile.new()
-	config.parse("[meta]\nversion=5\n[progress]\npermanent_gold=%d\nunlocked=PackedStringArray()\n[world]\nid=\"%s\"\nname=\"%s\"\n[profile]\ncreated=%d\nlast_played=%d\n[seen]\nall=false\nids=PackedStringArray()\n" % [gold, OTHER_WORLD, world_name, OLD, OLD])
+	# A world of the current version (a downloaded older one is migrated and goes up again once).
+	config.parse("[meta]\nversion=%d\n[progress]\npermanent_gold=%d\nunlocked=PackedStringArray()\n[world]\nid=\"%s\"\nname=\"%s\"\n[profile]\ncreated=%d\nlast_played=%d\n[seen]\nall=false\nids=PackedStringArray()\n" % [SaveManager.SAVE_VERSION, gold, OTHER_WORLD, world_name, OLD, OLD])
 	return config
 
 

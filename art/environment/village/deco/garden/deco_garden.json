@@ -1,0 +1,161 @@
+{
+  "group": "garden",
+  "notes": [
+    "Pivot unten Mitte, 1×1 (Baum ragt nach oben)."
+  ],
+  "items": [
+    {
+      "name": "flower_bed_red",
+      "file": "flower_bed_red.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flower_bed_yellow",
+      "file": "flower_bed_yellow.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flower_bed_white",
+      "file": "flower_bed_white.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "flower_bed_violet",
+      "file": "flower_bed_violet.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": false
+    },
+    {
+      "name": "hedge_straight",
+      "file": "hedge_straight.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "hedge_corner",
+      "file": "hedge_corner.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "tree_small",
+      "file": "tree_small.png",
+      "frame_size": [
+        32,
+        48
+      ],
+      "pivot": [
+        16,
+        47
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "bush",
+      "file": "bush.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    },
+    {
+      "name": "pumpkins",
+      "file": "pumpkins.png",
+      "frame_size": [
+        32,
+        32
+      ],
+      "pivot": [
+        16,
+        31
+      ],
+      "footprint": [
+        1,
+        1
+      ],
+      "blocks": true
+    }
+  ]
+}
