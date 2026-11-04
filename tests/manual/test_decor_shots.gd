@@ -19,15 +19,15 @@ const VILLAGE_PIECES := ["flower_bed_red", "flower_bed_yellow", "flower_bed_viol
 	"chicken_statue", "torch_post", "signpost", "bush"]
 ## Home looks: style -> pieces placed besides the starter set (cell, rot).
 const HOME_LOOKS := {
-	"rustic": [["sofa_rustic", Vector2i(2, 6), 0], ["tea_table_rustic", Vector2i(3, 5), 0],
-		["wardrobe_rustic", Vector2i(12, 6), 0], ["rug_large_rustic", Vector2i(2, 5), 0],
-		["plant_small_rustic", Vector2i(10, 6), 0], ["clock_rustic", Vector2i(10, 1), 0],
-		["string_lights_rustic", Vector2i(4, 1), 0], ["window_box_rustic", Vector2i(2, 1), 0]],
-	"soul": [["bed_double_soul", Vector2i(1, 5), 0], ["reading_nook_soul", Vector2i(11, 6), 0],
-		["dining_table_soul", Vector2i(3, 5), 0], ["chair_soul", Vector2i(5, 5), 1], ["flint_candleholder_soul", Vector2i(13, 5), 0],
-		["tapestry_soul", Vector2i(10, 1), 0], ["trophy_wall_soul", Vector2i(12, 1), 0], ["hanging_plant_soul", Vector2i(4, 1), 0],
-		["runner_soul", Vector2i(4, 7), 0], ["trophy_soul", Vector2i(12, 8), 0]],
+	"rustic": [["sofa_rustic", Vector2i(6, 5), 0], ["tea_table_rustic", Vector2i(7, 4), 0],
+		["rug_large_rustic", Vector2i(6, 3), 0],
+		["window_box_rustic", Vector2i(5, 1), 0]],
+	"soul": [["bed_double_soul", Vector2i(1, 2), 0], ["reading_nook_soul", Vector2i(8, 4), 0],
+		["chair_soul", Vector2i(6, 3), 1], ["flint_candleholder_soul", Vector2i(9, 6), 0],
+		["runner_soul", Vector2i(7, 6), 0], ["trophy_soul", Vector2i(3, 6), 0]],
 }
+## Starter pieces a look leaves out (the soul bed is double, KE8b room 11×7).
+const SOUL_SKIPS: Array[String] = ["bed_single", "armchair", "nightstand"]
 
 var _out_dir := "user://decor_shots"
 var _taken: Array[String] = []
@@ -63,7 +63,7 @@ func _run() -> void:
 	save_manager.set_option(&"language", "de")
 	save_manager.add_permanent_gold(20000)
 	# Flint's explanations would cover the pictures: seen.
-	for id in [&"flint_decor_village", &"flint_decor_home", &"flint_home_altar"]:
+	for id in [&"flint_decor_village", &"flint_decor_home", &"flint_home_altar", &"flint_home_decor_spot"]:
 		save_manager.mark_seen(id)
 	save_manager.save_game()
 	change_scene_to_file("res://scenes/game.tscn")
@@ -109,9 +109,9 @@ func _run() -> void:
 	await _frames(30)
 	_shot("05_home_cozy_start")
 	var home_editor: Node = home.open_decor_editor(player)
-	home_editor.set_cursor(Vector2i(5, 6))
+	home_editor.set_cursor(Vector2i(1, 5))
 	home_editor.primary()
-	home_editor.set_cursor(Vector2i(3, 7))
+	home_editor.set_cursor(Vector2i(3, 5))
 	await _frames(20)
 	_shot("06_home_editor_move_chest")
 	home_editor.cancel_held()
@@ -165,7 +165,7 @@ func _home_look(save_manager: Node, style: String) -> void:
 	for entry: String in _state.STARTER_HOME:
 		var parsed: Dictionary = _state.parse(entry)
 		var id := String(parsed["id"]).replace("_cozy", "_" + style)
-		if style == "soul" and (id.begins_with("bed_single") or id.begins_with("armchair")):
+		if style == "soul" and SOUL_SKIPS.any(func(prefix: String) -> bool: return id.begins_with(prefix)):
 			continue
 		save_manager.set_decor_owned(id, maxi(1, save_manager.get_decor_owned(id)))
 		list.append(_state.format(id, parsed["cell"], int(parsed["rot"])))

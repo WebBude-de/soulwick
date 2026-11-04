@@ -228,3 +228,15 @@ func test_host_takes_no_snapshot() -> void:
 	net.host_decor(_host_snapshot([DecorState.format("flint_statue", Vector2i(3, 4), 0)]))
 	assert_eq(net.received_count, 0, "the host shows its own village")
 	assert_false(village.decor_layer.is_showing_snapshot())
+
+
+func test_ke8b_the_hosts_small_home_arrives_whole() -> void:
+	# KE8b: the home is 11×7 tiles; the host's starter home passes the guests' check unchanged,
+	# pieces of the old 15×9 room outside the new grid are left out (the host's migration put them
+	# into his Lager anyway).
+	var raw := DecorState.snapshot()
+	raw["home"] = Array(DecorState.STARTER_HOME) + ["sofa_rustic:10:7:0", "picture_flint_rustic:12:1:0"]
+	var clean := NetVillage.sanitize(raw, Vector2i(32, 20))
+	assert_eq(clean["home"], Array(DecorState.STARTER_HOME), "every starter piece arrives, nothing outside the room")
+	var snapshot := NetVillage.build_snapshot(raw, Color.WHITE)
+	assert_lte(var_to_bytes(snapshot).size(), NetVillage.MAX_BYTES, "the home fits the snapshot")

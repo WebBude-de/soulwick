@@ -17,8 +17,18 @@ extends Node2D
 ## decorating mode (DecorEditor) that the catalog stand by the door opens (DecorStation, only alone).
 ## Lights come from the pieces (fireplace = "fire", the first other light = "lamp"); wallpaper and
 ## floor follow the chosen styles (HomeRoom). Fixed: altar, mirror, broom, stand and door.
+## KE8b (playtest 04.11.2026): a small room (HomeLayout 11×7) with three windows whose view and light
+## follow the village clock while one stays (CLOCK_INTERVAL; night_override pins it for tools), the
+## doorway with its mat, and the catalog stand in view by the door: it wears a bouncing arrow until
+## the decorating mode was opened once (OPENED_ID), and Flint points at it once on its own
+## (DECOR_HINT_ID; the step used to hide at the end of the altar tour, which accounts that had seen
+## the tour before WK7 never got).
 
 const EXPLANATION_ID: StringName = &"flint_home_altar"
+## KE8b: Flint shows the catalog stand (once per account) and the stand's arrow stays until the
+## decorating mode was opened once (seen flags of the account, "flint_" so pre-D-087 accounts get it).
+const DECOR_HINT_ID: StringName = &"flint_home_decor_spot"
+const OPENED_ID: StringName = &"flint_home_decor_opened"
 const PAUSE_MIRROR: StringName = &"home_mirror"
 ## Width of the profile editor in the mirror dialog (mockup px, like VillageUI).
 const PROFILE_EDITOR_WIDTH := 262.0
@@ -30,6 +40,12 @@ var mirror: VillageMirror = null
 var exit_door: Interactable = null
 var room: HomeRoom = null
 var moon_beam: HomeMoonBeam = null
+## KE8b: one light shaft and one floor light per window (moon_beam / lights["moon"]: the middle one).
+var beams: Array[HomeMoonBeam] = []
+var window_lights: Array[LightSource] = []
+## Tools and tests: >= 0 pins the time of day (0 day … 1 night) instead of the clock.
+var night_override := -1.0
+var _clock_left := 0.0
 var ui: CanvasLayer = null
 ## Lights by role ("fire", "moon", "lamp") for tests and tools.
 var lights: Dictionary[StringName, LightSource] = {}
@@ -46,7 +62,7 @@ var _decor_editor: DecorEditor = null
 
 func _ready() -> void:
 	y_sort_enabled = true
-	night = VillageDaylight.night_amount(VillageDaylight.current_hour())
+	night = clock_night()
 	room = HomeRoom.new()
 	room.name = "Room"
 	add_child(room)
@@ -55,11 +71,7 @@ func _ready() -> void:
 	_floor_layer.name = "FloorDecor"
 	_floor_layer.z_index = HomeRoom.Z + 1
 	add_child(_floor_layer)
-	moon_beam = HomeMoonBeam.new()
-	moon_beam.name = "MoonBeam"
-	moon_beam.scale = Vector2.ONE * HomeLayout.SCALE
-	add_child(moon_beam)
-	moon_beam.set_night(night)
+	_add_beams()
 	_place_fixed_props()
 	_place_furniture()
 	_place_altar()
@@ -75,6 +87,45 @@ func _ready() -> void:
 	add_child(ui)
 	refresh_goal()
 	altar.refresh_from_account()
+	_clock_left = HomeLayout.CLOCK_INTERVAL
+
+
+## Night amount of the clock (VillageDaylight, the same as the village) or the pinned one.
+func clock_night() -> float:
+	if night_override >= 0.0:
+		return clampf(night_override, 0.0, 1.0)
+	return VillageDaylight.night_amount(VillageDaylight.current_hour())
+
+
+func _process(delta: float) -> void:
+	_clock_left -= delta
+	if _clock_left > 0.0:
+		return
+	_clock_left = HomeLayout.CLOCK_INTERVAL
+	var now := clock_night()
+	if not is_equal_approx(now, night):
+		set_night(now)
+
+
+## Time of day of the whole room: windows, light shafts, window lights and the room's shade.
+func set_night(amount: float) -> void:
+	night = clampf(amount, 0.0, 1.0)
+	if room != null:
+		room.set_night(night)
+	for beam in beams:
+		beam.set_night(night)
+	var colour := HomeLayout.window_light_color(night)
+	var intensity := lerpf(HomeLayout.SUN_INTENSITY, HomeLayout.MOON_INTENSITY, night)
+	for light in window_lights:
+		light.color = colour
+		light.intensity = intensity
+	apply_lighting()
+
+
+## Pins the time of day (tools, screenshots): 0 day … 1 night; a negative value follows the clock.
+func pin_night(amount: float) -> void:
+	night_override = amount
+	set_night(clock_night())
 
 
 ## WorldController hook (every player of this world): the home is peaceful like the village.
@@ -86,6 +137,7 @@ func on_player_spawned(player: Player) -> void:
 	if player.is_local:
 		apply_lighting()
 		explain_first_visit.call_deferred(player)
+		point_at_decor_station.call_deferred(player)
 
 
 ## World-space rectangle the camera must not leave (the room; a larger view is centred on it).
@@ -100,12 +152,16 @@ func apply_lighting() -> void:
 	var overlay := get_tree().get_first_node_in_group(VisionOverlay.GROUP) as VisionOverlay if is_inside_tree() else null
 	if overlay == null:
 		return
-	overlay.set_dark_color(HomeLayout.DARK_COLOR, true)
+	overlay.set_dark_color(get_dark_color(), true)
 	overlay.set_vision(get_darkness(), HomeLayout.FLINT_RADIUS, true)
 
 
 func get_darkness() -> float:
-	return lerpf(HomeLayout.DARKNESS_DAY, HomeLayout.DARKNESS_NIGHT, night)
+	return HomeLayout.darkness_for(night)
+
+
+func get_dark_color() -> Color:
+	return HomeLayout.dark_color_for(night)
 
 
 ## Flint explains altar and mirror the first time (per account, AccountSeen). False when seen.
@@ -122,7 +178,22 @@ func first_visit_explanation() -> FlintExplanation:
 		FlintGuideStep.say(&"FLINT_HOME_PATHS", FlintGuideStep.Mood.PROUD).at_node(altar),
 		FlintGuideStep.say(&"FLINT_HOME_RESPEC"),
 		FlintGuideStep.say(&"FLINT_HOME_MIRROR", FlintGuideStep.Mood.POINT).at_node(mirror),
-		FlintGuideStep.say(&"FLINT_HOME_DECOR", FlintGuideStep.Mood.POINT).at_node(decor_station),
+	])
+
+
+## KE8b: Flint points at the catalog stand once (after the altar tour on a first visit; on its own
+## for everybody who saw the tour before). False when seen or not shown now.
+func point_at_decor_station(player: Player) -> bool:
+	if player == null or not is_instance_valid(player) or not is_inside_tree() or decor_station == null:
+		return false
+	if not DecorStation.can_decorate(self):
+		return false
+	return FlintGuide.explain(player, decor_hint())
+
+
+func decor_hint() -> FlintExplanation:
+	return FlintExplanation.hint(DECOR_HINT_ID, [
+		FlintGuideStep.say(&"FLINT_HOME_DECOR_SPOT", FlintGuideStep.Mood.POINT).at_node(decor_station),
 	])
 
 
@@ -145,6 +216,9 @@ func open_decor_editor(player: Player) -> DecorEditor:
 	_decor_editor = DecorStation.start(self, furniture, player)
 	if _decor_editor != null:
 		_decor_editor.closed.connect(func() -> void: _decor_editor = null)
+		AccountSeen.mark_seen(OPENED_ID)
+		if decor_station != null:
+			decor_station.set_attention(false)
 	return _decor_editor
 
 
@@ -215,7 +289,11 @@ func _place_furniture() -> void:
 	furniture.name = "Furniture"
 	add_child(furniture)
 	furniture.rebuilt.connect(_collect_lights)
-	furniture.setup(DecorCatalog.HOME, DecorGrid.for_home(), HomeRoom.Z + 1, HomeRoom.Z + 1)
+	var grid := DecorGrid.for_home()
+	# KE8b: pieces that no longer fit the room (a save merged from another device) go to the Lager.
+	if DecorStation.can_decorate(self):
+		DecorState.fit_space(DecorState.HOME, grid)
+	furniture.setup(DecorCatalog.HOME, grid, HomeRoom.Z + 1, HomeRoom.Z + 1)
 
 
 func _place_decor_station() -> void:
@@ -223,6 +301,7 @@ func _place_decor_station() -> void:
 	decor_station.position = HomeLayout.to_world(HomeLayout.DECOR_STATION_AT)
 	add_child(decor_station)
 	SortLift.lift(decor_station)
+	decor_station.set_attention(DecorStation.can_decorate(self) and not AccountSeen.has_seen(OPENED_ID))
 	decor_station.used.connect(open_decor_editor)
 
 
@@ -327,10 +406,31 @@ func get_goal() -> Control:
 	return _goal if _goal != null and is_instance_valid(_goal) and not _goal.is_queued_for_deletion() else null
 
 
+## One light shaft per window (HomeMoonBeam), under the furniture.
+func _add_beams() -> void:
+	beams.clear()
+	for col in HomeLayout.WINDOW_COLS:
+		var beam := HomeMoonBeam.create(col)
+		beam.position *= HomeLayout.SCALE
+		beam.scale = Vector2.ONE * HomeLayout.SCALE
+		add_child(beam)
+		beam.set_night(night)
+		beams.append(beam)
+		if col == HomeWindow.middle_col():
+			moon_beam = beam
+
+
+## A floor light under every window in the colour of the time of day ("moon": the middle one).
 func _add_lights() -> void:
-	var moon_colour := HomeLayout.SUN_COLOR.lerp(HomeLayout.MOON_COLOR, night)
-	lights[&"moon"] = _light("MoonLight", HomeLayout.MOON_FLOOR_AT, moon_colour,
-		HomeLayout.MOON_RADIUS_TILES, HomeLayout.MOON_INTENSITY, 0.0, HomeLayout.MOON_FLOOR_AT)
+	window_lights.clear()
+	var colour := HomeLayout.window_light_color(night)
+	var intensity := lerpf(HomeLayout.SUN_INTENSITY, HomeLayout.MOON_INTENSITY, night)
+	for col in HomeLayout.WINDOW_COLS:
+		var at := HomeLayout.window_light_point(col)
+		var light := _light("WindowLight%d" % col, at, colour, HomeLayout.MOON_RADIUS_TILES, intensity, 0.0, at)
+		window_lights.append(light)
+		if col == HomeWindow.middle_col():
+			lights[&"moon"] = light
 	_collect_lights()
 
 

@@ -78,7 +78,7 @@ func test_migrate_reports_source_version() -> void:
 	config.set_value("progress", "permanent_gold", 5)
 	assert_eq(SaveManager.migrate(config), 1)
 	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
-	assert_eq(SaveManager.SAVE_VERSION, 6)
+	assert_eq(SaveManager.SAVE_VERSION, 7, "KE8b: v7 lays the smaller home out anew")
 	assert_eq(config.get_value("progress", "permanent_crystals"), 0)
 	assert_eq(config.get_value("progress", "permanent_gold"), 5)
 

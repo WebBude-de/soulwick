@@ -1,12 +1,15 @@
 extends GutTest
-## Save format v6 (WK5, WK7, D-059): decoration. One check per field ([decor_owned], [decor_placed]
+## Save format v6/v7 (WK5, WK7, KE8b, D-059): decoration. One check per field ([decor_owned], [decor_placed]
 ## village and home, [decor] home_wall and home_floor), the migration v5 -> v6 (the home gets the
 ## starter set, owned; nothing else changes; *.v5.bak), real older files (v2 legacy, v4), invalid
-## entries, and DecorState (buy, place, move, put away, surfaces, snapshot). Uses a test save only.
+## entries, and DecorState (buy, place, move, put away, surfaces, snapshot). KE8b (v7): the home
+## shrank to 11×7, v6 -> v7 lays its furniture out anew without losing a piece (*.v6.bak, a v6
+## fixture). Uses a test save only.
 
 const TEST_PATH := "user://test_save_decor.cfg"
 const FIXTURE_V2_LEGACY := "res://tests/fixtures/save_v2_legacy.cfg"
 const FIXTURE_V4_REAL := "res://tests/fixtures/save_v4_real.cfg"
+const FIXTURE_V6_HOME := "res://tests/fixtures/save_v6_home_test.cfg"
 const WORLD_ID := "3f0c1d5e-8a2b-4c6d-9e1f-0a1b2c3d4e5f"
 
 var _old_path: String
@@ -29,7 +32,7 @@ func after_all() -> void:
 
 
 func _remove_files() -> void:
-	for suffix in ["", ".bak", ".v2.bak", ".v3.bak", ".v4.bak", ".v5.bak", ".prev.bak", ".tmp"]:
+	for suffix in ["", ".bak", ".v2.bak", ".v3.bak", ".v4.bak", ".v5.bak", ".v6.bak", ".prev.bak", ".tmp"]:
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_PATH + suffix))
 
 
@@ -52,9 +55,9 @@ func _v5(body := "") -> String:
 
 # --- Fresh world ---
 
-func test_version_is_6() -> void:
-	assert_eq(SaveManager.SAVE_VERSION, 6)
-	assert_eq(_saved().get_value("meta", "version"), 6)
+func test_version_is_7() -> void:
+	assert_eq(SaveManager.SAVE_VERSION, 7)
+	assert_eq(_saved().get_value("meta", "version"), 7)
 
 
 func test_a_fresh_world_has_the_furnished_home_and_a_bare_village() -> void:
@@ -131,7 +134,7 @@ func test_migrate_is_additive_and_keeps_existing_decoration() -> void:
 	var config := ConfigFile.new()
 	config.parse(_v5("[decor_owned]\nbush=2\n[decor_placed]\nhome=PackedStringArray(\"chest_cozy:2:3:0\")"))
 	assert_eq(SaveManager.migrate(config), 5)
-	assert_eq(config.get_value("meta", "version"), 6)
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
 	assert_eq(config.get_value("decor_placed", "home"), PackedStringArray(["chest_cozy:2:3:0"]), "an arrangement stays")
 	assert_eq(config.get_value("decor_owned", "bush"), 2)
 	assert_false(config.has_section_key("decor_owned", "bed_single_cozy"), "no starter set over a home that exists")
@@ -146,8 +149,8 @@ func test_real_v2_world_loads_with_the_starter_home() -> void:
 	assert_eq(SaveManager.get_permanent_crystals(), 6, "progress kept")
 	assert_eq(SaveManager.get_decor_placements(DecorState.HOME).size(), DecorState.STARTER_HOME.size())
 	var config := _saved()
-	assert_eq(config.get_value("meta", "version"), 6)
-	assert_eq(SaveManager.load_game(), OK, "the saved v6 file loads again")
+	assert_eq(config.get_value("meta", "version"), SaveManager.SAVE_VERSION)
+	assert_eq(SaveManager.load_game(), OK, "the saved file loads again")
 
 
 func test_real_v4_world_loads_with_the_starter_home() -> void:
@@ -155,6 +158,65 @@ func test_real_v4_world_loads_with_the_starter_home() -> void:
 	assert_eq(SaveManager.load_game(), OK)
 	assert_eq(SaveManager.get_permanent_gold(), 13)
 	assert_eq(DecorState.placements(DecorState.HOME).size(), DecorState.STARTER_HOME.size())
+
+
+# --- Migration v6 -> v7 (KE8b: the smaller home) ---
+
+func _v6(home: Array, owned := "") -> String:
+	var entries := PackedStringArray()
+	for entry: String in home:
+		entries.append("\"%s\"" % entry)
+	return "[meta]\nversion=6\n[progress]\npermanent_gold=500\n[world]\nid=\"%s\"\n[decor_owned]\n%s\n[decor_placed]\nhome=PackedStringArray(%s)\nvillage=PackedStringArray()\n" % [WORLD_ID, owned, ", ".join(entries)]
+
+
+func test_untouched_v6_home_becomes_the_new_starter_home() -> void:
+	_write(_v6(DecorState.STARTER_HOME_V6))
+	assert_eq(SaveManager.load_game(), OK)
+	assert_eq(SaveManager.get_decor_placements(DecorState.HOME), PackedStringArray(DecorState.STARTER_HOME))
+	assert_eq(DecorState.owned_count("clock_cozy"), 1, "the new starter pieces are owned")
+	assert_true(FileAccess.file_exists(TEST_PATH + ".v6.bak"), "the v6 file is kept once")
+	var grid := DecorGrid.for_home()
+	assert_eq(DecorState.fit_list(SaveManager.get_decor_placements(DecorState.HOME), grid)["stored"], PackedStringArray())
+
+
+func test_v6_pieces_outside_the_new_room_go_to_the_storage() -> void:
+	var home: Array = DecorState.STARTER_HOME_V6.duplicate()
+	home.erase("chest_cozy:5:6:0")
+	home.append("chest_cozy:7:5:0")
+	home.append("sofa_rustic:10:7:0")
+	_write(_v6(home, "sofa_rustic=1\nlantern_cozy=3"))
+	assert_eq(SaveManager.load_game(), OK)
+	var placed := SaveManager.get_decor_placements(DecorState.HOME)
+	assert_true(placed.has("chest_cozy:7:5:0"), "an own place that still fits stays")
+	assert_false(str(placed).contains("sofa_rustic"), "row 7 is gone: the sofa waits in the Lager")
+	assert_eq(DecorState.stored_count("sofa_rustic"), 1, "nothing is lost")
+	assert_eq(DecorState.stored_count("lantern_cozy"), 3, "the Lager stays")
+	assert_true(placed.has("bed_single_cozy:1:2:0"), "unmoved starter pieces go to their new places")
+	assert_true(placed.has("fireplace_cozy:8:2:0"))
+	assert_false(str(placed).contains("clock_cozy"), "an own arrangement is not filled up")
+	assert_eq(DecorState.stored_count("clock_cozy"), 1, "the new starter pieces wait in the Lager")
+	assert_eq(DecorState.fit_list(placed, DecorGrid.for_home())["stored"], PackedStringArray(), "everything that stands fits")
+
+
+func test_real_v6_home_fixture_loads_without_losing_a_piece() -> void:
+	var original := FileAccess.get_file_as_string(FIXTURE_V6_HOME)
+	assert_false(original.is_empty(), "fixture exists")
+	var before := ConfigFile.new()
+	assert_eq(before.parse(original), OK)
+	_write(original)
+	assert_eq(SaveManager.load_game(), OK)
+	for id in before.get_section_keys("decor_owned"):
+		assert_true(DecorCatalog.has_item(id), "fixture id %s exists" % id)
+		assert_gte(DecorState.owned_count(id), int(before.get_value("decor_owned", id)), "%s still owned" % id)
+	assert_eq(DecorState.stored_count("sofa_rustic"), 1, "out of the room: Lager")
+	assert_eq(DecorState.stored_count("picture_flint_rustic"), 1, "beyond the back wall: Lager")
+	assert_true(SaveManager.get_decor_placements(DecorState.HOME).has("lantern_cozy:2:6:0"), "fits: stays")
+	assert_eq(SaveManager.get_decor_placements(DecorState.VILLAGE), PackedStringArray(["bush:2:3:0"]), "the village is untouched")
+	assert_eq(DecorState.surface_style(DecorState.SETTING_WALL), "rustic")
+	assert_eq(SaveManager.get_permanent_gold(), 13, "progress kept")
+	assert_true(FileAccess.file_exists(TEST_PATH + ".v6.bak"))
+	assert_eq(_saved().get_value("meta", "version"), 7)
+	assert_eq(SaveManager.load_game(), OK, "the saved v7 file loads again")
 
 
 func test_invalid_entries_are_dropped_and_owned_never_below_placed() -> void:

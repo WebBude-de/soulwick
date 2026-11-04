@@ -2135,6 +2135,17 @@ Beispiel gemäß GDD: `45` Schild + angeforderte `20` → **57,5** Schild, nicht
 - **Trennen** je Anbieter; der alte Verknüpfungscode (D-121) kommt nicht ins Panel, die Browser-Anmeldung ersetzt ihn (Backlog: Code verdecken oder abschaffen).
 - **Abmelden:** kommt mit KF6b (geteilte PCs).
 
+### D-228 – Zuhause klein und lebendig (KE8b)
+
+- **Status:** VERBINDLICH (Claude, delegiert durch D-224) · Zahlen **TESTWERT** · **Datum:** 2026-11-04
+- **Anlass:** Playtest 04.11.2026: Zuhause „viel zu groß, leere Fläche, Tür unten sieht komisch aus, draußen immer Nacht, einrichten geht nicht“.
+- **Raum:** 11×7 Kacheln (5 Bodenreihen) statt 15×9; Kamera bleibt beim Dorf-Zoom 1,15, der Raum steht mittig im Dunkeln. Möbelmaßstab bleibt. Startmöblierung 16 Teile.
+- **Fenster:** drei in der Rückwand (Spalten 2, 5, 7). Blick und Licht folgen `VillageDaylight` (Tag unter 0,3, Dämmerung unter 0,75, sonst Nacht), geprüft alle 20 s; am Tag warm und hell statt Nachtblau.
+- **Tür:** offene Türöffnung in der vorderen Wand mit Fußmatte; die vordere Wand liegt über Möbeln der untersten Reihe.
+- **Einrichten:** Katalog-Pult links der Tür mit Pfeil bis zum ersten Öffnen und eigenem Flint-Hinweis (nicht mehr nur am Ende der Altar-Tour).
+- **Spielstand v7:** ordnet das Zuhause neu ein; unbewegte Startmöbel ziehen um, eigene behalten ihr Feld, wenn es passt, sonst ins Lager; nichts geht verloren, einmal `*.v6.bak`.
+- **Ergänzt:** D-205, D-226.
+
 ## 8. Vorlagen für spätere Entscheidungen
 
 Neue Einträge sollten im gleichen Format dokumentiert werden:
